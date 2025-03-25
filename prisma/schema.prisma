@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tienda {
+  id        String           @id @default(uuid())
+  nombre    String           @unique
+  usuarios  Usuario[]
+  productos ProductoTienda[]
+  ventas    Venta[] // Relación inversa con Venta
+}
+
+model Categoria {
+  id        String     @id @default(uuid())
+  nombre    String     @unique
+  color     String // Hexadecimal para identificar visualmente
+  productos Producto[]
+}
+
+model Producto {
+  id              String           @id @default(uuid())
+  nombre          String           @unique
+  descripcion     String
+  categoria       Categoria        @relation(fields: [categoriaId], references: [id])
+  categoriaId     String
+  productosTienda ProductoTienda[]
+}
+
+model ProductoTienda {
+  id         String          @id @default(uuid())
+  tienda     Tienda          @relation(fields: [tiendaId], references: [id])
+  tiendaId   String
+  producto   Producto        @relation(fields: [productoId], references: [id])
+  productoId String
+  precio     Float
+  existencia Int
+  ventas     VentaProducto[] // Relación inversa con VentaProducto
+}
+
+model Usuario {
+  id        String  @id @default(uuid())
+  nombre    String
+  email     String  @unique
+  password  String
+  rol       String  @default("vendedor") // "admin" o "vendedor"
+  tiendaId  String?
+  tienda    Tienda? @relation(fields: [tiendaId], references: [id])
+}
+
+model Venta {
+  id        String          @id @default(uuid())
+  createdAt DateTime        @default(now())
+  productos VentaProducto[]
+  total     Float
+  tienda    Tienda          @relation(fields: [tiendaId], references: [id])
+  tiendaId  String
+}
+
+model VentaProducto {
+  id               String         @id @default(uuid())
+  venta            Venta          @relation(fields: [ventaId], references: [id])
+  ventaId          String
+  producto         ProductoTienda @relation(fields: [productoTiendaId], references: [id])
+  productoTiendaId String
+  cantidad         Int
+}
