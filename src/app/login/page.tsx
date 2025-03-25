@@ -5,9 +5,10 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { TextField, Button, Box, Typography, Container, Card, CardContent } from "@mui/material";
 
+
 export default function LoginPage() {
   const router = useRouter();
-  const [credentials, setCredentials] = useState({ email: "", password: "" });
+  const [credentials, setCredentials] = useState({ usuario: "", password: "" });
   const [error, setError] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -20,14 +21,19 @@ export default function LoginPage() {
 
     const result = await signIn("credentials", {
       redirect: false,
-      email: credentials.email,
+      usuario: credentials.usuario,
       password: credentials.password,
     });
 
     if (result?.error) {
       setError("Credenciales inválidas");
     } else {
-      router.push("/"); // Redirige a la página principal
+      // Mostrar selector de tiendas
+      console.log(result);
+      
+      
+      
+      //router.push("/"); // Redirige a la página principal
     }
   };
 
@@ -50,11 +56,11 @@ export default function LoginPage() {
             <Box mb={2}>
               <TextField
                 fullWidth
-                label="Correo electrónico"
-                name="email"
-                type="email"
+                label="Nombre usuario"
+                name="usuario"
+                type="text"
                 variant="outlined"
-                value={credentials.email}
+                value={credentials.usuario}
                 onChange={handleChange}
                 required
               />

@@ -15,9 +15,10 @@ import {
   ListItemButton,
   ListItemIcon,
   Divider,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { useRouter } from "next/navigation";
 import SupervisedUserCircleIcon from '@mui/icons-material/SupervisedUserCircle';
 import StoreIcon from '@mui/icons-material/Store';
 import CategoryIcon from '@mui/icons-material/Category';
@@ -25,6 +26,9 @@ import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import CancelPresentationIcon from '@mui/icons-material/CancelPresentation';
 import GridViewIcon from '@mui/icons-material/GridView';
+// import { signOut } from "next-auth/react";
+import { useAppContext } from "@/context/AppContext";
+import { AccountCircle } from "@mui/icons-material";
 
 const configurationMenuItems = [
   { label: "Usuarios", path: "/configuracion/usuarios", icon: SupervisedUserCircleIcon },
@@ -40,11 +44,15 @@ const menuItems = [
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
+  const { user, isAuth, handleLogout, goToLogin, gotToPath } = useAppContext();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
-  const handleLogout = () => {
-    // Aquí puedes limpiar el estado de autenticación y redirigir al login
-    router.push("/login");
+  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
   };
 
   return (
@@ -52,32 +60,62 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Barra superior */}
       <AppBar position="static">
         <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            onClick={() => setOpen(true)}
-          >
-            <MenuIcon />
-          </IconButton>
+          {isAuth &&
+            <IconButton
+              edge="start"
+              color="inherit"
+              aria-label="menu"
+              onClick={() => setOpen(true)}
+            >
+              <MenuIcon />
+            </IconButton>
+          }
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Cuadre de Caja
           </Typography>
-          <Button color="inherit" onClick={handleLogout}>
-            Cerrar Sesión
-          </Button>
+          
+          { isAuth && user ?
+             <div>
+              <Typography variant="h5">{user.usuario}</Typography>
+              <IconButton
+                size="large"
+                aria-label="account of current user"
+                aria-controls="menu-appbar"
+                aria-haspopup="true"
+                onClick={handleMenu}
+                color="inherit"
+              >
+                <AccountCircle />
+              </IconButton>
+              <Menu
+                id="menu-appbar"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                keepMounted
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+              >
+                <MenuItem onClick={handleLogout}>Cerrar seción</MenuItem>
+              </Menu>
+            </div>  : 
+            <Button color="inherit" onClick={goToLogin}>
+              Entrar
+            </Button>
+          }
         </Toolbar>
       </AppBar>
 
+      { isAuth && 
+      <>
       {/* Menú lateral */}
       <Drawer anchor="left" open={open} onClose={() => setOpen(false)}>
-        {/* <List>
-          {menuItems.map((item) => (
-            <ListItem key={item.label} onClick={() => router.push(item.path)}>
-              <ListItemText primary={item.label} />
-            </ListItem>
-          ))}
-        </List> */}
         <Box
           sx={{ width: 250 }}
           role="presentation"
@@ -86,7 +124,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <List>
             {configurationMenuItems.map((item, index) => (
               <ListItem key={item.label} disablePadding>
-                <ListItemButton onClick={() => router.push(item.path)}>
+                <ListItemButton onClick={() => gotToPath(item.path)}>
                   <ListItemIcon>
                     <item.icon />
                   </ListItemIcon>
@@ -99,7 +137,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <List>
             {menuItems.map((item, index) => (
               <ListItem key={item.label} disablePadding>
-                <ListItemButton onClick={() => router.push(item.path)}>
+                <ListItemButton onClick={() => gotToPath(item.path)}>
                   <ListItemIcon>
                     <item.icon />
                   </ListItemIcon>
@@ -110,6 +148,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </List>
         </Box>
       </Drawer>
+      </>
+      }
+      
 
       {/* Contenido dinámico */}
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>

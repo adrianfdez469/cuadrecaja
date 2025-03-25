@@ -8,16 +8,21 @@ export const authOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        usuario: {label: "Usuario", type: "text"}, 
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Debe ingresar email y contraseña");
+        if (!credentials?.usuario || !credentials?.password) {
+          throw new Error("Debe ingresar usuario y contraseña");
         }
 
         const user = await prisma.usuario.findUnique({
-          where: { email: credentials.email },
+          where: { usuario: credentials.usuario },
+          include: {
+            tiendas: {
+              include: { tienda: true },
+            },
+          },
         });
 
         if (!user) throw new Error("Usuario no encontrado");
@@ -25,7 +30,16 @@ export const authOptions = {
         const passwordMatch = await bcrypt.compare(credentials.password, user.password);
         if (!passwordMatch) throw new Error("Contraseña incorrecta");
 
-        return { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol };
+        return { 
+          id: user.id, 
+          usuario: user.usuario, 
+          nombre: user.nombre, 
+          rol: user.rol, 
+          tiendas: user.tiendas.map((ut) => ({
+            id: ut.tienda.id,
+            nombre: ut.tienda.nombre,
+          }))
+        };
       },
     }),
   ],
@@ -34,6 +48,8 @@ export const authOptions = {
       if (user) {
         token.id = user.id;
         token.rol = user.rol;
+        token.tiendas = user.tiendas;
+        token.tiendaActual = user.tiendas.length === 1 ? user.tiendas[0] : null;
       }
       return token;
     },
@@ -41,6 +57,8 @@ export const authOptions = {
       if (session.user) {
         session.user.id = token.id;
         session.user.rol = token.rol;
+        session.user.tiendas = token.tiendas;
+        session.user.tiendaActual = token.tiendaActual;
       }
       return session;
     },

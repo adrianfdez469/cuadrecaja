@@ -8,15 +8,26 @@ export async function GET() {
     const tiendas = await prisma.tienda.findMany({
       include: {
         usuarios: {
-          select: {
-            id: true,
-            nombre: true,
-          },
-        },
+           select: {
+            usuario: {
+              select: {
+                id: true,
+                nombre: true,
+                usuario: true,
+                rol: true
+              }
+            }
+          }
+        }
       },
     });
+    console.log(tiendas);
+    const tiendasFormateadas = tiendas.map(tienda => ({
+      ...tienda,
+      usuarios: tienda.usuarios.map(u => u.usuario)
+    }));
     
-    return NextResponse.json(tiendas);
+    return NextResponse.json(tiendasFormateadas);
   } catch (error) {
     return NextResponse.json(
       { error: "Error al obtener tiendas" },
@@ -25,7 +36,7 @@ export async function GET() {
   }
 }
 
-// Crear una nueva categoría
+// Crear una nueva tienda
 export async function POST(request: Request) {
   try {
     if (!(await isAdmin())) {
@@ -36,14 +47,20 @@ export async function POST(request: Request) {
     }
 
     const { nombre, idusuarios } = await request.json();
+    console.log(idusuarios);
+    
     const newTienda = await prisma.tienda.create({
       data: {
         nombre,
         usuarios: {
-          connect: idusuarios.map((id:string) => ({id: id})),
+          create: idusuarios.map((usuarioId: string) => ({
+            usuario: { connect: { id: usuarioId } },
+          })),
         },
-      },
+      }
     });
+
+
     return NextResponse.json(newTienda, { status: 201 });
   } catch (error) {
     console.log(error);

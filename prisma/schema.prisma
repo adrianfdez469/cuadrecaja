@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,65 +7,98 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Representa una tienda. Puede tener múltiples usuarios y productos asociados.
 model Tienda {
-  id        String           @id @default(uuid())
-  nombre    String           @unique
-  usuarios  Usuario[]
-  productos ProductoTienda[]
-  ventas    Venta[] // Relación inversa con Venta
+  id         String           @id @default(uuid())
+  nombre     String           @unique // Nombre único de la tienda
+  usuarios   UsuarioTienda[]  // Relación con la tabla intermedia UsuarioTienda
+  productos  ProductoTienda[] // Relación con los productos que vende la tienda
+  ventas     Venta[]          // Relación con las ventas realizadas en la tienda
+  cierres    CierrePeriodo[]
 }
 
+// Representa un usuario que puede estar vinculado a múltiples tiendas.
+model Usuario {
+  id         String           @id @default(uuid())
+  nombre     String
+  usuario    String           @unique // Nombre de usuario único
+  password   String
+  rol        String           @default("vendedor") // Rol del usuario en el sistema
+  tiendas    UsuarioTienda[]  // Relación con la tabla intermedia UsuarioTienda
+  ventas     Venta[]          // Un usuario puede realizar múltiples ventas
+}
+
+// Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.
+model UsuarioTienda {
+  id        String  @id @default(uuid())
+  usuario   Usuario @relation(fields: [usuarioId], references: [id]) // Usuario asociado
+  usuarioId String
+  tienda    Tienda  @relation(fields: [tiendaId], references: [id])  // Tienda asociada
+  tiendaId  String
+
+  @@unique([usuarioId, tiendaId]) // Garantiza que un usuario no se duplique en una tienda
+}
+
+// Representa una categoría de productos (ej. Electrónica, Ropa, etc.)
 model Categoria {
   id        String     @id @default(uuid())
-  nombre    String     @unique
-  color     String // Hexadecimal para identificar visualmente
-  productos Producto[]
+  nombre    String     @unique // Nombre único de la categoría
+  color     String     // Color representativo (hexadecimal)
+  productos Producto[] // Relación con los productos de esta categoría
 }
 
+// Representa un producto genérico, sin relación con tiendas específicas.
 model Producto {
   id              String           @id @default(uuid())
-  nombre          String           @unique
+  nombre          String           @unique // Nombre único del producto
   descripcion     String
-  categoria       Categoria        @relation(fields: [categoriaId], references: [id])
+  categoria       Categoria        @relation(fields: [categoriaId], references: [id]) // Categoría a la que pertenece
   categoriaId     String
-  productosTienda ProductoTienda[]
+  productosTienda ProductoTienda[] // Relación con las tiendas donde se vende
 }
 
+// Tabla intermedia para manejar la relación muchos a muchos entre Producto y Tienda.
 model ProductoTienda {
   id         String          @id @default(uuid())
-  tienda     Tienda          @relation(fields: [tiendaId], references: [id])
+  tienda     Tienda          @relation(fields: [tiendaId], references: [id]) // Tienda donde se vende el producto
   tiendaId   String
-  producto   Producto        @relation(fields: [productoId], references: [id])
+  producto   Producto        @relation(fields: [productoId], references: [id]) // Producto asociado
   productoId String
-  precio     Float
-  existencia Int
-  ventas     VentaProducto[] // Relación inversa con VentaProducto
+  precio     Float           // Precio de venta en esa tienda específica
+  existencia Int             // Cantidad en stock en esa tienda
+  ventas     VentaProducto[] // Relación con la tabla intermedia de ventas
 }
 
-model Usuario {
-  id        String  @id @default(uuid())
-  nombre    String
-  email     String  @unique
-  password  String
-  rol       String  @default("vendedor") // "admin" o "vendedor"
-  tiendaId  String?
-  tienda    Tienda? @relation(fields: [tiendaId], references: [id])
-}
-
+// Representa una venta realizada en una tienda.
 model Venta {
-  id        String          @id @default(uuid())
-  createdAt DateTime        @default(now())
-  productos VentaProducto[]
-  total     Float
-  tienda    Tienda          @relation(fields: [tiendaId], references: [id])
-  tiendaId  String
+  id               String          @id @default(uuid())
+  createdAt        DateTime        @default(now()) // Fecha de creación
+  productos        VentaProducto[] // Productos vendidos en esta venta
+  total            Float           // Monto total de la venta
+  tienda           Tienda          @relation(fields: [tiendaId], references: [id]) // Tienda donde se realizó la venta
+  tiendaId         String
+  usuario          Usuario        @relation(fields: [usuarioId], references: [id])
+  usuarioId        String
+  cierrePeriodo    CierrePeriodo? @relation(fields: [cierrePeriodoId], references: [id])
+  cierrePeriodoId  String?
 }
 
+// Tabla intermedia para manejar la relación muchos a muchos entre Venta y ProductoTienda.
 model VentaProducto {
   id               String         @id @default(uuid())
-  venta            Venta          @relation(fields: [ventaId], references: [id])
+  venta            Venta          @relation(fields: [ventaId], references: [id]) // Venta asociada
   ventaId          String
-  producto         ProductoTienda @relation(fields: [productoTiendaId], references: [id])
+  producto         ProductoTienda @relation(fields: [productoTiendaId], references: [id]) // Producto vendido
   productoTiendaId String
-  cantidad         Int
+  cantidad         Int            // Cantidad de productos vendidos en la transacción
+}
+
+// Representa un período de ventas cerrado con una fecha de inicio y una fecha de cierre.
+model CierrePeriodo {
+  id          String    @id @default(uuid())
+  fechaInicio DateTime
+  fechaFin    DateTime?
+  tienda      Tienda    @relation(fields: [tiendaId], references: [id])
+  tiendaId    String
+  ventas      Venta[]
 }

@@ -25,8 +25,19 @@ import {
 import { Delete, Edit } from "@mui/icons-material";
 import axios from "axios";
 
+interface IUsario {
+  id: string;
+  nombre: string;
+  usuario: string;
+} 
+interface ITienda {
+  id: string;
+  nombre: string;
+  usuarios: IUsario[]
+}
+
 export default function Tiendas() {
-  const [tiendas, setTiendas] = useState([]);
+  const [tiendas, setTiendas] = useState<ITienda[]>([]);
   const [usuarios, setUsuarios] = useState([]);
   const [open, setOpen] = useState(false);
   const [selectedTienda, setSelectedTienda] = useState(null);
@@ -40,6 +51,8 @@ export default function Tiendas() {
 
   const fetchTiendas = async () => {
     const response = await axios.get("/api/tiendas");
+    console.log(response.data);
+    
     setTiendas(response.data);
   };
 

@@ -22,19 +22,19 @@ async function initializeUsers() {
 
     // Verificar si los usuarios ya existen
     const existingAlejandro = await prisma.usuario.findUnique({
-      where: { email: "alejandro@cierre.caja.com" },
+      where: { usuario: "alejandro" },
     });
 
     const existingOlguita = await prisma.usuario.findUnique({
-      where: { email: "olguita@cierre.caja.com" },
+      where: { usuario: "olguita" },
     });
 
     const existingDisly = await prisma.usuario.findUnique({
-      where: { email: "disly@cierre.caja.com" },
+      where: { usuario: "disly" },
     });
 
     const existingYoendry = await prisma.usuario.findUnique({
-      where: { email: "yoendry@cierre.caja.com" },
+      where: { usuario: "yoendry" },
     });
 
     // Si el admin no existe, crearlo
@@ -42,7 +42,7 @@ async function initializeUsers() {
       console.log("🔹 Creando usuario alejandro...");
       await prisma.usuario.create({
         data: {
-          email: "alejandro@cierre.caja.com",
+          usuario: "alejandro",
           password: await bcrypt.hash(alePassword, 10), // Cambia esto por una mejor clave en producción
           rol: "ADMIN",
           nombre: "Alejandro"
@@ -58,7 +58,7 @@ async function initializeUsers() {
       console.log("🔹 Creando usuario olguita...");
       await prisma.usuario.create({
         data: {
-          email: "olguita@cierre.caja.com",
+          usuario: "olguita",
           password: await bcrypt.hash(olquitaPassword, 10), // Cambia esto en producción
           rol: "VENDEDOR",
           nombre: "olguita"
@@ -74,7 +74,7 @@ async function initializeUsers() {
       console.log("🔹 Creando usuario disly...");
       await prisma.usuario.create({
         data: {
-          email: "disly@cierre.caja.com",
+          usuario: "disly",
           password: await bcrypt.hash(dislyPassword, 10), // Cambia esto en producción
           rol: "VENDEDOR",
           nombre: "disly"
@@ -90,7 +90,7 @@ async function initializeUsers() {
       console.log("🔹 Creando usuario yoendry...");
       await prisma.usuario.create({
         data: {
-          email: "yoendry@cierre.caja.com",
+          usuario: "yoendry",
           password: await bcrypt.hash(yoendryPassword, 10), // Cambia esto en producción
           rol: "VENDEDOR",
           nombre: "yoendry"

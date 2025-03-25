@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; // Asegúrate de tener la configuración de Prisma en `lib/prisma.ts`
 import { isAdmin } from "@/utils/auth";
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    
     if (!(await isAdmin())) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
     }
-    
+
     const { id } = params;
 
     if (!id) {
@@ -21,44 +26,103 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     });
 
     if (!tienda) {
-      return NextResponse.json({ error: "Tienda no encontrada" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 }
+      );
     }
 
+    
+    const tiendaConRelaciones = await prisma.tienda.findUnique({
+      where: { id },
+      include: {
+        productos: { take: 1 },  // Solo necesitamos saber si existe al menos 1
+        ventas: { take: 1 },     // Igual para ventas
+      },
+    });
+
+    // 2. Si tiene productos o ventas, lanzar error
+    if (tiendaConRelaciones?.productos.length || tiendaConRelaciones?.ventas.length) {
+      return NextResponse.json(
+        { error: "No se puede eliminar la tienda porque tiene productos o ventas asociadas" },
+        { status: 500 }
+      );
+    }
+
+    // 3. Si solo tiene usuarios (o ninguno), proceder a eliminar:
+    //    - Primero las relaciones usuario-tienda
+    await prisma.usuarioTienda.deleteMany({
+      where: { tiendaId: id },
+    });
+
+    //    - Luego la tienda
     await prisma.tienda.delete({
       where: { id },
     });
 
-    return NextResponse.json({ message: "Tienda eliminada correctamente" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Tienda eliminada correctamente" },
+      { status: 200 }
+    );
   } catch (error) {
-    return NextResponse.json({ error: "Error al eliminar la tienda" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al eliminar la tienda" },
+      { status: 500 }
+    );
   }
 }
 
 // Actualizar una tienda existente
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-
     const { id } = params;
 
     if (!(await isAdmin())) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
     }
 
     const { nombre, idusuarios } = await req.json();
+
     const updatedTienda = await prisma.tienda.update({
       where: { id },
       data: {
         nombre,
         usuarios: {
-          set: idusuarios.map((id:string) => ({id: id})),
+          // Primero desconectamos todos los usuarios existentes
+          deleteMany: {},
+          // Luego conectamos los nuevos usuarios
+          create: idusuarios.map((usuarioId: string) => ({
+            usuario: { connect: { id: usuarioId } },
+          })),
         },
       },
-      include: { usuarios: true },
+      include: {
+        usuarios: {
+          include: {
+            usuario: true,
+          },
+        },
+      },
     });
+
+    // Formatear la respuesta
+    const tiendaFormateada = {
+      ...updatedTienda,
+      usuarios: updatedTienda.usuarios.map((u) => u.usuario),
+    };
     return NextResponse.json(updatedTienda);
   } catch (error) {
-    console.log(error)
-    
-    return NextResponse.json({ error: "Error al actualizar la tienda" }, { status: 500 });
+    console.log(error);
+
+    return NextResponse.json(
+      { error: "Error al actualizar la tienda" },
+      { status: 500 }
+    );
   }
 }
