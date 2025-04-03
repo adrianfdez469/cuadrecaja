@@ -14,12 +14,13 @@ import {
   TableHead,
   TableRow,
   CircularProgress,
+  Button,
 } from "@mui/material";
-import { fetchCierreData } from "@/services/cierreService";
-import { fetchLastPeriod } from "@/services/periodService";
+import { closePeriod, fetchCierreData, openPeriod } from "@/services/cierrePeriodService";
+import { fetchLastPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import { ICierreData } from "@/types/ICierre";
+import { ICierreData, ICierrePeriodo } from "@/types/ICierre";
 
 interface ITotales {
   totalCantidad: number;
@@ -31,6 +32,7 @@ const CierreCajaPage = () => {
   const [tab, setTab] = useState(0);
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
+  const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>()
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [cierreData, setCierreData] = useState<ICierreData>();
   const [totales, setTotales] = useState<ITotales>({
@@ -43,40 +45,52 @@ const CierreCajaPage = () => {
     setTab(newValue);
   };
 
-  useEffect(() => {
-    setIsDataLoading(true);
-    (async () => {
-      try {
-        const tiendaId = user.tiendaActual.id;
-        const currentPeriod = await fetchLastPeriod(tiendaId);
-        const data = await fetchCierreData(tiendaId, currentPeriod.id);
-        console.log(data);
-        setCierreData(data);
+  const handleCerrarCaja = async () => {
+    // Se debe crear un nuevo cierre
 
-        setTotales({
-          totalCantidad: data.productosVendidos.reduce(
-            (acc, p) => acc + p.cantidad,
-            0
-          ),
-          totalGanancia: data.productosVendidos.reduce(
-            (acc, p) => acc + p.ganancia,
-            0
-          ),
-          totalMonto: data.productosVendidos.reduce(
-            (acc, p) => acc + p.total,
-            0
-          ),
-        });
-      } catch (error) {
-        console.log(error);
-        showMessage(
-          "Error: los datos de cierre no puediron ser cargados",
-          "error"
-        );
-      }
-    })().finally(() => {
+    const tiendaId = user.tiendaActual.id;
+    await closePeriod(tiendaId, currentPeriod.id);
+    const newPeriod = await openPeriod(tiendaId);
+    await getInitData();
+  };
+
+  const getInitData = async () => {
+    setIsDataLoading(true);
+    try {
+      const tiendaId = user.tiendaActual.id;
+      const currentPeriod = await fetchLastPeriod(tiendaId);
+      setCurrentPeriod(currentPeriod);
+      const data = await fetchCierreData(tiendaId, currentPeriod.id);
+      console.log(data);
+      setCierreData(data);
+
+      setTotales({
+        totalCantidad: data.productosVendidos.reduce(
+          (acc, p) => acc + p.cantidad,
+          0
+        ),
+        totalGanancia: data.productosVendidos.reduce(
+          (acc, p) => acc + p.ganancia,
+          0
+        ),
+        totalMonto: data.productosVendidos.reduce(
+          (acc, p) => acc + p.total,
+          0
+        ),
+      });
+    } catch (error) {
+      console.log(error);
+      showMessage(
+        "Error: los datos de cierre no puediron ser cargados",
+        "error"
+      );
+    } finally {
       setIsDataLoading(false);
-    });
+    }
+  };
+
+  useEffect(() => {
+    getInitData();
   }, []);
 
   if (loadingContext || isDataLoading) {
@@ -86,16 +100,20 @@ const CierreCajaPage = () => {
     return (
       <Box p={3}>
         <Typography variant="h4" gutterBottom>
-          Cierre de Caja
+          Cierre de Caja: Corte {new Date(currentPeriod.fechaInicio).toLocaleDateString()}
         </Typography>
   
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Typography variant="h6">
-            Total Venta: ${cierreData.totalVentas.toFixed(2)}
-          </Typography>
-          <Typography variant="h6">
-            Total Ganancia: ${cierreData.totalGanancia.toFixed(2)}
-          </Typography>
+        <Paper sx={{ p: 2, mb: 2, display: 'flex', flexDirection: 'row', justifyContent:'space-between'}}>
+          <Box>
+            <Typography variant="h6">
+              Total Venta: ${cierreData.totalVentas.toFixed(2)}
+            </Typography>
+            <Typography variant="h6">
+              Total Ganancia: ${cierreData.totalGanancia.toFixed(2)}
+            </Typography>
+          </Box>
+
+          <Button variant="contained" onClick={handleCerrarCaja}>Cerrar caja</Button>
         </Paper>
   
         <Tabs
@@ -116,7 +134,7 @@ const CierreCajaPage = () => {
                   <TableCell>Costo</TableCell>
                   <TableCell>Precio</TableCell>
                   <TableCell>Cantidad</TableCell>
-                  <TableCell>Monto</TableCell>
+                  <TableCell>Venta</TableCell>
                   <TableCell>Ganancia</TableCell>
                 </TableRow>
               </TableHead>

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// 3. Cerrar el período actual y abrir uno nuevo
+// Cerrar el período actual y abrir uno nuevo
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { tiendaId: string } }
+  { params }: { params: { tiendaId: string, cierreId: string } }
 ) {
   try {
-    const { tiendaId } = params;
+    const { tiendaId, cierreId } = await params;
 
     if (!tiendaId) {
       return NextResponse.json(
@@ -28,12 +28,18 @@ export async function PUT(
         { error: "Ultimo período está cerrado actualmente" },
         { status: 400 }
       );
-    } else {
+    } else if(ultimoPeriodo.id !== cierreId) {
+      return NextResponse.json(
+        { error: "Ultimo período no coincide con el periodo que proporcionas. Recargue el sisema." },
+        { status: 400 }
+      );
+    } else{
       // Cerrar el periodo
       const periodoCerrado = await prisma.cierrePeriodo.update({
         where: { id: ultimoPeriodo.id },
         data: { fechaFin: new Date() },
       });
+
       return NextResponse.json(periodoCerrado, { status: 201 });
     }
   } catch (error) {

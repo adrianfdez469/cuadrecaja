@@ -31,9 +31,8 @@ import CartDrawer from "./components/CartDrawer";
 import PaymentModal from "./components/PaymentModal";
 import {
   fetchLastPeriod,
-  openPeriod,
-  closePeriod,
-} from "@/services/periodService";
+  openPeriod
+} from "@/services/cierrePeriodService";
 import { ICierrePeriodo } from "@/types/ICierre";
 import useConfirmDialog from "@/components/confirmDialog";
 import { createSell } from "@/services/sellService";
@@ -64,12 +63,12 @@ export default function POSInterface() {
             const lastPeriod = await fetchLastPeriod(user.tiendaActual.id);
             let message = "";
 
-            if (!lastPeriod) {
+            if (!lastPeriod || lastPeriod.fechaFin) {
               message =
-                "No existe un período anterior. Desea abrir un nuevo período?";
+                "No existe un período abierto. Desea abrir un nuevo período?";
             }
 
-            if (!lastPeriod) {
+            if (!lastPeriod || lastPeriod.fechaFin) {
               // Mostrar un mensaje
 
               confirmDialog(

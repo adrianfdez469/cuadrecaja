@@ -7,7 +7,6 @@ export async function PUT(
   { params }: { params: { tiendaId: string } }
 ) {
   try {
-    console.log(params);
     
     const { tiendaId } = await params;
 

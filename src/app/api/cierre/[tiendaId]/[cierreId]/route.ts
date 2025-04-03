@@ -80,9 +80,6 @@ export async function GET(req: NextRequest, { params }: { params: { cierreId } }
       totalGanancia,
       productosVendidos: Object.values(productosVendidos),
     };
-    console.log(cierreData);
-    
-
     return NextResponse.json(cierreData);
   } catch (error) {
     console.log(error);
