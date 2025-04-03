@@ -19,10 +19,7 @@ import { ICategory } from "@/types/ICategorias";
 import { IProductoTienda } from "@/types/IProducto";
 import CartDrawer from "./components/CartDrawer";
 import PaymentModal from "./components/PaymentModal";
-import {
-  fetchLastPeriod,
-  openPeriod
-} from "@/services/cierrePeriodService";
+import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { ICierrePeriodo } from "@/types/ICierre";
 import useConfirmDialog from "@/components/confirmDialog";
 import { createSell } from "@/services/sellService";
@@ -121,7 +118,7 @@ export default function POSInterface() {
       setCategories(categorias);
     } catch (error) {
       console.error("Error al obtener productos", error);
-      showMessage("Error al obtener productos", 'error');
+      showMessage("Error al obtener productos", "error");
     } finally {
       setLoading(false);
     }
@@ -148,18 +145,30 @@ export default function POSInterface() {
     setOpenCart(true);
   };
 
-  const handleMakePay = async (total: number, totalCash: number, totalTransfer: number) => {
-    if(total <= totalCash + totalTransfer) {
+  const handleMakePay = async (
+    total: number,
+    totalCash: number,
+    totalTransfer: number
+  ) => {
+    if (total <= totalCash + totalTransfer) {
       const tiendaId = user.tiendaActual.id;
       const cierreId = periodo.id;
 
       const data = cart.map((prod) => {
         return {
-          cantidad: prod.quantity, 
-          productoTiendaId: prod.productoTiendaId
-        }
-      })
-      await createSell(tiendaId, cierreId, user.id, total, totalCash, totalTransfer, data);
+          cantidad: prod.quantity,
+          productoTiendaId: prod.productoTiendaId,
+        };
+      });
+      await createSell(
+        tiendaId,
+        cierreId,
+        user.id,
+        total,
+        totalCash,
+        totalTransfer,
+        data
+      );
       clearCart();
       setPaymentDialog(false);
       setOpenCart(false);
@@ -175,7 +184,7 @@ export default function POSInterface() {
   return (
     <>
       {periodo && periodo.fechaInicio && (
-        <Typography variant="body1" bgcolor={'aliceblue'}>
+        <Typography variant="body1" bgcolor={"aliceblue"}>
           Corte: {new Date(periodo.fechaInicio).toLocaleDateString()}
         </Typography>
       )}
@@ -249,7 +258,9 @@ export default function POSInterface() {
           open={paymentDialog}
           onClose={() => setPaymentDialog(false)}
           total={total}
-          makePay={(total: number, totalchash: number, totaltransfer: number) => handleMakePay(total, totalchash, totaltransfer)}
+          makePay={(total: number, totalchash: number, totaltransfer: number) =>
+            handleMakePay(total, totalchash, totaltransfer)
+          }
         />
 
         {cart.length > 0 && !openCart && (
