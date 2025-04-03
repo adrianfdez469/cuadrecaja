@@ -5,7 +5,7 @@ import theme from "@/theme";
 import Layout from "@/components/Layout";
 import { AppProvider } from "@/context/AppContext";
 import { SessionProvider } from "next-auth/react";
-import { useSession } from "next-auth/react";
+import { MessageProvider } from "@/context/MessageContext";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,8 +14,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SessionProvider>
           <AppProvider>
             <ThemeProvider theme={theme}>
-              <CssBaseline />
-              <Layout>{children}</Layout>
+              <MessageProvider>
+                <CssBaseline />
+                <Layout>{children}</Layout>
+              </MessageProvider>
             </ThemeProvider>
           </AppProvider>
         </SessionProvider>

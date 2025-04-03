@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; // Asegúrate de tener la configuración de Prisma en `lib/prisma.ts`
-import { isAdmin } from "@/utils/auth";
+import { hasAdminPrivileges } from "@/utils/auth";
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
 
-    if (!(await isAdmin())) {
+    if (!(await hasAdminPrivileges())) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
     }
 
@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const { id } = params;
 
-    if (!(await isAdmin())) {
+    if (!(await hasAdminPrivileges())) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
     }
 

@@ -7,14 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Representa una tienda. Puede tener múltiples usuarios y productos asociados.
+// Representa un local. Puede tener múltiples usuarios y productos asociados.
 model Tienda {
   id         String           @id @default(uuid())
-  nombre     String           @unique // Nombre único de la tienda
+  nombre     String           @unique // Nombre único del local
   usuarios   UsuarioTienda[]  // Relación con la tabla intermedia UsuarioTienda
-  productos  ProductoTienda[] // Relación con los productos que vende la tienda
-  ventas     Venta[]          // Relación con las ventas realizadas en la tienda
+  productos  ProductoTienda[] // Relación con los productos que vende el local
+  ventas     Venta[]          // Relación con las ventas realizadas en el local
   cierres    CierrePeriodo[]
+  tipo       String           @default("vendedor") // Rol del usuario en el sistema
 }
 
 // Representa un usuario que puede estar vinculado a múltiples tiendas.
@@ -64,9 +65,12 @@ model ProductoTienda {
   tiendaId   String
   producto   Producto        @relation(fields: [productoId], references: [id]) // Producto asociado
   productoId String
+  costo      Float           // Costo del producto en esa tienda
   precio     Float           // Precio de venta en esa tienda específica
   existencia Int             // Cantidad en stock en esa tienda
   ventas     VentaProducto[] // Relación con la tabla intermedia de ventas
+
+  @@unique([tiendaId, productoId]) // Agrega esta línea
 }
 
 // Representa una venta realizada en una tienda.
@@ -75,10 +79,13 @@ model Venta {
   createdAt        DateTime        @default(now()) // Fecha de creación
   productos        VentaProducto[] // Productos vendidos en esta venta
   total            Float           // Monto total de la venta
+  totalcash        Float           // Monto total en efectivo
+  totaltransfer    Float           // Monto en transferencia
   tienda           Tienda          @relation(fields: [tiendaId], references: [id]) // Tienda donde se realizó la venta
   tiendaId         String
   usuario          Usuario        @relation(fields: [usuarioId], references: [id])
   usuarioId        String
+  
   cierrePeriodo    CierrePeriodo? @relation(fields: [cierrePeriodoId], references: [id])
   cierrePeriodoId  String?
 }

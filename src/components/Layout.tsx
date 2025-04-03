@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { PropsWithChildren, useEffect, useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -38,11 +38,11 @@ const configurationMenuItems = [
 ];
 const menuItems = [
   { label: "Cantidades y Precios", path: "/cantidades_precios", icon: GridViewIcon },
-  { label: "Ventas", path: "/ventas", icon: StorefrontIcon },
+  { label: "Pos de ventas", path: "/pos", icon: StorefrontIcon },
   { label: "Cierre", path: "/cierre", icon: CancelPresentationIcon },
 ];
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+const Layout:React.FC<PropsWithChildren> = ({children}) => {
   const [open, setOpen] = useState(false);
   const { user, isAuth, handleLogout, goToLogin, gotToPath } = useAppContext();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -54,6 +54,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const handleClose = () => {
     setAnchorEl(null);
   };
+
+  useEffect(() => {
+    console.log('useEffect => user', user);
+  }, [user])
+  console.log('render layout');
+  
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -75,8 +81,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Typography>
           
           { isAuth && user ?
-             <div>
-              <Typography variant="h5">{user.usuario}</Typography>
+             <Box display={'flex'} flexDirection={'row'} alignItems={'center'}>
+              
+              <Box display={'flex'} flexDirection={'column'} alignItems={'end'} sx={{mr: 2}}>
+                <Typography variant="body1">{user.nombre || user.usuario} </Typography>
+                <Typography variant="body2">{user.tiendaActual?.nombre} </Typography>
+              </Box>
+
+              
               <IconButton
                 size="large"
                 aria-label="account of current user"
@@ -104,7 +116,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               >
                 <MenuItem onClick={handleLogout}>Cerrar seción</MenuItem>
               </Menu>
-            </div>  : 
+            </Box>  : 
             <Button color="inherit" onClick={goToLogin}>
               Entrar
             </Button>
@@ -159,3 +171,5 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     </Box>
   );
 }
+
+export default Layout;

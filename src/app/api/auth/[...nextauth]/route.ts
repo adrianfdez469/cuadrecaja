@@ -48,6 +48,8 @@ export const authOptions = {
       if (user) {
         token.id = user.id;
         token.rol = user.rol;
+        token.usuario = user.usuario;
+        token.nombre = user.nombre;
         token.tiendas = user.tiendas;
         token.tiendaActual = user.tiendas.length === 1 ? user.tiendas[0] : null;
       }
@@ -57,6 +59,8 @@ export const authOptions = {
       if (session.user) {
         session.user.id = token.id;
         session.user.rol = token.rol;
+        session.user.usuario = token.usuario;
+        session.user.nombre = token.nombre;
         session.user.tiendas = token.tiendas;
         session.user.tiendaActual = token.tiendaActual;
       }

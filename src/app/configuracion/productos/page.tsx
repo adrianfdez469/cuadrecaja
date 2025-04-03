@@ -14,7 +14,6 @@ import {
   IconButton,
   Typography
 } from "@mui/material";
-import { Categoria } from './types/categorias';
 import { ProductoForm } from './components/product.form'
 import { Delete, Edit, Padding } from "@mui/icons-material";
 

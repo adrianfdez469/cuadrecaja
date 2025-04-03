@@ -9,7 +9,6 @@ export const fetchCategories = async () => {
 
 export const createCategory = async (nombre: string, color: string) => {
   console.log(nombre, color);
-  
   const response = await axios.post(API_URL, { nombre, color });
   return response.data;
 };

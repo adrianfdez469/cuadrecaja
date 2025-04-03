@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isAdmin } from "@/utils/auth";
+import { hasAdminPrivileges } from "@/utils/auth";
 
 // Obtener todos los productos (Accesible para todos)
 export async function GET() {
@@ -27,7 +27,7 @@ export async function GET() {
 // Crear un nuevo producto (Solo Admin)
 export async function POST(req: Request) {
   try {
-    if (!(await isAdmin())) {
+    if (!(await hasAdminPrivileges())) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
         { status: 403 }

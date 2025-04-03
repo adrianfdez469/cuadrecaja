@@ -1,3 +1,4 @@
+import { roles } from "@/utils/roles";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import dotenv from 'dotenv';
@@ -11,94 +12,32 @@ async function initializeUsers() {
     console.log("⏳ Verificando usuarios en la base de datos...");
 
     // Obtener las contraseñas desde las variables de entorno
-    const alePassword = process.env.ALE_PASSWORD;
-    const olquitaPassword = process.env.OLGRUITA_PASSWORD;
-    const dislyPassword = process.env.DISLY_PASSWORD;
-    const yoendryPassword = process.env.YOENDRY_PASSWORD;
+    const superAdminPass = process.env.SUPER_ADMIN_PASS;
+    
 
-    if (!alePassword || !olquitaPassword || !dislyPassword || !yoendryPassword) {
-      throw new Error("⚠️ Las contraseñas no están definidas en el archivo .env");
+    if (!superAdminPass) {
+      throw new Error("⚠️ La contraseña de superadmin no está definida en el archivo .env");
     }
 
-    // Verificar si los usuarios ya existen
-    const existingAlejandro = await prisma.usuario.findUnique({
-      where: { usuario: "alejandro" },
+    // Verificar si el usuario ya existe
+    const existingSuperAdmin = await prisma.usuario.findUnique({
+      where: { usuario: "superadmin" },
     });
 
-    const existingOlguita = await prisma.usuario.findUnique({
-      where: { usuario: "olguita" },
-    });
-
-    const existingDisly = await prisma.usuario.findUnique({
-      where: { usuario: "disly" },
-    });
-
-    const existingYoendry = await prisma.usuario.findUnique({
-      where: { usuario: "yoendry" },
-    });
-
-    // Si el admin no existe, crearlo
-    if (!existingAlejandro) {
-      console.log("🔹 Creando usuario alejandro...");
+    // Si el superadmin no existe, crearlo
+    if (!existingSuperAdmin) {
+      console.log("🔹 Creando usuario superadmin...");
       await prisma.usuario.create({
         data: {
-          usuario: "alejandro",
-          password: await bcrypt.hash(alePassword, 10), // Cambia esto por una mejor clave en producción
-          rol: "ADMIN",
-          nombre: "Alejandro"
+          usuario: "superadmin",
+          password: await bcrypt.hash(superAdminPass, 10),
+          rol: roles.SUPER_ADMIN,
+          nombre: "Super Admin"
         },
       });
-      console.log("✅ Usuario alejandro creado.");
+      console.log("✅ Usuario superadmin creado.");
     } else {
-      console.log("⚠️ El usuario alejandro ya existe.");
-    }
-
-    // Si el vendedor olguita no existe, crearlo
-    if (!existingOlguita) {
-      console.log("🔹 Creando usuario olguita...");
-      await prisma.usuario.create({
-        data: {
-          usuario: "olguita",
-          password: await bcrypt.hash(olquitaPassword, 10), // Cambia esto en producción
-          rol: "VENDEDOR",
-          nombre: "olguita"
-        },
-      });
-      console.log("✅ Usuario olguita creado.");
-    } else {
-      console.log("⚠️ El usuario olguita ya existe.");
-    }
-
-    // Si el vendedor disly no existe, crearlo
-    if (!existingDisly) {
-      console.log("🔹 Creando usuario disly...");
-      await prisma.usuario.create({
-        data: {
-          usuario: "disly",
-          password: await bcrypt.hash(dislyPassword, 10), // Cambia esto en producción
-          rol: "VENDEDOR",
-          nombre: "disly"
-        },
-      });
-      console.log("✅ Usuario disly creado.");
-    } else {
-      console.log("⚠️ El usuario disly ya existe.");
-    }
-
-    // Si el vendedor yoendry no existe, crearlo
-    if (!existingYoendry) {
-      console.log("🔹 Creando usuario yoendry...");
-      await prisma.usuario.create({
-        data: {
-          usuario: "yoendry",
-          password: await bcrypt.hash(yoendryPassword, 10), // Cambia esto en producción
-          rol: "VENDEDOR",
-          nombre: "yoendry"
-        },
-      });
-      console.log("✅ Usuario yoendry creado.");
-    } else {
-      console.log("⚠️ El usuario yoendry ya existe.");
+      console.log("⚠️ El usuario superadmin ya existe.");
     }
 
   } catch (error) {

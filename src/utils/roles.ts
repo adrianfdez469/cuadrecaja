@@ -1,0 +1,1 @@
+export const roles = {SUPER_ADMIN: "SUPER_ADMIN", ADMIN:"ADMIN", VENDEDOR: "VENDEDOR"};
