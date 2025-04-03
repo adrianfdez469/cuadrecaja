@@ -1,5 +1,3 @@
-import { IVenta } from "@/types/IVenta";
-
 interface IProductoVenta {
   productoTiendaId: string;
   cantidad: number;

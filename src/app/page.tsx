@@ -1,7 +1,7 @@
 "use client"
 
 import { useAppContext } from "@/context/AppContext";
-import { Button, Card, CardContent, CircularProgress, FormControlLabel, Radio, RadioGroup, Typography } from "@mui/material";
+import { Card, CardContent, CircularProgress, FormControlLabel, Radio, RadioGroup, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 
 const HomePage = () => {
@@ -13,14 +13,6 @@ const HomePage = () => {
   const handleSelectTienda = (value) => {
     setSelectedTienda(value);
     const tiendaSeleccionada = user.tiendas.find(t => t.id === value);
-    if (tiendaSeleccionada) {
-      // setear la tienda en el contexto
-      seleccionarTiendaActual(tiendaSeleccionada);
-    }
-  }
-
-  const handleConfirm = () => {
-    const tiendaSeleccionada = user.tiendas.find(t => t.id === selectedTienda);
     if (tiendaSeleccionada) {
       // setear la tienda en el contexto
       seleccionarTiendaActual(tiendaSeleccionada);

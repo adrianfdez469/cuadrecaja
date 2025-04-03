@@ -4,7 +4,7 @@ export interface ICierrePeriodo {
   id: string;
   fechaInicio: Date;
   fechaFin?: Date;
-  tiendaId: String;
+  tiendaId: string;
   tienda: ILocal;
 }
 

@@ -4,7 +4,7 @@ import { hasAdminPrivileges } from "@/utils/auth";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     if (!(await hasAdminPrivileges())) {
@@ -14,7 +14,7 @@ export async function DELETE(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
@@ -65,6 +65,7 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error) {
+    console.log(error);
     return NextResponse.json(
       { error: "Error al eliminar la tienda" },
       { status: 500 }
@@ -75,7 +76,7 @@ export async function DELETE(
 // Actualizar una tienda existente
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;

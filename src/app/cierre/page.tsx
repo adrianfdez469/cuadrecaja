@@ -50,7 +50,7 @@ const CierreCajaPage = () => {
 
     const tiendaId = user.tiendaActual.id;
     await closePeriod(tiendaId, currentPeriod.id);
-    const newPeriod = await openPeriod(tiendaId);
+    await openPeriod(tiendaId);
     await getInitData();
   };
 

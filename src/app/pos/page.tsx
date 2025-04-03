@@ -2,22 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
-  Button,
-  Drawer,
-  Dialog,
-  TextField,
-  Grid,
   Typography,
   CircularProgress,
   Box,
   Paper,
-  Card,
-  CardContent,
-  Modal,
-  CardMedia,
   Fab,
   Badge,
-  Accordion,
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { useCartStore } from "@/store/cartStore";
@@ -104,18 +94,6 @@ export default function POSInterface() {
     })();
   }, [loadingContext]);
 
-  useEffect(() => {
-    if (periodo) {
-      fetchProductosAndCategories().catch((error) => {
-        console.log(error);
-        showMessage(
-          "Ocurrió un error intentando cargar las categorías",
-          "error"
-        );
-      });
-    }
-  }, [periodo]);
-
   const fetchProductosAndCategories = async () => {
     try {
       setLoading(true);
@@ -134,7 +112,7 @@ export default function POSInterface() {
       );
 
       const categorias = Object.values(
-        response.data.reduce((acum, prod, index) => {
+        response.data.reduce((acum, prod) => {
           acum[prod.categoria.id] = prod.categoria;
           return acum;
         }, {}) as ICategory[]
@@ -149,6 +127,20 @@ export default function POSInterface() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (periodo) {
+      fetchProductosAndCategories().catch((error) => {
+        console.log(error);
+        showMessage(
+          "Ocurrió un error intentando cargar las categorías",
+          "error"
+        );
+      });
+    }
+  }, [periodo]);
+
+  
 
   const handleOpenProducts = (category: ICategory) => {
     setSelectedCategory(category);

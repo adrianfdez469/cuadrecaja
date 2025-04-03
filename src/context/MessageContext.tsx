@@ -1,9 +1,5 @@
 "use client"; // Asegúrate de que AppProvider sea un Client Component
 
-interface IAction {
-  text: string;
-}
-
 import { createContext, useContext, useState } from "react";
 import { Alert, AlertColor, Snackbar } from "@mui/material";
 

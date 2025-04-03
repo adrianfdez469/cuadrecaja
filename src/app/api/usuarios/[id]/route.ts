@@ -1,16 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/utils/auth";
+import { getSession, hasPermision } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
-import { hasPermision } from "../route";
+
 
 // Eliminar un usuario (DELETE)
 export async function DELETE(
-  req: NextRequest, { params }: { params: { id: string } }
+  req: NextRequest, { params }: { params: Promise<{ id: string }> }
 ) {
   try {
 
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
@@ -58,13 +58,13 @@ export async function DELETE(
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     
     const session = await getSession();
     const userId = session?.user?.id;
 
-    const { id } = params;
+    const { id } = await params;
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }

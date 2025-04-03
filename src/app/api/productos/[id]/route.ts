@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; // Asegúrate de tener la configuración de Prisma en `lib/prisma.ts`
 import { hasAdminPrivileges } from "@/utils/auth";
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     
     if (!(await hasAdminPrivileges())) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
     }
     
-    const { id } = params;
+    const { id } = await params;
 
 
     if (!id) {
@@ -31,15 +31,16 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     return NextResponse.json({ message: "Producto eliminado correctamente" }, { status: 200 });
   } catch (error) {
+    console.log(error);
     return NextResponse.json({ error: "Error al eliminar el producto" }, { status: 500 });
   }
 }
 
 // Actualizar un producto existente
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
 
-    const { id } = params;
+    const { id } = await params;
 
     if (!(await hasAdminPrivileges())) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });

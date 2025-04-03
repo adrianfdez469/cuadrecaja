@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ICierreData } from "@/types/ICierre";
 
 
-export async function GET(req: NextRequest, { params }: { params: { cierreId } }): Promise<NextResponse<ICierreData|{error: string}>> {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ cierreId }> }): Promise<NextResponse<ICierreData|{error: string}>> {
   try {
     
     const { cierreId } = await params;
@@ -40,6 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: { cierreId } }
     // Calcular totales
     let totalVentas = 0;
     let totalGanancia = 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const productosVendidos: Record<string, any> = {};
   
     cierre.ventas.forEach((venta) => {

@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 
 // Obtener todos los productos (Accesible para todos)
-export async function GET(req: NextRequest, { params }: { params: { tiendaId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ tiendaId: string }> }) {
   try {
     const { tiendaId } = await params;
 
@@ -29,6 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: { tiendaId: st
     })
     return NextResponse.json(productosTienda);
   } catch (error) {
+    console.log(error);
     return NextResponse.json(
       { error: "Error al obtener productos" },
       { status: 500 }
@@ -36,9 +37,9 @@ export async function GET(req: NextRequest, { params }: { params: { tiendaId: st
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { tiendaId: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId: string }> }) {
   try {
-    const { tiendaId } = params;
+    const { tiendaId } = await params;
     const { productos } = await req.json();
 
     console.log(tiendaId);

@@ -20,7 +20,3 @@ export interface IProductoTienda {
   categoria: ICategory;
   productoTiendaId: string;
 }
-
-export interface IProductoVenta {
-
-}

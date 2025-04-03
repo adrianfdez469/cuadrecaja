@@ -28,6 +28,7 @@ export async function GET() {
     
     return NextResponse.json(tiendasFormateadas);
   } catch (error) {
+    console.log(error);
     return NextResponse.json(
       { error: "Error al obtener tiendas" },
       { status: 500 }

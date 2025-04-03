@@ -1,29 +1,40 @@
 "use client"; // Asegúrate de que AppProvider sea un Client Component
 
-import { signIn, useSession } from "next-auth/react";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { ILocal } from "@/types/ILocal";
 
 const AppContext = createContext(null);
+
+interface ISessionUser {
+  id: string; 
+  usuario: string; 
+  rol: string;
+  nombre: string;
+  tiendaActual: ILocal; 
+  tiendas: ILocal[]; 
+}
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
 
   const router = useRouter();
   
-  const [user, setUser] = useState<{id: string, usuario: string, rol: string, nombre: string, tiendaActual: any, tiendas: any[] }>();
+  const [user, setUser] = useState<ISessionUser>();
   const [isAuth, setIsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
 
   
 
-  const seleccionarTiendaActual = (tienda: any) => {
+  const seleccionarTiendaActual = (tienda: ILocal) => {
     setUser({...user, tiendaActual: tienda});
   } 
 
   useEffect(() => {
     if(status === 'authenticated') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setUser((session as any).user);
       setIsAuth(true);
       setLoading(false);

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // 2. Crear una venta
-export async function POST(req: NextRequest, { params }: { params: { tiendaId: string, cierreId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
   try {
     
     const { cierreId, tiendaId } = await params;
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: { tiendaId: s
         totaltransfer,
         cierrePeriodoId: periodoActual?.id || null,
         productos: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           create: productos.map((p: any) => ({
             productoTiendaId: p.productoTiendaId,
             cantidad: p.cantidad,
@@ -40,6 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: { tiendaId: s
 
     return NextResponse.json(venta, { status: 201 });
   } catch (error) {
+    console.log(error);
+    
     return NextResponse.json({ error: "Error al crear la venta" }, { status: 500 });
   }
 }

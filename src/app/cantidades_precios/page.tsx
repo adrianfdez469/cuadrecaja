@@ -11,14 +11,18 @@ const PreciosCantidades = () => {
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [idDirtyProds, setIdDirtyProds] = useState([]);
-  const { user } = useAppContext()
+  const { user, loadingContext } = useAppContext()
   const { showMessage } = useMessageContext();
 
   const fetchProductos = async () => {
     try {
-      const response = await axios.get(`/api/productos_tienda/${user.tiendaActual.id}`);
-      setProductos(response.data);
-      setIdDirtyProds([]);
+      console.log('user', user);
+      
+      if(user?.tiendaActual?.id){
+        const response = await axios.get(`/api/productos_tienda/${user.tiendaActual.id}`);
+        setProductos(response.data);
+        setIdDirtyProds([]);
+      }
     } catch (error) {
       console.error("Error al obtener productos", error);
     } finally {
@@ -27,12 +31,13 @@ const PreciosCantidades = () => {
   };
 
   useEffect(() => {
-    fetchProductos();
-  }, []);
+    if(!loadingContext) {
+      fetchProductos();
+    }
+  }, [loadingContext]);
 
   const handleProcessRowUpdate = (
     newRow: GridRowModel,
-    oldRow: GridRowModel
   ) => {
 
     setIdDirtyProds((state) => [...state, newRow.id]);
@@ -82,7 +87,7 @@ const PreciosCantidades = () => {
 
   return (
     <Box>
-      {loading ? (
+      {(loading || loadingContext) ? (
         <CircularProgress />
       ) : (
         <>
@@ -141,31 +146,8 @@ const PreciosCantidades = () => {
                 flex: 1,
                 editable: true,
                 type: "number",
-              },
-              {
-                field: "estado",
-                type: "actions",
-                headerName: "",
-                width: 100,
-                cellClassName: "actions",
-                getActions: ({ id }) => {
-                  return [
-                    // <GridActionsCellItem
-                    //   icon={<EditIcon />}
-                    //   label="Edit"
-                    //   className="textPrimary"
-                    //   onClick={handleEditClick(id)}
-                    //   color="inherit"
-                    // />,
-                    // <GridActionsCellItem
-                    //   icon={<DeleteIcon />}
-                    //   label="Delete"
-                    //   onClick={handleDeleteClick(id)}
-                    //   color="inherit"
-                    // />,
-                  ];
-                },
-              },
+              }
+              
             ]}
             disableRowSelectionOnClick
             processRowUpdate={handleProcessRowUpdate} // Manejo correcto de cambios

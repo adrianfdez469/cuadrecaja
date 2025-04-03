@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 // Cerrar el período actual y abrir uno nuevo
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { tiendaId: string, cierreId: string } }
+  { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }
 ) {
   try {
     const { tiendaId, cierreId } = await params;
@@ -43,6 +43,7 @@ export async function PUT(
       return NextResponse.json(periodoCerrado, { status: 201 });
     }
   } catch (error) {
+    console.log(error);
     return NextResponse.json(
       { error: "Error al cerrar el período" },
       { status: 500 }

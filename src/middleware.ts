@@ -11,8 +11,13 @@ export const config = {
   matcher: [
     "/api/categorias/:path*",
     "/api/productos/:path*",
+    "/api/productos_tienda/:path*",
     "/api/tiendas/:path*",
+    "/api/cierre/:path*",
+    "/api/usuarios/:path*",
+    "/api/venta/:path*",
 
-    "/dashboard/:path*" // Solo protege rutas dentro de `/dashboard`
+
+    "/:path*" // Solo protege rutas dentro de `/dashboard`
   ],
 };

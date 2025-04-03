@@ -5,22 +5,20 @@ import {
   Box,
   Grid,
   Card,
-  CardMedia,
   CardContent,
   Typography,
   Modal,
   Dialog,
   Button,
-  TextField,
   Fab,
 } from "@mui/material";
 import CloseIcon from '@mui/icons-material/Close';
 import { useCartStore } from "@/store/cartStore";
-import { IProducto, IProductoTienda } from "@/types/IProducto";
+import { IProductoTienda } from "@/types/IProducto";
 
 export function ProductModal({ open, closeModal, products, category, openCart }) {
   const [selectedProduct, setSelectedProduct] = useState<IProductoTienda>(null);
-  const { items: cart, addToCart, updateQuantity } = useCartStore();
+  const { addToCart } = useCartStore();
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {

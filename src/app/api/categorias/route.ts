@@ -8,6 +8,7 @@ export async function GET() {
     const categorias = await prisma.categoria.findMany();
     return NextResponse.json(categorias);
   } catch (error) {
+    console.log(error);
     return NextResponse.json({ error: 'Error al obtener categorías' }, { status: 500 });
   }
 }
@@ -27,7 +28,6 @@ export async function POST(request: Request) {
     return NextResponse.json(newCategory, { status: 201 });
   } catch (error) {
     console.log(error);
-    
     return NextResponse.json({ error: 'Error al crear categoría' }, { status: 500 });
   }
 }

@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Dialog,
   DialogActions,
   DialogContent,
@@ -42,7 +40,7 @@ export default function Tiendas() {
   const [open, setOpen] = useState(false);
   const [selectedTienda, setSelectedTienda] = useState(null);
   const [nombre, setNombre] = useState("");
-  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState<IUsario[]>([]);
 
   useEffect(() => {
     fetchTiendas();
@@ -145,7 +143,7 @@ export default function Tiendas() {
             multiple
             fullWidth
             value={selectedUsers}
-            onChange={(e) => setSelectedUsers(e.target.value as any)}
+            onChange={(e) => setSelectedUsers(e.target.value as IUsario[])}
           >
             {usuarios.map((usuario) => (
               <MenuItem key={usuario.id} value={usuario.id}>{usuario.nombre}</MenuItem>

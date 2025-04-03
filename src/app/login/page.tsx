@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { TextField, Button, Box, Typography, Container, Card, CardContent } from "@mui/material";
 
 
 export default function LoginPage() {
-  const router = useRouter();
   const [credentials, setCredentials] = useState({ usuario: "", password: "" });
   const [error, setError] = useState("");
 

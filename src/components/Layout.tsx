@@ -134,7 +134,7 @@ const Layout:React.FC<PropsWithChildren> = ({children}) => {
           onClick={() => setOpen(false)}
         >
           <List>
-            {configurationMenuItems.map((item, index) => (
+            {configurationMenuItems.map((item) => (
               <ListItem key={item.label} disablePadding>
                 <ListItemButton onClick={() => gotToPath(item.path)}>
                   <ListItemIcon>
@@ -147,7 +147,7 @@ const Layout:React.FC<PropsWithChildren> = ({children}) => {
           </List>
           <Divider />
           <List>
-            {menuItems.map((item, index) => (
+            {menuItems.map((item) => (
               <ListItem key={item.label} disablePadding>
                 <ListItemButton onClick={() => gotToPath(item.path)}>
                   <ListItemIcon>

@@ -12,6 +12,8 @@ import {
 } from '@mui/material';
 import { Categoria } from '../types/categorias';
 
+const API_CATEGORIES = "/api/categorias";
+
 export const ProductoForm = ({ open, handleClose, handleSave }) => {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -19,7 +21,7 @@ export const ProductoForm = ({ open, handleClose, handleSave }) => {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
 
   useEffect(() => {
-    fetch("/api/categorias")
+    fetch(API_CATEGORIES)
       .then((res) => res.json())
       .then((data) => setCategorias(data));
   }, []);
