@@ -60,7 +60,6 @@ export default function POSInterface() {
 
             if (!lastPeriod || lastPeriod.fechaFin) {
               // Mostrar un mensaje
-
               confirmDialog(
                 message,
                 () => {
@@ -139,8 +138,6 @@ export default function POSInterface() {
       });
     }
   }, [periodo]);
-
-  
 
   const handleOpenProducts = (category: ICategory) => {
     setSelectedCategory(category);

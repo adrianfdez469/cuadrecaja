@@ -9,7 +9,6 @@ const HomePage = () => {
   const [selectedTienda, setSelectedTienda] = useState("");
   const { loadingContext, user, seleccionarTiendaActual } = useAppContext();
   
-  
   const handleSelectTienda = (value) => {
     setSelectedTienda(value);
     const tiendaSeleccionada = user.tiendas.find(t => t.id === value);
@@ -63,7 +62,6 @@ const HomePage = () => {
       </Card>
     );
   }
-
 }
 
 export default HomePage;
