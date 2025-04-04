@@ -1,11 +1,9 @@
 import { roles } from "@/utils/roles";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from '../src/lib/prisma';
 import bcrypt from "bcrypt";
 import dotenv from 'dotenv';
 
 dotenv.config();
-
-const prisma = new PrismaClient();
 
 async function initializeUsers() {
   try {
