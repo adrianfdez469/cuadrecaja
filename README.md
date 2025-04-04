@@ -39,3 +39,8 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - Correr scripts para crear usuarios ```npx tsx scripts/initUsers.ts``` si se usa ts-node entonces sería ```npx ts-node scripts/initUsers.ts
 ```
 
+
+Pasos para ejecutar el script de instalación:
+```npx tsx scripts/initUsers.ts```
+
+
