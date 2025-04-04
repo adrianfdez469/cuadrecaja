@@ -16,8 +16,6 @@ export const config = {
     "/api/cierre/:path*",
     "/api/usuarios/:path*",
     "/api/venta/:path*",
-
-
-    "/:path*" // Solo protege rutas dentro de `/dashboard`
+    "/((?!api/init-superadmin).*)", // Excluye esta ruta del middleware
   ],
 };
