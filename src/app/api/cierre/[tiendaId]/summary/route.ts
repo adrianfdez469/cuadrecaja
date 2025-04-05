@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import {  ICierrePeriodo, ISummaryCierre } from "@/types/ICierre";
+import { ISummaryCierre } from "@/types/ICierre";
 
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ tiendaId }> }): 
