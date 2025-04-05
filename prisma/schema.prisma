@@ -109,4 +109,14 @@ model CierrePeriodo {
   tienda      Tienda    @relation(fields: [tiendaId], references: [id])
   tiendaId    String
   ventas      Venta[]
+
+  // Campos denormalizados para resumen
+  totalVentas    Float     @default(0)
+  totalGanancia  Float     @default(0)
+  totalInversion Float     @default(0)
+
+  // Idices
+  @@index([fechaInicio])
+  @@index([fechaFin])
+  @@index([tiendaId])
 }

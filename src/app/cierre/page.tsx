@@ -5,8 +5,6 @@ import {
   Box,
   Typography,
   Paper,
-  Tab,
-  Tabs,
   Table,
   TableBody,
   TableCell,
@@ -29,7 +27,6 @@ interface ITotales {
 }
 
 const CierreCajaPage = () => {
-  const [tab, setTab] = useState(0);
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>()
@@ -40,10 +37,6 @@ const CierreCajaPage = () => {
     totalGanancia: 0,
     totalMonto: 0,
   });
-
-  const handleChangeTab = (event, newValue) => {
-    setTab(newValue);
-  };
 
   const handleCerrarCaja = async () => {
     // Se debe crear un nuevo cierre
@@ -116,51 +109,40 @@ const CierreCajaPage = () => {
           <Button variant="contained" onClick={handleCerrarCaja}>Cerrar caja</Button>
         </Paper>
   
-        <Tabs
-          value={tab}
-          onChange={handleChangeTab}
-          indicatorColor="primary"
-          textColor="primary"
-        >
-          <Tab label="Productos Vendidos" />
-        </Tabs>
-  
-        {tab === 0 && (
-          <TableContainer component={Paper} sx={{ mt: 2 }}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Producto</TableCell>
-                  <TableCell>Costo</TableCell>
-                  <TableCell>Precio</TableCell>
-                  <TableCell>Cantidad</TableCell>
-                  <TableCell>Venta</TableCell>
-                  <TableCell>Ganancia</TableCell>
+        <TableContainer component={Paper} sx={{ mt: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Producto</TableCell>
+                <TableCell>Costo</TableCell>
+                <TableCell>Precio</TableCell>
+                <TableCell>Cantidad</TableCell>
+                <TableCell>Venta</TableCell>
+                <TableCell>Ganancia</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {cierreData.productosVendidos.map((producto) => (
+                <TableRow key={producto.id}>
+                  <TableCell>{producto.nombre}</TableCell>
+                  <TableCell>${producto.costo.toFixed(2)}</TableCell>
+                  <TableCell>${producto.precio.toFixed(2)}</TableCell>
+                  <TableCell>{producto.cantidad}</TableCell>
+                  <TableCell>${producto.total?.toFixed(2)}</TableCell>
+                  <TableCell>${producto.ganancia.toFixed(2)}</TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {cierreData.productosVendidos.map((producto) => (
-                  <TableRow key={producto.id}>
-                    <TableCell>{producto.nombre}</TableCell>
-                    <TableCell>${producto.costo.toFixed(2)}</TableCell>
-                    <TableCell>${producto.precio.toFixed(2)}</TableCell>
-                    <TableCell>{producto.cantidad}</TableCell>
-                    <TableCell>${producto.total?.toFixed(2)}</TableCell>
-                    <TableCell>${producto.ganancia.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-                <TableRow sx={{ fontWeight: "bold", backgroundColor: "#f0f0f0" }}>
-                  <TableCell>Total</TableCell>
-                  <TableCell></TableCell>
-                  <TableCell></TableCell>
-                  <TableCell>{totales.totalCantidad}</TableCell>
-                  <TableCell>${totales.totalMonto.toFixed(2)}</TableCell>
-                  <TableCell>${totales.totalGanancia.toFixed(2)}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+              ))}
+              <TableRow sx={{ fontWeight: "bold", backgroundColor: "#f0f0f0" }}>
+                <TableCell>Total</TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell>{totales.totalCantidad}</TableCell>
+                <TableCell>${totales.totalMonto.toFixed(2)}</TableCell>
+                <TableCell>${totales.totalGanancia.toFixed(2)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Box>
     );
   }

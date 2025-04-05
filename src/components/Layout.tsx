@@ -26,7 +26,7 @@ import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import CancelPresentationIcon from '@mui/icons-material/CancelPresentation';
 import GridViewIcon from '@mui/icons-material/GridView';
-// import { signOut } from "next-auth/react";
+import SummarizeIcon from '@mui/icons-material/Summarize';
 import { useAppContext } from "@/context/AppContext";
 import { AccountCircle } from "@mui/icons-material";
 
@@ -40,6 +40,7 @@ const menuItems = [
   { label: "Cantidades y Precios", path: "/cantidades_precios", icon: GridViewIcon },
   { label: "Pos de ventas", path: "/pos", icon: StorefrontIcon },
   { label: "Cierre", path: "/cierre", icon: CancelPresentationIcon },
+  { label: "Resumen cierres", path: "/resumen_cierre", icon: SummarizeIcon},
 ];
 
 const Layout:React.FC<PropsWithChildren> = ({children}) => {

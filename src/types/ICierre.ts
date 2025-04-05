@@ -6,6 +6,9 @@ export interface ICierrePeriodo {
   fechaFin?: Date;
   tiendaId: string;
   tienda: ILocal;
+  totalVentas: number;
+  totalGanancia: number;
+  totalInversion: number;
 }
 
 interface ICierreProductoVendidos {
@@ -23,3 +26,13 @@ export interface ICierreData {
   totalVentas: number;
   totalGanancia: number;
 }
+
+export interface ISummaryCierre {
+  cierres: Omit<ICierrePeriodo, "tienda">[];
+  sumTotalGanancia: number;
+  sumTotalInversion: number;
+  sumTotalVentas: number;
+  totalItems: number;
+}
+
+

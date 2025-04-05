@@ -6,18 +6,26 @@ import Layout from "@/components/Layout";
 import { AppProvider } from "@/context/AppContext";
 import { SessionProvider } from "next-auth/react";
 import { MessageProvider } from "@/context/MessageContext";
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="es">
       <body>
         <SessionProvider>
           <AppProvider>
             <ThemeProvider theme={theme}>
-              <MessageProvider>
-                <CssBaseline />
-                <Layout>{children}</Layout>
-              </MessageProvider>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <MessageProvider>
+                  <CssBaseline />
+                  <Layout>{children}</Layout>
+                </MessageProvider>
+              </LocalizationProvider>
             </ThemeProvider>
           </AppProvider>
         </SessionProvider>
