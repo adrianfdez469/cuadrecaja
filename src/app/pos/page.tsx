@@ -102,9 +102,11 @@ export default function POSInterface() {
         }
       );
       setProducts(
-        response.data.sort((a, b) => {
-          return a.nombre.localeCompare(b.nombre);
-        })
+        response.data
+          .filter((prod) => prod.precio > 0)
+          .sort((a, b) => {
+            return a.nombre.localeCompare(b.nombre);
+          })
       );
 
       const categorias = Object.values(
