@@ -101,16 +101,16 @@ export default function POSInterface() {
           },
         }
       );
+      const prods = response.data.filter((prod) => prod.precio > 0);
+      
       setProducts(
-        response.data
-          .filter((prod) => prod.precio > 0)
-          .sort((a, b) => {
+        prods.sort((a, b) => {
             return a.nombre.localeCompare(b.nombre);
           })
       );
 
       const categorias = Object.values(
-        response.data.reduce((acum, prod) => {
+        prods.reduce((acum, prod) => {
           acum[prod.categoria.id] = prod.categoria;
           return acum;
         }, {}) as ICategory[]
