@@ -84,12 +84,12 @@ const PreciosCantidades = () => {
 
   };
 
+  if(loading || loadingContext) {
+    return <CircularProgress />;
+  }
+
   return (
-    <Box>
-      {(loading || loadingContext) ? (
-        <CircularProgress />
-      ) : (
-        <>
+        <Box p={0} display="flex" flexDirection="column" height="calc(100vh - 64px)">
           <Box
             display={"flex"}
             flexDirection={"row"}
@@ -151,9 +151,7 @@ const PreciosCantidades = () => {
             disableRowSelectionOnClick
             processRowUpdate={handleProcessRowUpdate} // Manejo correcto de cambios
           />
-        </>
-      )}
-    </Box>
+        </Box>
   );
 };
 
