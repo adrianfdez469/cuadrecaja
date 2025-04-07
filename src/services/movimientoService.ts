@@ -5,6 +5,8 @@ const API_URL = `/api/movimiento`;
 
 export const saveMovimiento = async (data: ICreateMovimientoDTO) => {
   // TODO: 
+  console.log(data);
+  
 }
 
 export const cretateBatchMovimientos = async (data: Pick<ICreateMovimientoFromProdDTO, "motivo"|"tiendaId"|"tipo"|"usuarioId">, items: Pick<ICreateMovimientoFromProdDTO, "productoId" | "cantidad">[]) => {

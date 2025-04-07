@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { FC, useState } from "react";
 import { Modal, Box, Typography, Button, FormControl, InputLabel, InputAdornment, OutlinedInput } from "@mui/material";
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
@@ -9,10 +9,10 @@ interface IProps {
   open: boolean;
   onClose: () => void;
   total: number;
-  makePay: () => Promise<void>
+  makePay: (total: number, totalchash: number, totaltransfer: number) => Promise<void>
 }
 
-const PaymentModal = ({ open, onClose, total, makePay }) => {
+const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
   
   const [cashReceived, setCashReceived] = useState(0);
   const [transferReceived, setTransferReceived] = useState(0);
@@ -101,10 +101,6 @@ const PaymentModal = ({ open, onClose, total, makePay }) => {
             />
           </FormControl>
 
-
-
-        
-        
 
         <Typography variant="h6" mt={2}>Total: ${total.toFixed(2)}</Typography>
         <Typography variant="h6" color="green" mt={1}>

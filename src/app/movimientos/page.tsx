@@ -46,6 +46,10 @@ export default function MovimientosPage() {
   useEffect(() => {
     (async () => {
       if(!loadingContext) {
+
+        setSkip(0);
+        setTake(20);
+
         const prods = await fetchProducts();
         setProductos(prods);
         setLoadingData(false);

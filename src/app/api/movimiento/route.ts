@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { IMovimiento } from "@/types/IMovimiento";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { MovimientoTipo } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -67,7 +66,7 @@ export async function POST(req: Request) {
 
     const { tipo, tiendaId, usuarioId } = data;
 
-    const transaction = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       for (const movimiento of items) {
         const {  productoId, cantidad } = movimiento;
   

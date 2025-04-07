@@ -11,7 +11,6 @@ import {
   IconButton,
   InputLabel,
   MenuItem,
-  OutlinedInput,
   Select,
   TextField,
 } from "@mui/material";
@@ -19,7 +18,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
 import { useMessageContext } from "@/context/MessageContext";
-import { cretateBatchMovimientos, saveMovimiento } from "@/services/movimientoService";
+import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
 import { ITipoMovimiento } from "@/types/IMovimiento";
 
@@ -106,6 +105,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
       fetchMovimientos();
       
     } catch (error) {
+      console.log(error);
       showMessage("No se pudo guardar el movimiento", "error");
     } finally {
       setSaving(false);
