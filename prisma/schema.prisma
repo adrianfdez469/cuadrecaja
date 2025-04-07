@@ -68,9 +68,9 @@ model ProductoTienda {
   tiendaId    String
   producto    Producto          @relation(fields: [productoId], references: [id]) // Producto asociado
   productoId  String
-  costo       Float // Costo del producto en esa tienda
-  precio      Float // Precio de venta en esa tienda específica
-  existencia  Int // Cantidad en stock en esa tienda
+  costo       Float             @default(0) // Costo del producto en esa tienda
+  precio      Float             @default(0) // Precio de venta en esa tienda específica
+  existencia  Int               @default(0)   // Cantidad en stock en esa tienda
   ventas      VentaProducto[] // Relación con la tabla intermedia de ventas
   movimientos MovimientoStock[] // Relacion con la tabla de movimientos
 

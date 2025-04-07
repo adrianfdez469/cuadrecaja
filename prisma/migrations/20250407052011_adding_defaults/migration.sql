@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "ProductoTienda" ALTER COLUMN "precio" SET DEFAULT 0,
+ALTER COLUMN "existencia" SET DEFAULT 0,
+ALTER COLUMN "costo" SET DEFAULT 0;

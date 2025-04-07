@@ -69,8 +69,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
         create: {
           tiendaId,
           productoId: producto.id,
-          precio: producto.precio,
-          costo: producto.costo,
+          precio: producto.precio || 0,
+          costo: producto.costo || 0,
           existencia: 0
         },
       })
