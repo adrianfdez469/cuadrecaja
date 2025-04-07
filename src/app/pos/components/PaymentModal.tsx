@@ -3,14 +3,45 @@ import { Modal, Box, Typography, Button, FormControl, InputLabel, InputAdornment
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { moneyRegex } from '../../../utils/regex'
+import { useMessageContext } from "@/context/MessageContext";
+
+interface IProps {
+  open: boolean;
+  onClose: () => void;
+  total: number;
+  makePay: () => Promise<void>
+}
+
 const PaymentModal = ({ open, onClose, total, makePay }) => {
   
   const [cashReceived, setCashReceived] = useState(0);
   const [transferReceived, setTransferReceived] = useState(0);
+  const [paying, setPaying] = useState(false);
+  const { showMessage } = useMessageContext();
 
-  const handlePayment = () => {
-    makePay(total, cashReceived, transferReceived);
+  const handlePayment = async () => {
+    try {
+      setPaying(true);
+      await makePay(total, cashReceived, transferReceived);
+      showMessage("El pago se realizó satisfactoriamente", "success")
+      handleClose();
+    } catch (error) {
+      console.log(error);
+      showMessage("Ocurrió un error al realizar el pago", "error");
+    } finally {
+      setPaying(false);
+    }
+    
+    
   };
+
+  const handleClose = () => {
+    if(!paying) {
+      setCashReceived(0);
+      setTransferReceived(0);
+      onClose()
+    }
+  }
 
   const validateMoneyInput = (money: string) => {
     return moneyRegex.test(money);
@@ -32,7 +63,7 @@ const PaymentModal = ({ open, onClose, total, makePay }) => {
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={handleClose}>
       <Box
         sx={{
           position: "absolute",
@@ -87,6 +118,8 @@ const PaymentModal = ({ open, onClose, total, makePay }) => {
           sx={{ mt: 2 }}
           onClick={handlePayment}
           disabled={cashReceived+transferReceived < total}
+          loading={paying}
+          loadingPosition="end"
         >
           Confirmar Pago
         </Button>

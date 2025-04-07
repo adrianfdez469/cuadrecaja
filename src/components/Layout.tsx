@@ -27,6 +27,7 @@ import StorefrontIcon from '@mui/icons-material/Storefront';
 import CancelPresentationIcon from '@mui/icons-material/CancelPresentation';
 import GridViewIcon from '@mui/icons-material/GridView';
 import SummarizeIcon from '@mui/icons-material/Summarize';
+import MoveUpIcon from '@mui/icons-material/MoveUp';
 import { useAppContext } from "@/context/AppContext";
 import { AccountCircle } from "@mui/icons-material";
 
@@ -37,7 +38,8 @@ const configurationMenuItems = [
   { label: "Productos", path: "/configuracion/productos", icon: ChangeHistoryIcon },
 ];
 const menuItems = [
-  { label: "Cantidades y Precios", path: "/cantidades_precios", icon: GridViewIcon },
+  { label: "Costos y Precios", path: "/costos_precios", icon: GridViewIcon },
+  { label: "Movimientos", path: "/movimientos", icon: MoveUpIcon },
   { label: "Pos de ventas", path: "/pos", icon: StorefrontIcon },
   { label: "Cierre", path: "/cierre", icon: CancelPresentationIcon },
   { label: "Resumen cierres", path: "/resumen_cierre", icon: SummarizeIcon},

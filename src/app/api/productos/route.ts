@@ -14,6 +14,9 @@ export async function GET() {
           },
         },
       },
+      orderBy: {
+        nombre: 'asc'
+      }
     }));
     return NextResponse.json(productos);
   } catch (error) {

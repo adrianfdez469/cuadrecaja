@@ -19,6 +19,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
           }
         },
       },
+      orderBy: {
+        nombre: 'asc'
+      }
     }));
     const productosTienda = productos.map(p => {
       const {productosTienda, ...restProd} = p;
@@ -62,14 +65,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
         update: {
           precio: producto.precio,
           costo: producto.costo,
-          existencia: producto.existencia,
         },
         create: {
           tiendaId,
           productoId: producto.id,
           precio: producto.precio,
           costo: producto.costo,
-          existencia: producto.existencia,
+          existencia: 0
         },
       })
     );

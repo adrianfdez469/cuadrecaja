@@ -59,13 +59,12 @@ const PreciosCantidades = () => {
       return {
         id: prod.id,
         costo: prod.costo,
-        precio: prod.precio,
-        existencia: prod.existencia
+        precio: prod.precio
       }
     });
 
-    
     try {
+      // TODO: esto debería ir en una service
       const response = await fetch(`/api/productos_tienda/${user.tiendaActual.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -144,7 +143,7 @@ const PreciosCantidades = () => {
                 field: "existencia",
                 headerName: "Existencia",
                 flex: 1,
-                editable: true,
+                editable: false,
                 type: "number",
               }
               

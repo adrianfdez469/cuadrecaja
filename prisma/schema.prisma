@@ -3,31 +3,33 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
 model Tienda {
-  id         String           @id @default(uuid())
-  nombre     String           @unique // Nombre único del local
-  usuarios   UsuarioTienda[]  // Relación con la tabla intermedia UsuarioTienda
-  productos  ProductoTienda[] // Relación con los productos que vende el local
-  ventas     Venta[]          // Relación con las ventas realizadas en el local
-  cierres    CierrePeriodo[]
-  tipo       String           @default("tienda")
+  id              String            @id @default(uuid())
+  nombre          String            @unique // Nombre único del local
+  usuarios        UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
+  productos       ProductoTienda[] // Relación con los productos que vende el local
+  ventas          Venta[] // Relación con las ventas realizadas en el local
+  cierres         CierrePeriodo[]
+  tipo            String            @default("tienda")
+  MovimientoStock MovimientoStock[]
 }
 
 // Representa un usuario que puede estar vinculado a múltiples tiendas.
 model Usuario {
-  id         String           @id @default(uuid())
-  nombre     String
-  usuario    String           @unique // Nombre de usuario único
-  password   String
-  rol        String           @default("vendedor") // Rol del usuario en el sistema
-  tiendas    UsuarioTienda[]  // Relación con la tabla intermedia UsuarioTienda
-  ventas     Venta[]          // Un usuario puede realizar múltiples ventas
+  id              String            @id @default(uuid())
+  nombre          String
+  usuario         String            @unique // Nombre de usuario único
+  password        String
+  rol             String            @default("vendedor") // Rol del usuario en el sistema
+  tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
+  ventas          Venta[] // Un usuario puede realizar múltiples ventas
+  MovimientoStock MovimientoStock[]
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.
@@ -35,7 +37,7 @@ model UsuarioTienda {
   id        String  @id @default(uuid())
   usuario   Usuario @relation(fields: [usuarioId], references: [id]) // Usuario asociado
   usuarioId String
-  tienda    Tienda  @relation(fields: [tiendaId], references: [id])  // Tienda asociada
+  tienda    Tienda  @relation(fields: [tiendaId], references: [id]) // Tienda asociada
   tiendaId  String
 
   @@unique([usuarioId, tiendaId]) // Garantiza que un usuario no se duplique en una tienda
@@ -45,7 +47,7 @@ model UsuarioTienda {
 model Categoria {
   id        String     @id @default(uuid())
   nombre    String     @unique // Nombre único de la categoría
-  color     String     // Color representativo (hexadecimal)
+  color     String // Color representativo (hexadecimal)
   productos Producto[] // Relación con los productos de esta categoría
 }
 
@@ -61,34 +63,35 @@ model Producto {
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Producto y Tienda.
 model ProductoTienda {
-  id         String          @id @default(uuid())
-  tienda     Tienda          @relation(fields: [tiendaId], references: [id]) // Tienda donde se vende el producto
-  tiendaId   String
-  producto   Producto        @relation(fields: [productoId], references: [id]) // Producto asociado
-  productoId String
-  costo      Float           // Costo del producto en esa tienda
-  precio     Float           // Precio de venta en esa tienda específica
-  existencia Int             // Cantidad en stock en esa tienda
-  ventas     VentaProducto[] // Relación con la tabla intermedia de ventas
+  id          String            @id @default(uuid())
+  tienda      Tienda            @relation(fields: [tiendaId], references: [id]) // Tienda donde se vende el producto
+  tiendaId    String
+  producto    Producto          @relation(fields: [productoId], references: [id]) // Producto asociado
+  productoId  String
+  costo       Float // Costo del producto en esa tienda
+  precio      Float // Precio de venta en esa tienda específica
+  existencia  Int // Cantidad en stock en esa tienda
+  ventas      VentaProducto[] // Relación con la tabla intermedia de ventas
+  movimientos MovimientoStock[] // Relacion con la tabla de movimientos
 
   @@unique([tiendaId, productoId]) // Agrega esta línea
 }
 
 // Representa una venta realizada en una tienda.
 model Venta {
-  id               String          @id @default(uuid())
-  createdAt        DateTime        @default(now()) // Fecha de creación
-  productos        VentaProducto[] // Productos vendidos en esta venta
-  total            Float           // Monto total de la venta
-  totalcash        Float           // Monto total en efectivo
-  totaltransfer    Float           // Monto en transferencia
-  tienda           Tienda          @relation(fields: [tiendaId], references: [id]) // Tienda donde se realizó la venta
-  tiendaId         String
-  usuario          Usuario        @relation(fields: [usuarioId], references: [id])
-  usuarioId        String
-  
-  cierrePeriodo    CierrePeriodo? @relation(fields: [cierrePeriodoId], references: [id])
-  cierrePeriodoId  String?
+  id            String          @id @default(uuid())
+  createdAt     DateTime        @default(now()) // Fecha de creación
+  productos     VentaProducto[] // Productos vendidos en esta venta
+  total         Float // Monto total de la venta
+  totalcash     Float // Monto total en efectivo
+  totaltransfer Float // Monto en transferencia
+  tienda        Tienda          @relation(fields: [tiendaId], references: [id]) // Tienda donde se realizó la venta
+  tiendaId      String
+  usuario       Usuario         @relation(fields: [usuarioId], references: [id])
+  usuarioId     String
+
+  cierrePeriodo   CierrePeriodo? @relation(fields: [cierrePeriodoId], references: [id])
+  cierrePeriodoId String?
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Venta y ProductoTienda.
@@ -98,7 +101,7 @@ model VentaProducto {
   ventaId          String
   producto         ProductoTienda @relation(fields: [productoTiendaId], references: [id]) // Producto vendido
   productoTiendaId String
-  cantidad         Int            // Cantidad de productos vendidos en la transacción
+  cantidad         Int // Cantidad de productos vendidos en la transacción
 }
 
 // Representa un período de ventas cerrado con una fecha de inicio y una fecha de cierre.
@@ -111,12 +114,42 @@ model CierrePeriodo {
   ventas      Venta[]
 
   // Campos denormalizados para resumen
-  totalVentas    Float     @default(0)
-  totalGanancia  Float     @default(0)
-  totalInversion Float     @default(0)
+  totalVentas    Float @default(0)
+  totalGanancia  Float @default(0)
+  totalInversion Float @default(0)
 
   // Idices
   @@index([fechaInicio])
   @@index([fechaFin])
   @@index([tiendaId])
+}
+
+model MovimientoStock {
+  id               String         @id @default(uuid())
+  productoTienda   ProductoTienda @relation(fields: [productoTiendaId], references: [id])
+  productoTiendaId String
+
+  tipo         MovimientoTipo // "ENTRADA" | "SALIDA" | "AJUSTE" | "VENTA"
+  cantidad     Int // Positiva para entradas, negativa para salidas
+  motivo       String? // Texto libre o tipos definidos (ajuste manual, error, etc.)
+  referenciaId String? // Puede guardar el ID de una Venta, Entrada o Ajuste
+  fecha        DateTime       @default(now())
+
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+  usuarioId String?
+
+  tienda   Tienda @relation(fields: [tiendaId], references: [id])
+  tiendaId String
+
+  @@index([productoTiendaId])
+  @@index([fecha])
+}
+
+enum MovimientoTipo {
+  COMPRA
+  VENTA
+  TRASPASO_ENTRADA
+  TRASPASO_SALIDA
+  AJUSTE_SALIDA
+  AJUSTE_ENTRADA
 }

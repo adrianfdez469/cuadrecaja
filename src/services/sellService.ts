@@ -1,9 +1,12 @@
+import axios from "axios";
+import { cretateBatchMovimientos } from "./movimientoService";
+
 interface IProductoVenta {
   productoTiendaId: string;
   cantidad: number;
+  productId
 }
 
-import axios from "axios";
 
 const API_URL = (tiendaId, cierreId) => `/api/venta/${tiendaId}/${cierreId}`; // Ruta base del backend
 
@@ -15,5 +18,16 @@ export const createSell = async (tiendaId: string, cierreId: string, usuarioId: 
     totaltransfer,
     productos
   });
+
+  await cretateBatchMovimientos(
+    { tiendaId, usuarioId, tipo: 'VENTA'},
+    productos.map(p => {
+      return {
+        cantidad: p.cantidad,
+        productoId: p.productId
+      }
+    })
+  )
+
   return response.data;
 } 

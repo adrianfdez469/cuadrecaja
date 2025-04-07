@@ -5,7 +5,11 @@ import { hasAdminPrivileges } from "@/utils/auth";
 // Obtener todas las categorías
 export async function GET() {
   try {
-    const categorias = await prisma.categoria.findMany();
+    const categorias = await prisma.categoria.findMany({
+      orderBy: {
+        nombre: 'asc'
+      }
+    });
     return NextResponse.json(categorias);
   } catch (error) {
     console.log(error);

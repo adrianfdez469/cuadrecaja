@@ -15,7 +15,7 @@ import axios from "axios";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ProductModal } from "./components/ProductModal";
-import { ICategory } from "@/types/ICategorias";
+import { ICategory } from "@/types/ICategoria";
 import { IProductoTienda } from "@/types/IProducto";
 import CartDrawer from "./components/CartDrawer";
 import PaymentModal from "./components/PaymentModal";
@@ -158,6 +158,8 @@ export default function POSInterface() {
         return {
           cantidad: prod.quantity,
           productoTiendaId: prod.productoTiendaId,
+          productId: prod.id
+          
         };
       });
       await createSell(
