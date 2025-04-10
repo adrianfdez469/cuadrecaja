@@ -1,8 +1,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { CreateMoviento } from "@/lib/movimiento";
 
-// 2. Crear una venta
+// Crear una venta
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
   try {
     
@@ -20,6 +21,83 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         id: cierreId
       }
     });
+
+    // Revisar si en la venta hay productos fraccionables
+    const productosFraccionablesData = await prisma.productoTienda.findMany({
+      where: {
+        AND: {
+          id:{
+             in: productos.map(p => p.productoTiendaId)
+          },
+          producto: {
+            fraccionDeId: {
+              not: {
+                equals: null
+              }
+            }
+          }
+        }        
+      },
+      include: {
+        producto: {
+          select: {
+            fraccionDeId: true,
+            unidadesPorFraccion: true,
+            
+          }
+        }
+      },
+    });
+
+    // En caso que los haya, revisar que la cantidad solicitada está en existencia
+    if(productosFraccionablesData.length > 0) {
+
+     
+
+      const productosFraccionablesNeedDesagregateData = productosFraccionablesData
+        .filter((prodFracc) => {
+          const prod = productos.find(p => p.productoTiendaId === prodFracc.id);
+          if(prod) {
+            if(prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
+              throw Error(`Vendes mas unidades sueltas de las que lleva una caja en una misma venta`)
+            }
+            return prodFracc.existencia < prod.cantidad;
+          } else {
+            return false;
+          }
+        });
+      const itemsDesagregaciónBaja = [];
+      const itemsDesagregaciónAlta = [];
+
+      productosFraccionablesNeedDesagregateData.forEach((item) => {
+        
+        itemsDesagregaciónAlta.push({
+          cantidad: item.producto.unidadesPorFraccion,
+          productoId: item.productoId
+        })
+        itemsDesagregaciónBaja.push({
+          cantidad: 1,
+          productoId: item.producto.fraccionDeId
+        })
+      });
+
+      if(itemsDesagregaciónBaja.length > 0){
+        await CreateMoviento({
+          tipo: "DESAGREGACION_BAJA",
+          tiendaId: tiendaId,
+          usuarioId: usuarioId
+        }, itemsDesagregaciónBaja);
+      }
+
+      if(itemsDesagregaciónAlta.length > 0) {
+        await CreateMoviento({
+          tipo: "DESAGREGACION_ALTA",
+          tiendaId: tiendaId,
+          usuarioId: usuarioId
+        }, itemsDesagregaciónAlta);
+      }
+
+    }
 
     const venta = await prisma.venta.create({
       data: {
@@ -39,7 +117,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       },
     });
 
-    return NextResponse.json(venta, { status: 201 });
+    return NextResponse.json({}, { status: 201 });
   } catch (error) {
     console.log(error);
     

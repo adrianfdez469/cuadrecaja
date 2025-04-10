@@ -5,12 +5,14 @@
 // AJUSTE_SALIDA: Movimiento de ajuste por motivo de faltantes.
 // TRASPASO_ENTRADA: Cuando se realiza un traspaso de una tienda a otra por concepto de entrada, o de un almacen a la tienda, la cantidad es positiva.
 // TRASPASO_SALIDA: Cuando se realiza un traspaso desde una tienda a otra, o desde un almacen a una tienda por concepto de salida, la cantidad es negativa.
+// DESAGREGACION_BAJA: Cuando se relaiza una baja de un producto por desagregación o porque se fracciona en otros productos
+// DESAGREGACION_ALTA: Cuando se realiza un alta de un producto por desagregación de otro.
 
 import { ILocal } from "./ILocal";
 import { IProductoTienda } from "./IProducto";
 import { IUser } from "./IUser";
 
-export type ITipoMovimiento  = "COMPRA" | "VENTA" | "AJUSTE_ENTRADA" | "AJUSTE_SALIDA" | "TRASPASO_ENTRADA" | "TRASPASO_SALIDA";
+export type ITipoMovimiento  = "COMPRA" | "VENTA" | "AJUSTE_ENTRADA" | "AJUSTE_SALIDA" | "TRASPASO_ENTRADA" | "TRASPASO_SALIDA" | "DESAGREGACION_BAJA" | "DESAGREGACION_ALTA";
 
 interface ICreateMovimientoDTOGeneric {
   tipo: ITipoMovimiento;

@@ -1,3 +1,4 @@
+import { CreateMoviento } from "@/lib/movimiento";
 import { prisma } from "@/lib/prisma";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { MovimientoTipo } from "@prisma/client";
@@ -39,6 +40,11 @@ export async function GET(req: Request) {
               }
             }
           }
+        },
+        usuario: {
+          select: {
+            nombre: true
+          }
         }
       },
       take: take,
@@ -64,46 +70,7 @@ export async function POST(req: Request) {
   try {
     const { data, items } = await req.json();
 
-    const { tipo, tiendaId, usuarioId } = data;
-
-    await prisma.$transaction(async (tx) => {
-      for (const movimiento of items) {
-        const {  productoId, cantidad } = movimiento;
-  
-        // 1. Upsert para obtener (o crear) el productoTienda
-        const productoTienda = await tx.productoTienda.upsert({
-          where: {
-            tiendaId_productoId: {
-              tiendaId,
-              productoId,
-            },
-          },
-          create: {
-            tiendaId,
-            productoId,
-            costo: 0, // si tienes valores personalizados, agrégalos aquí
-            precio: 0,
-            existencia: cantidad,
-          },
-          update: {
-            existencia: {
-              increment: isMovimientoBaja(tipo) ? -cantidad : cantidad,
-            },
-          },
-        });
-  
-        // 2. Crear el movimiento con el ID del productoTienda
-        await tx.movimientoStock.create({
-          data: {
-            tipo,
-            cantidad,
-            productoTiendaId: productoTienda.id,
-            tiendaId,
-            usuarioId,
-          },
-        });
-      }
-    });
+    await CreateMoviento(data, items);
 
     return NextResponse.json({}, {status: 201});
 

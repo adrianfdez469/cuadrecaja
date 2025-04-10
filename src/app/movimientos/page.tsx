@@ -87,7 +87,6 @@ export default function MovimientosPage() {
       />
 
       <Box mt={4} display="flex" flexDirection="column" flex={1} minHeight={0}>
-        <Typography variant="h6">Movimientos registrados</Typography>
         {/* Wrapper que controla el alto y scroll interno */}
         <Box mt={2} sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
           <TableContainer component={Paper} sx={{ mt: 2, flexGrow: 1 }}>
@@ -96,8 +95,10 @@ export default function MovimientosPage() {
                 <TableRow>
                   <TableCell sx={tableCellHeaderStyle}>Fecha</TableCell>
                   <TableCell sx={tableCellHeaderStyle}>Tipo</TableCell>
-                  <TableCell sx={tableCellHeaderStyle}>ID Producto</TableCell>
+                  <TableCell sx={tableCellHeaderStyle}>Producto</TableCell>
                   <TableCell sx={tableCellHeaderStyle}>Cantidad</TableCell>
+                  <TableCell sx={tableCellHeaderStyle}>Usuario</TableCell>
+
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -111,6 +112,7 @@ export default function MovimientosPage() {
                         ? `-${m.cantidad}`
                         : `+${m.cantidad}`}
                     </TableCell>
+                    <TableCell>{m.usuario.nombre}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

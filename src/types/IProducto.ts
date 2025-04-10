@@ -6,6 +6,10 @@ export interface IProducto {
   descripcion: string;
   categoria: ICategory;
   categoriaId: string;
+
+  fraccionDeId?: string;
+  unidadesPorFraccion?: number;
+  fraccionDe?: Pick<IProducto, "id"|"nombre">;
 }
 
 export interface IProductoTienda {

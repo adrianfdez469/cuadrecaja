@@ -59,6 +59,14 @@ model Producto {
   categoria       Categoria        @relation(fields: [categoriaId], references: [id]) // Categoría a la que pertenece
   categoriaId     String
   productosTienda ProductoTienda[] // Relación con las tiendas donde se vende
+  
+  // 🔗 Fracción: Este producto es una fracción de otro (ej: Cigarro Suelto -> Caja de Cigarro)
+  fraccionDe       Producto?       @relation("ProductoFraccion", fields: [fraccionDeId], references: [id])
+  fraccionDeId     String?         // ID del producto padre (opcional)
+  fracciones       Producto[]      @relation("ProductoFraccion") // Productos que se derivan de este
+
+  unidadesPorFraccion Int?         // Cuántas unidades se generan al fraccionar 1 del producto padre
+
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Producto y Tienda.
@@ -152,4 +160,6 @@ enum MovimientoTipo {
   TRASPASO_SALIDA
   AJUSTE_SALIDA
   AJUSTE_ENTRADA
+  DESAGREGACION_BAJA
+  DESAGREGACION_ALTA
 }
