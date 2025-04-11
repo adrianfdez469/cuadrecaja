@@ -1,6 +1,5 @@
 import { CreateMoviento } from "@/lib/movimiento";
 import { prisma } from "@/lib/prisma";
-import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { MovimientoTipo } from "@prisma/client";
 import { NextResponse } from "next/server";
 

@@ -117,7 +117,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       },
     });
 
-    return NextResponse.json({}, { status: 201 });
+    return NextResponse.json(venta, { status: 201 });
   } catch (error) {
     console.log(error);
     

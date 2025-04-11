@@ -15,7 +15,6 @@ import {
   InputLabel,
 } from "@mui/material";
 import { Categoria } from "../types/categorias";
-import { CheckBox } from "@mui/icons-material";
 import { fetchProducts } from "@/services/productServise";
 import { IProducto } from "@/types/IProducto";
 
