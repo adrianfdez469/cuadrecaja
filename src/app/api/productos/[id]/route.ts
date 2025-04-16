@@ -46,10 +46,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
     }
 
-    const { nombre, categoriaId, descripcion } = await req.json();
+    const { nombre, categoriaId, descripcion, fraccion } = await req.json();
+
     const updatedProduct = await prisma.producto.update({
       where: { id },
-      data: { nombre, descripcion, categoriaId },
+      data: { 
+        nombre, 
+        descripcion, 
+        categoriaId,
+        ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion})
+      },
     });
     return NextResponse.json(updatedProduct);
   } catch (error) {

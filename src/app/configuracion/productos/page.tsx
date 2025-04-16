@@ -24,12 +24,14 @@ import {
   fetchProducts,
 } from "@/services/productServise";
 import { IProducto } from "@/types/IProducto";
+import { useMessageContext } from "@/context/MessageContext";
 
 export default function ProductList() {
   const [products, setProducts] = useState<IProducto[]>([]);
   const [open, setOpen] = useState(false);
   const [editingProd, setEditingProd] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { showMessage } = useMessageContext();
 
   useEffect(() => {
     loadProducts();
@@ -66,7 +68,7 @@ export default function ProductList() {
     fraccion?: { fraccionDeId?: string; unidadesPorFraccion?: number }
   ) => {
     if (editingProd) {
-      await editProduct(editingProd, nombre, descripcion, categoriaId, fraccion);
+      await editProduct(editingProd.id, nombre, descripcion, categoriaId, fraccion);
     } else {
       await createProduct(nombre, descripcion, categoriaId, fraccion);
     }
@@ -75,8 +77,16 @@ export default function ProductList() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteProduct(id);
-    await loadProducts();
+    if(confirm('Está seguro que desea eliminar el producto?')) {
+      try {
+        await deleteProduct(id);
+        showMessage('Producto eliminado', 'success');
+      } catch (error) {
+        showMessage('Error al intentar eliminar el producto. Es problable que esté en uso!', 'error');
+      } finally {
+        await loadProducts();
+      }
+    }
   };
 
   return (

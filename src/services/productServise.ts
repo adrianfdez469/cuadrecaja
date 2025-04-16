@@ -23,7 +23,7 @@ export const editProduct = async (id: string, nombre: string, descripcion: strin
       descripcion: descripcion,
       nombre: nombre,
       categoriaId: categoriaId,
-      ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion})
+      ...(fraccion && {fraccion})
   });
 }
 
