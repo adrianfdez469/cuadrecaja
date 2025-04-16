@@ -117,7 +117,7 @@ const Layout:React.FC<PropsWithChildren> = ({children}) => {
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
               >
-                <MenuItem onClick={handleLogout}>Cerrar seción</MenuItem>
+                <MenuItem onClick={handleLogout}>Cerrar sesión</MenuItem>
               </Menu>
             </Box>  : 
             <Button color="inherit" onClick={goToLogin}>

@@ -40,11 +40,18 @@ const CierreCajaPage = () => {
 
   const handleCerrarCaja = async () => {
     // Se debe crear un nuevo cierre
-
-    const tiendaId = user.tiendaActual.id;
-    await closePeriod(tiendaId, currentPeriod.id);
-    await openPeriod(tiendaId);
-    await getInitData();
+    if (confirm("¿Estás seguro de desea realizar el cierre de caja?")) {
+      const tiendaId = user.tiendaActual.id;
+      try {
+        await closePeriod(tiendaId, currentPeriod.id);
+        await openPeriod(tiendaId);        
+      } catch (error) {
+        console.log(error);
+        showMessage('Ah ocurrido un error', 'error');
+      } finally {
+        await getInitData();    
+      }
+    }
   };
 
   const getInitData = async () => {
