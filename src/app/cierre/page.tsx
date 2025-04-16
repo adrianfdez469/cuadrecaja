@@ -98,7 +98,7 @@ const CierreCajaPage = () => {
   }
   if (cierreData) {
     return (
-      <Box p={3}>
+      <Box p={0}>
         <Typography variant="h4" gutterBottom>
           Cierre de Caja: Corte {new Date(currentPeriod.fechaInicio).toLocaleDateString()}
         </Typography>
@@ -121,31 +121,33 @@ const CierreCajaPage = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Producto</TableCell>
-                <TableCell>Costo</TableCell>
-                <TableCell>Precio</TableCell>
                 <TableCell>Cantidad</TableCell>
                 <TableCell>Venta</TableCell>
                 <TableCell>Ganancia</TableCell>
+                <TableCell>Costo</TableCell>
+                <TableCell>Precio</TableCell>
+                
               </TableRow>
             </TableHead>
             <TableBody>
               {cierreData.productosVendidos.map((producto) => (
                 <TableRow key={producto.id}>
                   <TableCell>{producto.nombre}</TableCell>
-                  <TableCell>${producto.costo.toFixed(2)}</TableCell>
-                  <TableCell>${producto.precio.toFixed(2)}</TableCell>
                   <TableCell>{producto.cantidad}</TableCell>
                   <TableCell>${producto.total?.toFixed(2)}</TableCell>
                   <TableCell>${producto.ganancia.toFixed(2)}</TableCell>
+                  <TableCell>${producto.costo.toFixed(2)}</TableCell>
+                  <TableCell>${producto.precio.toFixed(2)}</TableCell>
+                  
                 </TableRow>
               ))}
               <TableRow sx={{ fontWeight: "bold", backgroundColor: "#f0f0f0" }}>
                 <TableCell>Total</TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
                 <TableCell>{totales.totalCantidad}</TableCell>
                 <TableCell>${totales.totalMonto.toFixed(2)}</TableCell>
                 <TableCell>${totales.totalGanancia.toFixed(2)}</TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
               </TableRow>
             </TableBody>
           </Table>

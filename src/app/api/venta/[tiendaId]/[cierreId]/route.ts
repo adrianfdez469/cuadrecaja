@@ -22,6 +22,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       }
     });
 
+    const venta = await prisma.venta.create({
+      data: {
+        tiendaId,
+        usuarioId,
+        total,
+        totalcash,
+        totaltransfer,
+        cierrePeriodoId: periodoActual?.id || null,
+        productos: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          create: productos.map((p: any) => ({
+            productoTiendaId: p.productoTiendaId,
+            cantidad: p.cantidad,
+          })),
+        },
+      },
+    });
+
     // Revisar si en la venta hay productos fraccionables
     const productosFraccionablesData = await prisma.productoTienda.findMany({
       where: {
@@ -85,7 +103,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         await CreateMoviento({
           tipo: "DESAGREGACION_BAJA",
           tiendaId: tiendaId,
-          usuarioId: usuarioId
+          usuarioId: usuarioId,
+          referenciaId: venta.id
+          
         }, itemsDesagregaciónBaja);
       }
 
@@ -93,29 +113,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         await CreateMoviento({
           tipo: "DESAGREGACION_ALTA",
           tiendaId: tiendaId,
-          usuarioId: usuarioId
+          usuarioId: usuarioId,
+          referenciaId: venta.id
         }, itemsDesagregaciónAlta);
       }
 
     }
 
-    const venta = await prisma.venta.create({
-      data: {
-        tiendaId,
-        usuarioId,
-        total,
-        totalcash,
-        totaltransfer,
-        cierrePeriodoId: periodoActual?.id || null,
-        productos: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          create: productos.map((p: any) => ({
-            productoTiendaId: p.productoTiendaId,
-            cantidad: p.cantidad,
-          })),
-        },
-      },
-    });
+    
 
     return NextResponse.json(venta, { status: 201 });
   } catch (error) {

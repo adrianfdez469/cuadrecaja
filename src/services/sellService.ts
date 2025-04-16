@@ -20,8 +20,10 @@ export const createSell = async (tiendaId: string, cierreId: string, usuarioId: 
     productos
   });
 
+  const idVenta = response.data.id;
+
   await cretateBatchMovimientos(
-    { tiendaId, usuarioId, tipo: 'VENTA'},
+    { tiendaId, usuarioId, tipo: 'VENTA', referenciaId: idVenta },
     productos.map(p => {
       return {
         cantidad: p.cantidad,

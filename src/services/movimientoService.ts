@@ -9,7 +9,7 @@ export const saveMovimiento = async (data: ICreateMovimientoDTO) => {
   
 }
 
-export const cretateBatchMovimientos = async (data: Pick<ICreateMovimientoFromProdDTO, "motivo"|"tiendaId"|"tipo"|"usuarioId">, items: Pick<ICreateMovimientoFromProdDTO, "productoId" | "cantidad">[]) => {
+export const cretateBatchMovimientos = async (data: Partial<ICreateMovimientoFromProdDTO>, items: Pick<ICreateMovimientoFromProdDTO, "productoId" | "cantidad">[]) => {
   console.log('data', data);
   console.log('items', items);
   

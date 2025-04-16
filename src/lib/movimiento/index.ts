@@ -3,7 +3,7 @@ import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 
 export const CreateMoviento = async (data, items) => {
 
-  const { tipo, tiendaId, usuarioId } = data;
+  const { tipo, tiendaId, usuarioId, referenciaId } = data;
 
     await prisma.$transaction(async (tx) => {
       for (const movimiento of items) {
@@ -39,6 +39,7 @@ export const CreateMoviento = async (data, items) => {
             productoTiendaId: productoTienda.id,
             tiendaId,
             usuarioId,
+            ...(referenciaId && {referenciaId: referenciaId})
           },
         });
       }
