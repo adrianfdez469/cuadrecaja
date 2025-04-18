@@ -19,6 +19,7 @@ import { fetchLastPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ICierreData, ICierrePeriodo } from "@/types/ICierre";
+import useConfirmDialog from "@/components/confirmDialog";
 
 interface ITotales {
   totalCantidad: number;
@@ -37,10 +38,13 @@ const CierreCajaPage = () => {
     totalGanancia: 0,
     totalMonto: 0,
   });
+  const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
+
 
   const handleCerrarCaja = async () => {
-    // Se debe crear un nuevo cierre
-    if (confirm("¿Estás seguro de desea realizar el cierre de caja?")) {
+
+    confirmDialog("¿Estás seguro de desea realizar el cierre de caja?", async () => {
+      // Se debe crear un nuevo cierre
       const tiendaId = user.tiendaActual.id;
       try {
         await closePeriod(tiendaId, currentPeriod.id);
@@ -51,7 +55,9 @@ const CierreCajaPage = () => {
       } finally {
         await getInitData();    
       }
-    }
+    });
+    
+    
   };
 
   const getInitData = async () => {
@@ -152,6 +158,8 @@ const CierreCajaPage = () => {
             </TableBody>
           </Table>
         </TableContainer>
+
+        {ConfirmDialogComponent}
       </Box>
     );
   }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Container, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem } from "@mui/material";
 import { Edit, Delete } from "@mui/icons-material";
 import axios from "axios";
+import useConfirmDialog from "@/components/confirmDialog";
 
 const roles = ["ADMIN", "VENDEDOR"];
 
@@ -12,6 +13,7 @@ export default function UsuariosPage() {
   const [open, setOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [adminCant, setAdminCant] = useState(0);
+  const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     fetchUsuarios();
@@ -43,14 +45,14 @@ export default function UsuariosPage() {
   };
 
   const handleDelete = async (id) => {
-    if (confirm("¿Estás seguro de eliminar este usuario?")) {
+    confirmDialog("¿Estás seguro de eliminar este usuario?",  async () => {
       try {
         await axios.delete(`/api/usuarios/${id}`);
         fetchUsuarios();
       } catch (error) {
         console.error("Error al eliminar el usuario", error);
       }
-    }
+    });
   };
 
   const handleSubmit = async (event) => {
@@ -139,6 +141,8 @@ export default function UsuariosPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {ConfirmDialogComponent}
     </Container>
   );
 }

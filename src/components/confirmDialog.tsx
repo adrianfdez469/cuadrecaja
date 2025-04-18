@@ -7,7 +7,7 @@ const useConfirmDialog = () => {
   const [onConfirm, setOnConfirm] = useState(() => () => {});
   const [onCancel, setOnCancel] = useState(() => () => {});
 
-  const confirmDialog = useCallback((message, onConfirmCallback, onCancelCallback) => {
+  const confirmDialog = useCallback((message, onConfirmCallback, onCancelCallback?) => {
     setMessage(message);
     setOnConfirm(() => async () => {
       setOpen(false);

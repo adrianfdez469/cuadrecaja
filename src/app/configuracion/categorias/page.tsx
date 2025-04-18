@@ -4,6 +4,7 @@ import { Delete, Edit } from "@mui/icons-material";
 import { useEffect, useState } from "react";
 import { fetchCategories, createCategory, updateCategory, deleteCategory } from "@/services/categoryService";
 import { Box, Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Typography } from "@mui/material";
+import useConfirmDialog from "@/components/confirmDialog";
 
 
 interface Category {
@@ -18,6 +19,7 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [nombre, setNombre] = useState("");
   const [color, setColor] = useState("");
+  const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     loadCategories();
@@ -61,14 +63,14 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("¿Estás seguro de que quieres eliminar esta categoría?")) {
+    confirmDialog("¿Estás seguro de que quieres eliminar esta categoría?", async () => {
       try {
         await deleteCategory(id);
         loadCategories();
       } catch (error) {
         console.error("Error deleting category", error);
       }
-    }
+    });
   };
 
   return (
@@ -123,6 +125,8 @@ export default function CategoriesPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {ConfirmDialogComponent}
     </div>
   );
 }

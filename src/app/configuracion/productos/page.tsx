@@ -25,6 +25,7 @@ import {
 } from "@/services/productServise";
 import { IProducto } from "@/types/IProducto";
 import { useMessageContext } from "@/context/MessageContext";
+import useConfirmDialog from "@/components/confirmDialog";
 
 export default function ProductList() {
   const [products, setProducts] = useState<IProducto[]>([]);
@@ -32,6 +33,7 @@ export default function ProductList() {
   const [editingProd, setEditingProd] = useState(null);
   const [loading, setLoading] = useState(true);
   const { showMessage } = useMessageContext();
+  const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     loadProducts();
@@ -77,7 +79,8 @@ export default function ProductList() {
   };
 
   const handleDelete = async (id: string) => {
-    if(confirm('Está seguro que desea eliminar el producto?')) {
+    
+    confirmDialog('Está seguro que desea eliminar el producto?', async () => {
       try {
         await deleteProduct(id);
         showMessage('Producto eliminado', 'success');
@@ -87,7 +90,7 @@ export default function ProductList() {
       } finally {
         await loadProducts();
       }
-    }
+    });
   };
 
   return (
@@ -179,6 +182,8 @@ export default function ProductList() {
           handleSave={handleSave}
         />
       }
+
+      {ConfirmDialogComponent}
     </Box>
   );
 }
