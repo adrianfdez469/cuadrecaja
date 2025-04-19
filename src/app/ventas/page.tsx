@@ -22,8 +22,8 @@ import { ICierrePeriodo } from "@/types/ICierre";
 import { IVenta } from "@/types/IVenta";
 import { Delete, Edit } from "@mui/icons-material";
 import useConfirmDialog from "@/components/confirmDialog";
-import { getSells } from "@/services/sellService";
-// import CartDrawer from "@/components/cartDrawer/CartDrawer";
+import { getSells, removeSell } from "@/services/sellService";
+import CartDrawer from "@/components/cartDrawer/CartDrawer";
 
 const Ventas = () => {
   const { user, loadingContext } = useAppContext();
@@ -32,9 +32,11 @@ const Ventas = () => {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [ventas, setVentas] = useState<IVenta[]>([]);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
+  const [openCart, setOpenCart] = useState(false)
+  const [selectedVenta, setSelectedVenta] = useState<IVenta>();
   
 
-  const getData = async () => {
+  const loadData = async () => {
     setIsDataLoading(true);
     try {
       const tiendaId = user.tiendaActual.id;
@@ -42,8 +44,6 @@ const Ventas = () => {
       setCurrentPeriod(currentPeriod);
 
       const data = await getSells(tiendaId, currentPeriod.id);
-      console.log(data);
-      
       setVentas(data);
     } catch (error) {
       console.log(error);
@@ -58,37 +58,38 @@ const Ventas = () => {
 
   const handleOpenVenta = (venta: IVenta) => {
     
-    const productos = venta.productos.map((prod) => {
-      return {
-        id: prod.id,
-        name: prod.name,
-        price: prod.price,
-        productoTiendaId: prod.productoTiendaId,
-        quantity: prod.cantidad
-      }
-    });
-    console.log(productos);
-    
-    
+    setSelectedVenta(venta);
+    setOpenCart(true);
   };
 
   const handleCancelVenta = async (venta: IVenta) => {
     confirmDialog(
       "Está seguro que desea eliminar completamente esta venta?",
-      () => {
-        console.log("Cancelar venta", venta);
-
+      async () => {
+        try {
+          const tiendaId = user.tiendaActual.id;
+          await removeSell(tiendaId, currentPeriod.id, venta.id, user.id);
+          showMessage("La venta fur eliminada satisfactoriamente", 'success');
+        } catch (error) {
+          console.log(error);
+          showMessage("La venta no puso ser eliminada", 'error');
+        } {
+          loadData();
+          setOpenCart(false);
+          setSelectedVenta(undefined);
+        }
       }
     );
   };
 
   useEffect(() => {
-    getData();
+    loadData();
   }, []);
 
   if (loadingContext || isDataLoading) {
     return <CircularProgress />;
-  } else {
+  } 
+  if (ventas) {
     return (
       <Box p={0}>
         <Typography variant="h4" gutterBottom>
@@ -139,12 +140,26 @@ const Ventas = () => {
           </Table>
         </TableContainer>
 
-        {/* <CartDrawer
-          cartItems={itemsVenta}
-          onClose={() => setItemVentas([])}
-          open={itemsVenta.length > 0}
-          sell={() => {}}
-        /> */}
+        {selectedVenta && 
+          <CartDrawer
+            cart={selectedVenta.productos.map((prod) => {
+              return {
+                id: prod.id,
+                name: prod.name,
+                price: prod.price,
+                productoTiendaId: prod.productoTiendaId,
+                quantity: prod.cantidad
+              }
+            })}
+            onClose={() => setOpenCart(false)}
+            open={openCart}
+            clear={() => handleCancelVenta(selectedVenta)}
+            // onOkButtonClick={async () => {}}
+            // removeItem={() => {}}
+            // updateQuantity={() => {}}
+            total={selectedVenta.total}
+          />
+        }
 
         {ConfirmDialogComponent}
       </Box>

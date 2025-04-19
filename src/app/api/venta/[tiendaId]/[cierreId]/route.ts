@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CreateMoviento } from "@/lib/movimiento";
+import { IVenta } from "@/types/IVenta";
 
 // Crear una venta
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
@@ -134,7 +135,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
   try {
     const { cierreId, tiendaId } = await params;
 
-    const ventas = await prisma.venta.findMany({
+    const ventasPrisma = await prisma.venta.findMany({
       include: {
         usuario: {
           select: {
@@ -165,9 +166,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         tiendaId: tiendaId
       },
       orderBy: {
-        createdAt: 'asc',
+        createdAt: 'desc',
       },
     });
+
+    const ventas: IVenta[] = ventasPrisma.map((venta) => ({
+      id: venta.id,
+      createdAt: venta.createdAt,
+      total: venta.total,
+      totalcash: venta.totalcash,
+      totaltransfer: venta.totaltransfer,
+      tiendaId: venta.tiendaId,
+      usuarioId: venta.usuarioId,
+      cierrePeriodoId: venta.cierrePeriodoId,
+      usuario: {
+        id: venta.usuario.id,
+        nombre: venta.usuario.nombre,
+        usuario: "",
+        rol: ""
+      },
+      productos: venta.productos.map((p) => ({
+        id: p.id,
+        ventaId: venta.id,
+        productoTiendaId: p.productoTiendaId,
+        cantidad: p.cantidad,
+        name: p.producto?.producto?.nombre ?? undefined,
+        price: p.producto?.precio ?? undefined
+      }))
+    }));
 
     return NextResponse.json(ventas);
 

@@ -33,7 +33,7 @@ export default function POSInterface() {
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
 
-  const { items: cart, total, clearCart } = useCartStore();
+  const { items: cart, total, clearCart, removeFromCart, updateQuantity } = useCartStore();
   const [loading, setLoading] = useState(true);
 
   const { user, loadingContext, gotToPath } = useAppContext();
@@ -253,10 +253,14 @@ export default function POSInterface() {
         )}
 
         <CartDrawer
-          cartItems={cart}
+          cart={cart}
           onClose={() => setOpenCart(false)}
           open={openCart}
-          sell={() => setPaymentDialog(true)}
+          onOkButtonClick={async () => setPaymentDialog(true)}
+          total={total}
+          clear={clearCart}
+          removeItem={removeFromCart}
+          updateQuantity={updateQuantity}
         />
 
         <PaymentModal

@@ -1,18 +1,17 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-interface CartItem {
+export interface ICartItem {
   id: string;
   name: string;
   price: number;
   quantity: number;
   productoTiendaId: string;
 }
-
 interface CartState {
-  items: CartItem[];
+  items: ICartItem[];
   total: number;
-  addToCart: (product: Omit<CartItem, "quantity">, quantity?: number) => void;
+  addToCart: (product: Omit<ICartItem, "quantity">, quantity?: number) => void;
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;

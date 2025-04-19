@@ -30,7 +30,7 @@ import SummarizeIcon from '@mui/icons-material/Summarize';
 import MoveUpIcon from '@mui/icons-material/MoveUp';
 import { useAppContext } from "@/context/AppContext";
 import { AccountCircle } from "@mui/icons-material";
-// import SellIcon from '@mui/icons-material/Sell';
+import SellIcon from '@mui/icons-material/Sell';
 
 const configurationMenuItems = [
   { label: "Usuarios", path: "/configuracion/usuarios", icon: SupervisedUserCircleIcon },
@@ -42,7 +42,7 @@ const menuItems = [
   { label: "Costos y Precios", path: "/costos_precios", icon: GridViewIcon },
   { label: "Movimientos", path: "/movimientos", icon: MoveUpIcon },
   { label: "Pos de ventas", path: "/pos", icon: StorefrontIcon },
-  // { label: "Ventas", path: "/ventas", icon: SellIcon },
+  { label: "Ventas", path: "/ventas", icon: SellIcon },
   { label: "Cierre", path: "/cierre", icon: CancelPresentationIcon },
   { label: "Resumen cierres", path: "/resumen_cierre", icon: SummarizeIcon},
 ];
@@ -59,12 +59,6 @@ const Layout:React.FC<PropsWithChildren> = ({children}) => {
   const handleClose = () => {
     setAnchorEl(null);
   };
-
-  useEffect(() => {
-    console.log('useEffect => user', user);
-  }, [user])
-  console.log('render layout');
-  
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>

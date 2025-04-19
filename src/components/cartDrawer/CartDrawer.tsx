@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { FC, useEffect } from "react";
 import {
   Drawer,
   Box,
@@ -8,41 +8,55 @@ import {
   Paper,
 } from "@mui/material";
 import { Close, Delete, Add, Remove } from "@mui/icons-material";
-import { useCartStore } from "@/store/cartStore";
+import { ICartItem } from "@/store/cartStore";
+import { useMessageContext } from "@/context/MessageContext";
 
-const CartDrawer = ({ open, onClose, cartItems, sell }) => {
-  const {
-    items: cart,
-    updateQuantity,
-    clearCart,
-    removeFromCart,
-    total,
-  } = useCartStore();
+interface IProps {
+  open: boolean;
+  cart: ICartItem[];
+  onClose: () => void;
+  onOkButtonClick?: () => Promise<void>; //sell: () => Promise<void>;
+
+  updateQuantity?: (id: string, quantity: number) => void;
+  clear?: () => void;
+  removeItem?: (id: string) => void;
+  total: number;
+}
+
+const CartDrawer: FC<IProps> = ({
+  open,
+  cart,
+  onClose,
+  onOkButtonClick,
+  updateQuantity,
+  clear,
+  removeItem,
+  total,
+}) => {
+  const { showMessage } = useMessageContext();
 
   const decreseQty = (id: string) => {
-    const prevQuantity = cart.find(p => p.id === id).quantity;
-    if(prevQuantity === 1){
-      deleteItem(id);
+    const prevQuantity = cart.find((p) => p.id === id).quantity;
+    if (prevQuantity === 1) {
+      if (removeItem) {
+        removeItem(id);
+      } else {
+        showMessage("No puede elminar completamente el producto", "warning");
+      }
     } else {
       updateQuantity(id, prevQuantity - 1);
     }
-  }
+  };
   const increseQty = (id: string) => {
-    const prevQuantity = cart.find(p => p.id === id).quantity;
+    const prevQuantity = cart.find((p) => p.id === id).quantity;
     updateQuantity(id, prevQuantity + 1);
-  }
-  const deleteItem = (id: string) => {
-    removeFromCart(id);
-  }
-  const emptyCart = () => {
-    clearCart();
-  }
+  };
 
   useEffect(() => {
-    if(cartItems.length === 0) {
+    if (cart.length === 0) {
       onClose();
     }
-  }, [cartItems])
+  }, [cart]);
 
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>
@@ -62,59 +76,96 @@ const CartDrawer = ({ open, onClose, cartItems, sell }) => {
           alignItems="center"
           mb={2}
         >
-          <Box display={'flex'} flexDirection={'column'}>
+          <Box display={"flex"} flexDirection={"column"}>
             <Typography variant="h6">Venta</Typography>
-            <Typography variant="body2" color="green">Productos ({cart.length})</Typography>
+            <Typography variant="body2" color="green">
+              Productos ({cart.length})
+            </Typography>
           </Box>
 
-          <Box display={'flex'} flexDirection={'row'}>
-            <Button startIcon={<Delete />} variant="contained" onClick={emptyCart} disabled={cart.length === 0}>Vaciar </Button>
+          <Box display={"flex"} flexDirection={"row"}>
+            {clear && (
+              <Button
+                startIcon={<Delete />}
+                variant="contained"
+                onClick={clear}
+                disabled={cart.length === 0}
+              >
+                Vaciar{" "}
+              </Button>
+            )}
             <IconButton onClick={onClose}>
               <Close color="error" />
             </IconButton>
           </Box>
-
         </Box>
 
         {/* Productos */}
         <Box flex={1} overflow="auto">
-          {cartItems.map((item) => (
+          {cart.map((item) => (
             <Paper
               key={item.id}
               sx={{ display: "flex", alignItems: "center", p: 1, mb: 1 }}
             >
               <Box flex={1}>
-                
-                  <Typography variant="body1" fontWeight="bold">
-                    {item.name}
-                  </Typography>
-                
-                <Box display={'flex'} flexDirection={'row'} alignItems={'center'} justifyContent={'space-between'}>
+                <Typography variant="body1" fontWeight="bold">
+                  {item.name}
+                </Typography>
+
+                <Box
+                  display={"flex"}
+                  flexDirection={"row"}
+                  alignItems={"center"}
+                  justifyContent={"space-between"}
+                >
                   <Box>
                     <Typography variant="body2" color="green">
                       {item.price} CUP
                     </Typography>
-                    <Box display={'flex'} flexDirection={'row'} alignItems={'center'}>
-                      <Box display="flex" alignItems="center" bgcolor={'aliceblue'}>
-                        <IconButton size="small" onClick={() => decreseQty(item.id)} >
-                          <Remove />
-                        </IconButton>
+                    <Box
+                      display={"flex"}
+                      flexDirection={"row"}
+                      alignItems={"center"}
+                    >
+                      <Box
+                        display="flex"
+                        alignItems="center"
+                        bgcolor={"aliceblue"}
+                      >
+                        {updateQuantity && (
+                          <IconButton
+                            size="small"
+                            onClick={() => decreseQty(item.id)}
+                          >
+                            <Remove />
+                          </IconButton>
+                        )}
                         <Typography variant="body2">{item.quantity}</Typography>
-                        <IconButton size="small" onClick={() => increseQty(item.id)}>
-                          <Add />
-                        </IconButton>
+                        {updateQuantity && (
+                          <IconButton
+                            size="small"
+                            onClick={() => increseQty(item.id)}
+                          >
+                            <Add />
+                          </IconButton>
+                        )}
                       </Box>
-                      <Typography variant="body2" color="textSecondary" sx={{paddingLeft: 2}}>
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        sx={{ paddingLeft: 2 }}
+                      >
                         Total: {item.price * item.quantity} CUP
                       </Typography>
                     </Box>
                   </Box>
-                  <IconButton onClick={() => deleteItem(item.id)}>
-                    <Delete />
-                  </IconButton>
+                  {removeItem && (
+                    <IconButton onClick={() => removeItem(item.id)}>
+                      <Delete />
+                    </IconButton>
+                  )}
                 </Box>
               </Box>
-              
             </Paper>
           ))}
         </Box>
@@ -132,9 +183,16 @@ const CartDrawer = ({ open, onClose, cartItems, sell }) => {
               Total: {total} CUP
             </Typography>
           </Box>
-          <Button variant="contained" color="success" disabled={cart.length === 0} onClick={sell}>
-            VENDER
-          </Button>
+          {onOkButtonClick && (
+            <Button
+              variant="contained"
+              color="success"
+              disabled={cart.length === 0}
+              onClick={onOkButtonClick}
+            >
+              VENDER
+            </Button>
+          )}
         </Box>
       </Box>
     </Drawer>

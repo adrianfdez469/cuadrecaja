@@ -40,3 +40,12 @@ export const getSells = async (tiendaId: string, cierreId: string): Promise<IVen
   const response = await axios.get(API_URL(tiendaId, cierreId));
   return response.data;
 }
+
+export const removeSell = async (tiendaId: string, cierreId: string, ventaId: string, usuarioId: string) => {
+  const removed = await axios.delete(`${API_URL(tiendaId, cierreId)}/${ventaId}`, {
+    params: {
+      usuarioId: usuarioId
+    }
+  });
+  return removed.data;
+}

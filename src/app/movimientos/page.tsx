@@ -112,7 +112,7 @@ export default function MovimientosPage() {
                         ? `-${m.cantidad}`
                         : `+${m.cantidad}`}
                     </TableCell>
-                    <TableCell>{m.usuario.nombre}</TableCell>
+                    <TableCell>{m.usuario?.nombre || ''}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
