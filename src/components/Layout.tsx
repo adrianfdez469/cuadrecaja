@@ -42,7 +42,7 @@ const menuItems = [
   { label: "Costos y Precios", path: "/costos_precios", icon: GridViewIcon },
   { label: "Movimientos", path: "/movimientos", icon: MoveUpIcon },
   { label: "Pos de ventas", path: "/pos", icon: StorefrontIcon },
-  { label: "Ventas", path: "/ventas", icon: SellIcon },
+  // { label: "Ventas", path: "/ventas", icon: SellIcon },
   { label: "Cierre", path: "/cierre", icon: CancelPresentationIcon },
   { label: "Resumen cierres", path: "/resumen_cierre", icon: SummarizeIcon},
 ];

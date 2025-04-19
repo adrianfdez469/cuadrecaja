@@ -23,7 +23,7 @@ import { IVenta } from "@/types/IVenta";
 import { Delete, Edit } from "@mui/icons-material";
 import useConfirmDialog from "@/components/confirmDialog";
 import { getSells } from "@/services/sellService";
-import CartDrawer from "@/components/cartDrawer/CartDrawer";
+// import CartDrawer from "@/components/cartDrawer/CartDrawer";
 
 const Ventas = () => {
   const { user, loadingContext } = useAppContext();
@@ -32,7 +32,7 @@ const Ventas = () => {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [ventas, setVentas] = useState<IVenta[]>([]);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
-  const [itemsVenta, setItemVentas] = useState([]);
+  
 
   const getData = async () => {
     setIsDataLoading(true);
@@ -69,7 +69,7 @@ const Ventas = () => {
     });
     console.log(productos);
     
-    setItemVentas(productos);
+    
   };
 
   const handleCancelVenta = async (venta: IVenta) => {
@@ -138,12 +138,12 @@ const Ventas = () => {
           </Table>
         </TableContainer>
 
-        <CartDrawer
+        {/* <CartDrawer
           cartItems={itemsVenta}
           onClose={() => setItemVentas([])}
           open={itemsVenta.length > 0}
           sell={() => {}}
-        />
+        /> */}
 
         {ConfirmDialogComponent}
       </Box>
