@@ -164,12 +164,13 @@ export default function POSInterface() {
           
         };
       });
+      const cash = total - totalTransfer;
       await createSell(
         tiendaId,
         cierreId,
         user.id,
         total,
-        totalCash,
+        cash,
         totalTransfer,
         data
       );
