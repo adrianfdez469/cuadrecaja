@@ -30,7 +30,7 @@ import SummarizeIcon from '@mui/icons-material/Summarize';
 import MoveUpIcon from '@mui/icons-material/MoveUp';
 import { useAppContext } from "@/context/AppContext";
 import { AccountCircle } from "@mui/icons-material";
-import SellIcon from '@mui/icons-material/Sell';
+// import SellIcon from '@mui/icons-material/Sell';
 
 const configurationMenuItems = [
   { label: "Usuarios", path: "/configuracion/usuarios", icon: SupervisedUserCircleIcon },

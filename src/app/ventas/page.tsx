@@ -12,7 +12,7 @@ import {
   TableHead,
   TableRow,
   CircularProgress,
-  Button,
+  // Button,
   IconButton,
 } from "@mui/material";
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
@@ -76,7 +76,8 @@ const Ventas = () => {
     confirmDialog(
       "Está seguro que desea eliminar completamente esta venta?",
       () => {
-        console.log("Cancelar venta");
+        console.log("Cancelar venta", venta);
+
       }
     );
   };
