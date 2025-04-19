@@ -1,6 +1,6 @@
 "use client";
 
-import { PropsWithChildren, useEffect, useState } from "react";
+import { PropsWithChildren, useState } from "react";
 import {
   AppBar,
   Toolbar,

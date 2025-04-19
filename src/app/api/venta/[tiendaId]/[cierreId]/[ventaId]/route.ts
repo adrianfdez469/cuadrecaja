@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; // Asegúrate de tener la configuración de Prisma en `lib/prisma.ts`
-import { hasAdminPrivileges } from "@/utils/auth";
 import { MovimientoTipo } from "@prisma/client";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 
@@ -10,7 +9,7 @@ export async function DELETE(
 ) {
   try {
     
-    const { cierreId, tiendaId, ventaId } = await params;
+    const { tiendaId, ventaId } = await params;
     const { searchParams } = new URL(req.url);
     const usuarioId = searchParams.get("usuarioId");
 
