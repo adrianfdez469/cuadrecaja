@@ -79,7 +79,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       tienda: cierre.tienda,
       totalVentas,
       totalGanancia,
-      productosVendidos: Object.values(productosVendidos),
+      productosVendidos: Object.values(productosVendidos).sort((a, b) => a.nombre.localeCompare(b.nombre)),
     };
     return NextResponse.json(cierreData);
   } catch (error) {

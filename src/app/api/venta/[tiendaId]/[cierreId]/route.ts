@@ -130,3 +130,50 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
   }
 }
 
+export async function GET(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
+  try {
+    const { cierreId, tiendaId } = await params;
+
+    const ventas = await prisma.venta.findMany({
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        },
+        productos: {
+          select: {
+            cantidad: true,
+            id: true,
+            productoTiendaId: true,
+            producto: {
+              select: {
+                producto: {
+                  select: {
+                    nombre: true,
+                  }
+                },
+                precio: true
+              }
+            }
+          },
+        }
+      },
+      where: {
+        cierrePeriodoId: cierreId,
+        tiendaId: tiendaId
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    return NextResponse.json(ventas);
+
+  } catch (error) {
+    console.log(error);
+    return NextResponse.json({ error: "Error al obtener las ventas" }, { status: 500 });
+  }
+}
+

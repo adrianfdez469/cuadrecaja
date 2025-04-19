@@ -18,4 +18,6 @@ interface VentaProducto {
   ventaId: string;
   productoTiendaId: string;
   cantidad: number;
+  name?: string;
+  price?: number;
 }

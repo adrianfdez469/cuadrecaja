@@ -1,5 +1,6 @@
 import axios from "axios";
 import { cretateBatchMovimientos } from "./movimientoService";
+import { IVenta } from "@/types/IVenta";
 
 interface IProductoVenta {
   productoTiendaId: string;
@@ -34,3 +35,8 @@ export const createSell = async (tiendaId: string, cierreId: string, usuarioId: 
 
   return response.data;
 } 
+
+export const getSells = async (tiendaId: string, cierreId: string): Promise<IVenta[]> => {
+  const response = await axios.get(API_URL(tiendaId, cierreId));
+  return response.data;
+}

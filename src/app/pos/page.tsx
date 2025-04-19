@@ -17,7 +17,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import { ProductModal } from "./components/ProductModal";
 import { ICategory } from "@/types/ICategoria";
 import { IProductoTienda } from "@/types/IProducto";
-import CartDrawer from "./components/CartDrawer";
+import CartDrawer from "@/components/cartDrawer/CartDrawer";
 import PaymentModal from "./components/PaymentModal";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { ICierrePeriodo } from "@/types/ICierre";
