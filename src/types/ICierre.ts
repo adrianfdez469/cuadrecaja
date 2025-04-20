@@ -9,6 +9,7 @@ export interface ICierrePeriodo {
   totalVentas: number;
   totalGanancia: number;
   totalInversion: number;
+  totalTransferencia: number;
 }
 
 interface ICierreProductoVendidos {
@@ -25,6 +26,7 @@ export interface ICierreData {
   productosVendidos: ICierreProductoVendidos[],
   totalVentas: number;
   totalGanancia: number;
+  totalTransferencia: number;
 }
 
 export interface ISummaryCierre {
@@ -32,6 +34,7 @@ export interface ISummaryCierre {
   sumTotalGanancia: number;
   sumTotalInversion: number;
   sumTotalVentas: number;
+  sumTotalTransferencia: number;
   totalItems: number;
 }
 

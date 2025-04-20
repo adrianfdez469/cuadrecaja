@@ -122,9 +122,10 @@ model CierrePeriodo {
   ventas      Venta[]
 
   // Campos denormalizados para resumen
-  totalVentas    Float @default(0)
-  totalGanancia  Float @default(0)
-  totalInversion Float @default(0)
+  totalVentas         Float @default(0)
+  totalGanancia       Float @default(0)
+  totalInversion      Float @default(0)
+  totalTransferencia  Float @default(0)
 
   // Idices
   @@index([fechaInicio])

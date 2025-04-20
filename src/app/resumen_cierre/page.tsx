@@ -39,7 +39,8 @@ export default function ResumenCierrePage() {
     inversion: number;
     venta: number;
     ganancia: number;
-  }>({ inversion: 0, venta: 0, ganancia: 0 });
+    transf: number;
+  }>({ inversion: 0, venta: 0, ganancia: 0, transf: 0 });
   const { user, loadingContext } = useAppContext();
   const [showProducts, setShowProducts] = useState(false);
   const [cierreProducData, setCierreProductData] = useState<{ciereData: ICierreData, totales: ITotales}>();
@@ -77,9 +78,10 @@ export default function ResumenCierrePage() {
               acc.inversion += row.totalInversion;
               acc.venta += row.totalVentas;
               acc.ganancia += row.totalGanancia;
+              acc.transf += row.totalTransferencia
               return acc;
             },
-            { inversion: 0, venta: 0, ganancia: 0 }
+            { inversion: 0, venta: 0, ganancia: 0, transf: 0 }
           )
         );
         setLoading(false);
@@ -122,7 +124,7 @@ export default function ResumenCierrePage() {
       totalMonto: cierreData.productosVendidos.reduce(
         (acc, p) => acc + p.total,
         0
-      ),
+      )
     };
 
     setCierreProductData({
@@ -130,6 +132,7 @@ export default function ResumenCierrePage() {
         productosVendidos: cierreData.productosVendidos,
         totalGanancia: itemCierre.totalGanancia,
         totalVentas: itemCierre.totalVentas,
+        totalTransferencia: itemCierre.totalTransferencia
       },
       totales: totales
     });
@@ -181,6 +184,7 @@ export default function ResumenCierrePage() {
               <TableCell>Fin</TableCell>
               <TableCell>Inversión</TableCell>
               <TableCell>Venta</TableCell>
+              <TableCell>Transf</TableCell>
               <TableCell>Ganancia</TableCell>
               <TableCell>Acciones</TableCell>
             </TableRow>
@@ -196,6 +200,7 @@ export default function ResumenCierrePage() {
                 </TableCell>
                 <TableCell>${row.totalInversion.toFixed(2)}</TableCell>
                 <TableCell>${row.totalVentas.toFixed(2)}</TableCell>
+                <TableCell>${row.totalTransferencia.toFixed(2)}</TableCell>
                 <TableCell>${row.totalGanancia.toFixed(2)}</TableCell>
                 <TableCell>
                   <IconButton
@@ -216,6 +221,9 @@ export default function ResumenCierrePage() {
               </TableCell>
               <TableCell>
                 <strong>${totales.venta.toFixed(2)}</strong>
+              </TableCell>
+              <TableCell>
+                <strong>${totales.transf.toFixed(2)}</strong>
               </TableCell>
               <TableCell>
                 <strong>${totales.ganancia.toFixed(2)}</strong>

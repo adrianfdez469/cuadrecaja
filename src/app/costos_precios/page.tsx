@@ -141,7 +141,7 @@ const PreciosCantidades = () => {
               },
               {
                 field: "existencia",
-                headerName: "Existencia",
+                headerName: "Cantidad",
                 flex: 1,
                 editable: false,
                 type: "number",

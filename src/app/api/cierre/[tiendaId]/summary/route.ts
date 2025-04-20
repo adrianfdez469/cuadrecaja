@@ -42,7 +42,8 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
       _sum: {
         totalGanancia: true,
         totalInversion: true,
-        totalVentas: true
+        totalVentas: true,
+        totalTransferencia: true
       },
       where: {
         ...filtros
@@ -54,6 +55,7 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
       sumTotalGanancia: totales._sum.totalGanancia,
       sumTotalInversion: totales._sum.totalInversion,
       sumTotalVentas: totales._sum.totalVentas,
+      sumTotalTransferencia: totales._sum.totalTransferencia,
       totalItems: totalCierres
     });
   } catch (error) {

@@ -17,6 +17,7 @@ export interface ITotales {
   totalCantidad: number;
   totalMonto: number;
   totalGanancia: number;
+  // totalTransferencia: number;
 }
 
 interface IProps {
@@ -47,6 +48,9 @@ export const TablaProductosCierre: FC<IProps> = ({
           </Typography>
           <Typography variant="h6">
             Total Ganancia: ${cierreData.totalGanancia.toFixed(2)}
+          </Typography>
+          <Typography variant="h6">
+            Total Transferencia: ${cierreData.totalTransferencia.toFixed(2)}
           </Typography>
         </Box>
 

@@ -40,11 +40,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
     // Calcular totales
     let totalVentas = 0;
     let totalGanancia = 0;
+    let totalTransferencia = 0;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const productosVendidos: Record<string, any> = {};
   
     cierre.ventas.forEach((venta) => {
       totalVentas += venta.total;
+      totalTransferencia += venta.totaltransfer;
   
       venta.productos.forEach((ventaProducto) => {
         const { producto: productoTienda, cantidad } = ventaProducto;
@@ -79,6 +81,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       tienda: cierre.tienda,
       totalVentas,
       totalGanancia,
+      totalTransferencia,
       productosVendidos: Object.values(productosVendidos).sort((a, b) => a.nombre.localeCompare(b.nombre)),
     };
     return NextResponse.json(cierreData);

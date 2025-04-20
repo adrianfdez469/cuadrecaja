@@ -142,7 +142,7 @@ export function ProductModal({
 
                     <Box display={'flex'} flexDirection={'row'} justifyContent={'space-between'} alignContent={'space-between'}>
                       <Typography variant="subtitle1" color="text.secondary">
-                        {`Existencia: ${product.existencia}`}
+                        {`Cant: ${product.existencia}`}
                       </Typography>
                       <Typography variant="subtitle1" color="textPrimary">
                         ${product.precio}
