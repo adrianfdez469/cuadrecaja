@@ -105,8 +105,9 @@ export default function POSInterface() {
       
       setProducts(
         prods.sort((a, b) => {
-            return a.nombre.localeCompare(b.nombre);
-          })
+          return a.nombre.localeCompare(b.nombre);
+        })
+        .filter(p => p.existencia > 0)
       );
 
       const categorias = Object.values(
