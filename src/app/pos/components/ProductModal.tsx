@@ -12,17 +12,24 @@ import {
   Button,
   Fab,
 } from "@mui/material";
-import CloseIcon from '@mui/icons-material/Close';
+import CloseIcon from "@mui/icons-material/Close";
 import { useCartStore } from "@/store/cartStore";
 import { IProductoTienda } from "@/types/IProducto";
 
-export function ProductModal({ open, closeModal, products, category, openCart }) {
+export function ProductModal({
+  open,
+  closeModal,
+  products,
+  category,
+  openCart,
+}) {
   const [selectedProduct, setSelectedProduct] = useState<IProductoTienda>(null);
   const { addToCart } = useCartStore();
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     setQuantity(1);
+    console.log(products);
   }, []);
 
   // Maneja la selección de un producto
@@ -32,16 +39,24 @@ export function ProductModal({ open, closeModal, products, category, openCart })
 
   // Maneja la confirmación de la cantidad
   const handleConfirmQuantity = () => {
-    addToCart({id: selectedProduct.id, name: selectedProduct.nombre, price: selectedProduct.precio, productoTiendaId: selectedProduct.productoTiendaId}, quantity);
+    addToCart(
+      {
+        id: selectedProduct.id,
+        name: selectedProduct.nombre,
+        price: selectedProduct.precio,
+        productoTiendaId: selectedProduct.productoTiendaId,
+      },
+      quantity
+    );
     handleResetProductQuantity();
   };
 
   const handleResetProductQuantity = () => {
-    console.log('entra a handleResetProductQuantity?????');
-    
+    console.log("entra a handleResetProductQuantity?????");
+
     setSelectedProduct(null);
     setQuantity(1);
-  }
+  };
 
   const increase = () => {
     setQuantity((qty) => qty + 1);
@@ -60,7 +75,7 @@ export function ProductModal({ open, closeModal, products, category, openCart })
     handleConfirmQuantity();
     closeModal();
     openCart();
-  }
+  };
 
   return (
     <>
@@ -82,15 +97,20 @@ export function ProductModal({ open, closeModal, products, category, openCart })
           flexDirection={"column"}
           // justifyItems={"center"}
         >
-          <Box display={"flex"} flexDirection={'row'} alignItems={'flex-start'} justifyContent={'space-between'} >
-            <Typography variant="h4" mb={2} textAlign="left" >
+          <Box
+            display={"flex"}
+            flexDirection={"row"}
+            alignItems={"flex-start"}
+            justifyContent={"space-between"}
+          >
+            <Typography variant="h4" mb={2} textAlign="left">
               {category ? category.nombre : ""}
             </Typography>
             <Fab size="small" aria-label="close" onClick={closeModal}>
               <CloseIcon />
             </Fab>
           </Box>
-          
+
           <Grid container spacing={2}>
             {products.map((product) => (
               <Grid item xs={6} sm={4} md={3} key={product.id}>
@@ -114,15 +134,26 @@ export function ProductModal({ open, closeModal, products, category, openCart })
                     <Typography variant="h6" fontWeight="bold">
                       {product.nombre}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      ${product.precio}
-                    </Typography>
+                    {product.descripcion && (
+                      <Typography variant="body2" color="text.secondary">
+                        {product.descripcion}
+                      </Typography>
+                    )}
+
+                    <Box display={'flex'} flexDirection={'row'} justifyContent={'space-between'} alignContent={'space-between'}>
+                      <Typography variant="subtitle1" color="text.secondary">
+                        {`Existencia: ${product.existencia}`}
+                      </Typography>
+                      <Typography variant="subtitle1" color="textPrimary">
+                        ${product.precio}
+                      </Typography>
+
+                    </Box>
                   </CardContent>
                 </Card>
               </Grid>
             ))}
           </Grid>
-          
         </Box>
       </Modal>
 
@@ -169,8 +200,7 @@ export function ProductModal({ open, closeModal, products, category, openCart })
                 +
               </Button>
             </Box>
-            
-            
+
             <Button
               variant="contained"
               fullWidth
@@ -178,9 +208,9 @@ export function ProductModal({ open, closeModal, products, category, openCart })
             >
               Agregar al Carrito
             </Button>
-            
+
             <Button
-              sx={{mt: 2}}
+              sx={{ mt: 2 }}
               variant="contained"
               color="success"
               fullWidth
@@ -188,7 +218,6 @@ export function ProductModal({ open, closeModal, products, category, openCart })
             >
               Vender todo
             </Button>
-
           </Box>
         )}
       </Dialog>
