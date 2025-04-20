@@ -4,15 +4,7 @@ import React, { useEffect, useState } from "react";
 import {
   Box,
   Typography,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   CircularProgress,
-  Button,
 } from "@mui/material";
 import { closePeriod, fetchCierreData, openPeriod } from "@/services/cierrePeriodService";
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
@@ -20,12 +12,7 @@ import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ICierreData, ICierrePeriodo } from "@/types/ICierre";
 import useConfirmDialog from "@/components/confirmDialog";
-
-interface ITotales {
-  totalCantidad: number;
-  totalMonto: number;
-  totalGanancia: number;
-}
+import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
 
 const CierreCajaPage = () => {
   const { user, loadingContext } = useAppContext();
@@ -109,56 +96,12 @@ const CierreCajaPage = () => {
           Cierre de Caja: Corte {new Date(currentPeriod.fechaInicio).toLocaleDateString()}
         </Typography>
   
-        <Paper sx={{ p: 2, mb: 2, display: 'flex', flexDirection: 'row', justifyContent:'space-between'}}>
-          <Box>
-            <Typography variant="h6">
-              Total Venta: ${cierreData.totalVentas.toFixed(2)}
-            </Typography>
-            <Typography variant="h6">
-              Total Ganancia: ${cierreData.totalGanancia.toFixed(2)}
-            </Typography>
-          </Box>
-
-          <Button variant="contained" onClick={handleCerrarCaja}>Cerrar caja</Button>
-        </Paper>
-  
-        <TableContainer component={Paper} sx={{ mt: 2 }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Producto</TableCell>
-                <TableCell>Cantidad</TableCell>
-                <TableCell>Venta</TableCell>
-                <TableCell>Ganancia</TableCell>
-                <TableCell>Costo</TableCell>
-                <TableCell>Precio</TableCell>
-                
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {cierreData.productosVendidos.map((producto) => (
-                <TableRow key={producto.id}>
-                  <TableCell>{producto.nombre}</TableCell>
-                  <TableCell>{producto.cantidad}</TableCell>
-                  <TableCell>${producto.total?.toFixed(2)}</TableCell>
-                  <TableCell>${producto.ganancia.toFixed(2)}</TableCell>
-                  <TableCell>${producto.costo.toFixed(2)}</TableCell>
-                  <TableCell>${producto.precio.toFixed(2)}</TableCell>
-                  
-                </TableRow>
-              ))}
-              <TableRow sx={{ fontWeight: "bold", backgroundColor: "#f0f0f0" }}>
-                <TableCell>Total</TableCell>
-                <TableCell>{totales.totalCantidad}</TableCell>
-                <TableCell>${totales.totalMonto.toFixed(2)}</TableCell>
-                <TableCell>${totales.totalGanancia.toFixed(2)}</TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </TableContainer>
-
+        <TablaProductosCierre
+          cierreData={cierreData}
+          totales={totales}
+          handleCerrarCaja={handleCerrarCaja}
+        />
+        
         {ConfirmDialogComponent}
       </Box>
     );
