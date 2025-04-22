@@ -23,4 +23,7 @@ export interface IProductoTienda {
   categoriaId: string;
   categoria: ICategory;
   productoTiendaId: string;
+
+  fraccionDeId?: string;
+  unidadesPorFraccion?: number;
 }

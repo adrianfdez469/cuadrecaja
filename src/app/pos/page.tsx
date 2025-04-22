@@ -101,13 +101,25 @@ export default function POSInterface() {
           },
         }
       );
-      const prods = response.data.filter((prod) => prod.precio > 0);
+      const prods = response.data
+        .filter((prod) => prod.precio > 0)
+        .filter(p => {
+          if(p.existencia <= 0) {
+            if(p.fraccionDeId !== null) {
+              const pPadre = response.data.find(padre => padre.id === p.fraccionDeId);
+              if(pPadre && pPadre.existencia > 0){
+                return true;
+              }
+            }
+            return false;
+          }
+          return true;
+        });
       
       setProducts(
         prods.sort((a, b) => {
           return a.nombre.localeCompare(b.nombre);
         })
-        .filter(p => p.existencia > 0)
       );
 
       const categorias = Object.values(
