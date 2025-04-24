@@ -17,10 +17,10 @@ model Negocio {
   userlimit    Int
   locallimit   Int
 
-  // usuarios   Usuario[]
-  // tiendas    Tienda[]
-  // categorias Categoria[]
-  // productos  Producto[]
+  usuarios   Usuario[]
+  tiendas    Tienda[]
+  categorias Categoria[]
+  productos  Producto[]
 }
 
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
@@ -34,7 +34,7 @@ model Tienda {
   tipo            String            @default("tienda")
   MovimientoStock MovimientoStock[]
 
-  // negocio         Negocio          @relation(fields: [negocioId], references: [id])
+  negocio         Negocio          @relation(fields: [negocioId], references: [id])
   negocioId       String              @default("")
 }
 
@@ -50,8 +50,11 @@ model Usuario {
   ventas          Venta[] // Un usuario puede realizar múltiples ventas
   MovimientoStock MovimientoStock[]
 
-  // negocio         Negocio           @relation(fields: [negocioId], references: [id])
+  negocio         Negocio           @relation(fields: [negocioId], references: [id])
   negocioId       String             @default("")
+
+  // tiendaActual    Tienda            @relation(fuelds: [tiendaActualId], references: [id])
+  tiendaActualId     String          @default("")
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.
@@ -72,7 +75,7 @@ model Categoria {
   color     String // Color representativo (hexadecimal)
   productos Producto[] // Relación con los productos de esta categoría
 
-  // negocio   Negocio   @relation(fields: [negocioId], references: [id])
+  negocio   Negocio   @relation(fields: [negocioId], references: [id])
   negocioId String       @default("")
 }
 
@@ -92,7 +95,7 @@ model Producto {
 
   unidadesPorFraccion Int?         // Cuántas unidades se generan al fraccionar 1 del producto padre
 
-  // negocio         Negocio          @relation(fields: [negocioId], references: [id])
+  negocio         Negocio          @relation(fields: [negocioId], references: [id])
   negocioId       String            @default("")
 }
 
