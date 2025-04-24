@@ -31,8 +31,10 @@ import MoveUpIcon from '@mui/icons-material/MoveUp';
 import { useAppContext } from "@/context/AppContext";
 import { AccountCircle } from "@mui/icons-material";
 import SellIcon from '@mui/icons-material/Sell';
+import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
 
 const configurationMenuItems = [
+  { label: "Negocios", path: "/configuracion/negocios", icon:  BusinessCenterIcon},
   { label: "Usuarios", path: "/configuracion/usuarios", icon: SupervisedUserCircleIcon },
   { label: "Tiendas", path: "/configuracion/tiendas", icon: StoreIcon  },
   { label: "Categorías", path: "/configuracion/categorias", icon: CategoryIcon },

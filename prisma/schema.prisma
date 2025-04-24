@@ -8,6 +8,21 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Negocio {
+  id           String    @id @default(uuid())
+  nombre       String    @unique
+  createdAt    DateTime  @default(now())
+
+  limitTime    DateTime
+  userlimit    Int
+  locallimit   Int
+
+  // usuarios   Usuario[]
+  // tiendas    Tienda[]
+  // categorias Categoria[]
+  // productos  Producto[]
+}
+
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
 model Tienda {
   id              String            @id @default(uuid())
@@ -18,6 +33,9 @@ model Tienda {
   cierres         CierrePeriodo[]
   tipo            String            @default("tienda")
   MovimientoStock MovimientoStock[]
+
+  // negocio         Negocio          @relation(fields: [negocioId], references: [id])
+  negocioId       String              @default("")
 }
 
 // Representa un usuario que puede estar vinculado a múltiples tiendas.
@@ -27,9 +45,13 @@ model Usuario {
   usuario         String            @unique // Nombre de usuario único
   password        String
   rol             String            @default("vendedor") // Rol del usuario en el sistema
+
   tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
   ventas          Venta[] // Un usuario puede realizar múltiples ventas
   MovimientoStock MovimientoStock[]
+
+  // negocio         Negocio           @relation(fields: [negocioId], references: [id])
+  negocioId       String             @default("")
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.
@@ -49,6 +71,9 @@ model Categoria {
   nombre    String     @unique // Nombre único de la categoría
   color     String // Color representativo (hexadecimal)
   productos Producto[] // Relación con los productos de esta categoría
+
+  // negocio   Negocio   @relation(fields: [negocioId], references: [id])
+  negocioId String       @default("")
 }
 
 // Representa un producto genérico, sin relación con tiendas específicas.
@@ -67,6 +92,8 @@ model Producto {
 
   unidadesPorFraccion Int?         // Cuántas unidades se generan al fraccionar 1 del producto padre
 
+  // negocio         Negocio          @relation(fields: [negocioId], references: [id])
+  negocioId       String            @default("")
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Producto y Tienda.
