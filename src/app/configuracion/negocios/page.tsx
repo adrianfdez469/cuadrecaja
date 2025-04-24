@@ -28,13 +28,6 @@ import { INegocio } from "@/types/INegocio";
 
 const planesNegocioArr = Object.entries(planesNegocio);
 
-interface IUsario {
-  id: string;
-  nombre: string;
-  usuario: string;
-}
-
-
 export default function Tiendas() {
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   const [open, setOpen] = useState(false);
@@ -64,7 +57,7 @@ export default function Tiendas() {
 
   const handleSave = async () => {
     try {
-      const resp = await createNegocio(nombre, selectedPlan.limiteLocales, selectedPlan.limiteUsuarios);
+      await createNegocio(nombre, selectedPlan.limiteLocales, selectedPlan.limiteUsuarios);
       showMessage('Negocio creado satisfactoriamente', 'success');
     } catch (error) {
       console.log(error);
@@ -72,11 +65,15 @@ export default function Tiendas() {
     }
   };
 
-  const handleDelete = async (id) => {};
+  const handleDelete = async (id) => {
+    console.log(id);
+  };
 
-  const handleEdit = (tienda) => {};
+  const handleEdit = (negocio) => {
+    console.log(negocio);
+  };
 
-  const resetForm = () => {};
+  // const resetForm = () => {};
 
   const handleSetSelectedPlan = (plan) => {
     setSelectedPlan(planesNegocio[plan]);
@@ -150,7 +147,7 @@ export default function Tiendas() {
           <Select
             fullWidth
             value={selectedPlan}
-            onChange={(e) => handleSetSelectedPlan(e.target.value as any)}
+            onChange={(e) => handleSetSelectedPlan(e.target.value as string)}
           >
             {planesNegocioArr.map((plan) => (
               <MenuItem key={plan[0]} value={plan[0]}>

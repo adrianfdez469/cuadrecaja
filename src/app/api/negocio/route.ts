@@ -3,7 +3,7 @@ import { hasSuperAdminPrivileges } from "@/utils/auth";
 import { NextResponse } from "next/server";
 import dayjs from 'dayjs';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const negocios = await prisma.negocio.findMany();
     
