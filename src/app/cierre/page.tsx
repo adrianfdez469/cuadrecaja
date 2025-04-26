@@ -43,8 +43,6 @@ const CierreCajaPage = () => {
         await getInitData();    
       }
     });
-    
-    
   };
 
   const getInitData = async () => {

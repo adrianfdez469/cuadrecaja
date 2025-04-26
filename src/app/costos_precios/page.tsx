@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { Box, TextField, CircularProgress, Button } from "@mui/material";
 import { DataGrid, GridRowModel } from "@mui/x-data-grid";
-import axios from "axios";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
+import { fecthCostosPreciosProds } from "@/services/costoPrecioServices";
 
 const PreciosCantidades = () => {
   const [productos, setProductos] = useState([]);
@@ -16,11 +16,9 @@ const PreciosCantidades = () => {
 
   const fetchProductos = async () => {
     try {
-      console.log('user', user);
-      
       if(user?.tiendaActual?.id){
-        const response = await axios.get(`/api/productos_tienda/${user.tiendaActual.id}`);
-        setProductos(response.data);
+        const data = await fecthCostosPreciosProds(user?.tiendaActual?.id);
+        setProductos(data);
         setIdDirtyProds([]);
       }
     } catch (error) {

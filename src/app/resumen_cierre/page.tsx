@@ -48,8 +48,6 @@ export default function ResumenCierrePage() {
 
   useEffect(() => {
     (async () => {
-      console.log("useEffect resumen cierre");
-
       if (!loadingContext) {
         const tiendaId = user.tiendaActual.id;
         let dataResp;
@@ -107,8 +105,6 @@ export default function ResumenCierrePage() {
   };
 
   const handleViewMore = async (itemCierre: Omit<ICierrePeriodo, "tienda">) => {
-    console.log(itemCierre);
-
     const tiendaId = user.tiendaActual.id;
     const cierreData = await fetchCierreData(tiendaId, itemCierre.id);
 

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession, hasPermision } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
+import getUserFromRequest from "@/utils/getUserFromRequest";
 
 
 // Eliminar un usuario (DELETE)
@@ -16,7 +17,9 @@ export async function DELETE(
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }
 
-    const usuario = await prisma.usuario.findUnique({where: {id}});
+    const user = await getUserFromRequest(req);
+
+    const usuario = await prisma.usuario.findUnique({where: {id, negocioId: user.negocio.id}});
     if(!usuario) {
       return NextResponse.json(
         { error: "Usuario no encontrado" },
@@ -30,7 +33,6 @@ export async function DELETE(
         { status: 403 }
       );
     }
-
 
     // // Verificar que el usuario no está asociado a nunguna tienda o ah realizado una venta
     const usuarioUsado = await prisma.usuario.findUnique({
@@ -68,10 +70,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }
-
+    
+    const user = await getUserFromRequest(req);
     const { nombre, rol, usuario, password } = await req.json();
 
-    const usuarioDB = await prisma.usuario.findUnique({where: {id}});
+    const usuarioDB = await prisma.usuario.findUnique({where: {id, negocioId: user.negocio.id}});
     if(!usuarioDB) {
       return NextResponse.json(
         { error: "Usuario no encontrado" },

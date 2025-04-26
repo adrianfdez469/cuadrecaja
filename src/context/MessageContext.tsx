@@ -4,7 +4,7 @@ import { createContext, useContext, useState } from "react";
 import { Alert, AlertColor, Snackbar } from "@mui/material";
 
 const MessageContext = createContext<{
-    showMessage: (text: string, severity: AlertColor)=>void,
+    showMessage: (text: string, severity: AlertColor, error?)=>void,
   }>(null);
 
 export function MessageProvider({ children }: { children: React.ReactNode }) {
@@ -13,7 +13,9 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
   const [textInfo, setTextInfo] = useState("");
   const [severityInfo, setSeverityInfo] = useState<AlertColor>("success");
 
-  const showMessage = (text: string, severity: AlertColor) => {
+  const showMessage = (text: string, severity: AlertColor, error?) => {
+    console.log("Error: ", error);
+    
     setTextInfo(text);
     setSeverityInfo(severity);
     setShowInfo(true);

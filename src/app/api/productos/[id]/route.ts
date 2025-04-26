@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; // Asegúrate de tener la configuración de Prisma en `lib/prisma.ts`
 import { hasAdminPrivileges } from "@/utils/auth";
+import getUserFromRequest from "@/utils/getUserFromRequest";
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -8,7 +9,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!(await hasAdminPrivileges())) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
     }
-    
+    const user = await getUserFromRequest(req);
     const { id } = await params;
 
 
@@ -18,7 +19,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     // Verificar si el producto existe antes de eliminarlo
     const producto = await prisma.producto.findUnique({
-      where: { id },
+      where: { id, negocioId: user.negocio.id },
     });
 
     if (!producto) {
@@ -39,17 +40,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 // Actualizar un producto existente
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-
-    const { id } = await params;
-
+    
     if (!(await hasAdminPrivileges())) {
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
     }
+    
+    const user = await getUserFromRequest(req);
+    const { id } = await params;
 
     const { nombre, categoriaId, descripcion, fraccion } = await req.json();
 
     const updatedProduct = await prisma.producto.update({
-      where: { id },
+      where: { id, negocioId: user.negocio.id },
       data: { 
         nombre, 
         descripcion, 

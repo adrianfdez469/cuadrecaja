@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hasAdminPrivileges } from "@/utils/auth";
+import getUserFromRequest from "@/utils/getUserFromRequest";
 
 // Obtener todas las categorías
-export async function GET() {
+export async function GET(req: Request) {
+
+  const user = await getUserFromRequest(req);
+
   try {
     const tiendas = await prisma.tienda.findMany({
       include: {
@@ -20,6 +24,9 @@ export async function GET() {
           }
         }
       },
+      where: {
+        negocioId: user.negocio.id
+      }
     });
     const tiendasFormateadas = tiendas.map(tienda => ({
       ...tienda,
@@ -46,6 +53,21 @@ export async function POST(request: Request) {
       );
     }
 
+    const user = await getUserFromRequest(request);
+
+    const tiendasCounter = await prisma.tienda.count({
+      where: {
+        negocioId: user.negocio.id
+      }
+    })
+
+    if(user.negocio.locallimit <= tiendasCounter ) {
+      return NextResponse.json(
+        { error: "Limite de tiendas exedido" },
+        { status: 400 }
+      );
+    }
+
     const { nombre, idusuarios } = await request.json();
     console.log(idusuarios);
     
@@ -57,6 +79,7 @@ export async function POST(request: Request) {
             usuario: { connect: { id: usuarioId } },
           })),
         },
+        negocioId: user.negocio.id
       }
     });
 

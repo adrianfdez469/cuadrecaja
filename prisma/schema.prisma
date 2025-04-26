@@ -36,6 +36,8 @@ model Tienda {
 
   negocio         Negocio          @relation(fields: [negocioId], references: [id])
   negocioId       String              @default("")
+
+  usuario         Usuario[]
 }
 
 // Representa un usuario que puede estar vinculado a múltiples tiendas.
@@ -53,8 +55,8 @@ model Usuario {
   negocio         Negocio           @relation(fields: [negocioId], references: [id])
   negocioId       String             @default("")
 
-  // tiendaActual    Tienda            @relation(fuelds: [tiendaActualId], references: [id])
-  tiendaActualId     String          @default("")
+  tiendaActual    Tienda?            @relation(fields: [tiendaActualId], references: [id])
+  tiendaActualId     String?          @default("")
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.

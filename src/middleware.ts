@@ -1,21 +1,31 @@
-import { withAuth } from "next-auth/middleware";
+// middleware.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
-export default withAuth({
-  pages: { signIn: "/login" }, // Redirige al login si no está autenticado
-  callbacks: {
-    authorized: ({ token }) => !!token, // Solo permite acceso si el usuario está autenticado
-  },
-});
+export async function middleware(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+
+  if (token) {
+    // Almacena la info del usuario en headers para que los endpoints la lean
+    const requestHeaders = new Headers(req.headers)
+    requestHeaders.set('x-user-id', token.id);
+    requestHeaders.set('x-user-rol', token.rol);
+    requestHeaders.set('x-user-nombre', token.nombre);
+    requestHeaders.set('x-user-usuario', token.usuario);
+    requestHeaders.set('x-user-negocio', JSON.stringify(token.negocio));
+    requestHeaders.set('x-user-tiendaActual', JSON.stringify(token.tiendaActual));
+    requestHeaders.set('x-user-tiendas', JSON.stringify(token.tiendas));
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
+  }
+
+  return NextResponse.next()
+}
 
 export const config = {
-  matcher: [
-    "/api/categorias/:path*",
-    "/api/productos/:path*",
-    "/api/productos_tienda/:path*",
-    "/api/tiendas/:path*",
-    "/api/cierre/:path*",
-    "/api/usuarios/:path*",
-    "/api/venta/:path*",
-    "/((?!api/init-superadmin).*)", // Excluye esta ruta del middleware
-  ],
-};
+  matcher: ['/api/:path*'], // solo aplica el middleware a las rutas del API
+}

@@ -1,4 +1,7 @@
 import { DefaultSession } from "next-auth";
+import { INegocio } from "./INegocio";
+import { ILocal } from "./ILocal";
+
 
 declare module "next-auth" {
   interface Session {
@@ -7,8 +10,10 @@ declare module "next-auth" {
       usuario: string;
       nombre: string;
       rol: string;
-      tiendas: { id: string; nombre: string }[];
-      tiendaActual?: { id: string; nombre: string } | null;
+      tiendas: ILocal[];
+      tiendaActual?: ILocal | null;
+      negocio: INegocio;
+      expiresAt: string;
     } & DefaultSession["user"];
   }
 
@@ -17,8 +22,10 @@ declare module "next-auth" {
     usuario: string;
     nombre: string;
     rol: string;
-    tiendas: { id: string; nombre: string }[];
-    tiendaActual?: { id: string; nombre: string } | null;
+    tiendas: ILocal[];
+    tiendaActual?: ILocal | null;
+    negocio: INegocio;
+    // expiresAt: string;
   }
 }
 
@@ -28,7 +35,9 @@ declare module "next-auth/jwt" {
     usuario: string;
     nombre: string;
     rol: string;
-    tiendas: { id: string; nombre: string }[];
-    tiendaActual?: { id: string; nombre: string } | null;
+    tiendas: ILocal[];
+    tiendaActual?: ILocal | null;
+    negocio: INegocio;
+    expCustom: string;
   }
 }

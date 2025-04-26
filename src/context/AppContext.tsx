@@ -5,8 +5,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ILocal } from "@/types/ILocal";
-
-const AppContext = createContext(null);
+import { INegocio } from "@/types/INegocio";
 
 interface ISessionUser {
   id: string; 
@@ -15,7 +14,15 @@ interface ISessionUser {
   nombre: string;
   tiendaActual: ILocal; 
   tiendas: ILocal[]; 
+  negocio: INegocio;
 }
+
+const AppContext = createContext<{
+  loadingContext: boolean,
+  isAuth: boolean,
+  user: ISessionUser
+}>(null);
+
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -26,11 +33,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAuth, setIsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  
-
-  const seleccionarTiendaActual = (tienda: ILocal) => {
-    setUser({...user, tiendaActual: tienda});
-  } 
 
   useEffect(() => {
     if(status === 'authenticated') {
@@ -44,7 +46,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={{ 
-      seleccionarTiendaActual,
       loadingContext: loading,
       isAuth,
       user
@@ -59,7 +60,6 @@ export const useAppContext = () => {
   
   const router = useRouter();
   const {
-    seleccionarTiendaActual,
     loadingContext: loading,
     isAuth,
     user
@@ -84,7 +84,6 @@ export const useAppContext = () => {
     handleLogout,
     goToLogin,
     gotToPath,
-    seleccionarTiendaActual,
     loadingContext: loading,
     isAuth,
     user

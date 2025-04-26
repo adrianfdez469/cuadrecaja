@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import getUserFromRequest from "@/utils/getUserFromRequest";
 import { NextRequest, NextResponse } from "next/server";
 
 
@@ -8,6 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
   try {
     const { tiendaId } = await params;
 
+    const user = await getUserFromRequest(req);
     const productos = (await prisma.producto.findMany({
       include: {
         productosTienda: {
@@ -21,6 +23,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
       },
       orderBy: {
         nombre: 'asc'
+      },
+      where: {
+        negocioId: user.negocio.id
       }
     }));
     const productosTienda = productos.map(p => {
@@ -45,40 +50,56 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
     const { tiendaId } = await params;
     const { productos } = await req.json();
 
-    console.log(tiendaId);
-    console.log(productos);
-    
-    
-
     if (!tiendaId || !Array.isArray(productos)) {
       return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
     }
 
-    const operaciones = productos.map((producto) =>
-      prisma.productoTienda.upsert({
-        where: {
-          tiendaId_productoId: {
-            tiendaId,
-            productoId: producto.id, // Debes asegurarte de que este ID es el correcto
+    const user = await getUserFromRequest(req);
+    const productosDb = await prisma.producto.findMany({
+      where: {
+        id: {
+          in: productos.map(p => p.id)
+        },
+        negocioId: user.negocio.id
+      },
+      select: {
+        id: true
+      }
+    });
+    if(productos.every(p => {
+      return productosDb.findIndex(pdb => pdb.id === p.id) >= 0
+    })){
+      const operaciones = productos.map((producto) =>
+        prisma.productoTienda.upsert({
+          where: {
+            tiendaId_productoId: {
+              tiendaId,
+              productoId: producto.id, // Debes asegurarte de que este ID es el correcto
+            },
           },
-        },
-        update: {
-          precio: producto.precio,
-          costo: producto.costo,
-        },
-        create: {
-          tiendaId,
-          productoId: producto.id,
-          precio: producto.precio || 0,
-          costo: producto.costo || 0,
-          existencia: 0
-        },
-      })
-    );
+          update: {
+            precio: producto.precio,
+            costo: producto.costo,
+          },
+          create: {
+            tiendaId,
+            productoId: producto.id,
+            precio: producto.precio || 0,
+            costo: producto.costo || 0,
+            existencia: 0
+          },
+        })
+      );
+  
+      await prisma.$transaction(operaciones);
+  
+      return NextResponse.json({ success: true });
+    } else {
+      return NextResponse.json({ error: "No tiene los permisos necesarios" }, { status: 403 });
+    }
 
-    await prisma.$transaction(operaciones);
 
-    return NextResponse.json({ success: true });
+
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });

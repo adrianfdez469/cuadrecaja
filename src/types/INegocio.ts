@@ -1,7 +1,7 @@
 export interface INegocio {
   id: string;
   nombre: string;
-  limitTime: string;
+  limitTime: Date;
   locallimit: number; 
   userlimit: number;
 }

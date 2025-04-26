@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; // Asegúrate de tener la configuración de Prisma en `lib/prisma.ts`
 import { hasAdminPrivileges } from "@/utils/auth";
+import getUserFromRequest from "@/utils/getUserFromRequest";
 
 export async function DELETE(
   req: NextRequest,
@@ -13,7 +14,7 @@ export async function DELETE(
         { status: 403 }
       );
     }
-
+    const user = await getUserFromRequest(req);
     const { id } = await params;
 
     if (!id) {
@@ -22,7 +23,7 @@ export async function DELETE(
 
     // Verificar si la tienda existe antes de eliminarla
     const tienda = await prisma.tienda.findUnique({
-      where: { id },
+      where: { id, negocioId: user.negocio.id },
     });
 
     if (!tienda) {
@@ -57,7 +58,7 @@ export async function DELETE(
 
     //    - Luego la tienda
     await prisma.tienda.delete({
-      where: { id },
+      where: { id, negocioId: user.negocio.id },
     });
 
     return NextResponse.json(
