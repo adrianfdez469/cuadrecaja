@@ -59,7 +59,16 @@ export function ProductModal({
   };
 
   const increase = () => {
-    setQuantity((qty) => qty + 1);
+    
+    setQuantity((qty) => {
+      const nuevaCant = qty + 1;
+      const max = selectedProduct.unidadesPorFraccion || nuevaCant;
+      if(max >= nuevaCant) {
+        return nuevaCant;
+      } else {
+        return qty;
+      }
+    });
   };
   const decrease = () => {
     setQuantity((qty) => {

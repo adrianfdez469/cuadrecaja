@@ -27,3 +27,9 @@ export interface IProductoTienda {
   fraccionDeId?: string;
   unidadesPorFraccion?: number;
 }
+
+export interface IProductoVenta {
+  productoTiendaId: string;
+  cantidad: number;
+  productId
+}

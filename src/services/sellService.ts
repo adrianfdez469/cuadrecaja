@@ -1,12 +1,7 @@
 import axios from "axios";
 import { cretateBatchMovimientos } from "./movimientoService";
 import { IVenta } from "@/types/IVenta";
-
-interface IProductoVenta {
-  productoTiendaId: string;
-  cantidad: number;
-  productId
-}
+import { IProductoVenta } from "@/types/IProducto";
 
 
 const API_URL = (tiendaId, cierreId) => `/api/venta/${tiendaId}/${cierreId}`; // Ruta base del backend

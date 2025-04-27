@@ -8,8 +8,11 @@ import {
   Paper,
   Fab,
   Badge,
+  SpeedDial,
+  SpeedDialAction,
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import { Sync } from "@mui/icons-material";
 import { useCartStore } from "@/store/cartStore";
 import axios from "axios";
 import { useAppContext } from "@/context/AppContext";
@@ -23,6 +26,10 @@ import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { ICierrePeriodo } from "@/types/ICierre";
 import useConfirmDialog from "@/components/confirmDialog";
 import { createSell } from "@/services/sellService";
+import { useSalesStore } from "@/store/salesStore";
+import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
+import BlurOnIcon from "@mui/icons-material/BlurOn";
+import { SellsDrawer } from "./components/sells";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -33,12 +40,22 @@ export default function POSInterface() {
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
 
-  const { items: cart, total, clearCart, removeFromCart, updateQuantity } = useCartStore();
+  const {
+    items: cart,
+    total,
+    clearCart,
+    removeFromCart,
+    updateQuantity,
+  } = useCartStore();
   const [loading, setLoading] = useState(true);
 
   const { user, loadingContext, gotToPath } = useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
+  const { productos, sales, addSale, markSynced } = useSalesStore();
+  const [syncQuantity, setSyncQuantity] = useState(0);
+  const [showSync, setShowSync] = useState(false);
+  const [showProductsSells, setShowProductsSells] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -103,11 +120,13 @@ export default function POSInterface() {
       );
       const prods = response.data
         .filter((prod) => prod.precio > 0)
-        .filter(p => {
-          if(p.existencia <= 0) {
-            if(p.fraccionDeId !== null) {
-              const pPadre = response.data.find(padre => padre.id === p.fraccionDeId);
-              if(pPadre && pPadre.existencia > 0){
+        .filter((p) => {
+          if (p.existencia <= 0) {
+            if (p.fraccionDeId !== null) {
+              const pPadre = response.data.find(
+                (padre) => padre.id === p.fraccionDeId
+              );
+              if (pPadre && pPadre.existencia > 0) {
                 return true;
               }
             }
@@ -115,12 +134,11 @@ export default function POSInterface() {
           }
           return true;
         });
-      
-      setProducts(
-        prods.sort((a, b) => {
-          return a.nombre.localeCompare(b.nombre);
-        })
-      );
+
+      const productosTienda = prods.sort((a, b) => {
+        return a.nombre.localeCompare(b.nombre);
+      });
+      setProducts(productosTienda);
 
       const categorias = Object.values(
         prods.reduce((acum, prod) => {
@@ -165,35 +183,83 @@ export default function POSInterface() {
     totalCash: number,
     totalTransfer: number
   ) => {
-    if (total <= totalCash + totalTransfer) {
-      const tiendaId = user.tiendaActual.id;
-      const cierreId = periodo.id;
+    try {
+      if (total <= totalCash + totalTransfer) {
+        const tiendaId = user.tiendaActual.id;
+        const cierreId = periodo.id;
 
-      const data = cart.map((prod) => {
-        return {
-          cantidad: prod.quantity,
-          productoTiendaId: prod.productoTiendaId,
-          productId: prod.id
-          
-        };
-      });
-      const cash = total - totalTransfer;
-      await createSell(
-        tiendaId,
-        cierreId,
-        user.id,
-        total,
-        cash,
-        totalTransfer,
-        data
-      );
+        const data = cart.map((prod) => {
+          return {
+            cantidad: prod.quantity,
+            productoTiendaId: prod.productoTiendaId,
+            productId: prod.id,
+            name: prod.name,
+          };
+        });
+        const cash = total - totalTransfer;
+
+        const identifier = crypto.randomUUID();
+        addSale({
+          identifier: identifier,
+          cierreId: cierreId,
+          tiendaId: tiendaId,
+          total: total,
+          totalcash: cash,
+          totaltransfer: totalTransfer,
+          productos: data,
+          usuarioId: user.id,
+        });
+
+        await createSell(
+          tiendaId,
+          cierreId,
+          user.id,
+          total,
+          cash,
+          totalTransfer,
+          data
+        );
+        markSynced(identifier);
+      } else {
+        showMessage("Falta dinero por pagar ", "warning");
+      }
+    } catch (error) {
+      throw error;
+    } finally {
       clearCart();
       setPaymentDialog(false);
       setOpenCart(false);
-    } else {
-      showMessage("Falta dinero por pagar ", "warning");
     }
   };
+
+  const handleSync = async () => {
+    setSyncQuantity(ventasSinSincronizar);
+    setShowSync(true);
+    const salesToSync = sales.filter((sale) => !sale.synced);
+    for (const syncObj of salesToSync) {
+      try {
+        await createSell(
+          syncObj.tiendaId,
+          syncObj.cierreId,
+          syncObj.usuarioId,
+          syncObj.total,
+          syncObj.totalcash,
+          syncObj.totaltransfer,
+          syncObj.productos
+        );
+        markSynced(syncObj.identifier);
+      } catch (error) {
+        console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
+        if (error && error.code && error.code === "ERR_NETWORK") {
+          showMessage("Error al sincronizar venta", "error", error);
+        }
+      }
+    }
+    setSyncQuantity(ventasSinSincronizar);
+    setShowSync(false);
+  };
+
+  const ventasSinSincronizar = sales.filter((s) => !s.synced).length;
 
   if (loading) {
     return <CircularProgress />;
@@ -284,6 +350,80 @@ export default function POSInterface() {
             handleMakePay(total, totalchash, totaltransfer)
           }
         />
+
+        <SellsDrawer
+          setShowProducts={setShowProductsSells}
+          showProducts={showProductsSells}
+        />
+
+        {(ventasSinSincronizar > 0 || productos.length > 0) && (
+          <SpeedDial
+            ariaLabel="Offline mode"
+            sx={{ position: "absolute", bottom: 80, right: 16 }}
+            icon={<BlurOnIcon />}
+          >
+            {ventasSinSincronizar > 0 && !showSync && (
+              <SpeedDialAction
+                key={"sync"}
+                icon={
+                  <Badge badgeContent={ventasSinSincronizar} color="secondary">
+                    <Sync />
+                  </Badge>
+                }
+                slotProps={{
+                  tooltip: {
+                    title: "Sincronizar",
+                    open: true,
+                  },
+                }}
+                onClick={handleSync}
+              />
+            )}
+            {showSync && (
+              <>
+                <CircularProgress
+                  variant="determinate"
+                  value={
+                    ((syncQuantity - ventasSinSincronizar) / syncQuantity) * 100
+                  }
+                />
+                <Box
+                  sx={{
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    right: 0,
+                    position: "absolute",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    component="div"
+                    sx={{ color: "text.secondary" }}
+                  >{`${Math.round(
+                    ((syncQuantity - ventasSinSincronizar) / syncQuantity) * 100
+                  ).toFixed(0)}%`}</Typography>
+                </Box>
+              </>
+            )}
+            {productos.length > 0 && (
+              <SpeedDialAction
+                key={"sells"}
+                icon={<CancelPresentationIcon />}
+                slotProps={{
+                  tooltip: {
+                    title: "Productos vendidos",
+                    open: true,
+                  },
+                }}
+                onClick={() => setShowProductsSells(true)}
+              />
+            )}
+          </SpeedDial>
+        )}
 
         {cart.length > 0 && !openCart && (
           <Fab

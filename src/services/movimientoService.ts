@@ -10,14 +10,10 @@ export const saveMovimiento = async (data: ICreateMovimientoDTO) => {
 }
 
 export const cretateBatchMovimientos = async (data: Partial<ICreateMovimientoFromProdDTO>, items: Pick<ICreateMovimientoFromProdDTO, "productoId" | "cantidad">[]) => {
-  console.log('data', data);
-  console.log('items', items);
-  
   await axios.post(API_URL, {
     data: data,
     items: items
   });
-  
 }
 
 export const findMovimientos = async (tiendaId: string, take: number = 20, skip: number = 0, productoTiendaId?: string, tipo?: ITipoMovimiento, intervalo?: {fechaInicio?: Date, fechaFin?: Date}) => {

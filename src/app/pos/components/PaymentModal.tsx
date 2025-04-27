@@ -24,11 +24,15 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
       setPaying(true);
       await makePay(total, cashReceived, transferReceived);
       showMessage("El pago se realizó satisfactoriamente", "success")
-      handleClose();
+      
     } catch (error) {
-      console.log(error);
-      showMessage("Ocurrió un error al realizar el pago", "error");
+      if(error && error.code && error.code === 'ERR_NETWORK'){
+        showMessage("Hay problemas con la red. Debe sincronizar cuando regrese su conexión", "warning", error);
+      } else {
+        showMessage("Ocurrió un error al realizar el pago", "error", error);
+      }
     } finally {
+      handleClose();
       setPaying(false);
     }
     

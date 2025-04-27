@@ -13,6 +13,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import { ICierreData, ICierrePeriodo } from "@/types/ICierre";
 import useConfirmDialog from "@/components/confirmDialog";
 import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
+import { useSalesStore } from "@/store/salesStore";
 
 const CierreCajaPage = () => {
   const { user, loadingContext } = useAppContext();
@@ -26,6 +27,8 @@ const CierreCajaPage = () => {
     totalMonto: 0,
   });
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
+  const { clearSales } = useSalesStore();
+
 
 
   const handleCerrarCaja = async () => {
@@ -35,12 +38,14 @@ const CierreCajaPage = () => {
       const tiendaId = user.tiendaActual.id;
       try {
         await closePeriod(tiendaId, currentPeriod.id);
+        clearSales();
         await openPeriod(tiendaId);        
       } catch (error) {
         console.log(error);
         showMessage('Ah ocurrido un error', 'error');
       } finally {
         await getInitData();    
+        
       }
     });
   };
