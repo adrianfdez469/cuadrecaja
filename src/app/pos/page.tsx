@@ -359,7 +359,7 @@ export default function POSInterface() {
         {(ventasSinSincronizar > 0 || productos.length > 0) && (
           <SpeedDial
             ariaLabel="Offline mode"
-            sx={{ position: "absolute", bottom: 80, right: 16 }}
+            sx={{ position: "fixed", bottom: 80, right: 16 }}
             icon={<BlurOnIcon />}
           >
             {ventasSinSincronizar > 0 && !showSync && (
