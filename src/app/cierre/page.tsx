@@ -27,27 +27,27 @@ const CierreCajaPage = () => {
     totalMonto: 0,
   });
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
-  const { clearSales } = useSalesStore();
-
-
+  const { clearSales, sales } = useSalesStore();
 
   const handleCerrarCaja = async () => {
-
-    confirmDialog("¿Estás seguro de desea realizar el cierre de caja?", async () => {
-      // Se debe crear un nuevo cierre
-      const tiendaId = user.tiendaActual.id;
-      try {
-        await closePeriod(tiendaId, currentPeriod.id);
-        clearSales();
-        await openPeriod(tiendaId);        
-      } catch (error) {
-        console.log(error);
-        showMessage('Ah ocurrido un error', 'error');
-      } finally {
-        await getInitData();    
-        
-      }
-    });
+    if(sales.filter(sale => !sale.synced).length > 0) {
+      showMessage("Debe sincronizar las ventas en la interfaz del pos de ventas", "warning");
+    } else {
+      confirmDialog("¿Estás seguro de desea realizar el cierre de caja?", async () => {
+        // Se debe crear un nuevo cierre
+        const tiendaId = user.tiendaActual.id;
+        try {
+          await closePeriod(tiendaId, currentPeriod.id);
+          clearSales();
+          await openPeriod(tiendaId);        
+        } catch (error) {
+          console.log(error);
+          showMessage('Ah ocurrido un error', 'error');
+        } finally {
+          await getInitData();    
+        }
+      });
+    }
   };
 
   const getInitData = async () => {
@@ -98,13 +98,11 @@ const CierreCajaPage = () => {
         <Typography variant="h4" gutterBottom>
           Cierre de Caja: Corte {new Date(currentPeriod.fechaInicio).toLocaleDateString()}
         </Typography>
-  
         <TablaProductosCierre
           cierreData={cierreData}
           totales={totales}
           handleCerrarCaja={handleCerrarCaja}
         />
-        
         {ConfirmDialogComponent}
       </Box>
     );
