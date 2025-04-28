@@ -217,7 +217,8 @@ export default function POSInterface() {
           total,
           cash,
           totalTransfer,
-          data
+          data,
+          identifier
         );
         markSynced(identifier);
       } else {
@@ -245,7 +246,8 @@ export default function POSInterface() {
           syncObj.total,
           syncObj.totalcash,
           syncObj.totaltransfer,
-          syncObj.productos
+          syncObj.productos,
+          syncObj.identifier
         );
         markSynced(syncObj.identifier);
       } catch (error) {

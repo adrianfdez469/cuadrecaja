@@ -6,14 +6,15 @@ import { IProductoVenta } from "@/types/IProducto";
 
 const API_URL = (tiendaId, cierreId) => `/api/venta/${tiendaId}/${cierreId}`; // Ruta base del backend
 
-export const createSell = async (tiendaId: string, cierreId: string, usuarioId: string, total: number, totalcash: number, totaltransfer: number, productos: IProductoVenta[] ) => {
+export const createSell = async (tiendaId: string, cierreId: string, usuarioId: string, total: number, totalcash: number, totaltransfer: number, productos: IProductoVenta[], syncId: string ) => {
   
   const response = await axios.post(API_URL(tiendaId, cierreId), { 
     usuarioId,
     total,
     totalcash,
     totaltransfer,
-    productos
+    productos,
+    syncId
   });
 
   const idVenta = response.data.id;

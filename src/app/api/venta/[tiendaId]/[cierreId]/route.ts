@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
     
     const { cierreId, tiendaId } = await params;
     
-    const { usuarioId, productos, total, totalcash, totaltransfer } = await req.json();
+    const { usuarioId, productos, total, totalcash, totaltransfer, syncId } = await req.json();
 
     if (!tiendaId || !usuarioId || !cierreId || !productos.length) {
       return NextResponse.json({ error: "Datos insuficientes para crear la venta" }, { status: 400 });
@@ -23,107 +23,113 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       }
     });
 
-    const venta = await prisma.venta.create({
-      data: {
-        tiendaId,
-        usuarioId,
-        total,
-        totalcash,
-        totaltransfer,
-        cierrePeriodoId: periodoActual?.id || null,
-        productos: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          create: productos.map((p: any) => ({
-            productoTiendaId: p.productoTiendaId,
-            cantidad: p.cantidad,
-          })),
-        },
-      },
-    });
-
-    // Revisar si en la venta hay productos fraccionables
-    const productosFraccionablesData = await prisma.productoTienda.findMany({
+    const existeVenta = syncId ? await prisma.venta.findFirst({
       where: {
-        AND: {
-          id:{
-             in: productos.map(p => p.productoTiendaId)
+        syncId: syncId
+      }
+    }) : false;
+
+    if(!existeVenta) {
+      const venta = await prisma.venta.create({
+        data: {
+          tiendaId,
+          usuarioId,
+          total,
+          totalcash,
+          totaltransfer,
+          cierrePeriodoId: periodoActual?.id || null,
+          syncId,
+          productos: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            create: productos.map((p: any) => ({
+              productoTiendaId: p.productoTiendaId,
+              cantidad: p.cantidad,
+            })),
           },
-          producto: {
-            fraccionDeId: {
-              not: {
-                equals: null
+        },
+      });
+  
+      // Revisar si en la venta hay productos fraccionables
+      const productosFraccionablesData = await prisma.productoTienda.findMany({
+        where: {
+          AND: {
+            id:{
+               in: productos.map(p => p.productoTiendaId)
+            },
+            producto: {
+              fraccionDeId: {
+                not: {
+                  equals: null
+                }
               }
             }
-          }
-        }        
-      },
-      include: {
-        producto: {
-          select: {
-            fraccionDeId: true,
-            unidadesPorFraccion: true,
-            
-          }
-        }
-      },
-    });
-
-    // En caso que los haya, revisar que la cantidad solicitada está en existencia
-    if(productosFraccionablesData.length > 0) {
-
-     
-
-      const productosFraccionablesNeedDesagregateData = productosFraccionablesData
-        .filter((prodFracc) => {
-          const prod = productos.find(p => p.productoTiendaId === prodFracc.id);
-          if(prod) {
-            if(prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
-              throw Error(`Vendes mas unidades sueltas de las que lleva una caja en una misma venta`)
+          }        
+        },
+        include: {
+          producto: {
+            select: {
+              fraccionDeId: true,
+              unidadesPorFraccion: true,
+              
             }
-            return prodFracc.existencia < prod.cantidad;
-          } else {
-            return false;
           }
-        });
-      const itemsDesagregaciónBaja = [];
-      const itemsDesagregaciónAlta = [];
-
-      productosFraccionablesNeedDesagregateData.forEach((item) => {
-        
-        itemsDesagregaciónAlta.push({
-          cantidad: item.producto.unidadesPorFraccion,
-          productoId: item.productoId
-        })
-        itemsDesagregaciónBaja.push({
-          cantidad: 1,
-          productoId: item.producto.fraccionDeId
-        })
+        },
       });
-
-      if(itemsDesagregaciónBaja.length > 0){
-        await CreateMoviento({
-          tipo: "DESAGREGACION_BAJA",
-          tiendaId: tiendaId,
-          usuarioId: usuarioId,
-          referenciaId: venta.id
+  
+      // En caso que los haya, revisar que la cantidad solicitada está en existencia
+      if(productosFraccionablesData.length > 0) {
+        const productosFraccionablesNeedDesagregateData = productosFraccionablesData
+          .filter((prodFracc) => {
+            const prod = productos.find(p => p.productoTiendaId === prodFracc.id);
+            if(prod) {
+              if(prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
+                throw Error(`Vendes mas unidades sueltas de las que lleva una caja en una misma venta`)
+              }
+              return prodFracc.existencia < prod.cantidad;
+            } else {
+              return false;
+            }
+          });
+        const itemsDesagregaciónBaja = [];
+        const itemsDesagregaciónAlta = [];
+  
+        productosFraccionablesNeedDesagregateData.forEach((item) => {
           
-        }, itemsDesagregaciónBaja);
+          itemsDesagregaciónAlta.push({
+            cantidad: item.producto.unidadesPorFraccion,
+            productoId: item.productoId
+          })
+          itemsDesagregaciónBaja.push({
+            cantidad: 1,
+            productoId: item.producto.fraccionDeId
+          })
+        });
+  
+        if(itemsDesagregaciónBaja.length > 0){
+          await CreateMoviento({
+            tipo: "DESAGREGACION_BAJA",
+            tiendaId: tiendaId,
+            usuarioId: usuarioId,
+            referenciaId: venta.id
+            
+          }, itemsDesagregaciónBaja);
+        }
+  
+        if(itemsDesagregaciónAlta.length > 0) {
+          await CreateMoviento({
+            tipo: "DESAGREGACION_ALTA",
+            tiendaId: tiendaId,
+            usuarioId: usuarioId,
+            referenciaId: venta.id
+          }, itemsDesagregaciónAlta);
+        }
+  
       }
-
-      if(itemsDesagregaciónAlta.length > 0) {
-        await CreateMoviento({
-          tipo: "DESAGREGACION_ALTA",
-          tiendaId: tiendaId,
-          usuarioId: usuarioId,
-          referenciaId: venta.id
-        }, itemsDesagregaciónAlta);
-      }
-
+      
+      return NextResponse.json(venta, { status: 201 });
+    } else {
+      return NextResponse.json(existeVenta, { status: 201 });
     }
-
-    
-
-    return NextResponse.json(venta, { status: 201 });
   } catch (error) {
     console.log(error);
     
