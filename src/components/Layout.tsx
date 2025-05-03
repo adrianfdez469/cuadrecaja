@@ -160,6 +160,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     if (session?.user.expiresAt && new Date() > new Date(session.user.expiresAt)) {
       signOut();
     }
+    if(!session) {
+      goToLogin();
+    }
   }, [session]);
 
   return (

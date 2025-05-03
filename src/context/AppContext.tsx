@@ -35,6 +35,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 
   useEffect(() => {
+    console.log('session', session);
+    
     if(status === 'authenticated') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setUser((session as any).user);

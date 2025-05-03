@@ -11,6 +11,7 @@ export interface IVenta {
   cierrePeriodoId: string;
   productos?: VentaProducto[];
   usuario?: IUser;
+  syncId?: string; 
 }
 
 interface VentaProducto {

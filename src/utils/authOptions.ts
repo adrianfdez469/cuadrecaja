@@ -59,26 +59,6 @@ export const authOptions:NextAuthOptions  = {
   ],
   callbacks: {
     async jwt({ token, user, trigger, session }) {
-      // if (user && !token.expCustom) {
-      //   const now = new Date();
-      //   const tomorrowAt6AM = dayjs().add(1, 'day').set('hour', 6).set('minute', 0).set('second', 0);
-          
-      //   token.expCustom = tomorrowAt6AM.toISOString(); // timestamp en milisegundos
-      // }
-
-      // // Si el token ya expiró (personalizado), puedes invalidarlo
-      // if (token.expCustom && dayjs().isAfter(new Date(token.expCustom))) {
-      //   token.id = null;
-      //   token.rol = null;
-      //   token.usuario = null;
-      //   token.nombre = null;
-      //   token.negocio = null;
-      //   token.tiendaActual = null;
-      //   token.negocio = null;
-      //   token.tiendas = null;
-      //   return token;
-      // }
-
       // válido
       if(user) {
 

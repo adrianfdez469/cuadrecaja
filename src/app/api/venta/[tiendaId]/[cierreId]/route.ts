@@ -44,6 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
             create: productos.map((p: any) => ({
               productoTiendaId: p.productoTiendaId,
               cantidad: p.cantidad,
+              id: p.id
             })),
           },
         },
@@ -159,6 +160,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
                 producto: {
                   select: {
                     nombre: true,
+                    id: true,
                   }
                 },
                 precio: true
@@ -175,7 +177,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         createdAt: 'desc',
       },
     });
-
+    
     const ventas: IVenta[] = ventasPrisma.map((venta) => ({
       id: venta.id,
       createdAt: venta.createdAt,
@@ -192,13 +194,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         rol: ""
       },
       productos: venta.productos.map((p) => ({
-        id: p.id,
+        id: p.producto.producto.id,
         ventaId: venta.id,
         productoTiendaId: p.productoTiendaId,
         cantidad: p.cantidad,
         name: p.producto?.producto?.nombre ?? undefined,
         price: p.producto?.precio ?? undefined
-      }))
+      })),
+      syncId: venta.syncId
     }));
 
     return NextResponse.json(ventas);

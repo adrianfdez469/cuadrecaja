@@ -34,7 +34,6 @@ const Ventas = () => {
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const [openCart, setOpenCart] = useState(false)
   const [selectedVenta, setSelectedVenta] = useState<IVenta>();
-  
 
   const loadData = async () => {
     setIsDataLoading(true);

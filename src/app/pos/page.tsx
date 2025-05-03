@@ -29,7 +29,8 @@ import { createSell } from "@/services/sellService";
 import { useSalesStore } from "@/store/salesStore";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import BlurOnIcon from "@mui/icons-material/BlurOn";
-import { SellsDrawer } from "./components/sells";
+import { ProducsSalesDrawer } from "./components/ProductsSalesDrawer";
+import { SalesDrawer } from "./components/SalesDrawer";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -39,6 +40,12 @@ export default function POSInterface() {
   const [openCart, setOpenCart] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
+  const { user, loadingContext, gotToPath } = useAppContext();
+  const { showMessage } = useMessageContext();
+  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
+  const { productos, sales, addSale, markSynced } = useSalesStore();
+  const [showProductsSells, setShowProductsSells] = useState(false);
+  const [showSyncView, setShowSyncView] = useState(false);
 
   const {
     items: cart,
@@ -48,14 +55,6 @@ export default function POSInterface() {
     updateQuantity,
   } = useCartStore();
   const [loading, setLoading] = useState(true);
-
-  const { user, loadingContext, gotToPath } = useAppContext();
-  const { showMessage } = useMessageContext();
-  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
-  const { productos, sales, addSale, markSynced } = useSalesStore();
-  const [syncQuantity, setSyncQuantity] = useState(0);
-  const [showSync, setShowSync] = useState(false);
-  const [showProductsSells, setShowProductsSells] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -208,9 +207,21 @@ export default function POSInterface() {
           totaltransfer: totalTransfer,
           productos: data,
           usuarioId: user.id,
+          syncState: "not_synced",
         });
 
-        await createSell(
+
+        const newProds = products.map((p) => {
+          const cartProd = cart.find((cartItem) => cartItem.id === p.id);
+          if(cartProd) {
+            return {...p, existencia: p.existencia - cartProd.quantity}
+          } else {
+            return p;
+          }
+        });
+        setProducts(newProds);
+
+        const ventaDb = await createSell(
           tiendaId,
           cierreId,
           user.id,
@@ -220,7 +231,7 @@ export default function POSInterface() {
           data,
           identifier
         );
-        markSynced(identifier);
+        markSynced(identifier, ventaDb.id);
       } else {
         showMessage("Falta dinero por pagar ", "warning");
       }
@@ -233,35 +244,15 @@ export default function POSInterface() {
     }
   };
 
-  const handleSync = async () => {
-    setSyncQuantity(ventasSinSincronizar);
-    setShowSync(true);
-    const salesToSync = sales.filter((sale) => !sale.synced);
-    for (const syncObj of salesToSync) {
-      try {
-        await createSell(
-          syncObj.tiendaId,
-          syncObj.cierreId,
-          syncObj.usuarioId,
-          syncObj.total,
-          syncObj.totalcash,
-          syncObj.totaltransfer,
-          syncObj.productos,
-          syncObj.identifier
-        );
-        markSynced(syncObj.identifier);
-      } catch (error) {
-        console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
-        if (error && error.code && error.code === "ERR_NETWORK") {
-          showMessage("Error al sincronizar venta", "error", error);
-        }
-      }
-    }
-    setSyncQuantity(ventasSinSincronizar);
-    setShowSync(false);
+  const handleShowSyncView = () => {
+    setShowSyncView(true);
   };
 
   const ventasSinSincronizar = sales.filter((s) => !s.synced).length;
+
+  const handleCloseSyncView = () => {
+    setShowSyncView(false);
+  };
 
   if (loading) {
     return <CircularProgress />;
@@ -353,77 +344,56 @@ export default function POSInterface() {
           }
         />
 
-        <SellsDrawer
+        <ProducsSalesDrawer
           setShowProducts={setShowProductsSells}
           showProducts={showProductsSells}
+          productos={productos}
         />
 
-        {(ventasSinSincronizar > 0 || productos.length > 0) && (
+        <SalesDrawer
+          showSales={showSyncView}
+          handleClose={() => handleCloseSyncView()}
+          period={periodo}
+        />
+
+        {productos.length > 0 && (
           <SpeedDial
             ariaLabel="Offline mode"
-            sx={{ position: "fixed", bottom: 80, right: 16 }}
+            sx={{ position: "fixed", top: 80, right: 16 }}
             icon={<BlurOnIcon />}
+            direction="down"
           >
-            {ventasSinSincronizar > 0 && !showSync && (
-              <SpeedDialAction
-                key={"sync"}
-                icon={
+            <SpeedDialAction
+              key={"sync"}
+              icon={
+                ventasSinSincronizar > 0 ? (
                   <Badge badgeContent={ventasSinSincronizar} color="secondary">
                     <Sync />
                   </Badge>
-                }
-                slotProps={{
-                  tooltip: {
-                    title: "Sincronizar",
-                    open: true,
-                  },
-                }}
-                onClick={handleSync}
-              />
-            )}
-            {showSync && (
-              <>
-                <CircularProgress
-                  variant="determinate"
-                  value={
-                    ((syncQuantity - ventasSinSincronizar) / syncQuantity) * 100
-                  }
-                />
-                <Box
-                  sx={{
-                    top: 0,
-                    left: 0,
-                    bottom: 0,
-                    right: 0,
-                    position: "absolute",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Typography
-                    variant="caption"
-                    component="div"
-                    sx={{ color: "text.secondary" }}
-                  >{`${Math.round(
-                    ((syncQuantity - ventasSinSincronizar) / syncQuantity) * 100
-                  ).toFixed(0)}%`}</Typography>
-                </Box>
-              </>
-            )}
-            {productos.length > 0 && (
-              <SpeedDialAction
-                key={"sells"}
-                icon={<CancelPresentationIcon />}
-                slotProps={{
-                  tooltip: {
-                    title: "Productos vendidos",
-                    open: true,
-                  },
-                }}
-                onClick={() => setShowProductsSells(true)}
-              />
-            )}
+                ) : (
+                  <Sync />
+                )
+              }
+              slotProps={{
+                tooltip: {
+                  title: "Sincronizar",
+                  open: true,
+                },
+              }}
+              onClick={handleShowSyncView}
+            />
+
+            <SpeedDialAction
+              key={"sells"}
+              icon={<CancelPresentationIcon />}
+              slotProps={{
+                tooltip: {
+                  title: "Productos vendidos",
+                  open: true,
+                },
+              }}
+              onClick={() => setShowProductsSells(true)}
+            />
           </SpeedDial>
         )}
 
