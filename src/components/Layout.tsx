@@ -48,6 +48,7 @@ import { INegocio } from "@/types/INegocio";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChangeCircleIcon from '@mui/icons-material/ChangeCircleOutlined';
 import NextWeekIcon from '@mui/icons-material/NextWeekOutlined';
+import InventoryIcon from '@mui/icons-material/Inventory';
 
 const configurationMenuItems = [
   {
@@ -75,6 +76,7 @@ const configurationMenuItems = [
 const menuItems = [
   { label: "Costos y Precios", path: "/costos_precios", icon: GridViewIcon },
   { label: "Movimientos", path: "/movimientos", icon: MoveUpIcon },
+  { label: "Inventario", path: "/inventario", icon: InventoryIcon },
   { label: "Pos de ventas", path: "/pos", icon: StorefrontIcon },
   { label: "Ventas", path: "/ventas", icon: SellIcon },
   { label: "Cierre", path: "/cierre", icon: CancelPresentationIcon },

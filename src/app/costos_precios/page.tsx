@@ -137,14 +137,6 @@ const PreciosCantidades = () => {
                 editable: true,
                 type: "number",
               },
-              {
-                field: "existencia",
-                headerName: "Cantidad",
-                flex: 1,
-                editable: false,
-                type: "number",
-              }
-              
             ]}
             disableRowSelectionOnClick
             processRowUpdate={handleProcessRowUpdate} // Manejo correcto de cambios
