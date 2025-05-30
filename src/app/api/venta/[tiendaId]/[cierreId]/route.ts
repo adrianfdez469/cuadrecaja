@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CreateMoviento } from "@/lib/movimiento";
@@ -7,12 +6,31 @@ import { IVenta } from "@/types/IVenta";
 // Crear una venta
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
   try {
-    
     const { cierreId, tiendaId } = await params;
     
+    console.log('🔍 [POST /api/venta] Recibiendo petición de venta:', {
+      tiendaId,
+      cierreId
+    });
+
     const { usuarioId, productos, total, totalcash, totaltransfer, syncId } = await req.json();
 
+    console.log('🔍 [POST /api/venta] Datos de la venta:', {
+      usuarioId,
+      total,
+      totalcash,
+      totaltransfer,
+      syncId,
+      productos
+    });
+
     if (!tiendaId || !usuarioId || !cierreId || !productos.length) {
+      console.error('❌ [POST /api/venta] Datos insuficientes:', {
+        tiendaId,
+        usuarioId,
+        cierreId,
+        productosLength: productos.length
+      });
       return NextResponse.json({ error: "Datos insuficientes para crear la venta" }, { status: 400 });
     }
 
@@ -23,13 +41,49 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       }
     });
 
+    console.log('🔍 [POST /api/venta] Período actual:', periodoActual);
+
     const existeVenta = syncId ? await prisma.venta.findFirst({
       where: {
         syncId: syncId
       }
     }) : false;
 
+    console.log('🔍 [POST /api/venta] Verificando venta existente:', {
+      syncId,
+      existeVenta: !!existeVenta
+    });
+
     if(!existeVenta) {
+      console.log('🔍 [POST /api/venta] Creando nueva venta...');
+
+      // Verificar que todos los productos existen
+      const productosExistentes = await prisma.productoTienda.findMany({
+        where: {
+          id: {
+            in: productos.map(p => p.productoTiendaId)
+          }
+        },
+        select: {
+          id: true,
+          productoId: true
+        }
+      });
+
+      console.log('🔍 [POST /api/venta] Productos encontrados en DB:', productosExistentes);
+
+      const productosNoEncontrados = productos.filter(
+        p => !productosExistentes.some(pe => pe.id === p.productoTiendaId)
+      );
+
+      if (productosNoEncontrados.length > 0) {
+        console.error('❌ [POST /api/venta] Productos no encontrados:', productosNoEncontrados);
+        return NextResponse.json({ 
+          error: "Algunos productos no existen en la tienda",
+          productosNoEncontrados 
+        }, { status: 400 });
+      }
+
       const venta = await prisma.venta.create({
         data: {
           tiendaId,
@@ -40,8 +94,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           cierrePeriodoId: periodoActual?.id || null,
           syncId,
           productos: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            create: productos.map((p: any) => ({
+            create: productos.map((p) => ({
               productoTiendaId: p.productoTiendaId,
               cantidad: p.cantidad,
               id: p.id
@@ -49,6 +102,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           },
         },
       });
+
+      console.log('🔍 [POST /api/venta] Venta creada exitosamente:', venta);
   
       // Revisar si en la venta hay productos fraccionables
       const productosFraccionablesData = await prisma.productoTienda.findMany({
@@ -71,11 +126,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
             select: {
               fraccionDeId: true,
               unidadesPorFraccion: true,
-              
             }
           }
         },
       });
+
+      console.log('🔍 [POST /api/venta] Productos fraccionables encontrados:', productosFraccionablesData);
   
       // En caso que los haya, revisar que la cantidad solicitada está en existencia
       if(productosFraccionablesData.length > 0) {
@@ -129,11 +185,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       
       return NextResponse.json(venta, { status: 201 });
     } else {
+      console.log('🔍 [POST /api/venta] Venta ya existe, retornando:', existeVenta);
       return NextResponse.json(existeVenta, { status: 201 });
     }
   } catch (error) {
-    console.log(error);
-    
+    console.error('❌ [POST /api/venta] Error al crear la venta:', error);
     return NextResponse.json({ error: "Error al crear la venta" }, { status: 500 });
   }
 }

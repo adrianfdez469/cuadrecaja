@@ -204,17 +204,35 @@ export default function POSInterface() {
         const tiendaId = user.tiendaActual.id;
         const cierreId = periodo.id;
 
+        console.log('🔍 [handleMakePay] Preparando datos de venta:', {
+          tiendaId,
+          cierreId,
+          usuarioId: user.id,
+          total,
+          totalCash,
+          totalTransfer
+        });
+
         const data = cart.map((prod) => {
+          const productoEnTienda = products.find(p => p.productoTiendaId === prod.productoTiendaId);
+          if (!productoEnTienda) {
+            throw new Error(`Producto no encontrado en la tienda: ${prod.name}`);
+          }
           return {
             cantidad: prod.quantity,
             productoTiendaId: prod.productoTiendaId,
-            productId: prod.id,
+            productId: productoEnTienda.id,
             name: prod.name,
           };
         });
-        const cash = total - totalTransfer;
 
+        console.log('🔍 [handleMakePay] Productos en carrito:', data);
+
+        const cash = total - totalTransfer;
         const identifier = crypto.randomUUID();
+
+        console.log('🔍 [handleMakePay] Identificador de venta generado:', identifier);
+
         addSale({
           identifier: identifier,
           cierreId: cierreId,
@@ -227,9 +245,8 @@ export default function POSInterface() {
           syncState: "not_synced",
         });
 
-
         const newProds = products.map((p) => {
-          const cartProd = cart.find((cartItem) => cartItem.id === p.id);
+          const cartProd = cart.find((cartItem) => cartItem.productoTiendaId === p.productoTiendaId);
           if(cartProd) {
             return {...p, existencia: p.existencia - cartProd.quantity}
           } else {
@@ -238,6 +255,7 @@ export default function POSInterface() {
         });
         setProducts(newProds);
 
+        console.log('🔍 [handleMakePay] Enviando venta al backend...');
         const ventaDb = await createSell(
           tiendaId,
           cierreId,
@@ -248,11 +266,14 @@ export default function POSInterface() {
           data,
           identifier
         );
+        console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
+
         markSynced(identifier, ventaDb.id);
       } else {
         showMessage("Falta dinero por pagar ", "warning");
       }
     } catch (error) {
+      console.error('❌ [handleMakePay] Error al procesar venta:', error);
       throw error;
     } finally {
       clearCart();
@@ -329,13 +350,13 @@ export default function POSInterface() {
             sm: "repeat(3, 1fr)",
             md: "repeat(4, 1fr)",
           },
-          gap: { xs: 1, sm: 1.5, md: 2 },
-          p: { xs: 1, sm: 2 },
+          gap: { xs: 0.5, sm: 1.5, md: 2 },
+          p: { xs: 0.5, sm: 2 },
           width: "100%",
           maxWidth: "1400px",
           margin: "0 auto",
           pb: { xs: "80px", sm: "90px" },
-          minHeight: "100vh",
+          minHeight: "90vh",
           position: "relative",
           zIndex: 1,
         }}

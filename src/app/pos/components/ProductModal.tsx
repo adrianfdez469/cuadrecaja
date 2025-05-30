@@ -34,6 +34,7 @@ export function ProductModal({
   const handleConfirmQuantity = () => {
     handleResetProductQuantity();
     openCart();
+    closeModal();
   };
 
   return (
