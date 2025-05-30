@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Box,
   Grid,
@@ -8,12 +8,9 @@ import {
   CardContent,
   Typography,
   Modal,
-  Dialog,
-  Button,
   Fab,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import { useCartStore } from "@/store/cartStore";
 import { IProductoTienda } from "@/types/IProducto";
 import { QuantityDialog } from "./QuantityDialog";
 
@@ -25,7 +22,6 @@ export function ProductModal({
   openCart,
 }) {
   const [selectedProduct, setSelectedProduct] = useState<IProductoTienda | null>(null);
-  const { addToCart } = useCartStore();
 
   const handleProductClick = (product: IProductoTienda) => {
     setSelectedProduct(product);

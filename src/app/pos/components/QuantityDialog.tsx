@@ -4,8 +4,6 @@ import {
   Box,
   Typography,
   Button,
-  Fade,
-  Slide,
   Grow,
 } from "@mui/material";
 import { IProductoTienda } from "@/types/IProducto";
