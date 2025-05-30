@@ -15,6 +15,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { useCartStore } from "@/store/cartStore";
 import { IProductoTienda } from "@/types/IProducto";
+import { QuantityDialog } from "./QuantityDialog";
 
 export function ProductModal({
   open,
@@ -23,66 +24,19 @@ export function ProductModal({
   category,
   openCart,
 }) {
-  const [selectedProduct, setSelectedProduct] = useState<IProductoTienda>(null);
+  const [selectedProduct, setSelectedProduct] = useState<IProductoTienda | null>(null);
   const { addToCart } = useCartStore();
-  const [quantity, setQuantity] = useState(1);
 
-  useEffect(() => {
-    setQuantity(1);
-    console.log(products);
-  }, []);
-
-  // Maneja la selección de un producto
-  const handleProductClick = (product) => {
+  const handleProductClick = (product: IProductoTienda) => {
     setSelectedProduct(product);
   };
 
-  // Maneja la confirmación de la cantidad
-  const handleConfirmQuantity = () => {
-    addToCart(
-      {
-        id: selectedProduct.id,
-        name: selectedProduct.nombre,
-        price: selectedProduct.precio,
-        productoTiendaId: selectedProduct.productoTiendaId,
-      },
-      quantity
-    );
-    handleResetProductQuantity();
-  };
-
   const handleResetProductQuantity = () => {
-    console.log("entra a handleResetProductQuantity?????");
-
     setSelectedProduct(null);
-    setQuantity(1);
   };
 
-  const increase = () => {
-    
-    setQuantity((qty) => {
-      const nuevaCant = qty + 1;
-      const max = selectedProduct.unidadesPorFraccion || nuevaCant;
-      if(max >= nuevaCant) {
-        return nuevaCant;
-      } else {
-        return qty;
-      }
-    });
-  };
-  const decrease = () => {
-    setQuantity((qty) => {
-      if (qty > 0) {
-        return qty - 1;
-      } else {
-        return qty;
-      }
-    });
-  };
-
-  const handlePayAll = () => {
-    handleConfirmQuantity();
-    closeModal();
+  const handleConfirmQuantity = () => {
+    handleResetProductQuantity();
     openCart();
   };
 
@@ -166,70 +120,11 @@ export function ProductModal({
         </Box>
       </Modal>
 
-      {/* 📌 Dialog para Selección de Cantidad */}
-      <Dialog
-        open={Boolean(selectedProduct)}
+      <QuantityDialog
+        product={selectedProduct}
         onClose={handleResetProductQuantity}
-      >
-        {selectedProduct && (
-          <Box
-            p={3}
-            display={"flex"}
-            flexDirection={"column"}
-            alignItems={"center"}
-            justifyContent={"center"}
-          >
-            <Typography variant="h6">{selectedProduct.nombre}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Precio: ${selectedProduct.precio}
-            </Typography>
-
-            <Box display={"flex"} flexDirection={"row"} padding={2}>
-              <Button variant="contained" onClick={decrease}>
-                -
-              </Button>
-              <Box
-                flex={1}
-                sx={{
-                  marginLeft: 2,
-                  marginRight: 2,
-                  width: "30vw",
-                  height: 100,
-                  border: "2px solid black",
-                }}
-                display={"flex"}
-                alignItems={"center"}
-                justifyContent={"center"}
-              >
-                <Typography sx={{ fontSize: "8vw", fontWeight: "bold" }}>
-                  {quantity}
-                </Typography>
-              </Box>
-              <Button variant="contained" onClick={increase}>
-                +
-              </Button>
-            </Box>
-
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleConfirmQuantity}
-            >
-              Agregar al Carrito
-            </Button>
-
-            <Button
-              sx={{ mt: 2 }}
-              variant="contained"
-              color="success"
-              fullWidth
-              onClick={handlePayAll}
-            >
-              Vender todo
-            </Button>
-          </Box>
-        )}
-      </Dialog>
+        onConfirm={handleConfirmQuantity}
+      />
     </>
   );
 }
