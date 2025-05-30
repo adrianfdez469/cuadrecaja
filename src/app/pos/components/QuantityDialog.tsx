@@ -55,13 +55,12 @@ export const QuantityDialog = ({ product, onClose, onConfirm }: QuantityDialogPr
 
   const handlePayAll = () => {
     if (product) {
-      const maxQuantity = product.unidadesPorFraccion || product.existencia;
       addToCart({
         id: product.productoTiendaId,
         name: product.nombre,
         price: product.precio,
         productoTiendaId: product.productoTiendaId,
-      }, maxQuantity);
+      }, quantity);
       onConfirm();
     }
   };

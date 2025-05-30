@@ -578,7 +578,7 @@ export default function POSInterface() {
         <Fab
           color="primary"
           aria-label="cart"
-          sx={{ position: "fixed", bottom: 16, right: 16 }}
+          sx={{ position: "fixed", bottom: 100, right: 16 }}
           onClick={handleCartIcon}
         >
           <Badge badgeContent={cart.length} color="secondary">
