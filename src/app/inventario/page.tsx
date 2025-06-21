@@ -14,17 +14,24 @@ import {
   CircularProgress,
   TextField,
   InputAdornment,
+  Button,
+  Fab,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useAppContext } from "@/context/AppContext";
+import { useMessageContext } from "@/context/MessageContext";
 import axios from "axios";
 import { IProductoTienda } from "@/types/IProducto";
+import { exportInventoryToWord } from "@/utils/wordExport";
 
 export default function InventarioPage() {
   const [productos, setProductos] = useState<IProductoTienda[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { user, loadingContext } = useAppContext();
+  const { showMessage } = useMessageContext();
 
   const fetchProductos = async () => {
     try {
@@ -35,6 +42,7 @@ export default function InventarioPage() {
       setProductos(response.data);
     } catch (error) {
       console.error("Error al obtener productos", error);
+      showMessage("Error al cargar el inventario", "error");
     } finally {
       setLoading(false);
     }
@@ -45,6 +53,33 @@ export default function InventarioPage() {
       fetchProductos();
     }
   }, [loadingContext]);
+
+  const handleExportToWord = async () => {
+    try {
+      setExporting(true);
+      
+      // Filtrar productos que tienen precio > 0 para la exportación
+      const productosParaExportar = productos.filter(producto => producto.precio > 0);
+      
+      if (productosParaExportar.length === 0) {
+        showMessage("No hay productos con precio para exportar", "warning");
+        return;
+      }
+
+      await exportInventoryToWord({
+        productos: productosParaExportar,
+        tiendaNombre: user.tiendaActual.nombre,
+        fecha: new Date()
+      });
+
+      showMessage(`Inventario exportado exitosamente (${productosParaExportar.length} productos)`, "success");
+    } catch (error) {
+      console.error("Error al exportar inventario:", error);
+      showMessage("Error al exportar el inventario", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const filteredProductos = productos.filter((producto) =>
     producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
@@ -59,9 +94,21 @@ export default function InventarioPage() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Inventario de Productos
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Inventario de Productos
+        </Typography>
+        
+        <Button
+          variant="contained"
+          startIcon={<DownloadIcon />}
+          onClick={handleExportToWord}
+          disabled={exporting || loading || productos.length === 0}
+          size="large"
+        >
+          {exporting ? "Exportando..." : "Exportar a Word"}
+        </Button>
+      </Box>
 
       <Box sx={{ mb: 3 }}>
         <TextField
@@ -100,7 +147,7 @@ export default function InventarioPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell align="center" sx={{ width: '100%' }}>
+                <TableCell align="center" colSpan={4}>
                   <CircularProgress />
                 </TableCell>
               </TableRow>
@@ -125,6 +172,21 @@ export default function InventarioPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Botón flotante como alternativa */}
+      <Fab
+        color="primary"
+        aria-label="exportar"
+        sx={{
+          position: 'fixed',
+          bottom: 16,
+          right: 16,
+        }}
+        onClick={handleExportToWord}
+        disabled={exporting || loading || productos.length === 0}
+      >
+        <DownloadIcon />
+      </Fab>
     </Box>
   );
 } 
