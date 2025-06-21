@@ -26,7 +26,7 @@ model Negocio {
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
 model Tienda {
   id              String            @id @default(uuid())
-  nombre          String            @unique // Nombre único del local
+  nombre          String            // Removido @unique - ahora será único por negocio
   usuarios        UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
   productos       ProductoTienda[] // Relación con los productos que vende el local
   ventas          Venta[] // Relación con las ventas realizadas en el local
@@ -38,6 +38,9 @@ model Tienda {
   negocioId       String              @default("")
 
   usuario         Usuario[]
+
+  // Índice de unicidad compuesto: nombre único por negocio
+  @@unique([nombre, negocioId])
 }
 
 // Representa un usuario que puede estar vinculado a múltiples tiendas.
@@ -73,18 +76,21 @@ model UsuarioTienda {
 // Representa una categoría de productos (ej. Electrónica, Ropa, etc.)
 model Categoria {
   id        String     @id @default(uuid())
-  nombre    String     @unique // Nombre único de la categoría
+  nombre    String     // Removido @unique - ahora será único por negocio
   color     String // Color representativo (hexadecimal)
   productos Producto[] // Relación con los productos de esta categoría
 
   negocio   Negocio   @relation(fields: [negocioId], references: [id])
   negocioId String       @default("")
+
+  // Índice de unicidad compuesto: nombre único por negocio
+  @@unique([nombre, negocioId])
 }
 
 // Representa un producto genérico, sin relación con tiendas específicas.
 model Producto {
   id              String           @id @default(uuid())
-  nombre          String           @unique // Nombre único del producto
+  nombre          String           // Removido @unique - ahora será único por negocio
   descripcion     String
   categoria       Categoria        @relation(fields: [categoriaId], references: [id]) // Categoría a la que pertenece
   categoriaId     String
@@ -99,6 +105,9 @@ model Producto {
 
   negocio         Negocio          @relation(fields: [negocioId], references: [id])
   negocioId       String            @default("")
+
+  // Índice de unicidad compuesto: nombre único por negocio
+  @@unique([nombre, negocioId])
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Producto y Tienda.
