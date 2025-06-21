@@ -56,7 +56,7 @@ model Usuario {
   negocioId       String             @default("")
 
   tiendaActual    Tienda?            @relation(fields: [tiendaActualId], references: [id])
-  tiendaActualId     String?          @default("")
+  tiendaActualId     String?
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.

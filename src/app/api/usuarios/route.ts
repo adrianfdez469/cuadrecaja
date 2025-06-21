@@ -64,7 +64,8 @@ export async function POST(req: Request) {
       data: {
         ...data,
         password,
-        negocioId: user.negocio.id
+        negocioId: user.negocio.id,
+        tiendaActualId: null
       },
     });
 
