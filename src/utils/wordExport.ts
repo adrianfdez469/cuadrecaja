@@ -14,6 +14,26 @@ export const exportInventoryToWord = async ({
   fecha = new Date()
 }: ExportInventoryOptions) => {
   try {
+    // Agrupar productos por categoría
+    const productosPorCategoria = productos.reduce((acc, producto) => {
+      const categoriaNombre = producto.categoria.nombre;
+      if (!acc[categoriaNombre]) {
+        acc[categoriaNombre] = [];
+      }
+      acc[categoriaNombre].push(producto);
+      return acc;
+    }, {} as Record<string, IProductoTienda[]>);
+
+    // Ordenar categorías alfabéticamente
+    const categoriasOrdenadas = Object.keys(productosPorCategoria).sort();
+
+    // Ordenar productos dentro de cada categoría alfabéticamente
+    categoriasOrdenadas.forEach(categoria => {
+      productosPorCategoria[categoria] = productosPorCategoria[categoria].sort((a, b) => 
+        a.nombre.localeCompare(b.nombre)
+      );
+    });
+
     // Crear filas de la tabla
     const tableRows = [
       // Fila de encabezados
@@ -111,8 +131,12 @@ export const exportInventoryToWord = async ({
           }),
         ],
       }),
-      // Filas de productos
-      ...productos.map(producto => 
+    ];
+
+    // Agregar filas por categoría
+    categoriasOrdenadas.forEach(categoriaNombre => {
+      // Fila de categoría
+      tableRows.push(
         new TableRow({
           children: [
             new TableCell({
@@ -120,66 +144,95 @@ export const exportInventoryToWord = async ({
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: producto.nombre,
-                      size: 22, // 11pt
+                      text: categoriaNombre.toUpperCase(),
+                      bold: true,
+                      size: 24,
+                      color: "FFFFFF", // Texto blanco
                     })
                   ],
+                  alignment: AlignmentType.CENTER,
                 })
               ],
-            }),
-            new TableCell({
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `$${producto.precio.toFixed(2)}`,
-                      size: 22,
-                    })
-                  ],
-                  alignment: AlignmentType.RIGHT,
-                })
-              ],
-            }),
-            new TableCell({
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: "", // Columna vacía como solicitado
-                      size: 22,
-                    })
-                  ],
-                })
-              ],
-            }),
-            new TableCell({
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: "", // Columna vacía como solicitado
-                      size: 22,
-                    })
-                  ],
-                })
-              ],
-            }),
-            new TableCell({
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: "", // Columna vacía como solicitado
-                      size: 22,
-                    })
-                  ],
-                })
-              ],
+              columnSpan: 5, // Ocupa todas las columnas
+              shading: {
+                fill: "4472C4", // Fondo azul
+              },
             }),
           ],
         })
-      )
-    ];
+      );
+
+      // Filas de productos de esta categoría
+      productosPorCategoria[categoriaNombre].forEach(producto => {
+        tableRows.push(
+          new TableRow({
+            children: [
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: producto.nombre,
+                        size: 22, // 11pt
+                      })
+                    ],
+                  })
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `$${producto.precio.toFixed(2)}`,
+                        size: 22,
+                      })
+                    ],
+                    alignment: AlignmentType.RIGHT,
+                  })
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: "", // Columna vacía como solicitado
+                        size: 22,
+                      })
+                    ],
+                  })
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: "", // Columna vacía como solicitado
+                        size: 22,
+                      })
+                    ],
+                  })
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: "", // Columna vacía como solicitado
+                        size: 22,
+                      })
+                    ],
+                  })
+                ],
+              }),
+            ],
+          })
+        );
+      });
+    });
 
     // Crear el documento
     const doc = new Document({

@@ -16,11 +16,21 @@ Se ha agregado la capacidad de exportar el inventario de productos a un document
   4. **Cantidad Vendida**: Columna vacía expandida para llenar manualmente
   5. **Cantidad Final**: Columna vacía para llenar manualmente
 
+### Organización por Categorías
+- **Agrupación**: Los productos se agrupan por categoría
+- **Orden de categorías**: Alfabético (A-Z)
+- **Orden de productos**: Alfabético dentro de cada categoría
+- **Separadores de categoría**: 
+  - Fila completa con fondo azul
+  - Texto en mayúsculas y color blanco
+  - Ocupa todas las columnas de la tabla
+
 ### Formato del Documento
 - **Tamaño de letra**: Grande y legible
   - Título: 16pt (negrita)
   - Fecha: 12pt
   - Encabezados de tabla: 12pt (negrita)
+  - Nombres de categoría: 12pt (negrita, blanco)
   - Contenido: 11pt
 - **Orientación**: Vertical (Portrait)
 - **Ancho de tabla**: 100% de la página
@@ -55,20 +65,23 @@ Se ha agregado la capacidad de exportar el inventario de productos a un document
 ## 💡 Casos de Uso
 
 ### Para Control de Inventario Físico
-- Imprimir el documento para hacer conteos manuales
+- Imprimir el documento para hacer conteos manuales por categoría
 - Llenar las columnas "Cantidad Inicial" con el stock actual
-- Registrar ventas en "Cantidad Vendida"
+- Registrar ventas en "Cantidad Vendida" organizadas por categoría
 - Calcular "Cantidad Final" manualmente
+- **Ventaja**: Organización visual por tipo de producto facilita el conteo
 
 ### Para Reportes Periódicos
-- Generar reportes semanales/mensuales
-- Comparar inventario teórico vs físico
-- Documentar diferencias y ajustes
+- Generar reportes semanales/mensuales organizados por categoría
+- Comparar inventario teórico vs físico por sección
+- Documentar diferencias y ajustes por tipo de producto
+- **Ventaja**: Identificar fácilmente categorías con mayor rotación
 
 ### Para Auditorías
-- Proporcionar documentación formal del inventario
-- Registro histórico de productos y precios
-- Evidencia para controles internos
+- Proporcionar documentación formal del inventario por categorías
+- Registro histórico de productos y precios organizados
+- Evidencia para controles internos por sección
+- **Ventaja**: Facilita la revisión sistemática por tipo de producto
 
 ## 🔧 Detalles Técnicos
 
@@ -76,10 +89,17 @@ Se ha agregado la capacidad de exportar el inventario de productos a un document
 - **docx**: Generación de documentos Word
 - **file-saver**: Descarga automática de archivos
 
-### Filtros Aplicados
+### Filtros y Ordenamiento Aplicados
 - Solo productos con precio > 0
 - Productos de la tienda actual del usuario
-- Ordenados alfabéticamente por nombre
+- **Categorías ordenadas alfabéticamente**
+- **Productos ordenados alfabéticamente dentro de cada categoría**
+
+### Formato de Categorías
+- **Fondo**: Azul (#4472C4)
+- **Texto**: Blanco, mayúsculas, negrita
+- **Posición**: Centrado
+- **Ancho**: Ocupa las 5 columnas completas
 
 ### Compatibilidad
 - Compatible con Microsoft Word 2010+
@@ -97,6 +117,7 @@ Se ha agregado la capacidad de exportar el inventario de productos a un document
 - Usar filtros de búsqueda si tienes muchos productos
 - Verificar que los precios estén actualizados antes de exportar
 - Guardar copias de seguridad de los documentos generados
+- **Revisar que las categorías estén bien asignadas** para una mejor organización
 
 ## 🐛 Solución de Problemas
 
@@ -114,6 +135,12 @@ Se ha agregado la capacidad de exportar el inventario de productos a un document
 - El archivo es formato .docx estándar
 - Intentar abrir con diferentes programas (Word, LibreOffice, etc.)
 
+### Categorías no aparecen correctamente
+- Verificar que los productos tengan categoría asignada
+- Las categorías sin productos no aparecerán en el documento
+- Contactar soporte si hay problemas con las categorías
+
 ---
 
-*Funcionalidad agregada en versión 0.1.0* 
+*Funcionalidad agregada en versión 0.1.0*
+*Agrupación por categorías agregada en versión 0.1.1* 
