@@ -44,6 +44,7 @@ import { SalesDrawer } from "./components/SalesDrawer";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import { QuantityDialog } from "./components/QuantityDialog";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -75,6 +76,7 @@ export default function POSInterface() {
     updateQuantity,
   } = useCartStore();
   const [loading, setLoading] = useState(true);
+  const { isOnline } = useNetworkStatus();
 
   useEffect(() => {
     (async () => {
@@ -239,6 +241,7 @@ export default function POSInterface() {
 
         console.log('🔍 [handleMakePay] Identificador de venta generado:', identifier);
 
+        // Agregar la venta al store local inmediatamente
         addSale({
           identifier: identifier,
           cierreId: cierreId,
@@ -251,6 +254,7 @@ export default function POSInterface() {
           syncState: "not_synced",
         });
 
+        // Actualizar inventario local
         const newProds = products.map((p) => {
           const cartProd = cart.find((cartItem) => cartItem.productoTiendaId === p.productoTiendaId);
           if(cartProd) {
@@ -261,21 +265,30 @@ export default function POSInterface() {
         });
         setProducts(newProds);
 
-        console.log('🔍 [handleMakePay] Enviando venta al backend...');
-        const ventaDb = await createSell(
-          tiendaId,
-          cierreId,
-          user.id,
-          total,
-          cash,
-          totalTransfer,
-          data,
-          identifier
-        );
-        console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
-
-        markSynced(identifier, ventaDb.id);
-        
+        // Intentar sincronizar con el backend si estamos online
+        if (isOnline) {
+          try {
+            console.log('🔍 [handleMakePay] Enviando venta al backend...');
+            const ventaDb = await createSell(
+              tiendaId,
+              cierreId,
+              user.id,
+              total,
+              cash,
+              totalTransfer,
+              data,
+              identifier
+            );
+            console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
+            markSynced(identifier, ventaDb.id);
+            showMessage("Venta procesada y sincronizada", "success");
+          } catch (syncError) {
+            console.log('🔍 [handleMakePay] Error de sincronización:', syncError);
+            showMessage("Venta guardada localmente. Se sincronizará cuando haya conexión.", "warning");
+          }
+        } else {
+          showMessage("Venta guardada localmente. Se sincronizará cuando haya conexión.", "info");
+        }
       }
     } catch (error) {
       console.log(error);
@@ -401,6 +414,25 @@ export default function POSInterface() {
           Corte: {new Date(periodo.fechaInicio).toLocaleDateString()}
         </Typography>
       )}
+
+      {/* Indicador de estado de conexión */}
+      <Box
+        sx={{
+          position: "fixed",
+          top: 10,
+          right: 10,
+          zIndex: 1300,
+          bgcolor: isOnline ? "success.main" : "warning.main",
+          color: "white",
+          px: 1,
+          py: 0.5,
+          borderRadius: 1,
+          fontSize: "0.75rem",
+          fontWeight: "bold",
+        }}
+      >
+        {isOnline ? "🟢 Online" : "🔴 Offline"}
+      </Box>
 
       <Box 
         sx={{

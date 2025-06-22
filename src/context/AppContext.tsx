@@ -33,7 +33,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAuth, setIsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
 
-
   useEffect(() => {
     console.log('session', session);
     
@@ -42,7 +41,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUser((session as any).user);
       setIsAuth(true);
       setLoading(false);
-      router.push('/');
+      // Solo redirigir si estamos online para evitar problemas offline
+      if (navigator.onLine) {
+        router.push('/');
+      }
     }
   }, [status]);
 
@@ -72,7 +74,10 @@ export const useAppContext = () => {
   };
 
   const goToLogin = async () => {
-    await router.push('/login');
+    // Solo redirigir al login si estamos online
+    if (navigator.onLine) {
+      await router.push('/login');
+    }
   }
 
   const gotToPath = async (path: string) => {

@@ -49,6 +49,8 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import ChangeCircleIcon from '@mui/icons-material/ChangeCircleOutlined';
 import NextWeekIcon from '@mui/icons-material/NextWeekOutlined';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import OfflineBanner from './OfflineBanner';
 
 const configurationMenuItems = [
   {
@@ -93,6 +95,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const { showMessage } = useMessageContext();
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   const [loadingNegocios, setLoadingNegocios] = useState(false);
+  const { isOnline, wasOffline } = useNetworkStatus();
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -159,13 +162,21 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   useEffect(() => {
+    // Solo verificar expiración si hay sesión
     if (session?.user.expiresAt && new Date() > new Date(session.user.expiresAt)) {
       signOut();
     }
-    if(!session) {
+    
+    // Verificar si hay conexión antes de redirigir al login
+    // Esto evita que la app se recargue cuando está funcionando offline
+    // Solo redirigir si:
+    // 1. No hay sesión
+    // 2. Estamos online (para evitar problemas offline)
+    // 3. No estuvimos offline recientemente (para evitar redirecciones después de reconectar)
+    if (!session && isOnline && !wasOffline) {
       goToLogin();
     }
-  }, [session]);
+  }, [session, isOnline, wasOffline]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -314,6 +325,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
       {isAuth && (
         <>
+          {/* Banner de estado offline */}
+          <OfflineBanner />
+          
           {/* Menú lateral */}
           <Drawer anchor="left" open={open} onClose={() => setOpen(false)}>
             <Box

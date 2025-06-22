@@ -16,6 +16,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#1976d2" />
+        <meta name="description" content="Sistema de punto de venta y gestión de inventario" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+      </head>
       <body>
         <SessionProvider>
           <AppProvider>
