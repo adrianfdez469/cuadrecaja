@@ -10,6 +10,7 @@ import {
   TableHead,
   TableRow,
   Button,
+  Alert,
 } from "@mui/material";
 import { ICierreData } from "@/types/ICierre";
 
@@ -43,6 +44,20 @@ export const TablaProductosCierre: FC<IProps> = ({
     setDisableCierreBtn(false);
   };
 
+  // Validaciones para evitar errores
+  if (!cierreData) {
+    return (
+      <Alert severity="error">
+        No se pudieron cargar los datos del cierre.
+      </Alert>
+    );
+  }
+
+  const productosVendidos = cierreData.productosVendidos || [];
+  const totalVentas = cierreData.totalVentas || 0;
+  const totalGanancia = cierreData.totalGanancia || 0;
+  const totalTransferencia = cierreData.totalTransferencia || 0;
+
   return (
     <>
       {!hideTotales && (
@@ -57,13 +72,13 @@ export const TablaProductosCierre: FC<IProps> = ({
         >
           <Box>
             <Typography variant="h6">
-              Total Venta: ${cierreData.totalVentas.toFixed(2)}
+              Total Venta: ${totalVentas.toFixed(2)}
             </Typography>
             <Typography variant="h6">
-              Total Ganancia: ${cierreData.totalGanancia.toFixed(2)}
+              Total Ganancia: ${totalGanancia.toFixed(2)}
             </Typography>
             <Typography variant="h6">
-              Total Transferencia: ${cierreData.totalTransferencia.toFixed(2)}
+              Total Transferencia: ${totalTransferencia.toFixed(2)}
             </Typography>
           </Box>
 
@@ -96,30 +111,44 @@ export const TablaProductosCierre: FC<IProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {cierreData.productosVendidos
-              .sort((a, b) => a.nombre.localeCompare(b.nombre))
-              .map((producto) => (
-                <TableRow key={producto.id}>
-                  <TableCell>{producto.nombre}</TableCell>
-                  <TableCell>{producto.cantidad}</TableCell>
-                  {!showOnlyCants && (
-                    <>
-                      <TableCell>${producto.total?.toFixed(2)}</TableCell>
-                      <TableCell>${producto.ganancia.toFixed(2)}</TableCell>
-                      <TableCell>${producto.costo.toFixed(2)}</TableCell>
-                      <TableCell>${producto.precio.toFixed(2)}</TableCell>
-                    </>
-                  )}
-                </TableRow>
-              ))}
-            {!hideTotales && (
+            {productosVendidos.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={showOnlyCants ? 2 : 6} align="center">
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                    No hay productos vendidos en este período
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              productosVendidos
+                .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                .map((producto) => (
+                  <TableRow key={producto.id}>
+                    <TableCell>{producto.nombre || 'Producto sin nombre'}</TableCell>
+                    <TableCell>{producto.cantidad || 0}</TableCell>
+                    {!showOnlyCants && (
+                      <>
+                        <TableCell>${(producto.total || 0).toFixed(2)}</TableCell>
+                        <TableCell>${(producto.ganancia || 0).toFixed(2)}</TableCell>
+                        <TableCell>${(producto.costo || 0).toFixed(2)}</TableCell>
+                        <TableCell>${(producto.precio || 0).toFixed(2)}</TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                ))
+            )}
+            {!hideTotales && productosVendidos.length > 0 && (
               <TableRow sx={{ fontWeight: "bold", backgroundColor: "#f0f0f0" }}>
                 <TableCell>Total</TableCell>
-                <TableCell>{totales.totalCantidad}</TableCell>
-                <TableCell>${totales.totalMonto.toFixed(2)}</TableCell>
-                <TableCell>${totales.totalGanancia.toFixed(2)}</TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
+                <TableCell>{totales?.totalCantidad || 0}</TableCell>
+                {!showOnlyCants && (
+                  <>
+                    <TableCell>${(totales?.totalMonto || 0).toFixed(2)}</TableCell>
+                    <TableCell>${(totales?.totalGanancia || 0).toFixed(2)}</TableCell>
+                    <TableCell></TableCell>
+                    <TableCell></TableCell>
+                  </>
+                )}
               </TableRow>
             )}
           </TableBody>

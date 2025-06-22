@@ -17,6 +17,7 @@ import {
   CircularProgress,
   Drawer,
   IconButton,
+  Alert,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
@@ -33,6 +34,7 @@ export default function ResumenCierrePage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [loading, setLoading] = useState(true);
+  const [noTiendaActual, setNoTiendaActual] = useState(false);
   const [startDate, setStartDate] = useState<Dayjs | null>(null);
   const [endDate, setEndDate] = useState<Dayjs | null>(null);
   const [totales, setTotales] = useState<{
@@ -49,6 +51,15 @@ export default function ResumenCierrePage() {
   useEffect(() => {
     (async () => {
       if (!loadingContext) {
+        setNoTiendaActual(false);
+        
+        // Validar que el usuario tenga una tienda actual
+        if (!user.tiendaActual || !user.tiendaActual.id) {
+          setNoTiendaActual(true);
+          setLoading(false);
+          return;
+        }
+
         const tiendaId = user.tiendaActual.id;
         let dataResp;
         if (startDate || endDate) {
@@ -136,38 +147,97 @@ export default function ResumenCierrePage() {
   };
 
   if (loadingContext || loading) {
-    return <CircularProgress />;
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (noTiendaActual) {
+    return (
+      <Box p={2}>
+        <Typography variant="h4" gutterBottom>
+          Resumen de Cierres
+        </Typography>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            No hay tienda seleccionada
+          </Typography>
+          <Typography variant="body1" gutterBottom>
+            Para ver el resumen de cierres, necesitas tener una tienda seleccionada como tienda actual.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Si no tienes ninguna tienda creada, primero debes crear una desde la configuración.
+          </Typography>
+          <Box mt={2}>
+            <Button
+              variant="contained"
+              color="primary"
+              href="/configuracion/tiendas"
+              sx={{ mr: 2 }}
+            >
+              Ir a Configuración de Tiendas
+            </Button>
+          </Box>
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!data || data.cierres.length === 0) {
+    return (
+      <Box p={2}>
+        <Typography variant="h4" gutterBottom>
+          Resumen de Cierres
+        </Typography>
+        <Alert severity="info">
+          <Typography variant="h6" gutterBottom>
+            No hay cierres históricos disponibles
+          </Typography>
+          <Typography variant="body1" gutterBottom>
+            Una vez que realices tu primer cierre de caja, los resúmenes históricos 
+            aparecerán aquí para que puedas analizar el desempeño de tu negocio.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Los cierres se realizan desde la sección "Cierre de Caja" cuando terminas 
+            tu jornada de ventas.
+          </Typography>
+        </Alert>
+      </Box>
+    );
   }
 
   return (
-    <Box p={3}>
-      <Typography variant="h5" gutterBottom>
+    <Box p={2}>
+      <Typography variant="h4" gutterBottom>
         Resumen de Cierres
       </Typography>
 
-      <Grid container spacing={2} mb={2}>
-        <Grid item xs={12} sm={6} md={3}>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} md={4}>
           <DatePicker
-            label="Desde"
+            label="Fecha inicio"
             value={startDate}
             onChange={(newValue) => setStartDate(newValue)}
+            slotProps={{ textField: { fullWidth: true } }}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} md={4}>
           <DatePicker
-            label="Hasta"
+            label="Fecha fin"
             value={endDate}
             onChange={(newValue) => setEndDate(newValue)}
-            formatDensity="dense"
+            slotProps={{ textField: { fullWidth: true } }}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3} alignSelf="center">
+        <Grid item xs={12} md={4}>
           <Button
-            variant="contained"
-            size="large"
-            onClick={() => handleLimpiarFiltrod()}
+            variant="outlined"
+            onClick={handleLimpiarFiltrod}
+            sx={{ height: "56px", width: "100%" }}
           >
-            Limpiar filtros
+            Limpiar Filtros
           </Button>
         </Grid>
       </Grid>

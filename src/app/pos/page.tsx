@@ -18,6 +18,8 @@ import {
   InputAdornment,
   IconButton,
   ListItemButton,
+  Alert,
+  Button,
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { Sync } from "@mui/icons-material";
@@ -51,6 +53,7 @@ export default function POSInterface() {
   const [openCart, setOpenCart] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
+  const [noTiendaActual, setNoTiendaActual] = useState(false);
   const { user, loadingContext, gotToPath } = useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
@@ -76,48 +79,51 @@ export default function POSInterface() {
   useEffect(() => {
     (async () => {
       if (!loadingContext) {
-        if (!user.tiendaActual) {
-          await gotToPath("/");
-        } else {
-          try {
-            const lastPeriod = await fetchLastPeriod(user.tiendaActual.id);
-            let message = "";
+        // Validar que el usuario tenga una tienda actual
+        if (!user.tiendaActual || !user.tiendaActual.id) {
+          setNoTiendaActual(true);
+          setLoading(false);
+          return;
+        }
 
-            if (!lastPeriod || lastPeriod.fechaFin) {
-              message =
-                "No existe un período abierto. Desea abrir un nuevo período?";
-            }
+        try {
+          const lastPeriod = await fetchLastPeriod(user.tiendaActual.id);
+          let message = "";
 
-            if (!lastPeriod || lastPeriod.fechaFin) {
-              // Mostrar un mensaje
-              confirmDialog(
-                message,
-                () => {
-                  openPeriod(user.tiendaActual.id).then((newPeriod) => {
-                    setPeriodo(newPeriod);
-                    return fetchProductosAndCategories();
-                  });
-                },
-                () => {
-                  showMessage(
-                    "No puede comenzar a vender si no tiene un período abierto",
-                    "warning"
-                  );
-                  gotToPath("/");
-                }
-              );
-            } else {
-              setPeriodo(lastPeriod);
-            }
-          } catch (error) {
-            console.log(error);
-            showMessage(
-              "Ocurrió un erro intentando cargar le período",
-              "error"
-            );
-          } finally {
-            setLoading(false);
+          if (!lastPeriod || lastPeriod.fechaFin) {
+            message =
+              "No existe un período abierto. Desea abrir un nuevo período?";
           }
+
+          if (!lastPeriod || lastPeriod.fechaFin) {
+            // Mostrar un mensaje
+            confirmDialog(
+              message,
+              () => {
+                openPeriod(user.tiendaActual.id).then((newPeriod) => {
+                  setPeriodo(newPeriod);
+                  return fetchProductosAndCategories();
+                });
+              },
+              () => {
+                showMessage(
+                  "No puede comenzar a vender si no tiene un período abierto",
+                  "warning"
+                );
+                gotToPath("/");
+              }
+            );
+          } else {
+            setPeriodo(lastPeriod);
+          }
+        } catch (error) {
+          console.log(error);
+          showMessage(
+            "Ocurrió un erro intentando cargar le período",
+            "error"
+          );
+        } finally {
+          setLoading(false);
         }
       }
     })();
@@ -269,24 +275,42 @@ export default function POSInterface() {
         console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
 
         markSynced(identifier, ventaDb.id);
-      } else {
-        showMessage("Falta dinero por pagar ", "warning");
+        clearCart();
+        setPaymentDialog(false);
       }
     } catch (error) {
-      console.error('❌ [handleMakePay] Error al procesar venta:', error);
-      throw error;
-    } finally {
-      clearCart();
-      setPaymentDialog(false);
-      setOpenCart(false);
+      console.log(error);
+      showMessage("Error al procesar el pago", "error");
     }
+  };
+
+  const handleSyncSales = async () => {
+    const salesNotSynced = sales.filter((sale) => !sale.synced);
+    showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
+    for (const sale of salesNotSynced) {
+      try {
+        const ventaDb = await createSell(
+          sale.tiendaId,
+          sale.cierreId,
+          sale.usuarioId,
+          sale.total,
+          sale.totalcash,
+          sale.totaltransfer,
+          sale.productos,
+          sale.identifier
+        );
+        markSynced(sale.identifier, ventaDb.id);
+      } catch (error) {
+        console.log(error);
+        showMessage(`Error al sincronizar venta ${sale.identifier}`, "error");
+      }
+    }
+    showMessage("Sincronización completada", "success");
   };
 
   const handleShowSyncView = () => {
     setShowSyncView(true);
   };
-
-  const ventasSinSincronizar = sales.filter((s) => !s.synced).length;
 
   const handleCloseSyncView = () => {
     setShowSyncView(false);
@@ -294,31 +318,24 @@ export default function POSInterface() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (query.length > 0) {
-      const results = products
-        .filter(product => 
-          product.nombre.toLowerCase().includes(query.toLowerCase())
-        )
-        .sort((a, b) => {
-          // Ordenar por relevancia (coincidencia exacta primero)
-          const aStartsWith = a.nombre.toLowerCase().startsWith(query.toLowerCase());
-          const bStartsWith = b.nombre.toLowerCase().startsWith(query.toLowerCase());
-          if (aStartsWith && !bStartsWith) return -1;
-          if (!aStartsWith && bStartsWith) return 1;
-          return a.nombre.localeCompare(b.nombre);
-        });
-      setSearchResults(results);
-      setShowSearchResults(true);
-    } else {
+    if (query.trim() === "") {
       setSearchResults([]);
       setShowSearchResults(false);
+      return;
     }
+
+    const filtered = products.filter((product) =>
+      product.nombre.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    setSearchResults(filtered.slice(0, 10)); // Limitar a 10 resultados
+    setShowSearchResults(true);
   };
 
   const handleProductSelect = (product: IProductoTienda) => {
     setSelectedProduct(product);
-    setSearchQuery("");
     setShowSearchResults(false);
+    setSearchQuery("");
   };
 
   const handleResetProductQuantity = () => {
@@ -326,12 +343,52 @@ export default function POSInterface() {
   };
 
   const handleConfirmQuantity = () => {
-    handleResetProductQuantity();
-    setOpenCart(true);
+    setSelectedProduct(null);
   };
 
-  if (loading) {
-    return <CircularProgress />;
+  if (loadingContext || loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (noTiendaActual) {
+    return (
+      <Box p={2}>
+        <Typography variant="h4" gutterBottom>
+          Punto de Venta (POS)
+        </Typography>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            No hay tienda seleccionada
+          </Typography>
+          <Typography variant="body1" gutterBottom>
+            Para usar el punto de venta, necesitas tener una tienda seleccionada como tienda actual.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Si no tienes ninguna tienda creada, primero debes crear una desde la configuración.
+          </Typography>
+          <Box mt={2}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => gotToPath("/configuracion/tiendas")}
+              sx={{ mr: 2 }}
+            >
+              Ir a Configuración de Tiendas
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => gotToPath("/")}
+            >
+              Volver al Inicio
+            </Button>
+          </Box>
+        </Alert>
+      </Box>
+    );
   }
 
   return (
@@ -543,8 +600,8 @@ export default function POSInterface() {
           <SpeedDialAction
             key={"sync"}
             icon={
-              ventasSinSincronizar > 0 ? (
-                <Badge badgeContent={ventasSinSincronizar} color="secondary">
+              sales.filter((s) => !s.synced).length > 0 ? (
+                <Badge badgeContent={sales.filter((s) => !s.synced).length} color="secondary">
                   <Sync />
                 </Badge>
               ) : (
