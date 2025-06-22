@@ -177,7 +177,7 @@ export default function MovimientosPage() {
               • Se hacen traspasos entre tiendas
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              También puedes crear movimientos manuales usando el botón "Crear Movimiento".
+              {`También puedes crear movimientos manuales usando el botón \"Crear Movimiento\".`}
             </Typography>
           </Alert>
         ) : (

@@ -200,8 +200,8 @@ export default function ResumenCierrePage() {
             aparecerán aquí para que puedas analizar el desempeño de tu negocio.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Los cierres se realizan desde la sección "Cierre de Caja" cuando terminas 
-            tu jornada de ventas.
+            {`Los cierres se realizan desde la sección \"Cierre de Caja\" cuando terminas 
+            tu jornada de ventas.`}
           </Typography>
         </Alert>
       </Box>

@@ -275,38 +275,41 @@ export default function POSInterface() {
         console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
 
         markSynced(identifier, ventaDb.id);
-        clearCart();
-        setPaymentDialog(false);
+        
       }
     } catch (error) {
       console.log(error);
       showMessage("Error al procesar el pago", "error");
+      throw error;
+    } finally {
+      clearCart();
+      setPaymentDialog(false);
     }
   };
 
-  const handleSyncSales = async () => {
-    const salesNotSynced = sales.filter((sale) => !sale.synced);
-    showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
-    for (const sale of salesNotSynced) {
-      try {
-        const ventaDb = await createSell(
-          sale.tiendaId,
-          sale.cierreId,
-          sale.usuarioId,
-          sale.total,
-          sale.totalcash,
-          sale.totaltransfer,
-          sale.productos,
-          sale.identifier
-        );
-        markSynced(sale.identifier, ventaDb.id);
-      } catch (error) {
-        console.log(error);
-        showMessage(`Error al sincronizar venta ${sale.identifier}`, "error");
-      }
-    }
-    showMessage("Sincronización completada", "success");
-  };
+  // const handleSyncSales = async () => {
+  //   const salesNotSynced = sales.filter((sale) => !sale.synced);
+  //   showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
+  //   for (const sale of salesNotSynced) {
+  //     try {
+  //       const ventaDb = await createSell(
+  //         sale.tiendaId,
+  //         sale.cierreId,
+  //         sale.usuarioId,
+  //         sale.total,
+  //         sale.totalcash,
+  //         sale.totaltransfer,
+  //         sale.productos,
+  //         sale.identifier
+  //       );
+  //       markSynced(sale.identifier, ventaDb.id);
+  //     } catch (error) {
+  //       console.log(error);
+  //       showMessage(`Error al sincronizar venta ${sale.identifier}`, "error");
+  //     }
+  //   }
+  //   showMessage("Sincronización completada", "success");
+  // };
 
   const handleShowSyncView = () => {
     setShowSyncView(true);
