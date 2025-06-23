@@ -1,4 +1,3 @@
-
 // COMPRA: Movimientos de compras de producto. La cantidad es positiva. Cuando se compra un producto.
 // VENTA:  Movimientos de ventas de producto. La cantidad es negativa. Cada vez que se realiza la venta de un producto.
 // AJUSTE_ENTRADA: Movimiento de ajuste por motivo de sobrenates etc.
@@ -21,6 +20,7 @@ interface ICreateMovimientoDTOGeneric {
   usuarioId: string;
   tiendaId: string;
   referenciaId?: string; // Puede guardar el ID de una Venta
+  existenciaAnterior?: number; // Existencia ANTES de aplicar este movimiento
 }
 export interface ICreateMovimientoFromProdDTO extends ICreateMovimientoDTOGeneric {
   productoId: string
@@ -39,6 +39,7 @@ export interface IMovimiento {
   motivo: string;
   referenciaId?: string;
   fecha: Date;
+  existenciaAnterior?: number; // Existencia ANTES de aplicar este movimiento
   usuario?: IUser; 
   usuarioId: string;
   tienda?: ILocal;

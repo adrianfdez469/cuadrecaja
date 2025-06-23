@@ -140,6 +140,12 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
     return isNegative ? `-${cantidad}` : `+${cantidad}`;
   };
 
+  const calcularExistenciaDespues = (existenciaAnterior: number | null | undefined, cantidad: number, tipo: ITipoMovimiento) => {
+    if (existenciaAnterior === null || existenciaAnterior === undefined) return null;
+    const isNegative = isMovimientoBaja(tipo);
+    return isNegative ? existenciaAnterior - cantidad : existenciaAnterior + cantidad;
+  };
+
   const clearFilters = () => {
     setStartDate(null);
     setEndDate(null);
@@ -319,54 +325,90 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
                   <TableCell><strong>Fecha</strong></TableCell>
                   <TableCell><strong>Tipo</strong></TableCell>
                   <TableCell align="center"><strong>Cantidad</strong></TableCell>
+                  {!isMobile && <TableCell align="center"><strong>Existencia Anterior</strong></TableCell>}
+                  {isMobile && <TableCell align="center"><strong>Anterior → Posterior</strong></TableCell>}
                   {!isMobile && <TableCell><strong>Observaciones</strong></TableCell>}
                   {!isMobile && <TableCell><strong>Usuario</strong></TableCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredMovimientos.map((movimiento, index) => (
-                  <TableRow
-                    key={`${movimiento.id}-${index}`}
-                    sx={{
-                      backgroundColor: getRowColor(movimiento.tipo),
-                      '&:hover': {
-                        opacity: 0.8
-                      }
-                    }}
-                  >
-                    <TableCell>
-                      {dayjs(movimiento.fecha).format(isMobile ? 'DD/MM/YY HH:mm' : 'DD/MM/YYYY HH:mm')}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={TIPO_MOVIMIENTO_LABELS[movimiento.tipo]}
-                        size="small"
-                        color={isMovimientoBaja(movimiento.tipo) ? "error" : "success"}
-                        variant="outlined"
-                        sx={{ fontSize: isMobile ? '0.7rem' : undefined }}
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Typography
-                        fontWeight="bold"
-                        color={isMovimientoBaja(movimiento.tipo) ? "error.main" : "success.main"}
-                        fontSize={isMobile ? '0.875rem' : undefined}
-                      >
-                        {formatCantidad(movimiento.cantidad, movimiento.tipo)}
-                      </Typography>
-                    </TableCell>
-                    {!isMobile && (
+                {filteredMovimientos.map((movimiento, index) => {
+                  const existenciaDespues = calcularExistenciaDespues(
+                    movimiento.existenciaAnterior, 
+                    movimiento.cantidad, 
+                    movimiento.tipo
+                  );
+                  
+                  return (
+                    <TableRow
+                      key={`${movimiento.id}-${index}`}
+                      sx={{
+                        backgroundColor: getRowColor(movimiento.tipo),
+                        '&:hover': {
+                          opacity: 0.8
+                        }
+                      }}
+                    >
                       <TableCell>
-                        {movimiento.motivo || '-'}
+                        {dayjs(movimiento.fecha).format(isMobile ? 'DD/MM/YY HH:mm' : 'DD/MM/YYYY HH:mm')}
                       </TableCell>
-                    )}
-                    {!isMobile && (
                       <TableCell>
-                        {movimiento.usuario?.nombre || 'Sistema'}
+                        <Chip
+                          label={TIPO_MOVIMIENTO_LABELS[movimiento.tipo]}
+                          size="small"
+                          color={isMovimientoBaja(movimiento.tipo) ? "error" : "success"}
+                          variant="outlined"
+                          sx={{ fontSize: isMobile ? '0.7rem' : undefined }}
+                        />
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                      <TableCell align="center">
+                        <Typography
+                          fontWeight="bold"
+                          color={isMovimientoBaja(movimiento.tipo) ? "error.main" : "success.main"}
+                          fontSize={isMobile ? '0.875rem' : undefined}
+                        >
+                          {formatCantidad(movimiento.cantidad, movimiento.tipo)}
+                        </Typography>
+                      </TableCell>
+                      {!isMobile && (
+                        <TableCell align="center">
+                          <Typography
+                            color="text.secondary"
+                            fontSize="0.875rem"
+                          >
+                            {movimiento.existenciaAnterior !== null && movimiento.existenciaAnterior !== undefined 
+                              ? movimiento.existenciaAnterior 
+                              : '-'
+                            }
+                          </Typography>
+                        </TableCell>
+                      )}
+                      {isMobile && (
+                        <TableCell align="center">
+                          <Typography
+                            fontSize="0.75rem"
+                            color="text.secondary"
+                          >
+                            {movimiento.existenciaAnterior !== null && movimiento.existenciaAnterior !== undefined && existenciaDespues !== null
+                              ? `${movimiento.existenciaAnterior} → ${existenciaDespues}`
+                              : '-'
+                            }
+                          </Typography>
+                        </TableCell>
+                      )}
+                      {!isMobile && (
+                        <TableCell>
+                          {movimiento.motivo || '-'}
+                        </TableCell>
+                      )}
+                      {!isMobile && (
+                        <TableCell>
+                          {movimiento.usuario?.nombre || 'Sistema'}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>

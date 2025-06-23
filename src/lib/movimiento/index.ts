@@ -9,7 +9,22 @@ export const CreateMoviento = async (data, items) => {
       for (const movimiento of items) {
         const {  productoId, cantidad } = movimiento;
   
-        // 1. Upsert para obtener (o crear) el productoTienda
+        // 1. Obtener el productoTienda existente para capturar la existencia anterior
+        let existenciaAnterior = 0;
+        const productoTiendaExistente = await tx.productoTienda.findUnique({
+          where: {
+            tiendaId_productoId: {
+              tiendaId,
+              productoId,
+            },
+          },
+        });
+
+        if (productoTiendaExistente) {
+          existenciaAnterior = productoTiendaExistente.existencia;
+        }
+
+        // 2. Upsert para obtener (o crear) el productoTienda
         const productoTienda = await tx.productoTienda.upsert({
           where: {
             tiendaId_productoId: {
@@ -31,7 +46,7 @@ export const CreateMoviento = async (data, items) => {
           },
         });
   
-        // 2. Crear el movimiento con el ID del productoTienda
+        // 3. Crear el movimiento con el ID del productoTienda y la existencia anterior
         await tx.movimientoStock.create({
           data: {
             tipo,
@@ -39,6 +54,7 @@ export const CreateMoviento = async (data, items) => {
             productoTiendaId: productoTienda.id,
             tiendaId,
             usuarioId,
+            existenciaAnterior, // Guardar la existencia ANTES del movimiento
             ...(referenciaId && {referenciaId: referenciaId})
           },
         });

@@ -185,6 +185,9 @@ model MovimientoStock {
   motivo       String? // Texto libre o tipos definidos (ajuste manual, error, etc.)
   referenciaId String? // Puede guardar el ID de una Venta, Entrada o Ajuste
   fecha        DateTime       @default(now())
+  
+  // Existencia del producto ANTES de aplicar este movimiento
+  existenciaAnterior Int? // Null para movimientos existentes, valor para nuevos movimientos
 
   usuario   Usuario? @relation(fields: [usuarioId], references: [id])
   usuarioId String?
