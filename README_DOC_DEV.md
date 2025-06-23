@@ -17,6 +17,7 @@
 - **Validación**: Yup + React Hook Form
 - **Fechas**: Day.js + date-fns
 - **HTTP Client**: Axios
+- **📄 Exportación**: docx, file-saver (nuevas dependencias para exportación a Word)
 
 ### Estructura del Proyecto
 
@@ -38,6 +39,7 @@ src/
 ├── store/                 # Estado Global (Zustand)
 ├── types/                 # Definiciones de TypeScript
 ├── utils/                 # Funciones Utilitarias
+│   └── wordExport.ts      # 📄 Nueva utilidad para exportación a Word
 └── middleware.ts          # Middleware de Autenticación
 ```
 
@@ -48,11 +50,13 @@ src/
 #### **Negocio** (Multi-tenant)
 - Entidad raíz que agrupa tiendas, usuarios y productos
 - Controla límites de tiempo, usuarios y locales
+- **Restricciones de unicidad**: Los nombres de tiendas, productos y categorías son únicos por negocio
 
 #### **Tienda/Local**
 - Representa un punto de venta físico
 - Tiene inventario independiente
 - Asociada a usuarios específicos
+- **Unicidad por negocio**: `@@unique([nombre, negocioId])`
 
 #### **Usuario**
 - Roles: `vendedor`, `administrador`, `superadmin`
@@ -62,6 +66,11 @@ src/
 #### **Producto**
 - Definición global del producto
 - Soporte para fraccionamiento (ej: cigarro suelto → caja)
+- **Unicidad por negocio**: `@@unique([nombre, negocioId])`
+
+#### **Categoria**
+- Agrupación de productos
+- **Unicidad por negocio**: `@@unique([nombre, negocioId])`
 
 #### **ProductoTienda**
 - Instancia del producto en una tienda específica
@@ -82,9 +91,30 @@ src/
 Negocio 1:N Tienda
 Negocio 1:N Usuario
 Negocio 1:N Producto
+Negocio 1:N Categoria
 Tienda N:M Usuario (UsuarioTienda)
 Producto N:M Tienda (ProductoTienda)
 Producto 1:N Producto (fraccionamiento)
+```
+
+### 🆕 Cambios en Schema de Base de Datos
+
+#### Restricciones de Unicidad por Negocio
+```prisma
+model Tienda {
+  // ... otros campos
+  @@unique([nombre, negocioId])
+}
+
+model Producto {
+  // ... otros campos
+  @@unique([nombre, negocioId])
+}
+
+model Categoria {
+  // ... otros campos
+  @@unique([nombre, negocioId])
+}
 ```
 
 ## 🚀 Configuración del Entorno
@@ -107,6 +137,20 @@ npm install
 
 # Configurar variables de entorno
 cp .env.example .env.local
+```
+
+### 🆕 Nuevas Dependencias
+
+```json
+{
+  "dependencies": {
+    "docx": "^8.x.x",
+    "file-saver": "^2.x.x"
+  },
+  "devDependencies": {
+    "@types/file-saver": "^2.x.x"
+  }
+}
 ```
 
 ### Variables de Entorno
@@ -170,6 +214,18 @@ npm run dev
 ├── productService.ts      # Productos y categorías
 ├── inventoryService.ts    # Movimientos de stock
 └── cierrePeriodService.ts # Cierres de período
+```
+
+#### **🆕 Utilidades**
+```typescript
+// utils/wordExport.ts
+export const exportInventoryToWord = async (
+  productos: ProductoTiendaWithDetails[]
+) => {
+  // Genera documento Word con productos organizados por categoría
+  // Incluye tabla con formato profesional
+  // Descarga automática del archivo
+}
 ```
 
 ### API Routes
@@ -272,6 +328,7 @@ const getUserFromHeaders = (req: NextRequest) => {
 - Traspasos entre tiendas
 - Fraccionamiento de productos
 - Ajustes manuales con auditoría
+- **🆕 Exportación a Word**: Reportes profesionales organizados por categoría
 
 ### **Cierres de Período**
 - Períodos automáticos por tienda
@@ -283,6 +340,137 @@ const getUserFromHeaders = (req: NextRequest) => {
 - Aislamiento por negocio
 - Límites de usuarios y tiendas
 - Gestión de tiempo de licencia
+- **🆕 Restricciones de unicidad por negocio**: Mayor flexibilidad en nombres
+
+## 🆕 Nuevas Funcionalidades
+
+### 📄 Exportación a Word
+
+#### Implementación
+```typescript
+// src/utils/wordExport.ts
+import { Document, Packer, Paragraph, Table, TableCell, TableRow } from 'docx'
+import { saveAs } from 'file-saver'
+
+export const exportInventoryToWord = async (productos: ProductoTiendaWithDetails[]) => {
+  // Agrupa productos por categoría
+  const productosPorCategoria = productos.reduce((acc, producto) => {
+    const categoria = producto.producto.categoria?.nombre || 'Sin Categoría'
+    if (!acc[categoria]) acc[categoria] = []
+    acc[categoria].push(producto)
+    return acc
+  }, {} as Record<string, ProductoTiendaWithDetails[]>)
+
+  // Crea documento con formato profesional
+  const doc = new Document({
+    sections: [{
+      children: [
+        // Título y fecha
+        new Paragraph({
+          text: `Reporte de Inventario - ${new Date().toLocaleDateString()}`,
+          heading: HeadingLevel.TITLE
+        }),
+        
+        // Tabla por categoría
+        ...Object.entries(productosPorCategoria).map(([categoria, productos]) => [
+          // Encabezado de categoría
+          new Paragraph({
+            text: categoria,
+            style: 'categoryHeader'
+          }),
+          
+          // Tabla de productos
+          new Table({
+            rows: [
+              // Headers
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph('Producto')] }),
+                  new TableCell({ children: [new Paragraph('Precio')] }),
+                  new TableCell({ children: [new Paragraph('Cantidad Inicial')] }),
+                  new TableCell({ children: [new Paragraph('Cantidad Vendida')] }),
+                  new TableCell({ children: [new Paragraph('Cantidad Final')] })
+                ]
+              }),
+              
+              // Datos de productos
+              ...productos.map(producto => new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph(producto.producto.nombre)] }),
+                  new TableCell({ children: [new Paragraph(`$${producto.precio.toFixed(2)}`)] }),
+                  new TableCell({ children: [new Paragraph(producto.cantidadInicial.toString())] }),
+                  new TableCell({ children: [new Paragraph(producto.cantidadVendida.toString())] }),
+                  new TableCell({ children: [new Paragraph(producto.existencia.toString())] })
+                ]
+              }))
+            ]
+          })
+        ]).flat()
+      ]
+    }]
+  })
+
+  // Genera y descarga el archivo
+  const blob = await Packer.toBlob(doc)
+  saveAs(blob, `inventario_${new Date().toISOString().split('T')[0]}.docx`)
+}
+```
+
+#### Integración en Componente
+```typescript
+// src/app/inventario/page.tsx
+const handleExportToWord = async () => {
+  try {
+    await exportInventoryToWord(productos)
+    showMessage('Inventario exportado exitosamente', 'success')
+  } catch (error) {
+    showMessage('Error al exportar inventario', 'error')
+  }
+}
+
+// Botón en la interfaz
+<Button
+  variant="contained"
+  startIcon={<DescriptionIcon />}
+  onClick={handleExportToWord}
+  sx={{ mb: 2 }}
+>
+  Exportar a Word
+</Button>
+```
+
+### 🏢 Restricciones de Unicidad por Negocio
+
+#### Migración de Base de Datos
+```sql
+-- Remover índices globales únicos
+DROP INDEX IF EXISTS "Tienda_nombre_key";
+DROP INDEX IF EXISTS "Producto_nombre_key";
+DROP INDEX IF EXISTS "Categoria_nombre_key";
+
+-- Crear índices únicos por negocio
+CREATE UNIQUE INDEX "Tienda_nombre_negocioId_key" ON "Tienda"("nombre", "negocioId");
+CREATE UNIQUE INDEX "Producto_nombre_negocioId_key" ON "Producto"("nombre", "negocioId");
+CREATE UNIQUE INDEX "Categoria_nombre_negocioId_key" ON "Categoria"("nombre", "negocioId");
+```
+
+#### Validación en APIs
+```typescript
+// Ejemplo en API de productos
+const existingProduct = await prisma.producto.findFirst({
+  where: {
+    nombre: data.nombre,
+    negocioId: user.negocio.id
+  }
+})
+
+if (existingProduct) {
+  return NextResponse.json(
+    { error: 'Ya existe un producto con este nombre en tu negocio' },
+    { status: 400 }
+  )
+}
+```
 
 ## 🧪 Testing y Calidad
 
@@ -343,6 +531,7 @@ npx prisma migrate deploy
 2. Venta → Movimiento VENTA (automático)
 3. Traspaso entre tiendas → TRASPASO_ENTRADA/SALIDA
 4. Ajustes → AJUSTE_ENTRADA/SALIDA
+5. **🆕 Exportación** → Genera reporte Word organizado por categoría
 
 ### **Flujo de Cierre**
 1. Fin del día/período → Cierre manual
@@ -379,6 +568,21 @@ npx prisma migrate dev
 - Validar conexión a APIs
 - Verificar estado offline
 
+**🆕 ❌ Errores en negocios nuevos**
+- Las páginas de cierre, ventas e historial pueden fallar sin datos
+- Implementar validaciones de datos vacíos
+- Mostrar mensajes informativos para usuarios nuevos
+
+**🆕 ❌ Conflictos de unicidad**
+- Verificar que las restricciones sean por `negocioId`
+- Revisar migraciones de índices únicos
+- Validar en frontend antes de enviar al backend
+
+**🆕 ❌ Problemas de exportación a Word**
+- Verificar que las dependencias `docx` y `file-saver` estén instaladas
+- Comprobar permisos de descarga en el navegador
+- Validar que existan productos para exportar
+
 ## 📝 Contribución
 
 ### Convenciones de Código
@@ -411,8 +615,28 @@ chore: tareas de mantenimiento
 - [Prisma Documentation](https://www.prisma.io/docs)
 - [Material-UI Documentation](https://mui.com/)
 - [NextAuth.js Documentation](https://next-auth.js.org/)
+- [docx Library Documentation](https://docx.js.org/)
+- [file-saver Documentation](https://github.com/eligrey/FileSaver.js/)
+
+## 🎯 Roadmap y Mejoras Futuras
+
+### 🔮 Próximas Funcionalidades
+- Exportación a Excel y PDF
+- Reportes avanzados con gráficos
+- Notificaciones push para stock bajo
+- Integración con sistemas de facturación
+- App móvil nativa
+- Backup automático de datos
+
+### 🛠️ Mejoras Técnicas Pendientes
+- Implementación de tests unitarios e integración
+- Optimización de queries de base de datos
+- Cache con Redis para mejor rendimiento
+- Monitoreo y logging avanzado
+- CI/CD pipeline completo
 
 ---
 
-*Sistema Cuadre de Caja - Versión 0.1.0*
-*Documentación para Desarrolladores* 
+*Sistema Cuadre de Caja - Versión 0.2.0*
+*Documentación para Desarrolladores*
+*Última actualización: Enero 2025* 

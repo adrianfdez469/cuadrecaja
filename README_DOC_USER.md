@@ -18,6 +18,7 @@
 - **Usuarios asignados** a tiendas específicas
 - **Inventarios independientes** por tienda
 - **Traspasos de productos** entre tiendas
+- **Nombres únicos por negocio**: Cada negocio puede tener sus propias tiendas con nombres únicos
 
 ### 📊 Control de Inventarios
 - **Gestión de productos** por categorías
@@ -25,6 +26,8 @@
 - **Movimientos de stock** detallados
 - **Fraccionamiento de productos** (ej: vender cigarros sueltos de una caja)
 - **Ajustes de inventario** manuales
+- **📄 Exportación a Word**: Genera reportes de inventario en formato Word organizados por categoría
+- **Productos únicos por negocio**: Cada negocio puede tener sus propios productos y categorías
 
 ### 💰 Control Financiero
 - **Cierres de período** automáticos
@@ -76,6 +79,15 @@
 - Filtra por categorías o busca productos específicos
 - Revisa existencias actuales
 
+#### 📄 Exportar Inventario a Word
+1. En la página de **"Inventario"**, busca el botón **"Exportar a Word"**
+2. Haz clic para generar el documento
+3. El archivo se descargará automáticamente con:
+   - **Título del reporte** con fecha actual
+   - **Productos organizados por categoría** (ordenados alfabéticamente)
+   - **Tabla detallada** con: Producto, Precio, Cantidad Inicial, Cantidad Vendida, Cantidad Final
+   - **Formato profesional** con encabezados de categoría destacados
+
 #### Movimientos de Stock
 - Accede a **"Movimientos"** para ver el historial
 - Tipos de movimientos:
@@ -108,6 +120,7 @@
 - Los administradores pueden crear nuevas categorías
 - Asignar colores distintivos a cada categoría
 - Crear nuevos productos y asignarlos a categorías
+- **Nombres únicos por negocio**: Puedes usar los mismos nombres que otros negocios sin conflictos
 
 ## 🎯 Consejos de Uso
 
@@ -116,6 +129,8 @@
 - **Cierra el período** al final del día para mantener reportes organizados
 - **Revisa las existencias** regularmente para evitar quedarte sin stock
 - **Sincroniza las ventas** si trabajas sin conexión
+- **Exporta reportes regularmente** usando la función de exportación a Word
+- **Organiza productos por categorías** para facilitar la búsqueda y reportes
 
 ### ⚠️ Precauciones
 - **No cierres períodos** sin revisar todas las ventas
@@ -142,6 +157,36 @@
 - Intenta sincronizar manualmente desde el menú
 - Contacta al administrador si persiste
 
+**❓ Las páginas de cierre, ventas o historial muestran errores en un negocio nuevo**
+- Este es un comportamiento normal cuando el negocio no tiene datos históricos
+- Realiza algunas ventas y cierres para generar datos
+- Las páginas funcionarán correctamente una vez que tengas información
+
+**❓ No puedo crear productos/categorías con nombres existentes**
+- Los nombres de productos, categorías y tiendas deben ser únicos **dentro de tu negocio**
+- Puedes usar nombres que otros negocios ya utilizan
+- Si el error persiste, verifica que no hayas usado ese nombre anteriormente
+
+**❓ La exportación a Word no funciona**
+- Asegúrate de tener productos en tu inventario
+- Verifica que tu navegador permita descargas
+- Intenta desde otro navegador si el problema persiste
+
+## 🎉 Nuevas Funcionalidades
+
+### 🆕 Últimas Mejoras
+
+#### 📄 Exportación de Inventario a Word
+- **Nueva funcionalidad** para generar reportes profesionales
+- **Organización por categorías** con formato visual distintivo
+- **Datos completos** incluyendo cantidades iniciales, vendidas y finales
+- **Descarga automática** del documento generado
+
+#### 🏢 Gestión Mejorada Multi-Negocio
+- **Restricciones de unicidad por negocio**: Cada negocio puede tener sus propios nombres
+- **Mayor flexibilidad** para crear productos y categorías
+- **Mejor aislamiento** entre diferentes negocios
+
 ## 📞 Soporte
 
 Para asistencia técnica o dudas sobre el uso del sistema:
@@ -151,4 +196,5 @@ Para asistencia técnica o dudas sobre el uso del sistema:
 
 ---
 
-*Sistema Cuadre de Caja - Versión 0.1.0* 
+*Sistema Cuadre de Caja - Versión 0.2.0*
+*Última actualización: Enero 2025* 
