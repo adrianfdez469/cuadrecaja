@@ -24,12 +24,15 @@ import { useMessageContext } from "@/context/MessageContext";
 import axios from "axios";
 import { IProductoTienda } from "@/types/IProducto";
 import { exportInventoryToWord } from "@/utils/wordExport";
+import { ProductMovementsModal } from "./components/ProductMovementsModal";
 
 export default function InventarioPage() {
   const [productos, setProductos] = useState<IProductoTienda[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<IProductoTienda | null>(null);
+  const [movementsModalOpen, setMovementsModalOpen] = useState(false);
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
 
@@ -81,6 +84,16 @@ export default function InventarioPage() {
     }
   };
 
+  const handleRowClick = (producto: IProductoTienda) => {
+    setSelectedProduct(producto);
+    setMovementsModalOpen(true);
+  };
+
+  const handleCloseMovementsModal = () => {
+    setMovementsModalOpen(false);
+    setSelectedProduct(null);
+  };
+
   const filteredProductos = productos.filter((producto) =>
     producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -127,12 +140,15 @@ export default function InventarioPage() {
         />
       </Box>
 
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        💡 Haz clic en cualquier producto para ver su historial de movimientos
+      </Typography>
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell sx={tableCellHeaderStyle}>Producto</TableCell>
-              {/* <TableCell sx={tableCellHeaderStyle}>Categoría</TableCell> */}
               <TableCell sx={tableCellHeaderStyle} align="right">
                 Existencia
               </TableCell>
@@ -153,7 +169,17 @@ export default function InventarioPage() {
               </TableRow>
             ) : (
               filteredProductos.map((producto) => (
-                <TableRow key={producto.id}>
+                <TableRow 
+                  key={producto.id}
+                  onClick={() => handleRowClick(producto)}
+                  sx={{
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
+                    transition: 'background-color 0.2s ease'
+                  }}
+                >
                   <TableCell>
                     {producto.nombre}
                   </TableCell>
@@ -172,6 +198,13 @@ export default function InventarioPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Modal de movimientos */}
+      <ProductMovementsModal
+        open={movementsModalOpen}
+        onClose={handleCloseMovementsModal}
+        producto={selectedProduct}
+      />
 
       {/* Botón flotante como alternativa */}
       <Fab

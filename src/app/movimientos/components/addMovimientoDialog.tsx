@@ -21,6 +21,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
 import { ITipoMovimiento } from "@/types/IMovimiento";
+import { TIPOS_MOVIMIENTO_MANUAL, TIPO_MOVIMIENTO_LABELS } from "@/constants/movimientos";
 
 interface IProps {
   dialogOpen: boolean;
@@ -28,14 +29,6 @@ interface IProps {
   productos: IProducto[];
   fetchMovimientos: () => Promise<void>;
 }
-
-const tiposMovimiento = [
-  "COMPRA",
-  "AJUSTE_ENTRADA",
-  "AJUSTE_SALIDA",
-  "TRASPASO_ENTRADA",
-  "TRASPASO_SALIDA",
-];
 
 export const AddMovimientoDialog: FC<IProps> = ({
   dialogOpen,
@@ -128,14 +121,14 @@ export const AddMovimientoDialog: FC<IProps> = ({
           fullWidth
           margin="normal"
         >
-          {tiposMovimiento.map((op) => (
-            <MenuItem key={op} value={op}>
-              {op}
+          {TIPOS_MOVIMIENTO_MANUAL.map((tipoMovimiento) => (
+            <MenuItem key={tipoMovimiento} value={tipoMovimiento}>
+              {TIPO_MOVIMIENTO_LABELS[tipoMovimiento]}
             </MenuItem>
           ))}
         </TextField>
 
-        {tipo === "AJUSTE_ENTRADA" || tipo === "AJUSTE_SALIDA" && (
+        {(tipo === "AJUSTE_ENTRADA" || tipo === "AJUSTE_SALIDA") && (
           <TextField
             label="Motivo"
             value={motivo}
