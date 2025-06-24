@@ -25,6 +25,8 @@ import {
   RadioGroup,
   DialogActions,
   CircularProgress,
+  Chip,
+  Container,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
@@ -135,7 +137,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     const resp = await cambierTienda(selectedTienda);
     if (resp.status === 201) {
       await update({
-        tiendaActual: user.tiendas.find((t) => t.id === selectedTienda),
+        tiendaActual: user?.tiendas?.find((t) => t.id === selectedTienda),
       });
       showMessage("La tienda fue acctualizada satisfactoriamente", "success");
     } else {
@@ -180,54 +182,109 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      {/* Barra superior */}
-      <AppBar position="static">
-        <Toolbar>
+      {/* Barra superior mejorada */}
+      <AppBar 
+        position="static" 
+        elevation={0}
+        sx={{ 
+          backgroundColor: '#ffffff',
+          color: '#1a202c',
+          borderBottom: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
+        }}
+      >
+        <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
           {isAuth && (
             <IconButton
               edge="start"
               color="inherit"
               aria-label="menu"
               onClick={() => setOpen(true)}
+              sx={{ 
+                mr: 2,
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                }
+              }}
             >
               <MenuIcon />
             </IconButton>
           )}
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Cuadre de Caja: {user?.negocio?.nombre || ""}
-          </Typography>
+          
+          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography 
+              variant="h6" 
+              component="h1"
+              sx={{ 
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontSize: { xs: '1.1rem', sm: '1.25rem' }
+              }}
+            >
+              Cuadre de Caja
+            </Typography>
+            
+            {user?.negocio?.nombre && (
+              <Chip 
+                label={user?.negocio?.nombre}
+                size="small"
+                variant="outlined"
+                sx={{ 
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  fontWeight: 500,
+                  display: { xs: 'none', sm: 'flex' }
+                }}
+              />
+            )}
+          </Box>
 
           {isAuth && user ? (
-            <Box display={"flex"} flexDirection={"row"} alignItems={"center"}>
+            <Box display="flex" alignItems="center" gap={1}>
+              {/* Info del usuario mejorada */}
               <Box
-                display={"flex"}
-                flexDirection={"column"}
-                alignItems={"end"}
-                sx={{ mr: 2 }}
+                display="flex"
+                flexDirection="column"
+                alignItems="end"
+                sx={{ 
+                  mr: 1,
+                  display: { xs: 'none', md: 'flex' }
+                }}
               >
-                <Typography variant="body1">
-                  {user.nombre || user.usuario}{" "}
+                <Typography variant="body2" fontWeight={600} color="text.primary">
+                  {user?.nombre || user?.usuario}
                 </Typography>
-                <Typography variant="body2">
-                  {user.tiendaActual?.nombre}{" "}
+                <Typography variant="caption" color="text.secondary">
+                  {user?.tiendaActual?.nombre}
                 </Typography>
               </Box>
 
               <IconButton
                 size="large"
-                aria-label="account of current user"
+                aria-label="cuenta del usuario actual"
                 aria-controls="menu-appbar"
                 aria-haspopup="true"
                 onClick={handleMenu}
-                color="inherit"
+                sx={{
+                  border: '2px solid transparent',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                  }
+                }}
               >
-                <AccountCircle />
+                <AccountCircle sx={{ color: 'primary.main', fontSize: 32 }} />
               </IconButton>
+              
+              {/* Menú de usuario mejorado */}
               <Menu
                 id="menu-appbar"
                 anchorEl={anchorEl}
                 anchorOrigin={{
-                  vertical: "top",
+                  vertical: "bottom",
                   horizontal: "right",
                 }}
                 keepMounted
@@ -237,86 +294,69 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 }}
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
+                PaperProps={{
+                  elevation: 8,
+                  sx: {
+                    mt: 1,
+                    borderRadius: 2,
+                    minWidth: 200,
+                    border: '1px solid #e2e8f0',
+                    '& .MuiMenuItem-root': {
+                      px: 2,
+                      py: 1.5,
+                      borderRadius: 1,
+                      mx: 1,
+                      my: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                      }
+                    }
+                  }
+                }}
               >
+              
                 {user.rol === "SUPER_ADMIN" && (
                   <MenuItem onClick={() => handleCambiarNegocio()}>
-                    <NextWeekIcon />
-                    <Box pl={1}>Cambiar de Negocio</Box>
+                    <NextWeekIcon sx={{ mr: 2, color: 'primary.main' }} />
+                    <Typography variant="body2" fontWeight={500}>
+                      Cambiar de Negocio
+                    </Typography>
                   </MenuItem>
                 )}
-                {user.tiendas.filter(tienda => tienda.negocioId === user.negocio.id).length > 1 && (
-                  <Box m={0}>
+                {user?.tiendas?.filter(tienda => tienda.negocioId === user?.negocio?.id).length > 1 && (
+                [
                     <MenuItem onClick={() => handleCambiarTienda()}>
-                      <ChangeCircleIcon />
-                      <Box pl={1}>Cambiar de tienda</Box>
-                    </MenuItem>
-                    <Divider sx={{ my: 0.5 }} />
-                  </Box>
+                      <ChangeCircleIcon sx={{ mr: 2, color: 'info.main' }} />
+                      <Typography variant="body2" fontWeight={500}>
+                        Cambiar de tienda
+                      </Typography>
+                    </MenuItem>,
+                    <Divider sx={{ my: 1 }} />
+                 ] 
                 )}
                 <MenuItem onClick={handleLogout}>
-                  <LogoutIcon />
-                  <Box pl={1}>Cerrar sesión</Box>
+                  <LogoutIcon sx={{ mr: 2, color: 'error.main' }} />
+                  <Typography variant="body2" fontWeight={500} color="error.main">
+                    Cerrar sesión
+                  </Typography>
                 </MenuItem>
+              
               </Menu>
-
-              <Dialog
-                open={openSelectTienda}
-                onClose={() => handleCloseCambiarTienda()}
-              >
-                <DialogTitle>{"Cambiar tienda"}</DialogTitle>
-                <DialogContent>
-                  <RadioGroup
-                    onChange={(e) => handleSelectTienda(e.target.value)}
-                  >
-                    {user.tiendas.filter(tienda => tienda.negocioId === user.negocio.id).map((tienda) => (
-                      <FormControlLabel
-                        key={tienda.id}
-                        value={tienda.id}
-                        control={<Radio />}
-                        label={tienda.nombre}
-                      />
-                    ))}
-                  </RadioGroup>
-                </DialogContent>
-                <DialogActions>
-                  <Button onClick={handleCloseCambiarTienda}>Cancelar</Button>
-                </DialogActions>
-              </Dialog>
-
-              {user.rol === "SUPER_ADMIN" && (
-                <Dialog
-                  open={openSelectNegocio}
-                  onClose={() => handleCloseCambiarTienda()}
-                >
-                  <DialogTitle>{"Cambiar negocio"}</DialogTitle>
-                  <DialogContent>
-                    {loadingNegocios ? (
-                      <CircularProgress />
-                    ) : (
-                      <RadioGroup
-                        onChange={(e) => handleSelectNegocio(e.target.value)}
-                      >
-                        {negocios.map((negocio) => (
-                          <FormControlLabel
-                            key={negocio.id}
-                            value={negocio.id}
-                            control={<Radio />}
-                            label={negocio.nombre}
-                          />
-                        ))}
-                      </RadioGroup>
-                    )}
-                  </DialogContent>
-                  <DialogActions>
-                    <Button onClick={handleCloseCambiarNegocio}>
-                      Cancelar
-                    </Button>
-                  </DialogActions>
-                </Dialog>
-              )}
             </Box>
           ) : (
-            <Button color="inherit" onClick={goToLogin}>
+            <Button 
+              color="inherit" 
+              onClick={goToLogin}
+              variant="outlined"
+              sx={{
+                borderColor: 'primary.main',
+                color: 'primary.main',
+                '&:hover': {
+                  borderColor: 'primary.dark',
+                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                }
+              }}
+            >
               Entrar
             </Button>
           )}
@@ -328,34 +368,95 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           {/* Banner de estado offline */}
           <OfflineBanner />
           
-          {/* Menú lateral */}
-          <Drawer anchor="left" open={open} onClose={() => setOpen(false)}>
+          {/* Menú lateral mejorado */}
+          <Drawer 
+            anchor="left" 
+            open={open} 
+            onClose={() => setOpen(false)}
+            PaperProps={{
+              sx: {
+                width: 280,
+                backgroundColor: '#ffffff',
+                borderRight: '1px solid #e2e8f0',
+                boxShadow: '4px 0 12px rgba(0, 0, 0, 0.08)',
+              }
+            }}
+          >
             <Box
-              sx={{ width: 250 }}
+              sx={{ width: 280 }}
               role="presentation"
               onClick={() => setOpen(false)}
             >
-              <List>
+              {/* Header del menú */}
+              <Box sx={{ p: 3, borderBottom: '1px solid #e2e8f0' }}>
+                <Typography variant="h6" fontWeight={700} color="primary.main">
+                  Configuración
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Gestión del sistema
+                </Typography>
+              </Box>
+
+              <List sx={{ pt: 2 }}>
                 {configurationMenuItems.map((item) => (
-                  <ListItem key={item.label} disablePadding>
-                    <ListItemButton onClick={() => gotToPath(item.path)}>
-                      <ListItemIcon>
-                        <item.icon />
+                  <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                    <ListItemButton 
+                      onClick={() => gotToPath(item.path)}
+                      sx={{
+                        borderRadius: 2,
+                        py: 1.5,
+                        '&:hover': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
                       </ListItemIcon>
-                      <ListItemText primary={item.label} />
+                      <ListItemText 
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontWeight: 500,
+                          fontSize: '0.875rem'
+                        }}
+                      />
                     </ListItemButton>
                   </ListItem>
                 ))}
               </List>
-              <Divider />
-              <List>
+              
+              <Divider sx={{ mx: 2, my: 2 }} />
+              
+              {/* Operaciones principales */}
+              <Box sx={{ px: 3, pb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                  Operaciones
+                </Typography>
+              </Box>
+              
+              <List sx={{ pt: 0 }}>
                 {menuItems.map((item) => (
-                  <ListItem key={item.label} disablePadding>
-                    <ListItemButton onClick={() => gotToPath(item.path)}>
-                      <ListItemIcon>
-                        <item.icon />
+                  <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                    <ListItemButton 
+                      onClick={() => gotToPath(item.path)}
+                      sx={{
+                        borderRadius: 2,
+                        py: 1.5,
+                        '&:hover': {
+                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        <item.icon sx={{ color: 'secondary.main', fontSize: 22 }} />
                       </ListItemIcon>
-                      <ListItemText primary={item.label} />
+                      <ListItemText 
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontWeight: 500,
+                          fontSize: '0.875rem'
+                        }}
+                      />
                     </ListItemButton>
                   </ListItem>
                 ))}
@@ -365,10 +466,135 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         </>
       )}
 
-      {/* Contenido dinámico */}
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-        {children}
+      {/* Contenido dinámico mejorado */}
+      <Box 
+        component="main" 
+        sx={{ 
+          flexGrow: 1, 
+          backgroundColor: '#f8fafc',
+          minHeight: 'calc(100vh - 64px)',
+          p: { xs: 2, sm: 3 },
+        }}
+      >
+        <Container maxWidth="xl" sx={{ py: 0 }}>
+          {children}
+        </Container>
       </Box>
+
+      {/* Dialogs mejorados */}
+      <Dialog
+        open={openSelectTienda}
+        onClose={() => handleCloseCambiarTienda()}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            minWidth: 400,
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h6" fontWeight={600}>
+            Cambiar tienda
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Selecciona la tienda donde deseas trabajar
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <RadioGroup
+            onChange={(e) => handleSelectTienda(e.target.value)}
+          >
+            {user?.tiendas?.filter(tienda => tienda.negocioId === user?.negocio?.id).map((tienda) => (
+              <FormControlLabel
+                key={tienda.id}
+                value={tienda.id}
+                control={<Radio color="primary" />}
+                label={
+                  <Box>
+                    <Typography variant="body1" fontWeight={500}>
+                      {tienda.nombre}
+                    </Typography>
+                  </Box>
+                }
+                sx={{
+                  mb: 1,
+                  p: 1,
+                  borderRadius: 2,
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  }
+                }}
+              />
+            )) || []}
+          </RadioGroup>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button onClick={handleCloseCambiarTienda} variant="outlined">
+            Cancelar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {user?.rol && user.rol === "SUPER_ADMIN" && (
+        <Dialog
+          open={openSelectNegocio}
+          onClose={() => handleCloseCambiarNegocio()}
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              minWidth: 400,
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Typography variant="h6" fontWeight={600}>
+              Cambiar negocio
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Selecciona el negocio al que deseas cambiar
+            </Typography>
+          </DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            {loadingNegocios ? (
+              <Box display="flex" justifyContent="center" py={4}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <RadioGroup
+                onChange={(e) => handleSelectNegocio(e.target.value)}
+              >
+                {negocios.map((negocio) => (
+                  <FormControlLabel
+                    key={negocio.id}
+                    value={negocio.id}
+                    control={<Radio color="primary" />}
+                    label={
+                      <Box>
+                        <Typography variant="body1" fontWeight={500}>
+                          {negocio.nombre}
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{
+                      mb: 1,
+                      p: 1,
+                      borderRadius: 2,
+                      '&:hover': {
+                        backgroundColor: 'action.hover',
+                      }
+                    }}
+                  />
+                ))}
+              </RadioGroup>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={handleCloseCambiarNegocio} variant="outlined">
+              Cancelar
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Box>
   );
 };
