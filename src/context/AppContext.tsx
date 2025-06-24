@@ -82,6 +82,8 @@ export const useAppContext = () => {
 
   const gotToPath = async (path: string) => {
     if(isAuth) {
+      console.log('path', path);
+      
       await router.push(path);
     }
   };

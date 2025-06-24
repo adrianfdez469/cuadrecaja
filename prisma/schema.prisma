@@ -16,6 +16,7 @@ model Negocio {
   limitTime    DateTime
   userlimit    Int
   locallimit   Int
+  productlimit Int       @default(0) // Límite de productos por plan
 
   usuarios   Usuario[]
   tiendas    Tienda[]

@@ -54,6 +54,20 @@ export async function POST(req: Request) {
 
     const user = await getUserFromRequest(req);
 
+    // Validar límite de productos
+    const productosCounter = await prisma.producto.count({
+      where: {
+        negocioId: user.negocio.id
+      }
+    });
+
+    if (user.negocio.productlimit !== -1 && user.negocio.productlimit <= productosCounter) {
+      return NextResponse.json(
+        { error: "Límite de productos excedido" },
+        { status: 400 }
+      );
+    }
+
     const { nombre, descripcion, categoriaId, fraccion } = await req.json();
     console.log('intert product enpoint => fraccion', fraccion);
     

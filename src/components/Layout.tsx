@@ -473,10 +473,16 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           flexGrow: 1, 
           backgroundColor: '#f8fafc',
           minHeight: 'calc(100vh - 64px)',
-          p: { xs: 2, sm: 3 },
+          p: { xs: 0, sm: 1, md: 2 },
         }}
       >
-        <Container maxWidth="xl" sx={{ py: 0 }}>
+        <Container 
+          maxWidth="xl" 
+          sx={{ 
+            py: 0,
+            px: { xs: 0.5, sm: 2, md: 3 }
+          }}
+        >
           {children}
         </Container>
       </Box>

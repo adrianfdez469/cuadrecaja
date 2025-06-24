@@ -23,11 +23,17 @@ export async function POST(request: Request) {
 
     const futureDate = dayjs().add(3, 'month').set('hour', 23).set('minute', 59).set('second', 0).set('millisecond', 0);
 
-    const { nombre, locallimit, userlimit  } = await request.json();
+    const { nombre, locallimit, userlimit, productlimit } = await request.json();
     
 
     const newNegocio = await prisma.negocio.create({
-      data: { nombre, limitTime: futureDate.toISOString(), locallimit, userlimit },
+      data: { 
+        nombre, 
+        limitTime: futureDate.toISOString(), 
+        locallimit, 
+        userlimit,
+        productlimit: productlimit || 0 // Default a 0 si no se especifica
+      },
     });
     return NextResponse.json(newNegocio, { status: 201 });
   } catch (error) {

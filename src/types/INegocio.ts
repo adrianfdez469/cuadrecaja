@@ -4,4 +4,5 @@ export interface INegocio {
   limitTime: Date;
   locallimit: number; 
   userlimit: number;
+  productlimit: number;
 }
