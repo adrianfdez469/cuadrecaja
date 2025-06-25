@@ -17,3 +17,8 @@ export const cambierNegocio = async (newNegocioId: string) => {
 
   return response;
 };
+
+export const getTiendasDisponibles = async () => {
+  const response = await axios.get("/api/tiendas-disponibles");
+  return response.data;
+};

@@ -29,7 +29,7 @@ export const authOptions:NextAuthOptions  = {
             },
             tiendaActual: true,
             negocio: {
-              select: { id: true, nombre: true, userlimit: true, limitTime: true, locallimit: true }
+              select: { id: true, nombre: true, userlimit: true, limitTime: true, locallimit: true, productlimit: true }
             }
           },
         });
@@ -39,20 +39,37 @@ export const authOptions:NextAuthOptions  = {
         const passwordMatch = await bcrypt.compare(credentials.password, user.password);
         if (!passwordMatch) throw new Error("Contraseña incorrecta");
 
+        // Para usuarios SUPER_ADMIN, obtener todas las tiendas del negocio
+        // Para otros usuarios, solo las tiendas asociadas
+        let tiendasDisponibles;
+        if (user.rol === "SUPER_ADMIN") {
+          const todasLasTiendas = await prisma.tienda.findMany({
+            where: { negocioId: user.negocio.id },
+            select: {
+              id: true,
+              nombre: true,
+              negocioId: true,
+              tipo: true
+            }
+          });
+          tiendasDisponibles = todasLasTiendas;
+        } else {
+          tiendasDisponibles = user.tiendas.map((t) => ({
+            id: t.tienda.id,
+            nombre: t.tienda.nombre,
+            negocioId: t.tienda.negocioId,
+            tipo: t.tienda.tipo
+          }));
+        }
+
         return {
           id: user.id,
           usuario: user.usuario,
           nombre: user.nombre,
           negocio: user.negocio,
           rol: user.rol,
-          tiendas: user.tiendas.map((t) => ({
-            id: t.tienda.id,
-            nombre: t.tienda.nombre,
-            negocioId: t.tienda.negocioId,
-            tipo: t.tienda.tipo
-          })),
+          tiendas: tiendasDisponibles,
           tiendaActual: user.tiendaActual
-
         };
       },
     }),

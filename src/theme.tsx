@@ -117,83 +117,64 @@ const theme = createTheme({
     },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 8,
   },
   spacing: 8,
   components: {
-    // Botones mejorados
+    // Botones con estilo minimalista
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          padding: "10px 24px",
+          borderRadius: 8,
+          padding: "8px 16px",
           fontSize: "0.875rem",
-          fontWeight: 600,
+          fontWeight: 500,
           textTransform: "none",
           boxShadow: "none",
-          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "all 0.2s ease",
           "&:hover": {
-            transform: "translateY(-1px)",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-          },
-        },
-        containedPrimary: {
-          background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-          "&:hover": {
-            background: "linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)",
-          },
-        },
-        containedSecondary: {
-          background: "linear-gradient(135deg, #dc004e 0%, #9a0036 100%)",
-          "&:hover": {
-            background: "linear-gradient(135deg, #9a0036 0%, #880e4f 100%)",
-          },
-        },
-        containedSuccess: {
-          background: "linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)",
-          "&:hover": {
-            background: "linear-gradient(135deg, #1b5e20 0%, #0d5016 100%)",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
           },
         },
       },
     },
-    // Cards mejoradas
+    // Cards minimalistas
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-          border: "1px solid #e2e8f0",
-          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+          borderRadius: 12,
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
+          border: "1px solid #f1f5f9",
+          transition: "all 0.2s ease",
           "&:hover": {
-            boxShadow: "0 8px 25px rgba(0, 0, 0, 0.12)",
-            transform: "translateY(-2px)",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.12)",
+            transform: "translateY(-1px)",
           },
         },
       },
     },
-    // Drawer mejorado
-    MuiDrawer: {
-      styleOverrides: {
-        paper: {
-          backgroundColor: "#ffffff",
-          borderRight: "1px solid #e2e8f0",
-          boxShadow: "4px 0 12px rgba(0, 0, 0, 0.08)",
-        },
-      },
-    },
-    // AppBar mejorada
+    // AppBar limpia
     MuiAppBar: {
       styleOverrides: {
         root: {
           backgroundColor: "#ffffff",
           color: "#1a202c",
           boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
-          borderBottom: "1px solid #e2e8f0",
+          borderBottom: "1px solid #f1f5f9",
         },
       },
     },
-    // Tablas mejoradas
+    // Drawer minimalista
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#ffffff",
+          borderRight: "1px solid #f1f5f9",
+          boxShadow: "2px 0 8px rgba(0, 0, 0, 0.08)",
+        },
+      },
+    },
+    // Tablas limpias
     MuiTableHead: {
       styleOverrides: {
         root: {
@@ -202,9 +183,7 @@ const theme = createTheme({
             color: "#374151",
             fontWeight: 600,
             fontSize: "0.875rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.025em",
-            borderBottom: "2px solid #e2e8f0",
+            borderBottom: "1px solid #e2e8f0",
           },
         },
       },
@@ -216,52 +195,67 @@ const theme = createTheme({
             backgroundColor: "#f8fafc",
             transition: "background-color 0.15s ease",
           },
-          "&:last-child td": {
-            borderBottom: 0,
-          },
         },
       },
     },
-    // TextFields mejorados
+    // TextFields limpios
     MuiTextField: {
       styleOverrides: {
         root: {
           "& .MuiOutlinedInput-root": {
-            borderRadius: 12,
+            borderRadius: 8,
             backgroundColor: "#ffffff",
-            transition: "all 0.2s ease",
             "&:hover": {
-              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: "#cbd5e1",
+              },
             },
             "&.Mui-focused": {
-              boxShadow: "0 0 0 3px rgba(25, 118, 210, 0.12)",
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: "#1976d2",
+                borderWidth: "2px",
+              },
             },
           },
         },
       },
     },
-    // Chips mejorados
+    // Chips minimalistas
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 6,
           fontWeight: 500,
           fontSize: "0.75rem",
         },
         colorSuccess: {
           backgroundColor: "#dcfce7",
           color: "#166534",
-          border: "1px solid #bbf7d0",
         },
         colorError: {
           backgroundColor: "#fef2f2",
           color: "#dc2626",
-          border: "1px solid #fecaca",
         },
         colorWarning: {
           backgroundColor: "#fefce8",
           color: "#ca8a04",
-          border: "1px solid #fde68a",
+        },
+      },
+    },
+    // Paper limpio
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: "none",
+        },
+        elevation1: {
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
+        },
+        elevation2: {
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
+        },
+        elevation3: {
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
         },
       },
     },

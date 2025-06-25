@@ -4,13 +4,16 @@ import { hasPermision } from "@/utils/auth";
 import bcrypt from "bcrypt";
 import getUserFromRequest from "@/utils/getUserFromRequest";
 
-// Obtener todas las categorías
+// Obtener usuarios del negocio (excluyendo SUPER_ADMIN)
 export async function GET(req: Request) {
   try {
     const user = await getUserFromRequest(req);
     const usuarios = await prisma.usuario.findMany({
       where: {
-        negocioId: user.negocio.id
+        negocioId: user.negocio.id,
+        rol: {
+          not: "SUPER_ADMIN"
+        }
       }
     });
     return NextResponse.json(usuarios);
@@ -35,11 +38,17 @@ export async function POST(req: Request) {
     }
 
     const user = await getUserFromRequest(req);
+    
+    // Contar solo usuarios que no sean SUPER_ADMIN (usuarios del negocio)
     const usersCounter = await prisma.usuario.count({
       where: {
-        negocioId: user.negocio.id
+        negocioId: user.negocio.id,
+        rol: {
+          not: "SUPER_ADMIN"
+        }
       }
-    })
+    });
+    
     if(user.negocio.userlimit <= usersCounter ) {
       return NextResponse.json(
         { error: "Limite de usuarios exedido" },

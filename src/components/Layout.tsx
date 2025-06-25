@@ -42,7 +42,7 @@ import { useAppContext } from "@/context/AppContext";
 import { AccountCircle } from "@mui/icons-material";
 import SellIcon from "@mui/icons-material/Sell";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
-import { cambierNegocio, cambierTienda } from "@/services/authService";
+import { cambierNegocio, cambierTienda, getTiendasDisponibles } from "@/services/authService";
 import { useSession, signOut } from "next-auth/react";
 import { useMessageContext } from "@/context/MessageContext";
 import { getNegocios } from "@/services/negocioServce";
@@ -97,6 +97,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const { showMessage } = useMessageContext();
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   const [loadingNegocios, setLoadingNegocios] = useState(false);
+  const [tiendasDisponibles, setTiendasDisponibles] = useState([]);
+  const [loadingTiendas, setLoadingTiendas] = useState(false);
+  const [totalTiendasDisponibles, setTotalTiendasDisponibles] = useState(0);
   const { isOnline, wasOffline } = useNetworkStatus();
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -107,9 +110,19 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     setAnchorEl(null);
   };
 
-  const handleCambiarTienda = () => {
-    handleClose();
-    setOpenSelectTienda(true);
+  const handleCambiarTienda = async () => {
+    try {
+      setLoadingTiendas(true);
+      handleClose();
+      const tiendas = await getTiendasDisponibles();
+      setTiendasDisponibles(tiendas);
+      setTotalTiendasDisponibles(tiendas.length);
+      setOpenSelectTienda(true);
+    } catch (error) {
+      showMessage("No se pueden cargar las tiendas disponibles", "error", error);
+    } finally {
+      setLoadingTiendas(false);
+    }
   };
 
   const handleCambiarNegocio = async () => {
@@ -137,12 +150,12 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     const resp = await cambierTienda(selectedTienda);
     if (resp.status === 201) {
       await update({
-        tiendaActual: user?.tiendas?.find((t) => t.id === selectedTienda),
+        tiendaActual: tiendasDisponibles?.find((t) => t.id === selectedTienda),
       });
-      showMessage("La tienda fue acctualizada satisfactoriamente", "success");
+      showMessage("La tienda fue actualizada satisfactoriamente", "success");
     } else {
       console.log(resp);
-      showMessage("No se puedo actualizar la tienda", "error");
+      showMessage("No se pudo actualizar la tienda", "error");
     }
     handleCloseCambiarTienda();
   };
@@ -162,6 +175,34 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     handleCloseCambiarNegocio();
     handleCambiarTienda();
   };
+
+  // Función para cargar el conteo de tiendas disponibles
+  const loadTiendasCount = async () => {
+    try {
+      // Solo cargar si no tenemos el conteo aún
+      if (totalTiendasDisponibles === 0) {
+        const tiendas = await getTiendasDisponibles();
+        setTotalTiendasDisponibles(tiendas.length);
+      }
+    } catch (error) {
+      console.error("Error al obtener conteo de tiendas:", error);
+    }
+  };
+
+  // Cargar el conteo de tiendas al montar el componente
+  useEffect(() => {
+    if (isAuth && user && totalTiendasDisponibles === 0) {
+      loadTiendasCount();
+    }
+  }, [isAuth, user, totalTiendasDisponibles]);
+
+  // Detectar si el usuario necesita seleccionar una tienda
+  useEffect(() => {
+    if (isAuth && user && !user.tiendaActual && totalTiendasDisponibles >= 1 && !openSelectTienda) {
+      // Mostrar automáticamente el selector de tienda si el usuario no tiene una asignada
+      handleCambiarTienda();
+    }
+  }, [isAuth, user, totalTiendasDisponibles, openSelectTienda]);
 
   useEffect(() => {
     // Solo verificar expiración si hay sesión
@@ -323,15 +364,15 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     </Typography>
                   </MenuItem>
                 )}
-                {user?.tiendas?.filter(tienda => tienda.negocioId === user?.negocio?.id).length > 1 && (
+                {(totalTiendasDisponibles > 1 || (totalTiendasDisponibles >= 1 && !user?.tiendaActual)) && (
                 [
-                    <MenuItem onClick={() => handleCambiarTienda()}>
+                    <MenuItem key="cambiar-tienda" onClick={() => handleCambiarTienda()}>
                       <ChangeCircleIcon sx={{ mr: 2, color: 'info.main' }} />
                       <Typography variant="body2" fontWeight={500}>
-                        Cambiar de tienda
+                        {!user?.tiendaActual ? 'Seleccionar tienda' : 'Cambiar de tienda'}
                       </Typography>
                     </MenuItem>,
-                    <Divider sx={{ my: 1 }} />
+                    <Divider key="divider-tienda" sx={{ my: 1 }} />
                  ] 
                 )}
                 <MenuItem onClick={handleLogout}>
@@ -490,7 +531,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       {/* Dialogs mejorados */}
       <Dialog
         open={openSelectTienda}
-        onClose={() => handleCloseCambiarTienda()}
+        onClose={user?.tiendaActual ? () => handleCloseCambiarTienda() : undefined}
+        disableEscapeKeyDown={!user?.tiendaActual}
         PaperProps={{
           sx: {
             borderRadius: 3,
@@ -500,44 +542,62 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       >
         <DialogTitle sx={{ pb: 1 }}>
           <Typography variant="h6" fontWeight={600}>
-            Cambiar tienda
+            {!user?.tiendaActual ? 'Seleccionar tienda' : 'Cambiar tienda'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Selecciona la tienda donde deseas trabajar
+            {!user?.tiendaActual 
+              ? 'Necesitas seleccionar una tienda para comenzar a trabajar'
+              : 'Selecciona la tienda donde deseas trabajar'
+            }
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
-          <RadioGroup
-            onChange={(e) => handleSelectTienda(e.target.value)}
-          >
-            {user?.tiendas?.filter(tienda => tienda.negocioId === user?.negocio?.id).map((tienda) => (
-              <FormControlLabel
-                key={tienda.id}
-                value={tienda.id}
-                control={<Radio color="primary" />}
-                label={
-                  <Box>
-                    <Typography variant="body1" fontWeight={500}>
-                      {tienda.nombre}
-                    </Typography>
-                  </Box>
-                }
-                sx={{
-                  mb: 1,
-                  p: 1,
-                  borderRadius: 2,
-                  '&:hover': {
-                    backgroundColor: 'action.hover',
+          {!user?.tiendaActual && tiendasDisponibles.length === 1 && (
+            <Box sx={{ mb: 2, p: 2, backgroundColor: 'info.light', borderRadius: 1 }}>
+              <Typography variant="body2" color="info.contrastText">
+                <strong>Nota:</strong> Necesitas seleccionar una tienda para acceder al sistema.
+              </Typography>
+            </Box>
+          )}
+          {loadingTiendas ? (
+            <Box display="flex" justifyContent="center" py={4}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <RadioGroup
+              onChange={(e) => handleSelectTienda(e.target.value)}
+            >
+              {tiendasDisponibles?.map((tienda) => (
+                <FormControlLabel
+                  key={tienda.id}
+                  value={tienda.id}
+                  control={<Radio color="primary" />}
+                  label={
+                    <Box>
+                      <Typography variant="body1" fontWeight={500}>
+                        {tienda.nombre}
+                      </Typography>
+                    </Box>
                   }
-                }}
-              />
-            )) || []}
-          </RadioGroup>
+                  sx={{
+                    mb: 1,
+                    p: 1,
+                    borderRadius: 2,
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    }
+                  }}
+                />
+              )) || []}
+            </RadioGroup>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={handleCloseCambiarTienda} variant="outlined">
-            Cancelar
-          </Button>
+          {user?.tiendaActual && (
+            <Button onClick={handleCloseCambiarTienda} variant="outlined">
+              Cancelar
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
