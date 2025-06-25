@@ -100,6 +100,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
         nuevos[index].costoUnitario = costoTotal / nuevos[index].cantidad;
       }
     } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       nuevos[index][field] = value as any;
     }
     

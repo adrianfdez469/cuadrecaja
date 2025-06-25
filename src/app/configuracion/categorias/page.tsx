@@ -68,7 +68,6 @@ export default function CategoriasPage() {
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const [statsExpanded, setStatsExpanded] = useState(false);
 
@@ -192,9 +191,12 @@ export default function CategoriasPage() {
               minHeight: isMobile ? 32 : 48,
             }}
           >
-            {React.cloneElement(icon as React.ReactElement, { 
-              fontSize: isMobile ? "small" : "large" 
-            } as any)}
+            {React.isValidElement(icon) 
+              ? React.cloneElement(icon, { 
+                  fontSize: isMobile ? "small" : "large" 
+                } as Record<string, unknown>)
+              : icon
+            }
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography 

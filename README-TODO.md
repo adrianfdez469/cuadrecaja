@@ -1,14 +1,9 @@
 
 RECOMENDACIONES PRIORITARIAS:
-1- Crear un componente DataTable reutilizable (Falta reivisarlo y usarlo en componentes)
+
 2- Implementar paginación server-side
-3- Añadir estados de loading/error consistentes
-4- Hacer todas las tablas responsive
-5- Implementar validaciones client-side
 6- Unificar formato de fechas y monedas
 7- Añadir confirmaciones para acciones destructivas
-8- Implementar búsqueda y filtros avanzados
-
 
 
 PROBLEMAS ESPECÍFICOS POR ARCHIVO:

@@ -35,9 +35,6 @@ import {
   Inventory,
   Search,
   Refresh,
-  NavigateBefore,
-  NavigateNext,
-  FirstPage,
   ExpandMore,
   ExpandLess
 } from "@mui/icons-material";
@@ -47,6 +44,7 @@ import { fetchProducts } from "@/services/productServise";
 import { useAppContext } from "@/context/AppContext";
 import { findMovimientos } from "@/services/movimientoService";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
+import { ITipoMovimiento } from "@/types/IMovimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 
@@ -60,7 +58,6 @@ export default function MovimientosPage() {
   const { user, loadingContext } = useAppContext();
   const [loadingData, setLoadingData] = useState(true);
   const [noTiendaActual, setNoTiendaActual] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [statsExpanded, setStatsExpanded] = useState(false);
   
   const theme = useTheme();
@@ -228,9 +225,12 @@ export default function MovimientosPage() {
               minHeight: isMobile ? 32 : 48,
             }}
           >
-            {React.cloneElement(icon as React.ReactElement, { 
-              fontSize: isMobile ? "small" : "large" 
-            } as any)}
+            {React.isValidElement(icon) 
+              ? React.cloneElement(icon, { 
+                  fontSize: isMobile ? "small" : "large" 
+                } as Record<string, unknown>)
+              : icon
+            }
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography 
@@ -261,7 +261,7 @@ export default function MovimientosPage() {
   );
 
   const getMovimientoChip = (tipo: string) => {
-    const isBaja = isMovimientoBaja(tipo as any);
+    const isBaja = isMovimientoBaja(tipo as ITipoMovimiento);
     return (
       <Chip
         label={tipo}
@@ -404,7 +404,7 @@ export default function MovimientosPage() {
               )}
               {!searchTerm && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  También puedes crear movimientos manuales usando el botón "Crear Movimiento".
+                  {`También puedes crear movimientos manuales usando el botón \"Crear Movimiento\".`}
                 </Typography>
               )}
             </Alert>

@@ -218,9 +218,12 @@ export default function UsuariosPage() {
               minHeight: isMobile ? 32 : 48,
             }}
           >
-            {React.cloneElement(icon as React.ReactElement, { 
-              fontSize: isMobile ? "small" : "large" 
-            } as any)}
+            {React.isValidElement(icon) 
+              ? React.cloneElement(icon, { 
+                  fontSize: isMobile ? "small" : "large" 
+                } as Record<string, unknown>)
+              : icon
+            }
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -16,15 +16,23 @@ import {
   Stack,
   useTheme,
   useMediaQuery,
-  Divider
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Tooltip,
+  CircularProgress,
+  Alert
 } from "@mui/material";
-import { Delete, Edit, Add, Business, Schedule, Store, Person, Inventory, AttachMoney, ChangeCircle } from "@mui/icons-material";
+import { Delete, Edit, Add, Business, Store, Person, Inventory, AttachMoney, Search } from "@mui/icons-material";
 import { planesNegocio } from "@/utils/planesNegocio";
 import { createNegocio, getNegocios, updateNegocio, deleteNegocio } from "@/services/negocioServce";
 import { useMessageContext } from "@/context/MessageContext";
 import { INegocio } from "@/types/INegocio";
-import { DataTable, DataTableColumn, DataTableAction } from "@/components/DataTable";
-import { formatDate, formatNumber } from "@/components/DataTable/utils/formatters";
 
 const planesNegocioArr = Object.entries(planesNegocio);
 
@@ -37,6 +45,7 @@ export default function Negocios() {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [selectedNegocio, setSelectedNegocio] = useState<INegocio | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const { showMessage } = useMessageContext();
 
   const [nombre, setNombre] = useState("");
@@ -72,7 +81,6 @@ export default function Negocios() {
     setLoading(true);
     try {
       if (selectedNegocio) {
-        // Editar negocio existente
         await updateNegocio(
           selectedNegocio.id,
           nombre, 
@@ -82,7 +90,6 @@ export default function Negocios() {
         );
         showMessage('Negocio actualizado satisfactoriamente', 'success');
       } else {
-        // Crear nuevo negocio
         await createNegocio(
           nombre, 
           selectedPlan.limiteLocales, 
@@ -112,9 +119,9 @@ export default function Negocios() {
       await deleteNegocio(negocio.id);
       showMessage('Negocio eliminado satisfactoriamente', 'success');
       await fetchNegocios();
-    } catch (error: any) {
+    } catch (error) {
       console.log(error);
-      const errorMessage = error.response?.data?.error || 'Ocurrió un error al eliminar el negocio';
+      const errorMessage = (error).response?.data?.error || 'Ocurrió un error al eliminar el negocio';
       showMessage(errorMessage, 'error');
     } finally {
       setLoading(false);
@@ -125,7 +132,6 @@ export default function Negocios() {
     setSelectedNegocio(negocio);
     setNombre(negocio.nombre);
     
-    // Encontrar el plan correspondiente basado en los límites del negocio
     const planKey = Object.keys(planesNegocio).find(key => {
       const plan = planesNegocio[key as keyof typeof planesNegocio];
       return plan.limiteLocales === negocio.locallimit &&
@@ -138,10 +144,6 @@ export default function Negocios() {
     }
     
     setOpen(true);
-  };
-
-  const handleView = (negocio: INegocio) => {
-    console.log('Ver detalles del negocio:', negocio);
   };
 
   const handleSetSelectedPlan = (planKey: string) => {
@@ -164,7 +166,6 @@ export default function Negocios() {
     return planEntry ? planEntry[0] : 'CUSTOM';
   };
 
-  // Función para calcular días restantes
   const getDaysRemaining = (limitTime: Date): number => {
     const now = new Date();
     const limit = new Date(limitTime);
@@ -173,220 +174,171 @@ export default function Negocios() {
     return diffDays;
   };
 
-  // Configuración de columnas optimizada para móviles
-  const columns: DataTableColumn<INegocio>[] = useMemo(() => [
-    {
-      id: 'nombre',
-      label: 'Negocio',
-      minWidth: isMobile ? 160 : 200,
-      responsive: 'always',
-      sortable: true,
-      format: (value, row) => (
-        <Box>
-          <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-            <Business color="primary" fontSize="small" />
-            <Typography variant="body2" fontWeight="medium" noWrap>
-              {value}
-            </Typography>
-          </Box>
-          {isMobile && (
-            <Box>
-              <Box display="flex" alignItems="center" gap={1} mt={0.5}>
-                <Schedule fontSize="small" color="action" />
-                <Typography variant="caption" color="text.secondary">
-                  {(() => {
-                    const days = getDaysRemaining(row.limitTime);
-                    return days > 0 ? `${days} días restantes` : 'Expirado';
-                  })()}
-                </Typography>
-              </Box>
-            </Box>
-          )}
-        </Box>
-      )
-    },
-    {
-      id: 'diasRestantes',
-      label: 'Días Restantes',
-      minWidth: 120,
-      align: 'center',
-      responsive: 'desktop',
-      sortable: true,
-      format: (_, row) => {
-        const days = getDaysRemaining(row.limitTime);
-        let color: 'success' | 'warning' | 'error' = 'success';
-        
-        if (days <= 0) color = 'error';
-        else if (days <= 7) color = 'warning';
-        
-        return (
-          <Chip
-            label={days > 0 ? `${days} días` : 'Expirado'}
-            size="small"
-            variant="filled"
-            color={color}
-            sx={{ fontWeight: 'medium' }}
-          />
-        );
-      }
-    },
-    {
-      id: 'limits',
-      label: 'Límites',
-      minWidth: isMobile ? 140 : 180,
-      align: 'center',
-      responsive: 'always',
-      sortable: false,
-      format: (_, row) => (
-        <Box>
-          <Box display="flex" alignItems="center" justifyContent="center" gap={0.5} mb={0.5}>
-            <Store fontSize="small" color="primary" />
-            <Typography variant="body2" fontWeight="medium" color="primary.main">
-              {formatNumber(row.locallimit)}
-            </Typography>
-          </Box>
-          <Box display="flex" alignItems="center" justifyContent="center" gap={0.5} mb={0.5}>
-            <Person fontSize="small" color="secondary" />
-            <Typography variant="body2" fontWeight="medium" color="secondary.main">
-              {row.userlimit === -1 ? '∞' : formatNumber(row.userlimit)}
-            </Typography>
-          </Box>
-          <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
-            <Inventory fontSize="small" color="info" />
-            <Typography variant="body2" fontWeight="medium" color="info.main">
-              {row.productlimit === -1 ? '∞' : formatNumber(row.productlimit)}
-            </Typography>
-          </Box>
-          {isMobile && (
-            <Box mt={0.5}>
-              {(() => {
-                const planName = getPlanName(row.locallimit, row.userlimit, row.productlimit);
-                const planColors: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'warning'> = {
-                  'FREEMIUM': 'default',
-                  'BASICO': 'primary',
-                  'SILVER': 'secondary', 
-                  'PREMIUM': 'success',
-                  'CUSTOM': 'warning'
-                };
-                
-                return (
-                  <Chip
-                    label={planName}
-                    size="small"
-                    color={planColors[planName] || 'default'}
-                    variant="filled"
-                    sx={{ fontSize: '0.65rem', height: 20 }}
-                  />
-                );
-              })()}
-            </Box>
-          )}
-        </Box>
-      )
-    },
-    {
-      id: 'plan',
-      label: 'Plan',
-      minWidth: 100,
-      align: 'center',
-      responsive: 'desktop',
-      sortable: false,
-      format: (_, row) => {
-        const planName = getPlanName(row.locallimit, row.userlimit, row.productlimit);
-        const planColors: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'warning'> = {
-          'FREEMIUM': 'default',
-          'BASICO': 'primary',
-          'SILVER': 'secondary',
-          'PREMIUM': 'success',
-          'CUSTOM': 'warning'
-        };
-        
-        const planData = planesNegocio[planName as keyof typeof planesNegocio];
-        
-        return (
-          <Box textAlign="center">
-            <Chip
-              label={planName}
-              size="small"
-              color={planColors[planName] || 'default'}
-              variant="filled"
-              sx={{ mb: 0.5 }}
-            />
-            {planData && planData.precio > 0 && (
-              <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
-                <AttachMoney color="success" />
-                <Typography variant="caption" color="success.main" fontWeight="medium">
-                  ${planData.precio}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        );
-      }
-    }
-  ], [isMobile]);
+  const getPlanColor = (planName: string): 'default' | 'primary' | 'secondary' | 'success' | 'warning' => {
+    const colors: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'warning'> = {
+      'FREEMIUM': 'default',
+      'BASICO': 'primary',
+      'SILVER': 'secondary',
+      'PREMIUM': 'success',
+      'CUSTOM': 'warning'
+    };
+    return colors[planName] || 'default';
+  };
 
-  // Configuración de acciones optimizada
-  const actions: DataTableAction<INegocio>[] = useMemo(() => [
-    {
-      icon: <Edit />,
-      label: 'Editar negocio',
-      onClick: handleEdit,
-      color: 'primary'
-    },
-    {
-      icon: <Delete />,
-      label: 'Eliminar negocio', 
-      onClick: handleDelete,
-      color: 'error'
-    }
-  ], []);
+  const filteredNegocios = negocios.filter((negocio) => {
+    const searchLower = searchTerm.toLowerCase();
+    const planName = getPlanName(negocio.locallimit, negocio.userlimit, negocio.productlimit);
+    
+    return negocio.nombre.toLowerCase().includes(searchLower) ||
+           planName.toLowerCase().includes(searchLower);
+  });
 
-  // Toolbar integrado que se posicionará mejor
-  const customToolbar = (
-    <Box display="flex" justifyContent="flex-end" mb={0}>
-      <Button
-        variant="contained"
-        startIcon={!isMobile ? <Add /> : undefined}
-        onClick={() => setOpen(true)}
-        size={isMobile ? "small" : "medium"}
-        sx={{ 
-          borderRadius: 2,
-          minWidth: isMobile ? 'auto' : 140,
-          px: isMobile ? 1.5 : 2,
-          flexShrink: 0
-        }}
-      >
-        {isMobile ? <Add /> : 'Agregar'}
-      </Button>
-    </Box>
-  );
+  if (loading && negocios.length === 0) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <Box p={isMobile ? 0 : 1}>
-      <DataTable<INegocio>
-        data={negocios}
-        columns={columns}
-        actions={actions}
-        loading={loading}
-        error={error}
-        title={isMobile ? "Negocios" : "Gestión de Negocios"}
-        searchable={true}
-        sortable={true}
-        pagination={true}
-        pageSize={isMobile ? 5 : 10}
-        pageSizeOptions={isMobile ? [5, 10] : [5, 10, 25]}
-        onRefresh={fetchNegocios}
-        emptyMessage="No hay negocios registrados"
-        customToolbar={customToolbar}
-        rowKey="id"
-        onRowClick={handleView}
-        dense={isMobile}
-        stickyHeader={true}
-        maxHeight={isMobile ? 'calc(100vh - 150px)' : 600}
-      />
+    <Box p={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" component="h1">
+          Gestión de Negocios
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setOpen(true)}
+        >
+          Agregar Negocio
+        </Button>
+      </Box>
 
-      {/* Dialog optimizado para móviles */}
+      <Box mb={2}>
+        <TextField
+          placeholder="Buscar negocio..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
+          }}
+          sx={{ minWidth: 300 }}
+        />
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Negocio</TableCell>
+              <TableCell align="center">Plan</TableCell>
+              <TableCell align="center">Límites</TableCell>
+              <TableCell align="center">Estado</TableCell>
+              <TableCell align="center">Acciones</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredNegocios.map((negocio) => {
+              const days = getDaysRemaining(negocio.limitTime);
+              const planName = getPlanName(negocio.locallimit, negocio.userlimit, negocio.productlimit);
+              const planData = planesNegocio[planName as keyof typeof planesNegocio];
+              
+              return (
+                <TableRow key={negocio.id}>
+                  <TableCell>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Business color="primary" />
+                      <Typography variant="body2" fontWeight="medium">
+                        {negocio.nombre}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip
+                      label={planName}
+                      size="small"
+                      color={getPlanColor(planName)}
+                      variant="filled"
+                    />
+                    {planData && planData.precio > 0 && (
+                      <Typography variant="caption" display="block" color="success.main">
+                        ${planData.precio}/mes
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Stack spacing={0.5} alignItems="center">
+                      <Box display="flex" alignItems="center" gap={0.5}>
+                        <Store fontSize="small" color="primary" />
+                        <Typography variant="body2">{negocio.locallimit}</Typography>
+                      </Box>
+                      <Box display="flex" alignItems="center" gap={0.5}>
+                        <Person fontSize="small" color="secondary" />
+                        <Typography variant="body2">
+                          {negocio.userlimit === -1 ? '∞' : negocio.userlimit}
+                        </Typography>
+                      </Box>
+                      <Box display="flex" alignItems="center" gap={0.5}>
+                        <Inventory fontSize="small" color="info" />
+                        <Typography variant="body2">
+                          {negocio.productlimit === -1 ? '∞' : negocio.productlimit}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip
+                      label={days > 0 ? `${days} días` : 'Expirado'}
+                      size="small"
+                      color={days <= 0 ? 'error' : days <= 7 ? 'warning' : 'success'}
+                      variant="filled"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Stack direction="row" spacing={0.5} justifyContent="center">
+                      <Tooltip title="Editar negocio">
+                        <IconButton
+                          onClick={() => handleEdit(negocio)}
+                          size="small"
+                          color="primary"
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Eliminar negocio">
+                        <IconButton
+                          onClick={() => handleDelete(negocio)}
+                          size="small"
+                          color="error"
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {filteredNegocios.length === 0 && !loading && (
+        <Box textAlign="center" py={4}>
+          <Typography variant="h6" color="text.secondary">
+            {searchTerm ? 'No se encontraron negocios' : 'No hay negocios registrados'}
+          </Typography>
+        </Box>
+      )}
+
       <Dialog 
         open={open} 
         onClose={handleCloseDialog} 

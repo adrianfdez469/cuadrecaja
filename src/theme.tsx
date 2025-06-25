@@ -55,7 +55,7 @@ const theme = createTheme({
       categoryHeader: "#4f46e5",
       lightGray: "#f7fafc",
       borderGray: "#e2e8f0",
-    } as any,
+    },
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',

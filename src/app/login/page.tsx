@@ -7,8 +7,7 @@ import {
   Button, 
   Box, 
   Typography, 
-  Container, 
-  Card, 
+  Container,
   CardContent,
   Alert,
   CircularProgress,
@@ -57,6 +56,7 @@ export default function LoginPage() {
         console.log("Login exitoso:", result);
       }
     } catch (err) {
+      console.log(err);
       setError("Error de conexión. Intenta nuevamente.");
     } finally {
       setLoading(false);

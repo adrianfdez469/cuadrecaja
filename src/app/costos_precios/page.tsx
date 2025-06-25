@@ -339,7 +339,7 @@ const PreciosCantidades = () => {
                 <Alert severity="warning" sx={{ py: 0.5 }}>
                   <Typography variant="body2">
                     Tienes {idDirtyProds.length} producto{idDirtyProds.length !== 1 ? 's' : ''} con cambios sin guardar. 
-                    Haz clic en "Guardar" para aplicar los cambios.
+                    {`Haz clic en \"Guardar\" para aplicar los cambios.`}
                   </Typography>
                 </Alert>
               </Box>

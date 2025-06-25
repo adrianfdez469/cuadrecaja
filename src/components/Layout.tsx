@@ -1,6 +1,6 @@
 "use client";
 
-import { PropsWithChildren, useEffect, useState } from "react";
+import { PropsWithChildren, useEffect, useState, useRef } from "react";
 import {
   AppBar,
   Toolbar,
@@ -93,6 +93,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openSelectTienda, setOpenSelectTienda] = useState(false);
   const [openSelectNegocio, setOpenSelectNegocio] = useState(false);
+  const [cambiandoNegocio, setCambiandoNegocio] = useState(false);
+  const [negocioRecienCambiado, setNegocioRecienCambiado] = useState(false);
+  const selectorTiendaAbiertoRef = useRef(false);
   const { update, data: session } = useSession();
   const { showMessage } = useMessageContext();
   const [negocios, setNegocios] = useState<INegocio[]>([]);
@@ -118,6 +121,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       setTiendasDisponibles(tiendas);
       setTotalTiendasDisponibles(tiendas.length);
       setOpenSelectTienda(true);
+      selectorTiendaAbiertoRef.current = true;
     } catch (error) {
       showMessage("No se pueden cargar las tiendas disponibles", "error", error);
     } finally {
@@ -140,6 +144,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
   const handleCloseCambiarTienda = () => {
     setOpenSelectTienda(false);
+    selectorTiendaAbiertoRef.current = false;
   };
   const handleCloseCambiarNegocio = () => {
     setOpenSelectNegocio(false);
@@ -161,19 +166,64 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const handleSelectNegocio = async (selectedNegocio) => {
-    console.log(selectedNegocio);
+    console.log("🔄 Iniciando cambio de negocio");
+    setCambiandoNegocio(true);
+    setNegocioRecienCambiado(true);
+    selectorTiendaAbiertoRef.current = false; // Reset del ref
+    
     const resp = await cambierNegocio(selectedNegocio);
     if (resp.status === 201) {
       await update({
         negocio: negocios.find((n) => n.id === selectedNegocio),
+        tiendaActual: null, // Limpiar tienda actual al cambiar negocio
       });
       showMessage("El negocio fue actualizado satisfactoriamente", "success");
+      
+      // Cargar las nuevas tiendas disponibles y abrir selector
+      try {
+        const tiendas = await getTiendasDisponibles();
+        setTiendasDisponibles(tiendas);
+        setTotalTiendasDisponibles(tiendas.length);
+        
+        console.log("🏪 Tiendas disponibles:", tiendas.length);
+        
+        // Solo abrir selector si hay tiendas disponibles
+        if (tiendas.length > 0) {
+          console.log("⏰ Programando apertura del selector en 300ms");
+          // Esperar un poco para asegurar que la sesión se actualice
+          setTimeout(() => {
+            console.log("✅ Abriendo selector de tienda desde cambio de negocio");
+            setOpenSelectTienda(true);
+            selectorTiendaAbiertoRef.current = true;
+          }, 300);
+        } else {
+          // Si no hay tiendas, mostrar mensaje y resetear flags inmediatamente
+          showMessage("Este negocio no tiene tiendas disponibles", "warning");
+          setNegocioRecienCambiado(false);
+        }
+        
+        // Resetear el flag después de un tiempo más largo solo si hay tiendas
+        if (tiendas.length > 0) {
+          setTimeout(() => {
+            console.log("🔄 Reseteando negocioRecienCambiado");
+            setNegocioRecienCambiado(false);
+          }, 3000); // Aumentado a 3 segundos para mayor seguridad
+        }
+      } catch (error) {
+        showMessage("Error al cargar tiendas disponibles", "error", error);
+        setNegocioRecienCambiado(false);
+      }
     } else {
       console.log(resp);
       showMessage("No se pudo actualizar el negocio", "error");
+      setNegocioRecienCambiado(false);
     }
     handleCloseCambiarNegocio();
-    handleCambiarTienda();
+    
+    // Usar setTimeout para asegurar que el estado se actualice después del render
+    setTimeout(() => {
+      setCambiandoNegocio(false);
+    }, 500); // Aumentado para mayor seguridad
   };
 
   // Función para cargar el conteo de tiendas disponibles
@@ -198,11 +248,29 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
   // Detectar si el usuario necesita seleccionar una tienda
   useEffect(() => {
-    if (isAuth && user && !user.tiendaActual && totalTiendasDisponibles >= 1 && !openSelectTienda) {
+    console.log("🔍 useEffect selector tienda ejecutándose:", {
+      negocioRecienCambiado,
+      isAuth,
+      tiendaActual: !!user?.tiendaActual,
+      totalTiendasDisponibles,
+      openSelectTienda,
+      cambiandoNegocio,
+      selectorAbierto: selectorTiendaAbiertoRef.current
+    });
+    
+    // SOLO ejecutar si NO acabamos de cambiar de negocio
+    if (negocioRecienCambiado) {
+      console.log("⏹️ Saliendo temprano - negocio recién cambiado");
+      return; // Salir temprano si acabamos de cambiar negocio
+    }
+    
+    // No mostrar selector automáticamente si estamos cambiando de negocio, ya está abierto, ya se abrió antes
+    if (isAuth && user && !user.tiendaActual && totalTiendasDisponibles >= 1 && !openSelectTienda && !cambiandoNegocio && !selectorTiendaAbiertoRef.current) {
+      console.log("🚀 Abriendo selector de tienda desde useEffect");
       // Mostrar automáticamente el selector de tienda si el usuario no tiene una asignada
       handleCambiarTienda();
     }
-  }, [isAuth, user, totalTiendasDisponibles, openSelectTienda]);
+  }, [isAuth, user?.tiendaActual, totalTiendasDisponibles, openSelectTienda, cambiandoNegocio, negocioRecienCambiado]);
 
   useEffect(() => {
     // Solo verificar expiración si hay sesión
@@ -364,7 +432,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     </Typography>
                   </MenuItem>
                 )}
-                {(totalTiendasDisponibles > 1 || (totalTiendasDisponibles >= 1 && !user?.tiendaActual)) && (
+                {(user.rol === "SUPER_ADMIN" || totalTiendasDisponibles > 1 || (totalTiendasDisponibles >= 1 && !user?.tiendaActual)) && (
                 [
                     <MenuItem key="cambiar-tienda" onClick={() => handleCambiarTienda()}>
                       <ChangeCircleIcon sx={{ mr: 2, color: 'info.main' }} />
@@ -531,8 +599,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       {/* Dialogs mejorados */}
       <Dialog
         open={openSelectTienda}
-        onClose={user?.tiendaActual ? () => handleCloseCambiarTienda() : undefined}
-        disableEscapeKeyDown={!user?.tiendaActual}
+        onClose={user?.tiendaActual || tiendasDisponibles.length === 0 ? () => handleCloseCambiarTienda() : undefined}
+        disableEscapeKeyDown={!user?.tiendaActual && tiendasDisponibles.length > 0}
         PaperProps={{
           sx: {
             borderRadius: 3,
@@ -559,11 +627,21 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               </Typography>
             </Box>
           )}
+          {tiendasDisponibles.length === 0 && !loadingTiendas && (
+            <Box sx={{ mb: 2, p: 2, backgroundColor: 'warning.light', borderRadius: 1, textAlign: 'center' }}>
+              <Typography variant="body2" color="warning.contrastText">
+                <strong>Sin tiendas disponibles</strong>
+              </Typography>
+              <Typography variant="body2" color="warning.contrastText" sx={{ mt: 1 }}>
+                Este negocio no tiene tiendas configuradas. Contacta al administrador para crear tiendas.
+              </Typography>
+            </Box>
+          )}
           {loadingTiendas ? (
             <Box display="flex" justifyContent="center" py={4}>
               <CircularProgress />
             </Box>
-          ) : (
+          ) : tiendasDisponibles.length > 0 ? (
             <RadioGroup
               onChange={(e) => handleSelectTienda(e.target.value)}
             >
@@ -590,12 +668,12 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 />
               )) || []}
             </RadioGroup>
-          )}
+          ) : null}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          {user?.tiendaActual && (
+          {(user?.tiendaActual || tiendasDisponibles.length === 0) && (
             <Button onClick={handleCloseCambiarTienda} variant="outlined">
-              Cancelar
+              {tiendasDisponibles.length === 0 ? 'Cerrar' : 'Cancelar'}
             </Button>
           )}
         </DialogActions>
