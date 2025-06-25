@@ -2,44 +2,82 @@
 
 ## 📋 Descripción del Proyecto
 
-**Cuadre de Caja** es un sistema integral de punto de venta (POS) desarrollado con **Next.js 15**, **TypeScript**, **Prisma ORM** y **PostgreSQL**. Está diseñado para gestionar múltiples tiendas, inventarios, ventas y usuarios bajo una arquitectura multi-tenant.
+**Cuadre de Caja** es un sistema integral de punto de venta (POS) desarrollado con **Next.js 15**, **TypeScript**, **Prisma ORM** y **PostgreSQL**. Está diseñado para gestionar múltiples tiendas, inventarios, ventas y usuarios bajo una arquitectura multi-tenant robusta y escalable.
 
 ## 🏗️ Arquitectura del Sistema
 
 ### Stack Tecnológico
 
 - **Frontend**: Next.js 15 (App Router), React 19, TypeScript
-- **UI/UX**: Material-UI (MUI) v6, Emotion
-- **Backend**: Next.js API Routes
+- **UI/UX**: Material-UI (MUI) v6, Emotion, Responsive Design
+- **Backend**: Next.js API Routes, RESTful APIs
 - **Base de Datos**: PostgreSQL con Prisma ORM
-- **Autenticación**: NextAuth.js v4
-- **Estado Global**: Zustand
+- **Autenticación**: NextAuth.js v4 con JWT
+- **Estado Global**: Context API + useReducer
 - **Validación**: Yup + React Hook Form
 - **Fechas**: Day.js + date-fns
-- **HTTP Client**: Axios
-- **📄 Exportación**: docx, file-saver (nuevas dependencias para exportación a Word)
+- **HTTP Client**: Axios con interceptores
+- **Exportación**: docx, file-saver para reportes
+- **Networking**: Detección de estado online/offline
+- **PWA**: Service Workers para funcionamiento offline
 
 ### Estructura del Proyecto
 
 ```
 src/
-├── app/                    # App Router (Next.js 13+)
+├── app/                    # App Router (Next.js 15)
 │   ├── api/               # API Routes
+│   │   ├── auth/          # Autenticación y autorización
+│   │   ├── productos/     # CRUD de productos
+│   │   ├── ventas/        # Gestión de ventas
+│   │   ├── movimiento/    # Movimientos de stock
+│   │   ├── cierre/        # Cierres de período
+│   │   └── tiendas-disponibles/ # Gestión de tiendas
 │   ├── pos/               # Punto de Venta
 │   ├── inventario/        # Gestión de Inventario
 │   ├── ventas/            # Historial de Ventas
 │   ├── movimientos/       # Movimientos de Stock
 │   ├── cierre/            # Cierres de Período
+│   ├── resumen_cierre/    # Resumen de cierres
+│   ├── costos_precios/    # Gestión de precios
 │   ├── configuracion/     # Configuración del Sistema
+│   │   ├── negocios/      # Gestión de negocios
+│   │   ├── usuarios/      # Gestión de usuarios
+│   │   ├── tiendas/       # Gestión de tiendas
+│   │   ├── categorias/    # Gestión de categorías
+│   │   └── productos/     # Gestión de productos
 │   └── login/             # Autenticación
 ├── components/            # Componentes Reutilizables
+│   ├── Layout.tsx         # Layout principal con navegación
+│   ├── PageContainer.tsx  # Container de páginas
+│   ├── ContentCard.tsx    # Cards de contenido
+│   └── OfflineBanner.tsx  # Banner de estado offline
 ├── context/               # Context Providers
+│   ├── AppContext.tsx     # Estado global de la aplicación
+│   └── MessageContext.tsx # Sistema de mensajes/notificaciones
+├── hooks/                 # Custom Hooks
+│   └── useNetworkStatus.ts # Hook para estado de red
 ├── lib/                   # Utilidades y Configuraciones
+│   ├── prisma.ts          # Cliente de Prisma
+│   ├── auth.ts            # Configuración de NextAuth
+│   └── movimiento/        # Lógica de movimientos
 ├── services/              # Servicios de API
-├── store/                 # Estado Global (Zustand)
+│   ├── authService.ts     # Servicios de autenticación
+│   ├── productServise.ts  # Servicios de productos
+│   ├── ventaService.ts    # Servicios de ventas
+│   └── movimientoService.ts # Servicios de movimientos
 ├── types/                 # Definiciones de TypeScript
+│   ├── IUser.ts           # Tipos de usuario
+│   ├── IProducto.ts       # Tipos de producto
+│   ├── IVenta.ts          # Tipos de venta
+│   ├── IMovimiento.ts     # Tipos de movimiento
+│   └── INegocio.ts        # Tipos de negocio
 ├── utils/                 # Funciones Utilitarias
-│   └── wordExport.ts      # 📄 Nueva utilidad para exportación a Word
+│   ├── wordExport.ts      # Exportación a Word
+│   ├── tipoMovimiento.ts  # Utilidades de movimientos
+│   └── planesNegocio.ts   # Configuración de planes
+├── constants/             # Constantes del sistema
+│   └── movimientos.ts     # Constantes de movimientos
 └── middleware.ts          # Middleware de Autenticación
 ```
 
@@ -48,82 +86,156 @@ src/
 ### Entidades Principales
 
 #### **Negocio** (Multi-tenant)
-- Entidad raíz que agrupa tiendas, usuarios y productos
-- Controla límites de tiempo, usuarios y locales
-- **Restricciones de unicidad**: Los nombres de tiendas, productos y categorías son únicos por negocio
-
-#### **Tienda/Local**
-- Representa un punto de venta físico
-- Tiene inventario independiente
-- Asociada a usuarios específicos
-- **Unicidad por negocio**: `@@unique([nombre, negocioId])`
+```prisma
+model Negocio {
+  id           String    @id @default(cuid())
+  nombre       String
+  limitTime    DateTime
+  locallimit   Int
+  userlimit    Int
+  productlimit Int
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  // Relaciones
+  usuarios     Usuario[]
+  tiendas      Tienda[]
+  productos    Producto[]
+  categorias   Categoria[]
+}
+```
 
 #### **Usuario**
-- Roles: `vendedor`, `administrador`, `superadmin`
-- Puede estar asignado a múltiples tiendas
-- Tiene una tienda actual activa
+```prisma
+model Usuario {
+  id            String    @id @default(cuid())
+  usuario       String    @unique
+  nombre        String
+  password      String
+  rol           Rol       @default(vendedor)
+  tiendaActual  String?
+  negocioId     String
+  expiresAt     DateTime?
+  
+  // Relaciones
+  negocio       Negocio   @relation(fields: [negocioId], references: [id])
+  tiendas       UsuarioTienda[]
+  ventas        Venta[]
+  movimientos   MovimientoStock[]
+}
+
+enum Rol {
+  vendedor
+  administrador
+  superadmin
+}
+```
+
+#### **Tienda/Local**
+```prisma
+model Tienda {
+  id        String   @id @default(cuid())
+  nombre    String
+  negocioId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  negocio   Negocio  @relation(fields: [negocioId], references: [id])
+  usuarios  UsuarioTienda[]
+  productos ProductoTienda[]
+  ventas    Venta[]
+  movimientos MovimientoStock[]
+  cierres   CierrePeriodo[]
+  
+  @@unique([nombre, negocioId])
+}
+```
 
 #### **Producto**
-- Definición global del producto
-- Soporte para fraccionamiento (ej: cigarro suelto → caja)
-- **Unicidad por negocio**: `@@unique([nombre, negocioId])`
-
-#### **Categoria**
-- Agrupación de productos
-- **Unicidad por negocio**: `@@unique([nombre, negocioId])`
-
-#### **ProductoTienda**
-- Instancia del producto en una tienda específica
-- Maneja precio, costo y existencias por tienda
-
-#### **Venta**
-- Transacción de venta con múltiples productos
-- Soporte para pagos mixtos (efectivo + transferencia)
-- Asociada a un período de cierre
+```prisma
+model Producto {
+  id              String    @id @default(cuid())
+  nombre          String
+  descripcion     String?
+  negocioId       String
+  categoriaId     String
+  fraccionDeId    String?
+  unidadesPorFraccion Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relaciones
+  negocio         Negocio   @relation(fields: [negocioId], references: [id])
+  categoria       Categoria @relation(fields: [categoriaId], references: [id])
+  fraccionDe      Producto? @relation("ProductoFraccion", fields: [fraccionDeId], references: [id])
+  fracciones      Producto[] @relation("ProductoFraccion")
+  tiendas         ProductoTienda[]
+  
+  @@unique([nombre, negocioId])
+}
+```
 
 #### **MovimientoStock**
-- Historial completo de movimientos de inventario
-- Tipos: `COMPRA`, `VENTA`, `TRASPASO`, `AJUSTE`, `DESAGREGACION`
+```prisma
+model MovimientoStock {
+  id                 String         @id @default(cuid())
+  productoTiendaId   String
+  tipo               MovimientoTipo
+  cantidad           Int
+  motivo             String?
+  referenciaId       String?
+  fecha              DateTime       @default(now())
+  existenciaAnterior Int?
+  usuarioId          String?
+  tiendaId           String
+  
+  // Relaciones
+  productoTienda     ProductoTienda @relation(fields: [productoTiendaId], references: [id])
+  usuario            Usuario?       @relation(fields: [usuarioId], references: [id])
+  tienda             Tienda         @relation(fields: [tiendaId], references: [id])
+}
+
+enum MovimientoTipo {
+  COMPRA
+  VENTA
+  TRASPASO_ENTRADA
+  TRASPASO_SALIDA
+  AJUSTE_ENTRADA
+  AJUSTE_SALIDA
+  DESAGREGACION_BAJA
+  DESAGREGACION_ALTA
+}
+```
 
 ### Relaciones Clave
 
-```sql
-Negocio 1:N Tienda
-Negocio 1:N Usuario
-Negocio 1:N Producto
-Negocio 1:N Categoria
-Tienda N:M Usuario (UsuarioTienda)
-Producto N:M Tienda (ProductoTienda)
-Producto 1:N Producto (fraccionamiento)
-```
-
-### 🆕 Cambios en Schema de Base de Datos
-
-#### Restricciones de Unicidad por Negocio
-```prisma
-model Tienda {
-  // ... otros campos
-  @@unique([nombre, negocioId])
-}
-
-model Producto {
-  // ... otros campos
-  @@unique([nombre, negocioId])
-}
-
-model Categoria {
-  // ... otros campos
-  @@unique([nombre, negocioId])
-}
+```mermaid
+erDiagram
+    Negocio ||--o{ Tienda : "tiene"
+    Negocio ||--o{ Usuario : "contiene"
+    Negocio ||--o{ Producto : "gestiona"
+    Negocio ||--o{ Categoria : "organiza"
+    
+    Usuario }o--o{ Tienda : "trabaja_en"
+    Tienda ||--o{ ProductoTienda : "almacena"
+    Producto ||--o{ ProductoTienda : "se_vende_en"
+    
+    Tienda ||--o{ Venta : "registra"
+    Tienda ||--o{ MovimientoStock : "tiene_movimientos"
+    
+    Usuario ||--o{ Venta : "realiza"
+    ProductoTienda ||--o{ MovimientoStock : "genera"
 ```
 
 ## 🚀 Configuración del Entorno
 
 ### Prerrequisitos
 
-- Node.js 18+ (ver `.nvmrc`)
-- PostgreSQL 12+
-- npm/yarn/pnpm
+- **Node.js** 18+ (ver `.nvmrc`)
+- **PostgreSQL** 14+
+- **npm/yarn/pnpm**
+- **Git**
 
 ### Instalación
 
@@ -139,21 +251,7 @@ npm install
 cp .env.example .env.local
 ```
 
-### 🆕 Nuevas Dependencias
-
-```json
-{
-  "dependencies": {
-    "docx": "^8.x.x",
-    "file-saver": "^2.x.x"
-  },
-  "devDependencies": {
-    "@types/file-saver": "^2.x.x"
-  }
-}
-```
-
-### Variables de Entorno
+### Variables de Entorno Requeridas
 
 ```env
 # Base de datos
@@ -161,11 +259,14 @@ DATABASE_URL="postgresql://user:password@localhost:5432/cuadre_caja"
 DIRECT_URL="postgresql://user:password@localhost:5432/cuadre_caja"
 
 # Autenticación
-NEXTAUTH_SECRET="your-secret-key"
+NEXTAUTH_SECRET="your-super-secret-key-min-32-chars"
 NEXTAUTH_URL="http://localhost:3000"
 
-# Inicialización
-INIT_SECRET="your-init-secret"
+# Inicialización del sistema
+INIT_SECRET="your-init-secret-for-superadmin"
+
+# Opcional: Variables de desarrollo
+NODE_ENV="development"
 ```
 
 ### Configuración de Base de Datos
@@ -175,15 +276,15 @@ INIT_SECRET="your-init-secret"
 npx prisma generate
 
 # Ejecutar migraciones
-npx prisma migrate dev
+npx prisma migrate dev --name init
 
-# (Opcional) Seed de datos
-npx prisma db seed
+# Ver base de datos (opcional)
+npx prisma studio
 ```
 
 ### Inicialización del Sistema
 
-1. **Crear Superadmin** (primera vez):
+1. **Crear Superadmin** (solo primera vez):
 ```bash
 curl "http://localhost:3000/api/init-superadmin?secret=YOUR_INIT_SECRET"
 ```
@@ -193,450 +294,260 @@ curl "http://localhost:3000/api/init-superadmin?secret=YOUR_INIT_SECRET"
 npm run dev
 ```
 
+3. **Acceder al sistema**:
+   - URL: `http://localhost:3000`
+   - Usuario: `superadmin`
+   - Contraseña: `123456` (cambiar inmediatamente)
+
 ## 🔧 Desarrollo
 
 ### Estructura de Componentes
 
 #### **Componentes de Layout**
-- `Layout.tsx`: Layout principal con navegación
-- `middleware.ts`: Autenticación y headers de usuario
+- `Layout.tsx`: Layout principal con navegación y autenticación
+- `PageContainer.tsx`: Container estándar para páginas
+- `ContentCard.tsx`: Cards reutilizables para contenido
 
-#### **Stores (Zustand)**
-- `cartStore`: Estado del carrito de compras
-- `salesStore`: Gestión de ventas offline/sync
-- `appStore`: Estado global de la aplicación
-
-#### **Servicios**
-```typescript
-// services/
-├── authService.ts         # Autenticación
-├── sellService.ts         # Gestión de ventas
-├── productService.ts      # Productos y categorías
-├── inventoryService.ts    # Movimientos de stock
-└── cierrePeriodService.ts # Cierres de período
-```
-
-#### **🆕 Utilidades**
-```typescript
-// utils/wordExport.ts
-export const exportInventoryToWord = async (
-  productos: ProductoTiendaWithDetails[]
-) => {
-  // Genera documento Word con productos organizados por categoría
-  // Incluye tabla con formato profesional
-  // Descarga automática del archivo
-}
-```
-
-### API Routes
-
-#### Estructura de APIs
-```
-api/
-├── auth/                  # NextAuth.js
-├── categorias/           # CRUD Categorías
-├── productos/            # CRUD Productos
-├── productos_tienda/     # Productos por tienda
-├── tiendas/              # CRUD Tiendas
-├── usuarios/             # CRUD Usuarios
-├── venta/                # Gestión de ventas
-├── movimiento/           # Movimientos de stock
-├── cierre/               # Cierres de período
-└── init-superadmin/      # Inicialización
-```
-
-#### Middleware de Autenticación
-```typescript
-// middleware.ts
-export async function middleware(req: NextRequest) {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
-  
-  if (token) {
-    // Inyecta headers con info del usuario
-    requestHeaders.set('x-user-id', token.id)
-    requestHeaders.set('x-user-rol', token.rol)
-    // ... más headers
-  }
-}
-```
+#### **Componentes de Negocio**
+- `AddMovimientoDialog.tsx`: Modal para crear movimientos
+- `ProductMovementsModal.tsx`: Modal de historial de movimientos
+- `OfflineBanner.tsx`: Banner de estado de conexión
 
 ### Patrones de Desarrollo
 
-#### **Gestión de Estado**
+#### **API Routes**
 ```typescript
-// Zustand Store Example
-interface CartStore {
-  items: CartItem[]
-  total: number
-  addItem: (product: IProductoTienda, quantity: number) => void
-  removeItem: (productId: string) => void
-  clearCart: () => void
-}
-```
-
-#### **Servicios de API**
-```typescript
-// Patrón de servicio
-export const createSell = async (sellData: CreateSellRequest) => {
-  const response = await axios.post('/api/venta', sellData)
-  return response.data
-}
-```
-
-#### **Componentes de UI**
-```typescript
-// Componente con hooks personalizados
-const POSInterface = () => {
-  const { user, loadingContext } = useAppContext()
-  const { showMessage } = useMessageContext()
-  const { items, total, clearCart } = useCartStore()
-  
-  // ... lógica del componente
-}
-```
-
-## 🔐 Autenticación y Autorización
-
-### Roles de Usuario
-- **superadmin**: Acceso completo al sistema
-- **administrador**: Gestión de su negocio
-- **vendedor**: Solo POS y consultas básicas
-
-### Middleware de Seguridad
-```typescript
-// Validación de roles en API
-const getUserFromHeaders = (req: NextRequest) => {
-  return {
-    id: req.headers.get('x-user-id'),
-    rol: req.headers.get('x-user-rol'),
-    negocio: JSON.parse(req.headers.get('x-user-negocio') || '{}'),
-    tiendaActual: JSON.parse(req.headers.get('x-user-tiendaActual') || '{}')
-  }
-}
-```
-
-## 📊 Funcionalidades Clave
-
-### **Sistema POS**
-- Carrito de compras en tiempo real
-- Búsqueda de productos inteligente
-- Pagos mixtos (efectivo + transferencia)
-- Sincronización offline
-
-### **Gestión de Inventario**
-- Movimientos automáticos por ventas
-- Traspasos entre tiendas
-- Fraccionamiento de productos
-- Ajustes manuales con auditoría
-- **🆕 Exportación a Word**: Reportes profesionales organizados por categoría
-
-### **Cierres de Período**
-- Períodos automáticos por tienda
-- Cálculos de ganancias y costos
-- Reportes financieros
-- Bloqueo de modificaciones post-cierre
-
-### **Multi-Tenant**
-- Aislamiento por negocio
-- Límites de usuarios y tiendas
-- Gestión de tiempo de licencia
-- **🆕 Restricciones de unicidad por negocio**: Mayor flexibilidad en nombres
-
-## 🆕 Nuevas Funcionalidades
-
-### 📄 Exportación a Word
-
-#### Implementación
-```typescript
-// src/utils/wordExport.ts
-import { Document, Packer, Paragraph, Table, TableCell, TableRow } from 'docx'
-import { saveAs } from 'file-saver'
-
-export const exportInventoryToWord = async (productos: ProductoTiendaWithDetails[]) => {
-  // Agrupa productos por categoría
-  const productosPorCategoria = productos.reduce((acc, producto) => {
-    const categoria = producto.producto.categoria?.nombre || 'Sin Categoría'
-    if (!acc[categoria]) acc[categoria] = []
-    acc[categoria].push(producto)
-    return acc
-  }, {} as Record<string, ProductoTiendaWithDetails[]>)
-
-  // Crea documento con formato profesional
-  const doc = new Document({
-    sections: [{
-      children: [
-        // Título y fecha
-        new Paragraph({
-          text: `Reporte de Inventario - ${new Date().toLocaleDateString()}`,
-          heading: HeadingLevel.TITLE
-        }),
-        
-        // Tabla por categoría
-        ...Object.entries(productosPorCategoria).map(([categoria, productos]) => [
-          // Encabezado de categoría
-          new Paragraph({
-            text: categoria,
-            style: 'categoryHeader'
-          }),
-          
-          // Tabla de productos
-          new Table({
-            rows: [
-              // Headers
-              new TableRow({
-                children: [
-                  new TableCell({ children: [new Paragraph('Producto')] }),
-                  new TableCell({ children: [new Paragraph('Precio')] }),
-                  new TableCell({ children: [new Paragraph('Cantidad Inicial')] }),
-                  new TableCell({ children: [new Paragraph('Cantidad Vendida')] }),
-                  new TableCell({ children: [new Paragraph('Cantidad Final')] })
-                ]
-              }),
-              
-              // Datos de productos
-              ...productos.map(producto => new TableRow({
-                children: [
-                  new TableCell({ children: [new Paragraph(producto.producto.nombre)] }),
-                  new TableCell({ children: [new Paragraph(`$${producto.precio.toFixed(2)}`)] }),
-                  new TableCell({ children: [new Paragraph(producto.cantidadInicial.toString())] }),
-                  new TableCell({ children: [new Paragraph(producto.cantidadVendida.toString())] }),
-                  new TableCell({ children: [new Paragraph(producto.existencia.toString())] })
-                ]
-              }))
-            ]
-          })
-        ]).flat()
-      ]
-    }]
-  })
-
-  // Genera y descarga el archivo
-  const blob = await Packer.toBlob(doc)
-  saveAs(blob, `inventario_${new Date().toISOString().split('T')[0]}.docx`)
-}
-```
-
-#### Integración en Componente
-```typescript
-// src/app/inventario/page.tsx
-const handleExportToWord = async () => {
+// Estructura estándar de API Route
+export async function GET(req: Request) {
   try {
-    await exportInventoryToWord(productos)
-    showMessage('Inventario exportado exitosamente', 'success')
+    // Validación de parámetros
+    const { searchParams } = new URL(req.url);
+    
+    // Lógica de negocio
+    const result = await prisma.model.findMany({
+      // Query logic
+    });
+    
+    return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    showMessage('Error al exportar inventario', 'error')
+    console.error(error);
+    return NextResponse.json(
+      { error: "Error message" },
+      { status: 500 }
+    );
   }
 }
-
-// Botón en la interfaz
-<Button
-  variant="contained"
-  startIcon={<DescriptionIcon />}
-  onClick={handleExportToWord}
-  sx={{ mb: 2 }}
->
-  Exportar a Word
-</Button>
 ```
 
-### 🏢 Restricciones de Unicidad por Negocio
-
-#### Migración de Base de Datos
-```sql
--- Remover índices globales únicos
-DROP INDEX IF EXISTS "Tienda_nombre_key";
-DROP INDEX IF EXISTS "Producto_nombre_key";
-DROP INDEX IF EXISTS "Categoria_nombre_key";
-
--- Crear índices únicos por negocio
-CREATE UNIQUE INDEX "Tienda_nombre_negocioId_key" ON "Tienda"("nombre", "negocioId");
-CREATE UNIQUE INDEX "Producto_nombre_negocioId_key" ON "Producto"("nombre", "negocioId");
-CREATE UNIQUE INDEX "Categoria_nombre_negocioId_key" ON "Categoria"("nombre", "negocioId");
-```
-
-#### Validación en APIs
+#### **Servicios**
 ```typescript
-// Ejemplo en API de productos
-const existingProduct = await prisma.producto.findFirst({
-  where: {
-    nombre: data.nombre,
-    negocioId: user.negocio.id
+// Patrón de servicio con manejo de errores
+export const fetchData = async (params: Params) => {
+  try {
+    const response = await axios.get('/api/endpoint', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Service error:', error);
+    throw error;
   }
-})
-
-if (existingProduct) {
-  return NextResponse.json(
-    { error: 'Ya existe un producto con este nombre en tu negocio' },
-    { status: 400 }
-  )
-}
+};
 ```
 
-## 🧪 Testing y Calidad
+#### **Context y Estado**
+```typescript
+// Uso del AppContext
+const { user, isAuth, loadingContext } = useAppContext();
 
-### Linting y Formateo
-```bash
-# ESLint
-npm run lint
-
-# Corrección automática
-npm run lint -- --fix
+// Manejo de mensajes
+const { showMessage } = useMessageContext();
+showMessage("Operación exitosa", "success");
 ```
 
-### Estructura de Testing
-```bash
-# Ejecutar tests (cuando se implementen)
-npm test
+### Funcionalidades Clave
 
-# Coverage
+#### **Sistema de Autenticación**
+- NextAuth.js con JWT
+- Roles diferenciados (vendedor, administrador, superadmin)
+- Middleware de protección de rutas
+- Sesiones persistentes
+
+#### **Gestión Multi-Tenant**
+- Aislamiento por negocio
+- Unicidad de nombres por negocio
+- Control de límites por plan
+
+#### **Sistema de Movimientos**
+- Transacciones atómicas
+- Historial completo de cambios
+- Cálculo automático de existencias
+- Soporte para diferentes tipos de movimiento
+
+#### **Punto de Venta**
+- Interfaz optimizada para touch
+- Carrito de compras reactivo
+- Múltiples métodos de pago
+- Sincronización automática
+
+## 🧪 Testing
+
+### Estructura de Tests
+
+```bash
+# Ejecutar tests
+npm run test
+
+# Tests con coverage
 npm run test:coverage
+
+# Tests en modo watch
+npm run test:watch
 ```
 
-## 🚀 Despliegue
+### Tipos de Tests
+
+- **Unit Tests**: Funciones utilitarias y servicios
+- **Integration Tests**: API routes y base de datos
+- **E2E Tests**: Flujos completos de usuario
+
+## 📦 Deployment
 
 ### Build de Producción
+
 ```bash
-# Construir aplicación
+# Build optimizado
 npm run build
 
-# Iniciar en producción
-npm start
+# Verificar build
+npm run start
 ```
 
-### Variables de Producción
+### Variables de Entorno - Producción
+
 ```env
-NODE_ENV=production
-DATABASE_URL="postgresql://..."
+# Producción
+NODE_ENV="production"
 NEXTAUTH_URL="https://your-domain.com"
-INIT_SECRET="production-secret"
+DATABASE_URL="postgresql://user:pass@host:5432/prod_db"
+
+# Configuraciones adicionales
+NEXT_PUBLIC_APP_VERSION="1.0.0"
 ```
 
-### Migraciones en Producción
-```bash
-# Solo aplicar migraciones (no generar)
-npx prisma migrate deploy
+### Consideraciones de Deployment
+
+1. **Base de Datos**: Ejecutar migraciones en producción
+2. **Secrets**: Usar variables de entorno seguras
+3. **SSL**: Configurar HTTPS obligatorio
+4. **Backup**: Estrategia de respaldo automático
+5. **Monitoring**: Logs y métricas de rendimiento
+
+## 🔒 Seguridad
+
+### Medidas Implementadas
+
+- **Autenticación JWT** con expiración
+- **Middleware de autorización** por rutas
+- **Validación de entrada** en APIs
+- **Sanitización de datos** antes de DB
+- **Rate limiting** en endpoints críticos
+- **CORS** configurado apropiadamente
+
+### Roles y Permisos
+
+```typescript
+// Matriz de permisos
+const PERMISSIONS = {
+  vendedor: ['pos', 'inventario:read'],
+  administrador: ['pos', 'inventario:*', 'usuarios:*', 'reportes:*'],
+  superadmin: ['*']
+};
 ```
 
-## 🔄 Flujos de Trabajo
+## 🚀 Funcionalidades Futuras
 
-### **Flujo de Venta**
-1. Usuario abre período de ventas
-2. Selecciona productos → carrito
-3. Procesa pago (efectivo/transferencia)
-4. Sistema actualiza inventario automáticamente
-5. Genera movimientos de stock
+### Roadmap Técnico
 
-### **Flujo de Inventario**
-1. Recepción de mercancía → Movimiento COMPRA
-2. Venta → Movimiento VENTA (automático)
-3. Traspaso entre tiendas → TRASPASO_ENTRADA/SALIDA
-4. Ajustes → AJUSTE_ENTRADA/SALIDA
-5. **🆕 Exportación** → Genera reporte Word organizado por categoría
+#### **Fase 1: Optimización**
+- [ ] Implementar React Query para cache
+- [ ] Optimizar bundle size
+- [ ] Mejorar performance de queries
+- [ ] Implementar lazy loading
 
-### **Flujo de Cierre**
-1. Fin del día/período → Cierre manual
-2. Sistema calcula totales y ganancias
-3. Bloquea modificaciones del período
-4. Genera reporte financiero
+#### **Fase 2: Escalabilidad**
+- [ ] Microservicios para módulos grandes
+- [ ] Redis para cache distribuido
+- [ ] Queue system para procesos pesados
+- [ ] API GraphQL opcional
 
-## 🐛 Debug y Troubleshooting
+#### **Fase 3: Analytics**
+- [ ] Dashboard de métricas en tiempo real
+- [ ] Machine Learning para predicciones
+- [ ] Integración con sistemas externos
+- [ ] API pública documentada
+
+### Mejoras de DX (Developer Experience)
+
+- [ ] Storybook para componentes
+- [ ] Documentación automática de APIs
+- [ ] CI/CD pipeline completo
+- [ ] Docker containers
+- [ ] Kubernetes deployment
+
+## 🐛 Debugging y Troubleshooting
 
 ### Logs Importantes
-```typescript
-// Habilitar logs de Prisma
-DEBUG="prisma:query" npm run dev
 
-// Logs de NextAuth
-NEXTAUTH_DEBUG=1 npm run dev
+```bash
+# Logs de desarrollo
+npm run dev
+
+# Logs de base de datos
+npx prisma studio
+
+# Logs de build
+npm run build 2>&1 | tee build.log
 ```
 
 ### Problemas Comunes
 
-**❌ Error de migración de Prisma**
+#### **Error de Conexión a DB**
 ```bash
+# Verificar conexión
+npx prisma db pull
+
+# Resetear DB (desarrollo)
 npx prisma migrate reset
-npx prisma migrate dev
 ```
 
-**❌ Error de autenticación**
+#### **Errores de Autenticación**
 - Verificar `NEXTAUTH_SECRET`
-- Revisar configuración de base de datos
-- Validar headers en middleware
+- Revisar configuración de JWT
+- Validar tokens en desarrollo
 
-**❌ Problemas de sincronización**
-- Revisar store de Zustand
-- Validar conexión a APIs
-- Verificar estado offline
-
-**🆕 ❌ Errores en negocios nuevos**
-- Las páginas de cierre, ventas e historial pueden fallar sin datos
-- Implementar validaciones de datos vacíos
-- Mostrar mensajes informativos para usuarios nuevos
-
-**🆕 ❌ Conflictos de unicidad**
-- Verificar que las restricciones sean por `negocioId`
-- Revisar migraciones de índices únicos
-- Validar en frontend antes de enviar al backend
-
-**🆕 ❌ Problemas de exportación a Word**
-- Verificar que las dependencias `docx` y `file-saver` estén instaladas
-- Comprobar permisos de descarga en el navegador
-- Validar que existan productos para exportar
-
-## 📝 Contribución
-
-### Convenciones de Código
-- **TypeScript estricto**: Todos los archivos deben tener tipos
-- **Componentes funcionales**: Usar hooks en lugar de clases
-- **Naming**: PascalCase para componentes, camelCase para funciones
-- **Imports**: Usar paths absolutos con `@/`
-
-### Estructura de Commits
-```
-feat: nueva funcionalidad
-fix: corrección de bug
-docs: documentación
-style: formateo de código
-refactor: refactorización
-test: pruebas
-chore: tareas de mantenimiento
-```
-
-### Pull Requests
-1. Fork del repositorio
-2. Crear branch feature/fix
-3. Implementar cambios con tests
-4. Actualizar documentación
-5. Crear PR con descripción detallada
+#### **Performance Issues**
+- Usar React DevTools Profiler
+- Analizar bundle con `npm run analyze`
+- Optimizar queries de Prisma
 
 ## 📚 Recursos Adicionales
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Prisma Documentation](https://www.prisma.io/docs)
-- [Material-UI Documentation](https://mui.com/)
-- [NextAuth.js Documentation](https://next-auth.js.org/)
-- [docx Library Documentation](https://docx.js.org/)
-- [file-saver Documentation](https://github.com/eligrey/FileSaver.js/)
+### Documentación Oficial
 
-## 🎯 Roadmap y Mejoras Futuras
+- [Next.js 15 Docs](https://nextjs.org/docs)
+- [Prisma ORM](https://www.prisma.io/docs)
+- [Material-UI](https://mui.com/getting-started/)
+- [NextAuth.js](https://next-auth.js.org/)
 
-### 🔮 Próximas Funcionalidades
-- Exportación a Excel y PDF
-- Reportes avanzados con gráficos
-- Notificaciones push para stock bajo
-- Integración con sistemas de facturación
-- App móvil nativa
-- Backup automático de datos
+### Herramientas de Desarrollo
 
-### 🛠️ Mejoras Técnicas Pendientes
-- Implementación de tests unitarios e integración
-- Optimización de queries de base de datos
-- Cache con Redis para mejor rendimiento
-- Monitoreo y logging avanzado
-- CI/CD pipeline completo
+- **VSCode Extensions**: Prisma, TypeScript, ES7+ React
+- **Browser DevTools**: React DevTools, Redux DevTools
+- **Database Tools**: Prisma Studio, pgAdmin
+- **API Testing**: Postman, Thunder Client
 
 ---
 
-*Sistema Cuadre de Caja - Versión 0.2.0*
-*Documentación para Desarrolladores*
-*Última actualización: Enero 2025* 
+**Sistema Cuadre de Caja**  
+*Versión: 1.0.0*  
+*Última actualización: Enero 2025*  
+*Desarrollado con ❤️ usando Next.js y TypeScript* 
