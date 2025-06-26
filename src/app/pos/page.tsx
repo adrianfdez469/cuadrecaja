@@ -2,26 +2,28 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  Typography,
-  CircularProgress,
-  Box,
-  Fab,
-  Badge,
-  SpeedDial,
-  SpeedDialAction,
-  TextField,
-  Popper,
-  Fade,
-  Paper as MuiPaper,
-  List,
-  ListItemText,
-  InputAdornment,
-  IconButton,
-  ListItemButton,
-  Alert,
-  Button,
+    Typography,
+    CircularProgress,
+    Box,
+    Fab,
+    Badge,
+    SpeedDial,
+    SpeedDialAction,
+    TextField,
+    Popper,
+    Fade,
+    Paper as MuiPaper,
+    List,
+    ListItemText,
+    InputAdornment,
+    IconButton,
+    ListItemButton,
+    Alert,
+    Button, Tooltip,
+    Popover,
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import InfoIcon from '@mui/icons-material/Info';
 import { Sync } from "@mui/icons-material";
 import { useCartStore } from "@/store/cartStore";
 import axios from "axios";
@@ -77,6 +79,8 @@ export default function POSInterface() {
   } = useCartStore();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+
 
   useEffect(() => {
     (async () => {
@@ -362,6 +366,17 @@ export default function POSInterface() {
     setSelectedProduct(null);
   };
 
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const open = Boolean(anchorEl);
+  const id = open ? 'simple-popover' : undefined;
+
   if (loadingContext || loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -409,29 +424,56 @@ export default function POSInterface() {
 
   return (
     <>
-      {periodo && periodo.fechaInicio && (
-        <Typography variant="body1" bgcolor={"aliceblue"}>
-          Corte: {new Date(periodo.fechaInicio).toLocaleDateString()}
-        </Typography>
-      )}
+      <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={2} mt={1}>
+        {periodo && periodo.fechaInicio && (
+          <Typography variant="body1" bgcolor="aliceblue">
+            Corte: {new Date(periodo.fechaInicio).toLocaleDateString()}
+          </Typography>
+        )}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            bgcolor: isOnline ? "success.main" : "grey.700",
+            color: "white",
+            px: 1.5,
+            py: 0.5,
+            borderRadius: 1.5,
+            minWidth: 90,
+            flexDirection: "column",
+          }}
+        >
+          {isOnline ? (
+            "🟢 Online"
+          ) : (
+            <>
+              <Box display="flex" alignItems="center" gap={1}>
+                <span>🔴 Offline</span>
 
-      {/* Indicador de estado de conexión */}
-      <Box
-        sx={{
-          position: "fixed",
-          top: 10,
-          right: 10,
-          zIndex: 1300,
-          bgcolor: isOnline ? "success.main" : "warning.main",
-          color: "white",
-          px: 1,
-          py: 0.5,
-          borderRadius: 1,
-          fontSize: "0.75rem",
-          fontWeight: "bold",
-        }}
-      >
-        {isOnline ? "🟢 Online" : "🔴 Offline"}
+                <IconButton size="small" color="inherit" onClick={handleClick}>
+                    <InfoIcon fontSize="small" />
+                </IconButton>
+                <Popover
+                    id={id}
+                    open={open}
+                    anchorEl={anchorEl}
+                    onClose={handleClose}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'left',
+                    }}
+                >
+                  <Typography variant="caption" sx={{ textAlign: "center" }}>
+                    La información se sincronizará<br />cuando estés online nuevamente
+                  </Typography>
+
+                </Popover>
+
+              </Box>
+
+            </>
+          )}
+        </Box>
       </Box>
 
       <Box 
