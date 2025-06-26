@@ -433,7 +433,7 @@ export default function POSInterface() {
           sx={{
             display: "flex",
             alignItems: "center",
-            bgcolor: !isOnline ? "success.main" : "grey.700",
+            bgcolor: isOnline ? "success.main" : "grey.700",
             color: "white",
             px: 1.5,
             py: 0.5,
@@ -442,7 +442,7 @@ export default function POSInterface() {
             flexDirection: "column",
           }}
         >
-          {!isOnline ? (
+          {isOnline ? (
             "🟢 Online"
           ) : (
             <>
