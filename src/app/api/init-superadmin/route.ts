@@ -22,12 +22,23 @@ export async function GET(req: Request) {
 
     if (!existingSuperAdmin) {
       console.log("🔹 Creando usuario superadmin...");
+      const fiveYearsFromNow = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 5);
+      const adminFkBusiness = await prisma.negocio.create({
+        data: {
+          nombre: "Negocio para superadmin",
+          userlimit: 1,
+          limitTime: fiveYearsFromNow,
+          locallimit: 1,
+          productlimit: 1
+        },
+      });
       await prisma.usuario.create({
         data: {
           usuario: "superadmin",
           password: await bcrypt.hash(superAdminPass, 10),
           rol: "SUPER_ADMIN",
           nombre: "Super Admin",
+          negocioId: adminFkBusiness.id
         },
       });
       console.log("✅ Usuario superadmin creado.");
