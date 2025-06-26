@@ -248,7 +248,7 @@ cd cuadre-caja
 npm install
 
 # Configurar variables de entorno
-cp .env.example .env.local
+cp .env.example .env
 ```
 
 ### Variables de Entorno Requeridas
