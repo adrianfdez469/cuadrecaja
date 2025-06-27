@@ -42,8 +42,7 @@ import {
   Business, 
   Store, 
   Person, 
-  Inventory, 
-  AttachMoney, 
+  Inventory,
   Search,
   ExpandMore,
   ExpandLess,
@@ -93,7 +92,6 @@ interface NegocioStats {
 export default function Negocios() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
   
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   const [loading, setLoading] = useState(false);
@@ -219,7 +217,7 @@ export default function Negocios() {
       await fetchNegocios();
     } catch (error) {
       console.log(error);
-      const errorMessage = (error as any).response?.data?.error || 'Ocurrió un error al eliminar el negocio';
+      const errorMessage = error.response?.data?.error || 'Ocurrió un error al eliminar el negocio';
       showMessage(errorMessage, 'error');
     } finally {
       setLoading(false);

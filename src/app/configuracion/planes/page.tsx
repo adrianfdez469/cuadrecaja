@@ -18,7 +18,6 @@ import {
   Alert,
   useTheme,
   useMediaQuery,
-  Container,
   Avatar,
   Dialog,
   DialogTitle,
@@ -36,15 +35,11 @@ import {
   ContactSupport,
   WhatsApp,
   Phone,
-  Upgrade,
   Business,
   Store,
   Person,
   Inventory,
-  AttachMoney,
-  Info,
   Schedule,
-  TrendingUp,
   Warning,
   Error as ErrorIcon,
 } from '@mui/icons-material';
@@ -286,7 +281,7 @@ export default function PlanesPage() {
   ];
 
   // Componente para mostrar estadísticas de uso
-  const UsageStatsCard = ({ icon, title, actual, limite, porcentaje, color }: {
+  const UsageStatsCard = ({ icon, title, actual, limite, porcentaje }: {
     icon: React.ReactNode;
     title: string;
     actual: number;
