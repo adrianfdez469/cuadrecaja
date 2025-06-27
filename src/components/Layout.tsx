@@ -53,6 +53,7 @@ import NextWeekIcon from '@mui/icons-material/NextWeekOutlined';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
+import UpgradeIcon from '@mui/icons-material/Upgrade';
 
 const configurationMenuItems = [
   {
@@ -75,6 +76,11 @@ const configurationMenuItems = [
     label: "Productos",
     path: "/configuracion/productos",
     icon: ChangeHistoryIcon,
+  },
+  {
+    label: "Planes y Suscripción",
+    path: "/configuracion/planes",
+    icon: UpgradeIcon,
   },
 ];
 const menuItems = [
@@ -507,7 +513,15 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               </Box>
 
               <List sx={{ pt: 2 }}>
-                {configurationMenuItems.map((item) => (
+                {configurationMenuItems
+                  .filter((item) => {
+                    // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
+                    if (item.label === "Negocios") {
+                      return user?.rol === "SUPER_ADMIN";
+                    }
+                    return true;
+                  })
+                  .map((item) => (
                   <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
                     <ListItemButton 
                       onClick={() => gotToPath(item.path)}
