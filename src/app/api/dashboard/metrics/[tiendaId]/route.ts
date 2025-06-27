@@ -282,6 +282,7 @@ export async function GET(
     return NextResponse.json(metrics);
 
   } catch (error) {
+    console.log(error);
     return NextResponse.json(
       { error: "Error al obtener métricas del dashboard" },
       { status: 500 }

@@ -17,8 +17,6 @@ import {
   Select,
   MenuItem,
   TextField,
-  Button,
-  Chip,
   Divider,
   Paper,
   Avatar,
@@ -34,19 +32,15 @@ import {
   Receipt,
   Inventory,
   Store,
-  Person,
   ShoppingCart,
   Assessment,
   CalendarToday,
   FilterList,
   Refresh,
-  ExpandMore,
-  ExpandLess,
-  Schedule,
   Warning,
   CheckCircle,
   Info,
-  Business,
+  
   Analytics
 } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
@@ -96,7 +90,6 @@ interface FilterOptions {
 export default function DashboardPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
   
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);

@@ -33,14 +33,9 @@ import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
 import StoreIcon from "@mui/icons-material/Store";
 import CategoryIcon from "@mui/icons-material/Category";
 import ChangeHistoryIcon from "@mui/icons-material/ChangeHistory";
-import StorefrontIcon from "@mui/icons-material/Storefront";
-import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
-import GridViewIcon from "@mui/icons-material/GridView";
-import SummarizeIcon from "@mui/icons-material/Summarize";
-import MoveUpIcon from "@mui/icons-material/MoveUp";
 import { useAppContext } from "@/context/AppContext";
 import { AccountCircle } from "@mui/icons-material";
-import SellIcon from "@mui/icons-material/Sell";
+
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import { cambierNegocio, cambierTienda, getTiendasDisponibles } from "@/services/authService";
 import { useSession, signOut } from "next-auth/react";
@@ -50,7 +45,6 @@ import { INegocio } from "@/types/INegocio";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChangeCircleIcon from '@mui/icons-material/ChangeCircleOutlined';
 import NextWeekIcon from '@mui/icons-material/NextWeekOutlined';
-import InventoryIcon from '@mui/icons-material/Inventory';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
@@ -91,15 +85,6 @@ const configurationMenuItems = [
     path: "/configuracion/planes",
     icon: UpgradeIcon,
   },
-];
-const menuItems = [
-  { label: "Costos y Precios", path: "/costos_precios", icon: GridViewIcon },
-  { label: "Movimientos", path: "/movimientos", icon: MoveUpIcon },
-  { label: "Inventario", path: "/inventario", icon: InventoryIcon },
-  { label: "Pos de ventas", path: "/pos", icon: StorefrontIcon },
-  { label: "Ventas", path: "/ventas", icon: SellIcon },
-  { label: "Cierre", path: "/cierre", icon: CancelPresentationIcon },
-  { label: "Resumen cierres", path: "/resumen_cierre", icon: SummarizeIcon },
 ];
 
 const mainMenuItems = [
