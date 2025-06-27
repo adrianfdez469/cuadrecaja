@@ -54,6 +54,15 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
+import { 
+  Analytics, 
+  PointOfSale, 
+  Receipt, 
+  AccountBalanceWallet,
+  SwapVert,
+  Inventory,
+  Summarize
+} from '@mui/icons-material';
 
 const configurationMenuItems = [
   {
@@ -91,6 +100,16 @@ const menuItems = [
   { label: "Ventas", path: "/ventas", icon: SellIcon },
   { label: "Cierre", path: "/cierre", icon: CancelPresentationIcon },
   { label: "Resumen cierres", path: "/resumen_cierre", icon: SummarizeIcon },
+];
+
+const mainMenuItems = [
+  { label: "Dashboard", path: "/dashboard", icon: <Analytics /> },
+  { label: "POS", path: "/pos", icon: <PointOfSale /> },
+  { label: "Ventas", path: "/ventas", icon: <Receipt /> },
+  { label: "Inventario", path: "/inventario", icon: <Inventory /> },
+  { label: "Movimientos", path: "/movimientos", icon: <SwapVert /> },
+  { label: "Cierre", path: "/cierre", icon: <AccountBalanceWallet /> },
+  { label: "Resumen Cierres", path: "/resumen_cierre", icon: <Summarize /> },
 ];
 
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
@@ -558,7 +577,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               </Box>
               
               <List sx={{ pt: 0 }}>
-                {menuItems.map((item) => (
+                {mainMenuItems.map((item) => (
                   <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
                     <ListItemButton 
                       onClick={() => gotToPath(item.path)}
@@ -571,7 +590,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                       }}
                     >
                       <ListItemIcon sx={{ minWidth: 40 }}>
-                        <item.icon sx={{ color: 'secondary.main', fontSize: 22 }} />
+                        {item.icon}
                       </ListItemIcon>
                       <ListItemText 
                         primary={item.label}
