@@ -31,6 +31,7 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import InventoryIcon from "@mui/icons-material/Inventory";
+import { formatDate, formatCurrency, formatNumber } from '@/utils/formatters';
 
 const CierreCajaPage = () => {
   const { user, loadingContext, gotToPath } = useAppContext();
@@ -299,11 +300,7 @@ const CierreCajaPage = () => {
     return (
       <PageContainer
         title="Cierre de Caja"
-        subtitle={`Período del ${new Date(currentPeriod.fechaInicio).toLocaleDateString('es-ES', {
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric'
-        })}`}
+        subtitle={`Período del ${formatDate(currentPeriod.fechaInicio)}`}
         breadcrumbs={breadcrumbs}
         headerActions={headerActions}
         maxWidth="xl"
@@ -313,7 +310,7 @@ const CierreCajaPage = () => {
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<ShoppingCartIcon fontSize={isMobile ? "medium" : "large"} />}
-              value={totales.totalCantidad.toLocaleString()}
+              value={formatNumber(totales.totalCantidad)}
               label="Productos Vendidos"
               color="primary.light"
             />
@@ -322,7 +319,7 @@ const CierreCajaPage = () => {
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<AttachMoneyIcon fontSize={isMobile ? "medium" : "large"} />}
-              value={`$${totales.totalMonto.toLocaleString()}`}
+              value={formatCurrency(totales.totalMonto)}
               label="Total Ventas"
               color="success.light"
             />
@@ -331,7 +328,7 @@ const CierreCajaPage = () => {
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<TrendingUpIcon fontSize={isMobile ? "medium" : "large"} />}
-              value={`$${totales.totalGanancia.toLocaleString()}`}
+              value={formatCurrency(totales.totalGanancia)}
               label="Ganancia Total"
               color="info.light"
             />
@@ -340,7 +337,7 @@ const CierreCajaPage = () => {
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<InventoryIcon fontSize={isMobile ? "medium" : "large"} />}
-              value={cierreData.productosVendidos.length.toLocaleString()}
+              value={formatNumber(cierreData.productosVendidos.length)}
               label="Tipos de Productos"
               color="warning.light"
             />

@@ -13,6 +13,7 @@ import {
   Alert,
 } from "@mui/material";
 import { ICierreData } from "@/types/ICierre";
+import { formatCurrency, formatNumber } from "@/utils/formatters";
 
 export interface ITotales {
   totalCantidad: number;
@@ -72,13 +73,13 @@ export const TablaProductosCierre: FC<IProps> = ({
         >
           <Box>
             <Typography variant="h6">
-              Total Venta: ${totalVentas.toFixed(2)}
+              Total Venta: {formatCurrency(totalVentas)}
             </Typography>
             <Typography variant="h6">
-              Total Ganancia: ${totalGanancia.toFixed(2)}
+              Total Ganancia: {formatCurrency(totalGanancia)}
             </Typography>
             <Typography variant="h6">
-              Total Transferencia: ${totalTransferencia.toFixed(2)}
+              Total Transferencia: {formatCurrency(totalTransferencia)}
             </Typography>
           </Box>
 
@@ -125,13 +126,13 @@ export const TablaProductosCierre: FC<IProps> = ({
                 .map((producto) => (
                   <TableRow key={producto.id}>
                     <TableCell>{producto.nombre || 'Producto sin nombre'}</TableCell>
-                    <TableCell>{producto.cantidad || 0}</TableCell>
+                    <TableCell>{formatNumber(producto.cantidad || 0)}</TableCell>
                     {!showOnlyCants && (
                       <>
-                        <TableCell>${(producto.total || 0).toFixed(2)}</TableCell>
-                        <TableCell>${(producto.ganancia || 0).toFixed(2)}</TableCell>
-                        <TableCell>${(producto.costo || 0).toFixed(2)}</TableCell>
-                        <TableCell>${(producto.precio || 0).toFixed(2)}</TableCell>
+                        <TableCell>{formatCurrency(producto.total || 0)}</TableCell>
+                        <TableCell>{formatCurrency(producto.ganancia || 0)}</TableCell>
+                        <TableCell>{formatCurrency(producto.costo || 0)}</TableCell>
+                        <TableCell>{formatCurrency(producto.precio || 0)}</TableCell>
                       </>
                     )}
                   </TableRow>
@@ -140,11 +141,11 @@ export const TablaProductosCierre: FC<IProps> = ({
             {!hideTotales && productosVendidos.length > 0 && (
               <TableRow sx={{ fontWeight: "bold", backgroundColor: "#f0f0f0" }}>
                 <TableCell>Total</TableCell>
-                <TableCell>{totales?.totalCantidad || 0}</TableCell>
+                <TableCell>{formatNumber(totales?.totalCantidad || 0)}</TableCell>
                 {!showOnlyCants && (
                   <>
-                    <TableCell>${(totales?.totalMonto || 0).toFixed(2)}</TableCell>
-                    <TableCell>${(totales?.totalGanancia || 0).toFixed(2)}</TableCell>
+                    <TableCell>{formatCurrency(totales?.totalMonto || 0)}</TableCell>
+                    <TableCell>{formatCurrency(totales?.totalGanancia || 0)}</TableCell>
                     <TableCell></TableCell>
                     <TableCell></TableCell>
                   </>

@@ -35,6 +35,7 @@ import { Close, AttachMoney, TrendingUp, Assessment, Refresh, FilterList } from 
 import { fetchCierreData } from "@/services/cierrePeriodService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { formatCurrency, formatNumber } from "@/utils/formatters";
 
 export default function ResumenCierrePage() {
   const [data, setData] = useState<ISummaryCierre>();
@@ -326,7 +327,7 @@ export default function ResumenCierrePage() {
         <Grid item xs={6} sm={6} md={3}>
           <StatCard
             icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
-            value={`$${totales.venta.toLocaleString()}`}
+            value={formatCurrency(totales.venta)}
             label="Total Ventas"
             color="success.light"
           />
@@ -335,7 +336,7 @@ export default function ResumenCierrePage() {
         <Grid item xs={6} sm={6} md={3}>
           <StatCard
             icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
-            value={`$${totales.ganancia.toLocaleString()}`}
+            value={formatCurrency(totales.ganancia)}
             label="Ganancia Total"
             color="info.light"
           />
@@ -344,7 +345,7 @@ export default function ResumenCierrePage() {
         <Grid item xs={6} sm={6} md={3}>
           <StatCard
             icon={<Assessment fontSize={isMobile ? "medium" : "large"} />}
-            value={`$${totales.inversion.toLocaleString()}`}
+            value={formatCurrency(totales.inversion)}
             label="Inversión Total"
             color="warning.light"
           />
@@ -353,7 +354,7 @@ export default function ResumenCierrePage() {
         <Grid item xs={6} sm={6} md={3}>
           <StatCard
             icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
-            value={`$${totales.transf.toLocaleString()}`}
+            value={formatCurrency(totales.transf)}
             label="Transferencias"
             color="primary.light"
           />
@@ -441,7 +442,7 @@ export default function ResumenCierrePage() {
                             Ventas
                           </Typography>
                           <Typography variant="body2" fontWeight="medium" color="success.main">
-                            ${row.totalVentas.toLocaleString()}
+                            {formatCurrency(row.totalVentas)}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
@@ -449,7 +450,7 @@ export default function ResumenCierrePage() {
                             Ganancia
                           </Typography>
                           <Typography variant="body2" fontWeight="medium" color="info.main">
-                            ${row.totalGanancia.toLocaleString()}
+                            {formatCurrency(row.totalGanancia)}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
@@ -457,7 +458,7 @@ export default function ResumenCierrePage() {
                             Inversión
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
-                            ${row.totalInversion.toLocaleString()}
+                            {formatCurrency(row.totalInversion)}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
@@ -465,7 +466,7 @@ export default function ResumenCierrePage() {
                             Transferencias
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
-                            ${row.totalTransferencia.toLocaleString()}
+                            {formatCurrency(row.totalTransferencia)}
                           </Typography>
                         </Grid>
                       </Grid>
@@ -529,22 +530,22 @@ export default function ResumenCierrePage() {
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2">
-                        ${row.totalInversion.toLocaleString()}
+                        {formatCurrency(row.totalInversion)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="medium" color="success.main">
-                        ${row.totalVentas.toLocaleString()}
+                        {formatCurrency(row.totalVentas)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2">
-                        ${row.totalTransferencia.toLocaleString()}
+                        {formatCurrency(row.totalTransferencia)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="medium" color="info.main">
-                        ${row.totalGanancia.toLocaleString()}
+                        {formatCurrency(row.totalGanancia)}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
@@ -570,22 +571,22 @@ export default function ResumenCierrePage() {
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="bold">
-                      ${totales.inversion.toLocaleString()}
+                      {formatCurrency(totales.inversion)}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="bold" color="success.main">
-                      ${totales.venta.toLocaleString()}
+                      {formatCurrency(totales.venta)}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="bold">
-                      ${totales.transf.toLocaleString()}
+                      {formatCurrency(totales.transf)}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" fontWeight="bold" color="info.main">
-                      ${totales.ganancia.toLocaleString()}
+                      {formatCurrency(totales.ganancia)}
                     </Typography>
                   </TableCell>
                   <TableCell></TableCell>
@@ -676,7 +677,7 @@ export default function ResumenCierrePage() {
                 <Grid item xs={6} sm={6} md={3}>
                   <StatCard
                     icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
-                    value={`$${cierreProducData.ciereData.totalVentas.toLocaleString()}`}
+                    value={formatCurrency(cierreProducData.ciereData.totalVentas)}
                     label="Total Ventas"
                     color="success.light"
                   />
@@ -685,7 +686,7 @@ export default function ResumenCierrePage() {
                 <Grid item xs={6} sm={6} md={3}>
                   <StatCard
                     icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
-                    value={`$${cierreProducData.ciereData.totalGanancia.toLocaleString()}`}
+                    value={formatCurrency(cierreProducData.ciereData.totalGanancia)}
                     label="Ganancia"
                     color="info.light"
                   />
@@ -694,7 +695,7 @@ export default function ResumenCierrePage() {
                 <Grid item xs={6} sm={6} md={3}>
                   <StatCard
                     icon={<Assessment fontSize={isMobile ? "medium" : "large"} />}
-                    value={cierreProducData.totales.totalCantidad.toLocaleString()}
+                    value={formatNumber(cierreProducData.totales.totalCantidad)}
                     label="Productos Vendidos"
                     color="primary.light"
                   />
@@ -703,7 +704,7 @@ export default function ResumenCierrePage() {
                 <Grid item xs={6} sm={6} md={3}>
                   <StatCard
                     icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
-                    value={`$${cierreProducData.ciereData.totalTransferencia.toLocaleString()}`}
+                    value={formatCurrency(cierreProducData.ciereData.totalTransferencia)}
                     label="Transferencias"
                     color="warning.light"
                   />

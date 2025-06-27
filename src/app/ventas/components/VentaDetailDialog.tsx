@@ -34,6 +34,7 @@ import {
   ShoppingCart
 } from '@mui/icons-material';
 import { IVenta } from '@/types/IVenta';
+import { formatCurrency, formatDate, formatTimeShort } from '@/utils/formatters';
 
 interface VentaDetailDialogProps {
   open: boolean;
@@ -50,25 +51,6 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   if (!venta) return null;
-
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('es-ES', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const InfoCard = ({ icon, title, value, color = 'primary' }: {
     icon: React.ReactNode;
@@ -144,7 +126,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             <InfoCard
               icon={<CalendarToday />}
               title="Hora"
-              value={formatTime(venta.createdAt)}
+              value={formatTimeShort(venta.createdAt)}
               color="info"
             />
           </Grid>

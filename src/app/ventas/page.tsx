@@ -49,6 +49,7 @@ import { getSells, removeSell } from "@/services/sellService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import VentaDetailDialog from "./components/VentaDetailDialog";
+import { formatDate, formatDateTime, formatCurrency, formatNumber, isToday } from '@/utils/formatters';
 
 const Ventas = () => {
   const { user, loadingContext } = useAppContext();
@@ -151,8 +152,8 @@ const Ventas = () => {
   const filteredVentas = ventas.filter((venta) => {
     const searchLower = searchTerm.toLowerCase();
     const ventaId = venta.id?.toLowerCase() || '';
-    const ventaDate = new Date(venta.createdAt).toLocaleDateString().toLowerCase();
-    const ventaTime = new Date(venta.createdAt).toLocaleTimeString().toLowerCase();
+    const ventaDate = formatDate(venta.createdAt).toLowerCase();
+    const ventaTime = formatDateTime(venta.createdAt).toLowerCase();
     
     return ventaId.includes(searchLower) || 
            ventaDate.includes(searchLower) || 
@@ -163,17 +164,9 @@ const Ventas = () => {
   const totalVentas = ventas.length;
   const montoTotal = ventas.reduce((sum, venta) => sum + (venta.total || 0), 0);
   
-  const ventasHoy = ventas.filter(v => {
-    const today = new Date().toDateString();
-    const ventaDate = new Date(v.createdAt).toDateString();
-    return today === ventaDate;
-  }).length;
-  
-  const montoHoy = ventas.filter(v => {
-    const today = new Date().toDateString();
-    const ventaDate = new Date(v.createdAt).toDateString();
-    return today === ventaDate;
-  }).reduce((sum, venta) => sum + (venta.total || 0), 0);
+  const ventasHoy = ventas.filter(v => isToday(v.createdAt)).length;
+  const montoHoy = ventas.filter(v => isToday(v.createdAt))
+    .reduce((sum, venta) => sum + (venta.total || 0), 0);
 
   if (loadingContext || isDataLoading) {
     return (
@@ -331,7 +324,7 @@ const Ventas = () => {
 
   return (
     <PageContainer
-      title={`Ventas - Período ${currentPeriod ? new Date(currentPeriod.fechaInicio).toLocaleDateString() : ''}`}
+      title={`Ventas - Período ${currentPeriod ? formatDate(currentPeriod.fechaInicio) : ''}`}
       subtitle={!isMobile ? "Historial de ventas del período actual" : undefined}
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
@@ -345,7 +338,7 @@ const Ventas = () => {
               <Grid item xs={6}>
                 <StatCard
                   icon={<Receipt />}
-                  value={totalVentas.toLocaleString()}
+                  value={formatNumber(totalVentas)}
                   label="Ventas"
                   color="primary.light"
                 />
@@ -353,24 +346,24 @@ const Ventas = () => {
               <Grid item xs={6}>
                 <StatCard
                   icon={<AttachMoney />}
-                  value={`$${montoTotal.toLocaleString()}`}
-                  label="Total"
+                  value={formatCurrency(montoTotal)}
+                  label="Total Vendido"
                   color="success.light"
                 />
               </Grid>
               <Grid item xs={6}>
                 <StatCard
                   icon={<TrendingUp />}
-                  value={ventasHoy.toLocaleString()}
-                  label="Hoy"
+                  value={formatNumber(ventasHoy)}
+                  label="Ventas Hoy"
                   color="info.light"
                 />
               </Grid>
               <Grid item xs={6}>
                 <StatCard
                   icon={<CalendarToday />}
-                  value={`$${montoHoy.toLocaleString()}`}
-                  label="Hoy $"
+                  value={formatCurrency(montoHoy)}
+                  label="Monto Hoy"
                   color="warning.light"
                 />
               </Grid>
@@ -383,23 +376,23 @@ const Ventas = () => {
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<Receipt />}
-              value={totalVentas.toLocaleString()}
-              label="Total Ventas"
+              value={formatNumber(totalVentas)}
+              label="Ventas"
               color="primary.light"
             />
           </Grid>
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<AttachMoney />}
-              value={`$${montoTotal.toLocaleString()}`}
-              label="Monto Total"
+              value={formatCurrency(montoTotal)}
+              label="Total Vendido"
               color="success.light"
             />
           </Grid>
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<TrendingUp />}
-              value={ventasHoy.toLocaleString()}
+              value={formatNumber(ventasHoy)}
               label="Ventas Hoy"
               color="info.light"
             />
@@ -407,7 +400,7 @@ const Ventas = () => {
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<CalendarToday />}
-              value={`$${montoHoy.toLocaleString()}`}
+              value={formatCurrency(montoHoy)}
               label="Monto Hoy"
               color="warning.light"
             />
@@ -481,7 +474,7 @@ const Ventas = () => {
                           Venta #{venta.id.slice(-8)}
                         </Typography>
                         <Chip 
-                          label={`$${venta.total.toLocaleString()}`} 
+                          label={formatCurrency(venta.total)} 
                           color="success" 
                           size="small" 
                           variant="filled"
@@ -492,7 +485,7 @@ const Ventas = () => {
                       <Box display="flex" justifyContent="space-between" alignItems="center">
                         <Box>
                           <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
-                            {new Date(venta.createdAt).toLocaleDateString()} • {new Date(venta.createdAt).toLocaleTimeString()}
+                            {formatDateTime(venta.createdAt)}
                           </Typography>
                           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                             {venta.productos?.length || 0} productos
@@ -551,19 +544,19 @@ const Ventas = () => {
                     </TableCell>
                     <TableCell align="center">
                       <Typography variant="body2">
-                        {new Date(venta.createdAt).toLocaleDateString()}
+                        {formatDate(venta.createdAt)}
                       </Typography>
                     </TableCell>
                     {!isTablet && (
                       <TableCell align="center">
                         <Typography variant="body2">
-                          {new Date(venta.createdAt).toLocaleTimeString()}
+                          {formatDateTime(venta.createdAt).split(' • ')[1]}
                         </Typography>
                       </TableCell>
                     )}
                     <TableCell align="right">
                       <Chip 
-                        label={`$${venta.total.toLocaleString()}`} 
+                        label={formatCurrency(venta.total)} 
                         color="success" 
                         size="small" 
                         variant="filled"

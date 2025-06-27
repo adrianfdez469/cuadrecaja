@@ -47,6 +47,7 @@ import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { ITipoMovimiento } from "@/types/IMovimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { formatNumber, formatDateTime } from '@/utils/formatters';
 
 const PAGE_SIZE = 20;
 
@@ -289,7 +290,7 @@ export default function MovimientosPage() {
               <Grid item xs={6}>
                 <StatCard
                   icon={<SwapVert />}
-                  value={totalMovimientos.toLocaleString()}
+                  value={formatNumber(totalMovimientos)}
                   label="Total"
                   color="primary.light"
                 />
@@ -297,7 +298,7 @@ export default function MovimientosPage() {
               <Grid item xs={6}>
                 <StatCard
                   icon={<TrendingUp />}
-                  value={movimientosEntrada.toLocaleString()}
+                  value={formatNumber(movimientosEntrada)}
                   label="Entradas"
                   color="success.light"
                 />
@@ -305,7 +306,7 @@ export default function MovimientosPage() {
               <Grid item xs={6}>
                 <StatCard
                   icon={<TrendingDown />}
-                  value={movimientosSalida.toLocaleString()}
+                  value={formatNumber(movimientosSalida)}
                   label="Salidas"
                   color="error.light"
                 />
@@ -313,7 +314,7 @@ export default function MovimientosPage() {
               <Grid item xs={6}>
                 <StatCard
                   icon={<Inventory />}
-                  value={productosAfectados.toLocaleString()}
+                  value={formatNumber(productosAfectados)}
                   label="Productos"
                   color="info.light"
                 />
@@ -327,7 +328,7 @@ export default function MovimientosPage() {
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<SwapVert />}
-              value={totalMovimientos.toLocaleString()}
+              value={formatNumber(totalMovimientos)}
               label="Total Movimientos"
               color="primary.light"
             />
@@ -335,7 +336,7 @@ export default function MovimientosPage() {
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<TrendingUp />}
-              value={movimientosEntrada.toLocaleString()}
+              value={formatNumber(movimientosEntrada)}
               label="Entradas"
               color="success.light"
             />
@@ -343,7 +344,7 @@ export default function MovimientosPage() {
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<TrendingDown />}
-              value={movimientosSalida.toLocaleString()}
+              value={formatNumber(movimientosSalida)}
               label="Salidas"
               color="error.light"
             />
@@ -351,7 +352,7 @@ export default function MovimientosPage() {
           <Grid item xs={6} sm={6} md={3}>
             <StatCard
               icon={<Inventory />}
-              value={productosAfectados.toLocaleString()}
+              value={formatNumber(productosAfectados)}
               label="Productos"
               color="info.light"
             />
@@ -455,7 +456,7 @@ export default function MovimientosPage() {
                           </Typography>
                         </Box>
                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
-                          {new Date(movimiento.fecha).toLocaleDateString()}
+                          {formatDateTime(movimiento.fecha).split(' • ')[0]}
                         </Typography>
                       </Box>
 
@@ -495,7 +496,7 @@ export default function MovimientosPage() {
                   >
                     <TableCell>
                       <Typography variant="body2">
-                        {new Date(movimiento.fecha).toLocaleString()}
+                        {formatDateTime(movimiento.fecha)}
                       </Typography>
                     </TableCell>
                     <TableCell>

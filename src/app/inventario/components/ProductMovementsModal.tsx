@@ -41,6 +41,7 @@ import { useAppContext } from '@/context/AppContext';
 import { useMessageContext } from '@/context/MessageContext';
 import { isMovimientoBaja } from '@/utils/tipoMovimiento';
 import { TIPOS_MOVIMIENTO, TIPO_MOVIMIENTO_LABELS } from '@/constants/movimientos';
+import { formatDateTime } from '@/utils/formatters';
 
 interface ProductMovementsModalProps {
   open: boolean;
@@ -350,7 +351,7 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
                       }}
                     >
                       <TableCell>
-                        {dayjs(movimiento.fecha).format(isMobile ? 'DD/MM/YY HH:mm' : 'DD/MM/YYYY HH:mm')}
+                        {formatDateTime(movimiento.fecha)}
                       </TableCell>
                       <TableCell>
                         <Chip

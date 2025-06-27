@@ -4,6 +4,7 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { moneyRegex } from '../../../utils/regex'
 import { useMessageContext } from "@/context/MessageContext";
+import { formatCurrency } from "@/utils/formatters";
 
 interface IProps {
   open: boolean;
@@ -89,7 +90,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
         }}
       >
         <Typography variant="h5" fontWeight="bold" mb={2}>
-          Cobrar: ${total.toFixed(2)}
+          Cobrar: {formatCurrency(total)}
         </Typography>
           
         <FormControl fullWidth>
@@ -114,9 +115,9 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
           />
         </FormControl>
 
-        <Typography variant="h6" mt={2}>Total: ${total.toFixed(2)}</Typography>
+        <Typography variant="h6" mt={2}>Total: {formatCurrency(total)}</Typography>
         <Typography variant="h6" color="green" mt={1}>
-          Cambio: ${(cashReceived+transferReceived - total).toFixed(2)}
+          Cambio: {formatCurrency(cashReceived+transferReceived - total)}
         </Typography>
         
         <Button

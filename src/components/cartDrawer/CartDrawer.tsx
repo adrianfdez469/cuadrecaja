@@ -11,6 +11,7 @@ import { Close, Delete, Add, Remove } from "@mui/icons-material";
 import { ICartItem } from "@/store/cartStore";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
+import { formatCurrencyCUP } from "@/utils/formatters";
 
 interface IProps {
   open: boolean;
@@ -153,7 +154,7 @@ const CartDrawer: FC<IProps> = ({
                   >
                     <Box>
                       <Typography variant="body2" color="green">
-                        {item.price} CUP
+                        {formatCurrencyCUP(item.price)}
                       </Typography>
                       <Box
                         display={"flex"}
@@ -188,7 +189,7 @@ const CartDrawer: FC<IProps> = ({
                           color="textSecondary"
                           sx={{ paddingLeft: 2 }}
                         >
-                          Total: {item.price * item.quantity} CUP
+                          Total: {formatCurrencyCUP(item.price * item.quantity)}
                         </Typography>
                       </Box>
                     </Box>
@@ -213,7 +214,7 @@ const CartDrawer: FC<IProps> = ({
           >
             <Box>
               <Typography variant="h6" color="green">
-                Total: {total} CUP
+                Total: {formatCurrencyCUP(total)}
               </Typography>
             </Box>
             {onOkButtonClick && (

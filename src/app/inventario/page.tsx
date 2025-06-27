@@ -39,6 +39,7 @@ import { exportInventoryToWord } from "@/utils/wordExport";
 import { ProductMovementsModal } from "./components/ProductMovementsModal";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { formatCurrency, formatNumber } from '@/utils/formatters';
 
 export default function InventarioPage() {
   const [productos, setProductos] = useState<IProductoTienda[]>([]);
@@ -328,7 +329,7 @@ export default function InventarioPage() {
                               fontWeight="bold"
                               color={producto.existencia <= 0 ? "error" : "inherit"}
                             >
-                              {producto.existencia.toLocaleString()}
+                              {formatNumber(producto.existencia)}
                             </Typography>
                           </Grid>
                           <Grid item xs={4}>
@@ -336,7 +337,7 @@ export default function InventarioPage() {
                               Precio
                             </Typography>
                             <Typography variant="body2" fontWeight="medium">
-                              ${producto.precio.toLocaleString()}
+                              {formatCurrency(producto.precio)}
                             </Typography>
                           </Grid>
                           <Grid item xs={4}>
@@ -344,7 +345,7 @@ export default function InventarioPage() {
                               Valor Stock
                             </Typography>
                             <Typography variant="body2" fontWeight="medium">
-                              ${(producto.existencia * producto.precio).toLocaleString()}
+                              {formatCurrency(producto.existencia * producto.precio)}
                             </Typography>
                           </Grid>
                         </Grid>
@@ -420,24 +421,24 @@ export default function InventarioPage() {
                           color={producto.existencia <= 0 ? "error" : "inherit"}
                           fontWeight={producto.existencia <= 0 ? "bold" : "normal"}
                         >
-                          {producto.existencia.toLocaleString()}
+                          {formatNumber(producto.existencia)}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2">
-                          ${producto.precio.toLocaleString()}
+                          {formatCurrency(producto.precio)}
                         </Typography>
                       </TableCell>
                       {!isTablet && (
                         <TableCell align="right">
                           <Typography variant="body2">
-                            ${producto.costo.toLocaleString()}
+                            {formatCurrency(producto.costo)}
                           </Typography>
                         </TableCell>
                       )}
                       <TableCell align="right">
                         <Typography variant="body2" fontWeight="medium">
-                          ${(producto.existencia * producto.precio).toLocaleString()}
+                          {formatCurrency(producto.existencia * producto.precio)}
                         </Typography>
                       </TableCell>
                     </TableRow>

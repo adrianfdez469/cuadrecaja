@@ -26,6 +26,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import { fecthCostosPreciosProds } from "@/services/costoPrecioServices";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { formatCurrency } from '@/utils/formatters';
 
 // Componente personalizado para editar precios
 const PriceEditCell = (params: GridRenderEditCellParams) => {
@@ -64,7 +65,7 @@ const PriceDisplayCell = (params: GridRenderCellParams) => {
   const value = params.value || 0;
   return (
     <Typography variant="body2" fontWeight="medium">
-      ${value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      {formatCurrency(value)}
     </Typography>
   );
 };

@@ -46,6 +46,8 @@ import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import { QuantityDialog } from "./components/QuantityDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { formatDate } from "@/utils/formatters";
+
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<ICategory>(null);
@@ -501,11 +503,7 @@ export default function POSInterface() {
                   bgcolor: "rgba(255,255,255,0.8)",
                 }}
               />
-              Período: {new Date(periodo.fechaInicio).toLocaleDateString('es-ES', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-              })}
+              Período: {formatDate(periodo.fechaInicio)}
             </Box>
           )}
 

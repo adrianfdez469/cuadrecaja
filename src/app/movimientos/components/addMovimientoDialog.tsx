@@ -26,6 +26,7 @@ import { useAppContext } from "@/context/AppContext";
 import { ITipoMovimiento } from "@/types/IMovimiento";
 import { TIPOS_MOVIMIENTO_MANUAL, TIPO_MOVIMIENTO_LABELS } from "@/constants/movimientos";
 import useConfirmDialog from "@/components/confirmDialog";
+import { formatCurrency } from "@/utils/formatters";
 
 interface IProductoMovimiento {
   productoId: string;
@@ -289,7 +290,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                           Total del producto
                         </Typography>
                         <Typography variant="h6" color="primary">
-                          ${(p.costoTotal || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                          {formatCurrency(p.costoTotal || 0)}
                         </Typography>
                       </Box>
                     </Grid>
@@ -312,7 +313,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
           {esCompra && (
             <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
               <Typography variant="h6" color="primary">
-                Total General: ${itemsProductos.reduce((sum, item) => sum + (item.costoTotal || 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                Total General: {formatCurrency(itemsProductos.reduce((sum, item) => sum + (item.costoTotal || 0), 0))}
               </Typography>
             </Box>
           )}
