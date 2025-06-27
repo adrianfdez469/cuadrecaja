@@ -7,6 +7,14 @@ import {
   CircularProgress,
   Alert,
   Button,
+  Grid,
+  Card,
+  CardContent,
+  Stack,
+  useMediaQuery,
+  useTheme,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import { closePeriod, fetchCierreData, openPeriod } from "@/services/cierrePeriodService";
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
@@ -16,9 +24,16 @@ import { ICierreData, ICierrePeriodo } from "@/types/ICierre";
 import useConfirmDialog from "@/components/confirmDialog";
 import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
 import { useSalesStore } from "@/store/salesStore";
+import { PageContainer } from "@/components/PageContainer";
+import { ContentCard } from "@/components/ContentCard";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import InventoryIcon from "@mui/icons-material/Inventory";
 
 const CierreCajaPage = () => {
-  const { user, loadingContext } = useAppContext();
+  const { user, loadingContext, gotToPath } = useAppContext();
   const { showMessage } = useMessageContext();
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>()
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -32,6 +47,9 @@ const CierreCajaPage = () => {
   const [noTiendaActual, setNoTiendaActual] = useState(false);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { clearSales, sales } = useSalesStore();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleCerrarCaja = async () => {
     if(sales.filter(sale => !sale.synced).length > 0) {
@@ -123,20 +141,98 @@ const CierreCajaPage = () => {
     }
   }, [loadingContext]);
 
+  // Componente de estadística móvil optimizado
+  const StatCard = ({ icon, value, label, color }: { 
+    icon: React.ReactNode, 
+    value: string, 
+    label: string, 
+    color: string 
+  }) => (
+    <Card sx={{ height: '100%' }}>
+      <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+        <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+          <Box
+            sx={{
+              p: isMobile ? 1 : 1.5,
+              borderRadius: 2,
+              bgcolor: color,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: isMobile ? 40 : 48,
+              minHeight: isMobile ? 40 : 48,
+            }}
+          >
+            {icon}
+          </Box>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography 
+              variant={isMobile ? "h5" : "h4"} 
+              fontWeight="bold"
+              sx={{ 
+                fontSize: isMobile ? '1.25rem' : '2rem',
+                lineHeight: 1.2,
+                wordBreak: 'break-all'
+              }}
+            >
+              {value}
+            </Typography>
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{ 
+                fontSize: isMobile ? '0.75rem' : '0.875rem',
+                lineHeight: 1.2
+              }}
+            >
+              {label}
+            </Typography>
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+
+  const breadcrumbs = [
+    { label: 'Inicio', href: '/' },
+    { label: 'Cierre de Caja' }
+  ];
+
+  const headerActions = (
+    <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
+      <Tooltip title="Actualizar datos">
+        <IconButton onClick={getInitData} disabled={isDataLoading} size={isMobile ? "small" : "medium"}>
+          <RefreshIcon />
+        </IconButton>
+      </Tooltip>
+    </Stack>
+  );
+
   if (loadingContext || isDataLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
+      <PageContainer
+        title="Cierre de Caja"
+        subtitle="Gestión y control de cierres de período"
+        breadcrumbs={breadcrumbs}
+      >
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+          <CircularProgress />
+          <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
+            Cargando datos de cierre...
+          </Typography>
+        </Box>
+      </PageContainer>
     );
   }
 
   if (noTiendaActual) {
     return (
-      <Box p={2}>
-        <Typography variant="h4" gutterBottom>
-          Cierre de Caja
-        </Typography>
+      <PageContainer
+        title="Cierre de Caja"
+        subtitle="Gestión y control de cierres de período"
+        breadcrumbs={breadcrumbs}
+      >
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             No hay tienda seleccionada
@@ -151,23 +247,30 @@ const CierreCajaPage = () => {
             <Button
               variant="contained"
               color="primary"
-              href="/configuracion/tiendas"
+              onClick={() => gotToPath("/configuracion/tiendas")}
               sx={{ mr: 2 }}
             >
               Ir a Configuración de Tiendas
             </Button>
+            <Button
+              variant="outlined"
+              onClick={() => gotToPath("/")}
+            >
+              Volver al Inicio
+            </Button>
           </Box>
         </Alert>
-      </Box>
+      </PageContainer>
     );
   }
 
   if (noPeriodFound) {
     return (
-      <Box p={2}>
-        <Typography variant="h4" gutterBottom>
-          Cierre de Caja
-        </Typography>
+      <PageContainer
+        title="Cierre de Caja"
+        subtitle="Gestión y control de cierres de período"
+        breadcrumbs={breadcrumbs}
+      >
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             ¡Bienvenido a tu nuevo negocio!
@@ -189,32 +292,91 @@ const CierreCajaPage = () => {
         >
           Crear Primer Período
         </Button>
-      </Box>
+      </PageContainer>
     );
   }
 
   if (cierreData && currentPeriod) {
     return (
-      <Box p={0}>
-        <Typography variant="h4" gutterBottom>
-          Cierre de Caja: Corte {new Date(currentPeriod.fechaInicio).toLocaleDateString()}
-        </Typography>
-        <TablaProductosCierre
-          cierreData={cierreData}
-          totales={totales}
-          handleCerrarCaja={handleCerrarCaja}
-        />
+      <PageContainer
+        title="Cierre de Caja"
+        subtitle={`Período del ${new Date(currentPeriod.fechaInicio).toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric'
+        })}`}
+        breadcrumbs={breadcrumbs}
+        headerActions={headerActions}
+        maxWidth="xl"
+      >
+        {/* Estadísticas del cierre */}
+        <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
+          <Grid item xs={6} sm={6} md={3}>
+            <StatCard
+              icon={<ShoppingCartIcon fontSize={isMobile ? "medium" : "large"} />}
+              value={totales.totalCantidad.toLocaleString()}
+              label="Productos Vendidos"
+              color="primary.light"
+            />
+          </Grid>
+
+          <Grid item xs={6} sm={6} md={3}>
+            <StatCard
+              icon={<AttachMoneyIcon fontSize={isMobile ? "medium" : "large"} />}
+              value={`$${totales.totalMonto.toLocaleString()}`}
+              label="Total Ventas"
+              color="success.light"
+            />
+          </Grid>
+
+          <Grid item xs={6} sm={6} md={3}>
+            <StatCard
+              icon={<TrendingUpIcon fontSize={isMobile ? "medium" : "large"} />}
+              value={`$${totales.totalGanancia.toLocaleString()}`}
+              label="Ganancia Total"
+              color="info.light"
+            />
+          </Grid>
+
+          <Grid item xs={6} sm={6} md={3}>
+            <StatCard
+              icon={<InventoryIcon fontSize={isMobile ? "medium" : "large"} />}
+              value={cierreData.productosVendidos.length.toLocaleString()}
+              label="Tipos de Productos"
+              color="warning.light"
+            />
+          </Grid>
+        </Grid>
+
+        {/* Tabla de productos vendidos */}
+        <ContentCard 
+          title="Detalle de Productos Vendidos"
+          subtitle={!isMobile ? "Resumen completo de las ventas del período actual" : undefined}
+          noPadding
+          fullHeight
+        >
+          <TablaProductosCierre
+            cierreData={cierreData}
+            totales={totales}
+            handleCerrarCaja={handleCerrarCaja}
+          />
+        </ContentCard>
+        
         {ConfirmDialogComponent}
-      </Box>
+      </PageContainer>
     );
   }
 
   return (
-    <Box p={2}>
+    <PageContainer
+      title="Cierre de Caja"
+      subtitle="Gestión y control de cierres de período"
+      breadcrumbs={breadcrumbs}
+    >
       <Alert severity="error">
         Error al cargar los datos de cierre. Por favor, intenta recargar la página.
       </Alert>
-    </Box>
+    </PageContainer>
   );
 };
 
