@@ -1,12 +1,19 @@
 import axios from "axios";
-import { cretateBatchMovimientos } from "./movimientoService";
 import { IVenta } from "@/types/IVenta";
 import { IProductoVenta } from "@/types/IProducto";
 
+const API_URL = (tiendaId, cierreId) => `/api/venta/${tiendaId}/${cierreId}`;
 
-const API_URL = (tiendaId, cierreId) => `/api/venta/${tiendaId}/${cierreId}`; // Ruta base del backend
-
-export const createSell = async (tiendaId: string, cierreId: string, usuarioId: string, total: number, totalcash: number, totaltransfer: number, productos: IProductoVenta[], syncId: string ): Promise<IVenta> => {
+export const createSell = async (
+  tiendaId: string, 
+  cierreId: string, 
+  usuarioId: string, 
+  total: number, 
+  totalcash: number, 
+  totaltransfer: number, 
+  productos: IProductoVenta[], 
+  syncId: string 
+): Promise<IVenta> => {
   
   console.log('🔍 [createSell] Iniciando petición al backend:', {
     url: API_URL(tiendaId, cierreId),
@@ -32,28 +39,15 @@ export const createSell = async (tiendaId: string, cierreId: string, usuarioId: 
 
     console.log('🔍 [createSell] Respuesta del backend:', response.data);
 
-    const idVenta = response.data.id;
-
-    console.log('🔍 [createSell] Creando movimientos de stock para venta:', idVenta);
-
-    await cretateBatchMovimientos(
-      { tiendaId, usuarioId, tipo: 'VENTA', referenciaId: idVenta },
-      productos.map(p => {
-        return {
-          cantidad: p.cantidad,
-          productoId: p.productId
-        }
-      })
-    );
-
-    console.log('🔍 [createSell] Movimientos de stock creados exitosamente');
-
+    // Ya no necesitamos crear movimientos por separado 
+    // porque ahora todo se maneja en una sola transacción atómica
     return response.data;
+    
   } catch (error) {
     console.error('❌ [createSell] Error en la petición:', error.response?.data || error.message);
     throw error;
   }
-} 
+}
 
 export const getSells = async (tiendaId: string, cierreId: string): Promise<IVenta[]> => {
   const response = await axios.get(API_URL(tiendaId, cierreId));

@@ -31,5 +31,5 @@ export interface IProductoTienda {
 export interface IProductoVenta {
   productoTiendaId: string;
   cantidad: number;
-  productId
+  productId: string;
 }

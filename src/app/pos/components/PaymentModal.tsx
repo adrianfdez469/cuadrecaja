@@ -1,4 +1,4 @@
-import React, { FC, useState } from "react";
+import React, { FC, useEffect, useState } from "react";
 import { Modal, Box, Typography, Button, FormControl, InputLabel, InputAdornment, OutlinedInput } from "@mui/material";
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
@@ -16,35 +16,35 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
   
   const [cashReceived, setCashReceived] = useState(0);
   const [transferReceived, setTransferReceived] = useState(0);
-  const [paying, setPaying] = useState(false);
   const { showMessage } = useMessageContext();
 
   const handlePayment = async () => {
     try {
-      setPaying(true);
-      await makePay(total, cashReceived, transferReceived);
-      showMessage("El pago se realizó satisfactoriamente", "success")
+      // Cerrar el modal inmediatamente
+      handleClose();
+      
+      // Ejecutar el pago de forma asíncrona
+      // No mostramos notificaciones aquí porque handleMakePay se encarga de eso
+      makePay(total, cashReceived, transferReceived)
+        .then(() => {
+          console.log("✅ Pago procesado exitosamente");
+        })
+        .catch((error) => {
+          console.error("❌ Error procesando pago:", error);
+          // handleMakePay ya maneja las notificaciones de error
+        });
       
     } catch (error) {
-      if(error && error.code && error.code === 'ERR_NETWORK'){
-        showMessage("Hay problemas con la red. Debe sincronizar cuando regrese su conexión", "warning", error);
-      } else {
-        showMessage("Ocurrió un error al realizar el pago", "error", error);
-      }
-    } finally {
-      handleClose();
-      setPaying(false);
+      console.error("Error en handlePayment:", error);
+      showMessage("❌ Error inesperado al iniciar el pago", "error");
     }
-    
-    
   };
 
   const handleClose = () => {
-    if(!paying) {
-      setCashReceived(0);
-      setTransferReceived(0);
-      onClose()
-    }
+    // El modal siempre se puede cerrar, sin importar el estado de procesamiento
+    setCashReceived(0);
+    setTransferReceived(0);
+    onClose();
   }
 
   const validateMoneyInput = (money: string) => {
@@ -58,6 +58,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
       setCashReceived(0);
     }
   }
+  
   const handleTransferReceived = (trasnfer: string) => {
     if(validateMoneyInput(trasnfer)){
       setTransferReceived(Number.parseInt(trasnfer));
@@ -65,6 +66,12 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
       setTransferReceived(0);
     }
   }
+
+  useEffect(() => {
+    if(open === true){
+      setCashReceived(total);
+    }
+  }, [open, total])
 
   return (
     <Modal open={open} onClose={handleClose}>
@@ -81,30 +88,31 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
           width: 400,
         }}
       >
-        <Typography variant="h5" fontWeight="bold" mb={2}>Cobrar: ${total.toFixed(2)}</Typography>
+        <Typography variant="h5" fontWeight="bold" mb={2}>
+          Cobrar: ${total.toFixed(2)}
+        </Typography>
           
-          <FormControl fullWidth>
-            <InputLabel htmlFor="outlined-adornment-amount">Efectivo</InputLabel>
-            <OutlinedInput
-              id="outlined-adornment-cash"
-              startAdornment={<InputAdornment position="start"><AttachMoneyIcon/></InputAdornment>}
-              label="Efectivo"
-              value={cashReceived}
-              onChange={(e) => handleCashReceived(e.target.value)}
-            />
-          </FormControl>
+        <FormControl fullWidth>
+          <InputLabel htmlFor="outlined-adornment-amount">Efectivo</InputLabel>
+          <OutlinedInput
+            id="outlined-adornment-cash"
+            startAdornment={<InputAdornment position="start"><AttachMoneyIcon/></InputAdornment>}
+            label="Efectivo"
+            value={cashReceived}
+            onChange={(e) => handleCashReceived(e.target.value)}
+          />
+        </FormControl>
 
-          <FormControl fullWidth sx={{marginTop: 2}}>
-            <InputLabel htmlFor="outlined-adornment-amount">Transferencia</InputLabel>
-            <OutlinedInput
-              id="outlined-adornment-transfer"
-              startAdornment={<InputAdornment position="start"><CreditCardIcon/></InputAdornment>}
-              label="Transferencia"
-              value={transferReceived}
-              onChange={(e) => handleTransferReceived(e.target.value)}
-            />
-          </FormControl>
-
+        <FormControl fullWidth sx={{marginTop: 2}}>
+          <InputLabel htmlFor="outlined-adornment-amount">Transferencia</InputLabel>
+          <OutlinedInput
+            id="outlined-adornment-transfer"
+            startAdornment={<InputAdornment position="start"><CreditCardIcon/></InputAdornment>}
+            label="Transferencia"
+            value={transferReceived}
+            onChange={(e) => handleTransferReceived(e.target.value)}
+          />
+        </FormControl>
 
         <Typography variant="h6" mt={2}>Total: ${total.toFixed(2)}</Typography>
         <Typography variant="h6" color="green" mt={1}>
@@ -118,10 +126,17 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
           sx={{ mt: 2 }}
           onClick={handlePayment}
           disabled={cashReceived+transferReceived < total}
-          loading={paying}
-          loadingPosition="end"
         >
-          Confirmar Pago
+          🚀 Confirmar Pago
+        </Button>
+
+        <Button
+          variant="outlined"
+          fullWidth
+          sx={{ mt: 1 }}
+          onClick={handleClose}
+        >
+          Cancelar
         </Button>
       </Box>
     </Modal>

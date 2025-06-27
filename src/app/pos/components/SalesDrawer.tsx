@@ -244,7 +244,6 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
             <IconButton
               onClick={handleClose}
               color="default"
-              disabled={disableAll}
             >
               <Close />
             </IconButton>

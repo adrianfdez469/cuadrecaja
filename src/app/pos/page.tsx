@@ -1,28 +1,28 @@
 "use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import {
-    Typography,
-    CircularProgress,
-    Box,
-    Fab,
-    Badge,
-    SpeedDial,
-    SpeedDialAction,
-    TextField,
-    Popper,
-    Fade,
-    Paper as MuiPaper,
-    List,
-    ListItemText,
-    InputAdornment,
-    IconButton,
-    ListItemButton,
-    Alert,
-    Button, Popover,
+  Typography,
+  CircularProgress,
+  Box,
+  Fab,
+  Badge,
+  SpeedDial,
+  SpeedDialAction,
+  TextField,
+  Popper,
+  Fade,
+  Paper as MuiPaper,
+  List,
+  ListItemText,
+  InputAdornment,
+  IconButton,
+  ListItemButton,
+  Alert,
+  Button,
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import InfoIcon from '@mui/icons-material/Info';
 import { Sync } from "@mui/icons-material";
 import { useCartStore } from "@/store/cartStore";
 import axios from "axios";
@@ -46,7 +46,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import { QuantityDialog } from "./components/QuantityDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
-
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<ICategory>(null);
@@ -59,7 +58,7 @@ export default function POSInterface() {
   const { user, loadingContext, gotToPath } = useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
-  const { productos, sales, addSale, markSynced } = useSalesStore();
+  const { productos, sales, addSale, markSynced, markSyncing } = useSalesStore();
   const [showProductsSells, setShowProductsSells] = useState(false);
   const [showSyncView, setShowSyncView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,7 +67,6 @@ export default function POSInterface() {
   const searchAnchorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedProduct, setSelectedProduct] = useState<IProductoTienda | null>(null);
-
   const {
     items: cart,
     total,
@@ -78,8 +76,81 @@ export default function POSInterface() {
   } = useCartStore();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  
+  // Estado para prevenir múltiples sincronizaciones simultáneas (no para pagos)
+  const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(new Set());
 
+  // Sincronización automática cuando regresa la conexión
+  useEffect(() => {
+    const syncPendingSales = async () => {
+      const salesNotSynced = sales.filter((sale) => 
+        sale.syncState === "not_synced" && !syncingIdentifiers.has(sale.identifier)
+      );
+      
+      if (salesNotSynced.length === 0) return;
+
+      console.log(`🔄 Sincronizando automáticamente ${salesNotSynced.length} ventas pendientes...`);
+      showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
+
+      // Marcar como "sincronizando" para evitar duplicados
+      const newSyncingIds = new Set(syncingIdentifiers);
+      salesNotSynced.forEach(sale => newSyncingIds.add(sale.identifier));
+      setSyncingIdentifiers(newSyncingIds);
+
+      let syncedCount = 0;
+      let errorCount = 0;
+
+      for (const sale of salesNotSynced) {
+        try {
+          console.log(`🔄 Sincronizando venta: ${sale.identifier}`);
+          markSyncing(sale.identifier); // Marcar como sincronizando
+          const ventaDb = await createSell(
+            sale.tiendaId,
+            sale.cierreId,
+            sale.usuarioId,
+            sale.total,
+            sale.totalcash,
+            sale.totaltransfer,
+            sale.productos,
+            sale.identifier
+          );
+          markSynced(sale.identifier, ventaDb.id);
+          syncedCount++;
+        } catch (error) {
+          console.error(`❌ Error al sincronizar venta ${sale.identifier}:`, error);
+          errorCount++;
+        } finally {
+          // Remover del set de sincronización
+          setSyncingIdentifiers(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(sale.identifier);
+            return newSet;
+          });
+        }
+      }
+
+      if (syncedCount > 0) {
+        showMessage(`✅ ${syncedCount} ventas sincronizadas correctamente`, "success");
+      }
+      
+      if (errorCount > 0) {
+        showMessage(`⚠️ ${errorCount} ventas no pudieron sincronizarse`, "warning");
+      }
+    };
+
+    // Solo sincronizar si:
+    // 1. Acabamos de recuperar la conexión (isOnline es true)
+    // 2. Hay ventas pendientes de sincronizar
+    // 3. El periodo está cargado
+    if (isOnline && periodo && sales.some(sale => sale.syncState === "not_synced")) {
+      // Pequeño delay para asegurar que la conexión esté estable
+      const timeoutId = setTimeout(() => {
+        syncPendingSales();
+      }, 2000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isOnline, sales, periodo, showMessage, markSynced, syncingIdentifiers]);
 
   useEffect(() => {
     (async () => {
@@ -90,16 +161,13 @@ export default function POSInterface() {
           setLoading(false);
           return;
         }
-
         try {
           const lastPeriod = await fetchLastPeriod(user.tiendaActual.id);
           let message = "";
-
           if (!lastPeriod || lastPeriod.fechaFin) {
             message =
               "No existe un período abierto. Desea abrir un nuevo período?";
           }
-
           if (!lastPeriod || lastPeriod.fechaFin) {
             // Mostrar un mensaje
             confirmDialog(
@@ -133,7 +201,6 @@ export default function POSInterface() {
       }
     })();
   }, [loadingContext]);
-
   const fetchProductosAndCategories = async () => {
     try {
       setLoading(true);
@@ -161,12 +228,10 @@ export default function POSInterface() {
           }
           return true;
         });
-
       const productosTienda = prods.sort((a, b) => {
         return a.nombre.localeCompare(b.nombre);
       });
       setProducts(productosTienda);
-
       const categorias = Object.values(
         prods.reduce((acum, prod) => {
           acum[prod.categoria.id] = prod.categoria;
@@ -183,7 +248,6 @@ export default function POSInterface() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (periodo) {
       fetchProductosAndCategories().catch((error) => {
@@ -195,16 +259,13 @@ export default function POSInterface() {
       });
     }
   }, [periodo]);
-
   const handleOpenProducts = (category: ICategory) => {
     setSelectedCategory(category);
     setShowProducts(true);
   };
-
   const handleCartIcon = () => {
     setOpenCart(true);
   };
-
   const handleMakePay = async (
     total: number,
     totalCash: number,
@@ -214,14 +275,16 @@ export default function POSInterface() {
       if (total <= totalCash + totalTransfer) {
         const tiendaId = user.tiendaActual.id;
         const cierreId = periodo.id;
-
+        const identifier = crypto.randomUUID();
+        
         console.log('🔍 [handleMakePay] Preparando datos de venta:', {
           tiendaId,
           cierreId,
           usuarioId: user.id,
           total,
           totalCash,
-          totalTransfer
+          totalTransfer,
+          identifier
         });
 
         const data = cart.map((prod) => {
@@ -240,11 +303,13 @@ export default function POSInterface() {
         console.log('🔍 [handleMakePay] Productos en carrito:', data);
 
         const cash = total - totalTransfer;
-        const identifier = crypto.randomUUID();
-
-        console.log('🔍 [handleMakePay] Identificador de venta generado:', identifier);
-
-        // Agregar la venta al store local inmediatamente
+        
+        // 1. INMEDIATAMENTE: Vaciar carrito, cerrar modal y drawer
+        clearCart();
+        setPaymentDialog(false);
+        setOpenCart(false);
+        
+        // 2. Agregar la venta al store local
         addSale({
           identifier: identifier,
           cierreId: cierreId,
@@ -257,21 +322,25 @@ export default function POSInterface() {
           syncState: "not_synced",
         });
 
-        // Actualizar inventario local
+        // 3. Actualizar inventario local
         const newProds = products.map((p) => {
           const cartProd = cart.find((cartItem) => cartItem.productoTiendaId === p.productoTiendaId);
-          if(cartProd) {
-            return {...p, existencia: p.existencia - cartProd.quantity}
+          if (cartProd) {
+            return { ...p, existencia: p.existencia - cartProd.quantity }
           } else {
             return p;
           }
         });
         setProducts(newProds);
 
-        // Intentar sincronizar con el backend si estamos online
+        // 4. Mostrar notificación inicial (solo una)
+        showMessage("💳 Procesando venta...", "info");
+
+        // 5. Intentar sincronizar con el backend si estamos online
         if (isOnline) {
           try {
             console.log('🔍 [handleMakePay] Enviando venta al backend...');
+            markSyncing(identifier); // Marcar como sincronizando
             const ventaDb = await createSell(
               tiendaId,
               cierreId,
@@ -284,57 +353,31 @@ export default function POSInterface() {
             );
             console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
             markSynced(identifier, ventaDb.id);
-            showMessage("Venta procesada y sincronizada", "success");
+            showMessage("✅ Venta procesada y sincronizada exitosamente", "success");
           } catch (syncError) {
             console.log('🔍 [handleMakePay] Error de sincronización:', syncError);
-            showMessage("Venta guardada localmente. Se sincronizará cuando haya conexión.", "warning");
+            showMessage("📱 Venta guardada localmente. Se sincronizará automáticamente.", "info");
           }
         } else {
-          showMessage("Venta guardada localmente. Se sincronizará cuando haya conexión.", "info");
+          showMessage("📱 Venta guardada localmente. Se sincronizará cuando haya conexión.", "info");
         }
       }
     } catch (error) {
       console.log(error);
-      showMessage("Error al procesar el pago", "error");
-      throw error;
-    } finally {
+      showMessage("❌ Error al procesar el pago", "error");
+      // En caso de error, también limpiar el carrito para evitar estados inconsistentes
       clearCart();
       setPaymentDialog(false);
+      setOpenCart(false);
+      throw error;
     }
   };
-
-  // const handleSyncSales = async () => {
-  //   const salesNotSynced = sales.filter((sale) => !sale.synced);
-  //   showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
-  //   for (const sale of salesNotSynced) {
-  //     try {
-  //       const ventaDb = await createSell(
-  //         sale.tiendaId,
-  //         sale.cierreId,
-  //         sale.usuarioId,
-  //         sale.total,
-  //         sale.totalcash,
-  //         sale.totaltransfer,
-  //         sale.productos,
-  //         sale.identifier
-  //       );
-  //       markSynced(sale.identifier, ventaDb.id);
-  //     } catch (error) {
-  //       console.log(error);
-  //       showMessage(`Error al sincronizar venta ${sale.identifier}`, "error");
-  //     }
-  //   }
-  //   showMessage("Sincronización completada", "success");
-  // };
-
   const handleShowSyncView = () => {
     setShowSyncView(true);
   };
-
   const handleCloseSyncView = () => {
     setShowSyncView(false);
   };
-
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (query.trim() === "") {
@@ -342,40 +385,24 @@ export default function POSInterface() {
       setShowSearchResults(false);
       return;
     }
-
     const filtered = products.filter((product) =>
       product.nombre.toLowerCase().includes(query.toLowerCase())
     );
-    
+
     setSearchResults(filtered.slice(0, 10)); // Limitar a 10 resultados
     setShowSearchResults(true);
   };
-
   const handleProductSelect = (product: IProductoTienda) => {
     setSelectedProduct(product);
     setShowSearchResults(false);
     setSearchQuery("");
   };
-
   const handleResetProductQuantity = () => {
     setSelectedProduct(null);
   };
-
   const handleConfirmQuantity = () => {
     setSelectedProduct(null);
   };
-
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const open = Boolean(anchorEl);
-  const id = open ? 'simple-popover' : undefined;
-
   if (loadingContext || loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -383,7 +410,6 @@ export default function POSInterface() {
       </Box>
     );
   }
-
   if (noTiendaActual) {
     return (
       <Box p={2}>
@@ -423,59 +449,170 @@ export default function POSInterface() {
 
   return (
     <>
-      <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={2} mt={1}>
-        {periodo && periodo.fechaInicio && (
-          <Typography variant="body1" bgcolor="aliceblue">
-            Corte: {new Date(periodo.fechaInicio).toLocaleDateString()}
-          </Typography>
-        )}
+      {/* Barra superior con información del sistema - posicionada debajo del menú */}
+      <Box
+        sx={{
+          position: "sticky",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          bgcolor: "rgba(255, 255, 255, 0.95)",
+          backdropFilter: "blur(10px)",
+          borderBottom: "1px solid rgba(0,0,0,0.1)",
+          px: 2,
+          py: 1,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          mb: 1,
+        }}
+      >
+        {/* Información del lado izquierdo */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
-            bgcolor: isOnline ? "success.main" : "grey.700",
-            color: "white",
-            px: 1.5,
-            py: 0.5,
-            borderRadius: 1.5,
-            minWidth: 90,
-            flexDirection: "column",
+            gap: 1,
           }}
         >
-          {isOnline ? (
-            "🟢 Online"
-          ) : (
-            <>
-              <Box display="flex" alignItems="center" gap={1}>
-                <span>🔴 Offline</span>
+          {/* Información del corte */}
+          {periodo && periodo.fechaInicio && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                bgcolor: "primary.main",
+                color: "white",
+                px: 2,
+                py: 0.5,
+                borderRadius: "20px",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  bgcolor: "rgba(255,255,255,0.8)",
+                }}
+              />
+              Período: {new Date(periodo.fechaInicio).toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              })}
+            </Box>
+          )}
 
-                <IconButton size="small" color="inherit" onClick={handleClick}>
-                    <InfoIcon fontSize="small" />
-                </IconButton>
-                <Popover
-                    id={id}
-                    open={open}
-                    anchorEl={anchorEl}
-                    onClose={handleClose}
-                    anchorOrigin={{
-                      vertical: 'bottom',
-                      horizontal: 'left',
-                    }}
-                >
-                  <Typography variant="caption" sx={{ textAlign: "center" }}>
-                    La información se sincronizará<br />cuando estés online nuevamente
-                  </Typography>
-
-                </Popover>
-
+          {/* Indicador unificado de ventas pendientes/sincronizando */}
+          {(sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length > 0) && (
+            <Box
+              sx={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+                // Color de fondo dinámico según el estado
+                bgcolor: sales.filter(sale => sale.syncState === "syncing").length > 0 
+                  ? "primary.light" // Azul cuando está sincronizando
+                  : "rgba(255, 152, 0, 0.2)", // Warning claro cuando está offline/pendiente
+                // Color del texto dinámico
+                color: sales.filter(sale => sale.syncState === "syncing").length > 0 
+                  ? "primary.contrastText" 
+                  : "warning.main",
+                // Borde solo cuando está pendiente (offline)
+                border: sales.filter(sale => sale.syncState === "syncing").length > 0 
+                  ? "none" 
+                  : "1px solid",
+                borderColor: "warning.main",
+                px: 1.5,
+                py: 0.5,
+                borderRadius: "16px",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                overflow: "hidden",
+                // Efecto visual solo cuando está sincronizando
+                "&::before": sales.filter(sale => sale.syncState === "syncing").length > 0 ? {
+                  content: '""',
+                  position: "absolute",
+                  top: 0,
+                  left: "-100%",
+                  width: "100%",
+                  height: "100%",
+                  background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
+                  animation: "syncProgress 2s infinite",
+                } : {},
+                "@keyframes syncProgress": {
+                  "0%": { left: "-100%" },
+                  "100%": { left: "100%" },
+                },
+              }}
+            >
+              {/* Spinner solo cuando está sincronizando */}
+              {sales.filter(sale => sale.syncState === "syncing").length > 0 && (
+                <CircularProgress 
+                  size={12} 
+                  sx={{ 
+                    color: "primary.contrastText",
+                    zIndex: 1 // Para que esté encima del gradiente
+                  }} 
+                />
+              )}
+              
+              {/* Texto dinámico según el estado */}
+              <Box sx={{ zIndex: 1 }}>
+                {sales.filter(sale => sale.syncState === "syncing").length > 0 
+                  ? `${sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length} sincronizando`
+                  : `${sales.filter(sale => sale.syncState === "not_synced").length} pendientes`
+                }
               </Box>
-
-            </>
+            </Box>
           )}
         </Box>
+
+        {/* Estado de conexión del lado derecho - Solo se muestra si no hay ventas pendientes ni sincronizando */}
+        {sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length === 0 && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              bgcolor: isOnline ? "success.main" : "warning.main",
+              color: "white",
+              px: 1.5,
+              py: 0.5,
+              borderRadius: "16px",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              transition: "all 0.3s ease",
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                bgcolor: "rgba(255,255,255,0.9)",
+                animation: isOnline ? "none" : "pulse 2s infinite",
+                "@keyframes pulse": {
+                  "0%": { opacity: 1 },
+                  "50%": { opacity: 0.5 },
+                  "100%": { opacity: 1 },
+                },
+              }}
+            />
+            {isOnline ? "Conectado" : "Desconectado"}
+          </Box>
+        )}
       </Box>
 
-      <Box 
+      {/* Contenido principal */}
+      <Box
         sx={{
           display: "grid",
           gridTemplateColumns: {
@@ -532,7 +669,6 @@ export default function POSInterface() {
                 zIndex: 1,
               }}
             />
-
             {/* Overlay que se oscurece al hover */}
             <Box
               className="category-overlay"
@@ -548,7 +684,6 @@ export default function POSInterface() {
                 zIndex: 2,
               }}
             />
-
             {/* Contenido de la categoría */}
             <Box
               className="category-content"
@@ -578,10 +713,10 @@ export default function POSInterface() {
                   fontSize: { xs: "1rem", sm: "1.25rem" },
                   textAlign: "center",
                   textShadow: `
-                    0 0 1px rgba(0,0,0,0.8),
-                    0 0 2px rgba(0,0,0,0.8),
-                    0 0 3px rgba(0,0,0,0.8)
-                  `,
+              0 0 1px rgba(0,0,0,0.8),
+              0 0 2px rgba(0,0,0,0.8),
+              0 0 3px rgba(0,0,0,0.8)
+            `,
                   mb: 0.5,
                   width: "100%",
                   overflow: "hidden",
@@ -591,7 +726,7 @@ export default function POSInterface() {
               >
                 {category.nombre}
               </Typography>
-              
+
               {/* Indicador de toque */}
               <Box
                 sx={{
@@ -604,7 +739,6 @@ export default function POSInterface() {
                 }}
               />
             </Box>
-
             {/* Efecto de brillo */}
             <Box
               sx={{
@@ -621,7 +755,6 @@ export default function POSInterface() {
           </Box>
         ))}
       </Box>
-
       {selectedCategory && (
         <ProductModal
           open={showProducts}
@@ -633,7 +766,6 @@ export default function POSInterface() {
           openCart={() => setOpenCart(true)}
         />
       )}
-
       <CartDrawer
         cart={cart}
         onClose={() => setOpenCart(false)}
@@ -644,7 +776,6 @@ export default function POSInterface() {
         removeItem={removeFromCart}
         updateQuantity={updateQuantity}
       />
-
       <PaymentModal
         open={paymentDialog}
         onClose={() => setPaymentDialog(false)}
@@ -653,19 +784,16 @@ export default function POSInterface() {
           handleMakePay(total, totalchash, totaltransfer)
         }
       />
-
       <ProducsSalesDrawer
         setShowProducts={setShowProductsSells}
         showProducts={showProductsSells}
         productos={productos}
       />
-
       <SalesDrawer
         showSales={showSyncView}
         handleClose={() => handleCloseSyncView()}
         period={periodo}
       />
-
       {productos.length > 0 && (
         <SpeedDial
           ariaLabel="Offline mode"
@@ -692,7 +820,6 @@ export default function POSInterface() {
             }}
             onClick={handleShowSyncView}
           />
-
           <SpeedDialAction
             key={"sells"}
             icon={<CancelPresentationIcon />}
@@ -706,7 +833,6 @@ export default function POSInterface() {
           />
         </SpeedDial>
       )}
-
       {cart.length > 0 && !openCart && (
         <Fab
           color="primary"
@@ -719,7 +845,6 @@ export default function POSInterface() {
           </Badge>
         </Fab>
       )}
-
       {/* Buscador flotante */}
       <Box
         ref={searchAnchorRef}
@@ -773,7 +898,6 @@ export default function POSInterface() {
           }}
         />
       </Box>
-
       {/* Popper para resultados de búsqueda */}
       <Popper
         open={showSearchResults && searchResults.length > 0}
@@ -840,13 +964,11 @@ export default function POSInterface() {
           </Fade>
         )}
       </Popper>
-
       <QuantityDialog
         product={selectedProduct}
         onClose={handleResetProductQuantity}
         onConfirm={handleConfirmQuantity}
       />
-
       {ConfirmDialogComponent}
     </>
   );

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { CreateMoviento } from "@/lib/movimiento";
 import { IVenta } from "@/types/IVenta";
 
 // Crear una venta
@@ -24,17 +23,38 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       productos
     });
 
-    if (!tiendaId || !usuarioId || !cierreId || !productos.length) {
+    if (!tiendaId || !usuarioId || !cierreId || !productos.length || !syncId) {
       console.error('❌ [POST /api/venta] Datos insuficientes:', {
         tiendaId,
         usuarioId,
         cierreId,
-        productosLength: productos.length
+        productosLength: productos.length,
+        syncId
       });
       return NextResponse.json({ error: "Datos insuficientes para crear la venta" }, { status: 400 });
     }
 
-    // Buscar el último período abierto
+    // Verificar si ya existe una venta con este syncId (idempotencia)
+    const existeVenta = await prisma.venta.findFirst({
+      where: {
+        syncId: syncId
+      },
+      include: {
+        productos: true
+      }
+    });
+
+    console.log('🔍 [POST /api/venta] Verificando venta existente:', {
+      syncId,
+      existeVenta: !!existeVenta
+    });
+
+    if (existeVenta) {
+      console.log('🔍 [POST /api/venta] Venta ya existe, retornando:', existeVenta);
+      return NextResponse.json(existeVenta, { status: 200 });
+    }
+
+    // Buscar el período
     const periodoActual = await prisma.cierrePeriodo.findUnique({
       where: {
         id: cierreId
@@ -43,22 +63,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
     console.log('🔍 [POST /api/venta] Período actual:', periodoActual);
 
-    const existeVenta = syncId ? await prisma.venta.findFirst({
-      where: {
-        syncId: syncId
-      }
-    }) : false;
+    if (!periodoActual) {
+      return NextResponse.json({ error: "Período no encontrado" }, { status: 404 });
+    }
 
-    console.log('🔍 [POST /api/venta] Verificando venta existente:', {
-      syncId,
-      existeVenta: !!existeVenta
-    });
+    // **TRANSACCIÓN ATÓMICA: Todo o nada**
+    const result = await prisma.$transaction(async (tx) => {
+      console.log('🔍 [POST /api/venta] Iniciando transacción atómica...');
 
-    if(!existeVenta) {
-      console.log('🔍 [POST /api/venta] Creando nueva venta...');
-
-      // Verificar que todos los productos existen
-      const productosExistentes = await prisma.productoTienda.findMany({
+      // 1. Verificar que todos los productos existen
+      const productosExistentes = await tx.productoTienda.findMany({
         where: {
           id: {
             in: productos.map(p => p.productoTiendaId)
@@ -66,7 +80,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         },
         select: {
           id: true,
-          productoId: true
+          productoId: true,
+          existencia: true
         }
       });
 
@@ -78,119 +93,207 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
       if (productosNoEncontrados.length > 0) {
         console.error('❌ [POST /api/venta] Productos no encontrados:', productosNoEncontrados);
-        return NextResponse.json({ 
-          error: "Algunos productos no existen en la tienda",
-          productosNoEncontrados 
-        }, { status: 400 });
+        throw new Error(`Productos no encontrados: ${productosNoEncontrados.map(p => p.name).join(', ')}`);
       }
 
-      const venta = await prisma.venta.create({
+      // 2. Crear la venta
+      const venta = await tx.venta.create({
         data: {
           tiendaId,
           usuarioId,
           total,
           totalcash,
           totaltransfer,
-          cierrePeriodoId: periodoActual?.id || null,
+          cierrePeriodoId: periodoActual.id,
           syncId,
           productos: {
             create: productos.map((p) => ({
               productoTiendaId: p.productoTiendaId,
               cantidad: p.cantidad,
-              id: p.id
             })),
           },
         },
+        include: {
+          productos: true
+        }
       });
 
-      console.log('🔍 [POST /api/venta] Venta creada exitosamente:', venta);
-  
-      // Revisar si en la venta hay productos fraccionables
-      const productosFraccionablesData = await prisma.productoTienda.findMany({
-        where: {
-          AND: {
-            id:{
-               in: productos.map(p => p.productoTiendaId)
-            },
-            producto: {
-              fraccionDeId: {
-                not: {
-                  equals: null
-                }
-              }
+      console.log('🔍 [POST /api/venta] Venta creada:', venta.id);
+
+      // 3. Crear movimientos de stock y actualizar existencias
+      for (const producto of productos) {
+        const productoTienda = productosExistentes.find(p => p.id === producto.productoTiendaId);
+        if (!productoTienda) continue;
+
+        const existenciaAnterior = productoTienda.existencia;
+
+        // Actualizar existencia
+        await tx.productoTienda.update({
+          where: { id: producto.productoTiendaId },
+          data: {
+            existencia: {
+              decrement: producto.cantidad
             }
-          }        
+          }
+        });
+
+        // Crear movimiento de venta
+        await tx.movimientoStock.create({
+          data: {
+            tipo: 'VENTA',
+            cantidad: producto.cantidad,
+            productoTiendaId: producto.productoTiendaId,
+            tiendaId,
+            usuarioId,
+            existenciaAnterior,
+            referenciaId: venta.id,
+            motivo: `Venta ${venta.id}`
+          }
+        });
+
+        console.log(`🔍 [POST /api/venta] Movimiento creado para producto ${producto.productoTiendaId}: -${producto.cantidad}`);
+      }
+
+      // 4. Manejar productos fraccionables (si aplica)
+      const productosFraccionables = await tx.productoTienda.findMany({
+        where: {
+          id: {
+            in: productos.map(p => p.productoTiendaId)
+          },
+          producto: {
+            fraccionDeId: {
+              not: null
+            }
+          }
         },
         include: {
           producto: {
             select: {
               fraccionDeId: true,
-              unidadesPorFraccion: true,
+              unidadesPorFraccion: true
             }
           }
-        },
+        }
       });
 
-      console.log('🔍 [POST /api/venta] Productos fraccionables encontrados:', productosFraccionablesData);
-  
-      // En caso que los haya, revisar que la cantidad solicitada está en existencia
-      if(productosFraccionablesData.length > 0) {
+      if (productosFraccionables.length > 0) {
+        console.log('🔍 [POST /api/venta] Procesando productos fraccionables:', productosFraccionables.length);
+
+        const productosFraccionablesData = productosFraccionables.filter(pf => pf.producto.fraccionDeId);
+        
         const productosFraccionablesNeedDesagregateData = productosFraccionablesData
           .filter((prodFracc) => {
             const prod = productos.find(p => p.productoTiendaId === prodFracc.id);
-            if(prod) {
-              if(prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
-                throw Error(`Vendes mas unidades sueltas de las que lleva una caja en una misma venta`)
+            if (prod) {
+              if (prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
+                throw new Error(`Vendes más unidades sueltas de las que lleva una caja en una misma venta`);
               }
               return prodFracc.existencia < prod.cantidad;
-            } else {
-              return false;
             }
+            return false;
           });
+
         const itemsDesagregaciónBaja = [];
         const itemsDesagregaciónAlta = [];
-  
+
         productosFraccionablesNeedDesagregateData.forEach((item) => {
-          
           itemsDesagregaciónAlta.push({
             cantidad: item.producto.unidadesPorFraccion,
             productoId: item.productoId
-          })
+          });
           itemsDesagregaciónBaja.push({
             cantidad: 1,
             productoId: item.producto.fraccionDeId
-          })
+          });
         });
-  
-        if(itemsDesagregaciónBaja.length > 0){
-          await CreateMoviento({
-            tipo: "DESAGREGACION_BAJA",
-            tiendaId: tiendaId,
-            usuarioId: usuarioId,
-            referenciaId: venta.id
-            
-          }, itemsDesagregaciónBaja);
+
+        // Crear movimientos de desagregación dentro de la misma transacción
+        if (itemsDesagregaciónBaja.length > 0) {
+          for (const item of itemsDesagregaciónBaja) {
+            const productoTiendaDesagregar = await tx.productoTienda.findFirst({
+              where: {
+                tiendaId,
+                productoId: item.productoId
+              }
+            });
+
+            if (productoTiendaDesagregar) {
+              const existenciaAnterior = productoTiendaDesagregar.existencia;
+
+              await tx.productoTienda.update({
+                where: { id: productoTiendaDesagregar.id },
+                data: {
+                  existencia: {
+                    decrement: item.cantidad
+                  }
+                }
+              });
+
+              await tx.movimientoStock.create({
+                data: {
+                  tipo: "DESAGREGACION_BAJA",
+                  cantidad: item.cantidad,
+                  productoTiendaId: productoTiendaDesagregar.id,
+                  tiendaId,
+                  usuarioId,
+                  existenciaAnterior,
+                  referenciaId: venta.id
+                }
+              });
+            }
+          }
         }
-  
-        if(itemsDesagregaciónAlta.length > 0) {
-          await CreateMoviento({
-            tipo: "DESAGREGACION_ALTA",
-            tiendaId: tiendaId,
-            usuarioId: usuarioId,
-            referenciaId: venta.id
-          }, itemsDesagregaciónAlta);
+
+        if (itemsDesagregaciónAlta.length > 0) {
+          for (const item of itemsDesagregaciónAlta) {
+            const productoTiendaAgregar = await tx.productoTienda.findFirst({
+              where: {
+                tiendaId,
+                productoId: item.productoId
+              }
+            });
+
+            if (productoTiendaAgregar) {
+              const existenciaAnterior = productoTiendaAgregar.existencia;
+
+              await tx.productoTienda.update({
+                where: { id: productoTiendaAgregar.id },
+                data: {
+                  existencia: {
+                    increment: item.cantidad
+                  }
+                }
+              });
+
+              await tx.movimientoStock.create({
+                data: {
+                  tipo: "DESAGREGACION_ALTA",
+                  cantidad: item.cantidad,
+                  productoTiendaId: productoTiendaAgregar.id,
+                  tiendaId,
+                  usuarioId,
+                  existenciaAnterior,
+                  referenciaId: venta.id
+                }
+              });
+            }
+          }
         }
-  
       }
-      
-      return NextResponse.json(venta, { status: 201 });
-    } else {
-      console.log('🔍 [POST /api/venta] Venta ya existe, retornando:', existeVenta);
-      return NextResponse.json(existeVenta, { status: 201 });
-    }
+
+      console.log('🔍 [POST /api/venta] Transacción completada exitosamente');
+      return venta;
+    });
+
+    console.log('🔍 [POST /api/venta] Venta y movimientos creados exitosamente:', result.id);
+    return NextResponse.json(result, { status: 201 });
+
   } catch (error) {
-    console.error('❌ [POST /api/venta] Error al crear la venta:', error);
-    return NextResponse.json({ error: "Error al crear la venta" }, { status: 500 });
+    console.error('❌ [POST /api/venta] Error en transacción:', error);
+    return NextResponse.json(
+      { error: error.message || "Error al crear la venta" },
+      { status: 500 }
+    );
   }
 }
 
