@@ -49,7 +49,6 @@ const CierreCajaPage = () => {
   const { clearSales, sales } = useSalesStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleCerrarCaja = async () => {
     if(sales.filter(sale => !sale.synced).length > 0) {
