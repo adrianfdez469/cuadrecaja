@@ -25,6 +25,7 @@ import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
 import { ITipoMovimiento } from "@/types/IMovimiento";
 import { TIPOS_MOVIMIENTO_MANUAL, TIPO_MOVIMIENTO_LABELS } from "@/constants/movimientos";
+import useConfirmDialog from "@/components/confirmDialog";
 
 interface IProductoMovimiento {
   productoId: string;
@@ -54,6 +55,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const { showMessage } = useMessageContext();
   const [motivo, setMotivo] = useState("");
   const { user } = useAppContext();
+  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
 
   const handleClose = () => {
     if (!saving) {
@@ -69,7 +71,19 @@ export const AddMovimientoDialog: FC<IProps> = ({
   };
 
   const handleEliminarProducto = (index: number) => {
-    setItemsProductos(itemsProductos.filter((_, i) => i !== index));
+    if (itemsProductos.length === 1) {
+      return; // No eliminar si es el único producto
+    }
+
+    const producto = productos.find(p => p.id === itemsProductos[index].productoId);
+    const nombreProducto = producto ? producto.nombre : "este producto";
+    
+    confirmDialog(
+      `¿Estás seguro de que deseas eliminar "${nombreProducto}" del movimiento?`,
+      () => {
+        setItemsProductos(itemsProductos.filter((_, i) => i !== index));
+      }
+    );
   };
 
   const handleChangeProducto = (index: number, field: keyof IProductoMovimiento, value: string | number) => {
@@ -155,167 +169,171 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const esCompra = tipo === "COMPRA";
 
   return (
-    <Dialog open={dialogOpen} onClose={handleClose} fullWidth maxWidth="md">
-      <DialogTitle>Crear Movimiento</DialogTitle>
-      <DialogContent>
-        <TextField
-          select
-          label="Tipo de Movimiento"
-          value={tipo}
-          onChange={(e) => setTipo(e.target.value as ITipoMovimiento)}
-          fullWidth
-          margin="normal"
-        >
-          {TIPOS_MOVIMIENTO_MANUAL.map((tipoMovimiento) => (
-            <MenuItem key={tipoMovimiento} value={tipoMovimiento}>
-              {TIPO_MOVIMIENTO_LABELS[tipoMovimiento]}
-            </MenuItem>
-          ))}
-        </TextField>
-
-        {(tipo === "AJUSTE_ENTRADA" || tipo === "AJUSTE_SALIDA") && (
+    <>
+      <Dialog open={dialogOpen} onClose={handleClose} fullWidth maxWidth="md">
+        <DialogTitle>Crear Movimiento</DialogTitle>
+        <DialogContent>
           <TextField
-            label="Motivo"
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
+            select
+            label="Tipo de Movimiento"
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as ITipoMovimiento)}
             fullWidth
             margin="normal"
-            placeholder="Describe el motivo del ajuste..."
-          />
-        )}
+          >
+            {TIPOS_MOVIMIENTO_MANUAL.map((tipoMovimiento) => (
+              <MenuItem key={tipoMovimiento} value={tipoMovimiento}>
+                {TIPO_MOVIMIENTO_LABELS[tipoMovimiento]}
+              </MenuItem>
+            ))}
+          </TextField>
 
-        <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
-          Productos
-        </Typography>
+          {(tipo === "AJUSTE_ENTRADA" || tipo === "AJUSTE_SALIDA") && (
+            <TextField
+              label="Motivo"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              fullWidth
+              margin="normal"
+              placeholder="Describe el motivo del ajuste..."
+            />
+          )}
 
-        {itemsProductos.map((p, index) => (
-          <Box key={index} sx={{ mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={esCompra ? 6 : 8}>
-                <FormControl fullWidth>
-                  <InputLabel id={`prod-select-label-${index}`}>Producto</InputLabel>
-                  <Select
-                    labelId={`prod-select-label-${index}`}
-                    value={p.productoId}
-                    label="Producto"
+          <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
+            Productos
+          </Typography>
+
+          {itemsProductos.map((p, index) => (
+            <Box key={index} sx={{ mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={esCompra ? 6 : 8}>
+                  <FormControl fullWidth>
+                    <InputLabel id={`prod-select-label-${index}`}>Producto</InputLabel>
+                    <Select
+                      labelId={`prod-select-label-${index}`}
+                      value={p.productoId}
+                      label="Producto"
+                      onChange={(e) =>
+                        handleChangeProducto(index, "productoId", e.target.value)
+                      }
+                    >
+                      {productos.map((producto) => (
+                        <MenuItem key={producto.id} value={producto.id}>
+                          {producto.nombre}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={6} sm={esCompra ? 3 : 2}>
+                  <TextField
+                    label="Cantidad"
+                    type="number"
+                    value={p.cantidad || ""}
                     onChange={(e) =>
-                      handleChangeProducto(index, "productoId", e.target.value)
+                      handleChangeProducto(index, "cantidad", e.target.value)
                     }
+                    fullWidth
+                    inputProps={{ min: 1, step: 1 }}
+                  />
+                </Grid>
+
+                <Grid item xs={6} sm={esCompra ? 2 : 2}>
+                  <IconButton 
+                    onClick={() => handleEliminarProducto(index)}
+                    color="error"
+                    disabled={itemsProductos.length === 1}
                   >
-                    {productos.map((producto) => (
-                      <MenuItem key={producto.id} value={producto.id}>
-                        {producto.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                    <DeleteIcon />
+                  </IconButton>
+                </Grid>
+
+                {esCompra && (
+                  <>
+                    <Grid item xs={6} sm={4}>
+                      <TextField
+                        label="Costo Unitario"
+                        type="number"
+                        value={p.costoUnitario || ""}
+                        onChange={(e) =>
+                          handleChangeProducto(index, "costoUnitario", e.target.value)
+                        }
+                        fullWidth
+                        InputProps={{
+                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                        }}
+                        inputProps={{ min: 0, step: 0.01 }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={6} sm={4}>
+                      <TextField
+                        label="Costo Total"
+                        type="number"
+                        value={p.costoTotal || ""}
+                        onChange={(e) =>
+                          handleChangeProducto(index, "costoTotal", e.target.value)
+                        }
+                        fullWidth
+                        InputProps={{
+                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                        }}
+                        inputProps={{ min: 0, step: 0.01 }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={12} sm={4}>
+                      <Box sx={{ p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Total del producto
+                        </Typography>
+                        <Typography variant="h6" color="primary">
+                          ${(p.costoTotal || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </>
+                )}
               </Grid>
+            </Box>
+          ))}
 
-              <Grid item xs={6} sm={esCompra ? 3 : 2}>
-                <TextField
-                  label="Cantidad"
-                  type="number"
-                  value={p.cantidad || ""}
-                  onChange={(e) =>
-                    handleChangeProducto(index, "cantidad", e.target.value)
-                  }
-                  fullWidth
-                  inputProps={{ min: 1, step: 1 }}
-                />
-              </Grid>
+          <Button
+            sx={{ mt: 2 }}
+            onClick={handleAgregarProducto}
+            disabled={isFormValid()}
+            variant="outlined"
+            fullWidth
+          >
+            + Agregar otro producto
+          </Button>
 
-              <Grid item xs={6} sm={esCompra ? 2 : 2}>
-                <IconButton 
-                  onClick={() => handleEliminarProducto(index)}
-                  color="error"
-                  disabled={itemsProductos.length === 1}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Grid>
-
-              {esCompra && (
-                <>
-                  <Grid item xs={6} sm={4}>
-                    <TextField
-                      label="Costo Unitario"
-                      type="number"
-                      value={p.costoUnitario || ""}
-                      onChange={(e) =>
-                        handleChangeProducto(index, "costoUnitario", e.target.value)
-                      }
-                      fullWidth
-                      InputProps={{
-                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                      }}
-                      inputProps={{ min: 0, step: 0.01 }}
-                    />
-                  </Grid>
-
-                  <Grid item xs={6} sm={4}>
-                    <TextField
-                      label="Costo Total"
-                      type="number"
-                      value={p.costoTotal || ""}
-                      onChange={(e) =>
-                        handleChangeProducto(index, "costoTotal", e.target.value)
-                      }
-                      fullWidth
-                      InputProps={{
-                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                      }}
-                      inputProps={{ min: 0, step: 0.01 }}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={4}>
-                    <Box sx={{ p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Total del producto
-                      </Typography>
-                      <Typography variant="h6" color="primary">
-                        ${(p.costoTotal || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </>
-              )}
-            </Grid>
-          </Box>
-        ))}
-
-        <Button
-          sx={{ mt: 2 }}
-          onClick={handleAgregarProducto}
-          disabled={isFormValid()}
-          variant="outlined"
-          fullWidth
-        >
-          + Agregar otro producto
-        </Button>
-
-        {esCompra && (
-          <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
-            <Typography variant="h6" color="primary">
-              Total General: ${itemsProductos.reduce((sum, item) => sum + (item.costoTotal || 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-            </Typography>
-          </Box>
-        )}
-      </DialogContent>
+          {esCompra && (
+            <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
+              <Typography variant="h6" color="primary">
+                Total General: ${itemsProductos.reduce((sum, item) => sum + (item.costoTotal || 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        
+        <DialogActions>
+          <Button onClick={handleClose} startIcon={<CloseIcon />}>
+            Cancelar
+          </Button>
+          <Button
+            disabled={isFormValid() || saving}
+            startIcon={<SaveIcon />}
+            variant="contained"
+            onClick={handleGuardar}
+          >
+            {saving ? "Guardando..." : "Guardar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
       
-      <DialogActions>
-        <Button onClick={handleClose} startIcon={<CloseIcon />}>
-          Cancelar
-        </Button>
-        <Button
-          disabled={isFormValid() || saving}
-          startIcon={<SaveIcon />}
-          variant="contained"
-          onClick={handleGuardar}
-        >
-          {saving ? "Guardando..." : "Guardar"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+      {ConfirmDialogComponent}
+    </>
   );
 };
