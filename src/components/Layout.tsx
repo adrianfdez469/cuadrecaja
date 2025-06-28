@@ -55,7 +55,8 @@ import {
   AccountBalanceWallet,
   SwapVert,
   Inventory,
-  Summarize
+  Summarize,
+  GridView,
 } from '@mui/icons-material';
 
 const configurationMenuItems = [
@@ -91,6 +92,7 @@ const mainMenuItems = [
   { label: "Dashboard", path: "/dashboard", icon: <Analytics /> },
   { label: "POS", path: "/pos", icon: <PointOfSale /> },
   { label: "Ventas", path: "/ventas", icon: <Receipt /> },
+  { label: "Costos y Precios", path: "/costos_precios", icon: <GridView /> },
   { label: "Inventario", path: "/inventario", icon: <Inventory /> },
   { label: "Movimientos", path: "/movimientos", icon: <SwapVert /> },
   { label: "Cierre", path: "/cierre", icon: <AccountBalanceWallet /> },
