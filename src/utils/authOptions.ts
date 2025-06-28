@@ -8,6 +8,7 @@ import dayjs from 'dayjs';
 export const authOptions:NextAuthOptions  = {
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 días en segundos (1 mes)
   },
   providers: [
     CredentialsProvider({
@@ -80,8 +81,8 @@ export const authOptions:NextAuthOptions  = {
       if(user) {
 
         if (!token.expCustom) {
-          const tomorrowAt6AM = dayjs().add(1, 'day').set('hour', 6).set('minute', 0).set('second', 0);
-          token.expCustom = tomorrowAt6AM.toISOString(); // timestamp en milisegundos
+          const oneMonthFromNow = dayjs().add(1, 'month');
+          token.expCustom = oneMonthFromNow.toISOString(); // Token válido por 1 mes
         }
 
         if (token.expCustom && dayjs().isBefore(new Date(token.expCustom))) {
