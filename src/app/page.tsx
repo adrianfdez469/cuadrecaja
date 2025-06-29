@@ -31,13 +31,22 @@ import {
   Summarize
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 const HomePage = () => {
   const { loadingContext, user } = useAppContext();
   const router = useRouter();
+  const { isOnline } = useNetworkStatus();
 
   const handleNavigate = (path: string) => {
-    router.push(path);
+    if (!isOnline) {
+      // Si estamos offline, usar navegación del lado del cliente
+      console.log('🌐 [HomePage] Navegación offline detectada, usando window.location:', path);
+      window.location.href = path;
+    } else {
+      // Si estamos online, usar navegación normal de Next.js
+      router.push(path);
+    }
   };
 
   if (loadingContext) {
@@ -58,7 +67,7 @@ const HomePage = () => {
     );
   }
 
-  if (user.tiendas.length === 0) {
+  if (user && user.tiendas.length === 0) {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Paper 
@@ -112,8 +121,19 @@ const HomePage = () => {
       </Container>
     );
   }
+  
+  if(!user){
+    return (
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          Debe iniciar sesión para continuar
+        </Alert>
+      </Container>
+    );
+  }
 
-  if (!user.tiendaActual) {
+
+  if (!user || !user.tiendaActual) {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Alert severity="warning" sx={{ mb: 3 }}>

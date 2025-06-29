@@ -47,6 +47,7 @@ import ChangeCircleIcon from '@mui/icons-material/ChangeCircleOutlined';
 import NextWeekIcon from '@mui/icons-material/NextWeekOutlined';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
+import { OfflineNavigationHandler } from './OfflineNavigationHandler';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
 import { 
   Analytics, 
@@ -58,6 +59,9 @@ import {
   Summarize,
   GridView,
 } from '@mui/icons-material';
+import { ILocal } from '@/types/ILocal';
+import { useOfflineAuth } from '@/hooks/useOfflineAuth';
+import { PWAInstallPrompt } from './PWAInstallPrompt';
 
 const configurationMenuItems = [
   {
@@ -101,21 +105,38 @@ const mainMenuItems = [
 
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [open, setOpen] = useState(false);
-  const { user, isAuth, handleLogout, goToLogin, gotToPath } = useAppContext();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openSelectTienda, setOpenSelectTienda] = useState(false);
   const [openSelectNegocio, setOpenSelectNegocio] = useState(false);
+  const [tiendasDisponibles, setTiendasDisponibles] = useState<ILocal[]>([]);
+  const [loadingTiendas, setLoadingTiendas] = useState(false);
+  const [loadingNegocios, setLoadingNegocios] = useState(false);
+  const [negocios, setNegocios] = useState<INegocio[]>([]);
+  const [totalTiendasDisponibles, setTotalTiendasDisponibles] = useState(0);
   const [cambiandoNegocio, setCambiandoNegocio] = useState(false);
   const [negocioRecienCambiado, setNegocioRecienCambiado] = useState(false);
-  const selectorTiendaAbiertoRef = useRef(false);
-  const { update, data: session } = useSession();
+
+  // Usar autenticación offline híbrida
+  const { 
+    session, 
+    status, 
+    source: sessionSource, 
+    isOfflineMode,
+    clearOfflineSession
+  } = useOfflineAuth();
+  
+  const { update } = useSession(); // Solo para actualizar sesión online
+  const { user, isAuth, handleLogout: contextHandleLogout, goToLogin, gotToPath } = useAppContext();
   const { showMessage } = useMessageContext();
-  const [negocios, setNegocios] = useState<INegocio[]>([]);
-  const [loadingNegocios, setLoadingNegocios] = useState(false);
-  const [tiendasDisponibles, setTiendasDisponibles] = useState([]);
-  const [loadingTiendas, setLoadingTiendas] = useState(false);
-  const [totalTiendasDisponibles, setTotalTiendasDisponibles] = useState(0);
   const { isOnline, wasOffline } = useNetworkStatus();
+  
+  // Estados para manejo robusto de redirección
+  const [sessionLostTimestamp, setSessionLostTimestamp] = useState<Date | null>(null);
+  const [graceTimeoutId, setGraceTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  // const [isInGracePeriod, setIsInGracePeriod] = useState(false);
+  
+  // Referencia para evitar múltiples aperturas del selector
+  const selectorTiendaAbiertoRef = useRef(false);
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -284,25 +305,118 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     }
   }, [isAuth, user?.tiendaActual, totalTiendasDisponibles, openSelectTienda, cambiandoNegocio, negocioRecienCambiado]);
 
+  // Lógica de redirección modificada para autenticación offline
   useEffect(() => {
-    // Solo verificar expiración si hay sesión
-    if (session?.user.expiresAt && new Date() > new Date(session.user.expiresAt)) {
-      signOut();
+    // Limpiar timeout anterior si existe
+    if (graceTimeoutId) {
+      clearTimeout(graceTimeoutId);
+      setGraceTimeoutId(null);
     }
-    
-    // Verificar si hay conexión antes de redirigir al login
-    // Esto evita que la app se recargue cuando está funcionando offline
-    // Solo redirigir si:
-    // 1. No hay sesión
-    // 2. Estamos online (para evitar problemas offline)
-    // 3. No estuvimos offline recientemente (para evitar redirecciones después de reconectar)
-    if (!session && isOnline && !wasOffline) {
-      goToLogin();
+
+    // Solo aplicar lógica de redirección si no estamos en modo offline
+    if (!isOfflineMode) {
+      // Manejo robusto de pérdida de sesión (solo para sesiones online)
+      if (!session && status !== 'loading') {
+        // Si no hay sesión y no estamos cargando
+        if (!sessionLostTimestamp) {
+          // Primera vez que detectamos pérdida de sesión
+          console.log('🔍 [Layout] Sesión perdida detectada, iniciando período de gracia');
+          setSessionLostTimestamp(new Date());
+          // setIsInGracePeriod(true);
+          
+          // Iniciar período de gracia más largo para reconexión
+          const timeoutId = setTimeout(() => {
+            console.log('🔍 [Layout] Período de gracia terminado, evaluando redirección');
+            // setIsInGracePeriod(false);
+            
+            // Solo redirigir si:
+            // 1. Seguimos sin sesión
+            // 2. Estamos online (no offline)
+            // 3. No estuvimos offline recientemente (para evitar redirecciones post-reconexión)
+            // 4. No estamos en una página crítica como POS
+            const currentPath = window.location.pathname;
+            const isCriticalPage = currentPath.includes('/pos') || 
+                                  currentPath.includes('/dashboard') ||
+                                  currentPath.includes('/ventas');
+            
+            if (!session && isOnline && !wasOffline && !isCriticalPage) {
+              console.log('🔍 [Layout] Redirigiendo al login después del período de gracia');
+              goToLogin();
+            } else {
+              console.log('🔍 [Layout] No redirigiendo - condiciones no cumplidas:', {
+                hasSession: !!session,
+                isOnline,
+                wasOffline,
+                isCriticalPage,
+                currentPath
+              });
+            }
+          }, 15000); // 15 segundos de gracia (aumentado significativamente)
+          
+          setGraceTimeoutId(timeoutId);
+        }
+      } else if (session && sessionLostTimestamp) {
+        // Sesión recuperada
+        console.log('🔍 [Layout] Sesión recuperada, cancelando período de gracia');
+        setSessionLostTimestamp(null);
+        // setIsInGracePeriod(false);
+        if (graceTimeoutId) {
+          clearTimeout(graceTimeoutId);
+          setGraceTimeoutId(null);
+        }
+      }
+
+      // Verificar expiración de token solo si tenemos sesión online
+      if (session?.user.expiresAt && sessionSource === 'online') {
+        const now = new Date();
+        const expiresAt = new Date(session.user.expiresAt);
+        const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+        
+        // Solo cerrar sesión si realmente expiró y no estamos offline
+        if (timeUntilExpiry < 0 && isOnline && !wasOffline) {
+          console.log('🔍 [Layout] Token realmente expirado, cerrando sesión');
+          signOut();
+        } else if (timeUntilExpiry < 0) {
+          console.log('🔍 [Layout] Token expirado pero estamos offline, manteniendo sesión');
+        }
+      }
+    } else {
+      // En modo offline, limpiar cualquier timeout de redirección
+      console.log('📱 [Layout] Modo offline activo, cancelando redirecciones');
+      if (graceTimeoutId) {
+        clearTimeout(graceTimeoutId);
+        setGraceTimeoutId(null);
+      }
+      setSessionLostTimestamp(null);
+      // setIsInGracePeriod(false);
     }
-  }, [session, isOnline, wasOffline]);
+
+    // Cleanup al desmontar
+    return () => {
+      if (graceTimeoutId) {
+        clearTimeout(graceTimeoutId);
+      }
+    };
+  }, [session, status, sessionSource, isOfflineMode, isOnline, wasOffline, sessionLostTimestamp, graceTimeoutId]);
+
+  // Función de logout personalizada que limpia sesión offline
+  const handleLogout = async () => {
+    console.log('📱 [Layout] Logout iniciado - limpiando sesión offline');
+    clearOfflineSession();
+    await contextHandleLogout();
+  };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      {/* Componente para manejo de navegación offline */}
+      <OfflineNavigationHandler />
+      
+      {/* Prompt de instalación PWA */}
+      <PWAInstallPrompt />
+      
+      {/* Banner offline - siempre visible cuando no hay conexión */}
+      <OfflineBanner />
+
       {/* Barra superior mejorada */}
       <AppBar 
         position="static" 
@@ -486,9 +600,6 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
       {isAuth && (
         <>
-          {/* Banner de estado offline */}
-          <OfflineBanner />
-          
           {/* Menú lateral mejorado */}
           <Drawer 
             anchor="left" 

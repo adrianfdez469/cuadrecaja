@@ -27,10 +27,13 @@
     "jsonwebtoken": "^9.0.2",
     "next": "15.2.3",
     "next-auth": "^4.24.11",
+    "next-pwa": "^5.6.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
     "react-number-format": "^5.4.3",
+    "sharp": "^0.34.2",
+    "workbox-webpack-plugin": "^7.3.0",
     "yup": "^1.6.1",
     "zustand": "^5.0.3"
   },
