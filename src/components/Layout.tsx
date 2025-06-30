@@ -37,7 +37,7 @@ import { useAppContext } from "@/context/AppContext";
 import { AccountCircle } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
-import { cambierNegocio, cambierTienda, getTiendasDisponibles } from "@/services/authService";
+import { cambiarNegocio, cambiarTienda, getTiendasDisponibles } from "@/services/authService";
 import { useSession, signOut } from "next-auth/react";
 import { useMessageContext } from "@/context/MessageContext";
 import { getNegocios } from "@/services/negocioServce";
@@ -164,7 +164,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
   const handleSelectTienda = async (selectedTienda) => {
     console.log(selectedTienda);
-    const resp = await cambierTienda(selectedTienda);
+    const resp = await cambiarTienda(selectedTienda);
     if (resp.status === 201) {
       await update({
         tiendaActual: tiendasDisponibles?.find((t) => t.id === selectedTienda),
@@ -183,7 +183,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     setNegocioRecienCambiado(true);
     selectorTiendaAbiertoRef.current = false; // Reset del ref
     
-    const resp = await cambierNegocio(selectedNegocio);
+    const resp = await cambiarNegocio(selectedNegocio);
     if (resp.status === 201) {
       await update({
         negocio: negocios.find((n) => n.id === selectedNegocio),

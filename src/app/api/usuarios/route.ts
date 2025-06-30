@@ -48,8 +48,9 @@ export async function POST(req: Request) {
         }
       }
     });
+
     
-    if(user.negocio.userlimit <= usersCounter ) {
+    if(user.negocio.userlimit <= usersCounter && user.negocio.userlimit > 0 ) {
       return NextResponse.json(
         { error: "Limite de usuarios exedido" },
         { status: 400 }

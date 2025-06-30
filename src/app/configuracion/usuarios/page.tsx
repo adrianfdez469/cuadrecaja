@@ -52,6 +52,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import LimitDialog from "@/components/LimitDialog";
 import { useMessageContext } from "@/context/MessageContext";
+import { useAppContext } from "@/context/AppContext";
 
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState([]);
@@ -68,6 +69,7 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { showMessage } = useMessageContext();
+  const { user: actualUser } = useAppContext();
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -412,7 +414,7 @@ export default function UsuariosPage() {
                           }}
                           size="small"
                           color="error"
-                          disabled={user.rol === 'ADMIN' && adminUsuarios <= 1}
+                          disabled={user.rol === 'ADMIN' && adminUsuarios <= 1 && actualUser.rol !== 'SUPER_ADMIN'}
                         >
                           <Delete fontSize="small" />
                         </IconButton>
