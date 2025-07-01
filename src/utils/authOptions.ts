@@ -24,10 +24,11 @@ export const authOptions:NextAuthOptions  = {
         const user = await prisma.usuario.findUnique({
           where: { usuario: credentials.usuario },
           include: {
-            tiendas: {
+            locales: {
               include: { tienda: true },
             },
-            tiendaActual: true,
+            // tiendaActual: true,
+            localActual: true,
             negocio: {
               select: { id: true, nombre: true, userlimit: true, limitTime: true, locallimit: true, productlimit: true }
             }
@@ -41,7 +42,7 @@ export const authOptions:NextAuthOptions  = {
 
         // Para usuarios SUPER_ADMIN, obtener todas las tiendas del negocio
         // Para otros usuarios, solo las tiendas asociadas
-        let tiendasDisponibles;
+        let localesDisponibles;
         if (user.rol === "SUPER_ADMIN") {
           const todasLasTiendas = await prisma.tienda.findMany({
             where: { negocioId: user.negocio.id },
@@ -52,9 +53,9 @@ export const authOptions:NextAuthOptions  = {
               tipo: true
             }
           });
-          tiendasDisponibles = todasLasTiendas;
+          localesDisponibles = todasLasTiendas;
         } else {
-          tiendasDisponibles = user.tiendas.map((t) => ({
+          localesDisponibles = user.locales.map((t) => ({
             id: t.tienda.id,
             nombre: t.tienda.nombre,
             negocioId: t.tienda.negocioId,
@@ -68,8 +69,10 @@ export const authOptions:NextAuthOptions  = {
           nombre: user.nombre,
           negocio: user.negocio,
           rol: user.rol,
-          tiendas: tiendasDisponibles,
-          tiendaActual: user.tiendaActual
+          // tiendas: tiendasDisponibles,
+          locales: localesDisponibles,
+          // tiendaActual: user.tiendaActual
+          localActual: user.localActual
         };
       },
     }),
@@ -90,8 +93,10 @@ export const authOptions:NextAuthOptions  = {
           token.usuario = user.usuario;
           token.nombre = user.nombre;
           token.negocio = user.negocio;
-          token.tiendaActual = user.tiendaActual;
-          token.tiendas = user.tiendas;
+          // token.tiendaActual = user.tiendaActual;
+          // token.tiendas = user.tiendas;
+          token.localActual = user.localActual;
+          token.locales = user.locales;
           
         } else {
           token.id = null;
@@ -99,22 +104,29 @@ export const authOptions:NextAuthOptions  = {
             token.usuario = null;
             token.nombre = null;
             token.negocio = null;
-            token.tiendaActual = null;
             token.negocio = null;
-            token.tiendas = null;
+            // token.tiendaActual = null;
+            // token.tiendas = null;
+            token.localActual = null;
+            token.locales = null;
             return token;
         }
       }
 
       // Cuando se actualiza desde session.update()
-      if (trigger === "update" && session?.tiendaActual) {
-        token.tiendaActual = session.tiendaActual;
+      // if (trigger === "update" && session?.tiendaActual) {
+      //   token.tiendaActual = session.tiendaActual;
+      // }
+      if (trigger === "update" && session?.localActual) {
+        token.localActual = session.localActual;
       }
       if (trigger === "update" && session?.negocio) {
         console.log('cambiando negocio');
         
         token.negocio = session.negocio;
-        token.tiendaActual = null;
+        // token.tiendaActual = null;
+        token.localActual = null;
+
       }
 
       return token;
@@ -127,9 +139,11 @@ export const authOptions:NextAuthOptions  = {
         session.user.rol = token.rol;
         session.user.usuario = token.usuario;
         session.user.nombre = token.nombre;
-        session.user.tiendas = token.tiendas;
         session.user.negocio = token.negocio;
-        session.user.tiendaActual = token.tiendaActual;
+        // session.user.tiendas = token.tiendas;
+        // session.user.tiendaActual = token.tiendaActual;
+        session.user.locales = token.locales;
+        session.user.localActual = token.localActual;
         session.user.expiresAt = token.expCustom; // puedes usar esto en el frontend
       }
       return session;

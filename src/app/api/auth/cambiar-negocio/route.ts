@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   try {
     await prisma.usuario.update({
       where: { id: session.user.id },
-      data: { negocioId: negocioId, tiendaActualId: null },
+      data: { negocioId: negocioId, localActualId: null },
     });
 
     return NextResponse.json({ success: true}, {status: 201});

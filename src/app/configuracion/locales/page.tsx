@@ -32,7 +32,6 @@ import {
   FormControl,
   InputLabel,
   Collapse,
-  Divider,
   Alert
 } from "@mui/material";
 import { 
@@ -56,13 +55,6 @@ import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import LimitDialog from "@/components/LimitDialog";
 import { ILocal, TipoLocal } from "@/types/ILocal";
-
-
-interface IUsuario {
-  id: string;
-  nombre: string;
-  usuario: string;
-}
 
 export default function Locales() {
   const [locales, setLocales] = useState<ILocal[]>([]);

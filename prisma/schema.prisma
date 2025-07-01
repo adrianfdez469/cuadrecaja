@@ -52,15 +52,19 @@ model Usuario {
   password        String
   rol             String            @default("vendedor") // Rol del usuario en el sistema
 
-  tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
+  //tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
+  locales         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
   ventas          Venta[] // Un usuario puede realizar múltiples ventas
   MovimientoStock MovimientoStock[]
 
   negocio         Negocio           @relation(fields: [negocioId], references: [id])
   negocioId       String             @default("")
 
-  tiendaActual    Tienda?            @relation(fields: [tiendaActualId], references: [id])
-  tiendaActualId     String?
+  //tiendaActual    Tienda?            @relation(fields: [tiendaActualId], references: [id])
+  //tiendaActualId     String?
+
+  localActual    Tienda?            @relation(fields: [localActualId], references: [id])
+  localActualId     String?
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.

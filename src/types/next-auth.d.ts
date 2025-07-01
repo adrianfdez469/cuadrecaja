@@ -10,8 +10,10 @@ declare module "next-auth" {
       usuario: string;
       nombre: string;
       rol: string;
-      tiendas: ILocal[];
-      tiendaActual?: ILocal | null;
+      // tiendas: ILocal[];
+      // tiendaActual?: ILocal | null;
+      locales: ILocal[];
+      localActual?: ILocal | null;
       negocio: INegocio;
       expiresAt: string;
     } & DefaultSession["user"];
@@ -22,8 +24,10 @@ declare module "next-auth" {
     usuario: string;
     nombre: string;
     rol: string;
-    tiendas: ILocal[];
-    tiendaActual?: ILocal | null;
+    // tiendas: ILocal[];
+    // tiendaActual?: ILocal | null;
+    locales: ILocal[];
+    localActual?: ILocal | null;
     negocio: INegocio;
     // expiresAt: string;
   }
@@ -35,8 +39,10 @@ declare module "next-auth/jwt" {
     usuario: string;
     nombre: string;
     rol: string;
-    tiendas: ILocal[];
-    tiendaActual?: ILocal | null;
+    // tiendas: ILocal[];
+    // tiendaActual?: ILocal | null;
+    locales: ILocal[];
+    localActual?: ILocal | null;
     negocio: INegocio;
     expCustom: string;
   }

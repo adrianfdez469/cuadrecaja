@@ -109,11 +109,11 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
       
-      if (!user?.tiendaActual?.id) {
+      if (!user?.localActual?.id) {
         throw new Error("No hay tienda seleccionada");
       }
 
-      const response = await axios.get(`/api/dashboard/metrics/${user.tiendaActual.id}`, {
+      const response = await axios.get(`/api/dashboard/metrics/${user.localActual.id}`, {
         params: filters
       });
       
@@ -128,7 +128,7 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!loadingContext && user?.tiendaActual) {
+    if (!loadingContext && user?.localActual) {
       fetchDashboardMetrics();
     }
   }, [loadingContext, user, filters]);
@@ -302,7 +302,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!user?.tiendaActual) {
+  if (!user?.localActual) {
     return (
       <PageContainer
         title="Dashboard Ejecutivo"
@@ -338,7 +338,7 @@ export default function DashboardPage() {
   return (
     <PageContainer
       title="Dashboard Ejecutivo"
-      subtitle={!isMobile ? `Métricas clave de ${user.tiendaActual.nombre}` : undefined}
+      subtitle={!isMobile ? `Métricas clave de ${user.localActual.nombre}` : undefined}
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
@@ -379,7 +379,7 @@ export default function DashboardPage() {
                     onChange={(e) => handleFilterChange('tienda', e.target.value)}
                   >
                     <MenuItem value="actual">Tienda Actual</MenuItem>
-                    {user.tiendas.map((tienda) => (
+                    {user.locales.map((tienda) => (
                       <MenuItem key={tienda.id} value={tienda.id}>
                         {tienda.nombre}
                       </MenuItem>

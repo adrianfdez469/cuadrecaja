@@ -137,7 +137,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
 
           if (sale.synced) {
             // eliminar de las ventas en backend
-            const tiendaId = user.tiendaActual.id;
+            const tiendaId = user.localActual.id;
             await removeSell(tiendaId, period.id, sale.dbId, user.id);
           }
 
@@ -168,7 +168,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
   const syncronizeProdsAndSales = async () => {
     try {
       setDisableAll(true);
-      const tiendaId = user.tiendaActual.id;
+      const tiendaId = user.localActual.id;
       const ventasDb = await getSells(tiendaId, period.id);
       const salesSust: Sale[] = ventasDb.map((venta) => {
         const sale: Sale = {

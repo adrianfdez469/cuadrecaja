@@ -83,12 +83,12 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
   }, [movimientos, startDate, endDate, selectedTipo]);
 
   const fetchMovimientos = async () => {
-    if (!producto || !user?.tiendaActual?.id) return;
+    if (!producto || !user?.localActual?.id) return;
     
     setLoading(true);
     try {
       const result = await findMovimientos(
-        user.tiendaActual.id,
+        user.localActual.id,
         1000, // Obtener muchos registros
         0,
         producto.productoTiendaId, // productoTiendaId

@@ -12,8 +12,10 @@ interface ISessionUser {
   usuario: string; 
   rol: string;
   nombre: string;
-  tiendaActual: ILocal; 
-  tiendas: ILocal[]; 
+  // tiendaActual: ILocal; 
+  // tiendas: ILocal[]; 
+  localActual: ILocal;
+  locales: ILocal[];
   negocio: INegocio;
 }
 

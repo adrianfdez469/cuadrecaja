@@ -42,7 +42,7 @@ export default function ResumenCierrePage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [loading, setLoading] = useState(true);
-  const [noTiendaActual, setNoTiendaActual] = useState(false);
+  const [noLocalActual, setNoLocalActual] = useState(false);
   const [startDate, setStartDate] = useState<Dayjs | null>(null);
   const [endDate, setEndDate] = useState<Dayjs | null>(null);
   const [totales, setTotales] = useState<{
@@ -61,7 +61,7 @@ export default function ResumenCierrePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const tiendaId = user.tiendaActual.id;
+      const tiendaId = user.localActual.id;
       let dataResp;
       if (startDate || endDate) {
         const intervalo = {
@@ -105,11 +105,11 @@ export default function ResumenCierrePage() {
   useEffect(() => {
     (async () => {
       if (!loadingContext) {
-        setNoTiendaActual(false);
+        setNoLocalActual(false);
         
         // Validar que el usuario tenga una tienda actual
-        if (!user.tiendaActual || !user.tiendaActual.id) {
-          setNoTiendaActual(true);
+        if (!user.localActual || !user.localActual.id) {
+          setNoLocalActual(true);
           setLoading(false);
           return;
         }
@@ -137,7 +137,7 @@ export default function ResumenCierrePage() {
   };
 
   const handleViewMore = async (itemCierre: Omit<ICierrePeriodo, "tienda">) => {
-    const tiendaId = user.tiendaActual.id;
+    const tiendaId = user.localActual.id;
     const cierreData = await fetchCierreData(tiendaId, itemCierre.id);
 
     const totales = {
@@ -252,7 +252,7 @@ export default function ResumenCierrePage() {
     );
   }
 
-  if (noTiendaActual) {
+  if (noLocalActual) {
     return (
       <PageContainer
         title="Resumen de Cierres"

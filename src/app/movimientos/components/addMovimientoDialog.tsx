@@ -126,10 +126,10 @@ export const AddMovimientoDialog: FC<IProps> = ({
     setSaving(true);
 
     try {
-      const tiendaId = user.tiendaActual.id;
+      const localId = user.localActual.id;
       await cretateBatchMovimientos(
         {
-          tiendaId: tiendaId,
+          tiendaId: localId,
           tipo: tipo,
           usuarioId: user.id,
           ...(motivo !== "" && {motivo: motivo})

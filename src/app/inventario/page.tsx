@@ -58,7 +58,7 @@ export default function InventarioPage() {
     try {
       setLoading(true);
       const response = await axios.get<IProductoTienda[]>(
-        `/api/productos_tienda/${user.tiendaActual.id}/productos_venta`
+        `/api/productos_tienda/${user.localActual.id}/productos_venta`
       );
       setProductos(response.data);
     } catch (error) {
@@ -88,7 +88,7 @@ export default function InventarioPage() {
 
       await exportInventoryToWord({
         productos: productosParaExportar,
-        tiendaNombre: user.tiendaActual.nombre,
+        tiendaNombre: user.localActual.nombre,
         fecha: new Date()
       });
 

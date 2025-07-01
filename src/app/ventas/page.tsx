@@ -63,7 +63,7 @@ const Ventas = () => {
   const [ventas, setVentas] = useState<IVenta[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [noPeriodFound, setNoPeriodFound] = useState(false);
-  const [noTiendaActual, setNoTiendaActual] = useState(false);
+  const [noLocalActual, setNoLocalActual] = useState(false);
   const [statsExpanded, setStatsExpanded] = useState(false);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -72,7 +72,7 @@ const Ventas = () => {
   const handleCreateFirstPeriod = async () => {
     try {
       setIsDataLoading(true);
-      const tiendaId = user.tiendaActual.id;
+      const tiendaId = user.localActual.id;
       await openPeriod(tiendaId);
       await loadData();
       showMessage("Primer período creado exitosamente", "success");
@@ -85,15 +85,15 @@ const Ventas = () => {
   const loadData = async () => {
     setIsDataLoading(true);
     setNoPeriodFound(false);
-    setNoTiendaActual(false);
+    setNoLocalActual(false);
     
     try {
-      if (!user.tiendaActual || !user.tiendaActual.id) {
-        setNoTiendaActual(true);
+      if (!user.localActual || !user.localActual.id) {
+        setNoLocalActual(true);
         return;
       }
 
-      const tiendaId = user.tiendaActual.id;
+      const tiendaId = user.localActual.id;
       const currentPeriod = await fetchLastPeriod(tiendaId);
       
       if (!currentPeriod) {
@@ -129,7 +129,7 @@ const Ventas = () => {
       "¿Está seguro que desea eliminar completamente esta venta?",
       async () => {
         try {
-          const tiendaId = user.tiendaActual.id;
+          const tiendaId = user.localActual.id;
           await removeSell(tiendaId, currentPeriod.id, venta.id, user.id);
           showMessage("La venta fue eliminada satisfactoriamente", 'success');
         } catch (error) {
@@ -179,7 +179,7 @@ const Ventas = () => {
     );
   }
 
-  if (noTiendaActual) {
+  if (noLocalActual) {
     return (
       <PageContainer
         title="Ventas"

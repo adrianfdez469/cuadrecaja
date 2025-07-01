@@ -75,7 +75,7 @@ export async function POST(req: Request) {
         ...data,
         password,
         negocioId: user.negocio.id,
-        tiendaActualId: null
+        localActualId: null
       },
     });
 

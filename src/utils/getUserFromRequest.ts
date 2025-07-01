@@ -19,8 +19,10 @@ export default async function(req: Request): Promise<{
   const usuario = headers.get('x-user-usuario')
 
   const negocio = JSON.parse(headers.get('x-user-negocio'));
-  const tienda = JSON.parse(headers.get('x-user-tiendaActual'));
-  const tiendas = JSON.parse(headers.get('x-user-tiendas'));
+  // const tienda = JSON.parse(headers.get('x-user-tiendaActual'));
+  const tienda = JSON.parse(headers.get('x-user-localActual'));
+  // const tiendas = JSON.parse(headers.get('x-user-tiendas'));
+  const tiendas = JSON.parse(headers.get('x-user-locales'));
 
   if (!userId) {
     throw new Error('No autorizado');

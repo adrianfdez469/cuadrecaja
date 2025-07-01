@@ -86,8 +86,8 @@ const PreciosCantidades = () => {
   const fetchProductos = async () => {
     try {
       setLoading(true);
-      if(user?.tiendaActual?.id){
-        const data = await fecthCostosPreciosProds(user?.tiendaActual?.id);
+      if(user?.localActual?.id){
+        const data = await fecthCostosPreciosProds(user?.localActual?.id);
         setProductos(data || []);
         setFilteredProductos(data || []);
         setIdDirtyProds([]);
@@ -156,7 +156,7 @@ const PreciosCantidades = () => {
 
     try {
       setSaving(true);
-      const response = await fetch(`/api/productos_tienda/${user.tiendaActual.id}`, {
+      const response = await fetch(`/api/productos_tienda/${user.localActual.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productos: productsToSave })
@@ -236,7 +236,7 @@ const PreciosCantidades = () => {
     );
   }
 
-  if (!user?.tiendaActual?.id) {
+  if (!user?.localActual?.id) {
     return (
       <PageContainer
         title="Costos y Precios"

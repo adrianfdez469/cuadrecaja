@@ -28,8 +28,7 @@ import {
   Person,
   Store,
   ShoppingCart,
-  Summarize,
-  Warehouse
+  Summarize
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { TipoLocal } from "@/types/ILocal";
@@ -61,7 +60,7 @@ const HomePage = () => {
     );
   }
 
-  if (user.tiendas.length === 0) {
+  if (user.locales.length === 0) {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Paper 
@@ -116,7 +115,8 @@ const HomePage = () => {
     );
   }
 
-  if (!user.tiendaActual) {
+  // if (!user.tieaActual) {
+  if (!user.localActual) {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Alert severity="warning" sx={{ mb: 3 }}>
@@ -271,7 +271,7 @@ const HomePage = () => {
                 alignItems: 'center'
               }}
             >
-              {`${getTipoLocalText(user.tiendaActual.tipo)}: ${user.tiendaActual.nombre}`}
+              {`${getTipoLocalText(user.localActual.tipo)}: ${user.localActual.nombre}`}
               
             </Typography>
             <Typography 
@@ -298,7 +298,7 @@ const HomePage = () => {
         
         <Grid container spacing={3}>
 
-          {getQuickAction(user.tiendaActual.tipo).map((action, index) => (
+          {getQuickAction(user.localActual.tipo).map((action, index) => (
             <Grid item xs={12} sm={6} md={4} key={index}>
               <Card 
                 sx={{ 

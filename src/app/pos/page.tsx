@@ -56,7 +56,7 @@ export default function POSInterface() {
   const [openCart, setOpenCart] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
-  const [noTiendaActual, setNoTiendaActual] = useState(false);
+  const [noLocalActual, setNoLocalActual] = useState(false);
   const { user, loadingContext, gotToPath } = useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
@@ -158,13 +158,13 @@ export default function POSInterface() {
     (async () => {
       if (!loadingContext) {
         // Validar que el usuario tenga una tienda actual
-        if (!user.tiendaActual || !user.tiendaActual.id) {
-          setNoTiendaActual(true);
+        if (!user.localActual || !user.localActual.id) {
+          setNoLocalActual(true);
           setLoading(false);
           return;
         }
         try {
-          const lastPeriod = await fetchLastPeriod(user.tiendaActual.id);
+          const lastPeriod = await fetchLastPeriod(user.localActual.id);
           let message = "";
           if (!lastPeriod || lastPeriod.fechaFin) {
             message =
@@ -175,7 +175,7 @@ export default function POSInterface() {
             confirmDialog(
               message,
               () => {
-                openPeriod(user.tiendaActual.id).then((newPeriod) => {
+                openPeriod(user.localActual.id).then((newPeriod) => {
                   setPeriodo(newPeriod);
                   return fetchProductosAndCategories();
                 });
@@ -207,7 +207,7 @@ export default function POSInterface() {
     try {
       setLoading(true);
       const response = await axios.get<IProductoTienda[]>(
-        `/api/productos_tienda/${user.tiendaActual.id}/productos_venta`,
+        `/api/productos_tienda/${user.localActual.id}/productos_venta`,
         {
           params: {
             incluseCategories: true,
@@ -275,7 +275,7 @@ export default function POSInterface() {
   ) => {
     try {
       if (total <= totalCash + totalTransfer) {
-        const tiendaId = user.tiendaActual.id;
+        const tiendaId = user.localActual.id;
         const cierreId = periodo.id;
         const identifier = crypto.randomUUID();
         
@@ -412,7 +412,7 @@ export default function POSInterface() {
       </Box>
     );
   }
-  if (noTiendaActual) {
+  if (noLocalActual) {
     return (
       <Box p={2}>
         <Typography variant="h4" gutterBottom>

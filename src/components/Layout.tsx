@@ -178,7 +178,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     const resp = await cambiarLocal(selectedLocal);
     if (resp.status === 201) {
       await update({
-        tiendaActual: localesDisponibles?.find((t) => t.id === selectedLocal),
+        localActual: localesDisponibles?.find((t) => t.id === selectedLocal),
       });
       showMessage("El local fue actualizada satisfactoriamente", "success");
     } else {
@@ -198,7 +198,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     if (resp.status === 201) {
       await update({
         negocio: negocios.find((n) => n.id === selectedNegocio),
-        tiendaActual: null, // Limpiar local actual al cambiar negocio
+        localActual: null, // Limpiar local actual al cambiar negocio
       });
       showMessage("El negocio fue actualizado satisfactoriamente", "success");
       
@@ -274,9 +274,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     console.log("🔍 useEffect selector local ejecutándose:", {
       negocioRecienCambiado,
       isAuth,
-      tiendaActual: !!user?.tiendaActual,
-      totalTiendasDisponibles: totalLocalesDisponibles,
-      openSelectTienda: openSelectLocal,
+      localActual: !!user?.localActual,
+      totalLocalesDisponibles: totalLocalesDisponibles,
+      openSelectLocal: openSelectLocal,
       cambiandoNegocio,
       selectorAbierto: selectorLocalAbiertoRef.current
     });
@@ -288,12 +288,12 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     }
     
     // No mostrar selector automáticamente si estamos cambiando de negocio, ya está abierto, ya se abrió antes
-    if (isAuth && user && !user.tiendaActual && totalLocalesDisponibles >= 1 && !openSelectLocal && !cambiandoNegocio && !selectorLocalAbiertoRef.current) {
+    if (isAuth && user && !user.localActual && totalLocalesDisponibles >= 1 && !openSelectLocal && !cambiandoNegocio && !selectorLocalAbiertoRef.current) {
       console.log("🚀 Abriendo selector de local desde useEffect");
       // Mostrar automáticamente el selector de local si el usuario no tiene una asignada
       handleCambiarLocal();
     }
-  }, [isAuth, user?.tiendaActual, totalLocalesDisponibles, openSelectLocal, cambiandoNegocio, negocioRecienCambiado]);
+  }, [isAuth, user?.localActual, totalLocalesDisponibles, openSelectLocal, cambiandoNegocio, negocioRecienCambiado]);
 
   useEffect(() => {
     // Solo verificar expiración si hay sesión
@@ -390,7 +390,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   {user?.nombre || user?.usuario}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {user?.tiendaActual?.nombre}
+                  {user?.localActual?.nombre}
                 </Typography>
               </Box>
 
@@ -455,12 +455,12 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     </Typography>
                   </MenuItem>
                 )}
-                {(user.rol === "SUPER_ADMIN" || totalLocalesDisponibles > 1 || (totalLocalesDisponibles >= 1 && !user?.tiendaActual)) && (
+                {(user.rol === "SUPER_ADMIN" || totalLocalesDisponibles > 1 || (totalLocalesDisponibles >= 1 && !user?.localActual)) && (
                 [
                     <MenuItem key="cambiar-local" onClick={() => handleCambiarLocal()}>
                       <ChangeCircleIcon sx={{ mr: 2, color: 'info.main' }} />
                       <Typography variant="body2" fontWeight={500}>
-                        {!user?.tiendaActual ? 'Seleccionar local' : 'Cambiar de local'}
+                        {!user?.localActual ? 'Seleccionar local' : 'Cambiar de local'}
                       </Typography>
                     </MenuItem>,
                     <Divider key="divider-local" sx={{ my: 1 }} />
@@ -574,8 +574,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 </Typography>
               </Box>
               
+              {user?.localActual && (
               <List sx={{ pt: 0 }}>
-                {getMainMenuItemsByLocalType(user.tiendaActual.tipo).map((item) => (
+                {getMainMenuItemsByLocalType(user.localActual.tipo).map((item) => (
                   <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
                     <ListItemButton 
                       onClick={() => gotToPath(item.path)}
@@ -601,6 +602,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   </ListItem>
                 ))}
               </List>
+              )}
             </Box>
           </Drawer>
         </>
@@ -630,8 +632,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       {/* Dialogs mejorados */}
       <Dialog
         open={openSelectLocal}
-        onClose={user?.tiendaActual || localesDisponibles.length === 0 ? () => handleCloseCambiarLocal() : undefined}
-        disableEscapeKeyDown={!user?.tiendaActual && localesDisponibles.length > 0}
+        onClose={user?.localActual || localesDisponibles.length === 0 ? () => handleCloseCambiarLocal() : undefined}
+        disableEscapeKeyDown={!user?.localActual && localesDisponibles.length > 0}
         PaperProps={{
           sx: {
             borderRadius: 3,
@@ -641,17 +643,17 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       >
         <DialogTitle sx={{ pb: 1 }}>
           <Typography variant="h6" fontWeight={600}>
-            {!user?.tiendaActual ? 'Seleccionar local' : 'Cambiar local'}
+            {!user?.localActual ? 'Seleccionar local' : 'Cambiar local'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {!user?.tiendaActual 
+            {!user?.localActual 
               ? 'Necesitas seleccionar un local para comenzar a trabajar'
               : 'Selecciona el local donde deseas trabajar'
             }
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
-          {!user?.tiendaActual && localesDisponibles.length === 1 && (
+          {!user?.localActual && localesDisponibles.length === 1 && (
             <Box sx={{ mb: 2, p: 2, backgroundColor: 'info.light', borderRadius: 1 }}>
               <Typography variant="body2" color="info.contrastText">
                 <strong>Nota:</strong> Necesitas seleccionar un local para acceder al sistema.
@@ -702,7 +704,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           ) : null}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          {(user?.tiendaActual || localesDisponibles.length === 0) && (
+          {(user?.localActual || localesDisponibles.length === 0) && (
             <Button onClick={handleCloseCambiarLocal} variant="outlined">
               {localesDisponibles.length === 0 ? 'Cerrar' : 'Cancelar'}
             </Button>

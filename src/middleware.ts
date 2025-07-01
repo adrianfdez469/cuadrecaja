@@ -13,8 +13,10 @@ export async function middleware(req: NextRequest) {
     requestHeaders.set('x-user-nombre', token.nombre);
     requestHeaders.set('x-user-usuario', token.usuario);
     requestHeaders.set('x-user-negocio', JSON.stringify(token.negocio));
-    requestHeaders.set('x-user-tiendaActual', JSON.stringify(token.tiendaActual));
-    requestHeaders.set('x-user-tiendas', JSON.stringify(token.tiendas));
+    // requestHeaders.set('x-user-tiendaActual', JSON.stringify(token.tiendaActual));
+    requestHeaders.set('x-user-localActual', JSON.stringify(token.localActual));
+    // requestHeaders.set('x-user-tiendas', JSON.stringify(token.tiendas));
+    requestHeaders.set('x-user-locales', JSON.stringify(token.locales));
 
     return NextResponse.next({
       request: {

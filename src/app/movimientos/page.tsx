@@ -58,7 +58,7 @@ export default function MovimientosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { user, loadingContext } = useAppContext();
   const [loadingData, setLoadingData] = useState(true);
-  const [noTiendaActual, setNoTiendaActual] = useState(false);
+  const [noLocalActual, setNoLocalActual] = useState(false);
   const [statsExpanded, setStatsExpanded] = useState(false);
   
   const theme = useTheme();
@@ -69,7 +69,7 @@ export default function MovimientosPage() {
 
   const fetchMovimientos = async (nuevoSkip = skip) => {
     try {
-      const tiendaId = user.tiendaActual.id;
+      const tiendaId = user.localActual.id;
       const result = await findMovimientos(tiendaId, PAGE_SIZE, nuevoSkip);
       setMovimientos(result || []);
     } catch (error) {
@@ -82,10 +82,10 @@ export default function MovimientosPage() {
     (async () => {
       if (!loadingContext) {
         try {
-          setNoTiendaActual(false);
+          setNoLocalActual(false);
           
-          if (!user.tiendaActual || !user.tiendaActual.id) {
-            setNoTiendaActual(true);
+          if (!user.localActual || !user.localActual.id) {
+            setNoLocalActual(true);
             setLoadingData(false);
             return;
           }
@@ -143,7 +143,7 @@ export default function MovimientosPage() {
     );
   }
 
-  if (noTiendaActual) {
+  if (noLocalActual) {
     return (
       <PageContainer
         title="Movimientos de Stock"

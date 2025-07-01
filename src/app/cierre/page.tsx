@@ -45,7 +45,7 @@ const CierreCajaPage = () => {
     totalMonto: 0,
   });
   const [noPeriodFound, setNoPeriodFound] = useState(false);
-  const [noTiendaActual, setNoTiendaActual] = useState(false);
+  const [noLocalActual, setNoLocalActual] = useState(false);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { clearSales, sales } = useSalesStore();
   const theme = useTheme();
@@ -57,11 +57,11 @@ const CierreCajaPage = () => {
     } else {
       confirmDialog("¿Estás seguro de desea realizar el cierre de caja?", async () => {
         // Se debe crear un nuevo cierre
-        const tiendaId = user.tiendaActual.id;
+        const localId = user.localActual.id;
         try {
-          await closePeriod(tiendaId, currentPeriod.id);
+          await closePeriod(localId, currentPeriod.id);
           clearSales();
-          await openPeriod(tiendaId);        
+          await openPeriod(localId);        
         } catch (error) {
           console.log(error);
           showMessage('Ah ocurrido un error', 'error');
@@ -75,8 +75,8 @@ const CierreCajaPage = () => {
   const handleCreateFirstPeriod = async () => {
     try {
       setIsDataLoading(true);
-      const tiendaId = user.tiendaActual.id;
-      await openPeriod(tiendaId);
+      const localId = user.localActual.id;
+      await openPeriod(localId);
       await getInitData();
       showMessage("Primer período creado exitosamente", "success");
     } catch (error) {
@@ -88,17 +88,17 @@ const CierreCajaPage = () => {
   const getInitData = async () => {
     setIsDataLoading(true);
     setNoPeriodFound(false);
-    setNoTiendaActual(false);
+    setNoLocalActual(false);
     
     try {
-      // Validar que el usuario tenga una tienda actual
-      if (!user.tiendaActual || !user.tiendaActual.id) {
-        setNoTiendaActual(true);
+      // Validar que el usuario tenga un local actual
+      if (!user.localActual || !user.localActual.id) {
+        setNoLocalActual(true);
         return;
       }
 
-      const tiendaId = user.tiendaActual.id;
-      const currentPeriod = await fetchLastPeriod(tiendaId);
+      const localId = user.localActual.id;
+      const currentPeriod = await fetchLastPeriod(localId);
       
       if (!currentPeriod) {
         setNoPeriodFound(true);
@@ -106,7 +106,7 @@ const CierreCajaPage = () => {
       }
       
       setCurrentPeriod(currentPeriod);
-      const data = await fetchCierreData(tiendaId, currentPeriod.id);
+      const data = await fetchCierreData(localId, currentPeriod.id);
       console.log(data);
       setCierreData(data);
 
@@ -226,7 +226,7 @@ const CierreCajaPage = () => {
     );
   }
 
-  if (noTiendaActual) {
+  if (noLocalActual) {
     return (
       <PageContainer
         title="Cierre de Caja"

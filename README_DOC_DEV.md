@@ -113,13 +113,13 @@ model Usuario {
   nombre        String
   password      String
   rol           Rol       @default(vendedor)
-  tiendaActual  String?
+  localActual  String?
   negocioId     String
   expiresAt     DateTime?
   
   // Relaciones
   negocio       Negocio   @relation(fields: [negocioId], references: [id])
-  tiendas       UsuarioTienda[]
+  locales       UsuarioTienda[]
   ventas        Venta[]
   movimientos   MovimientoStock[]
 }

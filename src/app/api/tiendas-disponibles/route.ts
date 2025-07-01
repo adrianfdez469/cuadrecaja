@@ -30,7 +30,7 @@ export async function GET(req: Request) {
       const usuarioConTiendas = await prisma.usuario.findUnique({
         where: { id: user.id },
         include: {
-          tiendas: {
+          locales: {
             include: {
               tienda: {
                 select: {
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
         }
       });
 
-      tiendas = usuarioConTiendas?.tiendas.map(ut => ut.tienda) || [];
+      tiendas = usuarioConTiendas?.locales.map(ut => ut.tienda) || [];
     }
 
     return NextResponse.json(tiendas);
