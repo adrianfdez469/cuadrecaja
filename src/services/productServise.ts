@@ -9,20 +9,35 @@ export const fetchProducts = async () => {
   return data;
 };
 
-export const createProduct = async (nombre: string, descripcion: string, categoriaId: string, fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number}) => {
+export const createProduct = async (
+  nombre: string, 
+  descripcion: string, 
+  categoriaId: string, 
+  enConsignacion: boolean,
+  fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number}
+) => {
   await axios.post(API_URL, {
       descripcion: descripcion,
       nombre: nombre,
       categoriaId: categoriaId,
+      enConsignacion: enConsignacion,
       ...(fraccion && {fraccion})
   });
 }
 
-export const editProduct = async (id: string, nombre: string, descripcion: string, categoriaId: string, fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number}) => {
+export const editProduct = async (
+  id: string, 
+  nombre: string, 
+  descripcion: string, 
+  categoriaId: string, 
+  enConsignacion: boolean,
+  fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number}
+) => {
   await axios.put(`${API_URL}/${id}`, {
       descripcion: descripcion,
       nombre: nombre,
       categoriaId: categoriaId,
+      enConsignacion: enConsignacion,
       ...(fraccion && {fraccion})
   });
 }

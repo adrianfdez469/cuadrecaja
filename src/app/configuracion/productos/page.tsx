@@ -38,7 +38,8 @@ import {
   Search,
   Refresh,
   ExpandMore,
-  ExpandLess
+  ExpandLess,
+  Handshake
 } from "@mui/icons-material";
 import { ProductoForm } from "./components/product.form";
 import {
@@ -102,14 +103,15 @@ export default function ProductList() {
     nombre: string,
     descripcion: string,
     categoriaId: string,
+    enConsignacion: boolean,
     fraccion?: { fraccionDeId?: string; unidadesPorFraccion?: number }
   ) => {
     try {
       if (editingProd) {
-        await editProduct(editingProd.id, nombre, descripcion, categoriaId, fraccion);
+        await editProduct(editingProd.id, nombre, descripcion, categoriaId, enConsignacion, fraccion);
         showMessage('Producto actualizado exitosamente', 'success');
       } else {
-        await createProduct(nombre, descripcion, categoriaId, fraccion);
+        await createProduct(nombre, descripcion, categoriaId, enConsignacion, fraccion);
         showMessage('Producto creado exitosamente', 'success');
       }
       await loadProducts();
@@ -155,6 +157,7 @@ export default function ProductList() {
   const productosConCategoria = products.filter(p => p.categoria).length;
   const productosSinCategoria = products.filter(p => !p.categoria).length;
   const productosConFraccion = products.filter(p => p.fraccionDe && p.unidadesPorFraccion).length;
+  const productosEnConsignacion = products.filter(p => p.enConsignacion).length;
 
   const breadcrumbs = [
     { label: 'Inicio', href: '/' },
@@ -294,10 +297,18 @@ export default function ProductList() {
               </Grid>
               <Grid item xs={6}>
                 <StatCard
+                  icon={<Handshake />}
+                  value={productosEnConsignacion.toLocaleString()}
+                  label="Consignación"
+                  color="info.light"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <StatCard
                   icon={<Percent />}
                   value={productosConFraccion.toLocaleString()}
                   label="Con Fracción"
-                  color="info.light"
+                  color="secondary.light"
                 />
               </Grid>
             </Grid>
@@ -306,7 +317,7 @@ export default function ProductList() {
         </Box>
       ) : (
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={2.4}>
             <StatCard
               icon={<Inventory />}
               value={totalProductos.toLocaleString()}
@@ -314,7 +325,7 @@ export default function ProductList() {
               color="primary.light"
             />
           </Grid>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={2.4}>
             <StatCard
               icon={<Category />}
               value={productosConCategoria.toLocaleString()}
@@ -322,7 +333,7 @@ export default function ProductList() {
               color="success.light"
             />
           </Grid>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={2.4}>
             <StatCard
               icon={<LocalOffer />}
               value={productosSinCategoria.toLocaleString()}
@@ -330,12 +341,20 @@ export default function ProductList() {
               color="warning.light"
             />
           </Grid>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={2.4}>
+            <StatCard
+              icon={<Handshake />}
+              value={productosEnConsignacion.toLocaleString()}
+              label="En Consignación"
+              color="info.light"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2.4}>
             <StatCard
               icon={<Percent />}
               value={productosConFraccion.toLocaleString()}
               label="Con Fracción"
-              color="info.light"
+              color="secondary.light"
             />
           </Grid>
         </Grid>
@@ -418,7 +437,7 @@ export default function ProductList() {
                       </Box>
                       
                       <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Box>
+                        <Box display="flex" flexWrap="wrap" gap={0.5}>
                           {product.categoria ? (
                             <Chip
                               label={product.categoria.nombre}
@@ -436,6 +455,15 @@ export default function ProductList() {
                               label="Sin categoría" 
                               size="small" 
                               variant="outlined"
+                              sx={{ fontSize: '0.6875rem', height: 20 }}
+                            />
+                          )}
+                          {product.enConsignacion && (
+                            <Chip 
+                              label="Consignación" 
+                              size="small" 
+                              color="info"
+                              icon={<Handshake fontSize="small" />}
                               sx={{ fontSize: '0.6875rem', height: 20 }}
                             />
                           )}
@@ -466,6 +494,7 @@ export default function ProductList() {
                   <TableCell>Nombre</TableCell>
                   <TableCell>Descripción</TableCell>
                   <TableCell>Categoría</TableCell>
+                  <TableCell align="center">Consignación</TableCell>
                   <TableCell align="center">Fracción</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
@@ -512,6 +541,20 @@ export default function ProductList() {
                           size="small" 
                           variant="outlined"
                         />
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      {product.enConsignacion ? (
+                        <Chip 
+                          label="Consignación" 
+                          size="small" 
+                          color="info"
+                          icon={<Handshake fontSize="small" />}
+                        />
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No
+                        </Typography>
                       )}
                     </TableCell>
                     <TableCell align="center">

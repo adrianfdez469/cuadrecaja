@@ -6,6 +6,7 @@ export interface IProducto {
   descripcion: string;
   categoria: ICategory;
   categoriaId: string;
+  enConsignacion?: boolean;
 
   fraccionDeId?: string;
   unidadesPorFraccion?: number;
@@ -23,6 +24,7 @@ export interface IProductoTienda {
   categoriaId: string;
   categoria: ICategory;
   productoTiendaId: string;
+  enConsignacion?: boolean;
 
   fraccionDeId?: string;
   unidadesPorFraccion?: number;
