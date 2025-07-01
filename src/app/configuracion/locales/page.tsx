@@ -46,7 +46,8 @@ import {
   Search,
   Refresh,
   ExpandMore,
-  ExpandLess
+  ExpandLess,
+  Warehouse
 } from "@mui/icons-material";
 import axios from "axios";
 import { PageContainer } from "@/components/PageContainer";
@@ -54,25 +55,22 @@ import { ContentCard } from "@/components/ContentCard";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import LimitDialog from "@/components/LimitDialog";
+import { ILocal, TipoLocal } from "@/types/ILocal";
+
 
 interface IUsuario {
   id: string;
   nombre: string;
   usuario: string;
-} 
-
-interface ITienda {
-  id: string;
-  nombre: string;
-  usuarios: IUsuario[]
 }
 
-export default function Tiendas() {
-  const [tiendas, setTiendas] = useState<ITienda[]>([]);
+export default function Locales() {
+  const [locales, setLocales] = useState<ILocal[]>([]);
   const [usuarios, setUsuarios] = useState([]);
   const [open, setOpen] = useState(false);
-  const [selectedTienda, setSelectedTienda] = useState(null);
+  const [selectedLocal, setSelectedLocal] = useState(null);
   const [nombre, setNombre] = useState("");
+  const [tipo, setTipo] = useState<string>(TipoLocal.TIENDA);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,18 +84,18 @@ export default function Tiendas() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
-    fetchTiendas();
+    fetchLocales();
     fetchUsuarios();
   }, []);
 
-  const fetchTiendas = async () => {
+  const fetchLocales = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/tiendas");
-      setTiendas(response.data);
+      const response = await axios.get("/api/locales");
+      setLocales(response.data);
     } catch (error) {
-      console.error("Error al cargar tiendas:", error);
-      showMessage("Error al cargar las tiendas", "error");
+      console.error("Error al cargar locales:", error);
+      showMessage("Error al cargar los locales", "error");
     } finally {
       setLoading(false);
     }
@@ -115,38 +113,40 @@ export default function Tiendas() {
 
   const handleSave = async () => {
     if (!nombre.trim()) {
-      showMessage("El nombre de la tienda es obligatorio", "warning");
+      showMessage("El nombre del local es obligatorio", "warning");
       return;
     }
 
     setSaving(true);
     try {
-      if (selectedTienda) {
-        await axios.put(`/api/tiendas/${selectedTienda.id}`, {
+      if (selectedLocal) {
+        await axios.put(`/api/locales/${selectedLocal.id}`, {
           nombre,
+          tipo,
           idusuarios: selectedUsers,
         });
-        showMessage("Tienda actualizada exitosamente", "success");
+        showMessage("Local actualizado exitosamente", "success");
       } else {
-        await axios.post("/api/tiendas", {
+        await axios.post("/api/locales", {
           nombre,
+          tipo,
           idusuarios: selectedUsers,
         });
-        showMessage("Tienda creada exitosamente", "success");
+        showMessage("Local creado exitosamente", "success");
       }
-      fetchTiendas();
+      fetchLocales();
       setOpen(false);
       resetForm();
     } catch (error) {
-      console.error("Error al guardar tienda:", error);
+      console.error("Error al guardar local:", error);
       
-      // Manejar específicamente el error de límite de tiendas
+      // Manejar específicamente el error de límite de locales
       if (error.response?.status === 400 && 
-          error.response?.data?.error?.includes("Limite de tiendas")) {
+          error.response?.data?.error?.includes("Limite de locales")) {
         setLimitDialog(true);
       } else {
         showMessage(
-          error.response?.data?.error || "Error al guardar la tienda", 
+          error.response?.data?.error || "Error al guardar el local", 
           "error"
         );
       }
@@ -157,16 +157,16 @@ export default function Tiendas() {
 
   const handleDelete = async (id) => {
     confirmDialog(
-      "¿Está seguro que desea eliminar esta tienda?",
+      "¿Está seguro que desea eliminar este local?",
       async () => {
         try {
-          await axios.delete(`/api/tiendas/${id}`);
-          fetchTiendas();
-          showMessage("Tienda eliminada exitosamente", "success");
+          await axios.delete(`/api/locales/${id}`);
+          fetchLocales();
+          showMessage("Local eliminado exitosamente", "success");
         } catch (error) {
-          console.error("Error al eliminar tienda:", error);
+          console.error("Error al eliminar local:", error);
           showMessage(
-            error.response?.data?.error || "Error al eliminar la tienda", 
+            error.response?.data?.error || "Error al eliminar el local", 
             "error"
           );
         }
@@ -174,16 +174,18 @@ export default function Tiendas() {
     );
   };
 
-  const handleEdit = (tienda) => {
-    setSelectedTienda(tienda);
-    setNombre(tienda.nombre);
-    setSelectedUsers(tienda.usuarios.map((u) => u.id));
+  const handleEdit = (local) => {
+    setSelectedLocal(local);
+    setNombre(local.nombre);
+    setTipo(local.tipo || TipoLocal.TIENDA);
+    setSelectedUsers(local.usuarios.map((u) => u.id));
     setOpen(true);
   };
 
   const resetForm = () => {
-    setSelectedTienda(null);
+    setSelectedLocal(null);
     setNombre("");
+    setTipo(TipoLocal.TIENDA);
     setSelectedUsers([]);
   };
 
@@ -196,26 +198,26 @@ export default function Tiendas() {
     setLimitDialog(false);
   };
 
-  const filteredTiendas = tiendas.filter(tienda =>
-    tienda.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredLocales = locales.filter(local =>
+    local.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Cálculos para estadísticas
-  const totalTiendas = tiendas.length;
-  const totalUsuariosAsignados = [...new Set(tiendas.flatMap(t => t.usuarios.map(u => u.id)))].length;
-  const tiendasConUsuarios = tiendas.filter(t => t.usuarios.length > 0).length;
-  const tiendasSinUsuarios = tiendas.filter(t => t.usuarios.length === 0).length;
+  const totalLocales = locales.length;
+  const totalUsuariosAsignados = [...new Set(locales.flatMap(t => t.usuarios.map(u => u.id)))].length;
+  const localesConUsuarios = locales.filter(t => t.usuarios.length > 0).length;
+  const localesSinUsuarios = locales.filter(t => t.usuarios.length === 0).length;
 
   const breadcrumbs = [
     { label: 'Inicio', href: '/' },
     { label: 'Configuración', href: '/configuracion' },
-    { label: 'Tiendas' }
+    { label: 'Locales' }
   ];
 
   const headerActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">
-      <Tooltip title="Actualizar tiendas">
-        <IconButton onClick={fetchTiendas} disabled={loading} size="small">
+      <Tooltip title="Actualizar locales">
+        <IconButton onClick={fetchLocales} disabled={loading} size="small">
           <Refresh />
         </IconButton>
       </Tooltip>
@@ -232,10 +234,20 @@ export default function Tiendas() {
         onClick={() => setOpen(true)}
         size="small"
       >
-        {isMobile ? "Agregar" : "Agregar Tienda"}
+        {isMobile ? "Agregar" : "Agregar Local"}
       </Button>
     </Stack>
   );
+
+  // Función para obtener el icono según el tipo
+  const getTipoIcon = (tipoLocal: string) => {
+    return tipoLocal === TipoLocal.ALMACEN ? <Warehouse fontSize="small" /> : <Store fontSize="small" />;
+  };
+
+  // Función para obtener el color según el tipo
+  const getTipoColor = (tipoLocal: string) => {
+    return tipoLocal === TipoLocal.ALMACEN ? "info" : "primary";
+  };
 
   // Componente de estadística móvil optimizado
   const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode, value: string, label: string, color: string }) => (
@@ -295,112 +307,68 @@ export default function Tiendas() {
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
         <CircularProgress />
         <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando tiendas...
+          Cargando locales...
         </Typography>
       </Box>
     );
   }
 
   return (
-    <PageContainer
-      title="Gestión de Tiendas"
-      subtitle={!isMobile ? "Administra las tiendas y asigna usuarios" : undefined}
+    <PageContainer 
+      title="Gestión de Locales" 
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
-      maxWidth="xl"
     >
-      {/* Estadísticas de tiendas */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Store />}
-                  value={totalTiendas.toLocaleString()}
-                  label="Total"
-                  color="primary.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Person />}
-                  value={totalUsuariosAsignados.toLocaleString()}
-                  label="Usuarios"
-                  color="success.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Group />}
-                  value={tiendasConUsuarios.toLocaleString()}
-                  label="Con Usuarios"
-                  color="info.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Business />}
-                  value={tiendasSinUsuarios.toLocaleString()}
-                  label="Sin Usuarios"
-                  color="warning.light"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<Store />}
-              value={totalTiendas.toLocaleString()}
-              label="Total Tiendas"
-              color="primary.light"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<Person />}
-              value={totalUsuariosAsignados.toLocaleString()}
-              label="Usuarios Asignados"
-              color="success.light"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<Group />}
-              value={tiendasConUsuarios.toLocaleString()}
-              label="Con Usuarios"
-              color="info.light"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
+      {/* Estadísticas */}
+      <Collapse in={!isMobile || statsExpanded}>
+        <Grid container spacing={isMobile ? 1.5 : 3} sx={{ mb: 3 }}>
+          <Grid item xs={6} sm={3}>
             <StatCard
               icon={<Business />}
-              value={tiendasSinUsuarios.toLocaleString()}
+              value={totalLocales.toString()}
+              label="Total Locales"
+              color="primary.main"
+            />
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <StatCard
+              icon={<Group />}
+              value={totalUsuariosAsignados.toString()}
+              label="Usuarios Únicos"
+              color="success.main"
+            />
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <StatCard
+              icon={<Store />}
+              value={localesConUsuarios.toString()}
+              label="Con Usuarios"
+              color="info.main"
+            />
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <StatCard
+              icon={<Person />}
+              value={localesSinUsuarios.toString()}
               label="Sin Usuarios"
-              color="warning.light"
+              color="warning.main"
             />
           </Grid>
         </Grid>
-      )}
+      </Collapse>
 
-      {/* Lista de tiendas */}
-      <ContentCard 
-        title="Lista de Tiendas"
-        subtitle={!isMobile ? "Haz clic en cualquier tienda para editarla" : undefined}
+      <ContentCard
+        title={`Locales (${filteredLocales.length})`}
         headerActions={
           <TextField
             size="small"
-            placeholder={isMobile ? "Buscar..." : "Buscar tienda..."}
+            placeholder="Buscar locales..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Search />
+                  <Search fontSize="small" />
                 </InputAdornment>
               ),
             }}
@@ -413,14 +381,14 @@ export default function Tiendas() {
         noPadding
         fullHeight
       >
-        {filteredTiendas.length === 0 ? (
+        {filteredLocales.length === 0 ? (
           <Box sx={{ p: 2 }}>
             <Alert severity="info" sx={{ mt: 2 }}>
               <Typography variant="h6" gutterBottom>
-                {searchTerm ? 'No se encontraron tiendas' : 'No hay tiendas registradas'}
+                {searchTerm ? 'No se encontraron locales' : 'No hay locales registradas'}
               </Typography>
               <Typography variant="body1" gutterBottom>
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Comienza creando tu primera tienda para gestionar tu negocio'}
+                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Comienza creando tu primera locales para gestionar tu negocio'}
               </Typography>
               {!searchTerm && (
                 <Button
@@ -429,7 +397,7 @@ export default function Tiendas() {
                   onClick={() => setOpen(true)}
                   sx={{ mt: 2 }}
                 >
-                  Crear Primera Tienda
+                  Crear Primer Local
                 </Button>
               )}
             </Alert>
@@ -438,10 +406,10 @@ export default function Tiendas() {
           // Vista móvil con cards más densos
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
-              {filteredTiendas.map((tienda) => (
+              {filteredLocales.map((local) => (
                 <Card 
-                  key={tienda.id}
-                  onClick={() => handleEdit(tienda)}
+                  key={local.id}
+                  onClick={() => handleEdit(local)}
                   sx={{
                     cursor: 'pointer',
                     '&:hover': {
@@ -452,13 +420,23 @@ export default function Tiendas() {
                   <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Stack spacing={1.5}>
                       <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
-                          {tienda.nombre}
-                        </Typography>
+                        <Box display="flex" alignItems="center" gap={1} sx={{ flex: 1 }}>
+                          <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                            {local.nombre}
+                          </Typography>
+                          <Chip 
+                            icon={getTipoIcon(local.tipo)}
+                            label={local.tipo}
+                            size="small"
+                            color={getTipoColor(local.tipo)}
+                            variant="outlined"
+                            sx={{ fontSize: '0.6875rem', height: 20 }}
+                          />
+                        </Box>
                         <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDelete(tienda.id);
+                            handleDelete(local.id);
                           }}
                           size="small"
                           color="error"
@@ -468,8 +446,8 @@ export default function Tiendas() {
                       </Box>
                       
                       <Box display="flex" flexWrap="wrap" gap={0.5}>
-                        {tienda.usuarios.length > 0 ? (
-                          tienda.usuarios.map((user) => (
+                        {local.usuarios.length > 0 ? (
+                          local.usuarios.map((user) => (
                             <Chip 
                               key={user.id}
                               label={user.nombre}
@@ -497,15 +475,16 @@ export default function Tiendas() {
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
+                  <TableCell>Tipo</TableCell>
                   <TableCell>Usuarios</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredTiendas.map((tienda) => (
+                {filteredLocales.map((local) => (
                   <TableRow 
-                    key={tienda.id}
-                    onClick={() => handleEdit(tienda)}
+                    key={local.id}
+                    onClick={() => handleEdit(local)}
                     sx={{
                       cursor: 'pointer',
                       '&:hover': {
@@ -518,13 +497,22 @@ export default function Tiendas() {
                   >
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
-                        {tienda.nombre}
+                        {local.nombre}
                       </Typography>
                     </TableCell>
                     <TableCell>
+                      <Chip 
+                        icon={getTipoIcon(local.tipo)}
+                        label={local.tipo}
+                        size="small"
+                        color={getTipoColor(local.tipo)}
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
                       <Box display="flex" flexWrap="wrap" gap={0.5}>
-                        {tienda.usuarios.length > 0 ? (
-                          tienda.usuarios.map((user) => (
+                        {local.usuarios.length > 0 ? (
+                          local.usuarios.map((user) => (
                             <Chip 
                               key={user.id}
                               label={user.nombre}
@@ -541,11 +529,11 @@ export default function Tiendas() {
                     </TableCell>
                     <TableCell align="center">
                       <Stack direction="row" spacing={0.5} justifyContent="center">
-                        <Tooltip title="Editar tienda">
+                        <Tooltip title="Editar local">
                           <IconButton
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleEdit(tienda);
+                              handleEdit(local);
                             }}
                             size="small"
                             color="primary"
@@ -553,11 +541,11 @@ export default function Tiendas() {
                             <Edit fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Eliminar tienda">
+                        <Tooltip title="Eliminar local">
                           <IconButton
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDelete(tienda.id);
+                              handleDelete(local.id);
                             }}
                             size="small"
                             color="error"
@@ -575,20 +563,42 @@ export default function Tiendas() {
         )}
       </ContentCard>
 
-      {/* Dialog para crear/editar tienda */}
+      {/* Dialog para crear/editar local */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{selectedTienda ? "Editar Tienda" : "Nueva Tienda"}</DialogTitle>
+        <DialogTitle>{selectedLocal ? "Editar Local" : "Nuevo Local"}</DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
             <TextField 
               fullWidth 
-              label="Nombre de la tienda" 
+              label="Nombre del local" 
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               required
-              placeholder="Ej: Tienda Centro, Sucursal Norte..."
+              placeholder="Ej: Local Centro, Sucursal Norte..."
               disabled={saving}
             />
+
+            <FormControl fullWidth disabled={saving}>
+              <InputLabel>Tipo de local</InputLabel>
+              <Select
+                value={tipo}
+                onChange={(e) => setTipo(e.target.value as string)}
+                label="Tipo de local"
+              >
+                <MenuItem value={TipoLocal.TIENDA}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Store fontSize="small" />
+                    Tienda
+                  </Box>
+                </MenuItem>
+                <MenuItem value={TipoLocal.ALMACEN}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Warehouse fontSize="small" />
+                    Almacén
+                  </Box>
+                </MenuItem>
+              </Select>
+            </FormControl>
 
             <FormControl fullWidth disabled={saving}>
               <InputLabel>Usuarios asignados</InputLabel>
@@ -636,14 +646,14 @@ export default function Tiendas() {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de límite de tiendas alcanzado */}
+      {/* Dialog de límite de localess alcanzado */}
       <LimitDialog
         open={limitDialog}
         onClose={handleCloseLimitDialog}
-        limitType="tiendas"
+        limitType="locales"
       />
 
       {ConfirmDialogComponent}
     </PageContainer>
   );
-}
+} 

@@ -41,7 +41,7 @@ import {
 } from '@mui/icons-material';
 import { planesNegocio } from '@/utils/planesNegocio';
 
-export type LimitType = 'tiendas' | 'usuarios' | 'productos';
+export type LimitType = 'locales' | 'usuarios' | 'productos';
 
 interface LimitDialogProps {
   open: boolean;
@@ -78,7 +78,7 @@ const getPlansForUI = () => {
       period: 'mes',
       description: 'Plan gratuito por un mes',
       features: [
-        `${planesNegocio.FREEMIUM.limiteLocales} tienda`,
+        `${planesNegocio.FREEMIUM.limiteLocales} local`,
         `${planesNegocio.FREEMIUM.limiteUsuarios} usuario`,
         `Hasta ${planesNegocio.FREEMIUM.limiteProductos} productos`,
         'Funcionalidades básicas',
@@ -94,7 +94,7 @@ const getPlansForUI = () => {
       period: 'mes',
       description: 'Plan básico mensual',
       features: [
-        `${planesNegocio.BASICO.limiteLocales} tienda`,
+        `${planesNegocio.BASICO.limiteLocales} local`,
         `${planesNegocio.BASICO.limiteUsuarios} usuario`,
         `Hasta ${planesNegocio.BASICO.limiteProductos} productos`,
         'Reportes básicos',
@@ -110,7 +110,7 @@ const getPlansForUI = () => {
       period: 'mes',
       description: 'Plan silver con usuarios ilimitados',
       features: [
-        `Hasta ${planesNegocio.SILVER.limiteLocales} tiendas`,
+        `Hasta ${planesNegocio.SILVER.limiteLocales} locales`,
         'Usuarios ilimitados',
         `Hasta ${planesNegocio.SILVER.limiteProductos} productos`,
         'Reportes avanzados',
@@ -127,7 +127,7 @@ const getPlansForUI = () => {
       period: 'mes',
       description: 'Plan premium con productos ilimitados',
       features: [
-        `Hasta ${planesNegocio.PREMIUM.limiteLocales} tiendas`,
+        `Hasta ${planesNegocio.PREMIUM.limiteLocales} locales`,
         'Usuarios ilimitados',
         'Productos ilimitados',
         'Reportes personalizados',
@@ -145,7 +145,7 @@ const getPlansForUI = () => {
       period: '',
       description: 'Plan personalizado según tus necesidades',
       features: [
-        'Tiendas según necesidad',
+        'Locales según necesidad',
         'Usuarios según necesidad',
         'Productos según necesidad',
         'Funcionalidades personalizadas',
@@ -177,15 +177,15 @@ const LimitDialog: React.FC<LimitDialogProps> = ({
 
   const getConfig = () => {
     switch (limitType) {
-      case 'tiendas':
+      case 'locales':
         return {
           icon: <Store />,
-          title: 'Límite de Tiendas Alcanzado',
-          description: 'Has alcanzado el límite máximo de tiendas permitido en tu plan actual.',
-          explanation: 'Tu plan actual tiene un límite en el número de tiendas que puedes crear. Esto te ayuda a mantener un control organizado de tu negocio según el tamaño de tu operación.',
+          title: 'Límite de Locales Alcanzado',
+          description: 'Has alcanzado el límite máximo de locales permitido en tu plan actual.',
+          explanation: 'Tu plan actual tiene un límite en el número de locales que puedes crear. Esto te ayuda a mantener un control organizado de tu negocio según el tamaño de tu operación.',
           benefits: [
             {
-              title: 'Más tiendas disponibles',
+              title: 'Más locales disponibles',
               description: 'Crea tantas sucursales como necesites'
             },
             {
@@ -194,7 +194,7 @@ const LimitDialog: React.FC<LimitDialogProps> = ({
             },
             {
               title: 'Reportes consolidados',
-              description: 'Visualiza el rendimiento de todas tus tiendas en un solo lugar'
+              description: 'Visualiza el rendimiento de todas tus locales en un solo lugar'
             },
             {
               title: 'Soporte prioritario',

@@ -2,7 +2,7 @@ import axios from "axios";
 
 const API_URL = "/api/auth"; // Ruta base del backend
 
-export const cambiarTienda = async (newTiendaId: string) => {
+export const cambiarLocal = async (newTiendaId: string) => {
   const response = await axios.post(`${API_URL}/cambiar-tienda`, {
     tiendaId: newTiendaId
   });
@@ -18,7 +18,7 @@ export const cambiarNegocio = async (newNegocioId: string) => {
   return response;
 };
 
-export const getTiendasDisponibles = async () => {
-  const response = await axios.get("/api/tiendas-disponibles");
+export const getLocalesDisponibles = async () => {
+  const response = await axios.get("/api/locales-disponibles");
   return response.data;
 };

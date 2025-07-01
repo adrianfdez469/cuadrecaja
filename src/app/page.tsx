@@ -28,9 +28,12 @@ import {
   Person,
   Store,
   ShoppingCart,
-  Summarize
+  Summarize,
+  Warehouse
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
+import { TipoLocal } from "@/types/ILocal";
+import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 
 const HomePage = () => {
   const { loadingContext, user } = useAppContext();
@@ -89,13 +92,13 @@ const HomePage = () => {
           </Typography>
           
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 500, mx: 'auto' }}>
-            Para comenzar a usar el sistema, necesitas tener al menos una tienda asociada a tu usuario. 
+            Para comenzar a usar el sistema, necesitas tener al menos un local asociada a tu usuario. 
             Contacta al administrador para que configure tu acceso.
           </Typography>
           
           <Alert severity="info" sx={{ mb: 3 }}>
             <Typography variant="body2">
-              <strong>Estado:</strong> Usuario sin tiendas asociadas
+              <strong>Estado:</strong> Usuario sin locales asociadas
             </Typography>
           </Alert>
           
@@ -117,7 +120,7 @@ const HomePage = () => {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Alert severity="warning" sx={{ mb: 3 }}>
-          Selecciona una tienda desde el menú de usuario para continuar
+          Selecciona un local desde el menú de usuario para continuar
         </Alert>
       </Container>
     );
@@ -186,9 +189,9 @@ const HomePage = () => {
       path: "/configuracion/categorias"
     },
     {
-      title: "Tiendas",
+      title: "Locales",
       icon: <Store />,
-      path: "/configuracion/tiendas"
+      path: "/configuracion/locales"
     },
     {
       title: "Usuarios",
@@ -196,6 +199,20 @@ const HomePage = () => {
       path: "/configuracion/usuarios"
     }
   ];
+
+  
+  const getQuickAction = (localType: string) => {
+    return quickActions.filter(item => {
+      if(localType === TipoLocal.ALMACEN) {
+        return !excludeOnWarehouse.includes(item.path);
+      }
+      return true;
+    })
+  };
+
+  const getTipoLocalText = (tipoLocal: string) => {
+    return tipoLocal === TipoLocal.ALMACEN ? 'Alamcén' : 'Tienda';
+  } 
 
   return (
     <Container maxWidth="xl" sx={{ py: 2 }}>
@@ -242,25 +259,20 @@ const HomePage = () => {
             }}
           >
             <Typography 
-              variant="subtitle2" 
+              variant="h6" 
               sx={{ 
                 color: 'rgba(255, 255, 255, 0.95)',
-                fontWeight: 500,
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-              }}
-            >
-              Tienda Actual
-            </Typography>
-            <Typography 
-              variant="h6" 
-              fontWeight={600}
-              sx={{
-                color: '#ffffff',
+                fontWeight: 600,
                 textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-                mb: 0.5
+                display: 'flex',
+                flexDirection: 'row',
+                alignContent: 'center',
+                justifyItems: 'center',
+                alignItems: 'center'
               }}
             >
-              {user.tiendaActual.nombre}
+              {`${getTipoLocalText(user.tiendaActual.tipo)}: ${user.tiendaActual.nombre}`}
+              
             </Typography>
             <Typography 
               variant="caption" 
@@ -285,7 +297,8 @@ const HomePage = () => {
         </Typography>
         
         <Grid container spacing={3}>
-          {quickActions.map((action, index) => (
+
+          {getQuickAction(user.tiendaActual.tipo).map((action, index) => (
             <Grid item xs={12} sm={6} md={4} key={index}>
               <Card 
                 sx={{ 

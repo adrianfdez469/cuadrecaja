@@ -37,7 +37,7 @@ import { useAppContext } from "@/context/AppContext";
 import { AccountCircle } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
-import { cambiarNegocio, cambiarTienda, getTiendasDisponibles } from "@/services/authService";
+import { cambiarNegocio, cambiarLocal, getLocalesDisponibles } from "@/services/authService";
 import { useSession, signOut } from "next-auth/react";
 import { useMessageContext } from "@/context/MessageContext";
 import { getNegocios } from "@/services/negocioServce";
@@ -58,6 +58,8 @@ import {
   Summarize,
   GridView,
 } from '@mui/icons-material';
+import { TipoLocal } from "@/types/ILocal";
+import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 
 const configurationMenuItems = [
   {
@@ -70,7 +72,7 @@ const configurationMenuItems = [
     path: "/configuracion/usuarios",
     icon: SupervisedUserCircleIcon,
   },
-  { label: "Tiendas", path: "/configuracion/tiendas", icon: StoreIcon },
+  { label: "Locales", path: "/configuracion/locales", icon: StoreIcon },
   {
     label: "Categorías",
     path: "/configuracion/categorias",
@@ -99,22 +101,31 @@ const mainMenuItems = [
   { label: "Resumen Cierres", path: "/resumen_cierre", icon: <Summarize /> },
 ];
 
+const getMainMenuItemsByLocalType = (localType: string) => {
+  return mainMenuItems.filter(item => {
+    if(localType === TipoLocal.ALMACEN) {
+      return !excludeOnWarehouse.includes(item.path);
+    }
+    return true;
+  })
+}
+
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [open, setOpen] = useState(false);
   const { user, isAuth, handleLogout, goToLogin, gotToPath } = useAppContext();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [openSelectTienda, setOpenSelectTienda] = useState(false);
+  const [openSelectLocal, setOpenSelectLocal] = useState(false);
   const [openSelectNegocio, setOpenSelectNegocio] = useState(false);
   const [cambiandoNegocio, setCambiandoNegocio] = useState(false);
   const [negocioRecienCambiado, setNegocioRecienCambiado] = useState(false);
-  const selectorTiendaAbiertoRef = useRef(false);
+  const selectorLocalAbiertoRef = useRef(false);
   const { update, data: session } = useSession();
   const { showMessage } = useMessageContext();
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   const [loadingNegocios, setLoadingNegocios] = useState(false);
-  const [tiendasDisponibles, setTiendasDisponibles] = useState([]);
-  const [loadingTiendas, setLoadingTiendas] = useState(false);
-  const [totalTiendasDisponibles, setTotalTiendasDisponibles] = useState(0);
+  const [localesDisponibles, setLocalesDisponibles] = useState([]);
+  const [loadingLocales, setLoadingLocales] = useState(false);
+  const [totalLocalesDisponibles, setTotalLocalesDisponibles] = useState(0);
   const { isOnline, wasOffline } = useNetworkStatus();
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -125,19 +136,19 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     setAnchorEl(null);
   };
 
-  const handleCambiarTienda = async () => {
+  const handleCambiarLocal = async () => {
     try {
-      setLoadingTiendas(true);
+      setLoadingLocales(true);
       handleClose();
-      const tiendas = await getTiendasDisponibles();
-      setTiendasDisponibles(tiendas);
-      setTotalTiendasDisponibles(tiendas.length);
-      setOpenSelectTienda(true);
-      selectorTiendaAbiertoRef.current = true;
+      const locales = await getLocalesDisponibles();
+      setLocalesDisponibles(locales);
+      setTotalLocalesDisponibles(locales.length);
+      setOpenSelectLocal(true);
+      selectorLocalAbiertoRef.current = true;
     } catch (error) {
-      showMessage("No se pueden cargar las tiendas disponibles", "error", error);
+      showMessage("No se pueden cargar los locales disponibles", "error", error);
     } finally {
-      setLoadingTiendas(false);
+      setLoadingLocales(false);
     }
   };
 
@@ -154,75 +165,75 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     }
   };
 
-  const handleCloseCambiarTienda = () => {
-    setOpenSelectTienda(false);
-    selectorTiendaAbiertoRef.current = false;
+  const handleCloseCambiarLocal = () => {
+    setOpenSelectLocal(false);
+    selectorLocalAbiertoRef.current = false;
   };
   const handleCloseCambiarNegocio = () => {
     setOpenSelectNegocio(false);
   };
 
-  const handleSelectTienda = async (selectedTienda) => {
-    console.log(selectedTienda);
-    const resp = await cambiarTienda(selectedTienda);
+  const handleSelectLocal = async (selectedLocal) => {
+    console.log(selectedLocal);
+    const resp = await cambiarLocal(selectedLocal);
     if (resp.status === 201) {
       await update({
-        tiendaActual: tiendasDisponibles?.find((t) => t.id === selectedTienda),
+        tiendaActual: localesDisponibles?.find((t) => t.id === selectedLocal),
       });
-      showMessage("La tienda fue actualizada satisfactoriamente", "success");
+      showMessage("El local fue actualizada satisfactoriamente", "success");
     } else {
       console.log(resp);
-      showMessage("No se pudo actualizar la tienda", "error");
+      showMessage("No se pudo actualizar el local", "error");
     }
-    handleCloseCambiarTienda();
+    handleCloseCambiarLocal();
   };
 
   const handleSelectNegocio = async (selectedNegocio) => {
     console.log("🔄 Iniciando cambio de negocio");
     setCambiandoNegocio(true);
     setNegocioRecienCambiado(true);
-    selectorTiendaAbiertoRef.current = false; // Reset del ref
+    selectorLocalAbiertoRef.current = false; // Reset del ref
     
     const resp = await cambiarNegocio(selectedNegocio);
     if (resp.status === 201) {
       await update({
         negocio: negocios.find((n) => n.id === selectedNegocio),
-        tiendaActual: null, // Limpiar tienda actual al cambiar negocio
+        tiendaActual: null, // Limpiar local actual al cambiar negocio
       });
       showMessage("El negocio fue actualizado satisfactoriamente", "success");
       
-      // Cargar las nuevas tiendas disponibles y abrir selector
+      // Cargar las nuevas local disponibles y abrir selector
       try {
-        const tiendas = await getTiendasDisponibles();
-        setTiendasDisponibles(tiendas);
-        setTotalTiendasDisponibles(tiendas.length);
+        const locales = await getLocalesDisponibles();
+        setLocalesDisponibles(locales);
+        setTotalLocalesDisponibles(locales.length);
         
-        console.log("🏪 Tiendas disponibles:", tiendas.length);
+        console.log("🏪 Locales disponibles:", locales.length);
         
-        // Solo abrir selector si hay tiendas disponibles
-        if (tiendas.length > 0) {
+        // Solo abrir selector si hay locales disponibles
+        if (locales.length > 0) {
           console.log("⏰ Programando apertura del selector en 300ms");
           // Esperar un poco para asegurar que la sesión se actualice
           setTimeout(() => {
-            console.log("✅ Abriendo selector de tienda desde cambio de negocio");
-            setOpenSelectTienda(true);
-            selectorTiendaAbiertoRef.current = true;
+            console.log("✅ Abriendo selector de local desde cambio de negocio");
+            setOpenSelectLocal(true);
+            selectorLocalAbiertoRef.current = true;
           }, 300);
         } else {
-          // Si no hay tiendas, mostrar mensaje y resetear flags inmediatamente
-          showMessage("Este negocio no tiene tiendas disponibles", "warning");
+          // Si no hay locales, mostrar mensaje y resetear flags inmediatamente
+          showMessage("Este negocio no tiene locales disponibles", "warning");
           setNegocioRecienCambiado(false);
         }
         
-        // Resetear el flag después de un tiempo más largo solo si hay tiendas
-        if (tiendas.length > 0) {
+        // Resetear el flag después de un tiempo más largo solo si hay locales
+        if (locales.length > 0) {
           setTimeout(() => {
             console.log("🔄 Reseteando negocioRecienCambiado");
             setNegocioRecienCambiado(false);
           }, 3000); // Aumentado a 3 segundos para mayor seguridad
         }
       } catch (error) {
-        showMessage("Error al cargar tiendas disponibles", "error", error);
+        showMessage("Error al cargar locales disponibles", "error", error);
         setNegocioRecienCambiado(false);
       }
     } else {
@@ -238,36 +249,36 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     }, 500); // Aumentado para mayor seguridad
   };
 
-  // Función para cargar el conteo de tiendas disponibles
-  const loadTiendasCount = async () => {
+  // Función para cargar el conteo de locales disponibles
+  const loadLocalesCount = async () => {
     try {
       // Solo cargar si no tenemos el conteo aún
-      if (totalTiendasDisponibles === 0) {
-        const tiendas = await getTiendasDisponibles();
-        setTotalTiendasDisponibles(tiendas.length);
+      if (totalLocalesDisponibles === 0) {
+        const locales = await getLocalesDisponibles();
+        setTotalLocalesDisponibles(locales.length);
       }
     } catch (error) {
-      console.error("Error al obtener conteo de tiendas:", error);
+      console.error("Error al obtener conteo de locales:", error);
     }
   };
 
-  // Cargar el conteo de tiendas al montar el componente
+  // Cargar el conteo de locales al montar el componente
   useEffect(() => {
-    if (isAuth && user && totalTiendasDisponibles === 0) {
-      loadTiendasCount();
+    if (isAuth && user && totalLocalesDisponibles === 0) {
+      loadLocalesCount();
     }
-  }, [isAuth, user, totalTiendasDisponibles]);
+  }, [isAuth, user, totalLocalesDisponibles]);
 
-  // Detectar si el usuario necesita seleccionar una tienda
+  // Detectar si el usuario necesita seleccionar una local
   useEffect(() => {
-    console.log("🔍 useEffect selector tienda ejecutándose:", {
+    console.log("🔍 useEffect selector local ejecutándose:", {
       negocioRecienCambiado,
       isAuth,
       tiendaActual: !!user?.tiendaActual,
-      totalTiendasDisponibles,
-      openSelectTienda,
+      totalTiendasDisponibles: totalLocalesDisponibles,
+      openSelectTienda: openSelectLocal,
       cambiandoNegocio,
-      selectorAbierto: selectorTiendaAbiertoRef.current
+      selectorAbierto: selectorLocalAbiertoRef.current
     });
     
     // SOLO ejecutar si NO acabamos de cambiar de negocio
@@ -277,12 +288,12 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     }
     
     // No mostrar selector automáticamente si estamos cambiando de negocio, ya está abierto, ya se abrió antes
-    if (isAuth && user && !user.tiendaActual && totalTiendasDisponibles >= 1 && !openSelectTienda && !cambiandoNegocio && !selectorTiendaAbiertoRef.current) {
-      console.log("🚀 Abriendo selector de tienda desde useEffect");
-      // Mostrar automáticamente el selector de tienda si el usuario no tiene una asignada
-      handleCambiarTienda();
+    if (isAuth && user && !user.tiendaActual && totalLocalesDisponibles >= 1 && !openSelectLocal && !cambiandoNegocio && !selectorLocalAbiertoRef.current) {
+      console.log("🚀 Abriendo selector de local desde useEffect");
+      // Mostrar automáticamente el selector de local si el usuario no tiene una asignada
+      handleCambiarLocal();
     }
-  }, [isAuth, user?.tiendaActual, totalTiendasDisponibles, openSelectTienda, cambiandoNegocio, negocioRecienCambiado]);
+  }, [isAuth, user?.tiendaActual, totalLocalesDisponibles, openSelectLocal, cambiandoNegocio, negocioRecienCambiado]);
 
   useEffect(() => {
     // Solo verificar expiración si hay sesión
@@ -444,15 +455,15 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     </Typography>
                   </MenuItem>
                 )}
-                {(user.rol === "SUPER_ADMIN" || totalTiendasDisponibles > 1 || (totalTiendasDisponibles >= 1 && !user?.tiendaActual)) && (
+                {(user.rol === "SUPER_ADMIN" || totalLocalesDisponibles > 1 || (totalLocalesDisponibles >= 1 && !user?.tiendaActual)) && (
                 [
-                    <MenuItem key="cambiar-tienda" onClick={() => handleCambiarTienda()}>
+                    <MenuItem key="cambiar-local" onClick={() => handleCambiarLocal()}>
                       <ChangeCircleIcon sx={{ mr: 2, color: 'info.main' }} />
                       <Typography variant="body2" fontWeight={500}>
-                        {!user?.tiendaActual ? 'Seleccionar tienda' : 'Cambiar de tienda'}
+                        {!user?.tiendaActual ? 'Seleccionar local' : 'Cambiar de local'}
                       </Typography>
                     </MenuItem>,
-                    <Divider key="divider-tienda" sx={{ my: 1 }} />
+                    <Divider key="divider-local" sx={{ my: 1 }} />
                  ] 
                 )}
                 <MenuItem onClick={handleLogout}>
@@ -564,7 +575,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               </Box>
               
               <List sx={{ pt: 0 }}>
-                {mainMenuItems.map((item) => (
+                {getMainMenuItemsByLocalType(user.tiendaActual.tipo).map((item) => (
                   <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
                     <ListItemButton 
                       onClick={() => gotToPath(item.path)}
@@ -618,9 +629,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
       {/* Dialogs mejorados */}
       <Dialog
-        open={openSelectTienda}
-        onClose={user?.tiendaActual || tiendasDisponibles.length === 0 ? () => handleCloseCambiarTienda() : undefined}
-        disableEscapeKeyDown={!user?.tiendaActual && tiendasDisponibles.length > 0}
+        open={openSelectLocal}
+        onClose={user?.tiendaActual || localesDisponibles.length === 0 ? () => handleCloseCambiarLocal() : undefined}
+        disableEscapeKeyDown={!user?.tiendaActual && localesDisponibles.length > 0}
         PaperProps={{
           sx: {
             borderRadius: 3,
@@ -630,50 +641,50 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       >
         <DialogTitle sx={{ pb: 1 }}>
           <Typography variant="h6" fontWeight={600}>
-            {!user?.tiendaActual ? 'Seleccionar tienda' : 'Cambiar tienda'}
+            {!user?.tiendaActual ? 'Seleccionar local' : 'Cambiar local'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {!user?.tiendaActual 
-              ? 'Necesitas seleccionar una tienda para comenzar a trabajar'
-              : 'Selecciona la tienda donde deseas trabajar'
+              ? 'Necesitas seleccionar un local para comenzar a trabajar'
+              : 'Selecciona el local donde deseas trabajar'
             }
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
-          {!user?.tiendaActual && tiendasDisponibles.length === 1 && (
+          {!user?.tiendaActual && localesDisponibles.length === 1 && (
             <Box sx={{ mb: 2, p: 2, backgroundColor: 'info.light', borderRadius: 1 }}>
               <Typography variant="body2" color="info.contrastText">
-                <strong>Nota:</strong> Necesitas seleccionar una tienda para acceder al sistema.
+                <strong>Nota:</strong> Necesitas seleccionar un local para acceder al sistema.
               </Typography>
             </Box>
           )}
-          {tiendasDisponibles.length === 0 && !loadingTiendas && (
+          {localesDisponibles.length === 0 && !loadingLocales && (
             <Box sx={{ mb: 2, p: 2, backgroundColor: 'warning.light', borderRadius: 1, textAlign: 'center' }}>
               <Typography variant="body2" color="warning.contrastText">
-                <strong>Sin tiendas disponibles</strong>
+                <strong>Sin locales disponibles</strong>
               </Typography>
               <Typography variant="body2" color="warning.contrastText" sx={{ mt: 1 }}>
-                Este negocio no tiene tiendas configuradas. Contacta al administrador para crear tiendas.
+                Este negocio no tiene locales configuradas. Contacta al administrador para crear locales.
               </Typography>
             </Box>
           )}
-          {loadingTiendas ? (
+          {loadingLocales ? (
             <Box display="flex" justifyContent="center" py={4}>
               <CircularProgress />
             </Box>
-          ) : tiendasDisponibles.length > 0 ? (
+          ) : localesDisponibles.length > 0 ? (
             <RadioGroup
-              onChange={(e) => handleSelectTienda(e.target.value)}
+              onChange={(e) => handleSelectLocal(e.target.value)}
             >
-              {tiendasDisponibles?.map((tienda) => (
+              {localesDisponibles?.map((local) => (
                 <FormControlLabel
-                  key={tienda.id}
-                  value={tienda.id}
+                  key={local.id}
+                  value={local.id}
                   control={<Radio color="primary" />}
                   label={
                     <Box>
                       <Typography variant="body1" fontWeight={500}>
-                        {tienda.nombre}
+                        {local.nombre}
                       </Typography>
                     </Box>
                   }
@@ -691,9 +702,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           ) : null}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          {(user?.tiendaActual || tiendasDisponibles.length === 0) && (
-            <Button onClick={handleCloseCambiarTienda} variant="outlined">
-              {tiendasDisponibles.length === 0 ? 'Cerrar' : 'Cancelar'}
+          {(user?.tiendaActual || localesDisponibles.length === 0) && (
+            <Button onClick={handleCloseCambiarLocal} variant="outlined">
+              {localesDisponibles.length === 0 ? 'Cerrar' : 'Cancelar'}
             </Button>
           )}
         </DialogActions>
