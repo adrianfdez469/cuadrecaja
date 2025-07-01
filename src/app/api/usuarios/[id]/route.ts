@@ -38,12 +38,13 @@ export async function DELETE(
     const usuarioUsado = await prisma.usuario.findUnique({
       where: {id},
       include: {
-        tiendas: {take: 1},
+        locales: {take: 1},
+        //tiendas: {take: 1},
         ventas: {take: 1}
       }
     });
 
-    if(usuarioUsado?.tiendas?.length || usuarioUsado?.ventas.length) {
+    if(usuarioUsado?.locales?.length || usuarioUsado?.ventas.length) {
       return NextResponse.json(
         { error: "No se puede eliminar el usuario porque tiene ventas asociadas o está en alguna tienda" },
         { status: 500 }
