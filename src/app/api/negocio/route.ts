@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     const newNegocio = await prisma.negocio.create({
       data: { 
-        nombre, 
+        nombre: nombre.trim(), 
         limitTime: futureDate.toISOString(), 
         locallimit, 
         userlimit,

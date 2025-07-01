@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     const { nombre, color } = await request.json();
     const newCategory = await prisma.categoria.create({
-      data: { nombre, color, negocioId: user.negocio.id },
+      data: { nombre: nombre.trim(), color, negocioId: user.negocio.id },
     });
     return NextResponse.json(newCategory, { status: 201 });
   } catch (error) {

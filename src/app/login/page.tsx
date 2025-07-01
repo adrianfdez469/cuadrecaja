@@ -33,7 +33,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCredentials({ ...credentials, [e.target.name]: e.target.value });
+    if(e.target.name === "usuario") {
+      setCredentials({ ...credentials, [e.target.name]: e.target.value.trim().toLowerCase() });
+    } else {
+      setCredentials({ ...credentials, [e.target.name]: e.target.value });
+    }
     if (error) setError(""); // Limpiar error al escribir
   };
 

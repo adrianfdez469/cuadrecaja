@@ -57,8 +57,10 @@ export async function POST(req: Request) {
       );
     }
 
+    const nombreUsuario = (data.usuario as string).trim();
+
     if (!data.nombre) {
-      data.nombre = (data.usuario as string)
+      data.nombre = nombreUsuario
         .split("")
         .reduce((acc: string, letter: string, index: number) => {
           if (index === 0) {
@@ -73,6 +75,7 @@ export async function POST(req: Request) {
     const usuario = await prisma.usuario.create({
       data: {
         ...data,
+        nombre: nombreUsuario,
         password,
         negocioId: user.negocio.id,
         localActualId: null

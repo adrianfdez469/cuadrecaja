@@ -71,9 +71,9 @@ export async function POST(request: Request) {
     const { nombre, tipo, idusuarios } = await request.json();
     console.log(idusuarios);
     
-    const newTienda = await prisma.tienda.create({
+    const newLocal = await prisma.tienda.create({
       data: {
-        nombre,
+        nombre: nombre.trim(),
         tipo: tipo || "TIENDA",
         usuarios: {
           create: idusuarios.map((usuarioId: string) => ({
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     });
 
 
-    return NextResponse.json(newTienda, { status: 201 });
+    return NextResponse.json(newLocal, { status: 201 });
   } catch (error) {
     console.log(error);
     return NextResponse.json(
