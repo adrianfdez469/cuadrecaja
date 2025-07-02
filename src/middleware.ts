@@ -4,51 +4,26 @@ import { getToken } from 'next-auth/jwt'
 
 export async function middleware(req: NextRequest) {
   try {
-    // Verificar que NEXTAUTH_SECRET esté disponible
-    if (!process.env.NEXTAUTH_SECRET) {
-      console.error('❌ [MIDDLEWARE] NEXTAUTH_SECRET no está definido en las variables de entorno');
-      return NextResponse.json({ error: 'Configuración de autenticación faltante' }, { status: 500 });
-    }
-
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
 
     if (token) {
       // Almacena la info del usuario en headers para que los endpoints la lean
       const requestHeaders = new Headers(req.headers)
       
-      // Agregar headers básicos de forma segura
-      if (token.id) requestHeaders.set('x-user-id', String(token.id));
-      if (token.rol) requestHeaders.set('x-user-rol', String(token.rol));
-      if (token.nombre) requestHeaders.set('x-user-nombre', String(token.nombre));
-      if (token.usuario) requestHeaders.set('x-user-usuario', String(token.usuario));
+      // Codificar valores en Base64 para evitar problemas con caracteres no-ASCII
+      const encodeForHeader = (value: any): string => {
+        if (value === null || value === undefined) return '';
+        const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+        return Buffer.from(stringValue, 'utf8').toString('base64');
+      };
       
-      // Serializar objetos de forma segura
-      if (token.negocio) {
-        try {
-          requestHeaders.set('x-user-negocio', JSON.stringify(token.negocio));
-        } catch (error) {
-          console.error('❌ [MIDDLEWARE] Error al serializar negocio:', error);
-          requestHeaders.set('x-user-negocio', '{}');
-        }
-      }
-      
-      if (token.localActual) {
-        try {
-          requestHeaders.set('x-user-localActual', JSON.stringify(token.localActual));
-        } catch (error) {
-          console.error('❌ [MIDDLEWARE] Error al serializar localActual:', error);
-          requestHeaders.set('x-user-localActual', '{}');
-        }
-      }
-      
-      if (token.locales) {
-        try {
-          requestHeaders.set('x-user-locales', JSON.stringify(token.locales));
-        } catch (error) {
-          console.error('❌ [MIDDLEWARE] Error al serializar locales:', error);
-          requestHeaders.set('x-user-locales', '[]');
-        }
-      }
+      if (token.id) requestHeaders.set('x-user-id', encodeForHeader(token.id));
+      if (token.rol) requestHeaders.set('x-user-rol', encodeForHeader(token.rol));
+      if (token.nombre) requestHeaders.set('x-user-nombre', encodeForHeader(token.nombre));
+      if (token.usuario) requestHeaders.set('x-user-usuario', encodeForHeader(token.usuario));
+      if (token.negocio) requestHeaders.set('x-user-negocio', encodeForHeader(token.negocio));
+      if (token.localActual) requestHeaders.set('x-user-localActual', encodeForHeader(token.localActual));
+      if (token.locales) requestHeaders.set('x-user-locales', encodeForHeader(token.locales));
 
       return NextResponse.next({
         request: {
@@ -61,9 +36,7 @@ export async function middleware(req: NextRequest) {
     
   } catch (error) {
     console.error('❌ [MIDDLEWARE] Error crítico en middleware:', error);
-    
     // En caso de error crítico, permitir que la petición continúe sin headers de usuario
-    // Esto evita que se rompa toda la aplicación
     return NextResponse.next();
   }
 }

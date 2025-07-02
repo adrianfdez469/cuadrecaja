@@ -13,49 +13,50 @@ export default async function(req: Request): Promise<{
   try {
     const headers = new Headers(await req.headers);
     
-    const userId = headers.get('x-user-id');
-    const userRol = headers.get('x-user-rol');
-    const nombre = headers.get('x-user-nombre');
-    const usuario = headers.get('x-user-usuario');
+    // Función para decodificar valores Base64 de los headers
+    const decodeFromHeader = (headerValue: string | null): string => {
+      if (!headerValue) return '';
+      try {
+        return Buffer.from(headerValue, 'base64').toString('utf8');
+      } catch (error) {
+        console.error('❌ [getUserFromRequest] Error al decodificar header:', error);
+        return '';
+      }
+    };
+    
+    const userId = decodeFromHeader(headers.get('x-user-id'));
+    const userRol = decodeFromHeader(headers.get('x-user-rol'));
+    const nombre = decodeFromHeader(headers.get('x-user-nombre'));
+    const usuario = decodeFromHeader(headers.get('x-user-usuario'));
 
     if (!userId) {
       throw new Error('No autorizado - Token de usuario no encontrado');
     }
 
-    // Parsear negocio de forma segura
+    // Parsear objetos JSON decodificados
     let negocio: INegocio;
+    let tienda: ILocal;
+    let tiendas: ILocal[];
+
     try {
-      const negocioHeader = headers.get('x-user-negocio');
-      if (!negocioHeader) {
-        throw new Error('Header x-user-negocio no encontrado');
-      }
-      negocio = JSON.parse(negocioHeader);
+      const negocioDecoded = decodeFromHeader(headers.get('x-user-negocio'));
+      negocio = negocioDecoded ? JSON.parse(negocioDecoded) : null;
     } catch (error) {
       console.error('❌ [getUserFromRequest] Error al parsear negocio:', error);
       throw new Error('Error al obtener información del negocio');
     }
 
-    // Parsear tienda actual de forma segura
-    let tienda: ILocal;
     try {
-      const tiendaHeader = headers.get('x-user-localActual');
-      if (!tiendaHeader) {
-        throw new Error('Header x-user-localActual no encontrado');
-      }
-      tienda = JSON.parse(tiendaHeader);
+      const tiendaDecoded = decodeFromHeader(headers.get('x-user-localActual'));
+      tienda = tiendaDecoded ? JSON.parse(tiendaDecoded) : null;
     } catch (error) {
       console.error('❌ [getUserFromRequest] Error al parsear tienda actual:', error);
       throw new Error('Error al obtener información de la tienda actual');
     }
 
-    // Parsear tiendas de forma segura
-    let tiendas: ILocal[];
     try {
-      const tiendasHeader = headers.get('x-user-locales');
-      if (!tiendasHeader) {
-        throw new Error('Header x-user-locales no encontrado');
-      }
-      tiendas = JSON.parse(tiendasHeader);
+      const tiendasDecoded = decodeFromHeader(headers.get('x-user-locales'));
+      tiendas = tiendasDecoded ? JSON.parse(tiendasDecoded) : [];
     } catch (error) {
       console.error('❌ [getUserFromRequest] Error al parsear tiendas:', error);
       throw new Error('Error al obtener información de las tiendas');
@@ -63,9 +64,9 @@ export default async function(req: Request): Promise<{
 
     return {
       id: userId,
-      rol: userRol || '',
-      nombre: nombre || '',
-      usuario: usuario || '',
+      rol: userRol,
+      nombre,
+      usuario,
       negocio,
       tienda,
       tiendas
