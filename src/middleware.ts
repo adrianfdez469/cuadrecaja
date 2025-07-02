@@ -11,6 +11,7 @@ export async function middleware(req: NextRequest) {
       const requestHeaders = new Headers(req.headers)
       
       // Codificar valores en Base64 para evitar problemas con caracteres no-ASCII
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const encodeForHeader = (value: any): string => {
         if (value === null || value === undefined) return '';
         const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
