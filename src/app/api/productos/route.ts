@@ -68,11 +68,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const { nombre, descripcion, categoriaId, fraccion } = await req.json();
+    const { nombre, descripcion, categoriaId, fraccion, enConsignacion } = await req.json();
     console.log('intert product enpoint => fraccion', fraccion);
     
     const nuevoProducto = await prisma.producto.create({
-      data: { nombre: nombre.trim(), descripcion: descripcion.trim(), categoriaId, negocioId: user.negocio.id, ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion}) },
+      data: { 
+        nombre: nombre.trim(), 
+        descripcion: descripcion.trim(), 
+        categoriaId, 
+        negocioId: user.negocio.id, 
+        enConsignacion: enConsignacion || false,
+        ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion}) 
+      },
     });
 
     return NextResponse.json(nuevoProducto, { status: 201 });

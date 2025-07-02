@@ -108,6 +108,9 @@ model Producto {
 
   unidadesPorFraccion Int?         // Cuántas unidades se generan al fraccionar 1 del producto padre
 
+  // 🤝 Consignación: Indica si el producto está en consignación
+  enConsignacion   Boolean          @default(false) // Producto en consignación (no es de tu propiedad)
+
   negocio         Negocio          @relation(fields: [negocioId], references: [id])
   negocioId       String            @default("")
 
