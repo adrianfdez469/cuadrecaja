@@ -321,6 +321,7 @@ console.log(editingProd);
         <Button
           onClick={handleSaveProduct}
           color="primary"
+          disabled={!nombre || !categoria}
         >
           Guardar
         </Button>
