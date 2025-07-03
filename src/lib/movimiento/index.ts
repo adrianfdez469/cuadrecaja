@@ -3,11 +3,11 @@ import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 
 export const CreateMoviento = async (data, items) => {
 
-  const { tipo, tiendaId, usuarioId, referenciaId } = data;
+  const { tipo, tiendaId, usuarioId, referenciaId, motivo, proveedorId } = data;
 
     await prisma.$transaction(async (tx) => {
       for (const movimiento of items) {
-        const {  productoId, cantidad } = movimiento;
+        const {  productoId, cantidad, costoUnitario, costoTotal } = movimiento;
   
         // 1. Obtener el productoTienda existente para capturar la existencia anterior
         let existenciaAnterior = 0;
@@ -35,7 +35,7 @@ export const CreateMoviento = async (data, items) => {
           create: {
             tiendaId,
             productoId,
-            costo: 0, // si tienes valores personalizados, agrégalos aquí
+            costo: costoUnitario || 0,
             precio: 0,
             existencia: cantidad,
           },
@@ -43,6 +43,10 @@ export const CreateMoviento = async (data, items) => {
             existencia: {
               increment: isMovimientoBaja(tipo) ? -cantidad : cantidad,
             },
+            // Actualizar costo si es una compra
+            ...(tipo === 'COMPRA' && costoUnitario && {
+              costo: costoUnitario
+            })
           },
         });
   
@@ -55,7 +59,9 @@ export const CreateMoviento = async (data, items) => {
             tiendaId,
             usuarioId,
             existenciaAnterior, // Guardar la existencia ANTES del movimiento
-            ...(referenciaId && {referenciaId: referenciaId})
+            ...(referenciaId && {referenciaId: referenciaId}),
+            ...(motivo && {motivo: motivo}),
+            ...(proveedorId && {proveedorId: proveedorId})
           },
         });
       }

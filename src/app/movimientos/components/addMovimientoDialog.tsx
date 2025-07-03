@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC, useMemo, useState, useEffect } from "react";
 import { IProducto } from "@/types/IProducto";
 import {
   Box,
@@ -15,22 +15,21 @@ import {
   TextField,
   Typography,
   InputAdornment,
-  Grid,
-  ListItemIcon,
-  ListItemText,
   Icon,
   useTheme,
   useMediaQuery,
   Stack,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  Autocomplete,
+  Chip
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import InfoIcon from "@mui/icons-material/Info";
+import AddIcon from "@mui/icons-material/Add";
 import { useMessageContext } from "@/context/MessageContext";
 import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
@@ -44,8 +43,9 @@ import {
 } from "@/constants/movimientos";
 import useConfirmDialog from "@/components/confirmDialog";
 import { formatCurrency } from "@/utils/formatters";
-import { info } from "console";
 import { Info } from "@mui/icons-material";
+import { getProveedores, createProveedor } from "@/services/proveedorService";
+import { IProveedor } from "@/types/IProveedor";
 
 interface IProductoMovimiento {
   productoId: string;
@@ -74,18 +74,71 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const [saving, setSaving] = useState(false);
   const { showMessage } = useMessageContext();
   const [motivo, setMotivo] = useState("");
+  const [proveedor, setProveedor] = useState<IProveedor | null>(null);
+  const [proveedores, setProveedores] = useState<IProveedor[]>([]);
+  const [loadingProveedores, setLoadingProveedores] = useState(false);
+  const [creandoProveedor, setCreandoProveedor] = useState(false);
+  const [nombreNuevoProveedor, setNombreNuevoProveedor] = useState("");
   const { user } = useAppContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
+  // Cargar proveedores cuando se abre el diálogo o cambia el tipo
+  useEffect(() => {
+    if (dialogOpen && (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION")) {
+      fetchProveedores();
+    }
+  }, [dialogOpen, tipo]);
+
+  const fetchProveedores = async () => {
+    setLoadingProveedores(true);
+    try {
+      const data = await getProveedores();
+      setProveedores(data);
+    } catch (error) {
+      console.error("Error al cargar proveedores:", error);
+      showMessage("Error al cargar proveedores", "error");
+    } finally {
+      setLoadingProveedores(false);
+    }
+  };
+
+  const handleCrearProveedor = async (nombre: string) => {
+    try {
+      setCreandoProveedor(true);
+      const nuevoProveedor = await createProveedor({
+        nombre: nombre.trim(),
+        descripcion: "",
+        direccion: "",
+        telefono: ""
+      });
+      
+      // Actualizar lista de proveedores
+      setProveedores(prev => [...prev, nuevoProveedor]);
+      setProveedor(nuevoProveedor);
+      setNombreNuevoProveedor("");
+      
+      showMessage("Proveedor creado exitosamente", "success");
+    } catch (error) {
+      console.error("Error al crear proveedor:", error);
+      const errorMessage = error.response?.data?.error || "Error al crear el proveedor";
+      showMessage(errorMessage, "error");
+    } finally {
+      setCreandoProveedor(false);
+    }
+  };
+
   const handleClose = () => {
     if (!saving) {
       closeDialog();
       setItemsProductos([{ productoId: "", cantidad: 0, costoUnitario: 0, costoTotal: 0 }]);
       setMotivo("");
+      setProveedor(null);
       setTipo("COMPRA");
+      setNombreNuevoProveedor("");
+      setCreandoProveedor(false);
     }
   };
 
@@ -154,7 +207,10 @@ export const AddMovimientoDialog: FC<IProps> = ({
           tiendaId: localId,
           tipo: tipo,
           usuarioId: user.id,
-          ...(motivo !== "" && {motivo: motivo})
+          ...(motivo !== "" && {motivo: motivo}),
+          ...((tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && proveedor && {
+            proveedorId: proveedor.id
+          })
         },
         itemsProductos.map((item) => {
           return {
@@ -182,14 +238,28 @@ export const AddMovimientoDialog: FC<IProps> = ({
   };
 
   const isFormValid = () => {
-    return itemsProductos.some(item => 
+    const hasInvalidProducts = itemsProductos.some(item => 
       !item.productoId || 
       item.cantidad <= 0 ||
       (tipo === "COMPRA" && (!item.costoUnitario || item.costoUnitario <= 0))
     );
+
+    const needsProveedor = (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && !proveedor;
+
+    return hasInvalidProducts || needsProveedor;
   };
 
   const esCompra = tipo === "COMPRA";
+
+  const filteredProductos = useMemo(() => {
+    return productos.filter(p => {
+      if(tipo === 'CONSIGNACION_DEVOLUCION' || tipo === 'CONSIGNACION_ENTRADA') {
+        return p.enConsignacion === true;
+      } else {
+        return !p.enConsignacion;
+      }
+    });
+  }, [tipo])
 
   return (
     <>
@@ -382,6 +452,132 @@ export const AddMovimientoDialog: FC<IProps> = ({
             />
           )}
 
+          {/* Campo de proveedor para consignaciones */}
+          {(tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && (
+            <Box sx={{ mt: 2 }}>
+              <Autocomplete
+                options={proveedores}
+                getOptionLabel={(option) => typeof option === 'string' ? option : option.nombre}
+                value={proveedor}
+                onChange={(event, newValue) => {
+                  // Manejar tanto IProveedor como string
+                  if (typeof newValue === 'string') {
+                    // Si es string, buscar en proveedores existentes o crear nuevo
+                    const proveedorExistente = proveedores.find(p => p.nombre.toLowerCase() === newValue.toLowerCase());
+                    if (proveedorExistente) {
+                      setProveedor(proveedorExistente);
+                    } else if (newValue.startsWith('Crear "')) {
+                      // Extraer el nombre del proveedor a crear
+                      const nombreProveedor = newValue.replace('Crear "', '').replace('"', '');
+                      handleCrearProveedor(nombreProveedor);
+                    }
+                  } else {
+                    // Si es IProveedor o null
+                    setProveedor(newValue);
+                  }
+                }}
+                loading={loadingProveedores}
+                freeSolo
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Proveedor"
+                    placeholder="Selecciona o escribe un proveedor..."
+                    fullWidth
+                    size={isMobile ? "small" : "medium"}
+                    helperText="Selecciona un proveedor existente o escribe uno nuevo"
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingProveedores && <div>Cargando...</div>}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props}>
+                    <Box>
+                      <Typography variant="body1" fontWeight={500}>
+                        {option.nombre}
+                      </Typography>
+                      {option.descripcion && (
+                        <Typography variant="caption" color="text.secondary">
+                          {option.descripcion}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      variant="outlined"
+                      label={option.nombre}
+                      {...getTagProps({ index })}
+                      key={option.id}
+                    />
+                  ))
+                }
+                filterOptions={(options, params) => {
+                  const filtered = options.filter(option =>
+                    option.nombre.toLowerCase().includes(params.inputValue.toLowerCase())
+                  );
+
+                  const { inputValue } = params;
+                  const isExisting = options.some(option => 
+                    option.nombre.toLowerCase() === inputValue.toLowerCase()
+                  );
+
+                  if (inputValue !== '' && !isExisting) {
+                    filtered.push({
+                      id: 'new',
+                      nombre: `Crear "${inputValue}"`,
+                      descripcion: 'Nuevo proveedor',
+                      direccion: null,
+                      telefono: null,
+                      negocioId: '',
+                      createdAt: new Date(),
+                      updatedAt: new Date()
+                    });
+                  }
+
+                  return filtered;
+                }}
+                onInputChange={async (event, newInputValue, reason) => {
+                  if (reason === 'selectOption') {
+                    const selectedOption = proveedores.find(p => p.nombre === newInputValue) || 
+                                          proveedores.find(p => p.nombre.includes(newInputValue));
+                    
+                    if (!selectedOption && newInputValue && !newInputValue.startsWith('Crear "')) {
+                      // Si no existe el proveedor, intentar crearlo
+                      try {
+                        await handleCrearProveedor(newInputValue);
+                      } catch (error) {
+                        // Error ya manejado en handleCrearProveedor
+                      }
+                    }
+                  }
+                }}
+                onBlur={async (event) => {
+                  const target = event.target as HTMLInputElement;
+                  const inputValue = target.value;
+                  if (inputValue && !proveedor && !proveedores.some(p => p.nombre.toLowerCase() === inputValue.toLowerCase())) {
+                    // Si hay texto y no hay proveedor seleccionado, crear uno nuevo
+                    try {
+                      await handleCrearProveedor(inputValue);
+                    } catch (error) {
+                      // Error ya manejado en handleCrearProveedor
+                    }
+                  }
+                }}
+                disabled={creandoProveedor}
+              />
+            </Box>
+          )}
+
           {/* Título de productos */}
           <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mt: 3, mb: 2 }}>
             Productos
@@ -411,7 +607,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     onChange={(e) => handleChangeProducto(index, "productoId", e.target.value)}
                     size={isMobile ? "small" : "medium"}
                   >
-                    {productos.map((producto) => (
+                    {filteredProductos.map((producto) => (
                       <MenuItem key={producto.id} value={producto.id}>
                         {producto.nombre}
                       </MenuItem>

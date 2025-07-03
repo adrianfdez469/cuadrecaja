@@ -6,12 +6,14 @@
 // TRASPASO_SALIDA: Cuando se realiza un traspaso desde una tienda a otra, o desde un almacen a una tienda por concepto de salida, la cantidad es negativa.
 // DESAGREGACION_BAJA: Cuando se relaiza una baja de un producto por desagregación o porque se fracciona en otros productos
 // DESAGREGACION_ALTA: Cuando se realiza un alta de un producto por desagregación de otro.
+// CONSIGNACION_ENTRADA: Cuando se realiza una consignación de un producto.
+// CONSIGNACION_DEVOLUCION: Cuando se realiza una devolución de un producto.
 
 import { ILocal } from "./ILocal";
 import { IProductoTienda } from "./IProducto";
 import { IUser } from "./IUser";
 
-export type ITipoMovimiento  = "COMPRA" | "VENTA" | "AJUSTE_ENTRADA" | "AJUSTE_SALIDA" | "TRASPASO_ENTRADA" | "TRASPASO_SALIDA" | "DESAGREGACION_BAJA" | "DESAGREGACION_ALTA";
+export type ITipoMovimiento  = "COMPRA" | "VENTA" | "AJUSTE_ENTRADA" | "AJUSTE_SALIDA" | "TRASPASO_ENTRADA" | "TRASPASO_SALIDA" | "DESAGREGACION_BAJA" | "DESAGREGACION_ALTA" | "CONSIGNACION_ENTRADA" | "CONSIGNACION_DEVOLUCION";
 
 interface ICreateMovimientoDTOGeneric {
   tipo: ITipoMovimiento;
@@ -21,6 +23,7 @@ interface ICreateMovimientoDTOGeneric {
   tiendaId: string;
   referenciaId?: string; // Puede guardar el ID de una Venta
   existenciaAnterior?: number; // Existencia ANTES de aplicar este movimiento
+  proveedorId?: string; // Para movimientos de consignación
 }
 export interface ICreateMovimientoFromProdDTO extends ICreateMovimientoDTOGeneric {
   productoId: string
@@ -43,5 +46,6 @@ export interface IMovimiento {
   usuario?: IUser; 
   usuarioId: string;
   tienda?: ILocal;
-  tiendaId: string
+  tiendaId: string;
+  proveedorId?: string; // Para movimientos de consignación
 }
