@@ -15,18 +15,37 @@ import {
   TextField,
   Typography,
   InputAdornment,
-  Grid
+  Grid,
+  ListItemIcon,
+  ListItemText,
+  Icon,
+  useTheme,
+  useMediaQuery,
+  Stack,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import InfoIcon from "@mui/icons-material/Info";
 import { useMessageContext } from "@/context/MessageContext";
 import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
 import { ITipoMovimiento } from "@/types/IMovimiento";
-import { TIPOS_MOVIMIENTO_MANUAL, TIPO_MOVIMIENTO_LABELS } from "@/constants/movimientos";
+import { 
+  TIPOS_MOVIMIENTO_MANUAL, 
+  TIPO_MOVIMIENTO_LABELS,
+  TIPO_MOVIMIENTO_DESCRIPTIONS,
+  TIPO_MOVIMIENTO_EJEMPLOS,
+  TIPO_MOVIMIENTO_COLORS
+} from "@/constants/movimientos";
 import useConfirmDialog from "@/components/confirmDialog";
 import { formatCurrency } from "@/utils/formatters";
+import { info } from "console";
+import { Info } from "@mui/icons-material";
 
 interface IProductoMovimiento {
   productoId: string;
@@ -57,6 +76,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const [motivo, setMotivo] = useState("");
   const { user } = useAppContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
+  
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const handleClose = () => {
     if (!saving) {
@@ -171,24 +193,182 @@ export const AddMovimientoDialog: FC<IProps> = ({
 
   return (
     <>
-      <Dialog open={dialogOpen} onClose={handleClose} fullWidth maxWidth="md">
-        <DialogTitle>Crear Movimiento</DialogTitle>
-        <DialogContent>
-          <TextField
-            select
-            label="Tipo de Movimiento"
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value as ITipoMovimiento)}
-            fullWidth
-            margin="normal"
-          >
-            {TIPOS_MOVIMIENTO_MANUAL.map((tipoMovimiento) => (
-              <MenuItem key={tipoMovimiento} value={tipoMovimiento}>
-                {TIPO_MOVIMIENTO_LABELS[tipoMovimiento]}
-              </MenuItem>
-            ))}
-          </TextField>
+      <Dialog 
+        open={dialogOpen} 
+        onClose={handleClose} 
+        fullWidth 
+        maxWidth={isMobile ? "xs" : "md"}
+        fullScreen={isMobile}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          Crear Movimiento
+        </DialogTitle>
+        
+        <DialogContent sx={{ px: isMobile ? 2 : 3 }}>
+          {/* Selector de tipo de movimiento */}
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Tipo de Movimiento</InputLabel>
+            <Select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as ITipoMovimiento)}
+              label="Tipo de Movimiento"
+              MenuProps={{
+                PaperProps: {
+                  sx: { 
+                    maxHeight: isMobile ? 300 : 400,
+                    maxWidth: isMobile ? '90vw' : undefined
+                  }
+                }
+              }}
+            >
+              {TIPOS_MOVIMIENTO_MANUAL.map((tipoMovimiento) => (
+                <MenuItem key={tipoMovimiento} value={tipoMovimiento}>
+                  <Box sx={{ width: '100%' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      {TIPO_MOVIMIENTO_LABELS[tipoMovimiento]}
+                    </Typography>
+                    {/* {!isMobile && ( */}
+                      <Typography 
+                        variant="caption" 
+                        color="text.secondary"
+                        sx={{ 
+                          fontSize: '0.75rem',
+                          lineHeight: 1.2,
+                          display: 'block',
+                          mt: 0.25,
+                          whiteSpace: 'normal',
+                          wordWrap: 'break-word'
+                        }}
+                      >
+                        {TIPO_MOVIMIENTO_DESCRIPTIONS[tipoMovimiento]}
+                      </Typography>
+                     {/* )} */}
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          {/* Acordeón con descripción y ejemplo */}
+          {tipo && (
+            <Box sx={{ mt: 2 }}>
+              <Accordion 
+                defaultExpanded={false}
+                sx={{ 
+                  boxShadow: 'none',
+                  border: `2px solid ${TIPO_MOVIMIENTO_COLORS[tipo]}30`,
+                  '&:before': { display: 'none' },
+                  borderRadius: 1,
+                  overflow: 'hidden'
+                }}
+              >
+                <AccordionSummary 
+                  expandIcon={<ExpandMoreIcon sx={{ color: TIPO_MOVIMIENTO_COLORS[tipo] }} />}
+                  sx={{ 
+                    bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}08`,
+                    '&:hover': { bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}12` },
+                    minHeight: 56,
+                    '& .MuiAccordionSummary-content': { 
+                      alignItems: 'center',
+                      my: 1
+                    }
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Icon 
+                      sx={{ 
+                        color: TIPO_MOVIMIENTO_COLORS[tipo],
+                        fontSize: '22px',
+                        mr: 1.5
+                      }}
+                    >
+                      {isMobile ? <Info /> : <Info sx={{ fontSize: '22px' }} />}
+                    </Icon>
+                    <Box>
+                      <Typography 
+                        variant={isMobile ? "subtitle1" : "h6"}
+                        sx={{ 
+                          fontWeight: 'bold',
+                          color: TIPO_MOVIMIENTO_COLORS[tipo]
+                        }}
+                      >
+                        {TIPO_MOVIMIENTO_LABELS[tipo]}
+                      </Typography>
+                      <Typography 
+                        variant="caption" 
+                        color="text.secondary"
+                        sx={{ fontSize: '0.75rem' }}
+                      >
+                        Descripción y ejemplo
+                      </Typography>
+                    </Box>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails sx={{ pt: 2, pb: 3 }}>
+                  {/* Descripción */}
+                  <Box sx={{ mb: 2 }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontSize: isMobile ? '0.875rem' : '0.95rem',
+                        lineHeight: 1.5,
+                        fontWeight: 500,
+                        mb: 1
+                      }}
+                    >
+                      ¿Qué es este tipo de movimiento?
+                    </Typography>
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary"
+                      sx={{ 
+                        fontSize: isMobile ? '0.875rem' : '0.95rem',
+                        lineHeight: 1.5
+                      }}
+                    >
+                      {TIPO_MOVIMIENTO_DESCRIPTIONS[tipo]}
+                    </Typography>
+                  </Box>
+                  
+                  {/* Ejemplo */}
+                  <Box 
+                    sx={{ 
+                      p: 2, 
+                      bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}05`,
+                      borderRadius: 1,
+                      borderLeft: `4px solid ${TIPO_MOVIMIENTO_COLORS[tipo]}`
+                    }}
+                  >
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontSize: isMobile ? '0.875rem' : '0.95rem',
+                        lineHeight: 1.5,
+                        fontWeight: 500,
+                        mb: 1,
+                        color: TIPO_MOVIMIENTO_COLORS[tipo]
+                      }}
+                    >
+                      Ejemplo práctico:
+                    </Typography>
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary"
+                      sx={{ 
+                        fontSize: isMobile ? '0.875rem' : '0.95rem',
+                        lineHeight: 1.5,
+                        fontStyle: 'italic'
+                      }}
+                    >
+                      {TIPO_MOVIMIENTO_EJEMPLOS[tipo]}
+                    </Typography>
+                  </Box>
+                </AccordionDetails>
+              </Accordion>
+            </Box>
+          )}
 
+          {/* Campo de motivo para ajustes */}
           {(tipo === "AJUSTE_ENTRADA" || tipo === "AJUSTE_SALIDA") && (
             <TextField
               label="Motivo"
@@ -197,137 +377,149 @@ export const AddMovimientoDialog: FC<IProps> = ({
               fullWidth
               margin="normal"
               placeholder="Describe el motivo del ajuste..."
+              size={isMobile ? "small" : "medium"}
+              helperText="Especifica la razón del ajuste (ej: productos vencidos, rotos, encontrados, etc.)"
             />
           )}
 
-          <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
+          {/* Título de productos */}
+          <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mt: 3, mb: 2 }}>
             Productos
           </Typography>
 
+          {/* Lista de productos */}
           {itemsProductos.map((p, index) => (
-            <Box key={index} sx={{ mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={esCompra ? 6 : 8}>
-                  <FormControl fullWidth>
-                    <InputLabel id={`prod-select-label-${index}`}>Producto</InputLabel>
-                    <Select
-                      labelId={`prod-select-label-${index}`}
-                      value={p.productoId}
-                      label="Producto"
-                      onChange={(e) =>
-                        handleChangeProducto(index, "productoId", e.target.value)
-                      }
-                    >
-                      {productos.map((producto) => (
-                        <MenuItem key={producto.id} value={producto.id}>
-                          {producto.nombre}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
+            <Box 
+              key={index} 
+              sx={{ 
+                mb: 2, 
+                p: isMobile ? 1.5 : 2, 
+                border: '1px solid', 
+                borderColor: 'divider', 
+                borderRadius: 1 
+              }}
+            >
+              <Stack spacing={2}>
+                {/* Selector de producto */}
+                <FormControl fullWidth>
+                  <InputLabel size={isMobile ? "small" : "normal"}>
+                    Producto
+                  </InputLabel>
+                  <Select
+                    value={p.productoId}
+                    label="Producto"
+                    onChange={(e) => handleChangeProducto(index, "productoId", e.target.value)}
+                    size={isMobile ? "small" : "medium"}
+                  >
+                    {productos.map((producto) => (
+                      <MenuItem key={producto.id} value={producto.id}>
+                        {producto.nombre}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
 
-                <Grid item xs={6} sm={esCompra ? 3 : 2}>
+                {/* Fila de cantidad y botón eliminar */}
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   <TextField
                     label="Cantidad"
                     type="number"
                     value={p.cantidad || ""}
-                    onChange={(e) =>
-                      handleChangeProducto(index, "cantidad", e.target.value)
-                    }
-                    fullWidth
+                    onChange={(e) => handleChangeProducto(index, "cantidad", e.target.value)}
+                    size={isMobile ? "small" : "medium"}
+                    sx={{ flex: 1 }}
                     inputProps={{ min: 1, step: 1 }}
                   />
-                </Grid>
-
-                <Grid item xs={6} sm={esCompra ? 2 : 2}>
                   <IconButton 
                     onClick={() => handleEliminarProducto(index)}
                     color="error"
                     disabled={itemsProductos.length === 1}
+                    size={isMobile ? "small" : "medium"}
                   >
                     <DeleteIcon />
                   </IconButton>
-                </Grid>
+                </Box>
 
+                {/* Campos de costo para compras */}
                 {esCompra && (
-                  <>
-                    <Grid item xs={6} sm={4}>
+                  <Stack spacing={2}>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
                       <TextField
                         label="Costo Unitario"
                         type="number"
                         value={p.costoUnitario || ""}
-                        onChange={(e) =>
-                          handleChangeProducto(index, "costoUnitario", e.target.value)
-                        }
-                        fullWidth
+                        onChange={(e) => handleChangeProducto(index, "costoUnitario", e.target.value)}
+                        size={isMobile ? "small" : "medium"}
+                        sx={{ flex: 1 }}
                         InputProps={{
                           startAdornment: <InputAdornment position="start">$</InputAdornment>,
                         }}
                         inputProps={{ min: 0, step: 0.01 }}
                       />
-                    </Grid>
-
-                    <Grid item xs={6} sm={4}>
                       <TextField
                         label="Costo Total"
                         type="number"
                         value={p.costoTotal || ""}
-                        onChange={(e) =>
-                          handleChangeProducto(index, "costoTotal", e.target.value)
-                        }
-                        fullWidth
+                        onChange={(e) => handleChangeProducto(index, "costoTotal", e.target.value)}
+                        size={isMobile ? "small" : "medium"}
+                        sx={{ flex: 1 }}
                         InputProps={{
                           startAdornment: <InputAdornment position="start">$</InputAdornment>,
                         }}
                         inputProps={{ min: 0, step: 0.01 }}
                       />
-                    </Grid>
-
-                    <Grid item xs={12} sm={4}>
-                      <Box sx={{ p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
-                        <Typography variant="caption" color="text.secondary">
-                          Total del producto
-                        </Typography>
-                        <Typography variant="h6" color="primary">
-                          {formatCurrency(p.costoTotal || 0)}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  </>
+                    </Box>
+                    
+                    <Box sx={{ p: 1.5, bgcolor: 'primary.50', borderRadius: 1, textAlign: 'center' }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Total del producto
+                      </Typography>
+                      <Typography variant={isMobile ? "subtitle1" : "h6"} color="primary" sx={{ fontWeight: 'bold' }}>
+                        {formatCurrency(p.costoTotal || 0)}
+                      </Typography>
+                    </Box>
+                  </Stack>
                 )}
-              </Grid>
+              </Stack>
             </Box>
           ))}
 
+          {/* Botón agregar producto */}
           <Button
             sx={{ mt: 2 }}
             onClick={handleAgregarProducto}
             disabled={isFormValid()}
             variant="outlined"
             fullWidth
+            size={isMobile ? "medium" : "large"}
           >
             + Agregar otro producto
           </Button>
 
+          {/* Total general para compras */}
           {esCompra && (
-            <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
-              <Typography variant="h6" color="primary">
+            <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1, textAlign: 'center' }}>
+              <Typography variant={isMobile ? "h6" : "h5"} color="primary" sx={{ fontWeight: 'bold' }}>
                 Total General: {formatCurrency(itemsProductos.reduce((sum, item) => sum + (item.costoTotal || 0), 0))}
               </Typography>
             </Box>
           )}
         </DialogContent>
         
-        <DialogActions>
-          <Button onClick={handleClose} startIcon={<CloseIcon />}>
+        <DialogActions sx={{ px: isMobile ? 2 : 3, pb: isMobile ? 2 : undefined }}>
+          <Button 
+            onClick={handleClose} 
+            startIcon={!isMobile ? <CloseIcon /> : undefined}
+            size={isMobile ? "medium" : "large"}
+          >
             Cancelar
           </Button>
           <Button
             disabled={isFormValid() || saving}
-            startIcon={<SaveIcon />}
+            startIcon={!isMobile ? <SaveIcon /> : undefined}
             variant="contained"
             onClick={handleGuardar}
+            size={isMobile ? "medium" : "large"}
           >
             {saving ? "Guardando..." : "Guardar"}
           </Button>
