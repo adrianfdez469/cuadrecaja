@@ -11,19 +11,19 @@ import {
   Fab,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import { IProductoTienda } from "@/types/IProducto";
+import { IProductoTiendaV2 } from "@/types/IProducto";
 import { QuantityDialog } from "./QuantityDialog";
 
 export function ProductModal({
   open,
   closeModal,
-  products,
+  productosTienda,
   category,
   openCart,
 }) {
-  const [selectedProduct, setSelectedProduct] = useState<IProductoTienda | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
 
-  const handleProductClick = (product: IProductoTienda) => {
+  const handleProductClick = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
   };
 
@@ -72,8 +72,8 @@ export function ProductModal({
           </Box>
 
           <Grid container spacing={2}>
-            {products.map((product) => (
-              <Grid item xs={6} sm={4} md={3} key={product.id}>
+            {productosTienda.map((productoTienda) => (
+              <Grid item xs={6} sm={4} md={3} key={productoTienda.id}>
                 <Card
                   sx={{
                     height: "100%",
@@ -81,7 +81,7 @@ export function ProductModal({
                     flexDirection: "column",
                     cursor: "pointer",
                   }}
-                  onClick={() => handleProductClick(product)}
+                  onClick={() => handleProductClick(productoTienda)}
                 >
                   <CardContent
                     sx={{
@@ -92,20 +92,20 @@ export function ProductModal({
                     }}
                   >
                     <Typography variant="h6" fontWeight="bold">
-                      {product.nombre}
+                      {productoTienda.producto.nombre}
                     </Typography>
-                    {product.descripcion && (
+                    {productoTienda.producto.descripcion && (
                       <Typography variant="body2" color="text.secondary">
-                        {product.descripcion}
+                        {productoTienda.producto.descripcion}
                       </Typography>
                     )}
 
                     <Box display={'flex'} flexDirection={'row'} justifyContent={'space-between'} alignContent={'space-between'}>
                       <Typography variant="subtitle1" color="text.secondary">
-                        {`Cant: ${product.existencia}`}
+                        {`Cant: ${productoTienda.existencia}`}
                       </Typography>
                       <Typography variant="subtitle1" color="textPrimary">
-                        ${product.precio}
+                        ${productoTienda.precio}
                       </Typography>
 
                     </Box>
@@ -118,7 +118,7 @@ export function ProductModal({
       </Modal>
 
       <QuantityDialog
-        product={selectedProduct}
+        productoTienda={selectedProduct}
         onClose={handleResetProductQuantity}
         onConfirm={handleConfirmQuantity}
       />

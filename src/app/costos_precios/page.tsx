@@ -107,10 +107,20 @@ const PreciosCantidades = () => {
   }, [loadingContext]);
 
   useEffect(() => {
+    console.log(productos);
+    
+    const mapProductos = productos.map(p => {
+      return {
+        ...p,
+        nombre: p.proveedor && p.proveedor.nombre ? `${p.producto.nombre} - ${p.proveedor.nombre}` : p.producto.nombre,
+        costo: p.costo || 0,
+        precio: p.precio || 0
+      }
+    })
     if (!searchTerm.trim()) {
-      setFilteredProductos(productos);
+      setFilteredProductos(mapProductos);
     } else {
-      const filtered = productos.filter(producto =>
+      const filtered = mapProductos.filter(producto =>
         producto.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredProductos(filtered);
@@ -183,19 +193,11 @@ const PreciosCantidades = () => {
       flex: isMobile ? 1 : 2,
       minWidth: 200,
       renderCell: (params) => (
+        
         <Box sx={{ py: 1 }}>
           <Typography variant="body2" fontWeight="medium">
             {params.value}
           </Typography>
-          {idDirtyProds.includes(params.row.id) && (
-            <Chip 
-              label="Modificado" 
-              size="small" 
-              color="warning" 
-              variant="outlined"
-              sx={{ mt: 0.5, height: 20, fontSize: '0.6875rem' }}
-            />
-          )}
         </Box>
       )
     },
@@ -360,6 +362,9 @@ const PreciosCantidades = () => {
                     paginationModel: { pageSize: 25 }
                   }
                 }}
+                getRowClassName={(params) => 
+                  idDirtyProds.includes(params.id) ? 'row-modified' : ''
+                }
                 sx={{
                   border: 'none',
                   '& .MuiDataGrid-cell:focus': {
@@ -372,6 +377,12 @@ const PreciosCantidades = () => {
                   },
                   '& .MuiDataGrid-editInputCell': {
                     fontSize: '0.875rem',
+                  },
+                  '& .row-modified': {
+                    backgroundColor: '#ffebee', // Rojo clarito
+                    '&:hover': {
+                      backgroundColor: '#ffcdd2', // Rojo un poco más oscuro en hover
+                    },
                   }
                 }}
                 localeText={{

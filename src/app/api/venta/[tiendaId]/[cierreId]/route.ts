@@ -213,7 +213,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
             const productoTiendaDesagregar = await tx.productoTienda.findFirst({
               where: {
                 tiendaId,
-                productoId: item.productoId
+                productoId: item.productoId,
+                proveedorId: null // Solo productos propios para desagregación
               }
             });
 
@@ -249,7 +250,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
             const productoTiendaAgregar = await tx.productoTienda.findFirst({
               where: {
                 tiendaId,
-                productoId: item.productoId
+                productoId: item.productoId,
+                proveedorId: null // Solo productos propios para desagregación
               }
             });
 

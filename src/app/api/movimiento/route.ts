@@ -31,13 +31,15 @@ export async function GET(req: Request) {
         ...filtros 
       },
       include: {
+        
         productoTienda: {
           include: {
             producto: {
               select: {
                 nombre: true
               }
-            }
+            },
+            proveedor: true,
           }
         },
         usuario: {

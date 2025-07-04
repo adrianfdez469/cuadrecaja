@@ -34,7 +34,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { Dayjs } from 'dayjs';
-import { IProductoTienda } from '@/types/IProducto';
+import { IProductoTiendaV2 } from '@/types/IProducto';
 import { IMovimiento, ITipoMovimiento } from '@/types/IMovimiento';
 import { findMovimientos } from '@/services/movimientoService';
 import { useAppContext } from '@/context/AppContext';
@@ -46,7 +46,7 @@ import { formatDateTime } from '@/utils/formatters';
 interface ProductMovementsModalProps {
   open: boolean;
   onClose: () => void;
-  producto: IProductoTienda | null;
+  producto: IProductoTiendaV2 | null;
 }
 
 export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
@@ -91,7 +91,7 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
         user.localActual.id,
         1000, // Obtener muchos registros
         0,
-        producto.productoTiendaId, // productoTiendaId
+        producto.id, // productoTiendaId
       );
       setMovimientos(result || []);
     } catch (error) {
@@ -177,7 +177,7 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
             fontSize: isMobile ? '1.1rem' : undefined,
             pr: 1
           }}>
-            Movimientos de: {producto.nombre}
+            Movimientos de: {producto.producto.nombre}
           </Typography>
           <IconButton onClick={onClose} edge="end">
             <CloseIcon />

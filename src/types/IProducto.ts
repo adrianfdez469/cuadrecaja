@@ -1,4 +1,5 @@
 import { ICategory } from "./ICategoria";
+import { IProveedor } from "./IProveedor";
 
 export interface IProducto {
   id: string;
@@ -34,4 +35,16 @@ export interface IProductoVenta {
   productoTiendaId: string;
   cantidad: number;
   productId: string;
+}
+
+export interface IProductoTiendaV2 {
+  id: string;
+  tiendaId: string;
+  costo: number;
+  precio: number;
+  existencia: number;
+  proveedor: IProveedor;
+  proveedorId: string;
+  producto: IProducto;
+  productoId: string;
 }

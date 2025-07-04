@@ -1,9 +1,9 @@
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, WidthType, AlignmentType, TextRun, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
-import { IProductoTienda } from '@/types/IProducto';
+import { IProductoTiendaV2 } from '@/types/IProducto';
 
 interface ExportInventoryOptions {
-  productos: IProductoTienda[];
+  productos: IProductoTiendaV2[];
   tiendaNombre: string;
   fecha?: Date;
 }
@@ -16,13 +16,13 @@ export const exportInventoryToWord = async ({
   try {
     // Agrupar productos por categoría
     const productosPorCategoria = productos.reduce((acc, producto) => {
-      const categoriaNombre = producto.categoria.nombre;
+      const categoriaNombre = producto.producto.categoria.nombre;
       if (!acc[categoriaNombre]) {
         acc[categoriaNombre] = [];
       }
       acc[categoriaNombre].push(producto);
       return acc;
-    }, {} as Record<string, IProductoTienda[]>);
+    }, {} as Record<string, IProductoTiendaV2[]>);
 
     // Ordenar categorías alfabéticamente
     const categoriasOrdenadas = Object.keys(productosPorCategoria).sort();
@@ -30,7 +30,7 @@ export const exportInventoryToWord = async ({
     // Ordenar productos dentro de cada categoría alfabéticamente
     categoriasOrdenadas.forEach(categoria => {
       productosPorCategoria[categoria] = productosPorCategoria[categoria].sort((a, b) => 
-        a.nombre.localeCompare(b.nombre)
+        a.producto.nombre.localeCompare(b.producto.nombre)
       );
     });
 
@@ -172,7 +172,7 @@ export const exportInventoryToWord = async ({
                   new Paragraph({
                     children: [
                       new TextRun({
-                        text: producto.nombre,
+                        text: producto.producto.nombre,
                         size: 22, // 11pt
                       })
                     ],

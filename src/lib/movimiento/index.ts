@@ -13,9 +13,10 @@ export const CreateMoviento = async (data, items) => {
         let existenciaAnterior = 0;
         const productoTiendaExistente = await tx.productoTienda.findUnique({
           where: {
-            tiendaId_productoId: {
+            tiendaId_productoId_proveedorId: {
               tiendaId,
               productoId,
+              proveedorId: proveedorId || null
             },
           },
         });
@@ -27,9 +28,10 @@ export const CreateMoviento = async (data, items) => {
         // 2. Upsert para obtener (o crear) el productoTienda
         const productoTienda = await tx.productoTienda.upsert({
           where: {
-            tiendaId_productoId: {
+            tiendaId_productoId_proveedorId: {
               tiendaId,
               productoId,
+              proveedorId: proveedorId || null
             },
           },
           create: {
@@ -38,6 +40,7 @@ export const CreateMoviento = async (data, items) => {
             costo: costoUnitario || 0,
             precio: 0,
             existencia: cantidad,
+            proveedorId: proveedorId || null
           },
           update: {
             existencia: {

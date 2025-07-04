@@ -132,7 +132,13 @@ model ProductoTienda {
   ventas      VentaProducto[] // Relación con la tabla intermedia de ventas
   movimientos MovimientoStock[] // Relacion con la tabla de movimientos
 
-  @@unique([tiendaId, productoId]) // Agrega esta línea
+  // Proveedor para productos en consignación (null para productos propios)
+  proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
+  proveedorId String?
+
+  // Llave de unicidad compuesta: un producto por tienda y proveedor
+  // Esto permite que el mismo producto tenga diferentes existencias por proveedor
+  @@unique([tiendaId, productoId, proveedorId])
 }
 
 // Representa una venta realizada en una tienda.
@@ -227,6 +233,9 @@ model Proveedor {
 
   // Relación con movimientos de consignación
   movimientos MovimientoStock[]
+  
+  // Relación con productos en consignación
+  productosConsignacion ProductoTienda[]
 
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])

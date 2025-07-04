@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { hasAdminPrivileges } from "@/utils/auth";
 import getUserFromRequest from "@/utils/getUserFromRequest";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -9,32 +10,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
   try {
     const { tiendaId } = await params;
 
-    const user = await getUserFromRequest(req);
-    const productos = (await prisma.producto.findMany({
+    const productosTienda = await prisma.productoTienda.findMany({
+      where: {
+        tiendaId: tiendaId
+      },
       include: {
-        productosTienda: {
+        producto: {
           select: {
-            costo: true, existencia: true, precio: true
-          },
-          where: {
-            tiendaId: tiendaId
+            id: true,
+            nombre: true,
           }
         },
-      },
-      orderBy: {
-        nombre: 'asc'
-      },
-      where: {
-        negocioId: user.negocio.id
+        proveedor: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
       }
-    }));
-    const productosTienda = productos.map(p => {
-      const {productosTienda, ...restProd} = p;
-      return {
-        ...restProd,
-        ...productosTienda[0]
-      }
-    })
+    });
+
     return NextResponse.json(productosTienda);
   } catch (error) {
     console.log(error);
@@ -50,55 +45,37 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
     const { tiendaId } = await params;
     const { productos } = await req.json();
 
+
+    if (!(await hasAdminPrivileges())) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
+
     if (!tiendaId || !Array.isArray(productos)) {
       return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
     }
 
     const user = await getUserFromRequest(req);
-    const productosDb = await prisma.producto.findMany({
-      where: {
-        id: {
-          in: productos.map(p => p.id)
-        },
-        negocioId: user.negocio.id
-      },
-      select: {
-        id: true
-      }
-    });
-    if(productos.every(p => {
-      return productosDb.findIndex(pdb => pdb.id === p.id) >= 0
-    })){
-      const operaciones = productos.map((producto) =>
-        prisma.productoTienda.upsert({
+
+    console.log(productos);
+    
+    await prisma.$transaction(
+      productos.map(producto => 
+        prisma.productoTienda.update({
           where: {
-            tiendaId_productoId: {
-              tiendaId,
-              productoId: producto.id, // Debes asegurarte de que este ID es el correcto
-            },
+            id: producto.id
           },
-          update: {
+          data: {
             precio: producto.precio,
-            costo: producto.costo,
-          },
-          create: {
-            tiendaId,
-            productoId: producto.id,
-            precio: producto.precio || 0,
-            costo: producto.costo || 0,
-            existencia: 0
-          },
+            costo: producto.costo
+          }
         })
-      );
-  
-      await prisma.$transaction(operaciones);
-  
-      return NextResponse.json({ success: true });
-    } else {
-      return NextResponse.json({ error: "No tiene los permisos necesarios" }, { status: 403 });
-    }
+      )
+    );
 
-
+    return NextResponse.json({ success: true });
 
   } catch (error) {
     console.error(error);
