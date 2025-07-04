@@ -7,7 +7,7 @@ export const CreateMoviento = async (data, items) => {
 
     await prisma.$transaction(async (tx) => {
       for (const movimiento of items) {
-        const {  productoId, cantidad, costoUnitario, costoTotal } = movimiento;
+        const {  productoId, cantidad, costoUnitario } = movimiento;
   
         // 1. Obtener el productoTienda existente para capturar la existencia anterior
         let existenciaAnterior = 0;

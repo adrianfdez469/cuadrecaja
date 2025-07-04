@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma';
 import getUserFromRequest from '@/utils/getUserFromRequest';
 import { IProveedorCreate } from '@/types/IProveedor';
 import { hasAdminPrivileges } from "@/utils/auth";
-import { Prisma } from '@prisma/client';
 
 // GET /api/proveedores - Obtener todos los proveedores con filtro opcional por nombre
 export async function GET(request: NextRequest) {

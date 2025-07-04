@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { hasAdminPrivileges } from "@/utils/auth";
-import getUserFromRequest from "@/utils/getUserFromRequest";
 import { NextRequest, NextResponse } from "next/server";
 
 
@@ -57,10 +56,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
       return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
     }
 
-    const user = await getUserFromRequest(req);
-
-    console.log(productos);
-    
     await prisma.$transaction(
       productos.map(producto => 
         prisma.productoTienda.update({

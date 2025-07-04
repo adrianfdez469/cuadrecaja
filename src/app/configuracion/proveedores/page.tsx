@@ -28,7 +28,6 @@ import {
   useTheme,
   useMediaQuery,
   Collapse,
-  Alert
 } from "@mui/material";
 import { 
   Delete, 
@@ -37,7 +36,6 @@ import {
   Business,
   Phone,
   LocationOn,
-  Person,
   Search,
   Refresh,
   ExpandMore,

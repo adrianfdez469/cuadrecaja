@@ -29,7 +29,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import AddIcon from "@mui/icons-material/Add";
 import { useMessageContext } from "@/context/MessageContext";
 import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
@@ -78,7 +77,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const [proveedores, setProveedores] = useState<IProveedor[]>([]);
   const [loadingProveedores, setLoadingProveedores] = useState(false);
   const [creandoProveedor, setCreandoProveedor] = useState(false);
-  const [nombreNuevoProveedor, setNombreNuevoProveedor] = useState("");
   const { user } = useAppContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   
@@ -118,7 +116,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
       // Actualizar lista de proveedores
       setProveedores(prev => [...prev, nuevoProveedor]);
       setProveedor(nuevoProveedor);
-      setNombreNuevoProveedor("");
       
       showMessage("Proveedor creado exitosamente", "success");
     } catch (error) {
@@ -137,7 +134,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
       setMotivo("");
       setProveedor(null);
       setTipo("COMPRA");
-      setNombreNuevoProveedor("");
       setCreandoProveedor(false);
     }
   };
@@ -557,6 +553,8 @@ export const AddMovimientoDialog: FC<IProps> = ({
                         await handleCrearProveedor(newInputValue);
                       } catch (error) {
                         // Error ya manejado en handleCrearProveedor
+                        console.log(error);
+                        showMessage('Error al crear el proveedor', 'error');
                       }
                     }
                   }
@@ -570,6 +568,8 @@ export const AddMovimientoDialog: FC<IProps> = ({
                       await handleCrearProveedor(inputValue);
                     } catch (error) {
                       // Error ya manejado en handleCrearProveedor
+                      console.log(error);
+                      showMessage('Error al crear el proveedor', 'error');
                     }
                   }
                 }}
