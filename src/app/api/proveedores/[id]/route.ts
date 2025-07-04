@@ -7,10 +7,11 @@ import { IProveedorUpdate } from '@/types/IProveedor';
 // GET /api/proveedores/[id] - Obtener un proveedor por ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request);
+    const { id } = await params;
     
     if (!user) {
       return NextResponse.json({ error: 'Usuario no autenticado' }, { status: 401 });
@@ -18,7 +19,7 @@ export async function GET(
 
     const proveedor = await prisma.proveedor.findFirst({
       where: {
-        id: params.id,
+        id: id,
         negocioId: user.negocio.id,
       },
     });
@@ -37,10 +38,11 @@ export async function GET(
 // PUT /api/proveedores/[id] - Actualizar un proveedor
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request);
+    const { id } = await params;
     
     if (!user) {
       return NextResponse.json({ error: 'Usuario no autenticado' }, { status: 401 });
@@ -55,7 +57,7 @@ export async function PUT(
     // Verificar que el proveedor existe y pertenece al negocio
     const existingProveedor = await prisma.proveedor.findFirst({
       where: {
-        id: params.id,
+        id: id,
         negocioId: user.negocio.id,
       },
     });
@@ -70,7 +72,7 @@ export async function PUT(
         where: {
           nombre: body.nombre.trim(),
           negocioId: user.negocio.id,
-          id: { not: params.id },
+          id: { not: id },
         },
       });
 
@@ -80,7 +82,7 @@ export async function PUT(
     }
 
     const proveedorActualizado = await prisma.proveedor.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...(body.nombre && { nombre: body.nombre.trim() }),
         ...(body.descripcion !== undefined && { descripcion: body.descripcion?.trim() || null }),
@@ -99,10 +101,11 @@ export async function PUT(
 // DELETE /api/proveedores/[id] - Eliminar un proveedor
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request);
+    const { id } = await params;
     
     if (!user) {
       return NextResponse.json({ error: 'Usuario no autenticado' }, { status: 401 });
@@ -115,7 +118,7 @@ export async function DELETE(
     // Verificar que el proveedor existe y pertenece al negocio
     const existingProveedor = await prisma.proveedor.findFirst({
       where: {
-        id: params.id,
+        id: id,
         negocioId: user.negocio.id,
       },
     });
@@ -125,7 +128,7 @@ export async function DELETE(
     }
 
     await prisma.proveedor.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({ message: 'Proveedor eliminado exitosamente' });
