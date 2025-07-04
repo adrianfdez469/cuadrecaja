@@ -154,10 +154,13 @@ const Ventas = () => {
     const ventaId = venta.id?.toLowerCase() || '';
     const ventaDate = formatDate(venta.createdAt).toLowerCase();
     const ventaTime = formatDateTime(venta.createdAt).toLowerCase();
-    
+    const ventaProductos = venta.productos?.map(p => p.name?.toLowerCase()).join(' ') || '';
+
     return ventaId.includes(searchLower) || 
            ventaDate.includes(searchLower) || 
-           ventaTime.includes(searchLower);
+           ventaTime.includes(searchLower) ||
+           ventaProductos.includes(searchLower)
+        ;
   });
 
   // Cálculos para estadísticas
