@@ -10,6 +10,10 @@ export interface ICierrePeriodo {
   totalGanancia: number;
   totalInversion: number;
   totalTransferencia: number;
+  totalVentasPropias?: number;
+  totalVentasConsignacion?: number;
+  totalGananciasPropias?: number;
+  totalGananciasConsignacion?: number;
 }
 
 interface ICierreProductoVendidos {
@@ -20,6 +24,11 @@ interface ICierreProductoVendidos {
   cantidad: number;
   total: number;
   ganancia: number;
+  enConsignacion?: boolean;
+  proveedor?: {
+    id: string;
+    nombre: string;
+  };
 }
 
 export interface ICierreData {
@@ -27,6 +36,10 @@ export interface ICierreData {
   totalVentas: number;
   totalGanancia: number;
   totalTransferencia: number;
+  totalVentasPropias?: number;
+  totalVentasConsignacion?: number;
+  totalGananciasPropias?: number;
+  totalGananciasConsignacion?: number;
 }
 
 export interface ISummaryCierre {
@@ -36,6 +49,10 @@ export interface ISummaryCierre {
   sumTotalVentas: number;
   sumTotalTransferencia: number;
   totalItems: number;
+  sumTotalVentasPropias?: number;
+  sumTotalVentasConsignacion?: number;
+  sumTotalGananciasPropias?: number;
+  sumTotalGananciasConsignacion?: number;
 }
 
 

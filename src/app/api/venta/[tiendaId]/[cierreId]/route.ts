@@ -81,7 +81,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         select: {
           id: true,
           productoId: true,
-          existencia: true
+          existencia: true,
+          costo: true,
+          precio: true
         }
       });
 
@@ -96,6 +98,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         throw new Error(`Productos no encontrados: ${productosNoEncontrados.map(p => p.name).join(', ')}`);
       }
 
+      const productosMegrados = productosExistentes.map((p) => {
+        const producto = productos.find((p2) => p2.productoTiendaId === p.id);
+        return {
+          ...p,
+          ...producto
+        };
+      });
+
       // 2. Crear la venta
       const venta = await tx.venta.create({
         data: {
@@ -107,9 +117,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           cierrePeriodoId: periodoActual.id,
           syncId,
           productos: {
-            create: productos.map((p) => ({
+            create: productosMegrados.map((p) => ({
               productoTiendaId: p.productoTiendaId,
               cantidad: p.cantidad,
+              costo: p.costo,
+              precio: p.precio
             })),
           },
         },

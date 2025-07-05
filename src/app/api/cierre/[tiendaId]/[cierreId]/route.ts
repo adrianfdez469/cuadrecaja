@@ -20,7 +20,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
                   include: {
                     producto: {
                       select: {
-                        nombre: true
+                        nombre: true,
+                        enConsignacion: true,
+                      }
+                    },
+                    // Incluir información del proveedor para productos en consignación
+                    proveedor: {
+                      select: {
+                        id: true,
+                        nombre: true,
                       }
                     }
                   }
@@ -41,6 +49,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
     let totalVentas = 0;
     let totalGanancia = 0;
     let totalTransferencia = 0;
+    let totalVentasPropias = 0;
+    let totalVentasConsignacion = 0;
+    let totalGananciasPropias = 0;
+    let totalGananciasConsignacion = 0;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const productosVendidos: Record<string, any> = {};
   
@@ -49,27 +62,41 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       totalTransferencia += venta.totaltransfer;
   
       venta.productos.forEach((ventaProducto) => {
-        const { producto: productoTienda, cantidad } = ventaProducto;
-        const { id, producto: {nombre}, costo, precio } = productoTienda;
+        const { producto: productoTienda, cantidad, costo, precio } = ventaProducto;
+        const { id, producto: {nombre, enConsignacion}, proveedor } = productoTienda;
   
         const totalProducto = cantidad * precio;
         const gananciaProducto = cantidad * (precio - costo);
   
-        if (!productosVendidos[id]) {
-          productosVendidos[id] = {
+        // Separar por tipo de producto
+        if (enConsignacion) {
+          totalVentasConsignacion += totalProducto;
+          totalGananciasConsignacion += gananciaProducto;
+        } else {
+          totalVentasPropias += totalProducto;
+          totalGananciasPropias += gananciaProducto;
+        }
+
+        // Crear clave única que incluya el proveedor para productos en consignación
+        const productoKey = enConsignacion && proveedor ? `${id}-${proveedor.id}` : id;
+  
+        if (!productosVendidos[productoKey]) {
+          productosVendidos[productoKey] = {
             nombre,
             costo,
             precio,
             cantidad: 0,
             total: 0,
             ganancia: 0,
-            id: id
+            id: productoKey,
+            enConsignacion,
+            ...(enConsignacion && proveedor && { proveedor })
           };
         }
   
-        productosVendidos[id].cantidad += cantidad;
-        productosVendidos[id].total += totalProducto;
-        productosVendidos[id].ganancia += gananciaProducto;
+        productosVendidos[productoKey].cantidad += cantidad;
+        productosVendidos[productoKey].total += totalProducto;
+        productosVendidos[productoKey].ganancia += gananciaProducto;
   
         totalGanancia += gananciaProducto;
       });
@@ -82,6 +109,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       totalVentas,
       totalGanancia,
       totalTransferencia,
+      totalVentasPropias,
+      totalVentasConsignacion,
+      totalGananciasPropias,
+      totalGananciasConsignacion,
       productosVendidos: Object.values(productosVendidos).sort((a, b) => a.nombre.localeCompare(b.nombre)),
     };
     return NextResponse.json(cierreData);

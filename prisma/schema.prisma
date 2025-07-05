@@ -167,6 +167,8 @@ model VentaProducto {
   producto         ProductoTienda @relation(fields: [productoTiendaId], references: [id]) // Producto vendido
   productoTiendaId String
   cantidad         Int // Cantidad de productos vendidos en la transacción
+  costo            Float          @default(0) // Costo al momento de la venta
+  precio           Float          @default(0) // Precio al momento de la venta
 }
 
 // Representa un período de ventas cerrado con una fecha de inicio y una fecha de cierre.
@@ -183,6 +185,12 @@ model CierrePeriodo {
   totalGanancia       Float @default(0)
   totalInversion      Float @default(0)
   totalTransferencia  Float @default(0)
+
+  // Nuevos campos para consignación
+  totalVentasPropias         Float @default(0)
+  totalVentasConsignacion    Float @default(0)
+  totalGananciasPropias      Float @default(0)
+  totalGananciasConsignacion Float @default(0)
 
   // Idices
   @@index([fechaInicio])

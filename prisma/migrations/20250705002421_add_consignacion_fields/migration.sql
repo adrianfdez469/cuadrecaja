@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "CierrePeriodo" ADD COLUMN     "totalGananciasConsignacion" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalGananciasPropias" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalVentasConsignacion" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalVentasPropias" DOUBLE PRECISION NOT NULL DEFAULT 0;

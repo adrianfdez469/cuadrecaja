@@ -31,6 +31,8 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import InventoryIcon from "@mui/icons-material/Inventory";
+import StoreIcon from "@mui/icons-material/Store";
+import HandshakeIcon from "@mui/icons-material/Handshake";
 import { formatDate, formatCurrency, formatNumber } from '@/utils/formatters';
 
 const CierreCajaPage = () => {
@@ -307,7 +309,7 @@ const CierreCajaPage = () => {
       >
         {/* Estadísticas del cierre */}
         <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid item xs={6} sm={6} md={2}>
             <StatCard
               icon={<ShoppingCartIcon fontSize={isMobile ? "medium" : "large"} />}
               value={formatNumber(totales.totalCantidad)}
@@ -316,7 +318,7 @@ const CierreCajaPage = () => {
             />
           </Grid>
 
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid item xs={6} sm={6} md={2}>
             <StatCard
               icon={<AttachMoneyIcon fontSize={isMobile ? "medium" : "large"} />}
               value={formatCurrency(totales.totalMonto)}
@@ -325,7 +327,7 @@ const CierreCajaPage = () => {
             />
           </Grid>
 
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid item xs={6} sm={6} md={2}>
             <StatCard
               icon={<TrendingUpIcon fontSize={isMobile ? "medium" : "large"} />}
               value={formatCurrency(totales.totalGanancia)}
@@ -334,12 +336,31 @@ const CierreCajaPage = () => {
             />
           </Grid>
 
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid item xs={6} sm={6} md={2}>
             <StatCard
               icon={<InventoryIcon fontSize={isMobile ? "medium" : "large"} />}
               value={formatNumber(cierreData.productosVendidos.length)}
               label="Tipos de Productos"
               color="warning.light"
+            />
+          </Grid>
+
+          {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
+          <Grid item xs={6} sm={6} md={2}>
+            <StatCard
+              icon={<StoreIcon fontSize={isMobile ? "medium" : "large"} />}
+              value={formatCurrency(cierreData.totalVentasPropias || 0)}
+              label="Ventas Propias"
+              color="success.dark"
+            />
+          </Grid>
+
+          <Grid item xs={6} sm={6} md={2}>
+            <StatCard
+              icon={<HandshakeIcon fontSize={isMobile ? "medium" : "large"} />}
+              value={formatCurrency(cierreData.totalVentasConsignacion || 0)}
+              label="Ventas Consignación"
+              color="secondary.light"
             />
           </Grid>
         </Grid>
@@ -355,6 +376,7 @@ const CierreCajaPage = () => {
             cierreData={cierreData}
             totales={totales}
             handleCerrarCaja={handleCerrarCaja}
+            showOnlyCants={false}
           />
         </ContentCard>
         
