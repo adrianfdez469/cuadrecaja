@@ -138,7 +138,7 @@ model ProductoTienda {
 
   // Llave de unicidad compuesta: un producto por tienda y proveedor
   // Esto permite que el mismo producto tenga diferentes existencias por proveedor
-  @@unique([tiendaId, productoId, proveedorId])
+  //@@unique([tiendaId, productoId, proveedorId])
 }
 
 // Representa una venta realizada en una tienda.
@@ -249,6 +249,15 @@ model Proveedor {
   @@unique([nombre, negocioId])
   @@index([nombre])
 }
+
+//model ProveedorConsignadorLiquidación {
+  //id               String           @id @default(uuid())
+  //monto            Float            @default(0)
+  //createdAt        DateTime         @defualt(now()) 
+  //liquidatedAt     DateTime?        @updatedAt
+  //cierre      CierrePeriodo
+  //proveedor   Proveedor
+//}
 
 enum MovimientoTipo {
   COMPRA
