@@ -436,7 +436,8 @@ export default function MovimientosPage() {
                             lineHeight: 1.2
                           }}
                         >
-                          {movimiento.productoTienda?.producto?.nombre || 'Producto no encontrado'}
+                          {/* {movimiento.productoTienda?.producto?.nombre || 'Producto no encontrado'} */}
+                          {movimiento.productoTienda?.proveedor?.nombre ? `${movimiento.productoTienda?.producto?.nombre} - ${movimiento.productoTienda?.proveedor?.nombre}` : movimiento.productoTienda?.producto?.nombre}
                         </Typography>
                         {getMovimientoChip(movimiento.tipo)}
                       </Box>

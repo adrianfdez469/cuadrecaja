@@ -34,7 +34,7 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import axios from "axios";
-import { IProductoTienda } from "@/types/IProducto";
+import { IProductoTiendaV2 } from "@/types/IProducto";
 import { exportInventoryToWord } from "@/utils/wordExport";
 import { ProductMovementsModal } from "./components/ProductMovementsModal";
 import { PageContainer } from "@/components/PageContainer";
@@ -42,11 +42,11 @@ import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency, formatNumber } from '@/utils/formatters';
 
 export default function InventarioPage() {
-  const [productos, setProductos] = useState<IProductoTienda[]>([]);
+  const [productos, setProductos] = useState<IProductoTiendaV2[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState<IProductoTienda | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
   const [movementsModalOpen, setMovementsModalOpen] = useState(false);
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
@@ -57,10 +57,20 @@ export default function InventarioPage() {
   const fetchProductos = async () => {
     try {
       setLoading(true);
-      const response = await axios.get<IProductoTienda[]>(
+      const response = await axios.get<IProductoTiendaV2[]>(
         `/api/productos_tienda/${user.localActual.id}/productos_venta`
       );
-      setProductos(response.data);
+      console.log('productos', response.data);
+      
+      setProductos(response.data.map(productoTienda => {
+        return {
+          ...productoTienda,
+          producto: {
+            ...productoTienda.producto,
+            nombre: productoTienda.proveedor ? `${productoTienda.producto.nombre} - ${productoTienda.proveedor.nombre}` : productoTienda.producto.nombre
+          }
+        };
+      }));
     } catch (error) {
       console.error("Error al obtener productos", error);
       showMessage("Error al cargar el inventario", "error");
@@ -101,7 +111,7 @@ export default function InventarioPage() {
     }
   };
 
-  const handleRowClick = (producto: IProductoTienda) => {
+  const handleRowClick = (producto: IProductoTiendaV2) => {
     setSelectedProduct(producto);
     setMovementsModalOpen(true);
   };
@@ -112,7 +122,7 @@ export default function InventarioPage() {
   };
 
   const filteredProductos = productos.filter((producto) =>
-    producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    producto.producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Cálculos para estadísticas
@@ -314,7 +324,7 @@ export default function InventarioPage() {
                       <Stack spacing={2}>
                         <Box display="flex" justifyContent="space-between" alignItems="flex-start">
                           <Typography variant="subtitle1" fontWeight="medium" sx={{ flex: 1, pr: 1 }}>
-                            {producto.nombre}
+                            {producto.producto.nombre}
                           </Typography>
                           {getStockChip(producto.existencia)}
                         </Box>
@@ -409,7 +419,7 @@ export default function InventarioPage() {
                     >
                       <TableCell>
                         <Typography variant="body2" fontWeight="medium">
-                          {producto.nombre}
+                          {producto.producto.nombre}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">

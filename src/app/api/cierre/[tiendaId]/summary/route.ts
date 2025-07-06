@@ -43,7 +43,11 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
         totalGanancia: true,
         totalInversion: true,
         totalVentas: true,
-        totalTransferencia: true
+        totalTransferencia: true,
+        totalVentasPropias: true,
+        totalVentasConsignacion: true,
+        totalGananciasPropias: true,
+        totalGananciasConsignacion: true
       },
       where: {
         ...filtros
@@ -56,6 +60,10 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
       sumTotalInversion: totales._sum.totalInversion,
       sumTotalVentas: totales._sum.totalVentas,
       sumTotalTransferencia: totales._sum.totalTransferencia,
+      sumTotalVentasPropias: totales._sum.totalVentasPropias,
+      sumTotalVentasConsignacion: totales._sum.totalVentasConsignacion,
+      sumTotalGananciasPropias: totales._sum.totalGananciasPropias,
+      sumTotalGananciasConsignacion: totales._sum.totalGananciasConsignacion,
       totalItems: totalCierres
     });
   } catch (error) {

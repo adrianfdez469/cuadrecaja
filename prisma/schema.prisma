@@ -18,10 +18,11 @@ model Negocio {
   locallimit   Int
   productlimit Int       @default(0) // Límite de productos por plan
 
-  usuarios   Usuario[]
-  tiendas    Tienda[]
-  categorias Categoria[]
-  productos  Producto[]
+  usuarios     Usuario[]
+  tiendas      Tienda[]
+  categorias   Categoria[]
+  productos    Producto[]
+  proveedores  Proveedor[]
 }
 
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
@@ -131,7 +132,13 @@ model ProductoTienda {
   ventas      VentaProducto[] // Relación con la tabla intermedia de ventas
   movimientos MovimientoStock[] // Relacion con la tabla de movimientos
 
-  @@unique([tiendaId, productoId]) // Agrega esta línea
+  // Proveedor para productos en consignación (null para productos propios)
+  proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
+  proveedorId String?
+
+  // Llave de unicidad compuesta: un producto por tienda y proveedor
+  // Esto permite que el mismo producto tenga diferentes existencias por proveedor
+  //@@unique([tiendaId, productoId, proveedorId])
 }
 
 // Representa una venta realizada en una tienda.
@@ -160,6 +167,8 @@ model VentaProducto {
   producto         ProductoTienda @relation(fields: [productoTiendaId], references: [id]) // Producto vendido
   productoTiendaId String
   cantidad         Int // Cantidad de productos vendidos en la transacción
+  costo            Float          @default(0) // Costo al momento de la venta
+  precio           Float          @default(0) // Precio al momento de la venta
 }
 
 // Representa un período de ventas cerrado con una fecha de inicio y una fecha de cierre.
@@ -176,6 +185,12 @@ model CierrePeriodo {
   totalGanancia       Float @default(0)
   totalInversion      Float @default(0)
   totalTransferencia  Float @default(0)
+
+  // Nuevos campos para consignación
+  totalVentasPropias         Float @default(0)
+  totalVentasConsignacion    Float @default(0)
+  totalGananciasPropias      Float @default(0)
+  totalGananciasConsignacion Float @default(0)
 
   // Idices
   @@index([fechaInicio])
@@ -203,9 +218,46 @@ model MovimientoStock {
   tienda   Tienda @relation(fields: [tiendaId], references: [id])
   tiendaId String
 
+  // Proveedor para movimientos de consignación
+  proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
+  proveedorId String?
+
   @@index([productoTiendaId])
   @@index([fecha])
 }
+
+// Representa un proveedor del negocio
+model Proveedor {
+  id          String   @id @default(uuid())
+  nombre      String   // Nombre del proveedor (obligatorio)
+  descripcion String?  // Descripción del proveedor (opcional)
+  direccion   String?  // Dirección del proveedor (opcional)
+  telefono    String?  // Teléfono del proveedor (opcional)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  negocio     Negocio  @relation(fields: [negocioId], references: [id])
+  negocioId   String
+
+  // Relación con movimientos de consignación
+  movimientos MovimientoStock[]
+  
+  // Relación con productos en consignación
+  productosConsignacion ProductoTienda[]
+
+  // Índice de unicidad compuesto: nombre único por negocio
+  @@unique([nombre, negocioId])
+  @@index([nombre])
+}
+
+//model ProveedorConsignadorLiquidación {
+  //id               String           @id @default(uuid())
+  //monto            Float            @default(0)
+  //createdAt        DateTime         @defualt(now()) 
+  //liquidatedAt     DateTime?        @updatedAt
+  //cierre      CierrePeriodo
+  //proveedor   Proveedor
+//}
 
 enum MovimientoTipo {
   COMPRA
@@ -216,4 +268,6 @@ enum MovimientoTipo {
   AJUSTE_ENTRADA
   DESAGREGACION_BAJA
   DESAGREGACION_ALTA
+  CONSIGNACION_ENTRADA
+  CONSIGNACION_DEVOLUCION
 }

@@ -57,6 +57,7 @@ import {
   Inventory,
   Summarize,
   GridView,
+  LocalShipping,
 } from '@mui/icons-material';
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
@@ -82,6 +83,11 @@ const configurationMenuItems = [
     label: "Productos",
     path: "/configuracion/productos",
     icon: ChangeHistoryIcon,
+  },
+  {
+    label: "Proveedores",
+    path: "/configuracion/proveedores",
+    icon: LocalShipping,
   },
   {
     label: "Planes y Suscripción",

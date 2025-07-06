@@ -36,6 +36,8 @@ import { fetchCierreData } from "@/services/cierrePeriodService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
+import StoreIcon from "@mui/icons-material/Store";
+import HandshakeIcon from "@mui/icons-material/Handshake";
 
 export default function ResumenCierrePage() {
   const [data, setData] = useState<ISummaryCierre>();
@@ -160,7 +162,11 @@ export default function ResumenCierrePage() {
         productosVendidos: cierreData.productosVendidos,
         totalGanancia: itemCierre.totalGanancia,
         totalVentas: itemCierre.totalVentas,
-        totalTransferencia: itemCierre.totalTransferencia
+        totalTransferencia: itemCierre.totalTransferencia,
+        totalVentasPropias: itemCierre.totalVentasPropias,
+        totalVentasConsignacion: itemCierre.totalVentasConsignacion,
+        totalGananciasPropias: itemCierre.totalGananciasPropias,
+        totalGananciasConsignacion: itemCierre.totalGananciasConsignacion,
       },
       totales: totales
     });
@@ -324,7 +330,7 @@ export default function ResumenCierrePage() {
     >
       {/* Estadísticas generales */}
       <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={6} sm={6} md={2}>
           <StatCard
             icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
             value={formatCurrency(totales.venta)}
@@ -333,7 +339,7 @@ export default function ResumenCierrePage() {
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={6} sm={6} md={2}>
           <StatCard
             icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
             value={formatCurrency(totales.ganancia)}
@@ -342,7 +348,7 @@ export default function ResumenCierrePage() {
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={6} sm={6} md={2}>
           <StatCard
             icon={<Assessment fontSize={isMobile ? "medium" : "large"} />}
             value={formatCurrency(totales.inversion)}
@@ -351,12 +357,31 @@ export default function ResumenCierrePage() {
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={6} sm={6} md={2}>
           <StatCard
             icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
             value={formatCurrency(totales.transf)}
             label="Transferencias"
             color="primary.light"
+          />
+        </Grid>
+
+        {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
+        <Grid item xs={6} sm={6} md={2}>
+          <StatCard
+            icon={<StoreIcon fontSize={isMobile ? "medium" : "large"} />}
+            value={formatCurrency(data?.sumTotalVentasPropias || 0)}
+            label="Ventas Propias"
+            color="success.dark"
+          />
+        </Grid>
+
+        <Grid item xs={6} sm={6} md={2}>
+          <StatCard
+            icon={<HandshakeIcon fontSize={isMobile ? "medium" : "large"} />}
+            value={formatCurrency(data?.sumTotalVentasConsignacion || 0)}
+            label="Ventas Consignación"
+            color="secondary.light"
           />
         </Grid>
       </Grid>
@@ -469,6 +494,25 @@ export default function ResumenCierrePage() {
                             {formatCurrency(row.totalTransferencia)}
                           </Typography>
                         </Grid>
+                        {/* NUEVAS FILAS PARA CONSIGNACIÓN */}
+                        <Grid item xs={6}>
+                          <Typography variant="caption" color="text.secondary">
+                            <StoreIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
+                            Ventas Propias
+                          </Typography>
+                          <Typography variant="body2" fontWeight="medium" color="success.dark">
+                            {formatCurrency(row.totalVentasPropias || 0)}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="caption" color="text.secondary">
+                            <HandshakeIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
+                            Ventas Consignación
+                          </Typography>
+                          <Typography variant="body2" fontWeight="medium" color="secondary.main">
+                            {formatCurrency(row.totalVentasConsignacion || 0)}
+                          </Typography>
+                        </Grid>
                       </Grid>
                     </Stack>
                   </CardContent>
@@ -502,6 +546,15 @@ export default function ResumenCierrePage() {
                   <TableCell align="right">Venta</TableCell>
                   <TableCell align="right">Transf</TableCell>
                   <TableCell align="right">Ganancia</TableCell>
+                  {/* NUEVAS COLUMNAS PARA CONSIGNACIÓN */}
+                  <TableCell align="right">
+                    <StoreIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
+                    V. Propias
+                  </TableCell>
+                  <TableCell align="right">
+                    <HandshakeIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
+                    V. Consignación
+                  </TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
@@ -548,6 +601,17 @@ export default function ResumenCierrePage() {
                         {formatCurrency(row.totalGanancia)}
                       </Typography>
                     </TableCell>
+                    {/* NUEVAS COLUMNAS CON DATOS REALES */}
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="medium" color="success.dark">
+                        {formatCurrency(row.totalVentasPropias || 0)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="medium" color="secondary.main">
+                        {formatCurrency(row.totalVentasConsignacion || 0)}
+                      </Typography>
+                    </TableCell>
                     <TableCell align="center">
                       <Tooltip title="Ver detalles">
                         <IconButton
@@ -589,6 +653,17 @@ export default function ResumenCierrePage() {
                       {formatCurrency(totales.ganancia)}
                     </Typography>
                   </TableCell>
+                  {/* NUEVOS TOTALES PARA CONSIGNACIÓN */}
+                  <TableCell align="right">
+                    <Typography variant="body2" fontWeight="bold" color="success.dark">
+                      {formatCurrency(data?.sumTotalVentasPropias || 0)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body2" fontWeight="bold" color="secondary.main">
+                      {formatCurrency(data?.sumTotalVentasConsignacion || 0)}
+                    </Typography>
+                  </TableCell>
                   <TableCell></TableCell>
                 </TableRow>
               </TableBody>
@@ -617,15 +692,19 @@ export default function ResumenCierrePage() {
           onClose={() => setShowProducts(false)}
           PaperProps={{
             sx: {
-              height: "95vh",
+              height: isMobile ? "95vh" : "90vh",
+              maxHeight: "95vh",
               borderRadius: "16px 16px 0 0",
               bgcolor: "background.default",
+              overflow: "hidden",
             },
           }}
+          disableScrollLock={true}
+          keepMounted={false}
         >
           <Box
             sx={{
-              width: "100vw",
+              width: "100%",
               height: "100%",
               display: "flex",
               flexDirection: "column",
@@ -635,23 +714,23 @@ export default function ResumenCierrePage() {
             {/* Header del modal */}
             <Box
               sx={{
-                p: 2,
+                p: isMobile ? 1.5 : 2,
                 borderBottom: "1px solid",
                 borderColor: "divider",
                 bgcolor: "background.paper",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                position: "sticky",
-                top: 0,
+                flexShrink: 0,
                 zIndex: 1,
               }}
             >
-              <Typography variant="h5" fontWeight="bold">
+              <Typography variant={isMobile ? "h6" : "h5"} fontWeight="bold">
                 Detalle del Cierre
               </Typography>
               <IconButton
                 onClick={() => setShowProducts(false)}
+                size={isMobile ? "small" : "medium"}
                 sx={{
                   bgcolor: "action.hover",
                   "&:hover": {
@@ -663,17 +742,20 @@ export default function ResumenCierrePage() {
               </IconButton>
             </Box>
 
-            {/* Contenido con scroll */}
+            {/* Contenido con scroll mejorado */}
             <Box
               sx={{
                 flex: 1,
                 overflow: "auto",
-                p: 2,
+                p: isMobile ? 1.5 : 2,
                 bgcolor: "background.default",
+                WebkitOverflowScrolling: "touch",
+                scrollBehavior: "smooth",
+                minHeight: 0,
               }}
             >
               {/* Estadísticas del cierre específico */}
-              <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 3 }}>
+              <Grid container spacing={isMobile ? 1.5 : 3} sx={{ mb: isMobile ? 2 : 3 }}>
                 <Grid item xs={6} sm={6} md={3}>
                   <StatCard
                     icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
@@ -716,12 +798,19 @@ export default function ResumenCierrePage() {
                 title="Productos Vendidos"
                 subtitle={!isMobile ? `${cierreProducData.ciereData.productosVendidos.length} tipos de productos` : undefined}
                 noPadding
-                fullHeight
+                fullHeight={false}
               >
-                <TablaProductosCierre
-                  cierreData={cierreProducData.ciereData}
-                  totales={cierreProducData.totales}
-                />
+                <Box sx={{ 
+                  overflow: "auto",
+                  maxHeight: isMobile ? "60vh" : "70vh",
+                }}>
+                  <TablaProductosCierre
+                    cierreData={cierreProducData.ciereData}
+                    totales={cierreProducData.totales}
+                    showOnlyCants={false}
+                    
+                  />
+                </Box>
               </ContentCard>
             </Box>
           </Box>

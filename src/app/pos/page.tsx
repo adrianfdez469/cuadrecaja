@@ -30,7 +30,7 @@ import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ProductModal } from "./components/ProductModal";
 import { ICategory } from "@/types/ICategoria";
-import { IProductoTienda } from "@/types/IProducto";
+import { IProductoTiendaV2 } from "@/types/IProducto";
 import CartDrawer from "@/components/cartDrawer/CartDrawer";
 import PaymentModal from "./components/PaymentModal";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
@@ -51,7 +51,7 @@ import { formatDate } from "@/utils/formatters";
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<ICategory>(null);
-  const [products, setProducts] = useState<IProductoTienda[]>([]);
+  const [productosTienda, setProductosTienda] = useState<IProductoTiendaV2[]>([]);
   const [showProducts, setShowProducts] = useState(false);
   const [openCart, setOpenCart] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState(false);
@@ -64,11 +64,11 @@ export default function POSInterface() {
   const [showProductsSells, setShowProductsSells] = useState(false);
   const [showSyncView, setShowSyncView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<IProductoTienda[]>([]);
+  const [searchResults, setSearchResults] = useState<IProductoTiendaV2[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchAnchorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [selectedProduct, setSelectedProduct] = useState<IProductoTienda | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
   const {
     items: cart,
     total,
@@ -206,7 +206,7 @@ export default function POSInterface() {
   const fetchProductosAndCategories = async () => {
     try {
       setLoading(true);
-      const response = await axios.get<IProductoTienda[]>(
+      const response = await axios.get<IProductoTiendaV2[]>(
         `/api/productos_tienda/${user.localActual.id}/productos_venta`,
         {
           params: {
@@ -215,12 +215,19 @@ export default function POSInterface() {
         }
       );
       const prods = response.data
+        .map(prod => ({
+          ...prod,
+          producto: {
+            ...prod.producto,
+            nombre: prod.proveedor ? `${prod.producto.nombre} - ${prod.proveedor.nombre}` : prod.producto.nombre
+          }
+        }))
         .filter((prod) => prod.precio > 0)
         .filter((p) => {
           if (p.existencia <= 0) {
-            if (p.fraccionDeId !== null) {
+            if (p.producto.fraccionDeId !== null) {
               const pPadre = response.data.find(
-                (padre) => padre.id === p.fraccionDeId
+                (padre) => padre.id === p.producto.fraccionDeId
               );
               if (pPadre && pPadre.existencia > 0) {
                 return true;
@@ -231,12 +238,12 @@ export default function POSInterface() {
           return true;
         });
       const productosTienda = prods.sort((a, b) => {
-        return a.nombre.localeCompare(b.nombre);
+        return a.producto.nombre.localeCompare(b.producto.nombre);
       });
-      setProducts(productosTienda);
+      setProductosTienda(productosTienda);
       const categorias = Object.values(
         prods.reduce((acum, prod) => {
-          acum[prod.categoria.id] = prod.categoria;
+          acum[prod.producto.categoria.id] = prod.producto.categoria;
           return acum;
         }, {}) as ICategory[]
       ).sort((a: ICategory, b: ICategory) => {
@@ -290,7 +297,7 @@ export default function POSInterface() {
         });
 
         const data = cart.map((prod) => {
-          const productoEnTienda = products.find(p => p.productoTiendaId === prod.productoTiendaId);
+          const productoEnTienda = productosTienda.find(p => p.id === prod.productoTiendaId);
           if (!productoEnTienda) {
             throw new Error(`Producto no encontrado en la tienda: ${prod.name}`);
           }
@@ -325,15 +332,15 @@ export default function POSInterface() {
         });
 
         // 3. Actualizar inventario local
-        const newProds = products.map((p) => {
-          const cartProd = cart.find((cartItem) => cartItem.productoTiendaId === p.productoTiendaId);
+        const newProds = productosTienda.map((p) => {
+          const cartProd = cart.find((cartItem) => cartItem.productoTiendaId === p.id);
           if (cartProd) {
             return { ...p, existencia: p.existencia - cartProd.quantity }
           } else {
             return p;
           }
         });
-        setProducts(newProds);
+        setProductosTienda(newProds);
 
         // 4. Mostrar notificación inicial (solo una)
         showMessage("💳 Procesando venta...", "info");
@@ -387,14 +394,14 @@ export default function POSInterface() {
       setShowSearchResults(false);
       return;
     }
-    const filtered = products.filter((product) =>
-      product.nombre.toLowerCase().includes(query.toLowerCase())
+    const filtered = productosTienda.filter((product) =>
+      product.producto.nombre.toLowerCase().includes(query.toLowerCase())
     );
 
     setSearchResults(filtered.slice(0, 10)); // Limitar a 10 resultados
     setShowSearchResults(true);
   };
-  const handleProductSelect = (product: IProductoTienda) => {
+  const handleProductSelect = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
     setShowSearchResults(false);
     setSearchQuery("");
@@ -756,8 +763,8 @@ export default function POSInterface() {
       {selectedCategory && (
         <ProductModal
           open={showProducts}
-          products={products.filter(
-            (p) => p.categoria.id === selectedCategory.id
+          productosTienda={productosTienda.filter(
+            (p) => p.producto.categoria.id === selectedCategory.id
           )}
           category={selectedCategory}
           closeModal={() => setShowProducts(false)}
@@ -945,11 +952,11 @@ export default function POSInterface() {
                     }}
                   >
                     <ListItemText
-                      primary={product.nombre}
+                      primary={product.producto.nombre}
                       secondary={`$${product.precio} - ${product.existencia} disponibles`}
                       primaryTypographyProps={{
                         sx: {
-                          fontWeight: product.nombre.toLowerCase().startsWith(searchQuery.toLowerCase())
+                          fontWeight: product.producto.nombre.toLowerCase().startsWith(searchQuery.toLowerCase())
                             ? 600
                             : 400,
                         },
@@ -963,7 +970,7 @@ export default function POSInterface() {
         )}
       </Popper>
       <QuantityDialog
-        product={selectedProduct}
+        productoTienda={selectedProduct}
         onClose={handleResetProductQuantity}
         onConfirm={handleConfirmQuantity}
       />

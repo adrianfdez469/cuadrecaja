@@ -6,27 +6,27 @@ import {
   Button,
   Grow,
 } from "@mui/material";
-import { IProductoTienda } from "@/types/IProducto";
+import { IProductoTiendaV2 } from "@/types/IProducto";
 import { useCartStore } from "@/store/cartStore";
 
 interface QuantityDialogProps {
-  product: IProductoTienda | null;
+  productoTienda: IProductoTiendaV2 | null;
   onClose: () => void;
   onConfirm: () => void;
 }
 
-export const QuantityDialog = ({ product, onClose, onConfirm }: QuantityDialogProps) => {
+export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityDialogProps) => {
   const [quantity, setQuantity] = useState(1);
   const [direction, setDirection] = useState<'up' | 'down'>('up');
   const { addToCart } = useCartStore();
 
   useEffect(() => {
     setQuantity(1);
-  }, [product]);
+  }, [productoTienda]);
 
   const increase = () => {
-    if (product) {
-      const maxQuantity = product.unidadesPorFraccion || product.existencia;
+    if (productoTienda) {
+      const maxQuantity = productoTienda.producto.unidadesPorFraccion || productoTienda.existencia;
       if (quantity < maxQuantity) {
         setDirection('up');
         setQuantity(quantity + 1);
@@ -42,24 +42,24 @@ export const QuantityDialog = ({ product, onClose, onConfirm }: QuantityDialogPr
   };
 
   const handleConfirmQuantity = () => {
-    if (product) {
+    if (productoTienda) {
       addToCart({
-        id: product.productoTiendaId,
-        name: product.nombre,
-        price: product.precio,
-        productoTiendaId: product.productoTiendaId,
+        id: productoTienda.id,
+        name: productoTienda.producto.nombre,
+        price: productoTienda.precio,
+        productoTiendaId: productoTienda.id
       }, quantity);
       onClose();
     }
   };
 
   const handlePayAll = () => {
-    if (product) {
+    if (productoTienda) {
       addToCart({
-        id: product.productoTiendaId,
-        name: product.nombre,
-        price: product.precio,
-        productoTiendaId: product.productoTiendaId,
+        id: productoTienda.id,
+        name: productoTienda.producto.nombre,
+        price: productoTienda.precio,
+        productoTiendaId: productoTienda.id,
       }, quantity);
       onConfirm();
     }
@@ -67,10 +67,10 @@ export const QuantityDialog = ({ product, onClose, onConfirm }: QuantityDialogPr
 
   return (
     <Dialog
-      open={Boolean(product)}
+      open={Boolean(productoTienda)}
       onClose={onClose}
     >
-      {product && (
+      {productoTienda && (
         <Box
           p={3}
           display={"flex"}
@@ -78,12 +78,12 @@ export const QuantityDialog = ({ product, onClose, onConfirm }: QuantityDialogPr
           alignItems={"center"}
           justifyContent={"center"}
         >
-          <Typography variant="h6">{product.nombre}</Typography>
+          <Typography variant="h6">{productoTienda.producto.nombre}</Typography>
           <Typography variant="body2" color="text.secondary">
-            Precio: ${product.precio}
+            Precio: ${productoTienda.precio}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Disponibles: {product.unidadesPorFraccion || product.existencia}
+            Disponibles: {productoTienda.producto.unidadesPorFraccion || productoTienda.existencia}
           </Typography>
 
           <Box display={"flex"} flexDirection={"row"} padding={2}>
@@ -167,7 +167,7 @@ export const QuantityDialog = ({ product, onClose, onConfirm }: QuantityDialogPr
             <Button 
               variant="contained" 
               onClick={increase}
-              disabled={quantity >= (product.unidadesPorFraccion || product.existencia)}
+              disabled={quantity >= (productoTienda.producto.unidadesPorFraccion || productoTienda.existencia)}
               sx={{
                 transition: 'all 0.2s ease-in-out',
                 '&:hover': {
@@ -210,7 +210,7 @@ export const QuantityDialog = ({ product, onClose, onConfirm }: QuantityDialogPr
             color="success"
             fullWidth
             onClick={handlePayAll}
-            disabled={!product.existencia}
+            disabled={!productoTienda.existencia}
           >
             Vender todo
           </Button>
