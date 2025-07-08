@@ -101,6 +101,7 @@ model Producto {
   categoria       Categoria        @relation(fields: [categoriaId], references: [id]) // Categoría a la que pertenece
   categoriaId     String
   productosTienda ProductoTienda[] // Relación con las tiendas donde se vende
+  prodProveedoresConsignadorLiquidacion ProductoProveedorConsignadorLiquidaciónCierre[]
   
   // 🔗 Fracción: Este producto es una fracción de otro (ej: Cigarro Suelto -> Caja de Cigarro)
   fraccionDe       Producto?       @relation("ProductoFraccion", fields: [fraccionDeId], references: [id])
@@ -114,6 +115,8 @@ model Producto {
 
   negocio         Negocio          @relation(fields: [negocioId], references: [id])
   negocioId       String            @default("")
+
+  
 
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
@@ -192,6 +195,8 @@ model CierrePeriodo {
   totalGananciasPropias      Float @default(0)
   totalGananciasConsignacion Float @default(0)
 
+  prodProveedoresConsignadorLiquidacion ProductoProveedorConsignadorLiquidaciónCierre[]
+
   // Idices
   @@index([fechaInicio])
   @@index([fechaFin])
@@ -245,19 +250,35 @@ model Proveedor {
   // Relación con productos en consignación
   productosConsignacion ProductoTienda[]
 
+  prodProveedorConsignadorLiquidacionCierre ProductoProveedorConsignadorLiquidaciónCierre[]
+
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
   @@index([nombre])
 }
 
-//model ProveedorConsignadorLiquidación {
-  //id               String           @id @default(uuid())
-  //monto            Float            @default(0)
-  //createdAt        DateTime         @defualt(now()) 
-  //liquidatedAt     DateTime?        @updatedAt
-  //cierre      CierrePeriodo
-  //proveedor   Proveedor
-//}
+model ProductoProveedorConsignadorLiquidaciónCierre {
+  id               String           @id @default(uuid())
+  monto            Float            @default(0)
+  vendidos         Float            @default(0)
+  costo            Float            @default(0)
+  precio           Float            @default(0)
+  existencia       Float            @default(0)
+
+  createdAt        DateTime         @default(now()) 
+  liquidatedAt     DateTime?
+  
+  cierre      CierrePeriodo @relation(fields: [cierreId], references: [id])
+  cierreId    String
+
+  proveedor   Proveedor  @relation(fields: [proveedorId], references: [id])
+  proveedorId String
+
+  producto  Producto @relation(fields: [productoId], references: [id])
+  productoId String
+
+  @@unique([cierreId, proveedorId])
+}
 
 enum MovimientoTipo {
   COMPRA

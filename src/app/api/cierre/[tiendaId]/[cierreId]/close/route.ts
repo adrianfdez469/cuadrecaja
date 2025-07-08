@@ -24,11 +24,14 @@ export async function PUT(
           include: {
             productos: {
               include: {
+                
                 producto: {
                   include: {
+
                     producto: {
                       select: {
                         enConsignacion: true,
+                        
                       }
                     }
                   }
@@ -94,21 +97,62 @@ export async function PUT(
 
     const totalGanancia = totalVentas - totalInversion;
 
-    // Cerrar el período con resumen
-    const periodoCerrado = await prisma.cierrePeriodo.update({
-      where: { id: ultimoPeriodo.id },
-      data: {
-        fechaFin: new Date(),
-        totalVentas,
-        totalInversion,
-        totalGanancia,
-        totalTransferencia,
-        totalVentasPropias,
-        totalVentasConsignacion,
-        totalGananciasPropias,
-        totalGananciasConsignacion,
-      },
+    const [periodoCerrado] = await prisma.$transaction(async (tx) => {
+      
+      // Cerrar el período con resumen
+      const periodoCerrado = await tx.cierrePeriodo.update({
+        where: { id: ultimoPeriodo.id },
+        data: {
+          fechaFin: new Date(),
+          totalVentas,
+          totalInversion,
+          totalGanancia,
+          totalTransferencia,
+          totalVentasPropias,
+          totalVentasConsignacion,
+          totalGananciasPropias,
+          totalGananciasConsignacion,
+        },
+      });
+
+      const liquidaciones = {};
+      for (const venta of ultimoPeriodo.ventas) {
+        for (const vp of venta.productos) {
+          if(vp.producto.producto.enConsignacion) {
+            const key = `${vp.producto.proveedorId}_${vp.producto.productoId}`;
+            const vendidos = liquidaciones[key] ? liquidaciones[key].vendidos + vp.cantidad : vp.cantidad;
+            liquidaciones[key] = {
+              vendidos: vendidos,
+              monto: vendidos * vp.costo,
+              costo: vp.costo,
+              precio: vp.precio,
+              existencia: vp.producto.existencia,
+
+              cierreId: periodoCerrado.id,
+              proveedorId: vp.producto.proveedorId,
+              productoId: vp.producto.productoId,
+              liquidatedAt: null
+              
+            }
+          }
+        }
+      }
+
+      console.log('liquidaciones', liquidaciones);
+      console.log('Object.values(liquidaciones)', Object.values(liquidaciones));
+      
+      
+
+      if(Object.keys(liquidaciones).length > 0) {
+        await tx.productoProveedorConsignadorLiquidaciónCierre.createMany({
+          data: Object.values(liquidaciones) as any
+        });
+      }
+      
+      return [periodoCerrado];
     });
+
+    console.log('periodoCerrado', periodoCerrado);
 
     return NextResponse.json(periodoCerrado, { status: 201 });
 

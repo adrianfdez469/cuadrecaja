@@ -58,6 +58,7 @@ import {
   Summarize,
   GridView,
   LocalShipping,
+  Handshake,
 } from '@mui/icons-material';
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
@@ -103,6 +104,7 @@ const mainMenuItems = [
   { label: "Costos y Precios", path: "/costos_precios", icon: <GridView /> },
   { label: "Inventario", path: "/inventario", icon: <Inventory /> },
   { label: "Movimientos", path: "/movimientos", icon: <SwapVert /> },
+  { label: "Proveedores Consignación", path: "/proveedores", icon: <Handshake /> },
   { label: "Cierre", path: "/cierre", icon: <AccountBalanceWallet /> },
   { label: "Resumen Cierres", path: "/resumen_cierre", icon: <Summarize /> },
 ];
