@@ -118,7 +118,7 @@ export async function PUT(
       const liquidaciones = {};
       for (const venta of ultimoPeriodo.ventas) {
         for (const vp of venta.productos) {
-          if (vp.producto.producto.enConsignacion) {
+          if (vp.producto.producto.enConsignacion && vp.producto?.proveedorId) {
             const key = `${vp.producto.proveedorId}_${vp.producto.productoId}`;
             const vendidos = liquidaciones[key] ? liquidaciones[key].vendidos + vp.cantidad : vp.cantidad;
             liquidaciones[key] = {

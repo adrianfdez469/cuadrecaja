@@ -277,7 +277,7 @@ model ProductoProveedorConsignadorLiquidaciónCierre {
   producto  Producto @relation(fields: [productoId], references: [id])
   productoId String
 
-  @@unique([cierreId, proveedorId])
+  @@unique([cierreId, proveedorId, productoId])
 }
 
 enum MovimientoTipo {
