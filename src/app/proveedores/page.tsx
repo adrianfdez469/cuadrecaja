@@ -429,7 +429,7 @@ export default function ProveedoresPage() {
             {/* Paginación desktop */}
             <TablePagination
               component="div"
-              count={0}
+              count={proveedores.length}
               page={page}
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}
