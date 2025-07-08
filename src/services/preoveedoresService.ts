@@ -61,7 +61,7 @@ export const getProveedoresConsignacionById = async (id: string) => {
     return response.data;
 }
 
-export const liquidarProveedorConsignacion = async (cierreId: string) => {
-    const response = await axios.put(`${API_URL}/cierre/${cierreId}`);
+export const liquidarProveedorConsignacion = async (cierreId: string, proveedorId: string) => {
+    const response = await axios.put(`${API_URL}/cierre/${cierreId}/${proveedorId}`);
     return response.data;
 }

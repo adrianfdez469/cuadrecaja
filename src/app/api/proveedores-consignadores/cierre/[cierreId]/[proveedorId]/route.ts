@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ cierreId: string }> }
+  { params }: { params: Promise<{ cierreId: string, proveedorId: string }> }
 ) {
   try {
-    const { cierreId } = await params;
+    const { cierreId, proveedorId } = await params;
 
     if (!cierreId) {
       return NextResponse.json(
@@ -17,7 +17,8 @@ export async function PUT(
 
     await prisma.productoProveedorConsignadorLiquidaciónCierre.updateMany({
       where: {
-        cierreId
+        cierreId,
+        proveedorId
       },
       data: {
         liquidatedAt: new Date()

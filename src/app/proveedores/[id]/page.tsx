@@ -268,7 +268,7 @@ console.log('liquidacionesData',liquidacionesData);
     setPageProductos(0);
   };
 
-  const handleLiquidarProveedor = async (cierreId: string) => {
+  const handleLiquidarProveedor = async (cierreId: string, proveedorId: string) => {
     try {
 
       // Preguntar si desea liquidar el proveedor
@@ -276,7 +276,7 @@ console.log('liquidacionesData',liquidacionesData);
         "¿Está seguro de desea liquidar al proveedor?",
         async () => {
           setLoading(true);
-          await liquidarProveedorConsignacion(cierreId);
+          await liquidarProveedorConsignacion(cierreId, proveedorId);
           await fetchData();
           showMessage("Proveedor liquidado correctamente", "success");
         }
@@ -577,7 +577,7 @@ console.log('liquidacionesData',liquidacionesData);
                             color="primary"
                             size="small"
                             startIcon={<Payment />}
-                            onClick={() => handleLiquidarProveedor(liquidacion.id)}
+                            onClick={() => handleLiquidarProveedor(liquidacion.id, id.toString())}
                             fullWidth
                           >
                             Liquidar
@@ -652,7 +652,7 @@ console.log('liquidacionesData',liquidacionesData);
                             color="primary"
                             size="small"
                             startIcon={<Payment />}
-                            onClick={() => handleLiquidarProveedor(liquidacion.id)}
+                            onClick={() => handleLiquidarProveedor(liquidacion.id, id.toString())}
                           >
                             Liquidar
                           </Button>
