@@ -43,10 +43,13 @@ import {
   Phone,
   Email,
   CalendarToday,
+  Payment,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
-import { findUltimaLiquidacion, getProveedoresConsignacionById, sumDineroLiquidado, sumDineroPorLiquidar, sumProdsConsignación } from "@/services/preoveedoresService";
+import { findUltimaLiquidacion, getProveedoresConsignacionById, liquidarProveedorConsignacion, sumDineroLiquidado, sumDineroPorLiquidar, sumProdsConsignación } from "@/services/preoveedoresService";
 import { IProveedorConsignacion } from "@/types/IProveedorConsignación";
+import { useMessageContext } from "@/context/MessageContext";
+import useConfirmDialog from "@/components/confirmDialog";
 
 interface ILiquidacion {
   id: string;
@@ -55,6 +58,7 @@ interface ILiquidacion {
   productos: number;
   observaciones: string;
   estado: 'completada' | 'pendiente';
+  fechaLiquidacion?: string | null;
 }
 
 interface IProductoConsignacion {
@@ -105,6 +109,8 @@ export default function ProveedorDetallePage() {
   const [pageLiquidaciones, setPageLiquidaciones] = useState(0);
   const [pageProductos, setPageProductos] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const { showMessage } = useMessageContext();
+  const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -139,7 +145,8 @@ export default function ProveedorDetallePage() {
               monto: prodLiq.monto,
               productos: prodLiq.vendidos,
               observaciones: `Liquidación de cierre: ${new Date(prodLiq.cierre.fechaInicio).toLocaleDateString()} - ${new Date(prodLiq.cierre.fechaFin).toLocaleDateString()}`,
-              estado: prodLiq.liquidatedAt !== null ? "completada" : "pendiente"
+              estado: prodLiq.liquidatedAt !== null ? "completada" : "pendiente",
+              fechaLiquidacion: prodLiq.liquidatedAt
             }
           }
         } else {
@@ -148,7 +155,11 @@ export default function ProveedorDetallePage() {
             [prodLiq.cierreId] : {
               ...acc[prodLiq.cierreId],
               monto: acc[prodLiq.cierreId].monto + prodLiq.monto,
-              productos: acc[prodLiq.cierreId].productos + prodLiq.vendidos
+              productos: acc[prodLiq.cierreId].productos + prodLiq.vendidos,
+              // Mantener la fecha de liquidación más reciente para liquidaciones completadas
+              fechaLiquidacion: prodLiq.liquidatedAt && (!acc[prodLiq.cierreId].fechaLiquidacion || new Date(prodLiq.liquidatedAt) > new Date(acc[prodLiq.cierreId].fechaLiquidacion)) 
+                ? prodLiq.liquidatedAt 
+                : acc[prodLiq.cierreId].fechaLiquidacion
             }
           }
         }
@@ -164,7 +175,7 @@ export default function ProveedorDetallePage() {
       // 1: Estado: Muestra primero los pendientes y despues los completados.
       // 2: Fecha: Para el grupo de los pendientes, los primeros serán los más antiguos.
       //           Para el grupo de los completados, los primeros seran los mas actuales. 
-      const liquidaciones = (Object.values(liquidacionesProveedorObj) as  ILiquidacion[])
+      const liquidacionesData = (Object.values(liquidacionesProveedorObj) as  ILiquidacion[])
       .sort((a, b) => {
         if(a.estado === 'completada' && b.estado === 'pendiente') {
           return 1;
@@ -219,12 +230,13 @@ export default function ProveedorDetallePage() {
           }
         }
       }, {});
+console.log('liquidacionesData',liquidacionesData);
 
       const prodsConsignación = Object.values(prodsConsignaciónMap);
 
 
       setProveedor(dataProveedor);
-      setLiquidaciones(liquidaciones);
+      setLiquidaciones(liquidacionesData);
       setProductosConsignacion(prodsConsignación);
     } catch (error) {
       console.error("Error al cargar detalles del proveedor:", error);
@@ -255,6 +267,28 @@ export default function ProveedorDetallePage() {
     setPageLiquidaciones(0);
     setPageProductos(0);
   };
+
+  const handleLiquidarProveedor = async (cierreId: string) => {
+    try {
+
+      // Preguntar si desea liquidar el proveedor
+      confirmDialog(
+        "¿Está seguro de desea liquidar al proveedor?",
+        async () => {
+          setLoading(true);
+          await liquidarProveedorConsignacion(cierreId);
+          await fetchData();
+          showMessage("Proveedor liquidado correctamente", "success");
+        }
+      );
+
+    } catch (error) {
+      console.error("Error al liquidar el proveedor:", error);
+      showMessage( "Error al liquidar el proveedor", "error");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // Componente de estadística
   const StatCard = ({
@@ -513,11 +547,18 @@ export default function ProveedorDetallePage() {
                             {liquidacion.productos} productos
                           </Typography>
                         </Box>
-                        <Chip
-                          label={liquidacion.estado}
-                          color={liquidacion.estado === 'completada' ? 'success' : 'warning'}
-                          size="small"
-                        />
+                        <Box display="flex" flexDirection="column" alignItems="flex-end" gap={0.5}>
+                          <Chip
+                            label={liquidacion.estado}
+                            color={liquidacion.estado === 'completada' ? 'success' : 'warning'}
+                            size="small"
+                          />
+                          {liquidacion.estado === 'completada' && liquidacion.fechaLiquidacion && (
+                            <Typography variant="caption" color="text.secondary">
+                              {dayjs(liquidacion.fechaLiquidacion).format("DD/MM/YYYY")}
+                            </Typography>
+                          )}
+                        </Box>
                       </Box>
 
                       <Box>
@@ -528,6 +569,21 @@ export default function ProveedorDetallePage() {
                           {liquidacion.observaciones}
                         </Typography>
                       </Box>
+
+                      {liquidacion.estado === 'pendiente' && (
+                        <Box sx={{ pt: 1 }}>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            startIcon={<Payment />}
+                            onClick={() => handleLiquidarProveedor(liquidacion.id)}
+                            fullWidth
+                          >
+                            Liquidar
+                          </Button>
+                        </Box>
+                      )}
                     </Stack>
                   </CardContent>
                 </Card>
@@ -544,6 +600,8 @@ export default function ProveedorDetallePage() {
                     <TableCell align="center">Productos</TableCell>
                     <TableCell>Observaciones</TableCell>
                     <TableCell align="center">Estado</TableCell>
+                    <TableCell align="center">Fecha Liquidación</TableCell>
+                    <TableCell align="center">Acciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -575,6 +633,30 @@ export default function ProveedorDetallePage() {
                           color={liquidacion.estado === 'completada' ? 'success' : 'warning'}
                           size="small"
                         />
+                      </TableCell>
+                      <TableCell align="center">
+                        {liquidacion.estado === 'completada' && liquidacion.fechaLiquidacion ? (
+                          <Typography variant="body2" color="text.secondary">
+                            {dayjs(liquidacion.fechaLiquidacion).format("DD/MM/YYYY")}
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="center">
+                        {liquidacion.estado === 'pendiente' && (
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            startIcon={<Payment />}
+                            onClick={() => handleLiquidarProveedor(liquidacion.id)}
+                          >
+                            Liquidar
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -739,6 +821,7 @@ export default function ProveedorDetallePage() {
           />
         </TabPanel>
       </ContentCard>
+      {ConfirmDialogComponent}
     </PageContainer>
   );
 } 

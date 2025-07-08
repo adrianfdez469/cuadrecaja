@@ -57,7 +57,11 @@ export const getProveedoresConsignacion = async (): Promise<IProveedorConsignaci
 }
 
 export const getProveedoresConsignacionById = async (id: string) => {
-    const response = await axios.get(`${API_URL}/${id}`);
+    const response = await axios.get(`${API_URL}/proveedor/${id}`);
     return response.data;
-    
+}
+
+export const liquidarProveedorConsignacion = async (cierreId: string) => {
+    const response = await axios.put(`${API_URL}/cierre/${cierreId}`);
+    return response.data;
 }
