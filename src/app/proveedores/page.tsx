@@ -61,8 +61,7 @@ export default function ProveedoresPage() {
     try {
       // Simulando llamada a API
       const proveedoresConsignación = await getProveedoresConsignacion();
-      console.log('proveedoresConsignación',proveedoresConsignación);
-
+      
       setProveedores(proveedoresConsignación);
 
       // Calcular totales

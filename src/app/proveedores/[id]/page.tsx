@@ -114,7 +114,6 @@ export default function ProveedorDetallePage() {
     try {
 
       const proveedorData = await getProveedoresConsignacionById(id.toString());
-console.log('proveedorData',proveedorData);
 
 
       const pclc = proveedorData.prodProveedorConsignadorLiquidacionCierre;
