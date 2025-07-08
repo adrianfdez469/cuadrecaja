@@ -24,11 +24,14 @@ export async function PUT(
           include: {
             productos: {
               include: {
+
                 producto: {
                   include: {
+
                     producto: {
                       select: {
                         enConsignacion: true,
+
                       }
                     }
                   }
@@ -73,14 +76,14 @@ export async function PUT(
     for (const venta of ultimoPeriodo.ventas) {
       totalVentas += venta.total;
       totalTransferencia += venta.totaltransfer;
-      
+
       for (const vp of venta.productos) {
         const costoTotal = vp.costo * vp.cantidad;
         const ventaTotal = vp.precio * vp.cantidad;
         const ganancia = ventaTotal - costoTotal;
-        
+
         totalInversion += costoTotal;
-        
+
         // Separar por tipo de producto
         if (vp.producto.producto.enConsignacion) {
           totalVentasConsignacion += ventaTotal;
@@ -94,20 +97,75 @@ export async function PUT(
 
     const totalGanancia = totalVentas - totalInversion;
 
-    // Cerrar el período con resumen
-    const periodoCerrado = await prisma.cierrePeriodo.update({
-      where: { id: ultimoPeriodo.id },
-      data: {
-        fechaFin: new Date(),
-        totalVentas,
-        totalInversion,
-        totalGanancia,
-        totalTransferencia,
-        totalVentasPropias,
-        totalVentasConsignacion,
-        totalGananciasPropias,
-        totalGananciasConsignacion,
-      },
+    const [periodoCerrado] = await prisma.$transaction(async (tx) => {
+
+      // Cerrar el período con resumen
+      const periodoCerrado = await tx.cierrePeriodo.update({
+        where: { id: ultimoPeriodo.id },
+        data: {
+          fechaFin: new Date(),
+          totalVentas,
+          totalInversion,
+          totalGanancia,
+          totalTransferencia,
+          totalVentasPropias,
+          totalVentasConsignacion,
+          totalGananciasPropias,
+          totalGananciasConsignacion,
+        },
+      });
+
+      const liquidaciones = {};
+      for (const venta of ultimoPeriodo.ventas) {
+        for (const vp of venta.productos) {
+          if (vp.producto.producto.enConsignacion && vp.producto?.proveedorId) {
+            const key = `${vp.producto.proveedorId}_${vp.producto.productoId}`;
+            
+            if (liquidaciones[key]) {
+              // Acumular datos existentes
+              liquidaciones[key].vendidos += vp.cantidad;
+              liquidaciones[key].monto += (vp.cantidad * vp.costo);
+              // Para costo, calculamos el promedio ponderado
+              liquidaciones[key].costo = liquidaciones[key].monto / liquidaciones[key].vendidos;
+              // Para precio, mantenemos el más reciente (podría ser el precio actual)
+              liquidaciones[key].precio = vp.precio;
+              // Para existencia, usamos la más reciente (refleja el estado actual)
+              liquidaciones[key].existencia = vp.producto.existencia;
+            } else {
+              // Primera entrada para esta combinación proveedor-producto
+              liquidaciones[key] = {
+                vendidos: vp.cantidad,
+                monto: vp.cantidad * vp.costo,
+                costo: vp.costo,
+                precio: vp.precio,
+                existencia: vp.producto.existencia,
+                cierreId: periodoCerrado.id,
+                proveedorId: vp.producto.proveedorId,
+                productoId: vp.producto.productoId,
+                liquidatedAt: null
+              };
+            }
+          }
+        }
+      }
+
+      if (Object.keys(liquidaciones).length > 0) {
+        await tx.productoProveedorConsignadorLiquidaciónCierre.createMany({
+          data: Object.values(liquidaciones) as {
+            vendidos: number,
+            monto: number,
+            costo: number,
+            precio: number,
+            existencia: number,
+            cierreId: string,
+            proveedorId: string,
+            productoId: string,
+            liquidatedAt: Date | null
+          }[]
+        });
+      }
+
+      return [periodoCerrado];
     });
 
     return NextResponse.json(periodoCerrado, { status: 201 });
