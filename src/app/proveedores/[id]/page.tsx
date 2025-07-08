@@ -48,18 +48,6 @@ import dayjs from "dayjs";
 import { findUltimaLiquidacion, getProveedoresConsignacionById, sumDineroLiquidado, sumDineroPorLiquidar, sumProdsConsignación } from "@/services/preoveedoresService";
 import { IProveedorConsignacion } from "@/types/IProveedorConsignación";
 
-interface IProveedor {
-  id: string;
-  nombre: string;
-  telefono: string;
-  email: string;
-  dineroLiquidado: number;
-  dineroPorLiquidar: number;
-  totalProductosConsignacion: number;
-  ultimaLiquidacion: string | null;
-  estado: 'activo' | 'inactivo';
-}
-
 interface ILiquidacion {
   id: string;
   fecha: string;

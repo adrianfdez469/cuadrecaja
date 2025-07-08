@@ -24,14 +24,14 @@ export async function PUT(
           include: {
             productos: {
               include: {
-                
+
                 producto: {
                   include: {
 
                     producto: {
                       select: {
                         enConsignacion: true,
-                        
+
                       }
                     }
                   }
@@ -76,14 +76,14 @@ export async function PUT(
     for (const venta of ultimoPeriodo.ventas) {
       totalVentas += venta.total;
       totalTransferencia += venta.totaltransfer;
-      
+
       for (const vp of venta.productos) {
         const costoTotal = vp.costo * vp.cantidad;
         const ventaTotal = vp.precio * vp.cantidad;
         const ganancia = ventaTotal - costoTotal;
-        
+
         totalInversion += costoTotal;
-        
+
         // Separar por tipo de producto
         if (vp.producto.producto.enConsignacion) {
           totalVentasConsignacion += ventaTotal;
@@ -98,7 +98,7 @@ export async function PUT(
     const totalGanancia = totalVentas - totalInversion;
 
     const [periodoCerrado] = await prisma.$transaction(async (tx) => {
-      
+
       // Cerrar el período con resumen
       const periodoCerrado = await tx.cierrePeriodo.update({
         where: { id: ultimoPeriodo.id },
@@ -118,7 +118,7 @@ export async function PUT(
       const liquidaciones = {};
       for (const venta of ultimoPeriodo.ventas) {
         for (const vp of venta.productos) {
-          if(vp.producto.producto.enConsignacion) {
+          if (vp.producto.producto.enConsignacion) {
             const key = `${vp.producto.proveedorId}_${vp.producto.productoId}`;
             const vendidos = liquidaciones[key] ? liquidaciones[key].vendidos + vp.cantidad : vp.cantidad;
             liquidaciones[key] = {
@@ -132,23 +132,28 @@ export async function PUT(
               proveedorId: vp.producto.proveedorId,
               productoId: vp.producto.productoId,
               liquidatedAt: null
-              
+
             }
           }
         }
       }
 
-      console.log('liquidaciones', liquidaciones);
-      console.log('Object.values(liquidaciones)', Object.values(liquidaciones));
-      
-      
-
-      if(Object.keys(liquidaciones).length > 0) {
+      if (Object.keys(liquidaciones).length > 0) {
         await tx.productoProveedorConsignadorLiquidaciónCierre.createMany({
-          data: Object.values(liquidaciones) as any
+          data: Object.values(liquidaciones) as {
+            vendidos: number,
+            monto: number,
+            costo: number,
+            precio: number,
+            existencia: number,
+            cierreId: string,
+            proveedorId: string,
+            productoId: string,
+            liquidatedAt: Date | null
+          }[]
         });
       }
-      
+
       return [periodoCerrado];
     });
 
