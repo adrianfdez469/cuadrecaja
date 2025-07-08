@@ -120,20 +120,30 @@ export async function PUT(
         for (const vp of venta.productos) {
           if (vp.producto.producto.enConsignacion && vp.producto?.proveedorId) {
             const key = `${vp.producto.proveedorId}_${vp.producto.productoId}`;
-            const vendidos = liquidaciones[key] ? liquidaciones[key].vendidos + vp.cantidad : vp.cantidad;
-            const monto = liquidaciones[key] ? liquidaciones[key].monto + (vp.cantidad * vp.costo) : (vp.cantidad * vp.costo);
-            liquidaciones[key] = {
-              vendidos: vendidos,
-              monto: monto,
-              costo: vp.costo,
-              precio: vp.precio,
-              existencia: vp.producto.existencia,
-
-              cierreId: periodoCerrado.id,
-              proveedorId: vp.producto.proveedorId,
-              productoId: vp.producto.productoId,
-              liquidatedAt: null
-
+            
+            if (liquidaciones[key]) {
+              // Acumular datos existentes
+              liquidaciones[key].vendidos += vp.cantidad;
+              liquidaciones[key].monto += (vp.cantidad * vp.costo);
+              // Para costo, calculamos el promedio ponderado
+              liquidaciones[key].costo = liquidaciones[key].monto / liquidaciones[key].vendidos;
+              // Para precio, mantenemos el más reciente (podría ser el precio actual)
+              liquidaciones[key].precio = vp.precio;
+              // Para existencia, usamos la más reciente (refleja el estado actual)
+              liquidaciones[key].existencia = vp.producto.existencia;
+            } else {
+              // Primera entrada para esta combinación proveedor-producto
+              liquidaciones[key] = {
+                vendidos: vp.cantidad,
+                monto: vp.cantidad * vp.costo,
+                costo: vp.costo,
+                precio: vp.precio,
+                existencia: vp.producto.existencia,
+                cierreId: periodoCerrado.id,
+                proveedorId: vp.producto.proveedorId,
+                productoId: vp.producto.productoId,
+                liquidatedAt: null
+              };
             }
           }
         }
@@ -157,8 +167,6 @@ export async function PUT(
 
       return [periodoCerrado];
     });
-
-    console.log('periodoCerrado', periodoCerrado);
 
     return NextResponse.json(periodoCerrado, { status: 201 });
 
