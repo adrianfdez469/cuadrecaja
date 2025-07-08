@@ -243,7 +243,7 @@ export default function ProveedoresPage() {
       {/* Tabla de proveedores */}
       <ContentCard
         title="Listado de Proveedores"
-        subtitle={!isMobile ? `${0} proveedores registrados` : undefined}
+        subtitle={!isMobile ? `${proveedores.length} proveedores registrados` : undefined}
         noPadding
         fullHeight
       >
@@ -329,7 +329,7 @@ export default function ProveedoresPage() {
             <Box sx={{ mt: 2 }}>
               <TablePagination
                 component="div"
-                count={0}
+                count={proveedores.length}
                 page={page}
                 onPageChange={handleChangePage}
                 rowsPerPage={rowsPerPage}

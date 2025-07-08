@@ -121,9 +121,10 @@ export async function PUT(
           if (vp.producto.producto.enConsignacion && vp.producto?.proveedorId) {
             const key = `${vp.producto.proveedorId}_${vp.producto.productoId}`;
             const vendidos = liquidaciones[key] ? liquidaciones[key].vendidos + vp.cantidad : vp.cantidad;
+            const monto = liquidaciones[key] ? liquidaciones[key].monto + (vp.cantidad * vp.costo) : (vp.cantidad * vp.costo);
             liquidaciones[key] = {
               vendidos: vendidos,
-              monto: vendidos * vp.costo,
+              monto: monto,
               costo: vp.costo,
               precio: vp.precio,
               existencia: vp.producto.existencia,

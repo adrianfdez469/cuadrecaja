@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         }
 
         if (!id) {
-            return NextResponse.json({ error: 'Debe pasar el id del usuario' }, { status: 404 })
+            return NextResponse.json({ error: 'Debe pasar el id del proveedor' }, { status: 404 })
         }
 
         const proveedor = await prisma.proveedor.findUnique({
