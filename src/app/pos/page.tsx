@@ -304,7 +304,7 @@ export default function POSInterface() {
           return {
             cantidad: prod.quantity,
             productoTiendaId: prod.productoTiendaId,
-            productId: productoEnTienda.id,
+            productId: productoEnTienda.productoId,
             name: prod.name,
           };
         });
@@ -381,6 +381,7 @@ export default function POSInterface() {
       throw error;
     }
   };
+
   const handleShowSyncView = () => {
     setShowSyncView(true);
   };
