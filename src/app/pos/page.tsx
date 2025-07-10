@@ -398,8 +398,7 @@ export default function POSInterface() {
       
       let maxQuantity = 0;
 
-      const cartQuantity = cart.find(item => item.id === productoTienda.id)?.quantity || 0;
-      console.log('🔍 [handleUpdateQuantity] cartQuantity:', cartQuantity);
+      const cartQuantity = cart.find(item => item.productoTiendaId === productoTienda.id)?.quantity || 0;
       
       if (cartQuantity > 0) {
         maxQuantity = (productoTienda.producto.unidadesPorFraccion || productoTienda.existencia ); 

@@ -113,7 +113,7 @@ export function ProductModal({
                         {
                           productoTienda.producto.unidadesPorFraccion &&
                           (getCartQuantity(productoTienda.id) > 0 
-                            ? `Cant: ${productoTienda.producto.unidadesPorFraccion - productoTienda.existencia - getCartQuantity(productoTienda.id)}`
+                            ? `Cant: ${productoTienda.producto.unidadesPorFraccion - getCartQuantity(productoTienda.id)}`
                             : `Cant: ${productoTienda.producto.unidadesPorFraccion}`)
                         }
                         
