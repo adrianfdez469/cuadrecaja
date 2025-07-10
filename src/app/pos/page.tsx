@@ -214,8 +214,6 @@ export default function POSInterface() {
           },
         }
       );
-      console.log('🔍 [fetchProductosAndCategories] response:', response.data);
-      
       const prods = response.data
         // Agregar el nombre del proveedor al producto
         .map(prod => ({
