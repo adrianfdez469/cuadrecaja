@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    const futureDate = dayjs().add(3, 'month').set('hour', 23).set('minute', 59).set('second', 0).set('millisecond', 0);
+    const futureDate = dayjs().add(1, 'month').set('hour', 23).set('minute', 59).set('second', 0).set('millisecond', 0);
 
     const { nombre, locallimit, userlimit, productlimit } = await request.json();
     
