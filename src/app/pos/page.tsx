@@ -215,6 +215,7 @@ export default function POSInterface() {
         }
       );
       const prods = response.data
+        // Agregar el nombre del proveedor al producto
         .map(prod => ({
           ...prod,
           producto: {
@@ -222,12 +223,15 @@ export default function POSInterface() {
             nombre: prod.proveedor ? `${prod.producto.nombre} - ${prod.proveedor.nombre}` : prod.producto.nombre
           }
         }))
+        // Filtrar productos con precio positivo
         .filter((prod) => prod.precio > 0)
+        // Filtrar productos con existencia positiva
         .filter((p) => {
           if (p.existencia <= 0) {
+            // Si el producto tiene unidades por fracción, se debe verificar que el producto padre tenga existencia 
             if (p.producto.fraccionDeId !== null) {
               const pPadre = response.data.find(
-                (padre) => padre.id === p.producto.fraccionDeId
+                (padre) => padre.productoId === p.producto.fraccionDeId
               );
               if (pPadre && pPadre.existencia > 0) {
                 return true;
@@ -237,6 +241,8 @@ export default function POSInterface() {
           }
           return true;
         });
+
+
       const productosTienda = prods.sort((a, b) => {
         return a.producto.nombre.localeCompare(b.producto.nombre);
       });
@@ -380,6 +386,29 @@ export default function POSInterface() {
       setOpenCart(false);
       throw error;
     }
+  };
+  const handleUpdateQuantity = (id: string, quantity: number) => {
+    const oldQuantity = cart.find(item => item.productoTiendaId === id)?.quantity || 0;
+    if(oldQuantity < quantity) {
+      const productoTienda = productosTienda.find(p => p.id === id);
+      // Si el producto tiene unidades por fracción, se usa ese valor.
+      // Si si no son productos con fracción se debe verificar que ese producto no esté ya en el carrito,
+      // si no está en el carrito la cantidad maxima seria igual a la existencia del producto.
+      // si está en el carrito la cantidad maxima seria igual a la existencia del producto menos la cantidad de productos en el carrito.
+      
+      let maxQuantity = 0;
+
+      const cartQuantity = cart.find(item => item.productoTiendaId === productoTienda.id)?.quantity || 0;
+      
+      if (cartQuantity > 0) {
+        maxQuantity = (productoTienda.producto.unidadesPorFraccion || productoTienda.existencia ); 
+      }
+      if(quantity > maxQuantity) {
+       return;
+      }
+    }
+    
+    updateQuantity(id, quantity);
   };
 
   const handleShowSyncView = () => {
@@ -772,6 +801,8 @@ export default function POSInterface() {
           openCart={() => setOpenCart(true)}
         />
       )}
+
+      {/* Carrito de compras */}
       <CartDrawer
         cart={cart}
         onClose={() => setOpenCart(false)}
@@ -780,8 +811,10 @@ export default function POSInterface() {
         total={total}
         clear={clearCart}
         removeItem={removeFromCart}
-        updateQuantity={updateQuantity}
+        updateQuantity={handleUpdateQuantity}
       />
+
+      {/* Modal de pago */}
       <PaymentModal
         open={paymentDialog}
         onClose={() => setPaymentDialog(false)}
@@ -790,16 +823,22 @@ export default function POSInterface() {
           handleMakePay(total, totalchash, totaltransfer)
         }
       />
+
+      {/* Modal de productos vendidos */}
       <ProducsSalesDrawer
         setShowProducts={setShowProductsSells}
         showProducts={showProductsSells}
         productos={productos}
       />
+
+      {/* Drawer de ventas y sincronización  */}
       <SalesDrawer
         showSales={showSyncView}
         handleClose={() => handleCloseSyncView()}
         period={periodo}
       />
+
+      {/* Botón de sincronización */}
       {productos.length > 0 && (
         <SpeedDial
           ariaLabel="Offline mode"
@@ -839,6 +878,8 @@ export default function POSInterface() {
           />
         </SpeedDial>
       )}
+
+      {/* Botón de carrito */}
       {cart.length > 0 && !openCart && (
         <Fab
           color="primary"
@@ -851,6 +892,7 @@ export default function POSInterface() {
           </Badge>
         </Fab>
       )}
+
       {/* Buscador flotante */}
       <Box
         ref={searchAnchorRef}
@@ -904,6 +946,7 @@ export default function POSInterface() {
           }}
         />
       </Box>
+      
       {/* Popper para resultados de búsqueda */}
       <Popper
         open={showSearchResults && searchResults.length > 0}
@@ -970,6 +1013,8 @@ export default function POSInterface() {
           </Fade>
         )}
       </Popper>
+
+      {/* Dialog de cantidad */}
       <QuantityDialog
         productoTienda={selectedProduct}
         onClose={handleResetProductQuantity}

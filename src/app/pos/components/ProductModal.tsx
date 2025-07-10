@@ -13,6 +13,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { IProductoTiendaV2 } from "@/types/IProducto";
 import { QuantityDialog } from "./QuantityDialog";
+import { useCartStore } from "@/store/cartStore";
 
 export function ProductModal({
   open,
@@ -22,6 +23,9 @@ export function ProductModal({
   openCart,
 }) {
   const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
+  const { items } = useCartStore();
+
+
 
   const handleProductClick = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
@@ -35,6 +39,10 @@ export function ProductModal({
     handleResetProductQuantity();
     openCart();
     closeModal();
+  };
+
+  const getCartQuantity = (productoTiendaId: string) => {
+    return items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
   };
 
   return (
@@ -102,12 +110,22 @@ export function ProductModal({
 
                     <Box display={'flex'} flexDirection={'row'} justifyContent={'space-between'} alignContent={'space-between'}>
                       <Typography variant="subtitle1" color="text.secondary">
-                        {`Cant: ${productoTienda.existencia}`}
+                        {
+                          productoTienda.producto.unidadesPorFraccion &&
+                          (getCartQuantity(productoTienda.id) > 0 
+                            ? `Cant: ${productoTienda.producto.unidadesPorFraccion - getCartQuantity(productoTienda.id)}`
+                            : `Cant: ${productoTienda.producto.unidadesPorFraccion}`)
+                        }
+                        
+                        {!productoTienda.producto.unidadesPorFraccion && 
+                         (getCartQuantity(productoTienda.id) > 0 
+                          ? `Cant: ${productoTienda.existencia - getCartQuantity(productoTienda.id)}` 
+                          : `Cant: ${productoTienda.existencia}`)
+                        }
                       </Typography>
                       <Typography variant="subtitle1" color="textPrimary">
                         ${productoTienda.precio}
                       </Typography>
-
                     </Box>
                   </CardContent>
                 </Card>

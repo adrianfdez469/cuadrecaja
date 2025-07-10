@@ -18,7 +18,7 @@ interface QuantityDialogProps {
 export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityDialogProps) => {
   const [quantity, setQuantity] = useState(1);
   const [direction, setDirection] = useState<'up' | 'down'>('up');
-  const { addToCart } = useCartStore();
+  const { addToCart, items } = useCartStore();
 
   useEffect(() => {
     setQuantity(1);
@@ -26,7 +26,20 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
 
   const increase = () => {
     if (productoTienda) {
-      const maxQuantity = productoTienda.producto.unidadesPorFraccion || productoTienda.existencia;
+      // Si el producto tiene unidades por fracción, se usa ese valor.
+      // Si si no son productos con fracción se debe verificar que ese producto no esté ya en el carrito,
+      // si no está en el carrito la cantidad maxima seria igual a la existencia del producto.
+      // si está en el carrito la cantidad maxima seria igual a la existencia del producto menos la cantidad de productos en el carrito.
+      
+      let maxQuantity = 0;
+
+      const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
+      if (cartQuantity > 0) {
+        maxQuantity = (productoTienda.producto.unidadesPorFraccion || productoTienda.existencia ) - cartQuantity;
+      } else {
+        maxQuantity = productoTienda.producto.unidadesPorFraccion || productoTienda.existencia;
+      }
+
       if (quantity < maxQuantity) {
         setDirection('up');
         setQuantity(quantity + 1);
