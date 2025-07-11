@@ -29,7 +29,7 @@ import { formatCurrency } from '@/utils/formatters';
 
 // Componente personalizado para editar precios
 const PriceEditCell = (params: GridRenderEditCellParams) => {
-  const { id, value, field, row } = params;
+  const { id, value, field } = params;
   
   return (
     <TextField

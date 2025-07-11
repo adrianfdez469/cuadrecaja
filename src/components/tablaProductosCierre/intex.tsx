@@ -92,9 +92,9 @@ export const TablaProductosCierre: FC<IProps> = ({
     totalVentas,
     totalGanancia,
     totalTransferencia,
-    totalVentasPropios,
+    totalVentasPropias,
     totalVentasConsignacion,
-    totalGananciasPropios,
+    totalGananciasPropias,
     totalGananciasConsignacion,
     productosVendidos,
   } = cierreData;
@@ -301,11 +301,11 @@ export const TablaProductosCierre: FC<IProps> = ({
                   </Typography>
                 </Box>
                 <Typography variant="body2" color="text.secondary">
-                  Ventas: {formatCurrency(totalVentasPropios)}
+                  Ventas: {formatCurrency(totalVentasPropias)}
                 </Typography>
                 {isAdminOrSuperAdmin && (
                   <Typography variant="body2" color="text.secondary">
-                    Ganancia: {formatCurrency(totalGananciasPropios)}
+                    Ganancia: {formatCurrency(totalGananciasPropias)}
                   </Typography>
                 )}
               </CardContent>
