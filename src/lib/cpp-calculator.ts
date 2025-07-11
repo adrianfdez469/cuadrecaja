@@ -3,6 +3,8 @@
  * Implementa la fórmula: CPP = (Valor Inventario Anterior + Costo Nueva Compra) / (Existencia Anterior + Cantidad Nueva Compra)
  */
 
+import { ITipoMovimiento } from "@/types/IMovimiento";
+
 export interface CPPCalculation {
   costoAnterior: number;
   costoNuevo: number;
@@ -74,8 +76,8 @@ export function calcularCPP(
  * @param tipo - Tipo de movimiento
  * @returns true si requiere cálculo de CPP
  */
-export function requiereCPP(tipo: string): boolean {
-  return tipo === 'COMPRA';
+export function requiereCPP(tipo: ITipoMovimiento): boolean {
+  return tipo === 'COMPRA' || tipo === 'TRASPASO_ENTRADA' || tipo === 'CONSIGNACION_ENTRADA';
 }
 
 /**

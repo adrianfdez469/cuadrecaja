@@ -1,0 +1,16 @@
+{
+  "debug.node.autoAttach": "on",
+  "debug.javascript.autoAttachFilter": "always",
+  "debug.javascript.terminalOptions": {
+    "skipFiles": ["<node_internals>/**"]
+  },
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "files.associations": {
+    "*.ts": "typescript",
+    "*.tsx": "typescriptreact"
+  }
+} 

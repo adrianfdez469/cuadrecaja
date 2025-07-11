@@ -45,7 +45,13 @@ export async function obtenerHistorialCPP(productoTiendaId: string): Promise<CPP
   const movimientos = await prisma.movimientoStock.findMany({
     where: {
       productoTiendaId,
-      tipo: 'COMPRA'
+      tipo: {
+        in: [
+          'COMPRA',
+          'TRASPASO_ENTRADA',
+          'CONSIGNACION_ENTRADA',
+        ]
+      }
     },
     include: {
       usuario: {
@@ -58,6 +64,48 @@ export async function obtenerHistorialCPP(productoTiendaId: string): Promise<CPP
       fecha: 'asc'
     }
   });
+
+  /* 
+  movimientos [
+  {
+    id: 'ffed555d-9199-41c7-9385-3d56451bb260',
+    productoTiendaId: '2095918b-d823-47f3-ba2e-102b95423d5e',
+    tipo: 'COMPRA',
+    cantidad: 24,
+    motivo: null,
+    referenciaId: null,
+    fecha: 2025-07-11T16:45:06.414Z,
+    existenciaAnterior: 0,
+    costoUnitario: 130,
+    costoTotal: 3120,
+    costoAnterior: 0,
+    costoNuevo: 130,
+    usuarioId: '472a8aba-7da6-4a03-9a03-49d2d8baf439',
+    tiendaId: 'edb5e1d6-ce5b-474f-a244-3f6a6ac2f668',
+    proveedorId: null,
+    usuario: { nombre: 'Super Admin' }
+  },
+  {
+    id: '195a1dc3-c7f0-4ea5-957a-350b7fd955ad',
+    productoTiendaId: '2095918b-d823-47f3-ba2e-102b95423d5e',
+    tipo: 'TRASPASO_ENTRADA',
+    cantidad: 24,
+    motivo: null,
+    referenciaId: null,
+    fecha: 2025-07-11T16:45:27.591Z,
+    existenciaAnterior: 24,
+    costoUnitario: 150,
+    costoTotal: 3600,
+    costoAnterior: 130,
+    costoNuevo: 140,
+    usuarioId: '472a8aba-7da6-4a03-9a03-49d2d8baf439',
+    tiendaId: 'edb5e1d6-ce5b-474f-a244-3f6a6ac2f668',
+    proveedorId: null,
+    usuario: { nombre: 'Super Admin' }
+  }
+]
+  
+  */
 
   return movimientos.map(mov => {
     const tieneDatosCPP = mov.costoUnitario !== null && mov.costoTotal !== null;
@@ -112,6 +160,7 @@ export async function analizarCPP(productoTiendaId: string): Promise<CPPAnalysis
   
   // 🆕 Calcular estadísticas solo con compras que tienen datos CPP válidos
   const totalCompras = comprasConCPP.reduce((sum, compra) => sum + (compra.costoTotal || 0), 0);
+  
   const cantidadCompras = comprasConCPP.reduce((sum, compra) => sum + compra.cantidad, 0);
   const promedioCompras = cantidadCompras > 0 ? totalCompras / cantidadCompras : 0;
   
@@ -175,15 +224,20 @@ export async function analizarCPPTienda(tiendaId: string): Promise<CPPAnalysis[]
 export async function detectarDesviacionesCPP(tiendaId: string, umbralPorcentaje: number = 10) {
   const analisis = await analizarCPPTienda(tiendaId);
   
-  return analisis.filter(a => {
+  return analisis
+   .filter(a => {
     // 🆕 Solo considerar productos con datos CPP confiables
     if (a.promedioCompras === 0 || a.porcentajeConfiabilidad < 50) return false;
     
-    const diferenciaPorcentaje = Math.abs(a.costoActual - a.promedioCompras) / a.promedioCompras * 100;
+    // const diferenciaPorcentaje = Math.abs(a.costoActual - a.promedioCompras) / a.promedioCompras * 100;
+    const diferenciaPorcentaje = Math.abs(a.ultimoCostoUnitario - a.costoActual) / a.ultimoCostoUnitario * 100;
     return diferenciaPorcentaje > umbralPorcentaje;
-  }).map(a => ({
+
+  })
+  .map(a => ({
     ...a,
-    diferenciaPorcentaje: Math.abs(a.costoActual - a.promedioCompras) / a.promedioCompras * 100,
+    // diferenciaPorcentaje: Math.abs(a.costoActual - a.promedioCompras) / a.promedioCompras * 100,
+    diferenciaPorcentaje: Math.abs(a.ultimoCostoUnitario - a.costoActual) / a.ultimoCostoUnitario * 100,
     // diferenciaMonto: a.costoActual - a.promedioCompras
     diferenciaMonto: a.ultimoCostoUnitario - a.costoActual
   }));
@@ -199,7 +253,13 @@ export async function migrarDatosHistoricosCPP(tiendaId: string, dryRun: boolean
   const movimientosSinCPP = await prisma.movimientoStock.findMany({
     where: {
       tiendaId,
-      tipo: 'COMPRA',
+      tipo: {
+        in: [
+          'COMPRA',
+          'TRASPASO_ENTRADA',
+          'CONSIGNACION_ENTRADA',
+        ]
+      },
       costoUnitario: null
     },
     include: {

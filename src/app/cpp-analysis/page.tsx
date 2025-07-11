@@ -354,9 +354,9 @@ export default function CPPAnalysisPage() {
                     <TableCell>Producto</TableCell>
                     <TableCell align="right">Existencia</TableCell>
                     <TableCell align="right">Costo Actual</TableCell>
-                    <TableCell align="right">Promedio Compras</TableCell>
+                    <TableCell align="right">Promedio Cambios en Costo</TableCell>
                     <TableCell align="right">Valor Inventario</TableCell>
-                    <TableCell align="right">Última Compra</TableCell>
+                    <TableCell align="right">Ultimo Mov. Cambio Costo</TableCell>
                     <TableCell align="center">Confiabilidad</TableCell>
                   </TableRow>
                 </TableHead>
@@ -405,10 +405,10 @@ export default function CPPAnalysisPage() {
                     <TableRow>
                       <TableCell>Producto</TableCell>
                       <TableCell align="right">Costo Actual</TableCell>
-                      <TableCell align="right">Ultima compra</TableCell>
-                      <TableCell align="right">Variacíon</TableCell>
+                      <TableCell align="right">Ultimo Mov. Cambio Costo</TableCell>
+                      <TableCell align="right">Variación</TableCell>
                       <TableCell align="right">% Diferencia</TableCell>
-                      <TableCell align="right">Promedio Compras</TableCell>
+                      <TableCell align="right">Promedio Cambios en Costo</TableCell>
                       <TableCell align="right">Impacto en Inventario</TableCell>
                       <TableCell align="center">Confiabilidad</TableCell>
                     </TableRow>
