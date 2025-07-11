@@ -53,6 +53,11 @@ const CierreCajaPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
+
+  const isAdminOrSuperAdmin = () => {
+    return user.rol === 'ADMIN' || user.rol === 'SUPER_ADMIN';
+  }
+
   const handleCerrarCaja = async () => {
     if(sales.filter(sale => !sale.synced).length > 0) {
       showMessage("Debe sincronizar las ventas en la interfaz del pos de ventas", "warning");
@@ -151,8 +156,8 @@ const CierreCajaPage = () => {
     color: string 
   }) => (
     <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: isMobile ? 2 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
+        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
             sx={{
               p: isMobile ? 1 : 1.5,
@@ -309,55 +314,58 @@ const CierreCajaPage = () => {
       >
         {/* Estadísticas del cierre */}
         <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
-          <Grid item xs={6} sm={6} md={2}>
+          
+          <Grid item xs={6} sm={6} md={4}>
             <StatCard
-              icon={<ShoppingCartIcon fontSize={isMobile ? "medium" : "large"} />}
+              icon={<InventoryIcon fontSize={"medium"} />}
+              value={formatNumber(cierreData.productosVendidos.length)}
+              label="Tipos de Productos"
+              color="warning.light"
+            />
+          </Grid>
+          
+          <Grid item xs={6} sm={6} md={4}>
+            <StatCard
+              icon={<ShoppingCartIcon fontSize={"medium"} />}
               value={formatNumber(totales.totalCantidad)}
               label="Productos Vendidos"
               color="primary.light"
             />
           </Grid>
 
-          <Grid item xs={6} sm={6} md={2}>
+          <Grid item xs={12} sm={6} md={4}>
             <StatCard
-              icon={<AttachMoneyIcon fontSize={isMobile ? "medium" : "large"} />}
+              icon={<AttachMoneyIcon fontSize={"medium"} />}
               value={formatCurrency(totales.totalMonto)}
               label="Total Ventas"
               color="success.light"
             />
           </Grid>
 
-          <Grid item xs={6} sm={6} md={2}>
-            <StatCard
-              icon={<TrendingUpIcon fontSize={isMobile ? "medium" : "large"} />}
-              value={formatCurrency(totales.totalGanancia)}
-              label="Ganancia Total"
-              color="info.light"
-            />
-          </Grid>
-
-          <Grid item xs={6} sm={6} md={2}>
-            <StatCard
-              icon={<InventoryIcon fontSize={isMobile ? "medium" : "large"} />}
-              value={formatNumber(cierreData.productosVendidos.length)}
-              label="Tipos de Productos"
-              color="warning.light"
-            />
-          </Grid>
+          {isAdminOrSuperAdmin() && (
+            <Grid item xs={12} sm={6} md={4}>
+              <StatCard
+                icon={<TrendingUpIcon fontSize={"medium"} />}
+                value={formatCurrency(totales.totalGanancia)}
+                label="Ganancia Total"
+                color="info.light"
+              />
+            </Grid>
+          )}
 
           {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
-          <Grid item xs={6} sm={6} md={2}>
+          <Grid item xs={12} sm={6} md={4}>
             <StatCard
-              icon={<StoreIcon fontSize={isMobile ? "medium" : "large"} />}
+              icon={<StoreIcon fontSize={"medium"} />}
               value={formatCurrency(cierreData.totalVentasPropias || 0)}
               label="Ventas Propias"
               color="success.dark"
             />
           </Grid>
 
-          <Grid item xs={6} sm={6} md={2}>
+          <Grid item xs={12} sm={6} md={4}>
             <StatCard
-              icon={<HandshakeIcon fontSize={isMobile ? "medium" : "large"} />}
+              icon={<HandshakeIcon fontSize={"medium"} />}
               value={formatCurrency(cierreData.totalVentasConsignacion || 0)}
               label="Ventas Consignación"
               color="secondary.light"

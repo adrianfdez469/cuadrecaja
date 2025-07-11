@@ -169,8 +169,8 @@ export default function InventarioPage() {
   // Componente de estadística móvil optimizado
   const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode, value: string, label: string, color: string }) => (
     <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: isMobile ? 2 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
+        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
             sx={{
               p: isMobile ? 1 : 1.5,
@@ -224,36 +224,36 @@ export default function InventarioPage() {
     >
       {/* Estadísticas del inventario */}
       <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={6} sm={4} md={6}>
           <StatCard
-            icon={<InventoryIcon fontSize={isMobile ? "medium" : "large"} />}
+            icon={<InventoryIcon fontSize={"medium"} />}
             value={totalProductos.toLocaleString()}
             label="Total Productos"
             color="primary.light"
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={6} sm={4} md={6}>
           <StatCard
-            icon={<TrendingUpIcon fontSize={isMobile ? "medium" : "large"} />}
+            icon={<TrendingUpIcon fontSize={"medium"} />}
             value={productosConStock.toLocaleString()}
             label="Con Stock"
             color="success.light"
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={12} sm={4} md={6}>
           <StatCard
-            icon={<TrendingDownIcon fontSize={isMobile ? "medium" : "large"} />}
+            icon={<TrendingDownIcon fontSize={"medium"} />}
             value={productosSinStock.toLocaleString()}
             label="Sin Stock"
             color="error.light"
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={12} sm={12} md={6}>
           <StatCard
-            icon={<AttachMoneyIcon fontSize={isMobile ? "medium" : "large"} />}
+            icon={<AttachMoneyIcon fontSize={"medium"} />}
             value={`$${valorTotalInventario.toLocaleString()}`}
             label="Valor Total"
             color="info.light"

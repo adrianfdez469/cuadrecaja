@@ -35,9 +35,14 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
 
       const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
       if (cartQuantity > 0) {
-        maxQuantity = (productoTienda.producto.unidadesPorFraccion || productoTienda.existencia ) - cartQuantity;
+        maxQuantity = (
+          productoTienda.producto.unidadesPorFraccion > 0 
+            ? productoTienda.producto.unidadesPorFraccion - 1 
+            : productoTienda.existencia ) - cartQuantity;
       } else {
-        maxQuantity = productoTienda.producto.unidadesPorFraccion || productoTienda.existencia;
+        maxQuantity = productoTienda.producto.unidadesPorFraccion 
+          ? productoTienda.producto.unidadesPorFraccion - 1 
+          : productoTienda.existencia;
       }
 
       if (quantity < maxQuantity) {

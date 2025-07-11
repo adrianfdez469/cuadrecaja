@@ -217,6 +217,12 @@ model MovimientoStock {
   // Existencia del producto ANTES de aplicar este movimiento
   existenciaAnterior Int? // Null para movimientos existentes, valor para nuevos movimientos
 
+  // 🆕 CAMPOS PARA CPP
+  costoUnitario     Float? // Costo unitario de la compra (solo para COMPRA)
+  costoTotal        Float? // Costo total de la compra (cantidad * costoUnitario)
+  costoAnterior     Float? // Costo promedio ANTES de este movimiento
+  costoNuevo        Float? // Costo promedio DESPUÉS de este movimiento (CPP calculado)
+
   usuario   Usuario? @relation(fields: [usuarioId], references: [id])
   usuarioId String?
 

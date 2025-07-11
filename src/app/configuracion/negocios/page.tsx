@@ -410,8 +410,8 @@ export default function Negocios() {
     color: string 
   }) => (
     <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: isMobile ? 2 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
+        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
             sx={{
               p: isMobile ? 1 : 1.5,
@@ -706,7 +706,7 @@ export default function Negocios() {
             <Grid container spacing={1.5} sx={{ mb: 2 }}>
               <Grid item xs={6}>
                 <StatCard
-                  icon={<Business fontSize={isMobile ? "medium" : "large"} />}
+                  icon={<Business fontSize={"medium"} />}
                   value={totalNegocios.toLocaleString()}
                   label="Total Negocios"
                   color="primary.light"
@@ -714,7 +714,7 @@ export default function Negocios() {
               </Grid>
               <Grid item xs={6}>
                 <StatCard
-                  icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
+                  icon={<TrendingUp fontSize={"medium"} />}
                   value={negociosActivos.toLocaleString()}
                   label="Activos"
                   color="success.light"
@@ -722,7 +722,7 @@ export default function Negocios() {
               </Grid>
               <Grid item xs={6}>
                 <StatCard
-                  icon={<Schedule fontSize={isMobile ? "medium" : "large"} />}
+                  icon={<Schedule fontSize={"medium"} />}
                   value={negociosExpirados.toLocaleString()}
                   label="Expirados"
                   color="error.light"
@@ -730,7 +730,7 @@ export default function Negocios() {
               </Grid>
               <Grid item xs={6}>
                 <StatCard
-                  icon={<Search fontSize={isMobile ? "medium" : "large"} />}
+                  icon={<Search fontSize={"medium"} />}
                   value={negociosVisibles.toLocaleString()}
                   label="Visibles"
                   color="info.light"

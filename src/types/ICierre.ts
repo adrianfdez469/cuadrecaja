@@ -29,6 +29,7 @@ interface ICierreProductoVendidos {
     id: string;
     nombre: string;
   };
+  productoId: string;
 }
 
 export interface ICierreData {
