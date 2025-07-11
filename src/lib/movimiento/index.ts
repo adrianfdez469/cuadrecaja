@@ -77,44 +77,6 @@ export const CreateMoviento = async (data, items) => {
           }
         });
 
-        // 3 Buscar productos fraccionables
-        const productosFraccionados = await tx.producto.findMany({
-          where: {
-            fraccionDeId: productoId
-          }
-        });
-
-        // 3.1 Actualizar los productos fraccionables
-        for (const productoFraccion of productosFraccionados) {
-          // 3.1.1 Buscar el productoTienda del producto fraccionado
-          const productoTiendaFraccionado = await tx.productoTienda.findFirst({
-            where: {
-              productoId: productoFraccion.id,
-              tiendaId
-            }
-          });
-          if(productoTiendaFraccionado) {
-            // 3.1.2 Actualizar el productoTienda del producto fraccionado
-            await tx.productoTienda.update({
-              where: { id: productoFraccion.id },
-              data: { costo: costoUnitario / productoFraccion.unidadesPorFraccion }
-            });
-          } else {
-            // 3.1.3 Crear el productoTienda del producto fraccionado
-            await tx.productoTienda.create({
-              data: {
-                productoId: productoFraccion.id,
-                tiendaId,
-                costo: costoUnitario / productoFraccion.unidadesPorFraccion,
-                precio: 0,
-                existencia: 0,
-                proveedorId: proveedorId || null,
-
-              }
-            });
-          }
-        }
-        
         // Para productos nuevos, registrar el cálculo inicial
         if (requiereCPP(tipo) && costoUnitario) {
           calculoCPP = {
@@ -130,6 +92,43 @@ export const CreateMoviento = async (data, items) => {
           };
           
           console.log('🆕 PRODUCTO NUEVO - CPP INICIAL:', formatearCPPLog(calculoCPP));
+        }
+      }
+
+      // 3 Buscar productos fraccionables
+      const productosFraccionados = await tx.producto.findMany({
+        where: {
+          fraccionDeId: productoId
+        }
+      });
+
+      // 3.1 Actualizar los productos fraccionables
+      for (const productoFraccion of productosFraccionados) {
+        // 3.1.1 Buscar el productoTienda del producto fraccionado
+        const productoTiendaFraccionado = await tx.productoTienda.findFirst({
+          where: {
+            productoId: productoFraccion.id,
+            tiendaId
+          }
+        });
+        if(productoTiendaFraccionado) {
+          // 3.1.2 Actualizar el productoTienda del producto fraccionado
+          await tx.productoTienda.update({
+            where: { id: productoFraccion.id },
+            data: { costo: calculoCPP.costoNuevo / productoFraccion.unidadesPorFraccion }
+          });
+        } else {
+          // 3.1.3 Crear el productoTienda del producto fraccionado
+          await tx.productoTienda.create({
+            data: {
+              productoId: productoFraccion.id,
+              tiendaId,
+              costo: calculoCPP.costoNuevo / productoFraccion.unidadesPorFraccion,
+              precio: 0,
+              existencia: 0,
+              proveedorId: proveedorId || null,
+            }
+          });
         }
       }
 
