@@ -7,7 +7,7 @@ export const CreateMoviento = async (data, items) => {
   const { tipo, tiendaId, usuarioId, referenciaId, motivo, proveedorId } = data;
 
   await prisma.$transaction(async (tx) => {
-    
+
     for (const movimiento of items) {
       const { productoId, cantidad, costoUnitario } = movimiento;
 
@@ -26,10 +26,10 @@ export const CreateMoviento = async (data, items) => {
 
       if (productoTiendaExistente) {
         existenciaAnterior = productoTiendaExistente.existencia;
-        
+
         // 🆕 CÁLCULO CPP PARA COMPRAS
         let nuevoCosto = productoTiendaExistente.costo;
-        
+
         if (requiereCPP(tipo) && costoUnitario) {
           try {
             calculoCPP = calcularCPP(
@@ -39,7 +39,7 @@ export const CreateMoviento = async (data, items) => {
               costoUnitario
             );
             nuevoCosto = calculoCPP.costoNuevo;
-            
+
             console.log('🔄 CPP CALCULADO:', formatearCPPLog(calculoCPP));
           } catch (error) {
             console.error('❌ Error calculando CPP:', error.message);
@@ -47,7 +47,7 @@ export const CreateMoviento = async (data, items) => {
             nuevoCosto = productoTiendaExistente.costo;
           }
         }
-        
+
         // 2. Update para obtener el productoTienda
         productoTienda = await tx.productoTienda.update({
           where: {
@@ -90,7 +90,7 @@ export const CreateMoviento = async (data, items) => {
             costoUnitarioCompra: costoUnitario,
             costoTotalCompra: cantidad * costoUnitario
           };
-          
+
           console.log('🆕 PRODUCTO NUEVO - CPP INICIAL:', formatearCPPLog(calculoCPP));
         }
       }
@@ -111,7 +111,7 @@ export const CreateMoviento = async (data, items) => {
             tiendaId
           }
         });
-        if(productoTiendaFraccionado) {
+        if (productoTiendaFraccionado) {
           // 3.1.2 Actualizar el productoTienda del producto fraccionado
           await tx.productoTienda.update({
             where: { id: productoFraccion.id },
@@ -141,8 +141,8 @@ export const CreateMoviento = async (data, items) => {
           tiendaId,
           usuarioId,
           existenciaAnterior, // Guardar la existencia ANTES del movimiento
-          
-          
+
+
           // 🆕 CAMPOS CPP
           ...(calculoCPP && {
             costoUnitario: calculoCPP.costoUnitarioCompra,
@@ -150,7 +150,7 @@ export const CreateMoviento = async (data, items) => {
             costoAnterior: calculoCPP.costoAnterior,
             costoNuevo: calculoCPP.costoNuevo
           }),
-          
+
           ...(referenciaId && { referenciaId: referenciaId }),
           ...(motivo && { motivo: motivo }),
           ...(proveedorId && { proveedorId: proveedorId })
@@ -159,4 +159,212 @@ export const CreateMoviento = async (data, items) => {
     }
   });
 
+}
+
+interface IImportarItemsMov {
+  nombreProducto: string;
+  costo: number;
+  precio: number;
+  cantidad: number;
+  esConsignación?: boolean;
+  nombreProveedor?: string;
+}
+
+interface IImportData {
+  usuarioId: string;
+  negocioId: string;
+  localId: string;
+}
+
+interface IImportarResponse {
+  success: boolean;
+  message: string;
+  
+  errorCause?: string;
+  
+}
+
+export const ImportarExcelMovimiento = async (data: IImportData, items: IImportarItemsMov[]): Promise<IImportarResponse> => {
+  try {
+
+    const nombreCategoría = "SIN CATEGORIA";
+    const nombreProveedor = "PROVEEDOR";
+
+    if(!data.negocioId || !data.localId || !data.usuarioId) {
+      throw new Error("DATOS_INCOMPLETOS");
+    }
+
+    if(!items || items.length === 0) {
+      throw new Error("ITEMS_INCOMPLETOS");
+    }
+  
+    const negocio = await prisma.negocio.findUnique({
+      where: {
+        id: data.negocioId
+      },
+      include: {
+        tiendas: true
+      }
+    })
+  
+    if (!negocio) {
+      throw new Error("NEGOCIO_NO_ENCONTRADO", {cause: data.negocioId});
+    }
+    const productLimit = negocio.productlimit;
+  
+    if (productLimit !== -1 && productLimit <= items.length) {
+      throw new Error("LIMITE_DE_PRODUCTOS_EXCEDIDO", {cause: productLimit});
+    }
+  
+    await prisma.$transaction(async (tx) => {
+  
+      // Paso 0: Crear o buscar categoría
+      let categoriaId = "";
+      const categoría = await tx.categoria.findFirst({
+        where: {
+          nombre: nombreCategoría,
+          negocioId: data.negocioId
+        }
+      })
+      if (!categoría) {
+        const newCategoria = await tx.categoria.create({
+          data: {
+            nombre: nombreCategoría,
+            negocioId: data.negocioId,
+            color: "000000"
+          }
+        });
+        categoriaId = newCategoria.id;
+      } else {
+        categoriaId = categoría.id;
+      }
+  
+      for (const item of items) {
+        // Paso 1: Buscar producto por nombre
+        let producto = await tx.producto.findFirst({
+          where: {
+            nombre: item.nombreProducto.trim(),
+            negocioId: data.negocioId
+          }
+        });
+        // Paso 1.1 Si existe abortar y enviar mensaje informativo
+        if (producto) {
+          throw new Error("PRODUCTO_EXISTE", { cause: producto.id });
+        }
+        // Paso 1.2 Si no existe creo el producto y obtengo su ID
+        producto = await tx.producto.create({
+          data: {
+            nombre: item.nombreProducto.trim(),
+            descripcion: "",
+            categoriaId: categoriaId,
+            negocioId: data.negocioId
+          }
+        });
+  
+  
+        let proveedorId = "";
+        if (item.esConsignación) {
+          // Revisa si existe el proveedor
+          const proveedor = await tx.proveedor.findFirst({
+            where: {
+              nombre: item.nombreProveedor ? item.nombreProveedor.trim() : nombreProveedor,
+              negocioId: data.negocioId
+            }
+          });
+          if (proveedor) {
+            // Si existe obten el id
+            proveedorId = proveedor.id;
+          } else {
+            // Si no existe crealo y obten el id
+            const newProveedor = await tx.proveedor.create({
+              data: {
+                nombre: item.nombreProveedor ? item.nombreProveedor.trim() : nombreProveedor,
+                negocioId: data.negocioId,
+              }
+            });
+            proveedorId = newProveedor.id;
+          }
+  
+        }
+  
+        // Paso 3: Crear productoTienda
+        const productoTienda = await tx.productoTienda.create({
+          data: {
+            productoId: producto.id,
+            costo: item.costo,
+            existencia: item.cantidad,
+            precio: item.precio,
+            tiendaId: data.localId,
+            ...(proveedorId && { proveedorId: proveedorId })
+          }
+        });
+  
+        // Paso 4: Crear movimientos COMPRA | CONSIGNACION_ENTRADA
+        await tx.movimientoStock.create({
+          data: {
+            tipo: item.esConsignación ? 'CONSIGNACION_ENTRADA' : 'COMPRA',
+            cantidad: item.cantidad,
+            productoTiendaId: productoTienda.id,
+            tiendaId: data.localId,
+            usuarioId: data.usuarioId,
+            existenciaAnterior: 0,
+            // 🆕 CAMPOS CPP
+            costoUnitario: item.costo,
+            costoTotal: item.costo * item.cantidad,
+            costoAnterior: 0,
+            costoNuevo: item.costo,
+  
+            ...(proveedorId && { proveedorId: proveedorId })
+          },
+        });
+  
+      }
+    });
+
+    return {
+      success: true,
+      message: "Movimientos importados correctamente"
+    }
+  } catch (error) {
+    switch (error.message) {
+      case "NEGOCIO_NO_ENCONTRADO":
+        return {
+          success: false,
+          message: "Negocio no encontrado",
+          errorCause: `Id del negocio: ${error.cause}`
+        }
+      case "LIMITE_DE_PRODUCTOS_EXCEDIDO":
+        return {
+          success: false,
+          message: "Limite de productos excedido",
+          errorCause: `Limite actual del negocio: ${error.cause}`
+        }
+      case "PRODUCTO_EXISTE":
+        return {
+          success: false,
+          message: "Producto ya existe",
+          errorCause: `Id del producto: ${error.cause}`
+        }
+      case "DATOS_INCOMPLETOS":
+        return {
+          success: false,
+          message: "Datos incompletos",
+          errorCause: error.message
+        } 
+      case "ITEMS_INCOMPLETOS":
+        return {
+          success: false,
+          message: "Items incompletos",
+          errorCause: error.message
+        }
+      default:
+        return {
+          success: false,
+          message: "Error al importar productos",
+          errorCause: error.message
+        }
+    }
+  }
+
+  
 }

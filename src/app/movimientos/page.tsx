@@ -27,8 +27,9 @@ import {
   Collapse,
   Divider
 } from "@mui/material";
-import { 
+import {
   Add,
+  Dock,
   TrendingUp,
   TrendingDown,
   SwapVert,
@@ -60,7 +61,7 @@ export default function MovimientosPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [statsExpanded, setStatsExpanded] = useState(false);
-  
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -83,7 +84,7 @@ export default function MovimientosPage() {
       if (!loadingContext) {
         try {
           setNoLocalActual(false);
-          
+
           if (!user.localActual || !user.localActual.id) {
             setNoLocalActual(true);
             setLoadingData(false);
@@ -182,6 +183,11 @@ export default function MovimientosPage() {
     { label: 'Movimientos' }
   ];
 
+  const handleImportExcel = () => {
+    console.log('Importar Excel');
+    
+  };
+
   const headerActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">
       <Tooltip title="Actualizar movimientos">
@@ -205,6 +211,17 @@ export default function MovimientosPage() {
       >
         {isMobile ? "Crear" : "Crear Movimiento"}
       </Button>
+      {(filteredMovimientos.length === 0 && !searchTerm) &&
+        <Button
+          variant="contained"
+          startIcon={!isMobile ? <Dock /> : undefined}
+          onClick={() => handleImportExcel()}
+          size={isMobile ? "small" : "medium"}
+          fullWidth={isMobile}
+        >
+          {isMobile ? "Importar" : "Importar Excel"}
+        </Button>
+      }
     </Stack>
   );
 
@@ -226,18 +243,18 @@ export default function MovimientosPage() {
               minHeight: isMobile ? 32 : 48,
             }}
           >
-            {React.isValidElement(icon) 
-              ? React.cloneElement(icon, { 
-                  fontSize: isMobile ? "small" : "large" 
-                } as Record<string, unknown>)
+            {React.isValidElement(icon)
+              ? React.cloneElement(icon, {
+                fontSize: isMobile ? "small" : "large"
+              } as Record<string, unknown>)
               : icon
             }
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "subtitle1" : "h4"} 
+            <Typography
+              variant={isMobile ? "subtitle1" : "h4"}
               fontWeight="bold"
-              sx={{ 
+              sx={{
                 fontSize: isMobile ? '1rem' : '2rem',
                 lineHeight: 1.2,
                 wordBreak: 'break-all'
@@ -245,10 +262,10 @@ export default function MovimientosPage() {
             >
               {value}
             </Typography>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
+              sx={{
                 fontSize: isMobile ? '0.6875rem' : '0.875rem',
                 lineHeight: 1.2
               }}
@@ -361,7 +378,7 @@ export default function MovimientosPage() {
       )}
 
       {/* Lista de movimientos */}
-      <ContentCard 
+      <ContentCard
         title="Historial de Movimientos"
         subtitle={!isMobile ? "Registro detallado de todas las transacciones de inventario" : undefined}
         headerActions={
@@ -377,7 +394,7 @@ export default function MovimientosPage() {
                 </InputAdornment>
               ),
             }}
-            sx={{ 
+            sx={{
               minWidth: isMobile ? 160 : 250,
               maxWidth: isMobile ? 200 : 'none'
             }}
@@ -397,9 +414,9 @@ export default function MovimientosPage() {
               </Typography>
               {!searchTerm && (
                 <Typography variant="body2" component="div">
-                  • Se realizan ventas desde el POS<br/>
-                  • Se agregan productos al inventario<br/>
-                  • Se realizan ajustes manuales<br/>
+                  • Se realizan ventas desde el POS<br />
+                  • Se agregan productos al inventario<br />
+                  • Se realizan ajustes manuales<br />
                   • Se hacen traspasos entre tiendas
                 </Typography>
               )}
@@ -415,7 +432,7 @@ export default function MovimientosPage() {
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
               {filteredMovimientos.map((movimiento, i) => (
-                <Card 
+                <Card
                   key={i}
                   sx={{
                     '&:hover': {
@@ -426,11 +443,11 @@ export default function MovimientosPage() {
                   <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Stack spacing={1}>
                       <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                        <Typography 
-                          variant="subtitle2" 
-                          fontWeight="medium" 
-                          sx={{ 
-                            flex: 1, 
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight="medium"
+                          sx={{
+                            flex: 1,
                             pr: 1,
                             fontSize: '0.875rem',
                             lineHeight: 1.2
@@ -441,11 +458,11 @@ export default function MovimientosPage() {
                         </Typography>
                         {getMovimientoChip(movimiento.tipo)}
                       </Box>
-                      
+
                       <Box display="flex" justifyContent="space-between" alignItems="center">
                         <Box display="flex" alignItems="center" gap={1}>
-                          <Typography 
-                            variant="body2" 
+                          <Typography
+                            variant="body2"
                             fontWeight="bold"
                             color={isMovimientoBaja(movimiento.tipo) ? 'error.main' : 'success.main'}
                             sx={{ fontSize: '0.8125rem' }}
@@ -487,7 +504,7 @@ export default function MovimientosPage() {
               </TableHead>
               <TableBody>
                 {filteredMovimientos.map((movimiento, i) => (
-                  <TableRow 
+                  <TableRow
                     key={i}
                     sx={{
                       '&:nth-of-type(odd)': {
@@ -509,8 +526,8 @@ export default function MovimientosPage() {
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <Typography 
-                        variant="body2" 
+                      <Typography
+                        variant="body2"
                         fontWeight="bold"
                         color={isMovimientoBaja(movimiento.tipo) ? 'error.main' : 'success.main'}
                       >
