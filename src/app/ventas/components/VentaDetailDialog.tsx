@@ -59,7 +59,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
     color?: 'primary' | 'success' | 'info' | 'warning';
   }) => (
     <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <Box
             sx={{
@@ -111,7 +111,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
         </Stack>
       </DialogTitle>
 
-      <DialogContent sx={{ p: isMobile ? 2 : 3 }}>
+      <DialogContent sx={{ p: isMobile ? 1 : 3 }}>
         {/* Información general de la venta */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>

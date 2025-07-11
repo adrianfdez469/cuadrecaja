@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ICierreData } from "@/types/ICierre";
+import { hasAdminPrivileges } from "@/utils/auth";
 
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ cierreId }> }): Promise<NextResponse<ICierreData|{error: string}>> {
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
   
       venta.productos.forEach((ventaProducto) => {
         const { producto: productoTienda, cantidad, costo, precio } = ventaProducto;
-        const { id, producto: {nombre, enConsignacion}, proveedor } = productoTienda;
+        const { id, productoId, producto: {nombre, enConsignacion}, proveedor } = productoTienda;
   
         const totalProducto = cantidad * precio;
         const gananciaProducto = cantidad * (precio - costo);
@@ -78,7 +79,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
         }
 
         // Crear clave única que incluya el proveedor para productos en consignación
-        const productoKey = enConsignacion && proveedor ? `${id}-${proveedor.id}` : id;
+        let productoKey;
+        if(hasAdminPrivileges()){
+          productoKey = enConsignacion && proveedor ? `${id}-${proveedor.id}-${costo}-${precio}` : `${id}-${costo}-${precio}`;
+        } else {
+          productoKey = enConsignacion && proveedor ? `${id}-${proveedor.id}` : id;
+        }
   
         if (!productosVendidos[productoKey]) {
           productosVendidos[productoKey] = {
@@ -90,6 +96,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
             ganancia: 0,
             id: productoKey,
             enConsignacion,
+            productoId,
             ...(enConsignacion && proveedor && { proveedor })
           };
         }

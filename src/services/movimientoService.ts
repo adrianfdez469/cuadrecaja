@@ -1,15 +1,9 @@
-import { ICreateMovimientoDTO, ICreateMovimientoFromProdDTO, ITipoMovimiento } from "@/types/IMovimiento";
+import { ITipoMovimiento } from "@/types/IMovimiento";
 import axios from "axios";
 
 const API_URL = `/api/movimiento`;
 
-export const saveMovimiento = async (data: ICreateMovimientoDTO) => {
-  // TODO: 
-  console.log(data);
-  
-}
-
-export const cretateBatchMovimientos = async (data: Partial<ICreateMovimientoFromProdDTO>, items: Pick<ICreateMovimientoFromProdDTO, "productoId" | "cantidad">[]) => {
+export const cretateBatchMovimientos = async (data, items) => {
   await axios.post(API_URL, {
     data: data,
     items: items

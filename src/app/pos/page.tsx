@@ -401,7 +401,9 @@ export default function POSInterface() {
       const cartQuantity = cart.find(item => item.productoTiendaId === productoTienda.id)?.quantity || 0;
       
       if (cartQuantity > 0) {
-        maxQuantity = (productoTienda.producto.unidadesPorFraccion || productoTienda.existencia ); 
+        maxQuantity = productoTienda.producto.unidadesPorFraccion 
+          ? productoTienda.producto.unidadesPorFraccion - 1 
+          : productoTienda.existencia; 
       }
       if(quantity > maxQuantity) {
        return;

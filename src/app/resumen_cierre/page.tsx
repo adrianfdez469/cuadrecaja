@@ -181,8 +181,8 @@ export default function ResumenCierrePage() {
     color: string 
   }) => (
     <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: isMobile ? 2 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
+        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
             sx={{
               p: isMobile ? 1 : 1.5,
@@ -330,36 +330,36 @@ export default function ResumenCierrePage() {
     >
       {/* Estadísticas generales */}
       <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
-        <Grid item xs={6} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
+            icon={<AttachMoney fontSize={"medium"} />}
             value={formatCurrency(totales.venta)}
             label="Total Ventas"
             color="success.light"
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
+            icon={<TrendingUp fontSize={"medium"} />}
             value={formatCurrency(totales.ganancia)}
             label="Ganancia Total"
             color="info.light"
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            icon={<Assessment fontSize={isMobile ? "medium" : "large"} />}
+            icon={<Assessment fontSize={"medium"} />}
             value={formatCurrency(totales.inversion)}
             label="Inversión Total"
             color="warning.light"
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
+            icon={<AttachMoney fontSize={"medium"} />}
             value={formatCurrency(totales.transf)}
             label="Transferencias"
             color="primary.light"
@@ -367,18 +367,18 @@ export default function ResumenCierrePage() {
         </Grid>
 
         {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
-        <Grid item xs={6} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            icon={<StoreIcon fontSize={isMobile ? "medium" : "large"} />}
+            icon={<StoreIcon fontSize={"medium"} />}
             value={formatCurrency(data?.sumTotalVentasPropias || 0)}
             label="Ventas Propias"
             color="success.dark"
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            icon={<HandshakeIcon fontSize={isMobile ? "medium" : "large"} />}
+            icon={<HandshakeIcon fontSize={"medium"} />}
             value={formatCurrency(data?.sumTotalVentasConsignacion || 0)}
             label="Ventas Consignación"
             color="secondary.light"

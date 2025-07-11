@@ -101,12 +101,13 @@ const mainMenuItems = [
   { label: "Dashboard", path: "/dashboard", icon: <Analytics /> },
   { label: "POS", path: "/pos", icon: <PointOfSale /> },
   { label: "Ventas", path: "/ventas", icon: <Receipt /> },
-  { label: "Costos y Precios", path: "/costos_precios", icon: <GridView /> },
+  { label: "Conformar Precios", path: "/conformar_precios", icon: <GridView /> },
   { label: "Inventario", path: "/inventario", icon: <Inventory /> },
   { label: "Movimientos", path: "/movimientos", icon: <SwapVert /> },
   { label: "Proveedores Consignación", path: "/proveedores", icon: <Handshake /> },
   { label: "Cierre", path: "/cierre", icon: <AccountBalanceWallet /> },
   { label: "Resumen Cierres", path: "/resumen_cierre", icon: <Summarize /> },
+  { label: "Análisis de CPP", path: "/cpp-analysis", icon: <Summarize /> },
 ];
 
 const getMainMenuItemsByLocalType = (localType: string) => {

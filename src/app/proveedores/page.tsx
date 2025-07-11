@@ -115,8 +115,8 @@ export default function ProveedoresPage() {
     color: string;
   }) => (
     <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: isMobile ? 2 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
+        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
             sx={{
               p: isMobile ? 1 : 1.5,
@@ -202,41 +202,43 @@ export default function ProveedoresPage() {
     >
       {/* Estadísticas generales */}
       <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={6} sm={6} md={4}>
           <StatCard
-            icon={<Person fontSize={isMobile ? "medium" : "large"} />}
+            icon={<Person fontSize={"medium"} />}
             value={totales.totalProveedores.toString()}
             label="Total Proveedores"
             color="primary.light"
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={6} sm={6} md={4}>
           <StatCard
-            icon={<MonetizationOn fontSize={isMobile ? "medium" : "large"} />}
+            icon={<LocalShipping fontSize={"medium"} />}
+            value={totales.totalProductosConsignacion.toString()}
+            label="Productos en Consignación"
+            color="info.light"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard
+            icon={<MonetizationOn fontSize={"medium"} />}
             value={formatCurrency(totales.totalLiquidado)}
             label="Dinero Liquidado"
             color="success.light"
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
+            icon={<TrendingUp fontSize={"medium"} />}
             value={formatCurrency(totales.totalPorLiquidar)}
             label="Por Liquidar"
             color="warning.light"
           />
         </Grid>
 
-        <Grid item xs={6} sm={6} md={3}>
-          <StatCard
-            icon={<LocalShipping fontSize={isMobile ? "medium" : "large"} />}
-            value={totales.totalProductosConsignacion.toString()}
-            label="Productos en Consignación"
-            color="info.light"
-          />
-        </Grid>
+        
       </Grid>
 
       {/* Tabla de proveedores */}

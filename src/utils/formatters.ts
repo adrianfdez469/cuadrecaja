@@ -119,10 +119,14 @@ export const getDaysRemainingColor = (days: number): 'error' | 'warning' | 'succ
  * Formatea una moneda con símbolo $ (formato principal)
  */
 export const formatCurrency = (amount: number): string => {
-  return `${CURRENCY_SYMBOL}${amount.toLocaleString(LOCALE, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`;
+  if(amount) {
+    return `${CURRENCY_SYMBOL}${amount.toLocaleString(LOCALE, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
+  } else {
+    return `${CURRENCY_SYMBOL}0.00`;
+  }
 };
 
 /**

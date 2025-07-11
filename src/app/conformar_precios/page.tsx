@@ -129,7 +129,7 @@ const PreciosCantidades = () => {
   const handleProcessRowUpdate = (newRow: GridRowModel) => {
     // Validar que los valores sean positivos
     if (newRow.costo < 0 || newRow.precio < 0) {
-      showMessage("Los valores de costo y precio deben ser positivos", "warning");
+      showMessage("Los valores de precio deben ser positivos", "warning");
       return productos.find(p => p.id === newRow.id) || newRow;
     }
 
@@ -205,13 +205,12 @@ const PreciosCantidades = () => {
       headerName: "Costo",
       flex: 1,
       minWidth: 120,
-      editable: true,
-      type: "number",
       renderCell: PriceDisplayCell,
-      renderEditCell: PriceEditCell,
+      // renderEditCell: PriceEditCell,
       headerAlign: 'center',
       align: 'center'
     },
+
     {
       field: "precio",
       headerName: "Precio",
@@ -224,6 +223,26 @@ const PreciosCantidades = () => {
       headerAlign: 'center',
       align: 'center'
     },
+
+    {
+      field: "porciento",
+      headerName: "Porcentaje",
+      flex: 1,
+      minWidth: 120,
+      renderCell: (params) => {
+        const { row } = params;
+        if(row.costo === 0) return '0%';
+        if(row.precio === 0) return '0%';
+
+        const porciento = ((row.precio / row.costo) * 100).toFixed(2);
+        return (
+          <Typography variant="body2" fontWeight="medium">
+            {porciento}%
+          </Typography>
+
+        );
+      }      
+    }
   ];
 
   if (loading || loadingContext) {
@@ -251,7 +270,7 @@ const PreciosCantidades = () => {
             No hay tienda seleccionada
           </Typography>
           <Typography variant="body1">
-            Para gestionar costos y precios, necesitas tener una tienda seleccionada como tienda actual.
+            Para gestionar los precios, necesitas tener una tienda seleccionada como tienda actual.
           </Typography>
         </Alert>
       </PageContainer>
@@ -260,7 +279,7 @@ const PreciosCantidades = () => {
 
   const breadcrumbs = [
     { label: 'Inicio', href: '/' },
-    { label: 'Costos y Precios' }
+    { label: 'Conformar Precios' }
   ];
 
   const headerActions = (
@@ -289,8 +308,8 @@ const PreciosCantidades = () => {
 
   return (
     <PageContainer
-      title="Costos y Precios"
-      subtitle="Gestiona los costos y precios de venta de tus productos"
+      title="Conformar Precios"
+      subtitle="Gestiona los precios de venta de tus productos"
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
@@ -329,7 +348,7 @@ const PreciosCantidades = () => {
               <Typography variant="body1">
                 {searchTerm ? 
                   'Intenta con otros términos de búsqueda.' : 
-                  'Primero debes agregar productos desde la configuración de productos.'
+                  'Primero debes realizar operaiones de entrada de productos desde los movimientos productos.'
                 }
               </Typography>
             </Alert>

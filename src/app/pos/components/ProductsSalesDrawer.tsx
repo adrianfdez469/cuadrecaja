@@ -50,6 +50,7 @@ export const ProducsSalesDrawer: React.FC<IProps> = ({
                 id: prod.id,
                 nombre: prod.nombre,
                 total: 0,
+                productoId: prod.id
               };
             }),
           }}

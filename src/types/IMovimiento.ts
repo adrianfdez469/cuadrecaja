@@ -9,43 +9,62 @@
 // CONSIGNACION_ENTRADA: Cuando se realiza una consignación de un producto.
 // CONSIGNACION_DEVOLUCION: Cuando se realiza una devolución de un producto.
 
-import { ILocal } from "./ILocal";
-import { IProductoTienda } from "./IProducto";
-import { IUser } from "./IUser";
+import { IProducto } from "./IProducto";
+import { IProveedor } from "./IProveedor";
 
 export type ITipoMovimiento  = "COMPRA" | "VENTA" | "AJUSTE_ENTRADA" | "AJUSTE_SALIDA" | "TRASPASO_ENTRADA" | "TRASPASO_SALIDA" | "DESAGREGACION_BAJA" | "DESAGREGACION_ALTA" | "CONSIGNACION_ENTRADA" | "CONSIGNACION_DEVOLUCION";
 
-interface ICreateMovimientoDTOGeneric {
+
+export interface IMovimiento {
+  id: string;
+  fecha: Date;
   tipo: ITipoMovimiento;
   cantidad: number;
   motivo?: string;
-  usuarioId: string;
-  tiendaId: string;
-  referenciaId?: string; // Puede guardar el ID de una Venta
-  existenciaAnterior?: number; // Existencia ANTES de aplicar este movimiento
-  proveedorId?: string; // Para movimientos de consignación
+  costoUnitario?: number;
+  costoTotal?: number;
+  costoAnterior?: number;
+  costoNuevo?: number;
+  existenciaAnterior?: number;
+  productoTienda: {
+    id: string;
+    costo: number;
+    precio: number;
+    existencia: number;
+    producto: IProducto;
+    proveedor?: IProveedor;
+  };
+  usuario?: {
+    id: string;
+    nombre: string;
+  };
 }
-export interface ICreateMovimientoFromProdDTO extends ICreateMovimientoDTOGeneric {
-  productoId: string
-}
-export interface ICreateMovimientoFromTiendaProdDTO extends ICreateMovimientoDTOGeneric {
-  tiendaProductoId: string;
-}
-export type ICreateMovimientoDTO =  ICreateMovimientoFromProdDTO | ICreateMovimientoFromTiendaProdDTO;
 
-export interface IMovimiento {
-  id:string;
-  productoTienda?: IProductoTienda;
-  productoTiendaId: string;
-  tipo: ITipoMovimiento;
+export interface IMovimientoCreate {
+  productoId: string;
   cantidad: number;
-  motivo: string;
-  referenciaId?: string;
-  fecha: Date;
-  existenciaAnterior?: number; // Existencia ANTES de aplicar este movimiento
-  usuario?: IUser; 
-  usuarioId: string;
-  tienda?: ILocal;
+  costoUnitario?: number;
+  costoTotal?: number;
+}
+
+export interface IMovimientoData {
+  tipo: MovimientoTipo;
   tiendaId: string;
-  proveedorId?: string; // Para movimientos de consignación
+  usuarioId: string;
+  referenciaId?: string;
+  motivo?: string;
+  proveedorId?: string;
+}
+
+export enum MovimientoTipo {
+  COMPRA = 'COMPRA',
+  VENTA = 'VENTA',
+  TRASPASO_ENTRADA = 'TRASPASO_ENTRADA',
+  TRASPASO_SALIDA = 'TRASPASO_SALIDA',
+  AJUSTE_SALIDA = 'AJUSTE_SALIDA',
+  AJUSTE_ENTRADA = 'AJUSTE_ENTRADA',
+  DESAGREGACION_BAJA = 'DESAGREGACION_BAJA',
+  DESAGREGACION_ALTA = 'DESAGREGACION_ALTA',
+  CONSIGNACION_ENTRADA = 'CONSIGNACION_ENTRADA',
+  CONSIGNACION_DEVOLUCION = 'CONSIGNACION_DEVOLUCION'
 }
