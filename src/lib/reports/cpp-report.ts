@@ -45,7 +45,13 @@ export async function obtenerHistorialCPP(productoTiendaId: string): Promise<CPP
   const movimientos = await prisma.movimientoStock.findMany({
     where: {
       productoTiendaId,
-      tipo: 'COMPRA'
+      tipo: {
+        in: [
+          'COMPRA',
+          'TRASPASO_ENTRADA',
+          'CONSIGNACION_ENTRADA',
+        ]
+      }
     },
     include: {
       usuario: {
@@ -86,25 +92,29 @@ export async function obtenerHistorialCPP(productoTiendaId: string): Promise<CPP
  * @param productoTiendaId - ID del producto en la tienda
  * @returns Análisis completo del CPP
  */
-export async function analizarCPP(productoTiendaId: string): Promise<CPPAnalysis | null> {
-  const productoTienda = await prisma.productoTienda.findUnique({
-    where: {
-      id: productoTiendaId
-    },
-    include: {
-      producto: {
-        select: {
-          nombre: true
-        }
-      }
-    }
-  });
+
+// export async function analizarCPP(productoTiendaId: {}): Promise<CPPAnalysis | null> {
+export async function analizarCPP(productoTienda: {id: string, costo: number, existencia: number, proveedor?: {nombre: string}, producto: {nombre: string}}): Promise<CPPAnalysis | null> {
+  // const productoTienda = await prisma.productoTienda.findUnique({
+  //   where: {
+  //     id: productoTiendaData.id
+  //   },
+  //   include: {
+  //     proveedor: true,
+  //     producto: {
+  //       select: {
+  //         nombre: true,
+          
+  //       }
+  //     }
+  //   }
+  // });
 
   if (!productoTienda) {
     return null;
   }
 
-  const historial = await obtenerHistorialCPP(productoTiendaId);
+  const historial = await obtenerHistorialCPP(productoTienda.id);
   
   // 🆕 Separar compras con y sin datos CPP
   const comprasConCPP = historial.filter(h => h.tieneDatosCPP);
@@ -112,6 +122,7 @@ export async function analizarCPP(productoTiendaId: string): Promise<CPPAnalysis
   
   // 🆕 Calcular estadísticas solo con compras que tienen datos CPP válidos
   const totalCompras = comprasConCPP.reduce((sum, compra) => sum + (compra.costoTotal || 0), 0);
+  
   const cantidadCompras = comprasConCPP.reduce((sum, compra) => sum + compra.cantidad, 0);
   const promedioCompras = cantidadCompras > 0 ? totalCompras / cantidadCompras : 0;
   
@@ -126,8 +137,8 @@ export async function analizarCPP(productoTiendaId: string): Promise<CPPAnalysis
   const porcentajeConfiabilidad = totalMovimientos > 0 ? (comprasConCPP.length / totalMovimientos) * 100 : 0;
 
   return {
-    productoId: productoTienda.productoId,
-    productoNombre: productoTienda.producto.nombre,
+    productoId: productoTienda.id,
+    productoNombre: productoTienda.proveedor ? `${productoTienda.producto.nombre} - ${productoTienda.proveedor.nombre}` : productoTienda.producto.nombre,
     costoActual: productoTienda.costo,
     existenciaActual: productoTienda.existencia,
     valorInventarioActual: productoTienda.costo * productoTienda.existencia,
@@ -156,12 +167,22 @@ export async function analizarCPPTienda(tiendaId: string): Promise<CPPAnalysis[]
       }
     },
     select: {
-      id: true
+      id: true,
+      costo: true,
+      existencia: true,
+      proveedor: true,
+      producto: true
     }
   });
 
   const analisis = await Promise.all(
-    productos.map(p => analizarCPP(p.id))
+    productos.map(p => analizarCPP({
+      id: p.id,
+      costo: p.costo,
+      existencia: p.existencia,
+      proveedor: p.proveedor,
+      producto: p.producto
+    }))
   );
 
   return analisis.filter(a => a !== null) as CPPAnalysis[];
@@ -175,15 +196,20 @@ export async function analizarCPPTienda(tiendaId: string): Promise<CPPAnalysis[]
 export async function detectarDesviacionesCPP(tiendaId: string, umbralPorcentaje: number = 10) {
   const analisis = await analizarCPPTienda(tiendaId);
   
-  return analisis.filter(a => {
+  return analisis
+   .filter(a => {
     // 🆕 Solo considerar productos con datos CPP confiables
     if (a.promedioCompras === 0 || a.porcentajeConfiabilidad < 50) return false;
     
-    const diferenciaPorcentaje = Math.abs(a.costoActual - a.promedioCompras) / a.promedioCompras * 100;
+    // const diferenciaPorcentaje = Math.abs(a.costoActual - a.promedioCompras) / a.promedioCompras * 100;
+    const diferenciaPorcentaje = Math.abs(a.ultimoCostoUnitario - a.costoActual) / a.ultimoCostoUnitario * 100;
     return diferenciaPorcentaje > umbralPorcentaje;
-  }).map(a => ({
+
+  })
+  .map(a => ({
     ...a,
-    diferenciaPorcentaje: Math.abs(a.costoActual - a.promedioCompras) / a.promedioCompras * 100,
+    // diferenciaPorcentaje: Math.abs(a.costoActual - a.promedioCompras) / a.promedioCompras * 100,
+    diferenciaPorcentaje: Math.abs(a.ultimoCostoUnitario - a.costoActual) / a.ultimoCostoUnitario * 100,
     // diferenciaMonto: a.costoActual - a.promedioCompras
     diferenciaMonto: a.ultimoCostoUnitario - a.costoActual
   }));
@@ -199,7 +225,13 @@ export async function migrarDatosHistoricosCPP(tiendaId: string, dryRun: boolean
   const movimientosSinCPP = await prisma.movimientoStock.findMany({
     where: {
       tiendaId,
-      tipo: 'COMPRA',
+      tipo: {
+        in: [
+          'COMPRA',
+          'TRASPASO_ENTRADA',
+          'CONSIGNACION_ENTRADA',
+        ]
+      },
       costoUnitario: null
     },
     include: {

@@ -1,4 +1,4 @@
-import { FC, useMemo, useState, useEffect } from "react";
+import { FC, useState, useEffect } from "react";
 import { IProducto } from "@/types/IProducto";
 import {
   Box,
@@ -45,7 +45,7 @@ import { formatCurrency } from "@/utils/formatters";
 import { Info } from "@mui/icons-material";
 import { getProveedores, createProveedor } from "@/services/proveedorService";
 import { IProveedor } from "@/types/IProveedor";
-
+import { requiereCPP } from "@/lib/cpp-calculator";
 interface IProductoMovimiento {
   productoId: string;
   cantidad: number;
@@ -213,7 +213,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
             cantidad: item.cantidad,
             productoId: item.productoId,
             // Agregar costos si es una compra
-            ...(tipo === "COMPRA" && item.costoUnitario && {
+            ...(requiereCPP(tipo) && item.costoUnitario && {
               costoUnitario: item.costoUnitario,
               costoTotal: item.costoTotal
             })
@@ -237,25 +237,13 @@ export const AddMovimientoDialog: FC<IProps> = ({
     const hasInvalidProducts = itemsProductos.some(item => 
       !item.productoId || 
       item.cantidad <= 0 ||
-      (tipo === "COMPRA" && (!item.costoUnitario || item.costoUnitario <= 0))
+      (requiereCPP(tipo) && (!item.costoUnitario || item.costoUnitario <= 0))
     );
 
     const needsProveedor = (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && !proveedor;
 
     return hasInvalidProducts || needsProveedor;
   };
-
-  const esCompra = tipo === "COMPRA";
-
-  const filteredProductos = useMemo(() => {
-    return productos.filter(p => {
-      if(tipo === 'CONSIGNACION_DEVOLUCION' || tipo === 'CONSIGNACION_ENTRADA') {
-        return p.enConsignacion === true;
-      } else {
-        return !p.enConsignacion;
-      }
-    });
-  }, [tipo])
 
   return (
     <>
@@ -607,7 +595,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     onChange={(e) => handleChangeProducto(index, "productoId", e.target.value)}
                     size={isMobile ? "small" : "medium"}
                   >
-                    {filteredProductos.map((producto) => (
+                    {productos.map((producto) => (
                       <MenuItem key={producto.id} value={producto.id}>
                         {producto.nombre}
                       </MenuItem>
@@ -636,8 +624,8 @@ export const AddMovimientoDialog: FC<IProps> = ({
                   </IconButton>
                 </Box>
 
-                {/* Campos de costo para compras */}
-                {esCompra && (
+                {/* Campos de costo para productos que requieren CPP */}
+                {requiereCPP(tipo) && (
                   <Stack spacing={2}>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <TextField
@@ -692,8 +680,8 @@ export const AddMovimientoDialog: FC<IProps> = ({
             + Agregar otro producto
           </Button>
 
-          {/* Total general para compras */}
-          {esCompra && (
+          {/* Total general para productos que requieren CPP */}
+          {requiereCPP(tipo) && (
             <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1, textAlign: 'center' }}>
               <Typography variant={isMobile ? "h6" : "h5"} color="primary" sx={{ fontWeight: 'bold' }}>
                 Total General: {formatCurrency(itemsProductos.reduce((sum, item) => sum + (item.costoTotal || 0), 0))}

@@ -24,7 +24,6 @@ interface ICierreProductoVendidos {
   cantidad: number;
   total: number;
   ganancia: number;
-  enConsignacion?: boolean;
   proveedor?: {
     id: string;
     nombre: string;

@@ -31,12 +31,13 @@ export async function GET(req: Request) {
         ...filtros 
       },
       include: {
-        
+        proveedor: true,
         productoTienda: {
           include: {
             producto: {
               select: {
-                nombre: true
+                nombre: true,
+                
               }
             },
             proveedor: true,

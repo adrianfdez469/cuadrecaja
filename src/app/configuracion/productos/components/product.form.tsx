@@ -32,15 +32,12 @@ interface IProps {
     nombre: string, 
     descripcion: string, 
     categoriaId: string, 
-    enConsignacion: boolean,
     fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number}
   ) => Promise<void>;
   editingProd?: IProducto;
 }
 
 export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editingProd }) => {
-
-console.log(editingProd);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -49,7 +46,6 @@ console.log(editingProd);
   const [descripcion, setDescripcion] = useState("");
   const [categoria, setCategoria] = useState("");
   const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [enConsignacion, setEnConsignacion] = useState(false);
 
   const [esFraccion, setEsFraccion] = useState(false);
   const [productos, setProductos] = useState([]);
@@ -73,19 +69,11 @@ console.log(editingProd);
 
   const handleSaveProduct = () => {
     if(selectedFraccionProduct) {
-      handleSave(nombre, descripcion, categoria, enConsignacion, {fraccionDeId: selectedFraccionProduct?.id, unidadesPorFraccion: fraccionValue})
+      handleSave(nombre, descripcion, categoria, {fraccionDeId: selectedFraccionProduct?.id, unidadesPorFraccion: fraccionValue})
     } else {
-      handleSave(nombre, descripcion, categoria, enConsignacion);
+      handleSave(nombre, descripcion, categoria);
     }
   }
-
-  const handleConsignacionTooltipToggle = () => {
-    setConsignacionTooltipOpen(!consignacionTooltipOpen);
-    // Cerrar el otro tooltip si está abierto
-    if (fraccionTooltipOpen) {
-      setFraccionTooltipOpen(false);
-    }
-  };
 
   const handleFraccionTooltipToggle = () => {
     setFraccionTooltipOpen(!fraccionTooltipOpen);
@@ -106,7 +94,6 @@ console.log(editingProd);
           setNombre(editingProd.nombre);
           setDescripcion(editingProd.descripcion);
           setCategoria(editingProd.categoriaId);
-          setEnConsignacion(editingProd.enConsignacion || false);
           setEsFraccion(!!editingProd.fraccionDeId);  
         }
       });
@@ -149,62 +136,6 @@ console.log(editingProd);
           value={descripcion}
           onChange={(e) => setDescripcion(e.target.value)}
         />
-
-        <Box sx={{ mt: 2, mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={enConsignacion}
-                onChange={(e, checked) => setEnConsignacion(checked)}
-              />
-            }
-            label="Producto en consignación"
-          />
-          <Tooltip 
-            title="Los productos en consignación son aquellos que no son de tu propiedad, sino que los tienes para vender en nombre de un proveedor. Al final del período, solo pagas por los productos vendidos."
-            arrow
-            placement={isMobile ? "top" : "left"}
-            open={consignacionTooltipOpen}
-            disableHoverListener
-            disableFocusListener
-            disableTouchListener
-            PopperProps={{
-              modifiers: [
-                {
-                  name: 'preventOverflow',
-                  enabled: true,
-                  options: {
-                    altAxis: true,
-                    altBoundary: true,
-                    tether: true,
-                    rootBoundary: 'document',
-                    padding: 8,
-                  },
-                },
-                {
-                  name: 'flip',
-                  enabled: true,
-                  options: {
-                    altBoundary: true,
-                    rootBoundary: 'document',
-                    padding: 8,
-                  },
-                },
-              ],
-            }}
-          >
-            <IconButton 
-              size="small" 
-              onClick={handleConsignacionTooltipToggle}
-              sx={{ 
-                color: consignacionTooltipOpen ? 'primary.main' : 'info.main',
-                '&:hover': { color: 'primary.main' }
-              }}
-            >
-              <Info fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <FormControlLabel

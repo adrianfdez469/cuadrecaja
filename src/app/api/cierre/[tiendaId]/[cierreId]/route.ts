@@ -21,8 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
                   include: {
                     producto: {
                       select: {
-                        nombre: true,
-                        enConsignacion: true,
+                        nombre: true
                       }
                     },
                     // Incluir información del proveedor para productos en consignación
@@ -64,13 +63,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
   
       venta.productos.forEach((ventaProducto) => {
         const { producto: productoTienda, cantidad, costo, precio } = ventaProducto;
-        const { id, productoId, producto: {nombre, enConsignacion}, proveedor } = productoTienda;
+        const { id, productoId, producto: {nombre}, proveedor } = productoTienda;
   
         const totalProducto = cantidad * precio;
         const gananciaProducto = cantidad * (precio - costo);
   
         // Separar por tipo de producto
-        if (enConsignacion) {
+        if (proveedor) {
           totalVentasConsignacion += totalProducto;
           totalGananciasConsignacion += gananciaProducto;
         } else {
@@ -81,9 +80,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
         // Crear clave única que incluya el proveedor para productos en consignación
         let productoKey;
         if(hasAdminPrivileges()){
-          productoKey = enConsignacion && proveedor ? `${id}-${proveedor.id}-${costo}-${precio}` : `${id}-${costo}-${precio}`;
+          productoKey = proveedor ? `${id}-${proveedor.id}-${costo}-${precio}` : `${id}-${costo}-${precio}`;
         } else {
-          productoKey = enConsignacion && proveedor ? `${id}-${proveedor.id}` : id;
+          productoKey = proveedor ? `${id}-${proveedor.id}` : id;
         }
   
         if (!productosVendidos[productoKey]) {
@@ -95,9 +94,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
             total: 0,
             ganancia: 0,
             id: productoKey,
-            enConsignacion,
             productoId,
-            ...(enConsignacion && proveedor && { proveedor })
+            ...(proveedor && { proveedor, enConsignacion: true })
           };
         }
   

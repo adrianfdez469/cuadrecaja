@@ -83,7 +83,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           productoId: true,
           existencia: true,
           costo: true,
-          precio: true
+          precio: true,
+          proveedorId: true
         }
       });
 
@@ -159,7 +160,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
             usuarioId,
             existenciaAnterior,
             referenciaId: venta.id,
-            motivo: `Venta ${venta.id}`
+            motivo: `Venta ${venta.id}`,
+            ...(productoTienda.proveedorId && {proveedorId: productoTienda.proveedorId})
           }
         });
 
@@ -328,8 +330,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
             cantidad: true,
             id: true,
             productoTiendaId: true,
+            
             producto: {
               select: {
+                proveedor: {
+                  select: {
+                    id: true,
+                    nombre: true
+                  }
+                },
                 producto: {
                   select: {
                     nombre: true,
@@ -371,7 +380,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         ventaId: venta.id,
         productoTiendaId: p.productoTiendaId,
         cantidad: p.cantidad,
-        name: p.producto?.producto?.nombre ?? undefined,
+        name: p.producto.proveedor ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}` : p.producto?.producto?.nombre ?? undefined,
         price: p.producto?.precio ?? undefined
       })),
       syncId: venta.syncId
