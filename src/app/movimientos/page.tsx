@@ -455,7 +455,9 @@ export default function MovimientosPage() {
                             lineHeight: 1.2
                           }}
                         >
-                          {movimiento.proveedor?.nombre ? `${movimiento.producto?.nombre} - ${movimiento.productoTienda?.proveedor?.nombre}` : movimiento.productoTienda?.producto?.nombre}
+                          {movimiento.proveedor?.nombre
+                            ? `${movimiento.productoTienda?.producto?.nombre} - ${movimiento.proveedor.nombre}`
+                            : movimiento.productoTienda?.producto?.nombre || 'Producto no encontrado'}
                         </Typography>
                         {getMovimientoChip(movimiento.tipo)}
                       </Box>
@@ -523,10 +525,10 @@ export default function MovimientosPage() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
-                        {movimiento.proveedor?.nombre 
-                          ? `${movimiento.productoTienda?.producto?.nombre} - ${movimiento.proveedor.nombre}` 
-                          : movimiento.productoTienda?.producto?.nombre|| 'Producto no encontrado'}
-                        
+                        {movimiento.proveedor?.nombre
+                          ? `${movimiento.productoTienda?.producto?.nombre} - ${movimiento.proveedor.nombre}`
+                          : movimiento.productoTienda?.producto?.nombre || 'Producto no encontrado'}
+
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
