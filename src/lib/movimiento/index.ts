@@ -115,7 +115,7 @@ export const CreateMoviento = async (data, items) => {
           if (productoTiendaFraccionado) {
             // 3.1.2 Actualizar el productoTienda del producto fraccionado
             await tx.productoTienda.update({
-              where: { id: productoFraccion.id },
+              where: { id: productoTiendaFraccionado.id },
               data: { costo: calculoCPP.costoNuevo / productoFraccion.unidadesPorFraccion }
             });
           } else {
