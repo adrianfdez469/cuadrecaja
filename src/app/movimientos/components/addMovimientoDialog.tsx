@@ -1,4 +1,4 @@
-import { FC, useMemo, useState, useEffect } from "react";
+import { FC, useState, useEffect } from "react";
 import { IProducto } from "@/types/IProducto";
 import {
   Box,
@@ -244,16 +244,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
 
     return hasInvalidProducts || needsProveedor;
   };
-
-  const filteredProductos = useMemo(() => {
-    return productos.filter(p => {
-      if(tipo === 'CONSIGNACION_DEVOLUCION' || tipo === 'CONSIGNACION_ENTRADA') {
-        return p.enConsignacion === true;
-      } else {
-        return !p.enConsignacion;
-      }
-    });
-  }, [tipo])
 
   return (
     <>
@@ -605,7 +595,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     onChange={(e) => handleChangeProducto(index, "productoId", e.target.value)}
                     size={isMobile ? "small" : "medium"}
                   >
-                    {filteredProductos.map((producto) => (
+                    {productos.map((producto) => (
                       <MenuItem key={producto.id} value={producto.id}>
                         {producto.nombre}
                       </MenuItem>

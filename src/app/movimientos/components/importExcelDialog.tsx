@@ -28,6 +28,7 @@ const HEADERS_ESPERADOS = ["Nombre", "Costo", "Precio", "Cantidad", "esConsignac
 export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -69,6 +70,7 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
       }
 
       // Validar filas
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const itemsTemp: any[] = [];
       for (let i = 1; i < rows.length; i++) {
         const [nombre, costo, precio, cantidad, esConsignacion] = rows[i] as string[];
@@ -113,7 +115,7 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
       setErrores(erroresTemp);
       setItems(itemsTemp);
       setPreview(erroresTemp.length === 0 && itemsTemp.length > 0);
-    } catch (err) {
+    } catch {
       setErrores(["No se pudo leer el archivo. ¿Es un Excel válido?"]);
     }
   };
@@ -137,7 +139,7 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
       } else {
         setErrores([resultado.errorCause || resultado.message]);
       }
-    } catch (err) {
+    } catch {
       setLoading(false);
       setErrores(["Error de red o inesperado"]);
     }

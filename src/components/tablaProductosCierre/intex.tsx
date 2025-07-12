@@ -35,7 +35,6 @@ interface ProductoVendido {
   cantidad: number;
   total: number;
   ganancia: number;
-  enConsignacion?: boolean;
   productoId: string;
   proveedor?: {
     id: string;
@@ -336,38 +335,38 @@ export const TablaProductosCierre: FC<IProps> = ({
 
       {/* Acordeones para productos separados con datos reales */}
       <Box sx={{ mb: 2 }}>
-        {productosVendidos.filter(p => !p.enConsignacion).length > 0 && (
+        {productosVendidos.filter(p => !p.proveedor).length > 0 && (
           <Accordion expanded={expandedPropios}>
             <AccordionSummary expandIcon={<ExpandMoreIcon /> } onClick={() => setExpandedPropios(!expandedPropios)}>
               <Box display="flex" alignItems="center" gap={1}>
                 <StoreIcon color="primary" />
                 <Typography variant="subtitle1" fontWeight="bold">
-                  Productos Propios ({productosVendidos.filter(p => !p.enConsignacion).length})
+                  Productos Propios ({productosVendidos.filter(p => !p.productoId).length})
                 </Typography>
               </Box>
             </AccordionSummary>
             <AccordionDetails>
               <ProductTable
-                productos={productosVendidos.filter(p => !p.enConsignacion)}
+                productos={productosVendidos.filter(p => !p.proveedor)}
                 title="Productos Propios"
                 isConsignacion={false}
               />
             </AccordionDetails>
           </Accordion>
         )}
-        {productosVendidos.filter(p => p.enConsignacion).length > 0 && (
+        {productosVendidos.filter(p => p.proveedor).length > 0 && (
           <Accordion expanded={expandedConsignacion}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />} onClick={() => setExpandedConsignacion(!expandedConsignacion)}>
               <Box display="flex" alignItems="center" gap={1}>
                 <HandshakeIcon color="secondary" />
                 <Typography variant="subtitle1" fontWeight="bold">
-                  Productos en Consignación ({productosVendidos.filter(p => p.enConsignacion).length})
+                  Productos en Consignación ({productosVendidos.filter(p => p.proveedor).length})
                 </Typography>
               </Box>
             </AccordionSummary>
             <AccordionDetails>
               <ProductTable
-                productos={productosVendidos.filter(p => p.enConsignacion)}
+                productos={productosVendidos.filter(p => p.proveedor)}
                 title="Productos en Consignación"
                 isConsignacion={true}
               />

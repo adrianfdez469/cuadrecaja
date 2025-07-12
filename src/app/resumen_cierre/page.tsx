@@ -152,7 +152,12 @@ export default function ResumenCierrePage() {
         0
       ),
       totalMonto: cierreData.productosVendidos.reduce(
-        (acc, p) => acc + p.total,
+        (acc, p) => {
+          if(p.proveedor) {
+            return acc;
+          }
+          return acc + p.total
+        },
         0
       )
     };

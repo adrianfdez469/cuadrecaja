@@ -65,48 +65,6 @@ export async function obtenerHistorialCPP(productoTiendaId: string): Promise<CPP
     }
   });
 
-  /* 
-  movimientos [
-  {
-    id: 'ffed555d-9199-41c7-9385-3d56451bb260',
-    productoTiendaId: '2095918b-d823-47f3-ba2e-102b95423d5e',
-    tipo: 'COMPRA',
-    cantidad: 24,
-    motivo: null,
-    referenciaId: null,
-    fecha: 2025-07-11T16:45:06.414Z,
-    existenciaAnterior: 0,
-    costoUnitario: 130,
-    costoTotal: 3120,
-    costoAnterior: 0,
-    costoNuevo: 130,
-    usuarioId: '472a8aba-7da6-4a03-9a03-49d2d8baf439',
-    tiendaId: 'edb5e1d6-ce5b-474f-a244-3f6a6ac2f668',
-    proveedorId: null,
-    usuario: { nombre: 'Super Admin' }
-  },
-  {
-    id: '195a1dc3-c7f0-4ea5-957a-350b7fd955ad',
-    productoTiendaId: '2095918b-d823-47f3-ba2e-102b95423d5e',
-    tipo: 'TRASPASO_ENTRADA',
-    cantidad: 24,
-    motivo: null,
-    referenciaId: null,
-    fecha: 2025-07-11T16:45:27.591Z,
-    existenciaAnterior: 24,
-    costoUnitario: 150,
-    costoTotal: 3600,
-    costoAnterior: 130,
-    costoNuevo: 140,
-    usuarioId: '472a8aba-7da6-4a03-9a03-49d2d8baf439',
-    tiendaId: 'edb5e1d6-ce5b-474f-a244-3f6a6ac2f668',
-    proveedorId: null,
-    usuario: { nombre: 'Super Admin' }
-  }
-]
-  
-  */
-
   return movimientos.map(mov => {
     const tieneDatosCPP = mov.costoUnitario !== null && mov.costoTotal !== null;
     const esDatoHistorico = mov.costoUnitario === null || mov.costoAnterior === null;
@@ -134,25 +92,29 @@ export async function obtenerHistorialCPP(productoTiendaId: string): Promise<CPP
  * @param productoTiendaId - ID del producto en la tienda
  * @returns Análisis completo del CPP
  */
-export async function analizarCPP(productoTiendaId: string): Promise<CPPAnalysis | null> {
-  const productoTienda = await prisma.productoTienda.findUnique({
-    where: {
-      id: productoTiendaId
-    },
-    include: {
-      producto: {
-        select: {
-          nombre: true
-        }
-      }
-    }
-  });
+
+// export async function analizarCPP(productoTiendaId: {}): Promise<CPPAnalysis | null> {
+export async function analizarCPP(productoTienda: {id: string, costo: number, existencia: number, proveedor?: {nombre: string}, producto: {nombre: string}}): Promise<CPPAnalysis | null> {
+  // const productoTienda = await prisma.productoTienda.findUnique({
+  //   where: {
+  //     id: productoTiendaData.id
+  //   },
+  //   include: {
+  //     proveedor: true,
+  //     producto: {
+  //       select: {
+  //         nombre: true,
+          
+  //       }
+  //     }
+  //   }
+  // });
 
   if (!productoTienda) {
     return null;
   }
 
-  const historial = await obtenerHistorialCPP(productoTiendaId);
+  const historial = await obtenerHistorialCPP(productoTienda.id);
   
   // 🆕 Separar compras con y sin datos CPP
   const comprasConCPP = historial.filter(h => h.tieneDatosCPP);
@@ -175,8 +137,8 @@ export async function analizarCPP(productoTiendaId: string): Promise<CPPAnalysis
   const porcentajeConfiabilidad = totalMovimientos > 0 ? (comprasConCPP.length / totalMovimientos) * 100 : 0;
 
   return {
-    productoId: productoTienda.productoId,
-    productoNombre: productoTienda.producto.nombre,
+    productoId: productoTienda.id,
+    productoNombre: productoTienda.proveedor ? `${productoTienda.producto.nombre} - ${productoTienda.proveedor.nombre}` : productoTienda.producto.nombre,
     costoActual: productoTienda.costo,
     existenciaActual: productoTienda.existencia,
     valorInventarioActual: productoTienda.costo * productoTienda.existencia,
@@ -205,12 +167,22 @@ export async function analizarCPPTienda(tiendaId: string): Promise<CPPAnalysis[]
       }
     },
     select: {
-      id: true
+      id: true,
+      costo: true,
+      existencia: true,
+      proveedor: true,
+      producto: true
     }
   });
 
   const analisis = await Promise.all(
-    productos.map(p => analizarCPP(p.id))
+    productos.map(p => analizarCPP({
+      id: p.id,
+      costo: p.costo,
+      existencia: p.existencia,
+      proveedor: p.proveedor,
+      producto: p.producto
+    }))
   );
 
   return analisis.filter(a => a !== null) as CPPAnalysis[];

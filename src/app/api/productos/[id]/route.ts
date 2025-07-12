@@ -48,7 +48,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const user = await getUserFromRequest(req);
     const { id } = await params;
 
-    const { nombre, categoriaId, descripcion, fraccion, enConsignacion } = await req.json();
+    const { nombre, categoriaId, descripcion, fraccion } = await req.json();
 
     const updatedProduct = await prisma.producto.update({
       where: { id, negocioId: user.negocio.id },
@@ -56,7 +56,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         nombre, 
         descripcion, 
         categoriaId,
-        enConsignacion: enConsignacion !== undefined ? enConsignacion : false,
         ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion})
       },
     });

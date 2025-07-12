@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { nombre, descripcion, categoriaId, fraccion, enConsignacion } = await req.json();
+    const { nombre, descripcion, categoriaId, fraccion } = await req.json();
     console.log('intert product enpoint => fraccion', fraccion);
     
     const nuevoProducto = await prisma.producto.create({
@@ -77,7 +77,6 @@ export async function POST(req: Request) {
         descripcion: descripcion.trim(), 
         categoriaId, 
         negocioId: user.negocio.id, 
-        enConsignacion: enConsignacion || false,
         ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion}) 
       },
     });

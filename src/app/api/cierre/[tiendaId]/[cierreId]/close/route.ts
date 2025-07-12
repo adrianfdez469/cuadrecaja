@@ -24,18 +24,7 @@ export async function PUT(
           include: {
             productos: {
               include: {
-
-                producto: {
-                  include: {
-
-                    producto: {
-                      select: {
-                        enConsignacion: true,
-
-                      }
-                    }
-                  }
-                }, // ProductoTienda
+                producto: true
               },
             },
           },
@@ -78,14 +67,14 @@ export async function PUT(
       totalTransferencia += venta.totaltransfer;
 
       for (const vp of venta.productos) {
-        const costoTotal = vp.costo * vp.cantidad;
+        const costoTotal = vp.producto.proveedorId ? 0 : vp.costo * vp.cantidad;
         const ventaTotal = vp.precio * vp.cantidad;
         const ganancia = ventaTotal - costoTotal;
 
         totalInversion += costoTotal;
 
         // Separar por tipo de producto
-        if (vp.producto.producto.enConsignacion) {
+        if (vp.producto.proveedorId) {
           totalVentasConsignacion += ventaTotal;
           totalGananciasConsignacion += ganancia;
         } else {
@@ -118,7 +107,7 @@ export async function PUT(
       const liquidaciones = {};
       for (const venta of ultimoPeriodo.ventas) {
         for (const vp of venta.productos) {
-          if (vp.producto.producto.enConsignacion && vp.producto?.proveedorId) {
+          if (vp.producto?.proveedorId) {
             const key = `${vp.producto.proveedorId}_${vp.producto.productoId}`;
             
             if (liquidaciones[key]) {

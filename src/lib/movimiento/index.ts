@@ -180,6 +180,7 @@ interface IImportarResponse {
   success: boolean;
   message: string;
   errorCause?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any[]; // Agregar propiedad data para los resultados
 }
 
@@ -188,7 +189,7 @@ const sanitizarString = (str: string, maxLength: number = 255): string => {
   if (!str || typeof str !== 'string') return '';
   
   // Remover caracteres de control y espacios extra
-  let sanitizado = str
+  const sanitizado = str
     .trim()
     .replace(/[\x00-\x1F\x7F]/g, '') // Remover caracteres de control
     .replace(/\s+/g, ' ') // Normalizar espacios múltiples
@@ -198,7 +199,7 @@ const sanitizarString = (str: string, maxLength: number = 255): string => {
 };
 
 // Función para validar y sanitizar un item
-const validarYSanitizarItem = (item: IImportarItemsMov, indice: number): { 
+const validarYSanitizarItem = (item: IImportarItemsMov): { 
   itemSanitizado?: IImportarItemsMov, 
   errores: string[] 
 } => {
@@ -494,7 +495,7 @@ export const ImportarExcelMovimiento = async (data: IImportData, items: IImporta
     
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      const validacion = validarYSanitizarItem(item, i);
+      const validacion = validarYSanitizarItem(item);
       
       if (validacion.errores.length > 0) {
         itemsInvalidos.push({
@@ -717,6 +718,7 @@ export const ImportarExcelMovimiento = async (data: IImportData, items: IImporta
 
 // Función auxiliar para procesar lotes pequeños (versión simplificada)
 const procesarLoteProductos = async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tx: any, 
   items: IImportarItemsMov[], 
   data: IImportData, 
