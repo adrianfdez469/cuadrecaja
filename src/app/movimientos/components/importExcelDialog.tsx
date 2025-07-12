@@ -28,6 +28,7 @@ const HEADERS_ESPERADOS = ["Categoría", "Producto", "Costo", "Precio", "Cantida
 export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -69,6 +70,7 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
       }
 
       // Validar filas y duplicados producto+proveedor
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const itemsTemp: any[] = [];
       const duplicados = new Set();
       for (let i = 1; i < rows.length; i++) {

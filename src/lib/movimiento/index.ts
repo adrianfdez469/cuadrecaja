@@ -716,6 +716,7 @@ export const ImportarExcelMovimiento = async (data: IImportData, items: IImporta
 
 // Función auxiliar para procesar lotes pequeños (versión simplificada)
 const procesarLoteProductos = async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tx: any,
   items: IImportarItemsMov[],
   data: IImportData,
