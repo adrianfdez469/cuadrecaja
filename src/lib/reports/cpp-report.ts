@@ -201,18 +201,29 @@ export async function detectarDesviacionesCPP(tiendaId: string, umbralPorcentaje
     // 🆕 Solo considerar productos con datos CPP confiables
     if (a.promedioCompras === 0 || a.porcentajeConfiabilidad < 50) return false;
     
-    // const diferenciaPorcentaje = Math.abs(a.costoActual - a.promedioCompras) / a.promedioCompras * 100;
+    // 🆕 Validar que ultimoCostoUnitario no sea null o 0 antes de calcular
+    if (!a.ultimoCostoUnitario || a.ultimoCostoUnitario === 0) return false;
+    
     const diferenciaPorcentaje = Math.abs(a.ultimoCostoUnitario - a.costoActual) / a.ultimoCostoUnitario * 100;
     return diferenciaPorcentaje > umbralPorcentaje;
 
   })
-  .map(a => ({
-    ...a,
-    // diferenciaPorcentaje: Math.abs(a.costoActual - a.promedioCompras) / a.promedioCompras * 100,
-    diferenciaPorcentaje: Math.abs(a.ultimoCostoUnitario - a.costoActual) / a.ultimoCostoUnitario * 100,
-    // diferenciaMonto: a.costoActual - a.promedioCompras
-    diferenciaMonto: a.ultimoCostoUnitario - a.costoActual
-  }));
+  .map(a => {
+    // 🆕 Validar nuevamente en el map para evitar errores
+    if (!a.ultimoCostoUnitario || a.ultimoCostoUnitario === 0) {
+      return {
+        ...a,
+        diferenciaPorcentaje: 0,
+        diferenciaMonto: 0
+      };
+    }
+    
+    return {
+      ...a,
+      diferenciaPorcentaje: Math.abs(a.ultimoCostoUnitario - a.costoActual) / a.ultimoCostoUnitario * 100,
+      diferenciaMonto: a.ultimoCostoUnitario - a.costoActual
+    };
+  });
 }
 
 /**

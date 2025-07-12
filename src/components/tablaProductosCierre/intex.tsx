@@ -341,7 +341,7 @@ export const TablaProductosCierre: FC<IProps> = ({
               <Box display="flex" alignItems="center" gap={1}>
                 <StoreIcon color="primary" />
                 <Typography variant="subtitle1" fontWeight="bold">
-                  Productos Propios ({productosVendidos.filter(p => !p.productoId).length})
+                  Productos Propios ({productosVendidos.filter(p => !p.proveedor).length})
                 </Typography>
               </Box>
             </AccordionSummary>
