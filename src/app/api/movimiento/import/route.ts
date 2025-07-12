@@ -1,4 +1,4 @@
-import { ImportarExcelMovimiento } from "@/lib/movimiento";
+import { ImportarExcelMovimiento } from "@/lib/movimiento/import";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
