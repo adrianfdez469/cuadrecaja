@@ -142,7 +142,6 @@ export const CreateMoviento = async (data, items) => {
           usuarioId,
           existenciaAnterior, // Guardar la existencia ANTES del movimiento
 
-
           // 🆕 CAMPOS CPP
           ...(calculoCPP && {
             costoUnitario: calculoCPP.costoUnitarioCompra,
@@ -368,31 +367,28 @@ const procesarChunk = async (
 
     for (const item of items) {
       // Verificar si el producto ya existe
-      const productoExistente = await tx.producto.findFirst({
+      let producto = await tx.producto.findFirst({
         where: {
           nombre: item.nombreProducto,
           negocioId: data.negocioId
         }
       });
-
-      if (productoExistente) {
-        throw new Error("PRODUCTO_EXISTE", { cause: productoExistente.id });
+      if (!producto) {
+        // Si no existe, lo creo
+        producto = await tx.producto.create({
+          data: {
+            nombre: item.nombreProducto,
+            descripcion: "",
+            categoriaId: categoriaId,
+            negocioId: data.negocioId
+          }
+        });
       }
-
-      // Crear producto
-      const producto = await tx.producto.create({
-        data: {
-          nombre: item.nombreProducto,
-          descripcion: "",
-          categoriaId: categoriaId,
-          negocioId: data.negocioId
-        }
-      });
 
       // Manejar proveedor si es consignación
       let proveedorId = "";
-      if (item.esConsignación) {
-        const nombreProveedorFinal = item.nombreProveedor || "PROVEEDOR";
+      if (item.nombreProveedor) {
+        const nombreProveedorFinal = item.nombreProveedor;
         
         if (proveedoresMap.has(nombreProveedorFinal)) {
           proveedorId = proveedoresMap.get(nombreProveedorFinal)!;
@@ -561,14 +557,16 @@ export const ImportarExcelMovimiento = async (data: IImportData, items: IImporta
     }
   
     // Verificar productos duplicados en el lote
-    const nombresProductos = itemsSanitizados.map(item => item.nombreProducto);
-    const productosDuplicados = nombresProductos.filter((nombre, index) => nombresProductos.indexOf(nombre) !== index);
-    if (productosDuplicados.length > 0) {
-      console.log('❌ Productos duplicados encontrados:', productosDuplicados);
+    const claves = itemsSanitizados.map(
+      item => `${item.nombreProducto}|||${item.nombreProveedor || ""}`
+    );
+    const clavesDuplicadas = claves.filter((clave, idx) => claves.indexOf(clave) !== idx);
+    if (clavesDuplicadas.length > 0) {
+      console.log('❌ Productos duplicados encontrados:', clavesDuplicadas);
       return {
         success: false,
-        message: "Productos duplicados en el lote",
-        errorCause: `Productos duplicados: ${[...new Set(productosDuplicados)].join(', ')}`
+        message: "Productos duplicados en el lote (producto + proveedor)",
+        errorCause: `Duplicados: ${[...new Set(clavesDuplicadas)].join(', ')}`
       };
     }
 
@@ -718,117 +716,135 @@ export const ImportarExcelMovimiento = async (data: IImportData, items: IImporta
 
 // Función auxiliar para procesar lotes pequeños (versión simplificada)
 const procesarLoteProductos = async (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any, 
-  items: IImportarItemsMov[], 
-  data: IImportData, 
+  tx: any,
+  items: IImportarItemsMov[],
+  data: IImportData,
   categoriaId: string,
   proveedoresMap: Map<string, string>
 ) => {
   const resultados = [];
   const errores = [];
 
+  console.log('🔍 Procesando productos...');
+
+  // 1. Crear o buscar todos los productos únicos por nombre
+  const productosUnicos = Array.from(
+    new Set(items.map(item => item.nombreProducto))
+  );
+  const productosMap = new Map();
+
+  for (const nombreProducto of productosUnicos) {
+    let producto = await tx.producto.findFirst({
+      where: {
+        nombre: nombreProducto,
+        negocioId: data.negocioId
+      }
+    });
+    if (!producto) {
+      producto = await tx.producto.create({
+        data: {
+          nombre: nombreProducto,
+          descripcion: "",
+          categoriaId: categoriaId,
+          negocioId: data.negocioId
+        }
+      });
+    }
+    productosMap.set(nombreProducto, producto);
+  }
+
+  // 2. Procesar cada fila (productoTienda y movimiento)
   for (let i = 0; i < items.length; i++) {
     try {
       const item = items[i];
-      
-        // Paso 1: Buscar producto por nombre
-        let producto = await tx.producto.findFirst({
-          where: {
-          nombre: item.nombreProducto,
-            negocioId: data.negocioId
-          }
-        });
-      
-        if (producto) {
-        errores.push({
-          indice: i,
-          nombreProducto: item.nombreProducto,
-          error: "PRODUCTO_EXISTE",
-          causa: producto.id
-        });
-        continue;
-      }
-      
-        // Paso 1.2 Si no existe creo el producto y obtengo su ID
-        producto = await tx.producto.create({
-          data: {
-          nombre: item.nombreProducto,
-            descripcion: "",
-            categoriaId: categoriaId,
-            negocioId: data.negocioId
-          }
-        });
-  
-        let proveedorId = "";
-        if (item.esConsignación) {
-        const nombreProveedorFinal = item.nombreProveedor || "PROVEEDOR";
-        
-        // Verificar si ya procesamos este proveedor en esta transacción
+      const producto = productosMap.get(item.nombreProducto);
+
+      // Proveedor
+      let proveedorId = null;
+
+      console.log('🔍 Procesando producto:', item.nombreProducto);
+      console.log('🔍 Proveedor:', item.nombreProveedor);
+
+      if (item.nombreProveedor) {
+        const nombreProveedorFinal = item.nombreProveedor;
         if (proveedoresMap.has(nombreProveedorFinal)) {
           proveedorId = proveedoresMap.get(nombreProveedorFinal)!;
         } else {
-          // Revisa si existe el proveedor
-          const proveedor = await tx.proveedor.findFirst({
+          let proveedor = await tx.proveedor.findFirst({
             where: {
               nombre: nombreProveedorFinal,
               negocioId: data.negocioId
             }
           });
-          if (proveedor) {
-            proveedorId = proveedor.id;
-          } else {
-            // Si no existe crealo y obten el id
-            const newProveedor = await tx.proveedor.create({
+          if (!proveedor) {
+            proveedor = await tx.proveedor.create({
               data: {
                 nombre: nombreProveedorFinal,
                 negocioId: data.negocioId,
               }
             });
-            proveedorId = newProveedor.id;
           }
-          // Guardar en el mapa para reutilizar
+          proveedorId = proveedor.id;
           proveedoresMap.set(nombreProveedorFinal, proveedorId);
         }
+      }
+
+      console.log('🔍 Procesando productoProveedorID', proveedorId);
+
+      // Verificar si ya existe productoTienda para ese producto, tienda y proveedor
+      const existeProductoTienda = await tx.productoTienda.findFirst({
+        where: {
+          productoId: producto.id,
+          tiendaId: data.localId,
+          proveedorId: proveedorId || null
         }
-  
-        // Paso 3: Crear productoTienda
-        const productoTienda = await tx.productoTienda.create({
-          data: {
-            productoId: producto.id,
-            costo: item.costo,
-            existencia: item.cantidad,
-            precio: item.precio,
-            tiendaId: data.localId,
-            ...(proveedorId && { proveedorId: proveedorId })
-          }
+      });
+      if (existeProductoTienda) {
+        errores.push({
+          indice: i,
+          nombreProducto: item.nombreProducto,
+          error: "Ya existe productoTienda para este producto y proveedor en la tienda",
+          causa: existeProductoTienda.id
         });
-  
-        // Paso 4: Crear movimientos COMPRA | CONSIGNACION_ENTRADA
-        await tx.movimientoStock.create({
-          data: {
-            tipo: item.esConsignación ? 'CONSIGNACION_ENTRADA' : 'COMPRA',
-            cantidad: item.cantidad,
-            productoTiendaId: productoTienda.id,
-            tiendaId: data.localId,
-            usuarioId: data.usuarioId,
-            existenciaAnterior: 0,
-            // 🆕 CAMPOS CPP
-            costoUnitario: item.costo,
-            costoTotal: item.costo * item.cantidad,
-            costoAnterior: 0,
-            costoNuevo: item.costo,
-            ...(proveedorId && { proveedorId: proveedorId })
-          },
-        });
-  
+        continue;
+      }
+
+      // Crear productoTienda
+      const productoTienda = await tx.productoTienda.create({
+        data: {
+          productoId: producto.id,
+          costo: item.costo,
+          existencia: item.cantidad,
+          precio: item.precio,
+          tiendaId: data.localId,
+          ...(proveedorId && { proveedorId: proveedorId })
+        }
+      });
+
+      // Crear movimiento
+      await tx.movimientoStock.create({
+        data: {
+          tipo: 'COMPRA',
+          cantidad: item.cantidad,
+          productoTiendaId: productoTienda.id,
+          tiendaId: data.localId,
+          usuarioId: data.usuarioId,
+          existenciaAnterior: 0,
+          costoUnitario: item.costo,
+          costoTotal: item.costo * item.cantidad,
+          costoAnterior: 0,
+          costoNuevo: item.costo,
+          ...(proveedorId && { proveedorId: proveedorId })
+        },
+      });
+
       resultados.push({
         indice: i,
         nombreProducto: item.nombreProducto,
         success: true
-    });
+      });
 
-  } catch (error) {
+    } catch (error) {
       errores.push({
         indice: i,
         nombreProducto: items[i]?.nombreProducto || 'N/A',

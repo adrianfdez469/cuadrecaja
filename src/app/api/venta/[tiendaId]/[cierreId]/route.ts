@@ -83,7 +83,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           productoId: true,
           existencia: true,
           costo: true,
-          precio: true
+          precio: true,
+          proveedorId: true
         }
       });
 
@@ -159,7 +160,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
             usuarioId,
             existenciaAnterior,
             referenciaId: venta.id,
-            motivo: `Venta ${venta.id}`
+            motivo: `Venta ${venta.id}`,
+            ...(productoTienda.proveedorId && {proveedorId: productoTienda.proveedorId})
           }
         });
 

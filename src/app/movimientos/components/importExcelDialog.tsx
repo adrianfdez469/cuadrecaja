@@ -23,12 +23,11 @@ import { importarMovimientosExcel } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 
-const HEADERS_ESPERADOS = ["Nombre", "Costo", "Precio", "Cantidad", "esConsignación"];
+const HEADERS_ESPERADOS = ["Categoría", "Producto", "Costo", "Precio", "Cantidad", "Proveedor"];
 
 export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -60,54 +59,45 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
       const erroresTemp: string[] = [];
       if (
         !headers ||
-        headers.length !== 5 ||
-        !HEADERS_ESPERADOS.every((h, i) => h === headers[i])
+        headers.length < 5 ||
+        !HEADERS_ESPERADOS.slice(0, 5).every((h, i) => h === headers[i])
       ) {
         erroresTemp.push(
-          "El archivo debe tener exactamente 5 columnas con los encabezados: " +
+          "El archivo debe tener al menos 5 columnas con los encabezados: " +
             HEADERS_ESPERADOS.join(", ")
         );
       }
 
-      // Validar filas
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // Validar filas y duplicados producto+proveedor
       const itemsTemp: any[] = [];
+      const duplicados = new Set();
       for (let i = 1; i < rows.length; i++) {
-        const [nombre, costo, precio, cantidad, esConsignacion] = rows[i] as string[];
+        const [categoria, producto, costo, precio, cantidad, proveedor] = rows[i] as (string | number | undefined)[];
         const filaErrores = [];
-        if (!nombre) filaErrores.push("Nombre vacío");
+        if (!producto) filaErrores.push("Producto vacío");
+        if (!categoria) filaErrores.push("Categoría vacía");
         if (typeof costo !== "number" || isNaN(costo)) filaErrores.push("Costo inválido");
         if (typeof precio !== "number" || isNaN(precio)) filaErrores.push("Precio inválido");
         if (typeof cantidad !== "number" || isNaN(cantidad)) filaErrores.push("Cantidad inválida");
-        if (
-          typeof esConsignacion !== "boolean" &&
-          esConsignacion !== "0" &&
-          esConsignacion !== "1" &&
-          esConsignacion !== "TRUE" &&
-          esConsignacion !== "FALSE" &&
-          esConsignacion !== "true" &&
-          esConsignacion !== "false" &&
-          esConsignacion !== "SI" &&
-          esConsignacion !== "NO" &&
-          esConsignacion !== "si" &&
-          esConsignacion !== "no"
-        ) {
-          filaErrores.push("esConsignación debe ser SI/NO");
+
+        // Clave para duplicados: producto + proveedor (si no hay proveedor, usar string vacío)
+        const clave = `${producto}|||${proveedor || ""}`;
+        if (duplicados.has(clave)) {
+          filaErrores.push("Producto y proveedor duplicados en el archivo");
+        } else {
+          duplicados.add(clave);
         }
+
         if (filaErrores.length > 0) {
           erroresTemp.push(`Fila ${i + 1}: ${filaErrores.join(", ")}`);
         } else {
           itemsTemp.push({
-            nombreProducto: nombre,
+            categoria: categoria,
+            nombreProducto: producto,
             costo: Number(costo),
             precio: Number(precio),
             cantidad: Number(cantidad),
-            esConsignación:
-              esConsignacion === "TRUE" ||
-              esConsignacion === "true" ||
-              esConsignacion === "1" ||
-              esConsignacion === "SI" ||
-              esConsignacion === "si"
+            nombreProveedor: proveedor ? String(proveedor) : undefined
           });
         }
       }
@@ -185,21 +175,23 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    {HEADERS_ESPERADOS.map((h) => (
-                      <TableCell key={h}>{h}</TableCell>
-                    ))}
+                    <TableCell>Categoría</TableCell>
+                    <TableCell>Producto</TableCell>
+                    <TableCell>Costo</TableCell>
+                    <TableCell>Precio</TableCell>
+                    <TableCell>Cantidad</TableCell>
+                    <TableCell>Proveedor</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {items.map((item, idx) => (
                     <TableRow key={idx}>
+                      <TableCell>{item.categoria}</TableCell>
                       <TableCell>{item.nombreProducto}</TableCell>
                       <TableCell>{item.costo}</TableCell>
                       <TableCell>{item.precio}</TableCell>
                       <TableCell>{item.cantidad}</TableCell>
-                      <TableCell>
-                        {item.esConsignación ? "Sí" : "No"}
-                      </TableCell>
+                      <TableCell>{item.nombreProveedor || "-"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

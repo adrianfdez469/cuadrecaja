@@ -8,7 +8,7 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     // Opcional, útil para depurar y entender si se está creando más de una instancia
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : [],
+   //log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : [],
   });
 
 // Solo en desarrollo asigna al global
