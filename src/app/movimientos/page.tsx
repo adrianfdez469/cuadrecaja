@@ -49,6 +49,7 @@ import { ITipoMovimiento } from "@/types/IMovimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatNumber, formatDateTime } from '@/utils/formatters';
+import ImportarExcelDialog from "./components/importExcelDialog";
 
 const PAGE_SIZE = 20;
 
@@ -61,6 +62,8 @@ export default function MovimientosPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [statsExpanded, setStatsExpanded] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -184,8 +187,7 @@ export default function MovimientosPage() {
   ];
 
   const handleImportExcel = () => {
-    console.log('Importar Excel');
-    
+    setImportDialogOpen(true);
   };
 
   const headerActions = (
@@ -590,6 +592,13 @@ export default function MovimientosPage() {
         productos={productos}
         closeDialog={() => setDialogOpen(false)}
         fetchMovimientos={fetchMovimientos}
+      />
+      <ImportarExcelDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onSuccess={() => {
+          fetchMovimientos(0);
+        }}
       />
     </PageContainer>
   );

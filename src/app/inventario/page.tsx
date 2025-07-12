@@ -129,7 +129,7 @@ export default function InventarioPage() {
   const totalProductos = productos.length;
   const productosConStock = productos.filter(p => p.existencia > 0).length;
   const productosSinStock = productos.filter(p => p.existencia <= 0).length;
-  const valorTotalInventario = productos.reduce((total, p) => total + (p.existencia * p.precio), 0);
+  const valorTotalInventario = productos.reduce((total, p) => total + (p.existencia * p.costo), 0);
 
   const getStockChip = (existencia: number) => {
     if (existencia <= 0) {

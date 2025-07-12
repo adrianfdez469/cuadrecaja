@@ -235,8 +235,6 @@ const validarYSanitizarItem = (item: IImportarItemsMov, indice: number): {
 
   if (typeof item.cantidad !== 'number' || isNaN(item.cantidad) || !isFinite(item.cantidad)) {
     errores.push("cantidad debe ser un número válido");
-  } else if (item.cantidad <= 0) {
-    errores.push("cantidad debe ser mayor a 0");
   } else if (item.cantidad > 999999) {
     errores.push("cantidad excede el límite máximo permitido");
   }
