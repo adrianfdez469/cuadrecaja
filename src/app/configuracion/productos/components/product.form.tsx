@@ -29,6 +29,8 @@ import { InputAdornment } from "@mui/material";
 import { QrCode2 } from "@mui/icons-material";
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import HardwareQrScanner from '@/components/ClientProcessorData/HardwareQrScanner';
+import MobileQrScanner from '@/components/ClientProcessorData/MobileQrScanner';
 
 const API_CATEGORIES = "/api/categorias";
 
@@ -298,33 +300,24 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
           </Box>
           {codigosProducto.map((codigo, idx) => (
             <Box key={idx} display="flex" alignItems="center" mb={1}>
-              <TextField
-                label={`Código #${idx + 1}`}
+              <HardwareQrScanner
+                qrCodeSuccessCallback={(qrText) => handleCodigoChange(idx, qrText)}
+                style={{ width: '100%' }}
                 value={codigo}
-                onChange={e => handleCodigoChange(idx, e.target.value)}
-                fullWidth
-                margin="dense"
-                sx={{ mr: 1 }}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleCodigoChange(idx, e.target.value)}
               />
-              <Tooltip title="Escanear código">
-                <IconButton onClick={() => setScannerOpenIdx(idx)}>
-                  <QrCode2 />
-                </IconButton>
+              <Tooltip title="Escanear QR con cámara móvil">
+                <Box ml={1}>
+                  <MobileQrScanner
+                    qrCodeSuccessCallback={(qrText) => handleCodigoChange(idx, qrText)}
+                  />
+                </Box>
               </Tooltip>
               <Tooltip title="Eliminar código">
                 <IconButton onClick={() => handleRemoveCodigo(idx)}>
                   <DeleteIcon />
                 </IconButton>
               </Tooltip>
-              {/* Modal de escaneo individual */}
-              {scannerOpenIdx === idx && (
-                <Dialog open onClose={() => setScannerOpenIdx(null)}>
-                  <DialogTitle>Escanear código de producto</DialogTitle>
-                  <DialogContent>
-                    <QrModuleScanner onScan={(qrText) => handleScanCode(idx, qrText)} />
-                  </DialogContent>
-                </Dialog>
-              )}
             </Box>
           ))}
         </Box>

@@ -4,11 +4,12 @@ import TextField from '@mui/material/TextField';
 type HardwareQrScannerProps = {
   qrCodeSuccessCallback: (qrData: string) => void;
   style?: React.CSSProperties;
-  // qrCodeErrorCallback?: (error: Error) => void;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
 
-function HardwareQrScanner({ qrCodeSuccessCallback, style }: HardwareQrScannerProps) {
-  const [qrData, setQrData] = useState('');
+function HardwareQrScanner({ qrCodeSuccessCallback, style, value, onChange }: HardwareQrScannerProps) {
+  const [internalQrData, setInternalQrData] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -20,15 +21,20 @@ function HardwareQrScanner({ qrCodeSuccessCallback, style }: HardwareQrScannerPr
   }, []);
 
   function handleQRDataChange(event: React.ChangeEvent<HTMLInputElement>) {
-    setQrData(() => event.target.value);
+    if (typeof value === 'string' && onChange) {
+      onChange(event);
+    } else {
+      setInternalQrData(event.target.value);
+    }
   }
 
   function handleKeyUp() {
     if (timeoutRef?.current) clearTimeout(timeoutRef.current);
-    if (qrData && qrData.length > 0) {
+    const data = typeof value === 'string' ? value : internalQrData;
+    if (data && data.length > 0) {
       timeoutRef.current = setTimeout(() => {
-        qrCodeSuccessCallback(qrData);
-        setQrData('');
+        qrCodeSuccessCallback(data);
+        if (typeof value !== 'string') setInternalQrData('');
       }, 500);
     }
   }
@@ -38,7 +44,7 @@ function HardwareQrScanner({ qrCodeSuccessCallback, style }: HardwareQrScannerPr
       inputRef={inputRef}
       placeholder="Hardware QR Scanner"
       onChange={handleQRDataChange}
-      value={qrData}
+      value={typeof value === 'string' ? value : internalQrData}
       onKeyUp={handleKeyUp}
       variant="outlined"
       size="small"
