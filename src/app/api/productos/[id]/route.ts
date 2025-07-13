@@ -51,7 +51,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { nombre, categoriaId, descripcion, fraccion, codigosProducto } = await req.json();
 
     // Actualizar producto
-    const updatedProduct = await prisma.producto.update({
+    await prisma.producto.update({
       where: { id, negocioId: user.negocio.id },
       data: { 
         nombre, 

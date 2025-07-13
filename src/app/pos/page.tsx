@@ -48,6 +48,7 @@ import { QuantityDialog } from "./components/QuantityDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { formatDate } from "@/utils/formatters";
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
+import {IProcessedData} from "@/types/IProcessedData";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -674,7 +675,7 @@ export default function POSInterface() {
 
       {/* --- SCANNERS ABOVE CATEGORIES (ONE LINE, FULL WIDTH) --- */}
       <Box sx={{ mb: 3, width: '100%' }}>
-        <ProductProcessorData onProcessedData={(data: any) => {
+        <ProductProcessorData onProcessedData={(data: IProcessedData) => {
           if (data?.code) handleProductScan(data.code);
         }} />
         {scannerError && (

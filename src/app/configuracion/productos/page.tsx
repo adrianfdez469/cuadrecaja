@@ -107,7 +107,7 @@ export default function ProductList() {
     descripcion: string,
     categoriaId: string,
     fraccion?: { fraccionDeId?: string; unidadesPorFraccion?: number },
-    codigoProducto?: string
+    codigoProducto?: string[]
   ) => {
     try {
       if (editingProd) {
@@ -255,7 +255,6 @@ export default function ProductList() {
     const padding = 24;
     const codeHeight = 60;
     const qrSize = 60;
-    const spacing = 16;
     let y = padding;
 
     for (const codigo of product.codigosProducto) {
@@ -271,6 +270,7 @@ export default function ProductList() {
           textxalign: 'center',
         });
       } catch (e) {
+        console.error(e);
         // fallback: skip this code
         continue;
       }
