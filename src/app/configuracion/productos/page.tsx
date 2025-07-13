@@ -102,14 +102,15 @@ export default function ProductList() {
     nombre: string,
     descripcion: string,
     categoriaId: string,
-    fraccion?: { fraccionDeId?: string; unidadesPorFraccion?: number }
+    fraccion?: { fraccionDeId?: string; unidadesPorFraccion?: number },
+    codigoProducto?: string
   ) => {
     try {
       if (editingProd) {
-        await editProduct(editingProd.id, nombre, descripcion, categoriaId, fraccion);
+        await editProduct(editingProd.id, nombre, descripcion, categoriaId, fraccion, codigoProducto);
         showMessage('Producto actualizado exitosamente', 'success');
       } else {
-        await createProduct(nombre, descripcion, categoriaId, fraccion);
+        await createProduct(nombre, descripcion, categoriaId, fraccion, codigoProducto);
         showMessage('Producto creado exitosamente', 'success');
       }
       await loadProducts();

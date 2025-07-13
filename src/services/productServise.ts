@@ -1,4 +1,5 @@
 import { IProducto } from "@/types/IProducto";
+import { ICodigoProducto } from "@/types/ICodigoProducto";
 import axios from "axios";
 
 const API_URL = "/api/productos"; // Ruta base del backend
@@ -13,13 +14,15 @@ export const createProduct = async (
   nombre: string, 
   descripcion: string, 
   categoriaId: string, 
-  fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number}
+  fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number},
+  codigosProducto?: string[]
 ) => {
   await axios.post(API_URL, {
       descripcion: descripcion,
       nombre: nombre,
       categoriaId: categoriaId,
-      ...(fraccion && {fraccion})
+      ...(fraccion && {fraccion}),
+      codigosProducto: codigosProducto || []
   });
 }
 
@@ -28,13 +31,15 @@ export const editProduct = async (
   nombre: string, 
   descripcion: string, 
   categoriaId: string, 
-  fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number}
+  fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number},
+  codigosProducto?: string[]
 ) => {
   await axios.put(`${API_URL}/${id}`, {
       descripcion: descripcion,
       nombre: nombre,
       categoriaId: categoriaId,
-      ...(fraccion && {fraccion})
+      ...(fraccion && {fraccion}),
+      codigosProducto: codigosProducto || []
   });
 }
 
