@@ -1,12 +1,12 @@
 import React from 'react';
-import QrModuleScanner from '@/components/ClientProcessorData/QrModuleScanner';
+import QrModuleScanner from '@/components/ProductProcessorData/QrModuleScanner';
 import { processClientDataFromQR } from '@/utils/scanner';
 
 type ClientProcessorDataProps = {
   onProcessedData: React.SetStateAction<any>;
 };
 
-function ClientProcessorData({ onProcessedData }: ClientProcessorDataProps) {
+function ProductProcessorData({ onProcessedData }: ClientProcessorDataProps) {
   function handleScan(qrText: string) {
     const processedData = processClientDataFromQR(qrText);
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -20,4 +20,4 @@ function ClientProcessorData({ onProcessedData }: ClientProcessorDataProps) {
   );
 }
 
-export default ClientProcessorData;
+export default ProductProcessorData;

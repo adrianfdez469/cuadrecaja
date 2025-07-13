@@ -22,15 +22,15 @@ import { Info } from "@mui/icons-material";
 import { Categoria } from "../types/categorias";
 import { fetchProducts } from "@/services/productServise";
 import { IProducto } from "@/types/IProducto";
-import ClientProcessorData from "@/components/ClientProcessorData/ClientProcessorData";
-import QrModuleScanner from "@/components/ClientProcessorData/QrModuleScanner";
+import ProductProcessorData from "@/components/ProductProcessorData/ProductProcessorData";
+import QrModuleScanner from "@/components/ProductProcessorData/QrModuleScanner";
 import generateEAN13 from "@/utils/generateProductCode";
 import { InputAdornment } from "@mui/material";
 import { QrCode2 } from "@mui/icons-material";
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import HardwareQrScanner from '@/components/ClientProcessorData/HardwareQrScanner';
-import MobileQrScanner from '@/components/ClientProcessorData/MobileQrScanner';
+import HardwareQrScanner from '@/components/ProductProcessorData/HardwareQrScanner';
+import MobileQrScanner from '@/components/ProductProcessorData/MobileQrScanner';
 
 const API_CATEGORIES = "/api/categorias";
 

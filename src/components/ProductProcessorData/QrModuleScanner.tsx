@@ -1,6 +1,6 @@
 import React from 'react';
-import MobileQrScanner from '@/components/ClientProcessorData/MobileQrScanner';
-import HardwareQrScanner from '@/components/ClientProcessorData/HardwareQrScanner';
+import MobileQrScanner from '@/components/ProductProcessorData/MobileQrScanner';
+import HardwareQrScanner from '@/components/ProductProcessorData/HardwareQrScanner';
 
 type QrModuleScannerProps = {
   onScan: (qrText: string) => void;
