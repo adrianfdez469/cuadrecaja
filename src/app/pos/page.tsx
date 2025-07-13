@@ -47,6 +47,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { QuantityDialog } from "./components/QuantityDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { formatDate } from "@/utils/formatters";
+import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -81,6 +82,29 @@ export default function POSInterface() {
   
   // Estado para prevenir múltiples sincronizaciones simultáneas (no para pagos)
   const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(new Set());
+
+  // Estado para el scanner
+  const [scannerError, setScannerError] = useState<string | null>(null);
+
+  // Busca producto por código (en cualquier código asociado)
+  function findProductByCode(code: string) {
+    console.log({productosTienda})
+    return productosTienda.find((p) =>
+      p.producto.codigosProducto?.some((c) => c.codigo === code)
+    );
+  }
+
+  function handleProductScan(code: string) {
+    const product = findProductByCode(code);
+    if (product) {
+      setSelectedProduct(product);
+      setShowProducts(false); // Cierra modal de categorías si está abierto
+      // El modal de cantidad se abre automáticamente por el estado selectedProduct
+      setScannerError(null);
+    } else {
+      setScannerError('Producto no encontrado para el código escaneado');
+    }
+  }
 
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
@@ -648,6 +672,16 @@ export default function POSInterface() {
         )}
       </Box>
 
+      {/* --- SCANNERS ABOVE CATEGORIES (ONE LINE, FULL WIDTH) --- */}
+      <Box sx={{ mb: 3, width: '100%' }}>
+        <ProductProcessorData onProcessedData={(data: any) => {
+          if (data?.code) handleProductScan(data.code);
+        }} />
+        {scannerError && (
+            <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
+        )}
+      </Box>
+
       {/* Contenido principal */}
       <Box
         sx={{
@@ -668,6 +702,7 @@ export default function POSInterface() {
           zIndex: 1,
         }}
       >
+
         {categories.map((category) => (
           <Box
             key={category.id}
