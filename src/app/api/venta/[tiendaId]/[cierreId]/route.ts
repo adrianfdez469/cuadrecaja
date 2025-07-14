@@ -330,6 +330,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
             cantidad: true,
             id: true,
             productoTiendaId: true,
+            precio: true,
+            costo: true,
+
             
             producto: {
               select: {
@@ -345,7 +348,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
                     id: true,
                   }
                 },
-                precio: true
               }
             }
           },
@@ -381,7 +383,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         productoTiendaId: p.productoTiendaId,
         cantidad: p.cantidad,
         name: p.producto.proveedor ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}` : p.producto?.producto?.nombre ?? undefined,
-        price: p.producto?.precio ?? undefined
+        price: p.precio ?? undefined
       })),
       syncId: venta.syncId
     }));
