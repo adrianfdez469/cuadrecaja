@@ -13,7 +13,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
       include: {
         producto: {
           include: {
-            categoria: true
+            categoria: true,
+            codigosProducto: true,
           }
         },
         proveedor: true

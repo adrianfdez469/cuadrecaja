@@ -46,6 +46,9 @@ import { Info } from "@mui/icons-material";
 import { getProveedores, createProveedor } from "@/services/proveedorService";
 import { IProveedor } from "@/types/IProveedor";
 import { requiereCPP } from "@/lib/cpp-calculator";
+import HardwareQrScanner from '@/components/ProductProcessorData/HardwareQrScanner';
+import MobileQrScanner from '@/components/ProductProcessorData/MobileQrScanner';
+
 interface IProductoMovimiento {
   productoId: string;
   cantidad: number;
@@ -584,6 +587,32 @@ export const AddMovimientoDialog: FC<IProps> = ({
               }}
             >
               <Stack spacing={2}>
+                {/* SCANNER PARA SELECCIÓN POR CÓDIGO */}
+                <Box display="flex" alignItems="center" mb={1}>
+                  <HardwareQrScanner
+                    qrCodeSuccessCallback={(qrText) => {
+                      const found = productos.find(prod => prod.codigosProducto?.some(c => c.codigo === qrText));
+                      if (found) {
+                        handleChangeProducto(index, 'productoId', found.id);
+                      } else {
+                        showMessage('Producto no encontrado para el código escaneado', 'warning');
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                  <Box ml={1}>
+                    <MobileQrScanner
+                      qrCodeSuccessCallback={(qrText) => {
+                        const found = productos.find(prod => prod.codigosProducto?.some(c => c.codigo === qrText));
+                        if (found) {
+                          handleChangeProducto(index, 'productoId', found.id);
+                        } else {
+                          showMessage('Producto no encontrado para el código escaneado', 'warning');
+                        }
+                      }}
+                    />
+                  </Box>
+                </Box>
                 {/* Selector de producto */}
                 <FormControl fullWidth>
                   <InputLabel size={isMobile ? "small" : "normal"}>

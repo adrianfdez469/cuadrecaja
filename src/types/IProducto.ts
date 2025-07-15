@@ -1,5 +1,6 @@
 import { ICategory } from "./ICategoria";
 import { IProveedor } from "./IProveedor";
+import { ICodigoProducto } from './ICodigoProducto';
 
 export interface IProducto {
   id: string;
@@ -11,6 +12,8 @@ export interface IProducto {
   fraccionDeId?: string;
   unidadesPorFraccion?: number;
   fraccionDe?: Pick<IProducto, "id"|"nombre">;
+
+  codigosProducto: ICodigoProducto[];
 }
 
 export interface IProductoTienda {

@@ -113,10 +113,17 @@ model Producto {
   negocio         Negocio          @relation(fields: [negocioId], references: [id])
   negocioId       String            @default("")
 
-  
+  codigosProducto CodigoProducto[]
 
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
+}
+
+model CodigoProducto {
+  id        String   @id @default(uuid())
+  codigo    String  @unique
+  producto  Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  productoId String
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Producto y Tienda.

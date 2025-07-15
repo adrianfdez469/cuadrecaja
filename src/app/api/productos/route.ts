@@ -24,6 +24,7 @@ export async function GET(req: Request) {
             nombre: true,
           },
         },
+        codigosProducto: true
       },
       orderBy: {
         nombre: "asc",
@@ -68,8 +69,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const { nombre, descripcion, categoriaId, fraccion } = await req.json();
-    console.log('intert product enpoint => fraccion', fraccion);
+    const { nombre, descripcion, categoriaId, fraccion, codigosProducto } = await req.json();
+    console.log('insert product endpoint => fraccion', fraccion);
     
     const nuevoProducto = await prisma.producto.create({
       data: { 
@@ -77,8 +78,14 @@ export async function POST(req: Request) {
         descripcion: descripcion.trim(), 
         categoriaId, 
         negocioId: user.negocio.id, 
-        ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion}) 
+        ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion}),
+        codigosProducto: {
+          create: (codigosProducto || []).map((codigo: string) => ({ codigo }))
+        }
       },
+      include: {
+        codigosProducto: true
+      }
     });
 
     return NextResponse.json(nuevoProducto, { status: 201 });
