@@ -378,7 +378,7 @@ export default function MovimientosPage() {
           </Grid>
         </Grid>
       )}
-
+      
       {/* Lista de movimientos */}
       <ContentCard
         title="Historial de Movimientos"
@@ -593,7 +593,7 @@ export default function MovimientosPage() {
       {/* Dialog para crear movimiento */}
       <AddMovimientoDialog
         dialogOpen={dialogOpen}
-        productos={productos}
+        // productos={productos}
         closeDialog={() => setDialogOpen(false)}
         fetchMovimientos={fetchMovimientos}
       />

@@ -1,4 +1,5 @@
 import { ITipoMovimiento } from "@/types/IMovimiento";
+import { IProducto, IProductoTienda, IProductoTiendaV2 } from "@/types/IProducto";
 import axios from "axios";
 
 const API_URL = `/api/movimiento`;
@@ -83,3 +84,42 @@ export const importarMovimientosExcel = async (
     };
   }
 };
+
+
+
+interface IProdTiendaQueryParams {
+  text?: string,
+  categoriaId?: string;
+  take: number;
+  skip: number;
+}
+interface IProdTiendaResponse extends IProducto {
+  productosTienda?: IProductoTiendaV2[]
+}
+
+export const getProductosTiendaParaEntrada = async (tiendaId: string, filter: IProdTiendaQueryParams): Promise<IProdTiendaResponse[]> => {
+  const resp = await axios.get(`${API_URL}/entrada/${tiendaId}`, {
+    params: {
+      ...filter,
+      take: filter?.take || 50,
+      skip: filter?.skip || 0
+    }
+  });
+  console.log('Productos para entrada',resp.data); 
+  
+  return resp.data;
+}
+
+export const getProductosTiendaParaNoEntrada = async (tiendaId: string, filter: IProdTiendaQueryParams): Promise<IProdTiendaResponse[]> => {
+  const resp = await axios.get(`${API_URL}/salida/${tiendaId}`, {
+    params: {
+      ...filter,
+      take: filter?.take || 50,
+      skip: filter?.skip || 0
+    }
+  });
+  console.log('Productos para no entrada',resp.data);
+
+  return resp.data;
+}
+
