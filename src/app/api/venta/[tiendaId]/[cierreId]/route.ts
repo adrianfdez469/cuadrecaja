@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       cierreId
     });
 
-    const { usuarioId, productos, total, totalcash, totaltransfer, syncId } = await req.json();
+    const { usuarioId, productos, total, totalcash, totaltransfer, syncId, transferDestinationId } = await req.json();
 
     console.log('🔍 [POST /api/venta] Datos de la venta:', {
       usuarioId,
@@ -20,7 +20,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       totalcash,
       totaltransfer,
       syncId,
-      productos
+      productos,
+      transferDestinationId
     });
 
     if (!tiendaId || !usuarioId || !cierreId || !productos.length || !syncId) {
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
               precio: p.precio
             })),
           },
+          ...(transferDestinationId && {transferDestinationId: transferDestinationId}),
         },
         include: {
           productos: true

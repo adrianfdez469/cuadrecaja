@@ -12,7 +12,8 @@ export const createSell = async (
   totalcash: number, 
   totaltransfer: number, 
   productos: IProductoVenta[], 
-  syncId: string 
+  syncId: string,
+  transferDestinationId?: string
 ): Promise<IVenta> => {
   
   console.log('🔍 [createSell] Iniciando petición al backend:', {
@@ -23,7 +24,8 @@ export const createSell = async (
       totalcash,
       totaltransfer,
       productos,
-      syncId
+      syncId,
+      transferDestinationId
     }
   });
 
@@ -34,7 +36,8 @@ export const createSell = async (
       totalcash,
       totaltransfer,
       productos,
-      syncId
+      syncId,
+      transferDestinationId
     });
 
     console.log('🔍 [createSell] Respuesta del backend:', response.data);

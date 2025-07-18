@@ -96,6 +96,7 @@ export const TablaProductosCierre: FC<IProps> = ({
     totalGananciasPropias,
     totalGananciasConsignacion,
     productosVendidos,
+    totalTransferenciasByDestination
   } = cierreData;
 
   // Función para renderizar tabla con agrupamiento
@@ -254,32 +255,90 @@ export const TablaProductosCierre: FC<IProps> = ({
             p: 2,
             mb: 2,
             display: "flex",
-            flexDirection: "row",
+            flexDirection: { xs: "column", sm: "row" },
             justifyContent: "space-between",
+            alignItems: { xs: "stretch", sm: "center" },
+            gap: 2,
           }}
         >
-          <Box>
-            <Typography variant="h6">
-              Total Venta: {formatCurrency(totalVentas)}
-            </Typography>
+          <Grid container spacing={2} sx={{ flex: 1 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Box textAlign="center">
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Total Venta
+                </Typography>
+                <Typography variant="h6" fontWeight="bold" color="primary.main">
+                  {formatCurrency(totalVentas)}
+                </Typography>
+              </Box>
+            </Grid>
+            
             {isAdminOrSuperAdmin && (
-              <Typography variant="h6">
-                Total Ganancia: {formatCurrency(totalGanancia)}
-              </Typography>
+              <Grid item xs={12} sm={6} md={3}>
+                <Box textAlign="center">
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Total Ganancia
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold" color="success.main">
+                    {formatCurrency(totalGanancia)}
+                  </Typography>
+                </Box>
+              </Grid>
             )}
-            <Typography variant="h6">
-              Total Transferencia: {formatCurrency(totalTransferencia)}
-            </Typography>
-          </Box>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Box textAlign="center">
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Total Transferencia
+                </Typography>
+                <Typography variant="h6" fontWeight="bold" color="info.main">
+                  {formatCurrency(totalTransferencia)}
+                </Typography>
+              </Box>
+            </Grid>
+            
+            {totalTransferenciasByDestination.length > 0 && (
+              <Grid item xs={12} sm={6} md={3}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom textAlign="center">
+                    Transferencias por Destino
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    {totalTransferenciasByDestination.map((transfer) => (
+                      <Box key={transfer.id} display="flex" justifyContent="space-between" alignItems="center">
+                        <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                          {transfer.nombre}:
+                        </Typography>
+                        <Typography variant="body2" fontWeight="medium" color="warning.main" sx={{ ml: 1 }}>
+                          {formatCurrency(transfer.total)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </Grid>
+            )}
+          </Grid>
 
           {handleCerrarCaja && (
-            <Button
-              variant="contained"
-              onClick={handleCierre}
-              disabled={disableCierreBtn}
-            >
-              Cerrar caja
-            </Button>
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: { xs: 'center', sm: 'flex-end' },
+              minWidth: { sm: 'auto', md: '200px' }
+            }}>
+              <Button
+                variant="contained"
+                onClick={handleCierre}
+                disabled={disableCierreBtn}
+                size="large"
+                sx={{ 
+                  minWidth: '140px',
+                  height: '48px'
+                }}
+              >
+                Cerrar caja
+              </Button>
+            </Box>
           )}
         </Paper>
       )}

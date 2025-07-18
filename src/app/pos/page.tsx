@@ -47,6 +47,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import { QuantityDialog } from "./components/QuantityDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { formatDate } from "@/utils/formatters";
+import { ITransferDestination } from "@/types/ITransferDestination";
+import { fetchTransferDestinations } from "@/services/transferDestinationsService";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -78,6 +80,7 @@ export default function POSInterface() {
   } = useCartStore();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
+  const [transferDestinations, setTransferDestinations] = useState<ITransferDestination[]>([]);
   
   // Estado para prevenir múltiples sincronizaciones simultáneas (no para pagos)
   const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(new Set());
@@ -164,6 +167,10 @@ export default function POSInterface() {
           return;
         }
         try {
+
+          const data = await fetchTransferDestinations(user.localActual.id);;
+          setTransferDestinations(data);
+
           const lastPeriod = await fetchLastPeriod(user.localActual.id);
           let message = "";
           if (!lastPeriod || lastPeriod.fechaFin) {
@@ -203,6 +210,7 @@ export default function POSInterface() {
       }
     })();
   }, [loadingContext]);
+  
   const fetchProductosAndCategories = async () => {
     try {
       setLoading(true);
@@ -263,6 +271,7 @@ export default function POSInterface() {
       setLoading(false);
     }
   };
+  
   useEffect(() => {
     if (periodo) {
       fetchProductosAndCategories().catch((error) => {
@@ -274,6 +283,7 @@ export default function POSInterface() {
       });
     }
   }, [periodo]);
+  
   const handleOpenProducts = (category: ICategory) => {
     setSelectedCategory(category);
     setShowProducts(true);
@@ -284,7 +294,8 @@ export default function POSInterface() {
   const handleMakePay = async (
     total: number,
     totalCash: number,
-    totalTransfer: number
+    totalTransfer: number,
+    transferDestinationId?: string
   ) => {
     try {
       if (total <= totalCash + totalTransfer) {
@@ -299,7 +310,8 @@ export default function POSInterface() {
           total,
           totalCash,
           totalTransfer,
-          identifier
+          identifier,
+          transferDestinationId
         });
 
         const data = cart.map((prod) => {
@@ -335,6 +347,7 @@ export default function POSInterface() {
           productos: data,
           usuarioId: user.id,
           syncState: "not_synced",
+          transferDestinationId
         });
 
         // 3. Actualizar inventario local
@@ -364,7 +377,8 @@ export default function POSInterface() {
               cash,
               totalTransfer,
               data,
-              identifier
+              identifier,
+              transferDestinationId
             );
             console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
             markSynced(identifier, ventaDb.id);
@@ -821,9 +835,10 @@ export default function POSInterface() {
         open={paymentDialog}
         onClose={() => setPaymentDialog(false)}
         total={total}
-        makePay={(total: number, totalchash: number, totaltransfer: number) =>
-          handleMakePay(total, totalchash, totaltransfer)
+        makePay={(total: number, totalchash: number, totaltransfer: number, transferDestinationId?: string) =>
+          handleMakePay(total, totalchash, totaltransfer, transferDestinationId)
         }
+        transferDestinations={transferDestinations}
       />
 
       {/* Modal de productos vendidos */}

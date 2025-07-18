@@ -40,6 +40,11 @@ export interface ICierreData {
   totalVentasConsignacion?: number;
   totalGananciasPropias?: number;
   totalGananciasConsignacion?: number;
+  totalTransferenciasByDestination?: {
+    id: string;
+    nombre: string;
+    total: number;
+  }[];
 }
 
 export interface ISummaryCierre {

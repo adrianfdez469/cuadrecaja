@@ -36,6 +36,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
   
               },
             },
+            transferDestination: {
+              select: {
+                id: true,
+                nombre: true,
+              }
+            }
           },
         },
       },
@@ -53,6 +59,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
     let totalVentasConsignacion = 0;
     let totalGananciasPropias = 0;
     let totalGananciasConsignacion = 0;
+    let totalTransferenciasByDestination: {
+      id: string;
+      nombre: string;
+      total: number;
+    }[] = [];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const productosVendidos: Record<string, any> = {};
@@ -60,6 +71,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
     cierre.ventas.forEach((venta) => {
       totalVentas += venta.total;
       totalTransferencia += venta.totaltransfer;
+
+      if(venta.transferDestination) {
+        const { id, nombre } = venta.transferDestination;
+        if(!totalTransferenciasByDestination.find(t => t.id === id)) {
+          totalTransferenciasByDestination.push({ id, nombre, total: 0 });
+        }
+        totalTransferenciasByDestination.find(t => t.id === id).total += venta.totaltransfer;
+      }
   
       venta.productos.forEach((ventaProducto) => {
         const { producto: productoTienda, cantidad, costo, precio } = ventaProducto;
@@ -118,6 +137,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       totalVentasConsignacion,
       totalGananciasPropias,
       totalGananciasConsignacion,
+      totalTransferenciasByDestination,
       productosVendidos: Object.values(productosVendidos).sort((a, b) => a.nombre.localeCompare(b.nombre)),
     };
     return NextResponse.json(cierreData);

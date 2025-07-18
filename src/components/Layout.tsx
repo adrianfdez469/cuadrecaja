@@ -34,7 +34,7 @@ import StoreIcon from "@mui/icons-material/Store";
 import CategoryIcon from "@mui/icons-material/Category";
 import ChangeHistoryIcon from "@mui/icons-material/ChangeHistory";
 import { useAppContext } from "@/context/AppContext";
-import { AccountCircle } from "@mui/icons-material";
+import { AccountCircle, CardGiftcardOutlined } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import { cambiarNegocio, cambiarLocal, getLocalesDisponibles } from "@/services/authService";
@@ -89,6 +89,11 @@ const configurationMenuItems = [
     label: "Proveedores",
     path: "/configuracion/proveedores",
     icon: LocalShipping,
+  },
+  {
+    label: "Destinos de Transferencia",
+    path: "/configuracion/destinos-transferencia",
+    icon: CardGiftcardOutlined
   },
   {
     label: "Planes y Suscripción",
