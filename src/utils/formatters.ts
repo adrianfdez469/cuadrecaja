@@ -178,3 +178,14 @@ export const formatPercentage = (value: number, decimals: number = 1): string =>
     maximumFractionDigits: decimals
   })}%`;
 }; 
+
+export const sanitizeNumber = (number: number) => {
+  // Eliminar 0 del inicio
+  if(number) {
+    const numberString = number.toString();
+    const numberSinCeros = numberString.replace(/^0+/, '');
+    return Number(numberSinCeros);
+  } else {
+    return 0;
+  }
+}

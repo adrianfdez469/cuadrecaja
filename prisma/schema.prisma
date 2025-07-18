@@ -34,7 +34,10 @@ model Tienda {
   ventas          Venta[] // Relación con las ventas realizadas en el local
   cierres         CierrePeriodo[]
   tipo            String            @default("tienda")
-  MovimientoStock MovimientoStock[]
+  
+  // Relaciones inversas para MovimientoStock con nombres específicos
+  movimientosOrigen MovimientoStock[] @relation("MovimientoStockOrigen")
+  movimientosDestino MovimientoStock[] @relation("MovimientoStockDestino")
 
   negocio         Negocio          @relation(fields: [negocioId], references: [id])
   negocioId       String              @default("")
@@ -223,12 +226,15 @@ model MovimientoStock {
   usuario   Usuario? @relation(fields: [usuarioId], references: [id])
   usuarioId String?
 
-  tienda   Tienda @relation(fields: [tiendaId], references: [id])
+  tienda   Tienda @relation("MovimientoStockOrigen", fields: [tiendaId], references: [id])
   tiendaId String
 
   // Proveedor para movimientos de consignación
   proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
   proveedorId String?
+
+  destination Tienda? @relation("MovimientoStockDestino", fields: [destinationId], references: [id])
+  destinationId String?
 
   @@index([productoTiendaId])
   @@index([fecha])

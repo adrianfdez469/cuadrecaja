@@ -11,10 +11,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
     const { searchParams } = new URL(req.url);
     const take = Number.parseInt(searchParams.get("take") || "20");
     const skip = Number.parseInt(searchParams.get("skip") || "0");
+    const tipoMovimiento = searchParams.get("tipo") || "";
     const text = searchParams.get("text") || "";
     const categoriaId = searchParams.get("categoriaId") || "";
-    console.log('text', text);
-    console.log('categoriaId', categoriaId);
+    
     
     
     const user = await getUserFromRequest(req);
@@ -22,6 +22,51 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
     
 
     if(tipo.toUpperCase() === 'ENTRADA') {
+      const productos = await prisma.producto.findMany({
+        where: {
+          negocioId: negocioId,
+          fraccionDeId: null,
+
+          ...(text && {
+            OR: [
+              { nombre: { contains: text, mode: 'insensitive' } },
+              // {
+              //   productosTienda: {
+              //     some: {
+              //       proveedor: {
+              //         nombre: { contains: text, mode: 'insensitive' }
+              //       }
+              //     }
+              //   }
+              // }
+            ]
+          }),
+          ...(categoriaId && {
+            categoriaId: categoriaId
+          })
+        },
+        include: {
+          categoria: true,
+          productosTienda: {
+            where: {
+              tiendaId: tiendaId,
+              
+            },
+            // include: {
+            //   proveedor: true
+            // }
+          }
+        },
+        take,
+        skip,
+        orderBy: {
+          nombre: 'asc'
+        }
+      });
+
+      return NextResponse.json(productos, {status: 200});
+
+    } else if(tipo.toUpperCase() === 'SALIDA') {
       const productos = await prisma.producto.findMany({
         where: {
           negocioId: negocioId,
@@ -42,34 +87,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
           }),
           ...(categoriaId && {
             categoriaId: categoriaId
-          })
-        },
-        include: {
-          categoria: true,
-          productosTienda: {
-            where: {
-              tiendaId: tiendaId,
-              
-            },
-            include: {
-              proveedor: true
-            }
-          }
-        },
-        take,
-        skip,
-        orderBy: {
-          nombre: 'asc'
-        }
-      });
-
-      return NextResponse.json(productos, {status: 200});
-
-    } else if(tipo.toUpperCase() === 'SALIDA') {
-      const productos = await prisma.producto.findMany({
-        where: {
-          negocioId: negocioId,
-          fraccionDeId: null,
+          }),
           
           productosTienda: {  
             some: {

@@ -23,7 +23,9 @@ import {
   AccordionSummary,
   AccordionDetails,
   Autocomplete,
-  Chip
+  Chip,
+  Card,
+  CardContent
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
@@ -47,14 +49,20 @@ import { getProveedores, createProveedor } from "@/services/proveedorService";
 import { IProveedor } from "@/types/IProveedor";
 import { requiereCPP } from "@/lib/cpp-calculator";
 import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
-import { OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal";
+import { IProductoDisponible, OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal";
+import { ILocal } from "@/types/ILocal";
+import { getLocales } from "@/services/localesService";
+import { ICategory } from "@/types/ICategoria";
 
 interface IProductoMovimiento {
+  nombre: string;
   productoId: string;
   cantidad: number;
   costoUnitario?: number;
-  costoTotal?: number;
+  costoTotal: number;
+  costo: number;
 }
+
 
 interface IProps {
   dialogOpen: boolean;
@@ -91,9 +99,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
   fetchMovimientos
 }) => {
   const [tipo, setTipo] = useState<ITipoMovimiento>("COMPRA");
-  const [itemsProductos, setItemsProductos] = useState<IProductoMovimiento[]>([
-    { productoId: "", cantidad: 0, costoUnitario: 0, costoTotal: 0 },
-  ]);
+  const [itemsProductos, setItemsProductos] = useState<IProductoMovimiento[]>([]);
   const [saving, setSaving] = useState(false);
   const { showMessage } = useMessageContext();
   const [motivo, setMotivo] = useState("");
@@ -113,7 +119,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
     setOnConfirm,
 
   } = useProductSelectionModal();
-  const [productos, setProductos] = useState<IProductoTiendaV2[]>([])
+
+  const [destinations, setDestinations] = useState<ILocal[]>([])
+  const [destinationId, setDestinationId] = useState<string>("")
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -123,7 +131,31 @@ export const AddMovimientoDialog: FC<IProps> = ({
     if (dialogOpen && (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION")) {
       fetchProveedores();
     }
+    if (dialogOpen && (tipo === "TRASPASO_SALIDA")) {
+      fetchDestinations();
+    }
   }, [dialogOpen, tipo]);
+
+  useEffect(() => {
+    setOnConfirm(async (productosSeleccionados) => {
+      // Lógica para procesar la selección
+      console.log(productosSeleccionados);
+
+      setItemsProductos((st) =>
+        productosSeleccionados.map((p) => {
+          return {
+            nombre: p.nombre,
+            cantidad: p.cantidad || 0,
+            costo: p.costo || 0,
+            costoTotal: p.costo && p.cantidad ? p.costo * p.cantidad : 0,
+            productoId: p.productoId,
+            costoUnitario: p.costo || 0,
+            
+          }
+        })
+      );
+    });
+  }, [operacion, setOnConfirm]);
 
   const fetchProveedores = async () => {
     setLoadingProveedores(true);
@@ -136,6 +168,11 @@ export const AddMovimientoDialog: FC<IProps> = ({
     } finally {
       setLoadingProveedores(false);
     }
+  };
+
+  const fetchDestinations = async () => {
+    const locales = await getLocales();
+    setDestinations(locales.filter((l) => l.id !== user.localActual.id));
   };
 
   const handleCrearProveedor = async (nombre: string) => {
@@ -165,67 +202,12 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const handleClose = () => {
     if (!saving) {
       closeDialog();
-      setItemsProductos([{ productoId: "", cantidad: 0, costoUnitario: 0, costoTotal: 0 }]);
+      setItemsProductos([]);
       setMotivo("");
       setProveedor(null);
       setTipo("COMPRA");
       setCreandoProveedor(false);
     }
-  };
-
-  const handleAgregarProducto = () => {
-    setItemsProductos([...itemsProductos, { productoId: "", cantidad: 0, costoUnitario: 0, costoTotal: 0 }]);
-  };
-
-  const handleEliminarProducto = (index: number) => {
-    if (itemsProductos.length === 1) {
-      return; // No eliminar si es el único producto
-    }
-
-    const producto = productos.find(p => p.id === itemsProductos[index].productoId);
-    const nombreProducto = producto ? producto.producto.nombre : "este producto";
-
-    confirmDialog(
-      `¿Estás seguro de que deseas eliminar "${nombreProducto}" del movimiento?`,
-      () => {
-        setItemsProductos(itemsProductos.filter((_, i) => i !== index));
-      }
-    );
-  };
-
-  const handleChangeProducto = (index: number, field: keyof IProductoMovimiento, value: string | number) => {
-    const nuevos = [...itemsProductos];
-
-    if (field === "cantidad") {
-      const cantidad = Number(value) || 0;
-      nuevos[index].cantidad = cantidad;
-
-      // Si hay costo unitario, recalcular costo total
-      if (nuevos[index].costoUnitario && cantidad > 0) {
-        nuevos[index].costoTotal = nuevos[index].costoUnitario! * cantidad;
-      }
-    } else if (field === "costoUnitario") {
-      const costoUnitario = Number(value) || 0;
-      nuevos[index].costoUnitario = costoUnitario;
-
-      // Recalcular costo total si hay cantidad
-      if (nuevos[index].cantidad > 0) {
-        nuevos[index].costoTotal = costoUnitario * nuevos[index].cantidad;
-      }
-    } else if (field === "costoTotal") {
-      const costoTotal = Number(value) || 0;
-      nuevos[index].costoTotal = costoTotal;
-
-      // Recalcular costo unitario si hay cantidad
-      if (nuevos[index].cantidad > 0) {
-        nuevos[index].costoUnitario = costoTotal / nuevos[index].cantidad;
-      }
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nuevos[index][field] = value as any;
-    }
-
-    setItemsProductos(nuevos);
   };
 
   const handleGuardar = async () => {
@@ -241,12 +223,16 @@ export const AddMovimientoDialog: FC<IProps> = ({
           ...(motivo !== "" && { motivo: motivo }),
           ...((tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && proveedor && {
             proveedorId: proveedor.id
+          }),
+          ...(tipo === "TRASPASO_SALIDA" && {
+            destinationId: destinationId
           })
         },
         itemsProductos.map((item) => {
           return {
             cantidad: item.cantidad,
             productoId: item.productoId,
+            
             // Agregar costos si es necesario
             ...(requiereCPP(tipo) && item.costoUnitario && {
               costoUnitario: item.costoUnitario,
@@ -276,72 +262,84 @@ export const AddMovimientoDialog: FC<IProps> = ({
     );
 
     const needsProveedor = (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && !proveedor;
+    const needsDestination = tipo === "TRASPASO_SALIDA" && !destinationId;
 
-    return hasInvalidProducts || needsProveedor;
+    return hasInvalidProducts || needsProveedor || needsDestination;
   };
 
-  const loadProductos = async (operacion: OperacionTipo, take = 50, skip = 0, filter?: { categoriaId?: string, text?: string }) => {
+  const loadProductos = async (operacion: OperacionTipo, take = 50, skip = 0, filter?: { categoriaId?: string, text?: string }): Promise<IProductoDisponible[]> => {
     try {
       setLoadingProductos(true);
       const tiendaId = user.localActual.id;
       if (operacion === 'ENTRADA') {
-        const productos = await getProductosTiendaParaEntrada(tiendaId, { take, skip, ...filter })
-        const prods: IProductoTiendaV2[] = [];
+        const productos = await getProductosTiendaParaEntrada(tiendaId, tipo, { take, skip, ...filter })
+        const prods: IProductoDisponible[] = [];
         productos.forEach((p) => {
 
           if (p.productosTienda.length > 0) {
             p.productosTienda.forEach((pt) => {
               prods.push({
                 productoId: p.id,
-                id: pt.id,
+                nombre: p.nombre,
+                categoriaId: p.categoriaId,
+                categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
+
+                productoTiendaId: pt.id,
+                precio: pt.precio,
                 costo: pt.costo,
                 existencia: pt.existencia,
-                precio: pt.precio,
                 proveedorId: pt.proveedor?.id,
                 proveedor: pt.proveedor,
-                tiendaId: tiendaId,
-                producto: { id: p.id, nombre: p.nombre, descripcion: p.descripcion, categoria: p.categoria, categoriaId: p.categoriaId }
+                // tiendaId: tiendaId,
               });
             });
           } else {
             prods.push({
+
               productoId: p.id,
-              id: null,
+              nombre: p.nombre,
+              categoriaId: p.categoriaId,
+              categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
+
+              productoTiendaId: null,
+              precio: null,
               costo: null,
               existencia: null,
-              precio: null,
               proveedorId: null,
               proveedor: null,
-              tiendaId: tiendaId,
-              producto: { id: p.id, nombre: p.nombre, descripcion: p.descripcion, categoria: p.categoria, categoriaId: p.categoriaId }
+              // tiendaId: tiendaId,
             });
           }
         });
         return prods;
       }
       if (operacion === 'SALIDA') {
-        const productos = await getProductosTiendaParaNoEntrada(tiendaId, { take, skip, ...filter });
-        const prods: IProductoTiendaV2[] = [];
-        console.log(productos);
-        
+        const productos = await getProductosTiendaParaNoEntrada(tiendaId, tipo, { take, skip, ...filter });
+        const prods: IProductoDisponible[] = [];
+
+
         productos.forEach((p) => {
           p.productosTienda.forEach((pt) => {
             prods.push({
               productoId: p.id,
-              id: pt.id,
+              nombre: p.nombre,
+              categoriaId: p.categoriaId,
+              categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
+
+              productoTiendaId: pt.id,
+              precio: pt.precio,
               costo: pt.costo,
               existencia: pt.existencia,
-              precio: pt.precio,
               proveedorId: pt.proveedor?.id,
               proveedor: pt.proveedor,
-              tiendaId: tiendaId,
-              producto: { id: p.id, nombre: p.nombre, descripcion: p.descripcion, categoria: p.categoria, categoriaId: p.categoriaId }
+              // tiendaId: tiendaId,
+
             });
           });
 
         });
         return prods;
-      return [];
+
       }
     } catch (error) {
       console.log(error);
@@ -672,12 +670,22 @@ export const AddMovimientoDialog: FC<IProps> = ({
             </Box>
           )}
 
-
-
-          {/* Título de productos */}
-          <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mt: 3, mb: 2 }}>
-            Productos
-          </Typography>
+          {/* Campo local para seleccionar el local */}
+          {(tipo === 'TRASPASO_SALIDA' &&
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Local</InputLabel>
+              <Select
+                value={destinationId}
+                onChange={(e) => setDestinationId(e.target.value as string)}
+              >
+                {destinations.map((local) => (
+                  <MenuItem key={local.id} value={local.id}>
+                    {local.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
 
           {isOpen && (
             <ProductSelectionModal
@@ -688,127 +696,40 @@ export const AddMovimientoDialog: FC<IProps> = ({
               onConfirm={handleConfirm}
               loading={loadingProductos}
               iTipoMovimiento={tipo}
+              productosSeleccionadosIniciales={itemsProductos}
             />
           )}
-          <Button onClick={() => openModal(getOperacion(tipo))}>Abrir modal</Button>
 
-          {/* Lista de productos */}
-          {/* {itemsProductos.map((p, index) => (
-            <Box 
-              key={index} 
-              sx={{ 
-                mb: 2, 
-                p: isMobile ? 1.5 : 2, 
-                border: '1px solid', 
-                borderColor: 'divider', 
-                borderRadius: 1 
-              }}
-            >
-              <Stack spacing={2}>
-                
-                <FormControl fullWidth>
-                  <InputLabel size={isMobile ? "small" : "normal"}>
-                    Producto
-                  </InputLabel>
-                  <Select
-                    value={p.productoId}
-                    label="Producto"
-                    onChange={(e) => handleChangeProducto(index, "productoId", e.target.value)}
-                    size={isMobile ? "small" : "medium"}
-                  >
-                    {productos.map((producto) => (
-                      <MenuItem key={producto.id} value={producto.id}>
-                        {producto.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <TextField
-                    label="Cantidad"
-                    type="number"
-                    value={p.cantidad || ""}
-                    onChange={(e) => handleChangeProducto(index, "cantidad", e.target.value)}
-                    size={isMobile ? "small" : "medium"}
-                    sx={{ flex: 1 }}
-                    inputProps={{ min: 1, step: 1 }}
-                  />
-                  <IconButton 
-                    onClick={() => handleEliminarProducto(index)}
-                    color="error"
-                    disabled={itemsProductos.length === 1}
-                    size={isMobile ? "small" : "medium"}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-
-                
-                {requiereCPP(tipo) && (
-                  <Stack spacing={2}>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <TextField
-                        label="Costo Unitario"
-                        type="number"
-                        value={p.costoUnitario || ""}
-                        onChange={(e) => handleChangeProducto(index, "costoUnitario", e.target.value)}
-                        size={isMobile ? "small" : "medium"}
-                        sx={{ flex: 1 }}
-                        InputProps={{
-                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                        }}
-                        inputProps={{ min: 0, step: 0.01 }}
-                      />
-                      <TextField
-                        label="Costo Total"
-                        type="number"
-                        value={p.costoTotal || ""}
-                        onChange={(e) => handleChangeProducto(index, "costoTotal", e.target.value)}
-                        size={isMobile ? "small" : "medium"}
-                        sx={{ flex: 1 }}
-                        InputProps={{
-                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                        }}
-                        inputProps={{ min: 0, step: 0.01 }}
-                      />
-                    </Box>
-                    
-                    <Box sx={{ p: 1.5, bgcolor: 'primary.50', borderRadius: 1, textAlign: 'center' }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Total del producto
-                      </Typography>
-                      <Typography variant={isMobile ? "subtitle1" : "h6"} color="primary" sx={{ fontWeight: 'bold' }}>
-                        {formatCurrency(p.costoTotal || 0)}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                )}
-              </Stack>
-            </Box>
-          ))} */}
-
-          {/* Botón agregar producto */}
-          {/* <Button
-            sx={{ mt: 2 }}
-            onClick={handleAgregarProducto}
-            disabled={isFormValid()}
-            variant="outlined"
-            fullWidth
-            size={isMobile ? "medium" : "large"}
+          <Button
+            sx={{ mb: 2, mt: 2 }}
+            variant="contained"
+            fullWidth onClick={() => openModal(getOperacion(tipo))}
           >
-            + Agregar otro producto
-          </Button> */}
+            Adicionar Productos
+          </Button>
 
-          {/* Total general para productos que requieren CPP */}
-          {/* {requiereCPP(tipo) && (
-            <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1, textAlign: 'center' }}>
-              <Typography variant={isMobile ? "h6" : "h5"} color="primary" sx={{ fontWeight: 'bold' }}>
-                Total General: {formatCurrency(itemsProductos.reduce((sum, item) => sum + (item.costoTotal || 0), 0))}
-              </Typography>
-            </Box>
-          )} */}
+          {itemsProductos.length > 0
+            && itemsProductos.map((p, index) => {
+              return (
+                <Card key={index}>
+                  <CardContent>
+                    <Typography variant="body1" fontWeight={500}>
+                      {p.nombre}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {p.cantidad === 1 ? "1 unidad" : `${p.cantidad} unidades`}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {`Costo unitario: ${formatCurrency(p.costoUnitario || 0)}`}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {`Costo total: ${formatCurrency(p.costoTotal || 0)}`}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              )
+            })}
+
         </DialogContent>
 
         <DialogActions sx={{ px: isMobile ? 2 : 3, pb: isMobile ? 2 : undefined }}>

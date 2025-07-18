@@ -4,12 +4,12 @@ import { calcularCPP, requiereCPP, formatearCPPLog } from '../cpp-calculator';
 
 export const CreateMoviento = async (data, items) => {
 
-  const { tipo, tiendaId, usuarioId, referenciaId, motivo, proveedorId } = data;
+  const { tipo, tiendaId, usuarioId, referenciaId, motivo, proveedorId, destinationId } = data;
 
   await prisma.$transaction(async (tx) => {
 
     for (const movimiento of items) {
-      const { productoId, cantidad, costoUnitario } = movimiento;
+      const { productoId, cantidad, costoUnitario, proveedorId: itemProveedorId } = movimiento;
 
       // 1. Obtener el productoTienda existente para capturar la existencia anterior
       let existenciaAnterior = 0;
@@ -17,7 +17,7 @@ export const CreateMoviento = async (data, items) => {
         where: {
           tiendaId,
           productoId,
-          proveedorId: proveedorId || null
+          proveedorId: itemProveedorId || proveedorId || null
         },
       });
 
@@ -73,7 +73,7 @@ export const CreateMoviento = async (data, items) => {
             costo: costoUnitario || 0,
             precio: 0,
             existencia: cantidad,
-            proveedorId: proveedorId || null
+            proveedorId: itemProveedorId || proveedorId || null
           }
         });
 
@@ -127,7 +127,7 @@ export const CreateMoviento = async (data, items) => {
                 costo: calculoCPP.costoNuevo / productoFraccion.unidadesPorFraccion,
                 precio: 0,
                 existencia: 0,
-                proveedorId: proveedorId || null,
+                proveedorId: itemProveedorId || proveedorId || null,
               }
             });
           }
@@ -154,7 +154,9 @@ export const CreateMoviento = async (data, items) => {
 
           ...(referenciaId && { referenciaId: referenciaId }),
           ...(motivo && { motivo: motivo }),
-          ...(proveedorId && { proveedorId: proveedorId })
+          ...(proveedorId && { proveedorId: proveedorId }),
+          ...(itemProveedorId && {proveedorId: itemProveedorId}),
+          ...(destinationId && { destinationId: destinationId })
         },
       });
     }

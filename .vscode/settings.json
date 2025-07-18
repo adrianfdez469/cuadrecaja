@@ -1,6 +1,6 @@
 {
-  "debug.node.autoAttach": "on",
-  "debug.javascript.autoAttachFilter": "always",
+  "debug.node.autoAttach": "off",
+  "debug.javascript.autoAttachFilter": "disabled",
   "debug.javascript.terminalOptions": {
     "skipFiles": ["<node_internals>/**"]
   },

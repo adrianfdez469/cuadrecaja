@@ -1,19 +1,21 @@
 import { IProductoTiendaV2 } from "@/types/IProducto";
-import { formatCurrency } from "@/utils/formatters";
+import { formatCurrency, sanitizeNumber } from "@/utils/formatters";
 import { Delete } from "@mui/icons-material";
 import { Alert, Box, TableHead, Table, Paper, TableContainer, TableRow, TableCell, TableBody, Typography, IconButton, Tooltip, Chip, Card, CardContent, Grid, TextField } from "@mui/material";
 import React from "react";
-import { OperacionTipo, ProductoSeleccionado } from "../ProductSelectionModal";
+import { OperacionTipo, IProductoSeleccionado } from "../ProductSelectionModal";
+import { ITipoMovimiento } from "@/types/IMovimiento";
 
 interface IProps {
   operacion: OperacionTipo;
-  productosSeleccionados: ProductoSeleccionado[];
+  productosSeleccionados: IProductoSeleccionado[];
   isMobile: boolean;
   actualizarCantidad: (productoId: string, nuevaCantidad: number) => void;
   actualizarCosto: (productoId: string, nuevoCosto: number) => void;
   eliminarProducto: (productoId: string) => void;
   limpiarSeleccion: () => void;
-  show: boolean
+  show: boolean,
+  tipoMovimiento: ITipoMovimiento
 }
 
 const TableProductosSeleccionados: React.FC<IProps> = ({ 
@@ -24,7 +26,8 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
   actualizarCosto, 
   eliminarProducto, 
   limpiarSeleccion,
-  show
+  show,
+  tipoMovimiento
 }) => {
 
   // Totales
@@ -34,8 +37,8 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
 
   // Validaciones
   const hayErrores = productosSeleccionados.some(p => {
-    if (operacion === 'SALIDA') {
-      return p.cantidad > p.productoTienda.existencia;
+    if (operacion === 'SALIDA' || tipoMovimiento === 'TRASPASO_ENTRADA') {
+      return p.cantidad > p.existencia;
     }
     return p.cantidad <= 0;
   });
@@ -114,20 +117,20 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {productosSeleccionados.map((producto) => {
+            {productosSeleccionados.map((producto, index) => {
               const esSalida = operacion === 'SALIDA';
-              const cantidadExcede = esSalida && producto.cantidad > producto.productoTienda.existencia;
+              const cantidadExcede = esSalida && producto.cantidad > producto.existencia;
               
               return (
-                <TableRow key={producto.productoTienda.id}>
+                <TableRow key={producto.productoId+index}>
                   <TableCell>
                     <Box>
                       <Typography variant="body2" fontWeight="medium">
-                        {producto.productoTienda.producto.nombre}
+                        {producto.nombre}
                       </Typography>
-                      {producto.productoTienda.proveedor && (
+                      {producto.proveedor && (
                         <Typography variant="caption" color="text.secondary">
-                          {producto.productoTienda.proveedor.nombre}
+                          {producto.proveedor.nombre}
                         </Typography>
                       )}
                     </Box>
@@ -136,14 +139,15 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                     <TextField
                       type="number"
                       size="small"
-                      value={producto.cantidad}
-                      onChange={(e) => actualizarCantidad(producto.productoTienda.id, Number(e.target.value))}
+                      value={sanitizeNumber(producto.cantidad)}
+                      onChange={(e) => actualizarCantidad(producto.productoId, sanitizeNumber(Number(e.target.value)))}
                       inputProps={{ 
                         min: 1, 
-                        max: esSalida ? producto.productoTienda.existencia : undefined 
+                        max: esSalida ? producto.existencia : undefined 
                       }}
+                      
                       error={cantidadExcede}
-                      helperText={cantidadExcede ? `Máx: ${producto.productoTienda.existencia}` : ''}
+                      helperText={cantidadExcede ? `Máx: ${producto.existencia}` : ''}
                       sx={{ width: 80 }}
                     />
                   </TableCell>
@@ -151,8 +155,8 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                     <TextField
                       type="number"
                       size="small"
-                      value={producto.costo}
-                      onChange={(e) => actualizarCosto(producto.productoTienda.id, Number(e.target.value))}
+                      value={sanitizeNumber(producto.costo)}
+                      onChange={(e) => actualizarCosto(producto.productoId, sanitizeNumber(Number(e.target.value)))}
                       disabled={esSalida}
                       inputProps={{ min: 0, step: 0.01 }}
                       sx={{ width: 100 }}
@@ -168,7 +172,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                       <IconButton 
                         size="small" 
                         color="error"
-                        onClick={() => eliminarProducto(producto.productoTienda.id)}
+                        onClick={() => eliminarProducto(producto.productoId)}
                       >
                         <Delete />
                       </IconButton>

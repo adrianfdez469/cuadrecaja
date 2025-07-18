@@ -12,7 +12,21 @@
 import { IProducto } from "./IProducto";
 import { IProveedor } from "./IProveedor";
 
-export type ITipoMovimiento  = "COMPRA" | "VENTA" | "AJUSTE_ENTRADA" | "AJUSTE_SALIDA" | "TRASPASO_ENTRADA" | "TRASPASO_SALIDA" | "DESAGREGACION_BAJA" | "DESAGREGACION_ALTA" | "CONSIGNACION_ENTRADA" | "CONSIGNACION_DEVOLUCION";
+export type ITipoMovimiento  = 
+"COMPRA" | 
+"VENTA" | 
+
+"AJUSTE_ENTRADA" | 
+"AJUSTE_SALIDA" | 
+
+"TRASPASO_ENTRADA" | 
+"TRASPASO_SALIDA" | 
+
+"DESAGREGACION_BAJA" | 
+"DESAGREGACION_ALTA" | 
+
+"CONSIGNACION_ENTRADA" | 
+"CONSIGNACION_DEVOLUCION";
 
 
 export interface IMovimiento {

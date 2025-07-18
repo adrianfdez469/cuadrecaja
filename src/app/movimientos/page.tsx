@@ -25,7 +25,8 @@ import {
   useMediaQuery,
   IconButton,
   Collapse,
-  Divider
+  Divider,
+  Badge
 } from "@mui/material";
 import {
   Add,
@@ -37,19 +38,23 @@ import {
   Search,
   Refresh,
   ExpandMore,
+  Message,
   ExpandLess
 } from "@mui/icons-material";
 import { AddMovimientoDialog } from "./components/addMovimientoDialog";
 import { IProducto } from "@/types/IProducto";
 import { fetchProducts } from "@/services/productServise";
 import { useAppContext } from "@/context/AppContext";
-import { findMovimientos } from "@/services/movimientoService";
+import { cretateBatchMovimientos, findMovimientos, getMovimientosProductosEnviados } from "@/services/movimientoService";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { ITipoMovimiento } from "@/types/IMovimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatNumber, formatDateTime } from '@/utils/formatters';
 import ImportarExcelDialog from "./components/importExcelDialog";
+import { OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal/ProductSelectionModal";
+import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
+import { useMessageContext } from "@/context/MessageContext";
 
 const PAGE_SIZE = 20;
 
@@ -63,7 +68,18 @@ export default function MovimientosPage() {
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [pendienteRecepcion, setPendienteRecepcion] = useState([]);
+  const { showMessage } = useMessageContext()
+  
+  const {
+    isOpen: pendienteRecepcionDialogOpen,
+    operacion: pendienteRecepcionOperacion,
+    openModal: pendienteRecepcionOpenModal,
+    closeModal: pendienteRecepcionCloseModal,
+    handleConfirm: pendienteRecepcionHandleConfirm,
+    setOnConfirm: pendienteRecepcionSetOnConfirm,
 
+  } = useProductSelectionModal();
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -82,6 +98,71 @@ export default function MovimientosPage() {
     }
   };
 
+  const fecthPendientesRecep = async () => {
+    const result = await getMovimientosProductosEnviados(user.localActual.id);
+    console.log('fecthPendientesRecep',result);
+    
+    setPendienteRecepcion(result || []);
+
+    if(result.length > 0){
+      pendienteRecepcionSetOnConfirm((prods) => {
+        console.log('prods',prods);
+        // Crear documento de tipo TRASPASO_ENTRADA con los productos
+        // crearMovimientosRecepción(prods);
+      })
+    }
+  }
+
+  const crearMovimientosRecepción = async (prods) => {
+    setLoadingData(true);
+
+    try {
+      const localId = user.localActual.id;
+      await cretateBatchMovimientos(
+        {
+          tiendaId: localId,
+          tipo: "TRASPASO_ENTRADA",
+          usuarioId: user.id,
+        },
+        prods.map((item) => {
+          return {
+            cantidad: item.cantidad,
+            productoId: item.productoId,
+            costoUnitario: item.costoUnitario,
+            costoTotal: item.costoTotal,
+            proveedorId: item.proovedorId
+          };
+        })
+      );
+
+      fetchMovimientos();
+
+    } catch (error) {
+      console.log(error);
+      showMessage("No se pudo crear los movimientos de entrada", "error");
+    } finally {
+      setLoadingData(false);
+    }
+  }
+
+  const loadPendientesRecep = async (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string}) => {
+    return pendienteRecepcion.map((item) => {
+      return {
+        productoId: item.productoTiendaId,
+        nombre: item.productoTienda?.producto?.nombre,
+        categoriaId: item.productoTienda?.producto?.categoriaId,
+        categoria: item.productoTienda?.producto?.categoria,
+        productoTiendaId: item.productoTiendaId,
+        precio: item.productoTienda?.precio,
+        costo: item.productoTienda?.costo,
+        existencia: item.productoTienda?.existencia,
+        proveedorId: item.productoTienda?.proveedorId,
+        proveedor: item.productoTienda?.proveedor,
+        
+      }
+    });
+  }
+
   useEffect(() => {
     (async () => {
       if (!loadingContext) {
@@ -98,6 +179,7 @@ export default function MovimientosPage() {
           const prods = await fetchProducts();
           setProductos(prods || []);
           await fetchMovimientos(0);
+          fecthPendientesRecep(); // fetch pendientes de recepcion asincronico
         } catch (error) {
           console.error("Error al cargar datos:", error);
         } finally {
@@ -204,6 +286,18 @@ export default function MovimientosPage() {
           </IconButton>
         </Tooltip>
       )}
+      
+      {pendienteRecepcion.length > 0 &&
+        <Tooltip title="Productos pendientes por recepcionar">
+          <IconButton size="small" onClick={() => pendienteRecepcionOpenModal('ENTRADA')}>
+            <Badge badgeContent={pendienteRecepcion.length} color="error">
+              <Message />
+            </Badge>
+          </IconButton>
+        </Tooltip>
+      }
+
+
       <Button
         variant="contained"
         startIcon={!isMobile ? <Add /> : undefined}
@@ -378,7 +472,7 @@ export default function MovimientosPage() {
           </Grid>
         </Grid>
       )}
-      
+
       {/* Lista de movimientos */}
       <ContentCard
         title="Historial de Movimientos"
@@ -604,6 +698,16 @@ export default function MovimientosPage() {
           fetchMovimientos(0);
         }}
       />
+      {pendienteRecepcionDialogOpen && (
+        <ProductSelectionModal
+          open={pendienteRecepcionDialogOpen}
+          onClose={pendienteRecepcionCloseModal}
+          loadProductos={loadPendientesRecep}
+          operacion={pendienteRecepcionOperacion}
+          iTipoMovimiento={'TRASPASO_ENTRADA'}
+          onConfirm={pendienteRecepcionHandleConfirm}
+        />
+      )}
     </PageContainer>
   );
 }

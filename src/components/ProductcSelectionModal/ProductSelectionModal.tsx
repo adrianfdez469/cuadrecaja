@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -13,8 +13,9 @@ import {
   Badge,
   useTheme,
   useMediaQuery,
-  CircularProgress
+
 } from '@mui/material';
+
 import {
   Close,
   ShoppingCart,
@@ -22,39 +23,89 @@ import {
   TrendingUp,
   TrendingDown
 } from '@mui/icons-material';
-import { IProductoTiendaV2 } from '@/types/IProducto';
 import { ITipoMovimiento } from '@/types/IMovimiento';
 import TableProductosDisponibles from './tables/TableProductosDisponibles';
 import TableProductosSeleccionados from './tables/TableProductosSeleccionados';
+import { sanitizeNumber } from '@/utils/formatters';
+import { useMessageContext } from '@/context/MessageContext';
 
 // Tipos para el componente
 export type OperacionTipo = 'ENTRADA' | 'SALIDA';
 
-export interface ProductoSeleccionado {
-  productoTienda: IProductoTiendaV2;
+// export interface ProductoSeleccionado {
+//   productoId: string;
+//   nombre: string;
+//   productoTienda?: {id: string, existencia: number, proveedor?: {id: string, nombre: string}};
+//   productoTiendaId?: string;
+//   cantidad: number;
+//   costo?: number;
+//   costoTotal?: number;
+  
+// }
+
+// export interface IProdAgregable {
+//   costo?: number;
+//   existencia?: number;
+//   id?: string;
+//   precio?: number;
+//   producto: {
+//     id: string;
+//     nombre: string;
+//     descripcion: string;
+//     categoria: {
+//       id: string;
+//       nombre: string;
+//     };
+//     categoriaId: string;
+//   };
+//   productoId: string;
+//   proveedor?: {
+//     id: string;
+//     nombre: string;
+//   };
+//   proveedorId: string;
+//   tiendaId: string;
+// }
+
+export interface IProductoDisponible {
+  productoId: string;
+  nombre: string;
+  categoriaId?: string;
+  categoria?: {
+    id: string;
+    nombre: string;
+  };
+
+  productoTiendaId?: string,
+  precio?: number,
+  costo?: number,
+  existencia?: number,
+  proveedorId?: string,
+  proveedor?: {
+    id: string;
+    nombre: string;
+  };
+} 
+
+export interface IProductoSeleccionado  extends IProductoDisponible{
   cantidad: number;
-  costo: number;
   costoTotal: number;
 }
 
 interface ProductSelectionModalProps {
   open: boolean;
   onClose: () => void;
-  loadProductos: (operacion: OperacionTipo, take: number, skip: number, filter?: {categoriaId?: string, text?: string}) => Promise<IProductoTiendaV2[]>;
+  loadProductos: (operacion: OperacionTipo, take: number, skip: number, filter?: {categoriaId?: string, text?: string}) => Promise<IProductoDisponible[]>;
   operacion: OperacionTipo;
   iTipoMovimiento: ITipoMovimiento;
-  onConfirm: (productosSeleccionados: ProductoSeleccionado[]) => void;
+  onConfirm: (productosSeleccionados: IProductoSeleccionado[]) => void;
   loading?: boolean;
+  productosSeleccionadosIniciales?: IProductoSeleccionado[];
 }
 
 const ITEMS_PER_PAGE = 50; 
 
-// Componente de carga para los tabs
-const TabLoadingFallback = () => (
-  <Box display="flex" justifyContent="center" alignItems="center" p={4}>
-    <CircularProgress />
-  </Box>
-);
+
 
 export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   open,
@@ -63,15 +114,17 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   operacion,
   onConfirm,
   loading = false,
-  iTipoMovimiento
+  iTipoMovimiento,
+  productosSeleccionadosIniciales 
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { showMessage } = useMessageContext();
   
   // Estados principales
-  const [activeTab, setActiveTab] = useState(0);
-  const [productosSeleccionados, setProductosSeleccionados] = useState<ProductoSeleccionado[]>([]);
-  const [productos, setProductos] = useState<IProductoTiendaV2[]>([]);
+  const [activeTab, setActiveTab] = useState<number>(0);
+  const [productosSeleccionados, setProductosSeleccionados] = useState<IProductoSeleccionado[]>(productosSeleccionadosIniciales || []);
+  const [productos, setProductos] = useState<IProductoDisponible[]>([]);
   
   // Estados para infinite scroll
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,29 +133,32 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   // Estados para filtros
   const [currentFilters, setCurrentFilters] = useState<{text?: string, categoriaId?: string}>({});
+  const [isApplyingFilters, setIsApplyingFilters] = useState(false);
+  // const [blockInfiniteScroll, setBlockInfiniteScroll] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
 
   // Productos disponibles (excluyendo los ya seleccionados) - MEMOIZADO
   const productosDisponibles = useMemo(() => {
-    const idsSeleccionados = new Set(productosSeleccionados.map(p => p.productoTienda.id));
-    return productos.filter(p => !idsSeleccionados.has(p.id));
+    const idsSeleccionados = new Set(productosSeleccionados.map(p => p.productoId));
+    return productos.filter(p => !idsSeleccionados.has(p.productoId));
   }, [productos, productosSeleccionados]);
 
   // Totales - MEMOIZADOS
   const totalProductos = useMemo(() => productosSeleccionados.length, [productosSeleccionados]);
-  const totalCantidad = useMemo(() => 
-    productosSeleccionados.reduce((sum, p) => sum + p.cantidad, 0), 
-    [productosSeleccionados]
-  );
-  const totalCosto = useMemo(() => 
-    productosSeleccionados.reduce((sum, p) => sum + p.costoTotal, 0), 
-    [productosSeleccionados]
-  );
+  // const totalCantidad = useMemo(() => 
+  //   productosSeleccionados.reduce((sum, p) => sum + p.cantidad, 0), 
+  //   [productosSeleccionados]
+  // );
+  // const totalCosto = useMemo(() => 
+  //   productosSeleccionados.reduce((sum, p) => sum + p.costoTotal, 0), 
+  //   [productosSeleccionados]
+  // );
 
   // Validaciones - MEMOIZADAS
   const hayErrores = useMemo(() => 
     productosSeleccionados.some(p => {
-      if (operacion === 'SALIDA') {
-        return p.cantidad > p.productoTienda.existencia;
+      if (operacion === 'SALIDA' || iTipoMovimiento === 'TRASPASO_ENTRADA') {
+        return p.cantidad > p.existencia;
       }
       return p.cantidad <= 0;
     }), 
@@ -110,13 +166,28 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   );
 
   const handleConfirm = useCallback(() => {
-    if (hayErrores || totalProductos === 0) return;
+    if (hayErrores ) return;
+
+    if(totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0) {
+      onConfirm(productosSeleccionados);
+      return;
+    }
+
+    if(productosSeleccionados.some(p => p.costo === 0 || p.costo === null)) {
+      showMessage('El costo de un producto no puede ser 0', 'error');
+      return;
+    }
+
     onConfirm(productosSeleccionados);
   }, [hayErrores, totalProductos, onConfirm, productosSeleccionados]);
 
   // Función para cargar más productos - MEMOIZADA
   const loadMoreProductos = useCallback(async () => {
-    if (isLoadingMore || !hasMore) return;
+
+    console.log('loadMoreProductos');
+    
+    // Validaciones más estrictas para evitar llamadas innecesarias
+    if (isLoadingMore || !hasMore || productos.length === 0 || currentPage === 1) return;
     
     setIsLoadingMore(true);
     try {
@@ -127,6 +198,12 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         currentFilters
       );
       
+      // Si no hay productos nuevos, definitivamente no hay más
+      if (nuevosProductos.length === 0) {
+        setHasMore(false);
+        return;
+      }
+      
       if (nuevosProductos.length < ITEMS_PER_PAGE) {
         setHasMore(false);
       }
@@ -135,14 +212,24 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       setCurrentPage(prev => prev + 1);
     } catch (error) {
       console.error('Error cargando más productos:', error);
+      // En caso de error, también marcamos que no hay más para evitar loops infinitos
+      setHasMore(false);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, hasMore, loadProductos, operacion, currentPage, currentFilters]);
+  }, [isLoadingMore, hasMore, productos.length, currentPage, loadProductos, operacion, currentFilters]);
 
   // Función para manejar cambios de filtros
   const handleFilterChange = useCallback((filters: {text?: string, categoriaId?: string}) => {
+
+    // Solo actualizar filtros si realmente cambiaron
+    const filtersChanged = JSON.stringify(filters) !== JSON.stringify(currentFilters);
+    if (!filtersChanged) return;
+
+    setIsFiltering(true);
     setCurrentFilters(filters);
+    
+    // Resetear estados antes de cargar
     setProductos([]);
     setCurrentPage(1);
     setHasMore(true);
@@ -153,62 +240,83 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       try {
         const productosFiltrados = await loadProductos(
           operacion, 
-          ITEMS_PER_PAGE, 
-          0, 
+          ITEMS_PER_PAGE, 0,
           filters
         );
         
-        if (productosFiltrados.length < ITEMS_PER_PAGE) {
+        // Si no hay productos, definitivamente no hay más
+        if (productosFiltrados.length === 0) {
           setHasMore(false);
+        } else if (productosFiltrados.length < ITEMS_PER_PAGE) {
+          setHasMore(false);
+        } else {
+          setHasMore(true);
         }
         
+        // Actualizar productos de manera más suave para evitar re-renderizados abruptos
         setProductos(productosFiltrados);
         setCurrentPage(2);
       } catch (error) {
         console.error('Error cargando productos con filtros:', error);
+        // En caso de error, también marcamos que no hay más para evitar loops infinitos
+        setHasMore(false);
+        setProductos([]);
       } finally {
         setIsLoadingMore(false);
+        setIsFiltering(false);
       }
     };
     
     cargarProductosConFiltros();
-  }, [loadProductos, operacion]);
+  }, [loadProductos, operacion, currentFilters]);
 
   // Resetear estado cuando se abre/cierra
   useEffect(() => {
     if (open) {
+      // Resetear todos los estados de manera síncrona
       setActiveTab(0);
-      setProductosSeleccionados([]);
       setProductos([]);
       setCurrentPage(1);
       setHasMore(true);
       setIsLoadingMore(false);
-      setCurrentFilters({});
+      // setCurrentFilters({});
+      setIsFiltering(false);
     }
   }, [open]);
 
-  // Cargar productos iniciales solo cuando se abre el modal
+  // Cargar productos iniciales solo cuando se abre el modal y el estado está limpio
   useEffect(() => {
-    if (open && productos.length === 0) {
+    if (open && productos.length === 0 && !isLoadingMore && currentPage === 1) {
       const cargarProductosIniciales = async () => {
         setIsLoadingMore(true);
         
         try {
+          console.log('cargarProductosIniciales');
           const productosIniciales = await loadProductos(
-            operacion, 
-            ITEMS_PER_PAGE, 
-            0, 
-            {}
+            operacion,
+            ITEMS_PER_PAGE,
+            0,
+            currentFilters
           );
-          
-          if (productosIniciales.length < ITEMS_PER_PAGE) {
+
+          // Si no hay productos iniciales, no hay más para cargar
+          if (productosIniciales.length === 0) {
             setHasMore(false);
+            setProductos([]);
+          } else if (productosIniciales.length < ITEMS_PER_PAGE) {
+            setHasMore(false);
+            setProductos(productosIniciales);
+          } else {
+            setHasMore(true);
+            setProductos(productosIniciales);
           }
           
-          setProductos(productosIniciales);
           setCurrentPage(2);
         } catch (error) {
           console.error('Error cargando productos iniciales:', error);
+          // En caso de error, marcamos que no hay más para evitar loops infinitos
+          setHasMore(false);
+          setProductos([]);
         } finally {
           setIsLoadingMore(false);
         }
@@ -216,17 +324,36 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       
       cargarProductosIniciales();
     }
-  }, [open, operacion, loadProductos, productos.length]);
+  }, [open, operacion, loadProductos, currentFilters, productos.length, isLoadingMore, currentPage]);
 
   // Funciones para manejar productos - MEMOIZADAS
-  const agregarProducto = useCallback((producto: IProductoTiendaV2) => {
-    const cantidadInicial = operacion === 'ENTRADA' ? 1 : producto.existencia;
-    const costoInicial = operacion === 'ENTRADA' ? producto.costo : producto.costo;
+  const agregarProducto = useCallback((producto: IProductoDisponible) => {
+
+    console.log('agregarProducto', producto);
     
-    const nuevoProducto: ProductoSeleccionado = {
-      productoTienda: producto,
+    let cantidadInicial = 0;
+    let costoInicial = 0;
+    if(operacion === 'ENTRADA') {
+      cantidadInicial = 1;
+      costoInicial = 1;
+    }
+    if(operacion === 'SALIDA' || iTipoMovimiento === 'TRASPASO_ENTRADA') {
+      cantidadInicial = producto.existencia;
+      costoInicial = producto.costo;
+    }
+
+    const nuevoProducto: IProductoSeleccionado = {
+      productoId: producto.productoId,
+      nombre: producto.nombre,
+      productoTiendaId: producto.productoTiendaId,
+      categoriaId: producto.categoriaId,
+      categoria: producto.categoria,
+      precio: producto.precio,
+      costo: producto.costo,
+      existencia: producto.existencia,
+      proveedorId: producto.proveedorId,
+      proveedor: producto.proveedor,
       cantidad: cantidadInicial,
-      costo: costoInicial,
       costoTotal: cantidadInicial * costoInicial
     };
 
@@ -234,11 +361,12 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   }, [operacion]);
 
   const actualizarCantidad = useCallback((productoId: string, nuevaCantidad: number) => {
+    const nuevaCantidadNumber = sanitizeNumber(Number(nuevaCantidad));
     setProductosSeleccionados(prev => prev.map(p => {
-      if (p.productoTienda.id === productoId) {
+      if (p.productoId === productoId) {
         const cantidad = operacion === 'SALIDA' 
-          ? Math.min(nuevaCantidad, p.productoTienda.existencia)
-          : nuevaCantidad;
+          ? Math.min(nuevaCantidadNumber, p.existencia)
+          : nuevaCantidadNumber;
         
         return {
           ...p,
@@ -254,7 +382,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     if (operacion === 'SALIDA') return; // No permitir editar costo en salidas
     
     setProductosSeleccionados(prev => prev.map(p => {
-      if (p.productoTienda.id === productoId) {
+      if (p.productoId === productoId) {
         return {
           ...p,
           costo: nuevoCosto,
@@ -266,7 +394,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   }, [operacion]);
 
   const eliminarProducto = useCallback((productoId: string) => {
-    setProductosSeleccionados(prev => prev.filter(p => p.productoTienda.id !== productoId));
+    setProductosSeleccionados(prev => prev.filter(p => p.productoId !== productoId));
   }, []);
 
   const limpiarSeleccion = useCallback(() => {
@@ -284,7 +412,10 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     hasMore,
     loadMoreProductos,
     agregarProducto,
-    onFilterChange: handleFilterChange
+    onFilterChange: handleFilterChange,
+    show: activeTab === 0,
+    isFiltering,
+    currentPage
   }), [
     operacion,
     loading,
@@ -295,7 +426,10 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     hasMore,
     loadMoreProductos,
     agregarProducto,
-    handleFilterChange
+    handleFilterChange,
+    activeTab,
+    isFiltering,
+    currentPage
   ]);
 
   const tableProductosSeleccionadosProps = useMemo(() => ({
@@ -305,7 +439,8 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     actualizarCantidad,
     actualizarCosto,
     eliminarProducto,
-    limpiarSeleccion
+    limpiarSeleccion,
+    tipoMovimiento: iTipoMovimiento
   }), [
     operacion,
     productosSeleccionados,
@@ -313,28 +448,9 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     actualizarCantidad,
     actualizarCosto,
     eliminarProducto,
-    limpiarSeleccion
+    limpiarSeleccion,
+    iTipoMovimiento
   ]);
-
-  // Renderizado condicional optimizado
-  // const renderActiveTab = useCallback(() => {
-  //   switch (activeTab) {
-  //     case 0:
-  //       return (
-          
-  //           <TableProductosDisponibles {...tableProductosDisponiblesProps} />
-          
-  //       );
-  //     case 1:
-  //       return (
-          
-  //           <TableProductosSeleccionados {...tableProductosSeleccionadosProps} />
-          
-  //       );
-  //     default:
-  //       return null;
-  //   }
-  // }, [activeTab, tableProductosDisponiblesProps, tableProductosSeleccionadosProps]);
 
   return (
     <Dialog
@@ -423,11 +539,11 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
             onClick={handleConfirm}
             variant="contained"
             color="primary"
-            disabled={hayErrores || totalProductos === 0 || loading}
+            disabled={hayErrores || (totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length === 0) || loading}
             fullWidth={isMobile}
             startIcon={operacion === 'ENTRADA' ? <TrendingUp /> : <TrendingDown />}
           >
-            {loading ? 'Procesando...' : `Confirmar ${operacion}`}
+            {loading ? 'Procesando...' : totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0 ? 'Terminar' : `Confirmar ${operacion}`}
           </Button>
         </Stack>
       </DialogActions>

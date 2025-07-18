@@ -77,7 +77,7 @@ export function calcularCPP(
  * @returns true si requiere cálculo de CPP
  */
 export function requiereCPP(tipo: ITipoMovimiento): boolean {
-  return tipo === 'COMPRA' || tipo === 'TRASPASO_ENTRADA' || tipo === 'CONSIGNACION_ENTRADA';
+  return tipo === 'COMPRA' || tipo === 'TRASPASO_SALIDA' || tipo === 'TRASPASO_ENTRADA' || tipo === 'CONSIGNACION_ENTRADA';
 }
 
 /**
