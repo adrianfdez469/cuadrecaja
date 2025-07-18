@@ -319,7 +319,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
         return prods;
       }
       if (operacion === 'SALIDA') {
-        const productos = await getProductosTiendaParaNoEntrada(tiendaId, tipo, { take, skip, ...filter });
+        const productos = await getProductosTiendaParaNoEntrada(tiendaId, tipo, { take, skip, ...filter }, proveedor?.id);
         const prods: IProductoDisponible[] = [];
 
 

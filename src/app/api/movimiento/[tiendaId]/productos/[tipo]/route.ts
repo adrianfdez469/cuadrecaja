@@ -54,6 +54,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
       return NextResponse.json(productos, {status: 200});
 
     } else if(tipo.toUpperCase() === 'SALIDA') {
+
+      const whereProductoTienda = {
+        tiendaId: tiendaId,
+        existencia: {
+          gt: 0
+        },
+        ...(proveedorId && {proveedorId: proveedorId})
+      }
+
       const productos = await prisma.producto.findMany({
         where: {
           negocioId: negocioId,
@@ -83,14 +92,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
                 gt: 0
               }
             },  
+
           }
         },
         include: {
           categoria: true,
           productosTienda: {
-            where: {
-              tiendaId: tiendaId,
-            },
+            where: whereProductoTienda,
             include: {
               proveedor: true
             }

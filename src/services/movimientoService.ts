@@ -111,13 +111,14 @@ export const getProductosTiendaParaEntrada = async (tiendaId: string, tipo: ITip
   return resp.data;
 }
 
-export const getProductosTiendaParaNoEntrada = async (tiendaId: string, tipo: ITipoMovimiento, filter: IProdTiendaQueryParams): Promise<IProdTiendaResponse[]> => {
+export const getProductosTiendaParaNoEntrada = async (tiendaId: string, tipo: ITipoMovimiento, filter: IProdTiendaQueryParams, proveedorId?: string): Promise<IProdTiendaResponse[]> => {
   const resp = await axios.get(`${API_URL}/${tiendaId}/productos/salida`, {
     params: {
       ...filter,
       take: filter?.take || 50,
       skip: filter?.skip || 0,
-      tipo: tipo
+      tipo: tipo,
+      ...(proveedorId && {proveedorId: proveedorId})
     }
   });
   return resp.data;
