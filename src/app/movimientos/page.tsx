@@ -756,7 +756,7 @@ export default function MovimientosPage() {
             </Stack>
             {searchTerm && (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
-                Filtro activo: "{searchTerm}" - {movimientos.length} resultados encontrados
+               {`Filtro activo: \"{searchTerm}\" - {movimientos.length} resultados encontrados`}
               </Typography>
             )}
           </Box>
