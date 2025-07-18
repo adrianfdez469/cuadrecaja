@@ -1,8 +1,7 @@
-import { IProductoTiendaV2 } from "@/types/IProducto";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
-import { Add, ExpandMore, ExpandLess, FilterList, Search, FilterAlt } from "@mui/icons-material";
-import { Alert, Box, TableHead, Table, Paper, TableContainer, CircularProgress, TableRow, TableCell, TableBody, Typography, IconButton, Tooltip, Chip, Card, CardContent, Collapse, Grid, TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem, Button } from "@mui/material";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Add, Search, FilterAlt } from "@mui/icons-material";
+import { Alert, Box, TableHead, Table, Paper, TableContainer, CircularProgress, TableRow, TableCell, TableBody, Typography, IconButton, Tooltip, Chip, Card, CardContent, Grid, TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem, Button } from "@mui/material";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { IProductoDisponible, OperacionTipo } from "../ProductSelectionModal";
 import { ICategory } from "@/types/ICategoria";
 import { fetchCategories } from "@/services/categoryService";
@@ -42,7 +41,6 @@ const TableProductosDisponibles: React.FC<IProps> = ({
   currentPage,
 }) => {
 
-  const [filtersExpanded, setFiltersExpanded] = useState(!isMobile);
   const [categorias, setCategorias] = useState<ICategory[]>([]);
 
   // Refs para los inputs no controlados

@@ -42,8 +42,6 @@ import {
   ExpandLess
 } from "@mui/icons-material";
 import { AddMovimientoDialog } from "./components/addMovimientoDialog";
-import { IProducto } from "@/types/IProducto";
-import { fetchProducts } from "@/services/productServise";
 import { useAppContext } from "@/context/AppContext";
 import { cretateBatchMovimientos, findMovimientos, getMovimientosProductosEnviados } from "@/services/movimientoService";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
@@ -61,7 +59,6 @@ const PAGE_SIZE = 20;
 export default function MovimientosPage() {
   const [movimientos, setMovimientos] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [productos, setProductos] = useState<IProducto[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const { user, loadingContext } = useAppContext();
   const [loadingData, setLoadingData] = useState(true);
@@ -149,7 +146,7 @@ export default function MovimientosPage() {
   }
 
   const loadPendientesRecep = async (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string}) => {
-    console.log('pendienteRecepcion --- w', pendienteRecepcion);
+    console.log(operacion, take, skip, filter);
     
     return pendienteRecepcion.map((item) => {
       return {
@@ -182,8 +179,6 @@ export default function MovimientosPage() {
           }
 
           setSkip(0);
-          const prods = await fetchProducts();
-          setProductos(prods || []);
           await fetchMovimientos(0);
           fecthPendientesRecep(); // fetch pendientes de recepcion asincronico
         } catch (error) {

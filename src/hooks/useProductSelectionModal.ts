@@ -1,22 +1,21 @@
 import { useState, useCallback } from 'react';
-import { OperacionTipo, ProductoSeleccionado } from '@/components/ProductcSelectionModal/ProductSelectionModal';
-import { IProductoTiendaV2 } from '@/types/IProducto';
+import { OperacionTipo, IProductoSeleccionado } from '@/components/ProductcSelectionModal/ProductSelectionModal';
 
 interface UseProductSelectionModalReturn {
   isOpen: boolean;
   operacion: OperacionTipo;
   openModal: (operacion: OperacionTipo) => void;
   closeModal: () => void;
-  handleConfirm: (productos: ProductoSeleccionado[]) => void;
-  onConfirm: (productos: ProductoSeleccionado[]) => void | Promise<void>;
-  setOnConfirm: (callback: (productos: ProductoSeleccionado[]) => void | Promise<void>) => void;
+  handleConfirm: (productos: IProductoSeleccionado[]) => void;
+  onConfirm: (productos: IProductoSeleccionado[]) => void | Promise<void>;
+  setOnConfirm: (callback: (productos: IProductoSeleccionado[]) => void | Promise<void>) => void;
 }
 
 export const useProductSelectionModal = (): UseProductSelectionModalReturn => {
   const [isOpen, setIsOpen] = useState(false);
   const [operacion, setOperacion] = useState<OperacionTipo>('ENTRADA');
   const [onConfirmCallback, setOnConfirmCallback] = useState<
-    (productos: ProductoSeleccionado[]) => void | Promise<void>
+    (productos: IProductoSeleccionado[]) => void | Promise<void>
   >(() => {});
 
   const openModal = useCallback((tipo: OperacionTipo) => {
@@ -28,7 +27,7 @@ export const useProductSelectionModal = (): UseProductSelectionModalReturn => {
     setIsOpen(false);
   }, []);
 
-  const handleConfirm = useCallback(async (productos: ProductoSeleccionado[]) => {
+  const handleConfirm = useCallback(async (productos: IProductoSeleccionado[]) => {
     try {
       await onConfirmCallback(productos);
       closeModal();
@@ -39,7 +38,7 @@ export const useProductSelectionModal = (): UseProductSelectionModalReturn => {
   }, [onConfirmCallback, closeModal]);
 
   const setOnConfirm = useCallback((
-    callback: (productos: ProductoSeleccionado[]) => void | Promise<void>
+    callback: (productos: IProductoSeleccionado[]) => void | Promise<void>
   ) => {
     setOnConfirmCallback(() => callback);
   }, []);

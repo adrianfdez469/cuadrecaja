@@ -1,5 +1,5 @@
 import { FC, useState, useEffect } from "react";
-import { IProducto, IProductoTiendaV2 } from "@/types/IProducto";
+
 import {
   Box,
   Button,
@@ -8,17 +8,14 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  IconButton,
   InputLabel,
   MenuItem,
   Select,
   TextField,
   Typography,
-  InputAdornment,
   Icon,
   useTheme,
   useMediaQuery,
-  Stack,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -27,7 +24,6 @@ import {
   Card,
   CardContent
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -42,7 +38,6 @@ import {
   TIPO_MOVIMIENTO_EJEMPLOS,
   TIPO_MOVIMIENTO_COLORS
 } from "@/constants/movimientos";
-import useConfirmDialog from "@/components/confirmDialog";
 import { formatCurrency } from "@/utils/formatters";
 import { Add, Info } from "@mui/icons-material";
 import { getProveedores, createProveedor } from "@/services/proveedorService";
@@ -111,7 +106,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const [loadingProveedores, setLoadingProveedores] = useState(false);
   const [creandoProveedor, setCreandoProveedor] = useState(false);
   const { user } = useAppContext();
-  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const [loadingProductos, setLoadingProductos] = useState(false);
   const {
     isOpen,
@@ -144,7 +138,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
       // Lógica para procesar la selección
       console.log(productosSeleccionados);
 
-      setItemsProductos((st) =>
+      setItemsProductos(
         productosSeleccionados.map((p) => {
           return {
             nombre: p.nombre,
@@ -765,9 +759,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
-
-      {ConfirmDialogComponent}
-
     </>
   );
 };

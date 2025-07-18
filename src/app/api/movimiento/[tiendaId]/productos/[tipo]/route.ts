@@ -1,7 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/utils/auth";
 import getUserFromRequest from "@/utils/getUserFromRequest";
-import { MovimientoTipo } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo: string, tiendaId: string }> }) {

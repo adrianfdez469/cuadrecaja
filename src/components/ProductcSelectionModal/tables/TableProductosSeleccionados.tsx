@@ -1,7 +1,6 @@
-import { IProductoTiendaV2 } from "@/types/IProducto";
 import { formatCurrency, sanitizeNumber } from "@/utils/formatters";
 import { Delete } from "@mui/icons-material";
-import { Alert, Box, TableHead, Table, Paper, TableContainer, TableRow, TableCell, TableBody, Typography, IconButton, Tooltip, Chip, Card, CardContent, Grid, TextField } from "@mui/material";
+import { Alert, Box, TableHead, Table, Paper, TableContainer, TableRow, TableCell, TableBody, Typography, IconButton, Tooltip, Card, CardContent, Grid, TextField } from "@mui/material";
 import React from "react";
 import { OperacionTipo, IProductoSeleccionado } from "../ProductSelectionModal";
 import { ITipoMovimiento } from "@/types/IMovimiento";
@@ -46,7 +45,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
   if (productosSeleccionados.length === 0 && show) {
     return (
       <Alert severity="info">
-        No hay productos seleccionados. Ve a la pestaña "Productos Disponibles" para agregar productos.
+        {`No hay productos seleccionados. Ve a la pestaña \"Productos Disponibles\" para agregar productos.`}
       </Alert>
     );
   }

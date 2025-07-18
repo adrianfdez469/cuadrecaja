@@ -1,5 +1,5 @@
 import { ITipoMovimiento } from "@/types/IMovimiento";
-import { IProducto, IProductoTienda, IProductoTiendaV2 } from "@/types/IProducto";
+import { IProducto, IProductoTiendaV2 } from "@/types/IProducto";
 import { IProveedor } from "@/types/IProveedor";
 import axios from "axios";
 

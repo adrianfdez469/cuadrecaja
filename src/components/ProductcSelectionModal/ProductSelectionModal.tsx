@@ -32,41 +32,6 @@ import { useMessageContext } from '@/context/MessageContext';
 // Tipos para el componente
 export type OperacionTipo = 'ENTRADA' | 'SALIDA';
 
-// export interface ProductoSeleccionado {
-//   productoId: string;
-//   nombre: string;
-//   productoTienda?: {id: string, existencia: number, proveedor?: {id: string, nombre: string}};
-//   productoTiendaId?: string;
-//   cantidad: number;
-//   costo?: number;
-//   costoTotal?: number;
-
-// }
-
-// export interface IProdAgregable {
-//   costo?: number;
-//   existencia?: number;
-//   id?: string;
-//   precio?: number;
-//   producto: {
-//     id: string;
-//     nombre: string;
-//     descripcion: string;
-//     categoria: {
-//       id: string;
-//       nombre: string;
-//     };
-//     categoriaId: string;
-//   };
-//   productoId: string;
-//   proveedor?: {
-//     id: string;
-//     nombre: string;
-//   };
-//   proveedorId: string;
-//   tiendaId: string;
-// }
-
 export interface IProductoDisponible {
   productoId: string;
   nombre: string;
@@ -134,8 +99,6 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   // Estados para filtros
   const [currentFilters, setCurrentFilters] = useState<{ text?: string, categoriaId?: string }>({});
-  const [isApplyingFilters, setIsApplyingFilters] = useState(false);
-  // const [blockInfiniteScroll, setBlockInfiniteScroll] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
 
   // Productos disponibles (excluyendo los ya seleccionados) - MEMOIZADO
@@ -155,14 +118,6 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   // Totales - MEMOIZADOS
   const totalProductos = useMemo(() => productosSeleccionados.length, [productosSeleccionados]);
-  // const totalCantidad = useMemo(() => 
-  //   productosSeleccionados.reduce((sum, p) => sum + p.cantidad, 0), 
-  //   [productosSeleccionados]
-  // );
-  // const totalCosto = useMemo(() => 
-  //   productosSeleccionados.reduce((sum, p) => sum + p.costoTotal, 0), 
-  //   [productosSeleccionados]
-  // );
 
   // Validaciones - MEMOIZADAS
   const hayErrores = useMemo(() =>
