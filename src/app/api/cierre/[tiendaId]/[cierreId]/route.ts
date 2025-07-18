@@ -59,7 +59,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
     let totalVentasConsignacion = 0;
     let totalGananciasPropias = 0;
     let totalGananciasConsignacion = 0;
-    let totalTransferenciasByDestination: {
+    const totalTransferenciasByDestination: {
       id: string;
       nombre: string;
       total: number;
