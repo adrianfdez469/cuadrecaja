@@ -68,6 +68,12 @@ export default function MovimientosPage() {
   const [pendienteRecepcion, setPendienteRecepcion] = useState([]);
   const { showMessage } = useMessageContext()
   
+  // 🆕 Estados para paginación mejorada
+  const [totalMovimientos, setTotalMovimientos] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const [searchInputValue, setSearchInputValue] = useState(""); // 🆕 Valor del input no controlado
+  
   const {
     isOpen: pendienteRecepcionDialogOpen,
     operacion: pendienteRecepcionOperacion,
@@ -84,15 +90,56 @@ export default function MovimientosPage() {
 
   const [skip, setSkip] = useState(0);
 
-  const fetchMovimientos = async (nuevoSkip = skip) => {
+  // 🆕 Función mejorada para cargar movimientos con filtrado en backend
+  const fetchMovimientos = async (nuevoSkip = skip, searchFilter = searchTerm) => {
     try {
+      setLoadingData(true);
       const tiendaId = user.localActual.id;
-      const result = await findMovimientos(tiendaId, PAGE_SIZE, nuevoSkip);
-      setMovimientos(result || []);
+      
+      const result = await findMovimientos(
+        tiendaId, 
+        PAGE_SIZE, 
+        nuevoSkip,
+        undefined, // productoTiendaId
+        undefined, // tipo
+        undefined, // intervalo
+        searchFilter // 🆕 Nuevo parámetro para búsqueda
+      );
+      
+      setMovimientos(result?.data || []);
+      setTotalMovimientos(result?.total || 0);
+      setHasMoreData((result?.data?.length || 0) === PAGE_SIZE && (nuevoSkip + PAGE_SIZE) < (result?.total || 0));
+      
     } catch (error) {
       console.error("Error al cargar movimientos:", error);
       setMovimientos([]);
+      setTotalMovimientos(0);
+      setHasMoreData(false);
+    } finally {
+      setLoadingData(false);
     }
+  };
+
+  // 🆕 Función para manejar búsqueda con botón filtrar
+  const handleFilter = () => {
+    setSearchTerm(searchInputValue);
+    setSkip(0);
+    setCurrentPage(0);
+    fetchMovimientos(0, searchInputValue);
+  };
+
+  // 🆕 Función para limpiar búsqueda
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    setSearchInputValue("");
+    setSkip(0);
+    setCurrentPage(0);
+    fetchMovimientos(0, "");
+  };
+
+  // 🆕 Función para manejar cambio en el input (no controlado)
+  const handleInputChange = (value: string) => {
+    setSearchInputValue(value);
   };
 
   const fecthPendientesRecep = async () => {
@@ -179,6 +226,7 @@ export default function MovimientosPage() {
           }
 
           setSkip(0);
+          setCurrentPage(0);
           await fetchMovimientos(0);
           fecthPendientesRecep(); // fetch pendientes de recepcion asincronico
         } catch (error) {
@@ -192,29 +240,27 @@ export default function MovimientosPage() {
 
   const handleInicio = () => {
     setSkip(0);
+    setCurrentPage(0);
     fetchMovimientos(0);
   };
 
   const handleAnterior = () => {
     const nuevoSkip = Math.max(skip - PAGE_SIZE, 0);
+    const nuevaPagina = Math.max(currentPage - 1, 0);
     setSkip(nuevoSkip);
+    setCurrentPage(nuevaPagina);
     fetchMovimientos(nuevoSkip);
   };
 
   const handleSiguiente = () => {
     const nuevoSkip = skip + PAGE_SIZE;
+    const nuevaPagina = currentPage + 1;
     setSkip(nuevoSkip);
+    setCurrentPage(nuevaPagina);
     fetchMovimientos(nuevoSkip);
   };
 
-  const filteredMovimientos = movimientos.filter((movimiento) =>
-    movimiento.tipo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    movimiento.productoTienda?.producto?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    movimiento.usuario?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   // Cálculos para estadísticas
-  const totalMovimientos = movimientos.length;
   const movimientosEntrada = movimientos.filter(m => !isMovimientoBaja(m.tipo)).length;
   const movimientosSalida = movimientos.filter(m => isMovimientoBaja(m.tipo)).length;
   const productosAfectados = [...new Set(movimientos.map(m => m.productoTiendaId))].length;
@@ -308,7 +354,7 @@ export default function MovimientosPage() {
       >
         {isMobile ? "Crear" : "Crear Movimiento"}
       </Button>
-      {(filteredMovimientos.length === 0 && !searchTerm) &&
+      {(movimientos.length === 0 && !searchTerm) &&
         <Button
           variant="contained"
           startIcon={!isMobile ? <Dock /> : undefined}
@@ -479,28 +525,55 @@ export default function MovimientosPage() {
         title="Historial de Movimientos"
         subtitle={!isMobile ? "Registro detallado de todas las transacciones de inventario" : undefined}
         headerActions={
-          <TextField
-            size="small"
-            placeholder={isMobile ? "Buscar..." : "Buscar movimiento..."}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : 'none'
-            }}
-          />
+          <Stack direction="row" spacing={1} alignItems="center">
+            <TextField
+              size="small"
+              placeholder={isMobile ? "Buscar..." : "Buscar movimiento..."}
+              value={searchInputValue}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleFilter();
+                }
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                minWidth: isMobile ? 120 : 200,
+                maxWidth: isMobile ? 150 : 250
+              }}
+            />
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleFilter}
+              disabled={loadingData || !searchInputValue.trim()}
+              sx={{ minWidth: 'auto', px: 2 }}
+            >
+              {isMobile ? "Filtrar" : "Filtrar"}
+            </Button>
+            {(searchTerm || searchInputValue) && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleClearSearch}
+                disabled={loadingData}
+                sx={{ minWidth: 'auto', px: 2 }}
+              >
+                {isMobile ? "Limpiar" : "Limpiar"}
+              </Button>
+            )}
+          </Stack>
         }
         noPadding
         fullHeight
       >
-        {filteredMovimientos.length === 0 ? (
+        {movimientos.length === 0 ? (
           <Box sx={{ p: 2 }}>
             <Alert severity="info" sx={{ mt: 2 }}>
               <Typography variant="h6" gutterBottom>
@@ -528,7 +601,7 @@ export default function MovimientosPage() {
           // Vista móvil con cards más compactas
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
-              {filteredMovimientos.map((movimiento, i) => (
+              {movimientos.map((movimiento, i) => (
                 <Card
                   key={i}
                   sx={{
@@ -601,7 +674,7 @@ export default function MovimientosPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredMovimientos.map((movimiento, i) => (
+                {movimientos.map((movimiento, i) => (
                   <TableRow
                     key={i}
                     sx={{
@@ -650,7 +723,7 @@ export default function MovimientosPage() {
         )}
 
         {/* Paginación */}
-        {filteredMovimientos.length > 0 && (
+        {movimientos.length > 0 && (
           <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
             <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
               <Button
@@ -670,17 +743,22 @@ export default function MovimientosPage() {
                 Anterior
               </Button>
               <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
-                Mostrando {skip + 1} - {Math.min(skip + PAGE_SIZE, skip + filteredMovimientos.length)}
+                Mostrando {skip + 1} - {Math.min(skip + movimientos.length, totalMovimientos)} de {totalMovimientos} movimientos
               </Typography>
               <Button
                 variant="outlined"
                 size="small"
                 onClick={handleSiguiente}
-                disabled={filteredMovimientos.length < PAGE_SIZE}
+                disabled={!hasMoreData}
               >
                 Siguiente
               </Button>
             </Stack>
+            {searchTerm && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
+                Filtro activo: "{searchTerm}" - {movimientos.length} resultados encontrados
+              </Typography>
+            )}
           </Box>
         )}
       </ContentCard>

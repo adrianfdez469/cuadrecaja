@@ -12,7 +12,15 @@ export const cretateBatchMovimientos = async (data, items) => {
   });
 }
 
-export const findMovimientos = async (tiendaId: string, take: number = 20, skip: number = 0, productoTiendaId?: string, tipo?: ITipoMovimiento, intervalo?: {fechaInicio?: Date, fechaFin?: Date}) => {
+export const findMovimientos = async (
+  tiendaId: string, 
+  take: number = 20, 
+  skip: number = 0, 
+  productoTiendaId?: string, 
+  tipo?: ITipoMovimiento, 
+  intervalo?: {fechaInicio?: Date, fechaFin?: Date},
+  searchTerm?: string
+) => {
   const response = await axios.get(API_URL, {
     params: {
       tiendaId: tiendaId,
@@ -22,6 +30,7 @@ export const findMovimientos = async (tiendaId: string, take: number = 20, skip:
       ...(intervalo?.fechaFin && {fechaFin: intervalo.fechaFin}),
       ...(productoTiendaId && {productoTiendaId: productoTiendaId}),
       ...(tipo && {tipo: tipo}),
+      ...(searchTerm && {search: searchTerm}),
     }
   });
 
