@@ -98,13 +98,14 @@ interface IProdTiendaResponse extends IProducto {
   productosTienda?: IProductoTiendaV2[]
 }
 
-export const getProductosTiendaParaEntrada = async (tiendaId: string, tipo: ITipoMovimiento, filter: IProdTiendaQueryParams): Promise<IProdTiendaResponse[]> => {
+export const getProductosTiendaParaEntrada = async (tiendaId: string, tipo: ITipoMovimiento, filter: IProdTiendaQueryParams, proveedorId?: string): Promise<IProdTiendaResponse[]> => {
   const resp = await axios.get(`${API_URL}/${tiendaId}/productos/entrada`, {
     params: {
       ...filter,
       take: filter?.take || 50,
       skip: filter?.skip || 0,
-      tipo: tipo
+      tipo: tipo,
+      ...(proveedorId && {proveedorId: proveedorId})
     }
   });
   return resp.data;

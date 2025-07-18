@@ -10,7 +10,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ tiendaId
     const movimientos = await prisma.movimientoStock.findMany({
       where: {
         destinationId: tiendaId,
-        tipo: MovimientoTipo.TRASPASO_SALIDA
+        tipo: MovimientoTipo.TRASPASO_SALIDA,
+        state: 'PENDIENTE'
       },
       include: {
         productoTienda: {
@@ -36,9 +37,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ tiendaId
       orderBy: {
         fecha: 'desc'
       }
-    })
+    });
 
-    return NextResponse.json(movimientos, {status: 200});
+    const movs = movimientos.map((m) => {
+      return {
+        ...m,
+        movimientoOrigenId: m.id,
+        productoTienda: {
+          ...m.productoTienda,
+          existencia: m.cantidad
+        }
+      }
+    });
+
+    return NextResponse.json(movs, {status: 200});
   } catch (error) {
     console.log(error);
     

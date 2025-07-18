@@ -40,7 +40,7 @@ export type OperacionTipo = 'ENTRADA' | 'SALIDA';
 //   cantidad: number;
 //   costo?: number;
 //   costoTotal?: number;
-  
+
 // }
 
 // export interface IProdAgregable {
@@ -85,9 +85,10 @@ export interface IProductoDisponible {
     id: string;
     nombre: string;
   };
-} 
+  movimientoOrigenId?: string;
+}
 
-export interface IProductoSeleccionado  extends IProductoDisponible{
+export interface IProductoSeleccionado extends IProductoDisponible {
   cantidad: number;
   costoTotal: number;
 }
@@ -95,7 +96,7 @@ export interface IProductoSeleccionado  extends IProductoDisponible{
 interface ProductSelectionModalProps {
   open: boolean;
   onClose: () => void;
-  loadProductos: (operacion: OperacionTipo, take: number, skip: number, filter?: {categoriaId?: string, text?: string}) => Promise<IProductoDisponible[]>;
+  loadProductos: (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string }) => Promise<IProductoDisponible[]>;
   operacion: OperacionTipo;
   iTipoMovimiento: ITipoMovimiento;
   onConfirm: (productosSeleccionados: IProductoSeleccionado[]) => void;
@@ -103,7 +104,7 @@ interface ProductSelectionModalProps {
   productosSeleccionadosIniciales?: IProductoSeleccionado[];
 }
 
-const ITEMS_PER_PAGE = 50; 
+const ITEMS_PER_PAGE = 50;
 
 
 
@@ -115,32 +116,41 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   onConfirm,
   loading = false,
   iTipoMovimiento,
-  productosSeleccionadosIniciales 
+  productosSeleccionadosIniciales
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { showMessage } = useMessageContext();
-  
+
   // Estados principales
   const [activeTab, setActiveTab] = useState<number>(0);
   const [productosSeleccionados, setProductosSeleccionados] = useState<IProductoSeleccionado[]>(productosSeleccionadosIniciales || []);
   const [productos, setProductos] = useState<IProductoDisponible[]>([]);
-  
+
   // Estados para infinite scroll
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Estados para filtros
-  const [currentFilters, setCurrentFilters] = useState<{text?: string, categoriaId?: string}>({});
+  const [currentFilters, setCurrentFilters] = useState<{ text?: string, categoriaId?: string }>({});
   const [isApplyingFilters, setIsApplyingFilters] = useState(false);
   // const [blockInfiniteScroll, setBlockInfiniteScroll] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
 
   // Productos disponibles (excluyendo los ya seleccionados) - MEMOIZADO
   const productosDisponibles = useMemo(() => {
-    const idsSeleccionados = new Set(productosSeleccionados.map(p => p.productoId));
-    return productos.filter(p => !idsSeleccionados.has(p.productoId));
+    console.log('productosDisponibles', productos, productosSeleccionados);
+
+    const buildId = (p) => {
+      const prodId = p.productoId;
+      const provId = p.proveedorId || '';
+      const movId = p.movimientoOrigenId || '';
+      return `${prodId}-${provId}-${movId}`;
+    };
+    const idsSeleccionados = new Set(productosSeleccionados.map(p => buildId(p)));
+    
+    return productos.filter(p => !idsSeleccionados.has(buildId(p)));
   }, [productos, productosSeleccionados]);
 
   // Totales - MEMOIZADOS
@@ -155,25 +165,25 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   // );
 
   // Validaciones - MEMOIZADAS
-  const hayErrores = useMemo(() => 
+  const hayErrores = useMemo(() =>
     productosSeleccionados.some(p => {
       if (operacion === 'SALIDA' || iTipoMovimiento === 'TRASPASO_ENTRADA') {
         return p.cantidad > p.existencia;
       }
       return p.cantidad <= 0;
-    }), 
+    }),
     [productosSeleccionados, operacion]
   );
 
   const handleConfirm = useCallback(() => {
-    if (hayErrores ) return;
+    if (hayErrores) return;
 
-    if(totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0) {
+    if (totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0) {
       onConfirm(productosSeleccionados);
       return;
     }
 
-    if(productosSeleccionados.some(p => p.costo === 0 || p.costo === null)) {
+    if (productosSeleccionados.some(p => p.costo === 0 || p.costo === null)) {
       showMessage('El costo de un producto no puede ser 0', 'error');
       return;
     }
@@ -185,29 +195,29 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   const loadMoreProductos = useCallback(async () => {
 
     console.log('loadMoreProductos');
-    
+
     // Validaciones más estrictas para evitar llamadas innecesarias
     if (isLoadingMore || !hasMore || productos.length === 0 || currentPage === 1) return;
-    
+
     setIsLoadingMore(true);
     try {
       const nuevosProductos = await loadProductos(
-        operacion, 
-        ITEMS_PER_PAGE, 
-        (currentPage - 1) * ITEMS_PER_PAGE, 
+        operacion,
+        ITEMS_PER_PAGE,
+        (currentPage - 1) * ITEMS_PER_PAGE,
         currentFilters
       );
-      
+
       // Si no hay productos nuevos, definitivamente no hay más
       if (nuevosProductos.length === 0) {
         setHasMore(false);
         return;
       }
-      
+
       if (nuevosProductos.length < ITEMS_PER_PAGE) {
         setHasMore(false);
       }
-      
+
       setProductos(prev => [...prev, ...nuevosProductos]);
       setCurrentPage(prev => prev + 1);
     } catch (error) {
@@ -220,7 +230,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   }, [isLoadingMore, hasMore, productos.length, currentPage, loadProductos, operacion, currentFilters]);
 
   // Función para manejar cambios de filtros
-  const handleFilterChange = useCallback((filters: {text?: string, categoriaId?: string}) => {
+  const handleFilterChange = useCallback((filters: { text?: string, categoriaId?: string }) => {
 
     // Solo actualizar filtros si realmente cambiaron
     const filtersChanged = JSON.stringify(filters) !== JSON.stringify(currentFilters);
@@ -228,22 +238,22 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
     setIsFiltering(true);
     setCurrentFilters(filters);
-    
+
     // Resetear estados antes de cargar
     setProductos([]);
     setCurrentPage(1);
     setHasMore(true);
-    
+
     // Cargar productos con nuevos filtros
     const cargarProductosConFiltros = async () => {
       setIsLoadingMore(true);
       try {
         const productosFiltrados = await loadProductos(
-          operacion, 
+          operacion,
           ITEMS_PER_PAGE, 0,
           filters
         );
-        
+
         // Si no hay productos, definitivamente no hay más
         if (productosFiltrados.length === 0) {
           setHasMore(false);
@@ -252,7 +262,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         } else {
           setHasMore(true);
         }
-        
+
         // Actualizar productos de manera más suave para evitar re-renderizados abruptos
         setProductos(productosFiltrados);
         setCurrentPage(2);
@@ -266,7 +276,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         setIsFiltering(false);
       }
     };
-    
+
     cargarProductosConFiltros();
   }, [loadProductos, operacion, currentFilters]);
 
@@ -289,7 +299,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     if (open && productos.length === 0 && !isLoadingMore && currentPage === 1) {
       const cargarProductosIniciales = async () => {
         setIsLoadingMore(true);
-        
+
         try {
           console.log('cargarProductosIniciales');
           const productosIniciales = await loadProductos(
@@ -310,7 +320,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
             setHasMore(true);
             setProductos(productosIniciales);
           }
-          
+
           setCurrentPage(2);
         } catch (error) {
           console.error('Error cargando productos iniciales:', error);
@@ -321,7 +331,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
           setIsLoadingMore(false);
         }
       };
-      
+
       cargarProductosIniciales();
     }
   }, [open, operacion, loadProductos, currentFilters, productos.length, isLoadingMore, currentPage]);
@@ -330,14 +340,14 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   const agregarProducto = useCallback((producto: IProductoDisponible) => {
 
     console.log('agregarProducto', producto);
-    
+
     let cantidadInicial = 0;
     let costoInicial = 0;
-    if(operacion === 'ENTRADA') {
+    if (operacion === 'ENTRADA') {
       cantidadInicial = 1;
       costoInicial = 1;
     }
-    if(operacion === 'SALIDA' || iTipoMovimiento === 'TRASPASO_ENTRADA') {
+    if (operacion === 'SALIDA' || iTipoMovimiento === 'TRASPASO_ENTRADA') {
       cantidadInicial = producto.existencia;
       costoInicial = producto.costo;
     }
@@ -354,33 +364,37 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       proveedorId: producto.proveedorId,
       proveedor: producto.proveedor,
       cantidad: cantidadInicial,
-      costoTotal: cantidadInicial * costoInicial
+      costoTotal: cantidadInicial * costoInicial,
+      movimientoOrigenId: producto.movimientoOrigenId
     };
 
     setProductosSeleccionados(prev => [...prev, nuevoProducto]);
   }, [operacion]);
 
-  const actualizarCantidad = useCallback((productoId: string, nuevaCantidad: number) => {
+  const actualizarCantidad = useCallback((productoId: string, nuevaCantidad: number, proveedorId?: string) => {
+    
     const nuevaCantidadNumber = sanitizeNumber(Number(nuevaCantidad));
     setProductosSeleccionados(prev => prev.map(p => {
-      if (p.productoId === productoId) {
-        const cantidad = operacion === 'SALIDA' 
+
+      if (p.productoId === productoId && p.proveedorId === proveedorId) {
+        const cantidad = operacion === 'SALIDA'
           ? Math.min(nuevaCantidadNumber, p.existencia)
           : nuevaCantidadNumber;
-        
+
         return {
           ...p,
           cantidad,
           costoTotal: cantidad * p.costo
         };
       }
+
       return p;
     }));
   }, [operacion]);
 
   const actualizarCosto = useCallback((productoId: string, nuevoCosto: number) => {
     if (operacion === 'SALIDA') return; // No permitir editar costo en salidas
-    
+
     setProductosSeleccionados(prev => prev.map(p => {
       if (p.productoId === productoId) {
         return {
@@ -399,7 +413,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   const limpiarSeleccion = useCallback(() => {
     setProductosSeleccionados([]);
-  }, []); 
+  }, []);
 
   // Props memoizadas para las tablas
   const tableProductosDisponiblesProps = useMemo(() => ({
@@ -476,8 +490,8 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
               Selección de Productos - {operacion}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {operacion === 'ENTRADA' 
-                ? 'Agregar productos al inventario' 
+              {operacion === 'ENTRADA'
+                ? 'Agregar productos al inventario'
                 : 'Retirar productos del inventario'
               }
             </Typography>
@@ -491,28 +505,28 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       <DialogContent sx={{ p: isMobile ? 1 : 3, pb: 0 }}>
         {/* Tabs */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-          <Tabs 
-            value={activeTab} 
+          <Tabs
+            value={activeTab}
             onChange={(_, newValue) => setActiveTab(newValue)}
             variant={isMobile ? "fullWidth" : "standard"}
           >
-            <Tab 
+            <Tab
               label={
                 <Box display="flex" alignItems="center" gap={1}>
                   <Inventory />
                   <span>Productos Disponibles</span>
                   <Badge badgeContent={productosDisponibles.length} color="primary" />
                 </Box>
-              } 
+              }
             />
-            <Tab 
+            <Tab
               label={
                 <Box display="flex" alignItems="center" gap={1}>
                   <ShoppingCart />
                   <span>Productos Seleccionados</span>
                   <Badge badgeContent={totalProductos} color="secondary" />
                 </Box>
-              } 
+              }
             />
           </Tabs>
         </Box>
@@ -520,8 +534,8 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         {/* Contenido del tab activo */}
         {/* {renderActiveTab()} */}
 
-        <TableProductosDisponibles {...tableProductosDisponiblesProps} show={activeTab === 0}/>
-        <TableProductosSeleccionados {...tableProductosSeleccionadosProps} show={activeTab === 1}/>
+        <TableProductosDisponibles {...tableProductosDisponiblesProps} show={activeTab === 0} />
+        <TableProductosSeleccionados {...tableProductosSeleccionadosProps} show={activeTab === 1} />
       </DialogContent>
 
       {/* Footer */}

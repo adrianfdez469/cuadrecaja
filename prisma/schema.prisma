@@ -236,6 +236,8 @@ model MovimientoStock {
   destination Tienda? @relation("MovimientoStockDestino", fields: [destinationId], references: [id])
   destinationId String?
 
+  state MovimientoState @default(APROBADO)
+
   @@index([productoTiendaId])
   @@index([fecha])
 }
@@ -300,4 +302,9 @@ enum MovimientoTipo {
   DESAGREGACION_ALTA
   CONSIGNACION_ENTRADA
   CONSIGNACION_DEVOLUCION
+}
+
+enum MovimientoState {
+  PENDIENTE
+  APROBADO
 }

@@ -381,7 +381,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                 display: 'block'
                               }}
                             >
-                              {producto.nombre}
+                              {producto.proveedor ? `${producto.nombre} - ${producto.proveedor.nombre}` : producto.nombre}
                             </Typography>
                             {producto.proveedor && (
                               <Typography

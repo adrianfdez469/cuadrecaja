@@ -12,6 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
     const take = Number.parseInt(searchParams.get("take") || "20");
     const skip = Number.parseInt(searchParams.get("skip") || "0");
     const tipoMovimiento = searchParams.get("tipo") || "";
+    const proveedorId = searchParams.get("proveedorId") || "";
     const text = searchParams.get("text") || "";
     const categoriaId = searchParams.get("categoriaId") || "";
     
@@ -20,6 +21,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
     const user = await getUserFromRequest(req);
     const negocioId = user?.negocio.id;
     
+    const whereProductoTienda = {
+      tiendaId: tiendaId,
+      
+      ...(tipoMovimiento === 'CONSIGNACION_ENTRADA' ? {proveedorId: proveedorId} : {proveedorId: null})
+
+    }
 
     if(tipo.toUpperCase() === 'ENTRADA') {
       const productos = await prisma.producto.findMany({
@@ -27,19 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
           negocioId: negocioId,
           fraccionDeId: null,
 
-          ...(text && {
-            OR: [
-              { nombre: { contains: text, mode: 'insensitive' } },
-              // {
-              //   productosTienda: {
-              //     some: {
-              //       proveedor: {
-              //         nombre: { contains: text, mode: 'insensitive' }
-              //       }
-              //     }
-              //   }
-              // }
-            ]
+          ...(text && {nombre: { contains: text, mode: 'insensitive' }
           }),
           ...(categoriaId && {
             categoriaId: categoriaId
@@ -48,13 +43,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
         include: {
           categoria: true,
           productosTienda: {
-            where: {
-              tiendaId: tiendaId,
-              
-            },
-            // include: {
-            //   proveedor: true
-            // }
+            where: whereProductoTienda,
           }
         },
         take,

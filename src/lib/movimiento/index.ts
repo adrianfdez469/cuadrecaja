@@ -6,10 +6,15 @@ export const CreateMoviento = async (data, items) => {
 
   const { tipo, tiendaId, usuarioId, referenciaId, motivo, proveedorId, destinationId } = data;
 
+  console.log('data', data);
+  
+
   await prisma.$transaction(async (tx) => {
 
     for (const movimiento of items) {
-      const { productoId, cantidad, costoUnitario, proveedorId: itemProveedorId } = movimiento;
+      const { productoId, cantidad, costoUnitario, proveedorId: itemProveedorId, movimientoOrigenId } = movimiento;
+      console.log('movimiento', movimiento);
+      
 
       // 1. Obtener el productoTienda existente para capturar la existencia anterior
       let existenciaAnterior = 0;
@@ -27,7 +32,7 @@ export const CreateMoviento = async (data, items) => {
       if (productoTiendaExistente) {
         existenciaAnterior = productoTiendaExistente.existencia;
 
-        // 🆕 CÁLCULO CPP PARA COMPRAS
+        // 🆕 CÁLCULO CPP
         let nuevoCosto = productoTiendaExistente.costo;
 
         if (requiereCPP(tipo) && costoUnitario) {
@@ -55,7 +60,7 @@ export const CreateMoviento = async (data, items) => {
           },
           data: {
             existencia: {
-              increment: isMovimientoBaja(tipo) ? -cantidad : cantidad,
+              ...(isMovimientoBaja(tipo) ? {decrement: cantidad} : {increment: cantidad}),
             },
             // 🆕 Actualizar con CPP calculado o costo directo
             ...(requiereCPP(tipo) && costoUnitario && {
@@ -66,6 +71,10 @@ export const CreateMoviento = async (data, items) => {
 
       } else {
         // 2. Create para obtener el productoTienda
+
+        console.log(`Intentando crear productoTienda ${productoId} en tienda ${tiendaId} con proveedor ${itemProveedorId || proveedorId || null}`);
+        
+
         productoTienda = await tx.productoTienda.create({
           data: {
             tiendaId,
@@ -156,9 +165,17 @@ export const CreateMoviento = async (data, items) => {
           ...(motivo && { motivo: motivo }),
           ...(proveedorId && { proveedorId: proveedorId }),
           ...(itemProveedorId && {proveedorId: itemProveedorId}),
-          ...(destinationId && { destinationId: destinationId })
+          ...(destinationId && { destinationId: destinationId }),
+          ...(tipo === 'TRASPASO_SALIDA' && { state: 'PENDIENTE' })
         },
       });
+
+      if(tipo === 'TRASPASO_ENTRADA'){
+        await tx.movimientoStock.update({
+          where: { id: movimientoOrigenId },
+          data: { state: 'APROBADO' }
+        });
+      }
     }
   });
 

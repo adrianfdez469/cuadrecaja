@@ -44,7 +44,7 @@ import {
 } from "@/constants/movimientos";
 import useConfirmDialog from "@/components/confirmDialog";
 import { formatCurrency } from "@/utils/formatters";
-import { Info } from "@mui/icons-material";
+import { Add, Info } from "@mui/icons-material";
 import { getProveedores, createProveedor } from "@/services/proveedorService";
 import { IProveedor } from "@/types/IProveedor";
 import { requiereCPP } from "@/lib/cpp-calculator";
@@ -52,7 +52,6 @@ import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
 import { IProductoDisponible, OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal";
 import { ILocal } from "@/types/ILocal";
 import { getLocales } from "@/services/localesService";
-import { ICategory } from "@/types/ICategoria";
 
 interface IProductoMovimiento {
   nombre: string;
@@ -61,6 +60,10 @@ interface IProductoMovimiento {
   costoUnitario?: number;
   costoTotal: number;
   costo: number;
+  proveedor?: {
+    id: string;
+    nombre: string;
+  };
 }
 
 
@@ -150,7 +153,12 @@ export const AddMovimientoDialog: FC<IProps> = ({
             costoTotal: p.costo && p.cantidad ? p.costo * p.cantidad : 0,
             productoId: p.productoId,
             costoUnitario: p.costo || 0,
-            
+            ...(p.proveedor && {
+              proveedor: {
+                id: p.proveedor?.id || "",
+                nombre: p.proveedor?.nombre || ""
+              }
+            })
           }
         })
       );
@@ -221,7 +229,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
           tipo: tipo,
           usuarioId: user.id,
           ...(motivo !== "" && { motivo: motivo }),
-          ...((tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && proveedor && {
+          ...((tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION" ) && proveedor && {
             proveedorId: proveedor.id
           }),
           ...(tipo === "TRASPASO_SALIDA" && {
@@ -232,11 +240,14 @@ export const AddMovimientoDialog: FC<IProps> = ({
           return {
             cantidad: item.cantidad,
             productoId: item.productoId,
-            
+
             // Agregar costos si es necesario
             ...(requiereCPP(tipo) && item.costoUnitario && {
               costoUnitario: item.costoUnitario,
               costoTotal: item.costoTotal
+            }),
+            ...(item.proveedor && tipo === "TRASPASO_SALIDA" && {
+              proveedorId: item.proveedor.id
             })
           };
         })
@@ -272,7 +283,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
       setLoadingProductos(true);
       const tiendaId = user.localActual.id;
       if (operacion === 'ENTRADA') {
-        const productos = await getProductosTiendaParaEntrada(tiendaId, tipo, { take, skip, ...filter })
+        const productos = await getProductosTiendaParaEntrada(tiendaId, tipo, { take, skip, ...filter }, proveedor?.id)
         const prods: IProductoDisponible[] = [];
         productos.forEach((p) => {
 
@@ -703,7 +714,10 @@ export const AddMovimientoDialog: FC<IProps> = ({
           <Button
             sx={{ mb: 2, mt: 2 }}
             variant="contained"
-            fullWidth onClick={() => openModal(getOperacion(tipo))}
+            fullWidth
+            onClick={() => openModal(getOperacion(tipo))}
+            startIcon={<Add />}
+            disabled={isFormValid()}
           >
             Adicionar Productos
           </Button>
@@ -714,7 +728,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 <Card key={index}>
                   <CardContent>
                     <Typography variant="body1" fontWeight={500}>
-                      {p.nombre}
+                      {p.proveedor ? `${p.nombre} - ${p.proveedor.nombre}` : p.nombre}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {p.cantidad === 1 ? "1 unidad" : `${p.cantidad} unidades`}

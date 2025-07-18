@@ -108,7 +108,7 @@ export default function MovimientosPage() {
       pendienteRecepcionSetOnConfirm((prods) => {
         console.log('prods',prods);
         // Crear documento de tipo TRASPASO_ENTRADA con los productos
-        // crearMovimientosRecepción(prods);
+        crearMovimientosRecepción(prods);
       })
     }
   }
@@ -125,17 +125,20 @@ export default function MovimientosPage() {
           usuarioId: user.id,
         },
         prods.map((item) => {
+
           return {
             cantidad: item.cantidad,
             productoId: item.productoId,
-            costoUnitario: item.costoUnitario,
+            costoUnitario: item.costo,
             costoTotal: item.costoTotal,
-            proveedorId: item.proovedorId
+            ...(item.proveedor && {proveedorId: item.proveedor.id}),
+            movimientoOrigenId: item.movimientoOrigenId
           };
         })
       );
 
-      fetchMovimientos();
+      fetchMovimientos(0);
+      fecthPendientesRecep();
 
     } catch (error) {
       console.log(error);
@@ -146,9 +149,11 @@ export default function MovimientosPage() {
   }
 
   const loadPendientesRecep = async (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string}) => {
+    console.log('pendienteRecepcion --- w', pendienteRecepcion);
+    
     return pendienteRecepcion.map((item) => {
       return {
-        productoId: item.productoTiendaId,
+        productoId: item.productoTienda.productoId,
         nombre: item.productoTienda?.producto?.nombre,
         categoriaId: item.productoTienda?.producto?.categoriaId,
         categoria: item.productoTienda?.producto?.categoria,
@@ -159,6 +164,7 @@ export default function MovimientosPage() {
         proveedorId: item.productoTienda?.proveedorId,
         proveedor: item.productoTienda?.proveedor,
         
+        movimientoOrigenId: item.movimientoOrigenId
       }
     });
   }

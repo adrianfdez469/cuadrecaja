@@ -10,7 +10,7 @@ interface IProps {
   operacion: OperacionTipo;
   productosSeleccionados: IProductoSeleccionado[];
   isMobile: boolean;
-  actualizarCantidad: (productoId: string, nuevaCantidad: number) => void;
+  actualizarCantidad: (productoId: string, nuevaCantidad: number, proveedorId?: string) => void;
   actualizarCosto: (productoId: string, nuevoCosto: number) => void;
   eliminarProducto: (productoId: string) => void;
   limpiarSeleccion: () => void;
@@ -126,7 +126,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                   <TableCell>
                     <Box>
                       <Typography variant="body2" fontWeight="medium">
-                        {producto.nombre}
+                      {producto.proveedor ? `${producto.nombre} - ${producto.proveedor.nombre}` : producto.nombre}
                       </Typography>
                       {producto.proveedor && (
                         <Typography variant="caption" color="text.secondary">
@@ -140,24 +140,25 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                       type="number"
                       size="small"
                       value={sanitizeNumber(producto.cantidad)}
-                      onChange={(e) => actualizarCantidad(producto.productoId, sanitizeNumber(Number(e.target.value)))}
+                      onChange={(e) => actualizarCantidad(producto.productoId, sanitizeNumber(Number(e.target.value)), producto.proveedorId)}
                       inputProps={{ 
                         min: 1, 
                         max: esSalida ? producto.existencia : undefined 
                       }}
-                      
+                      disabled={tipoMovimiento === 'TRASPASO_ENTRADA'}
                       error={cantidadExcede}
                       helperText={cantidadExcede ? `Máx: ${producto.existencia}` : ''}
                       sx={{ width: 80 }}
                     />
                   </TableCell>
                   <TableCell align="center">
+                    
                     <TextField
                       type="number"
                       size="small"
                       value={sanitizeNumber(producto.costo)}
                       onChange={(e) => actualizarCosto(producto.productoId, sanitizeNumber(Number(e.target.value)))}
-                      disabled={esSalida}
+                      disabled={esSalida || tipoMovimiento === 'TRASPASO_ENTRADA'}
                       inputProps={{ min: 0, step: 0.01 }}
                       sx={{ width: 100 }}
                     />
