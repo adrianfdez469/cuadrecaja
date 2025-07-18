@@ -11,6 +11,7 @@ datasource db {
 model Negocio {
   id           String    @id @default(uuid())
   nombre       String    @unique
+  descripcion  String?
   createdAt    DateTime  @default(now())
 
   limitTime    DateTime
