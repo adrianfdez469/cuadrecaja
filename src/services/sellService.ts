@@ -25,7 +25,7 @@ export const createSell = async (
       totaltransfer,
       productos,
       syncId,
-      transferDestinationId
+      ...(totaltransfer > 0 && { transferDestinationId })
     }
   });
 

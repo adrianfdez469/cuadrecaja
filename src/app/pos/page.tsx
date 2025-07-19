@@ -311,7 +311,7 @@ export default function POSInterface() {
           totalCash,
           totalTransfer,
           identifier,
-          transferDestinationId
+          ...(totalTransfer > 0 && { transferDestinationId })
         });
 
         const data = cart.map((prod) => {
@@ -347,7 +347,7 @@ export default function POSInterface() {
           productos: data,
           usuarioId: user.id,
           syncState: "not_synced",
-          transferDestinationId
+          ...(totalTransfer > 0 && { transferDestinationId })
         });
 
         // 3. Actualizar inventario local

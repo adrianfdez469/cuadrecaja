@@ -126,7 +126,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
               precio: p.precio
             })),
           },
-          ...(transferDestinationId && {transferDestinationId: transferDestinationId}),
+          ...((transferDestinationId && totaltransfer > 0) && {transferDestinationId: transferDestinationId}),
         },
         include: {
           productos: true
