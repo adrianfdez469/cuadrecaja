@@ -29,9 +29,7 @@ import {
 } from "@mui/material";
 import { 
   Delete, 
-  Receipt,
   AttachMoney,
-  TrendingUp,
   CalendarToday,
   Search,
   Refresh,
@@ -49,14 +47,13 @@ import { getSells, removeSell } from "@/services/sellService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import VentaDetailDialog from "./components/VentaDetailDialog";
-import { formatDate, formatDateTime, formatCurrency, formatNumber, isToday } from '@/utils/formatters';
+import { formatDate, formatDateTime, formatCurrency, isToday } from '@/utils/formatters';
 
 const Ventas = () => {
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
   
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>();
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -166,10 +163,8 @@ const Ventas = () => {
   });
 
   // Cálculos para estadísticas
-  const totalVentas = filteredVentas.length;
   const montoTotal = filteredVentas.reduce((sum, venta) => sum + (venta.total || 0), 0);
   
-  const ventasHoy = filteredVentas.filter(v => isToday(v.createdAt)).length;
   const montoHoy = filteredVentas.filter(v => isToday(v.createdAt))
     .reduce((sum, venta) => sum + (venta.total || 0), 0);
 
