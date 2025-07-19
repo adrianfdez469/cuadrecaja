@@ -102,9 +102,7 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
     }
   };
 
-  const applyFilters = () => {
-    console.log('movimientos', movimientos);
-    
+  const applyFilters = () => {    
     let filtered = [...movimientos];
 
     // Filtro por fecha

@@ -42,6 +42,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
           categoria: true,
           productosTienda: {
             where: whereProductoTienda,
+            include: {
+              proveedor: true
+            }
           }
         },
         take,
