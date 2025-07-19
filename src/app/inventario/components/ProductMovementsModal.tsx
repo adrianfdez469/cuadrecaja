@@ -93,7 +93,7 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
         0,
         producto.id, // productoTiendaId
       );
-      setMovimientos(result || []);
+      setMovimientos(result?.data || []);
     } catch (error) {
       console.error('Error al cargar movimientos:', error);
       showMessage('Error al cargar los movimientos del producto', 'error');
@@ -103,6 +103,8 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
   };
 
   const applyFilters = () => {
+    console.log('movimientos', movimientos);
+    
     let filtered = [...movimientos];
 
     // Filtro por fecha
