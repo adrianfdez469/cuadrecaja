@@ -135,42 +135,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
       console.log('🔍 [POST /api/venta] Venta creada:', venta.id);
 
-      // 3. Crear movimientos de stock y actualizar existencias
-      for (const producto of productos) {
-        const productoTienda = productosExistentes.find(p => p.id === producto.productoTiendaId);
-        if (!productoTienda) continue;
-
-        const existenciaAnterior = productoTienda.existencia;
-
-        // Actualizar existencia
-        await tx.productoTienda.update({
-          where: { id: producto.productoTiendaId },
-          data: {
-            existencia: {
-              decrement: producto.cantidad
-            }
-          }
-        });
-
-        // Crear movimiento de venta
-        await tx.movimientoStock.create({
-          data: {
-            tipo: 'VENTA',
-            cantidad: producto.cantidad,
-            productoTiendaId: producto.productoTiendaId,
-            tiendaId,
-            usuarioId,
-            existenciaAnterior,
-            referenciaId: venta.id,
-            motivo: `Venta ${venta.id}`,
-            ...(productoTienda.proveedorId && {proveedorId: productoTienda.proveedorId})
-          }
-        });
-
-        console.log(`🔍 [POST /api/venta] Movimiento creado para producto ${producto.productoTiendaId}: -${producto.cantidad}`);
-      }
-
-      // 4. Manejar productos fraccionables (si aplica)
+      // 3. Manejar productos fraccionables (si aplica) - PRIMERO
       const productosFraccionables = await tx.productoTienda.findMany({
         where: {
           id: {
@@ -197,6 +162,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
         const productosFraccionablesData = productosFraccionables.filter(pf => pf.producto.fraccionDeId);
         
+        // Usar existencias originales para el cálculo
         const productosFraccionablesNeedDesagregateData = productosFraccionablesData
           .filter((prodFracc) => {
             const prod = productos.find(p => p.productoTiendaId === prodFracc.id);
@@ -204,6 +170,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
               if (prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
                 throw new Error(`Vendes más unidades sueltas de las que lleva una caja en una misma venta`);
               }
+              // Usar existencia original (antes de cualquier modificación)
               return prodFracc.existencia < prod.cantidad;
             }
             return false;
@@ -225,6 +192,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
         // Crear movimientos de desagregación dentro de la misma transacción
         if (itemsDesagregaciónBaja.length > 0) {
+          console.log('🔍 [POST /api/venta] Procesando DESAGREGACION_BAJA...');
           for (const item of itemsDesagregaciónBaja) {
             const productoTiendaDesagregar = await tx.productoTienda.findFirst({
               where: {
@@ -254,14 +222,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
                   tiendaId,
                   usuarioId,
                   existenciaAnterior,
-                  referenciaId: venta.id
+                  referenciaId: venta.id,
+                  motivo: `Desagregación para venta ${venta.id}`
                 }
               });
+
+              console.log(`🔍 [POST /api/venta] DESAGREGACION_BAJA creada para producto ${productoTiendaDesagregar.id}: -${item.cantidad}`);
             }
           }
         }
 
         if (itemsDesagregaciónAlta.length > 0) {
+          console.log('🔍 [POST /api/venta] Procesando DESAGREGACION_ALTA...');
           for (const item of itemsDesagregaciónAlta) {
             const productoTiendaAgregar = await tx.productoTienda.findFirst({
               where: {
@@ -291,12 +263,57 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
                   tiendaId,
                   usuarioId,
                   existenciaAnterior,
-                  referenciaId: venta.id
+                  referenciaId: venta.id,
+                  motivo: `Desagregación para venta ${venta.id}`
                 }
               });
+
+              console.log(`🔍 [POST /api/venta] DESAGREGACION_ALTA creada para producto ${productoTiendaAgregar.id}: +${item.cantidad}`);
             }
           }
         }
+      }
+
+      // 4. Crear movimientos de stock y actualizar existencias - ÚLTIMO
+      console.log('🔍 [POST /api/venta] Procesando movimientos de VENTA...');
+      for (const producto of productos) {
+        const productoTienda = productosExistentes.find(p => p.id === producto.productoTiendaId);
+        if (!productoTienda) continue;
+
+        // Obtener la existencia actual (después de desagregaciones si las hubo)
+        const productoTiendaActual = await tx.productoTienda.findUnique({
+          where: { id: producto.productoTiendaId },
+          select: { existencia: true }
+        });
+
+        const existenciaAnterior = productoTiendaActual.existencia;
+
+        // Actualizar existencia
+        await tx.productoTienda.update({
+          where: { id: producto.productoTiendaId },
+          data: {
+            existencia: {
+              decrement: producto.cantidad
+            }
+          }
+        });
+
+        // Crear movimiento de venta
+        await tx.movimientoStock.create({
+          data: {
+            tipo: 'VENTA',
+            cantidad: producto.cantidad,
+            productoTiendaId: producto.productoTiendaId,
+            tiendaId,
+            usuarioId,
+            existenciaAnterior,
+            referenciaId: venta.id,
+            motivo: `Venta ${venta.id}`,
+            ...(productoTienda.proveedorId && {proveedorId: productoTienda.proveedorId})
+          }
+        });
+
+        console.log(`🔍 [POST /api/venta] Movimiento VENTA creado para producto ${producto.productoTiendaId}: -${producto.cantidad}`);
       }
 
       console.log('🔍 [POST /api/venta] Transacción completada exitosamente');
