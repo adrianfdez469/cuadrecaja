@@ -230,7 +230,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
             onClick={handlePayAll}
             disabled={!productoTienda.existencia}
           >
-            Vender todo
+            Venta Rápida
           </Button>
         </Box>
       )}

@@ -457,6 +457,7 @@ export default function POSInterface() {
   };
   const handleConfirmQuantity = () => {
     setSelectedProduct(null);
+    setOpenCart(true);
   };
   if (loadingContext || loading) {
     return (
