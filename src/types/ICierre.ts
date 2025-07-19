@@ -45,6 +45,11 @@ export interface ICierreData {
     nombre: string;
     total: number;
   }[];
+  totalVentasPorUsuario: {
+    id: string;
+    nombre: string;
+    total: number;
+  }[];
 }
 
 export interface ISummaryCierre {

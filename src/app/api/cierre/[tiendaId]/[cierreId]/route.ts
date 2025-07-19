@@ -41,6 +41,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
                 id: true,
                 nombre: true,
               }
+            },
+            usuario: {
+              select: {
+                id: true,
+                nombre: true,
+              }
             }
           },
         },
@@ -64,6 +70,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       nombre: string;
       total: number;
     }[] = [];
+    const totalVentasPorUsuario: {
+      id: string;
+      nombre: string;
+      total: number;
+    }[] = [];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const productosVendidos: Record<string, any> = {};
@@ -79,6 +90,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
         }
         totalTransferenciasByDestination.find(t => t.id === id).total += venta.totaltransfer;
       }
+
+      if(!totalVentasPorUsuario.find(u => u.id === venta.usuario.id)) {
+        totalVentasPorUsuario.push({ id: venta.usuario.id, nombre: venta.usuario.nombre, total: 0 });
+      }
+      totalVentasPorUsuario.find(u => u.id === venta.usuario.id).total += venta.total;
   
       venta.productos.forEach((ventaProducto) => {
         const { producto: productoTienda, cantidad, costo, precio } = ventaProducto;
@@ -138,6 +154,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       totalGananciasPropias,
       totalGananciasConsignacion,
       totalTransferenciasByDestination,
+      totalVentasPorUsuario,
       productosVendidos: Object.values(productosVendidos).sort((a, b) => a.nombre.localeCompare(b.nombre)),
     };
     return NextResponse.json(cierreData);

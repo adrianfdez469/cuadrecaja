@@ -96,7 +96,8 @@ export const TablaProductosCierre: FC<IProps> = ({
     totalGananciasPropias,
     totalGananciasConsignacion,
     productosVendidos,
-    totalTransferenciasByDestination
+    totalTransferenciasByDestination,
+    totalVentasPorUsuario
   } = cierreData;
 
   // Función para renderizar tabla con agrupamiento
@@ -342,6 +343,31 @@ export const TablaProductosCierre: FC<IProps> = ({
           )}
         </Paper>
       )}
+
+      {/* Resumen de Ventas por Usuario */}
+      
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          📊 Resumen de Ventas por Usuario
+        </Typography>
+        <Grid container spacing={2}>
+          {totalVentasPorUsuario.map((usuario) => (
+            <Grid item xs={12} md={6} key={usuario.id}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <StoreIcon color="primary" />
+                    <Typography variant="subtitle1" fontWeight="bold">{usuario.nombre}</Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Ventas: {formatCurrency(usuario.total)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Paper>
 
       {/* Resumen de Consignación con datos reales */}
       <Paper sx={{ p: 2, mb: 2 }}>

@@ -155,20 +155,22 @@ const Ventas = () => {
     const ventaDate = formatDate(venta.createdAt).toLowerCase();
     const ventaTime = formatDateTime(venta.createdAt).toLowerCase();
     const ventaProductos = venta.productos?.map(p => p.name?.toLowerCase()).join(' ') || '';
+    const ventaUsuario = (venta.usuario?.nombre || '').toLocaleLowerCase()
 
     return ventaId.includes(searchLower) || 
            ventaDate.includes(searchLower) || 
            ventaTime.includes(searchLower) ||
-           ventaProductos.includes(searchLower)
+           ventaProductos.includes(searchLower) ||
+           ventaUsuario.includes(searchLower)
         ;
   });
 
   // Cálculos para estadísticas
-  const totalVentas = ventas.length;
-  const montoTotal = ventas.reduce((sum, venta) => sum + (venta.total || 0), 0);
+  const totalVentas = filteredVentas.length;
+  const montoTotal = filteredVentas.reduce((sum, venta) => sum + (venta.total || 0), 0);
   
-  const ventasHoy = ventas.filter(v => isToday(v.createdAt)).length;
-  const montoHoy = ventas.filter(v => isToday(v.createdAt))
+  const ventasHoy = filteredVentas.filter(v => isToday(v.createdAt)).length;
+  const montoHoy = filteredVentas.filter(v => isToday(v.createdAt))
     .reduce((sum, venta) => sum + (venta.total || 0), 0);
 
   if (loadingContext || isDataLoading) {
@@ -319,6 +321,18 @@ const Ventas = () => {
             >
               {label}
             </Typography>
+            {searchTerm && 
+              <Typography 
+                variant="body2" 
+                color="warning"
+                sx={{ 
+                  fontSize: isMobile ? '0.6875rem' : '0.875rem',
+                  lineHeight: 1.2
+                }}
+              >
+                Filtro Aplicado
+              </Typography>
+            }
           </Box>
         </Stack>
       </CardContent>
@@ -338,15 +352,8 @@ const Ventas = () => {
         <Box sx={{ mb: 2 }}>
           <Collapse in={statsExpanded}>
             <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Receipt />}
-                  value={formatNumber(totalVentas)}
-                  label="Ventas"
-                  color="primary.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
+              
+              <Grid item xs={12} sm={12} md={6}>
                 <StatCard
                   icon={<AttachMoney />}
                   value={formatCurrency(montoTotal)}
@@ -354,15 +361,7 @@ const Ventas = () => {
                   color="success.light"
                 />
               </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<TrendingUp />}
-                  value={formatNumber(ventasHoy)}
-                  label="Ventas Hoy"
-                  color="info.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={12} sm={12} md={6}>
                 <StatCard
                   icon={<CalendarToday />}
                   value={formatCurrency(montoHoy)}
@@ -376,15 +375,7 @@ const Ventas = () => {
         </Box>
       ) : (
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<Receipt />}
-              value={formatNumber(totalVentas)}
-              label="Ventas"
-              color="primary.light"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid item xs={12} sm={12} md={6}>
             <StatCard
               icon={<AttachMoney />}
               value={formatCurrency(montoTotal)}
@@ -392,15 +383,7 @@ const Ventas = () => {
               color="success.light"
             />
           </Grid>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<TrendingUp />}
-              value={formatNumber(ventasHoy)}
-              label="Ventas Hoy"
-              color="info.light"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
+          <Grid item xs={12} sm={12} md={6}>
             <StatCard
               icon={<CalendarToday />}
               value={formatCurrency(montoHoy)}
@@ -494,6 +477,11 @@ const Ventas = () => {
                             {venta.productos?.length || 0} productos
                           </Typography>
                         </Box>
+
+                        <Typography variant="body2">
+                          {venta.usuario?.nombre || ''} 
+                        </Typography>
+
                         <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
@@ -519,9 +507,9 @@ const Ventas = () => {
                 <TableRow>
                   <TableCell>ID Venta</TableCell>
                   <TableCell align="center">Fecha</TableCell>
-                  {!isTablet && <TableCell align="center">Hora</TableCell>}
                   <TableCell align="right">Monto Total</TableCell>
                   <TableCell align="center">Productos</TableCell>
+                  <TableCell align="center">Usuario</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
@@ -549,14 +537,10 @@ const Ventas = () => {
                       <Typography variant="body2">
                         {formatDate(venta.createdAt)}
                       </Typography>
-                    </TableCell>
-                    {!isTablet && (
-                      <TableCell align="center">
-                        <Typography variant="body2">
+                      <Typography variant="body2">
                           {formatDateTime(venta.createdAt).split(' • ')[1]}
                         </Typography>
-                      </TableCell>
-                    )}
+                    </TableCell>
                     <TableCell align="right">
                       <Chip 
                         label={formatCurrency(venta.total)} 
@@ -568,6 +552,11 @@ const Ventas = () => {
                     <TableCell align="center">
                       <Typography variant="body2">
                         {venta.productos?.length || 0}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2">
+                        {venta.usuario?.nombre || ''}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">

@@ -172,7 +172,8 @@ export default function ResumenCierrePage() {
         totalVentasConsignacion: itemCierre.totalVentasConsignacion,
         totalGananciasPropias: itemCierre.totalGananciasPropias,
         totalGananciasConsignacion: itemCierre.totalGananciasConsignacion,
-        totalTransferenciasByDestination: cierreData.totalTransferenciasByDestination
+        totalTransferenciasByDestination: cierreData.totalTransferenciasByDestination,
+        totalVentasPorUsuario: cierreData.totalVentasPorUsuario
       },
       totales: totales
     });
