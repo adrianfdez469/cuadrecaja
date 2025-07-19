@@ -36,12 +36,12 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
       const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
       if (cartQuantity > 0) {
         maxQuantity = (
-          productoTienda.producto.unidadesPorFraccion > 0 
-            ? productoTienda.producto.unidadesPorFraccion - 1 
-            : productoTienda.existencia ) - cartQuantity;
+          productoTienda.producto.unidadesPorFraccion > 0
+            ? productoTienda.producto.unidadesPorFraccion - 1
+            : productoTienda.existencia) - cartQuantity;
       } else {
-        maxQuantity = productoTienda.producto.unidadesPorFraccion 
-          ? productoTienda.producto.unidadesPorFraccion - 1 
+        maxQuantity = productoTienda.producto.unidadesPorFraccion
+          ? productoTienda.producto.unidadesPorFraccion - 1
           : productoTienda.existencia;
       }
 
@@ -57,6 +57,62 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
       setDirection('down');
       setQuantity(quantity - 1);
     }
+  };
+
+  const increaseByAmount = (amount: number) => {
+    if (productoTienda) {
+      const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
+      let maxQuantity = 0;
+
+      if (cartQuantity > 0) {
+        maxQuantity = (
+          productoTienda.producto.unidadesPorFraccion > 0
+            ? productoTienda.producto.unidadesPorFraccion - 1
+            : productoTienda.existencia) - cartQuantity;
+      } else {
+        maxQuantity = productoTienda.producto.unidadesPorFraccion
+          ? productoTienda.producto.unidadesPorFraccion - 1
+          : productoTienda.existencia;
+      }
+
+      const newQuantity = quantity + amount;
+      if (newQuantity <= maxQuantity) {
+        setDirection('up');
+        setQuantity(newQuantity);
+      }
+    }
+  };
+
+  const decreaseByAmount = (amount: number) => {
+    const newQuantity = quantity - amount;
+    if (newQuantity >= 1) {
+      setDirection('down');
+      setQuantity(newQuantity);
+    }
+  };
+
+  const canIncreaseByAmount = (amount: number): boolean => {
+    if (!productoTienda) return false;
+
+    const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
+    let maxQuantity = 0;
+
+    if (cartQuantity > 0) {
+      maxQuantity = (
+        productoTienda.producto.unidadesPorFraccion > 0
+          ? productoTienda.producto.unidadesPorFraccion - 1
+          : productoTienda.existencia) - cartQuantity;
+    } else {
+      maxQuantity = productoTienda.producto.unidadesPorFraccion
+        ? productoTienda.producto.unidadesPorFraccion - 1
+        : productoTienda.existencia;
+    }
+
+    return quantity + amount <= maxQuantity;
+  };
+
+  const canDecreaseByAmount = (amount: number): boolean => {
+    return quantity - amount >= 1;
   };
 
   const handleConfirmQuantity = () => {
@@ -104,9 +160,19 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
             Disponibles: {productoTienda.producto.unidadesPorFraccion || productoTienda.existencia}
           </Typography>
 
-          <Box display={"flex"} flexDirection={"row"} padding={2}>
-            <Button 
-              variant="contained" 
+          <Box
+            display={"flex"}
+            flexDirection={"row"}
+            padding={0}
+            sx={{
+              flexWrap: 'wrap',
+              gap: { xs: 1, sm: 1.5, md: 2 },
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <Button
+              variant="contained"
               onClick={decrease}
               disabled={quantity <= 1}
               sx={{
@@ -119,7 +185,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
                 },
               }}
             >
-              -
+              -1
             </Button>
             <Box
               flex={1}
@@ -149,9 +215,9 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
                   justifyContent: 'center',
                 }}
               >
-                <Typography 
-                  sx={{ 
-                    fontSize: "8vw", 
+                <Typography
+                  sx={{
+                    fontSize: "8vw",
                     fontWeight: "bold",
                     transition: 'all 0.2s ease-in-out',
                     transform: direction === 'up' ? 'translateY(-10px)' : 'translateY(10px)',
@@ -182,8 +248,8 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
                 </Typography>
               </Grow>
             </Box>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               onClick={increase}
               disabled={quantity >= (productoTienda.producto.unidadesPorFraccion || productoTienda.existencia)}
               sx={{
@@ -196,8 +262,195 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
                 },
               }}
             >
-              +
+              +1
             </Button>
+          </Box>
+
+
+          <Box
+            display={"flex"}
+            flexDirection={"row"}
+            pt={1}
+            sx={{
+
+              flexWrap: 'wrap',
+              gap: { xs: 1, sm: 1.5, md: 2 },
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+            {(productoTienda.existencia >= 10 || productoTienda.producto.unidadesPorFraccion >= 10) &&
+              <>
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  onClick={() => increaseByAmount(10)}
+                  disabled={!canIncreaseByAmount(10)}
+                  sx={{
+                    minWidth: { xs: '40px', sm: '50px', md: '60px' },
+                    fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
+                    padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                    },
+                    '&:active': {
+                      transform: 'scale(0.95)',
+                    },
+                  }}
+                >
+                  +10
+                </Button>
+                {(productoTienda.existencia >= 50 || productoTienda.producto.unidadesPorFraccion >= 50) &&
+                  <>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="primary"
+                      onClick={() => increaseByAmount(50)}
+                      disabled={!canIncreaseByAmount(50)}
+                      sx={{
+                        minWidth: { xs: '40px', sm: '50px', md: '60px' },
+                        fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
+                        padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
+                        transition: 'all 0.2s ease-in-out',
+                        '&:hover': {
+                          transform: 'scale(1.05)',
+                        },
+                        '&:active': {
+                          transform: 'scale(0.95)',
+                        },
+                      }}
+                    >
+                      +50
+                    </Button>
+                    {(productoTienda.existencia >= 100 || productoTienda.producto.unidadesPorFraccion >= 100) &&
+
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="primary"
+                        onClick={() => increaseByAmount(100)}
+                        disabled={!canIncreaseByAmount(100)}
+                        sx={{
+                          minWidth: { xs: '40px', sm: '50px', md: '60px' },
+                          fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
+                          padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
+                          transition: 'all 0.2s ease-in-out',
+                          '&:hover': {
+                            transform: 'scale(1.05)',
+                          },
+                          '&:active': {
+                            transform: 'scale(0.95)',
+                          },
+                        }}
+                      >
+                        +100
+                      </Button>
+                    }
+                  </>
+                }
+              </>
+            }
+          </Box>
+
+
+
+          <Box
+            display={"flex"}
+            flexDirection={"row"}
+            pb={1}
+            pt={1}
+            sx={{
+              flexWrap: 'wrap',
+              gap: { xs: 1, sm: 1.5, md: 2 },
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            {(productoTienda.existencia >= 10 || productoTienda.producto.unidadesPorFraccion >= 10) &&
+              <>
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="warning"
+                  onClick={() => decreaseByAmount(10)}
+                  disabled={!canDecreaseByAmount(10)}
+                  sx={{
+                    minWidth: { xs: '40px', sm: '50px', md: '60px' },
+                    fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
+                    padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                    },
+                    '&:active': {
+                      transform: 'scale(0.95)',
+                    },
+                  }}
+                >
+                  -10
+                </Button>
+                {(productoTienda.existencia >= 50 || productoTienda.producto.unidadesPorFraccion >= 50) &&
+                  <>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="warning"
+                      onClick={() => decreaseByAmount(50)}
+                      disabled={!canDecreaseByAmount(50)}
+                      sx={{
+                        minWidth: { xs: '40px', sm: '50px', md: '60px' },
+                        fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
+                        padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
+                        transition: 'all 0.2s ease-in-out',
+                        '&:hover': {
+                          transform: 'scale(1.05)',
+                        },
+                        '&:active': {
+                          transform: 'scale(0.95)',
+                        },
+                      }}
+                    >
+                      -50
+                    </Button>
+
+                    {(productoTienda.existencia >= 100 || productoTienda.producto.unidadesPorFraccion >= 100) &&
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="warning"
+                        onClick={() => decreaseByAmount(100)}
+                        disabled={!canDecreaseByAmount(100)}
+                        sx={{
+                          minWidth: { xs: '40px', sm: '50px', md: '60px' },
+                          fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
+                          padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
+                          transition: 'all 0.2s ease-in-out',
+                          '&:hover': {
+                            transform: 'scale(1.05)',
+                          },
+                          '&:active': {
+                            transform: 'scale(0.95)',
+                          },
+                        }}
+                      >
+                        -100
+                      </Button>
+                    }
+                  </>}
+              </>
+            }
+
+
+
+
+
+
+
+
+
+
           </Box>
 
           <Button
@@ -216,7 +469,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
           </Button>
 
           <Button
-            sx={{ 
+            sx={{
               mt: 2,
               transition: 'all 0.2s ease-in-out',
               '&:hover': {
@@ -228,7 +481,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
             color="success"
             fullWidth
             onClick={handlePayAll}
-            disabled={!productoTienda.existencia}
+            disabled={!productoTienda.existencia && productoTienda.producto.unidadesPorFraccion === 0}
           >
             Venta Rápida
           </Button>
