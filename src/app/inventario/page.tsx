@@ -344,10 +344,10 @@ export default function InventarioPage() {
                           </Grid>
                           <Grid item xs={4}>
                             <Typography variant="caption" color="text.secondary">
-                              Precio
+                              Costo
                             </Typography>
                             <Typography variant="body2" fontWeight="medium">
-                              {formatCurrency(producto.precio)}
+                              {formatCurrency(producto.costo)}
                             </Typography>
                           </Grid>
                           <Grid item xs={4}>
@@ -355,7 +355,7 @@ export default function InventarioPage() {
                               Valor Stock
                             </Typography>
                             <Typography variant="body2" fontWeight="medium">
-                              {formatCurrency(producto.existencia * producto.precio)}
+                              {formatCurrency(producto.existencia * producto.costo)}
                             </Typography>
                           </Grid>
                         </Grid>
@@ -448,7 +448,7 @@ export default function InventarioPage() {
                       )}
                       <TableCell align="right">
                         <Typography variant="body2" fontWeight="medium">
-                          {formatCurrency(producto.existencia * producto.precio)}
+                          {formatCurrency(producto.existencia * producto.costo)}
                         </Typography>
                       </TableCell>
                     </TableRow>
