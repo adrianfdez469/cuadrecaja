@@ -15,26 +15,30 @@ En un mercado cada vez más competitivo, tu negocio necesita herramientas que no
 ### 🏪 **Multi-Tienda Inteligente**
 - **Gestiona múltiples locales** desde una sola plataforma
 - **Inventarios independientes** con sincronización en tiempo real
-- **Traspasos automáticos** entre tiendas
+- **Traspasos automáticos** entre tiendas y almacenes
 - **Control centralizado** con autonomía local
+- **Tipos de locales**: Tiendas (con POS) y Almacenes (solo inventario)
 
 ### 📱 **POS de Nueva Generación**
 - **Interfaz táctil optimizada** para tablets y computadoras
 - **Funcionamiento offline** - nunca pierdas una venta
 - **Búsqueda inteligente** de productos en milisegundos
 - **Múltiples métodos de pago** en una sola transacción
+- **Sincronización automática** cuando hay conexión
 
 ### 📊 **Analytics y Reportes Profesionales**
 - **Dashboards en tiempo real** con métricas clave
 - **Exportación a Word** con reportes empresariales
 - **Análisis de rentabilidad** por producto y categoría
 - **Tendencias de venta** para optimizar tu inventario
+- **Reportes de cierre** automáticos por período
 
 ### 🔒 **Seguridad Empresarial**
 - **Roles y permisos granulares** por usuario
 - **Auditoría completa** de todas las operaciones
 - **Respaldos automáticos** de tu información crítica
 - **Acceso seguro** con autenticación avanzada
+- **Multi-tenant**: Aislamiento total entre negocios
 
 ---
 

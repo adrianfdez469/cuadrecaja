@@ -1,5 +1,5 @@
 import { FC, useState, useEffect } from "react";
-import { IProducto } from "@/types/IProducto";
+
 import {
   Box,
   Button,
@@ -8,71 +8,99 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  IconButton,
   InputLabel,
   MenuItem,
   Select,
   TextField,
   Typography,
-  InputAdornment,
   Icon,
   useTheme,
   useMediaQuery,
-  Stack,
   Accordion,
   AccordionSummary,
   AccordionDetails,
   Autocomplete,
-  Chip
+  Chip,
+  Card,
+  CardContent,
+  Stack
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMessageContext } from "@/context/MessageContext";
-import { cretateBatchMovimientos } from "@/services/movimientoService";
+import { cretateBatchMovimientos, getProductosTiendaParaEntrada, getProductosTiendaParaNoEntrada } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
 import { ITipoMovimiento } from "@/types/IMovimiento";
-import { 
-  TIPOS_MOVIMIENTO_MANUAL, 
+import {
+  TIPOS_MOVIMIENTO_MANUAL,
   TIPO_MOVIMIENTO_LABELS,
   TIPO_MOVIMIENTO_DESCRIPTIONS,
   TIPO_MOVIMIENTO_EJEMPLOS,
   TIPO_MOVIMIENTO_COLORS
 } from "@/constants/movimientos";
-import useConfirmDialog from "@/components/confirmDialog";
 import { formatCurrency } from "@/utils/formatters";
-import { Info } from "@mui/icons-material";
+import { Add, Info } from "@mui/icons-material";
 import { getProveedores, createProveedor } from "@/services/proveedorService";
 import { IProveedor } from "@/types/IProveedor";
 import { requiereCPP } from "@/lib/cpp-calculator";
 import HardwareQrScanner from '@/components/ProductProcessorData/HardwareQrScanner';
 import MobileQrScanner from '@/components/ProductProcessorData/MobileQrScanner';
+import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
+import { IProductoDisponible, OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal";
+import { ILocal } from "@/types/ILocal";
+import { getLocales } from "@/services/localesService";
 
 interface IProductoMovimiento {
+  nombre: string;
   productoId: string;
   cantidad: number;
   costoUnitario?: number;
-  costoTotal?: number;
+  costoTotal: number;
+  costo: number;
+  proveedor?: {
+    id: string;
+    nombre: string;
+  };
 }
+
 
 interface IProps {
   dialogOpen: boolean;
   closeDialog: () => void;
-  productos: IProducto[];
+  // productos: IProducto[];
   fetchMovimientos: () => Promise<void>;
+}
+
+const getOperacion = (tipo: ITipoMovimiento): OperacionTipo => {
+  switch (tipo) {
+    case "COMPRA":
+    case "CONSIGNACION_ENTRADA":
+    case "AJUSTE_ENTRADA":
+    case "DESAGREGACION_ALTA":
+    case "TRASPASO_ENTRADA":
+      return "ENTRADA";
+
+    case "AJUSTE_SALIDA":
+    case "CONSIGNACION_DEVOLUCION":
+    case "DESAGREGACION_BAJA":
+    case "TRASPASO_SALIDA":
+    case "VENTA":
+      return "SALIDA";
+
+    default:
+      return "ENTRADA";
+  }
 }
 
 export const AddMovimientoDialog: FC<IProps> = ({
   dialogOpen,
   closeDialog,
-  productos,
+  // productos,
   fetchMovimientos
 }) => {
   const [tipo, setTipo] = useState<ITipoMovimiento>("COMPRA");
-  const [itemsProductos, setItemsProductos] = useState<IProductoMovimiento[]>([
-    { productoId: "", cantidad: 0, costoUnitario: 0, costoTotal: 0 },
-  ]);
+  const [itemsProductos, setItemsProductos] = useState<IProductoMovimiento[]>([]);
   const [saving, setSaving] = useState(false);
   const { showMessage } = useMessageContext();
   const [motivo, setMotivo] = useState("");
@@ -81,8 +109,20 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const [loadingProveedores, setLoadingProveedores] = useState(false);
   const [creandoProveedor, setCreandoProveedor] = useState(false);
   const { user } = useAppContext();
-  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
-  
+  const [loadingProductos, setLoadingProductos] = useState(false);
+  const {
+    isOpen,
+    operacion,
+    openModal,
+    closeModal,
+    handleConfirm,
+    setOnConfirm,
+
+  } = useProductSelectionModal();
+
+  const [destinations, setDestinations] = useState<ILocal[]>([])
+  const [destinationId, setDestinationId] = useState<string>("")
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -91,7 +131,36 @@ export const AddMovimientoDialog: FC<IProps> = ({
     if (dialogOpen && (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION")) {
       fetchProveedores();
     }
+    if (dialogOpen && (tipo === "TRASPASO_SALIDA")) {
+      fetchDestinations();
+    }
   }, [dialogOpen, tipo]);
+
+  useEffect(() => {
+    setOnConfirm(async (productosSeleccionados) => {
+      // Lógica para procesar la selección
+      console.log(productosSeleccionados);
+
+      setItemsProductos(
+        productosSeleccionados.map((p) => {
+          return {
+            nombre: p.nombre,
+            cantidad: p.cantidad || 0,
+            costo: p.costo || 0,
+            costoTotal: p.costo && p.cantidad ? p.costo * p.cantidad : 0,
+            productoId: p.productoId,
+            costoUnitario: p.costo || 0,
+            ...(p.proveedor && {
+              proveedor: {
+                id: p.proveedor?.id || "",
+                nombre: p.proveedor?.nombre || ""
+              }
+            })
+          }
+        })
+      );
+    });
+  }, [operacion, setOnConfirm]);
 
   const fetchProveedores = async () => {
     setLoadingProveedores(true);
@@ -106,6 +175,11 @@ export const AddMovimientoDialog: FC<IProps> = ({
     }
   };
 
+  const fetchDestinations = async () => {
+    const locales = await getLocales();
+    setDestinations(locales.filter((l) => l.id !== user.localActual.id));
+  };
+
   const handleCrearProveedor = async (nombre: string) => {
     try {
       setCreandoProveedor(true);
@@ -115,11 +189,11 @@ export const AddMovimientoDialog: FC<IProps> = ({
         direccion: "",
         telefono: ""
       });
-      
+
       // Actualizar lista de proveedores
       setProveedores(prev => [...prev, nuevoProveedor]);
       setProveedor(nuevoProveedor);
-      
+
       showMessage("Proveedor creado exitosamente", "success");
     } catch (error) {
       console.error("Error al crear proveedor:", error);
@@ -133,67 +207,12 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const handleClose = () => {
     if (!saving) {
       closeDialog();
-      setItemsProductos([{ productoId: "", cantidad: 0, costoUnitario: 0, costoTotal: 0 }]);
+      setItemsProductos([]);
       setMotivo("");
       setProveedor(null);
       setTipo("COMPRA");
       setCreandoProveedor(false);
     }
-  };
-
-  const handleAgregarProducto = () => {
-    setItemsProductos([...itemsProductos, { productoId: "", cantidad: 0, costoUnitario: 0, costoTotal: 0 }]);
-  };
-
-  const handleEliminarProducto = (index: number) => {
-    if (itemsProductos.length === 1) {
-      return; // No eliminar si es el único producto
-    }
-
-    const producto = productos.find(p => p.id === itemsProductos[index].productoId);
-    const nombreProducto = producto ? producto.nombre : "este producto";
-    
-    confirmDialog(
-      `¿Estás seguro de que deseas eliminar "${nombreProducto}" del movimiento?`,
-      () => {
-        setItemsProductos(itemsProductos.filter((_, i) => i !== index));
-      }
-    );
-  };
-
-  const handleChangeProducto = (index: number, field: keyof IProductoMovimiento, value: string | number) => {
-    const nuevos = [...itemsProductos];
-    
-    if (field === "cantidad") {
-      const cantidad = Number(value) || 0;
-      nuevos[index].cantidad = cantidad;
-      
-      // Si hay costo unitario, recalcular costo total
-      if (nuevos[index].costoUnitario && cantidad > 0) {
-        nuevos[index].costoTotal = nuevos[index].costoUnitario! * cantidad;
-      }
-    } else if (field === "costoUnitario") {
-      const costoUnitario = Number(value) || 0;
-      nuevos[index].costoUnitario = costoUnitario;
-      
-      // Recalcular costo total si hay cantidad
-      if (nuevos[index].cantidad > 0) {
-        nuevos[index].costoTotal = costoUnitario * nuevos[index].cantidad;
-      }
-    } else if (field === "costoTotal") {
-      const costoTotal = Number(value) || 0;
-      nuevos[index].costoTotal = costoTotal;
-      
-      // Recalcular costo unitario si hay cantidad
-      if (nuevos[index].cantidad > 0) {
-        nuevos[index].costoUnitario = costoTotal / nuevos[index].cantidad;
-      }
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nuevos[index][field] = value as any;
-    }
-    
-    setItemsProductos(nuevos);
   };
 
   const handleGuardar = async () => {
@@ -206,19 +225,26 @@ export const AddMovimientoDialog: FC<IProps> = ({
           tiendaId: localId,
           tipo: tipo,
           usuarioId: user.id,
-          ...(motivo !== "" && {motivo: motivo}),
-          ...((tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && proveedor && {
+          ...(motivo !== "" && { motivo: motivo }),
+          ...((tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION" ) && proveedor && {
             proveedorId: proveedor.id
+          }),
+          ...(tipo === "TRASPASO_SALIDA" && {
+            destinationId: destinationId
           })
         },
         itemsProductos.map((item) => {
           return {
             cantidad: item.cantidad,
             productoId: item.productoId,
-            // Agregar costos si es una compra
+
+            // Agregar costos si es necesario
             ...(requiereCPP(tipo) && item.costoUnitario && {
               costoUnitario: item.costoUnitario,
               costoTotal: item.costoTotal
+            }),
+            ...(item.proveedor && tipo === "TRASPASO_SALIDA" && {
+              proveedorId: item.proveedor.id
             })
           };
         })
@@ -227,7 +253,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
       showMessage("Movimiento creado exitosamente", "success");
       handleClose();
       fetchMovimientos();
-      
+
     } catch (error) {
       console.log(error);
       showMessage("No se pudo guardar el movimiento", "error");
@@ -237,30 +263,113 @@ export const AddMovimientoDialog: FC<IProps> = ({
   };
 
   const isFormValid = () => {
-    const hasInvalidProducts = itemsProductos.some(item => 
-      !item.productoId || 
+    const hasInvalidProducts = itemsProductos.some(item =>
+      !item.productoId ||
       item.cantidad <= 0 ||
       (requiereCPP(tipo) && (!item.costoUnitario || item.costoUnitario <= 0))
     );
 
     const needsProveedor = (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && !proveedor;
+    const needsDestination = tipo === "TRASPASO_SALIDA" && !destinationId;
 
-    return hasInvalidProducts || needsProveedor;
+    return hasInvalidProducts || needsProveedor || needsDestination;
   };
+
+  const loadProductos = async (operacion: OperacionTipo, take = 50, skip = 0, filter?: { categoriaId?: string, text?: string }): Promise<IProductoDisponible[]> => {
+    try {
+      setLoadingProductos(true);
+      const tiendaId = user.localActual.id;
+      if (operacion === 'ENTRADA') {
+        const productos = await getProductosTiendaParaEntrada(tiendaId, tipo, { take, skip, ...filter }, proveedor?.id)
+        const prods: IProductoDisponible[] = [];
+        productos.forEach((p) => {
+
+          if (p.productosTienda.length > 0) {
+            p.productosTienda.forEach((pt) => {
+              prods.push({
+                productoId: p.id,
+                nombre: p.nombre,
+                categoriaId: p.categoriaId,
+                categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
+
+                productoTiendaId: pt.id,
+                precio: pt.precio,
+                costo: pt.costo,
+                existencia: pt.existencia,
+                proveedorId: pt.proveedor?.id,
+                proveedor: pt.proveedor,
+                // tiendaId: tiendaId,
+              });
+            });
+          } else {
+            prods.push({
+
+              productoId: p.id,
+              nombre: p.nombre,
+              categoriaId: p.categoriaId,
+              categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
+
+              productoTiendaId: null,
+              precio: null,
+              costo: null,
+              existencia: null,
+              proveedorId: null,
+              proveedor: null,
+              // tiendaId: tiendaId,
+            });
+          }
+        });
+        return prods;
+      }
+      if (operacion === 'SALIDA') {
+        const productos = await getProductosTiendaParaNoEntrada(tiendaId, tipo, { take, skip, ...filter }, proveedor?.id);
+        const prods: IProductoDisponible[] = [];
+
+
+        productos.forEach((p) => {
+          p.productosTienda.forEach((pt) => {
+            prods.push({
+              productoId: p.id,
+              nombre: p.nombre,
+              categoriaId: p.categoriaId,
+              categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
+
+              productoTiendaId: pt.id,
+              precio: pt.precio,
+              costo: pt.costo,
+              existencia: pt.existencia,
+              proveedorId: pt.proveedor?.id,
+              proveedor: pt.proveedor,
+              // tiendaId: tiendaId,
+
+            });
+          });
+
+        });
+        return prods;
+
+      }
+    } catch (error) {
+      console.log(error);
+      showMessage("No se pudo cargar los productos", "error");
+    } finally {
+      setLoadingProductos(false);
+    }
+  }
 
   return (
     <>
-      <Dialog 
-        open={dialogOpen} 
-        onClose={handleClose} 
-        fullWidth 
+      <Dialog
+        open={dialogOpen}
+        onClose={handleClose}
+        fullWidth
         maxWidth={isMobile ? "xs" : "md"}
         fullScreen={isMobile}
       >
         <DialogTitle sx={{ pb: 1 }}>
           Crear Movimiento
         </DialogTitle>
-        
+
         <DialogContent sx={{ px: isMobile ? 2 : 3 }}>
           {/* Selector de tipo de movimiento */}
           <FormControl fullWidth margin="normal">
@@ -271,7 +380,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
               label="Tipo de Movimiento"
               MenuProps={{
                 PaperProps: {
-                  sx: { 
+                  sx: {
                     maxHeight: isMobile ? 300 : 400,
                     maxWidth: isMobile ? '90vw' : undefined
                   }
@@ -285,33 +394,33 @@ export const AddMovimientoDialog: FC<IProps> = ({
                       {TIPO_MOVIMIENTO_LABELS[tipoMovimiento]}
                     </Typography>
                     {/* {!isMobile && ( */}
-                      <Typography 
-                        variant="caption" 
-                        color="text.secondary"
-                        sx={{ 
-                          fontSize: '0.75rem',
-                          lineHeight: 1.2,
-                          display: 'block',
-                          mt: 0.25,
-                          whiteSpace: 'normal',
-                          wordWrap: 'break-word'
-                        }}
-                      >
-                        {TIPO_MOVIMIENTO_DESCRIPTIONS[tipoMovimiento]}
-                      </Typography>
-                     {/* )} */}
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        fontSize: '0.75rem',
+                        lineHeight: 1.2,
+                        display: 'block',
+                        mt: 0.25,
+                        whiteSpace: 'normal',
+                        wordWrap: 'break-word'
+                      }}
+                    >
+                      {TIPO_MOVIMIENTO_DESCRIPTIONS[tipoMovimiento]}
+                    </Typography>
+                    {/* )} */}
                   </Box>
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
-          
+
           {/* Acordeón con descripción y ejemplo */}
           {tipo && (
             <Box sx={{ mt: 2 }}>
-              <Accordion 
+              <Accordion
                 defaultExpanded={false}
-                sx={{ 
+                sx={{
                   boxShadow: 'none',
                   border: `2px solid ${TIPO_MOVIMIENTO_COLORS[tipo]}30`,
                   '&:before': { display: 'none' },
@@ -319,21 +428,21 @@ export const AddMovimientoDialog: FC<IProps> = ({
                   overflow: 'hidden'
                 }}
               >
-                <AccordionSummary 
+                <AccordionSummary
                   expandIcon={<ExpandMoreIcon sx={{ color: TIPO_MOVIMIENTO_COLORS[tipo] }} />}
-                  sx={{ 
+                  sx={{
                     bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}08`,
                     '&:hover': { bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}12` },
                     minHeight: 56,
-                    '& .MuiAccordionSummary-content': { 
+                    '& .MuiAccordionSummary-content': {
                       alignItems: 'center',
                       my: 1
                     }
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Icon 
-                      sx={{ 
+                    <Icon
+                      sx={{
                         color: TIPO_MOVIMIENTO_COLORS[tipo],
                         fontSize: '22px',
                         mr: 1.5
@@ -342,17 +451,17 @@ export const AddMovimientoDialog: FC<IProps> = ({
                       {isMobile ? <Info /> : <Info sx={{ fontSize: '22px' }} />}
                     </Icon>
                     <Box>
-                      <Typography 
+                      <Typography
                         variant={isMobile ? "subtitle1" : "h6"}
-                        sx={{ 
+                        sx={{
                           fontWeight: 'bold',
                           color: TIPO_MOVIMIENTO_COLORS[tipo]
                         }}
                       >
                         {TIPO_MOVIMIENTO_LABELS[tipo]}
                       </Typography>
-                      <Typography 
-                        variant="caption" 
+                      <Typography
+                        variant="caption"
                         color="text.secondary"
                         sx={{ fontSize: '0.75rem' }}
                       >
@@ -364,9 +473,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 <AccordionDetails sx={{ pt: 2, pb: 3 }}>
                   {/* Descripción */}
                   <Box sx={{ mb: 2 }}>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
+                    <Typography
+                      variant="body2"
+                      sx={{
                         fontSize: isMobile ? '0.875rem' : '0.95rem',
                         lineHeight: 1.5,
                         fontWeight: 500,
@@ -375,10 +484,10 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     >
                       ¿Qué es este tipo de movimiento?
                     </Typography>
-                    <Typography 
-                      variant="body2" 
+                    <Typography
+                      variant="body2"
                       color="text.secondary"
-                      sx={{ 
+                      sx={{
                         fontSize: isMobile ? '0.875rem' : '0.95rem',
                         lineHeight: 1.5
                       }}
@@ -386,19 +495,19 @@ export const AddMovimientoDialog: FC<IProps> = ({
                       {TIPO_MOVIMIENTO_DESCRIPTIONS[tipo]}
                     </Typography>
                   </Box>
-                  
+
                   {/* Ejemplo */}
-                  <Box 
-                    sx={{ 
-                      p: 2, 
+                  <Box
+                    sx={{
+                      p: 2,
                       bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}05`,
                       borderRadius: 1,
                       borderLeft: `4px solid ${TIPO_MOVIMIENTO_COLORS[tipo]}`
                     }}
                   >
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
+                    <Typography
+                      variant="body2"
+                      sx={{
                         fontSize: isMobile ? '0.875rem' : '0.95rem',
                         lineHeight: 1.5,
                         fontWeight: 500,
@@ -408,10 +517,10 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     >
                       Ejemplo práctico:
                     </Typography>
-                    <Typography 
-                      variant="body2" 
+                    <Typography
+                      variant="body2"
                       color="text.secondary"
-                      sx={{ 
+                      sx={{
                         fontSize: isMobile ? '0.875rem' : '0.95rem',
                         lineHeight: 1.5,
                         fontStyle: 'italic'
@@ -514,7 +623,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                   );
 
                   const { inputValue } = params;
-                  const isExisting = options.some(option => 
+                  const isExisting = options.some(option =>
                     option.nombre.toLowerCase() === inputValue.toLowerCase()
                   );
 
@@ -535,9 +644,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 }}
                 onInputChange={async (event, newInputValue, reason) => {
                   if (reason === 'selectOption') {
-                    const selectedOption = proveedores.find(p => p.nombre === newInputValue) || 
-                                          proveedores.find(p => p.nombre.includes(newInputValue));
-                    
+                    const selectedOption = proveedores.find(p => p.nombre === newInputValue) ||
+                      proveedores.find(p => p.nombre.includes(newInputValue));
+
                     if (!selectedOption && newInputValue && !newInputValue.startsWith('Crear "')) {
                       // Si no existe el proveedor, intentar crearlo
                       try {
@@ -569,159 +678,74 @@ export const AddMovimientoDialog: FC<IProps> = ({
             </Box>
           )}
 
-          {/* Título de productos */}
-          <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mt: 3, mb: 2 }}>
-            Productos
-          </Typography>
+          {/* Campo local para seleccionar el local */}
+          {(tipo === 'TRASPASO_SALIDA' &&
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Local</InputLabel>
+              <Select
+                value={destinationId}
+                onChange={(e) => setDestinationId(e.target.value as string)}
+              >
+                {destinations.map((local) => (
+                  <MenuItem key={local.id} value={local.id}>
+                    {local.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
 
-          {/* Lista de productos */}
-          {itemsProductos.map((p, index) => (
-            <Box 
-              key={index} 
-              sx={{ 
-                mb: 2, 
-                p: isMobile ? 1.5 : 2, 
-                border: '1px solid', 
-                borderColor: 'divider', 
-                borderRadius: 1 
-              }}
-            >
-              <Stack spacing={2}>
-                {/* SCANNER PARA SELECCIÓN POR CÓDIGO */}
-                <Box display="flex" alignItems="center" mb={1}>
-                  <HardwareQrScanner
-                    qrCodeSuccessCallback={(qrText) => {
-                      const found = productos.find(prod => prod.codigosProducto?.some(c => c.codigo === qrText));
-                      if (found) {
-                        handleChangeProducto(index, 'productoId', found.id);
-                      } else {
-                        showMessage('Producto no encontrado para el código escaneado', 'warning');
-                      }
-                    }}
-                    style={{ width: '100%' }}
-                  />
-                  <Box ml={1}>
-                    <MobileQrScanner
-                      qrCodeSuccessCallback={(qrText) => {
-                        const found = productos.find(prod => prod.codigosProducto?.some(c => c.codigo === qrText));
-                        if (found) {
-                          handleChangeProducto(index, 'productoId', found.id);
-                        } else {
-                          showMessage('Producto no encontrado para el código escaneado', 'warning');
-                        }
-                      }}
-                    />
-                  </Box>
-                </Box>
-                {/* Selector de producto */}
-                <FormControl fullWidth>
-                  <InputLabel size={isMobile ? "small" : "normal"}>
-                    Producto
-                  </InputLabel>
-                  <Select
-                    value={p.productoId}
-                    label="Producto"
-                    onChange={(e) => handleChangeProducto(index, "productoId", e.target.value)}
-                    size={isMobile ? "small" : "medium"}
-                  >
-                    {productos.map((producto) => (
-                      <MenuItem key={producto.id} value={producto.id}>
-                        {producto.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+          {isOpen && (
+            <ProductSelectionModal
+              open={isOpen}
+              onClose={closeModal}
+              loadProductos={loadProductos}
+              operacion={operacion}
+              onConfirm={handleConfirm}
+              loading={loadingProductos}
+              iTipoMovimiento={tipo}
+              productosSeleccionadosIniciales={itemsProductos}
+            />
+          )}
 
-                {/* Fila de cantidad y botón eliminar */}
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <TextField
-                    label="Cantidad"
-                    type="number"
-                    value={p.cantidad || ""}
-                    onChange={(e) => handleChangeProducto(index, "cantidad", e.target.value)}
-                    size={isMobile ? "small" : "medium"}
-                    sx={{ flex: 1 }}
-                    inputProps={{ min: 1, step: 1 }}
-                  />
-                  <IconButton 
-                    onClick={() => handleEliminarProducto(index)}
-                    color="error"
-                    disabled={itemsProductos.length === 1}
-                    size={isMobile ? "small" : "medium"}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-
-                {/* Campos de costo para productos que requieren CPP */}
-                {requiereCPP(tipo) && (
-                  <Stack spacing={2}>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <TextField
-                        label="Costo Unitario"
-                        type="number"
-                        value={p.costoUnitario || ""}
-                        onChange={(e) => handleChangeProducto(index, "costoUnitario", e.target.value)}
-                        size={isMobile ? "small" : "medium"}
-                        sx={{ flex: 1 }}
-                        InputProps={{
-                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                        }}
-                        inputProps={{ min: 0, step: 0.01 }}
-                      />
-                      <TextField
-                        label="Costo Total"
-                        type="number"
-                        value={p.costoTotal || ""}
-                        onChange={(e) => handleChangeProducto(index, "costoTotal", e.target.value)}
-                        size={isMobile ? "small" : "medium"}
-                        sx={{ flex: 1 }}
-                        InputProps={{
-                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                        }}
-                        inputProps={{ min: 0, step: 0.01 }}
-                      />
-                    </Box>
-                    
-                    <Box sx={{ p: 1.5, bgcolor: 'primary.50', borderRadius: 1, textAlign: 'center' }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Total del producto
-                      </Typography>
-                      <Typography variant={isMobile ? "subtitle1" : "h6"} color="primary" sx={{ fontWeight: 'bold' }}>
-                        {formatCurrency(p.costoTotal || 0)}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                )}
-              </Stack>
-            </Box>
-          ))}
-
-          {/* Botón agregar producto */}
           <Button
-            sx={{ mt: 2 }}
-            onClick={handleAgregarProducto}
-            disabled={isFormValid()}
-            variant="outlined"
+            sx={{ mb: 2, mt: 2 }}
+            variant="contained"
             fullWidth
-            size={isMobile ? "medium" : "large"}
+            onClick={() => openModal(getOperacion(tipo))}
+            startIcon={<Add />}
+            disabled={isFormValid()}
           >
-            + Agregar otro producto
+            Adicionar Productos
           </Button>
 
-          {/* Total general para productos que requieren CPP */}
-          {requiereCPP(tipo) && (
-            <Box sx={{ mt: 3, p: 2, bgcolor: 'primary.50', borderRadius: 1, textAlign: 'center' }}>
-              <Typography variant={isMobile ? "h6" : "h5"} color="primary" sx={{ fontWeight: 'bold' }}>
-                Total General: {formatCurrency(itemsProductos.reduce((sum, item) => sum + (item.costoTotal || 0), 0))}
-              </Typography>
-            </Box>
-          )}
+          {itemsProductos.length > 0
+            && itemsProductos.map((p, index) => {
+              return (
+                <Card key={index}>
+                  <CardContent>
+                    <Typography variant="body1" fontWeight={500}>
+                      {p.proveedor ? `${p.nombre} - ${p.proveedor.nombre}` : p.nombre}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {p.cantidad === 1 ? "1 unidad" : `${p.cantidad} unidades`}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {`Costo unitario: ${formatCurrency(p.costoUnitario || 0)}`}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {`Costo total: ${formatCurrency(p.costoTotal || 0)}`}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              )
+            })}
+
         </DialogContent>
-        
+
         <DialogActions sx={{ px: isMobile ? 2 : 3, pb: isMobile ? 2 : undefined }}>
-          <Button 
-            onClick={handleClose} 
+          <Button
+            onClick={handleClose}
             startIcon={!isMobile ? <CloseIcon /> : undefined}
             size={isMobile ? "medium" : "large"}
           >
@@ -738,8 +762,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
-      
-      {ConfirmDialogComponent}
     </>
   );
 };

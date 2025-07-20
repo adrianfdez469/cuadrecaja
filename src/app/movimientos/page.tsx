@@ -25,7 +25,8 @@ import {
   useMediaQuery,
   IconButton,
   Collapse,
-  Divider
+  Divider,
+  Badge
 } from "@mui/material";
 import {
   Add,
@@ -37,33 +38,51 @@ import {
   Search,
   Refresh,
   ExpandMore,
+  Message,
   ExpandLess
 } from "@mui/icons-material";
 import { AddMovimientoDialog } from "./components/addMovimientoDialog";
-import { IProducto } from "@/types/IProducto";
-import { fetchProducts } from "@/services/productServise";
 import { useAppContext } from "@/context/AppContext";
-import { findMovimientos } from "@/services/movimientoService";
+import { cretateBatchMovimientos, findMovimientos, getMovimientosProductosEnviados } from "@/services/movimientoService";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { ITipoMovimiento } from "@/types/IMovimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatNumber, formatDateTime } from '@/utils/formatters';
 import ImportarExcelDialog from "./components/importExcelDialog";
+import { OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal/ProductSelectionModal";
+import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
+import { useMessageContext } from "@/context/MessageContext";
 
 const PAGE_SIZE = 20;
 
 export default function MovimientosPage() {
   const [movimientos, setMovimientos] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [productos, setProductos] = useState<IProducto[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const { user, loadingContext } = useAppContext();
   const [loadingData, setLoadingData] = useState(true);
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [pendienteRecepcion, setPendienteRecepcion] = useState([]);
+  const { showMessage } = useMessageContext()
+  
+  // 🆕 Estados para paginación mejorada
+  const [totalMovimientos, setTotalMovimientos] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const [searchInputValue, setSearchInputValue] = useState(""); // 🆕 Valor del input no controlado
+  
+  const {
+    isOpen: pendienteRecepcionDialogOpen,
+    operacion: pendienteRecepcionOperacion,
+    openModal: pendienteRecepcionOpenModal,
+    closeModal: pendienteRecepcionCloseModal,
+    handleConfirm: pendienteRecepcionHandleConfirm,
+    setOnConfirm: pendienteRecepcionSetOnConfirm,
 
+  } = useProductSelectionModal();
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -71,16 +90,128 @@ export default function MovimientosPage() {
 
   const [skip, setSkip] = useState(0);
 
-  const fetchMovimientos = async (nuevoSkip = skip) => {
+  // 🆕 Función mejorada para cargar movimientos con filtrado en backend
+  const fetchMovimientos = async (nuevoSkip = skip, searchFilter = searchTerm) => {
     try {
+      setLoadingData(true);
       const tiendaId = user.localActual.id;
-      const result = await findMovimientos(tiendaId, PAGE_SIZE, nuevoSkip);
-      setMovimientos(result || []);
+      
+      const result = await findMovimientos(
+        tiendaId, 
+        PAGE_SIZE, 
+        nuevoSkip,
+        undefined, // productoTiendaId
+        undefined, // tipo
+        undefined, // intervalo
+        searchFilter // 🆕 Nuevo parámetro para búsqueda
+      );
+      
+      setMovimientos(result?.data || []);
+      setTotalMovimientos(result?.total || 0);
+      setHasMoreData((result?.data?.length || 0) === PAGE_SIZE && (nuevoSkip + PAGE_SIZE) < (result?.total || 0));
+      
     } catch (error) {
       console.error("Error al cargar movimientos:", error);
       setMovimientos([]);
+      setTotalMovimientos(0);
+      setHasMoreData(false);
+    } finally {
+      setLoadingData(false);
     }
   };
+
+  // 🆕 Función para manejar búsqueda con botón filtrar
+  const handleFilter = () => {
+    setSearchTerm(searchInputValue);
+    setSkip(0);
+    setCurrentPage(0);
+    fetchMovimientos(0, searchInputValue);
+  };
+
+  // 🆕 Función para limpiar búsqueda
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    setSearchInputValue("");
+    setSkip(0);
+    setCurrentPage(0);
+    fetchMovimientos(0, "");
+  };
+
+  // 🆕 Función para manejar cambio en el input (no controlado)
+  const handleInputChange = (value: string) => {
+    setSearchInputValue(value);
+  };
+
+  const fecthPendientesRecep = async () => {
+    const result = await getMovimientosProductosEnviados(user.localActual.id);
+    console.log('fecthPendientesRecep',result);
+    
+    setPendienteRecepcion(result || []);
+
+    if(result.length > 0){
+      pendienteRecepcionSetOnConfirm((prods) => {
+        console.log('prods',prods);
+        // Crear documento de tipo TRASPASO_ENTRADA con los productos
+        crearMovimientosRecepción(prods);
+      })
+    }
+  }
+
+  const crearMovimientosRecepción = async (prods) => {
+    setLoadingData(true);
+
+    try {
+      const localId = user.localActual.id;
+      await cretateBatchMovimientos(
+        {
+          tiendaId: localId,
+          tipo: "TRASPASO_ENTRADA",
+          usuarioId: user.id,
+        },
+        prods.map((item) => {
+
+          return {
+            cantidad: item.cantidad,
+            productoId: item.productoId,
+            costoUnitario: item.costo,
+            costoTotal: item.costoTotal,
+            ...(item.proveedor && {proveedorId: item.proveedor.id}),
+            movimientoOrigenId: item.movimientoOrigenId
+          };
+        })
+      );
+
+      fetchMovimientos(0);
+      fecthPendientesRecep();
+
+    } catch (error) {
+      console.log(error);
+      showMessage("No se pudo crear los movimientos de entrada", "error");
+    } finally {
+      setLoadingData(false);
+    }
+  }
+
+  const loadPendientesRecep = async (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string}) => {
+    console.log(operacion, take, skip, filter);
+    
+    return pendienteRecepcion.map((item) => {
+      return {
+        productoId: item.productoTienda.productoId,
+        nombre: item.productoTienda?.producto?.nombre,
+        categoriaId: item.productoTienda?.producto?.categoriaId,
+        categoria: item.productoTienda?.producto?.categoria,
+        productoTiendaId: item.productoTiendaId,
+        precio: item.productoTienda?.precio,
+        costo: item.productoTienda?.costo,
+        existencia: item.productoTienda?.existencia,
+        proveedorId: item.productoTienda?.proveedorId,
+        proveedor: item.productoTienda?.proveedor,
+        
+        movimientoOrigenId: item.movimientoOrigenId
+      }
+    });
+  }
 
   useEffect(() => {
     (async () => {
@@ -95,9 +226,9 @@ export default function MovimientosPage() {
           }
 
           setSkip(0);
-          const prods = await fetchProducts();
-          setProductos(prods || []);
+          setCurrentPage(0);
           await fetchMovimientos(0);
+          fecthPendientesRecep(); // fetch pendientes de recepcion asincronico
         } catch (error) {
           console.error("Error al cargar datos:", error);
         } finally {
@@ -109,29 +240,27 @@ export default function MovimientosPage() {
 
   const handleInicio = () => {
     setSkip(0);
+    setCurrentPage(0);
     fetchMovimientos(0);
   };
 
   const handleAnterior = () => {
     const nuevoSkip = Math.max(skip - PAGE_SIZE, 0);
+    const nuevaPagina = Math.max(currentPage - 1, 0);
     setSkip(nuevoSkip);
+    setCurrentPage(nuevaPagina);
     fetchMovimientos(nuevoSkip);
   };
 
   const handleSiguiente = () => {
     const nuevoSkip = skip + PAGE_SIZE;
+    const nuevaPagina = currentPage + 1;
     setSkip(nuevoSkip);
+    setCurrentPage(nuevaPagina);
     fetchMovimientos(nuevoSkip);
   };
 
-  const filteredMovimientos = movimientos.filter((movimiento) =>
-    movimiento.tipo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    movimiento.productoTienda?.producto?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    movimiento.usuario?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   // Cálculos para estadísticas
-  const totalMovimientos = movimientos.length;
   const movimientosEntrada = movimientos.filter(m => !isMovimientoBaja(m.tipo)).length;
   const movimientosSalida = movimientos.filter(m => isMovimientoBaja(m.tipo)).length;
   const productosAfectados = [...new Set(movimientos.map(m => m.productoTiendaId))].length;
@@ -204,6 +333,18 @@ export default function MovimientosPage() {
           </IconButton>
         </Tooltip>
       )}
+      
+      {pendienteRecepcion.length > 0 &&
+        <Tooltip title="Productos pendientes por recepcionar">
+          <IconButton size="small" onClick={() => pendienteRecepcionOpenModal('ENTRADA')}>
+            <Badge badgeContent={pendienteRecepcion.length} color="error">
+              <Message />
+            </Badge>
+          </IconButton>
+        </Tooltip>
+      }
+
+
       <Button
         variant="contained"
         startIcon={!isMobile ? <Add /> : undefined}
@@ -213,7 +354,7 @@ export default function MovimientosPage() {
       >
         {isMobile ? "Crear" : "Crear Movimiento"}
       </Button>
-      {(filteredMovimientos.length === 0 && !searchTerm) &&
+      {(movimientos.length === 0 && !searchTerm) &&
         <Button
           variant="contained"
           startIcon={!isMobile ? <Dock /> : undefined}
@@ -384,28 +525,55 @@ export default function MovimientosPage() {
         title="Historial de Movimientos"
         subtitle={!isMobile ? "Registro detallado de todas las transacciones de inventario" : undefined}
         headerActions={
-          <TextField
-            size="small"
-            placeholder={isMobile ? "Buscar..." : "Buscar movimiento..."}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : 'none'
-            }}
-          />
+          <Stack direction="row" spacing={1} alignItems="center">
+            <TextField
+              size="small"
+              placeholder={isMobile ? "Buscar..." : "Buscar movimiento..."}
+              value={searchInputValue}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleFilter();
+                }
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                minWidth: isMobile ? 120 : 200,
+                maxWidth: isMobile ? 150 : 250
+              }}
+            />
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleFilter}
+              disabled={loadingData || !searchInputValue.trim()}
+              sx={{ minWidth: 'auto', px: 2 }}
+            >
+              {isMobile ? "Filtrar" : "Filtrar"}
+            </Button>
+            {(searchTerm || searchInputValue) && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleClearSearch}
+                disabled={loadingData}
+                sx={{ minWidth: 'auto', px: 2 }}
+              >
+                {isMobile ? "Limpiar" : "Limpiar"}
+              </Button>
+            )}
+          </Stack>
         }
         noPadding
         fullHeight
       >
-        {filteredMovimientos.length === 0 ? (
+        {movimientos.length === 0 ? (
           <Box sx={{ p: 2 }}>
             <Alert severity="info" sx={{ mt: 2 }}>
               <Typography variant="h6" gutterBottom>
@@ -433,7 +601,7 @@ export default function MovimientosPage() {
           // Vista móvil con cards más compactas
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
-              {filteredMovimientos.map((movimiento, i) => (
+              {movimientos.map((movimiento, i) => (
                 <Card
                   key={i}
                   sx={{
@@ -506,7 +674,7 @@ export default function MovimientosPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredMovimientos.map((movimiento, i) => (
+                {movimientos.map((movimiento, i) => (
                   <TableRow
                     key={i}
                     sx={{
@@ -555,7 +723,7 @@ export default function MovimientosPage() {
         )}
 
         {/* Paginación */}
-        {filteredMovimientos.length > 0 && (
+        {movimientos.length > 0 && (
           <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
             <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
               <Button
@@ -575,17 +743,22 @@ export default function MovimientosPage() {
                 Anterior
               </Button>
               <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
-                Mostrando {skip + 1} - {Math.min(skip + PAGE_SIZE, skip + filteredMovimientos.length)}
+                Mostrando {skip + 1} - {Math.min(skip + movimientos.length, totalMovimientos)} de {totalMovimientos} movimientos
               </Typography>
               <Button
                 variant="outlined"
                 size="small"
                 onClick={handleSiguiente}
-                disabled={filteredMovimientos.length < PAGE_SIZE}
+                disabled={!hasMoreData}
               >
                 Siguiente
               </Button>
             </Stack>
+            {searchTerm && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
+               {`Filtro activo: \"{searchTerm}\" - {movimientos.length} resultados encontrados`}
+              </Typography>
+            )}
           </Box>
         )}
       </ContentCard>
@@ -593,7 +766,7 @@ export default function MovimientosPage() {
       {/* Dialog para crear movimiento */}
       <AddMovimientoDialog
         dialogOpen={dialogOpen}
-        productos={productos}
+        // productos={productos}
         closeDialog={() => setDialogOpen(false)}
         fetchMovimientos={fetchMovimientos}
       />
@@ -604,6 +777,16 @@ export default function MovimientosPage() {
           fetchMovimientos(0);
         }}
       />
+      {pendienteRecepcionDialogOpen && (
+        <ProductSelectionModal
+          open={pendienteRecepcionDialogOpen}
+          onClose={pendienteRecepcionCloseModal}
+          loadProductos={loadPendientesRecep}
+          operacion={pendienteRecepcionOperacion}
+          iTipoMovimiento={'TRASPASO_ENTRADA'}
+          onConfirm={pendienteRecepcionHandleConfirm}
+        />
+      )}
     </PageContainer>
   );
 }

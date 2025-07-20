@@ -55,6 +55,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import LimitDialog from "@/components/LimitDialog";
 import { ILocal, TipoLocal } from "@/types/ILocal";
+import { getLocales } from "@/services/localesService";
 
 export default function Locales() {
   const [locales, setLocales] = useState<ILocal[]>([]);
@@ -83,8 +84,8 @@ export default function Locales() {
   const fetchLocales = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/locales");
-      setLocales(response.data);
+      const locales = await getLocales();
+      setLocales(locales);
     } catch (error) {
       console.error("Error al cargar locales:", error);
       showMessage("Error al cargar los locales", "error");

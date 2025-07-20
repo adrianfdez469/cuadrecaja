@@ -16,6 +16,7 @@ export async function GET(req: Request) {
     const tipo = searchParams.get("tipo") as MovimientoTipo;
     const productoTiendaId = searchParams.get("productoTiendaId");
     const referenciaId = searchParams.get("referenciaId");
+    const search = searchParams.get("search");
 
     const filtros = {
       ...(fechaInicio && {fecha: { gte: new Date(fechaInicio).toISOString() }}),
@@ -24,6 +25,15 @@ export async function GET(req: Request) {
       ...(productoTiendaId && {productoTiendaId: productoTiendaId}),
       ...(referenciaId && {referenciaId: referenciaId})
     }
+
+    // 🆕 Obtener el total de registros para paginación
+    const total = await prisma.movimientoStock.count({
+      where: {
+        tiendaId: tiendaId,
+        ...filtros,
+        
+      }
+    });
 
     const movimientos = await prisma.movimientoStock.findMany({
       where: {
@@ -56,7 +66,23 @@ export async function GET(req: Request) {
       }
     })
 
-    return NextResponse.json(movimientos, {status: 200});
+    // 🆕 Filtrar por término de búsqueda en el frontend si es necesario
+    let filteredMovimientos = movimientos;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredMovimientos = movimientos.filter(movimiento => 
+        movimiento.tipo.toLowerCase().includes(searchLower) ||
+        movimiento.productoTienda?.producto?.nombre?.toLowerCase().includes(searchLower) ||
+        movimiento.usuario?.nombre?.toLowerCase().includes(searchLower) ||
+        movimiento.proveedor?.nombre?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // 🆕 Retornar objeto con data y total
+    return NextResponse.json({
+      data: filteredMovimientos,
+      total: search ? filteredMovimientos.length : total
+    }, {status: 200});
   } catch (error) {
     console.log(error);
     

@@ -1,570 +1,469 @@
-# 📋 Cuadre de Caja - Funcionalidades del Sistema
+# 🔧 Funcionalidades Técnicas - Cuadre de Caja
 
-## 🎯 Resumen Ejecutivo
+## 📋 Resumen Ejecutivo
 
-**Cuadre de Caja** es un sistema integral de punto de venta (POS) diseñado para la gestión completa de múltiples tiendas o locales comerciales. Desarrollado con tecnologías modernas (Next.js, TypeScript, PostgreSQL), ofrece una solución robusta para el control de inventarios, ventas, usuarios y reportes financieros.
-
----
-
-## 📊 Índice de Funcionalidades
-
-### 🏪 **Gestión Multi-Tienda**
-- **Administración de Negocios**: Gestión de múltiples empresas independientes
-- **Gestión de Tiendas**: Control de múltiples locales por negocio
-- **Asignación de Usuarios**: Usuarios especializados por tienda
-- **Inventarios Independientes**: Stock separado por cada punto de venta
-- **Traspasos entre Tiendas**: Movimiento de productos entre locales
-
-### 📱 **Punto de Venta (POS)**
-- **Interfaz Táctil**: Optimizada para tablets y dispositivos móviles
-- **Búsqueda Inteligente**: Localización rápida de productos
-- **Carrito de Compras**: Gestión dinámica de productos a vender
-- **Múltiples Métodos de Pago**: Efectivo, transferencia y mixto
-- **Funcionamiento Offline**: Operación sin conexión a internet
-- **Sincronización Automática**: Actualización al recuperar conexión
-
-### 📦 **Gestión de Inventario**
-- **Control de Stock**: Seguimiento en tiempo real de existencias
-- **Historial de Movimientos**: Trazabilidad completa de cambios
-- **Fraccionamiento**: Venta de productos por unidades menores
-- **Ajustes de Inventario**: Correcciones manuales con justificación
-
-### 🛍️ **Gestión de Productos y Categorías**
-- **Catálogo de Productos**: Administración completa del inventario
-- **Categorías Personalizadas**: Organización por colores y nombres
-- **Precios por Tienda**: Configuración específica por local
-- **Productos Fraccionados**: Venta de unidades menores
-- **Unicidad por Negocio**: Nombres únicos dentro de cada empresa
-
-### 💰 **Control Financiero**
-- **Cierres de Período**: Cortes de caja automáticos
-- **Reportes de Ventas**: Análisis detallado de transacciones
-- **Historial de Cierres**: Seguimiento de períodos anteriores
-
-### 👥 **Gestión de Usuarios**
-- **Roles Diferenciados**: Vendedor, Administrador
-- **Control de Acceso**: Permisos granulares por funcionalidad
-- **Autenticación Segura**: Sistema de login con JWT
-- **Asignación por Tienda**: Usuarios específicos por local
-
-### 📊 **Reportes y Análisis**
-- **Estadísticas de Ventas**: Análisis por períodos y productos
-- **Reportes de Inventario**: Estado actual y movimientos
-
-### ⚙️ **Configuración del Sistema**
-- **Configuración de Negocios**: Parámetros empresariales
-- **Configuración de Tiendas**: Ajustes por local
-- **Gestión de Planes**: Límites y características por suscripción
-- **Configuración de Usuarios**: Roles y permisos
-- **Personalización**: Ajustes específicos por empresa
+**Cuadre de Caja** es un sistema completo de gestión de puntos de venta (POS) desarrollado con tecnologías modernas. Este documento detalla todas las funcionalidades técnicas implementadas en el sistema.
 
 ---
 
-## 📋 Descripción Detallada de Funcionalidades
-
-### 🏪 **1. Gestión Multi-Tienda**
-
-#### **1.1 Administración de Negocios**
-**Descripción**: Sistema multi-tenant que permite gestionar múltiples empresas independientes dentro de la misma plataforma.
-
-**Características**:
-- Aislamiento completo de datos entre negocios
-- Configuración independiente por empresa
-- Planes de suscripción diferenciados
-- Límites personalizables (productos, usuarios, tiendas)
-- Unicidad de nombres por negocio
-
-**Funcionalidades**:
-- Crear y configurar nuevos negocios
-- Asignar usuarios superadmin por negocio
-- Configurar límites según plan de suscripción
-- Gestionar información empresarial
-- Control de facturación y pagos
-
-#### **1.2 Gestión de Tiendas**
-**Descripción**: Administración de múltiples puntos de venta bajo un mismo negocio.
-
-**Características**:
-- Inventarios independientes por tienda
-- Configuración específica por local
-- Usuarios asignados por tienda
-- Traspasos entre locales
-- Reportes individuales y consolidados
-
-**Funcionalidades**:
-- Crear y configurar tiendas
-- Asignar usuarios a tiendas específicas
-- Configurar productos por tienda
-- Gestionar precios diferenciados
-- Controlar accesos por local
-
-#### **1.3 Traspasos entre Tiendas**
-**Descripción**: Sistema de movimiento de productos entre diferentes tiendas del mismo negocio.
-
-**Características**:
-- Transferencia en tiempo real
-- Validación de existencias
-- Historial completo de traspasos
-- Notificaciones automáticas
-- Control de autorización
-
-**Funcionalidades**:
-- Crear solicitudes de traspaso
-- Aprobar/rechazar traspasos
-- Actualización automática de inventarios
-- Seguimiento de productos en tránsito
-- Reportes de traspasos realizados
-
-### 📱 **2. Punto de Venta (POS)**
-
-#### **2.1 Interfaz Táctil**
-**Descripción**: Interfaz optimizada para dispositivos táctiles con diseño responsive.
-
-**Características**:
-- Diseño adaptativo (móvil, tablet, desktop)
-- Navegación intuitiva por categorías
-- Botones grandes para fácil toque
-- Colores distintivos por categoría
-- Feedback visual inmediato
-
-**Funcionalidades**:
-- Navegación por categorías visuales
-- Selección rápida de productos
-- Gestión táctil del carrito
-- Interfaz simplificada para vendedores
-- Modo pantalla completa
-
-#### **2.2 Búsqueda Inteligente**
-**Descripción**: Sistema de búsqueda en tiempo real con resultados instantáneos.
-
-**Características**:
-- Búsqueda por nombre parcial o completo
-- Resultados en tiempo real
-- Filtrado por disponibilidad
-- Sugerencias automáticas
-- Historial de búsquedas
-
-**Funcionalidades**:
-- Buscador flotante siempre visible
-- Resultados limitados a 10 productos
-- Selección directa desde resultados
-- Limpieza automática de búsqueda
-- Navegación por teclado
-
-#### **2.3 Carrito de Compras**
-**Descripción**: Gestión dinámica de productos seleccionados para la venta.
-
-**Características**:
-- Actualización en tiempo real
-- Validación de existencias
-- Cálculo automático de totales
-- Modificación de cantidades
-- Eliminación de productos
-
-**Funcionalidades**:
-- Agregar productos al carrito
-- Modificar cantidades con +/-
-- Eliminar productos individuales
-- Vaciar carrito completo
-- Visualización de totales
-
-#### **2.4 Múltiples Métodos de Pago**
-**Descripción**: Sistema flexible de pagos que permite diferentes formas de cobro.
-
-**Características**:
-- Pago solo en efectivo
-- Pago solo por transferencia
-- Pago mixto (efectivo + transferencia)
-- Cálculo automático de cambio
-- Validación de montos
-
-**Funcionalidades**:
-- Seleccionar método de pago
-- Ingresar montos recibidos
-- Calcular cambio automáticamente
-- Validar que el monto cubra el total
-- Confirmar transacción
-
-#### **2.5 Funcionamiento Offline**
-**Descripción**: Capacidad de operar sin conexión a internet con sincronización posterior.
-
-**Características**:
-- Detección automática de conexión
-- Almacenamiento local de ventas
-- Sincronización automática al reconectar
-- Indicadores visuales de estado
-- Cola de sincronización
-
-**Funcionalidades**:
-- Realizar ventas sin internet
-- Guardar transacciones localmente
-- Sincronizar automáticamente
-- Mostrar estado de conexión
-- Gestionar cola de sincronización
-
-### 📦 **3. Gestión de Inventario**
-
-#### **3.1 Control de Stock**
-**Descripción**: Seguimiento en tiempo real de existencias con alertas y validaciones.
-
-**Características**:
-- Actualización automática por ventas
-- Alertas de stock bajo
-- Validación de existencias
-- Historial de cambios
-- Estados visuales (sin stock, bajo stock, en stock)
-
-**Funcionalidades**:
-- Consultar existencias actuales
-- Ver historial de movimientos
-- Recibir alertas de stock bajo
-- Validar disponibilidad para ventas
-- Generar reportes de stock
-
-#### **3.2 Historial de Movimientos**
-**Descripción**: Trazabilidad completa de todos los cambios en el inventario.
-
-**Características**:
-- Registro de todos los movimientos
-- Tipos de movimiento diferenciados
-- Información de usuario y fecha
-- Motivos y referencias
-- Existencia antes/después del movimiento
-
-**Funcionalidades**:
-- Ver historial completo por producto
-- Filtrar por tipo de movimiento
-- Buscar por fechas específicas
-- Exportar reportes de movimientos
-- Auditar cambios de inventario
-
-#### **3.3 Exportación a Word**
-**Descripción**: Generación de reportes profesionales del inventario en formato Word.
-
-**Características**:
-- Formato empresarial profesional
-- Organización por categorías
-- Datos completos de productos
-- Información de existencias y precios
-- Descarga automática
-
-**Funcionalidades**:
-- Generar reporte completo del inventario
-- Organizar productos por categoría
-- Incluir precios y existencias
-- Descargar archivo .docx
-- Personalizar con información de tienda
-
-#### **3.4 Ajustes de Inventario**
-**Descripción**: Sistema para correcciones manuales del inventario con justificación.
-
-**Características**:
-- Ajustes de entrada y salida
-- Motivos obligatorios
-- Validación de permisos
-- Historial de ajustes
-- Impacto en reportes
-
-**Funcionalidades**:
-- Crear ajustes manuales
-- Especificar motivos
-- Validar permisos de usuario
-- Actualizar existencias
-- Registrar en historial
-
-### 🛍️ **4. Gestión de Productos y Categorías**
-
-#### **4.1 Catálogo de Productos**
-**Descripción**: Administración completa del catálogo de productos por negocio.
-
-**Características**:
-- Productos únicos por negocio
-- Información detallada
-- Asignación a tiendas
-- Configuración de precios
-- Estados activo/inactivo
-
-**Funcionalidades**:
-- Crear nuevos productos
-- Editar información existente
-- Asignar a tiendas específicas
-- Configurar precios por tienda
-- Gestionar estados de productos
-
-#### **4.2 Categorías Personalizadas**
-**Descripción**: Sistema de organización de productos por categorías con colores distintivos.
-
-**Características**:
-- Nombres únicos por negocio
-- Colores personalizables
-- Organización visual
-- Filtrado por categoría
-- Estadísticas por categoría
-
-**Funcionalidades**:
-- Crear categorías personalizadas
-- Asignar colores distintivos
-- Organizar productos por categoría
-- Filtrar y buscar por categoría
-- Ver estadísticas por categoría
-
-#### **4.3 Productos Fraccionados**
-**Descripción**: Sistema para vender productos en unidades menores a las de compra.
-
-**Características**:
-- Relación padre-hijo entre productos
-- Conversión automática de unidades
-- Control de existencias integrado
-- Precios diferenciados
-- Validación de disponibilidad
-
-**Funcionalidades**:
-- Configurar productos fraccionados
-- Definir relaciones padre-hijo
-- Calcular existencias automáticamente
-- Vender unidades fraccionadas
-- Controlar stock de productos padre
-
-### 💰 **5. Control Financiero**
-
-#### **5.1 Cierres de Período**
-**Descripción**: Sistema automático de cortes de caja con cálculos precisos.
-
-**Características**:
-- Cierres automáticos por fecha
-- Cálculos de totales precisos
-- Resumen de productos vendidos
-- Separación efectivo/transferencia
-- Validación de datos
-
-**Funcionalidades**:
-- Abrir nuevos períodos
-- Realizar cierres de caja
-- Calcular totales automáticamente
-- Generar resúmenes de venta
-- Validar información antes del cierre
-
-#### **5.2 Reportes de Ventas**
-**Descripción**: Análisis detallado de todas las transacciones realizadas.
-
-**Características**:
-- Historial completo de ventas
-- Filtros por fecha y usuario
-- Detalles de cada transacción
-- Estadísticas de rendimiento
-- Exportación de datos
-
-**Funcionalidades**:
-- Consultar historial de ventas
-- Filtrar por criterios específicos
-- Ver detalles de transacciones
-- Generar reportes personalizados
-- Exportar datos para análisis
-
-#### **5.3 Control de Costos**
-**Descripción**: Gestión de precios, costos y márgenes de ganancia.
-
-**Características**:
-- Precios específicos por tienda
-- Cálculo automático de márgenes
-- Comparación de costos
-- Análisis de rentabilidad
-- Alertas de precios
-
-**Funcionalidades**:
-- Configurar precios por tienda
-- Calcular márgenes automáticamente
-- Analizar rentabilidad por producto
-- Comparar costos entre tiendas
-- Generar reportes de costos
-
-### 👥 **6. Gestión de Usuarios**
-
-#### **6.1 Roles Diferenciados**
-**Descripción**: Sistema de roles con permisos específicos para cada tipo de usuario.
-
-**Características**:
-- Vendedor: Acceso solo al POS
-- Administrador: Gestión completa del negocio
-- Superadmin: Acceso total al sistema
-- Permisos granulares
-- Control de acceso por funcionalidad
-
-**Funcionalidades**:
-- Asignar roles a usuarios
-- Configurar permisos específicos
-- Controlar acceso por funcionalidad
-- Gestionar usuarios por tienda
-- Auditar actividades por rol
-
-#### **6.2 Autenticación Segura**
-**Descripción**: Sistema de login seguro con tokens JWT y sesiones controladas.
-
-**Características**:
-- Autenticación con JWT
-- Sesiones seguras
-- Tokens de renovación
-- Logout automático
-- Protección de rutas
-
-**Funcionalidades**:
-- Login seguro con credenciales
-- Mantener sesiones activas
-- Renovar tokens automáticamente
-- Cerrar sesión automáticamente
-- Proteger rutas por permisos
-
-### 📊 **7. Reportes y Análisis**
-
-#### **7.1 Dashboard Ejecutivo**
-**Descripción**: Panel de control con métricas clave en tiempo real.
-
-**Características**:
-- Métricas en tiempo real
-- Gráficos interactivos
-- Comparativas de períodos
-- Indicadores de rendimiento
-- Resúmenes ejecutivos
-
-**Funcionalidades**:
-- Ver métricas principales
-- Comparar períodos
-- Analizar tendencias
-- Generar reportes ejecutivos
-- Exportar datos del dashboard
-
-#### **7.2 Estadísticas de Ventas**
-**Descripción**: Análisis profundo del rendimiento de ventas por diferentes criterios.
-
-**Características**:
-- Ventas por período
-- Rendimiento por producto
-- Análisis por vendedor
-- Comparativas temporales
-- Proyecciones de ventas
-
-**Funcionalidades**:
-- Analizar ventas por período
-- Comparar rendimiento de productos
-- Evaluar desempeño de vendedores
-- Generar proyecciones
-- Exportar análisis detallados
-
-### ⚙️ **8. Configuración del Sistema**
-
-#### **8.1 Configuración de Planes**
-**Descripción**: Gestión de planes de suscripción con límites y características específicas.
-
-**Características**:
-- Planes diferenciados (Freemium, Básico, Silver, Premium, Custom)
-- Límites por plan (tiendas, usuarios, productos)
-- Características específicas por plan
-- Facturación automática
-- Upgrades/downgrades
-
-**Funcionalidades**:
-- Configurar planes de suscripción
-- Establecer límites por plan
-- Gestionar características incluidas
-- Procesar pagos automáticamente
-- Manejar cambios de plan
-
-#### **8.2 Personalización por Empresa**
-**Descripción**: Configuraciones específicas que pueden ser personalizadas por cada negocio.
-
-**Características**:
-- Configuraciones empresariales
-- Branding personalizado
-- Reglas de negocio específicas
-- Integraciones personalizadas
-- Reportes customizados
-
-**Funcionalidades**:
-- Personalizar configuraciones
-- Aplicar branding empresarial
-- Configurar reglas específicas
-- Integrar sistemas externos
-- Generar reportes personalizados
-
----
-
-## 🛠️ **Tecnologías y Arquitectura**
-
-### **Stack Tecnológico**
-- **Frontend**: Next.js 15, React 18, TypeScript, Material-UI
-- **Backend**: Next.js API Routes, Node.js
+## 🏗️ Arquitectura del Sistema
+
+### Stack Tecnológico
+- **Frontend**: Next.js 15 con TypeScript
+- **Backend**: API Routes de Next.js
 - **Base de Datos**: PostgreSQL con Prisma ORM
-- **Autenticación**: NextAuth.js con JWT
-- **Estado**: Zustand para manejo de estado global
-- **Estilos**: Material-UI con temas personalizados
+- **UI Framework**: Material-UI (MUI) v5
+- **Estado**: Zustand para gestión de estado
+- **Autenticación**: NextAuth.js
+- **Deployment**: Docker con Docker Compose
 
-### **Características Técnicas**
-- **Arquitectura Multi-Tenant**: Aislamiento completo de datos
-- **PWA Ready**: Funciona como aplicación nativa
+### Características Arquitectónicas
+- **Multi-tenant**: Aislamiento completo entre negocios
+- **Offline-first**: Funcionamiento sin conexión en POS
 - **Responsive Design**: Optimizado para todos los dispositivos
-- **Offline-First**: Funcionalidad sin interrupciones
-- **API RESTful**: Endpoints bien estructurados
-- **Seguridad**: Encriptación end-to-end y auditoría completa
+- **PWA Ready**: Funciona como aplicación nativa
+- **API RESTful**: Integración con sistemas externos
 
 ---
 
-## 📈 **Métricas y Estadísticas**
+## 🛒 Módulo de Punto de Venta (POS)
 
-### **Funcionalidades Principales**
-- **8 módulos principales** de funcionalidad
-- **25+ características específicas** implementadas
-- **100+ endpoints de API** para diferentes operaciones
-- **Soporte para múltiples idiomas** (español por defecto)
-- **Más de 50 tipos de reportes** diferentes disponibles
+### Funcionalidades Core
+- **Interfaz táctil optimizada** para tablets y computadoras
+- **Búsqueda inteligente** de productos en tiempo real
+- **Carrito de compras** con gestión de cantidades
+- **Múltiples métodos de pago**: efectivo y transferencias
+- **Funcionamiento offline** con sincronización automática
 
-### **Capacidades del Sistema**
-- **Ilimitados negocios** en la plataforma
-- **Hasta 20 tiendas** por negocio (según plan)
-- **Usuarios ilimitados** (según plan)
-- **Productos ilimitados** (según plan)
-- **Transacciones ilimitadas** sin restricciones
-- **Almacenamiento de datos** por 7+ años
+### Características Avanzadas
+- **Búsqueda por nombre** con resultados instantáneos
+- **Gestión de transferencias** con destinos configurables
+- **Ventas pendientes de sincronización** cuando no hay internet
+- **Historial de ventas recientes** para consulta rápida
+- **Validación automática** de existencias antes de vender
 
----
-
-## 🎯 **Casos de Uso Principales**
-
-### **Pequeños Comercios**
-- Tiendas de abarrotes y minimarkets
-- Farmacias y droguerías
-- Librerías y papelerías
-- Tiendas de ropa y accesorios
-
-### **Cadenas Comerciales**
-- Múltiples sucursales
-- Franquicias
-- Centros comerciales
-- Distribuidores mayoristas
-
-### **Negocios Especializados**
-- Restaurantes y cafeterías
-- Talleres y servicios
-- Tiendas online con físico
-- Empresas de servicios
+### Proceso de Venta
+1. **Selección de productos** por categoría o búsqueda
+2. **Gestión del carrito** con cantidades y precios
+3. **Procesamiento de pago** con métodos mixtos
+4. **Confirmación de venta** y actualización de inventario
+5. **Sincronización automática** cuando hay conexión
 
 ---
 
-## 📞 **Soporte y Mantenimiento**
+## 📦 Módulo de Inventario
 
-### **Niveles de Soporte**
-- **Básico**: Email y documentación
-- **Estándar**: Chat y teléfono en horario laboral
-- **Premium**: Soporte 24/7 con respuesta garantizada
-- **Enterprise**: Soporte dedicado con SLA personalizado
+### Gestión de Productos
+- **Catálogo completo** con información detallada
+- **Organización por categorías** con colores distintivos
+- **Control de existencias** en tiempo real
+- **Indicadores visuales** de estado de stock
+- **Productos por proveedor** con desglose
 
-### **Actualizaciones**
-- **Actualizaciones automáticas** de seguridad
-- **Nuevas funcionalidades** cada trimestre
-- **Mejoras de rendimiento** continuas
-- **Corrección de errores** en menos de 24 horas
+### Funciones de Consulta
+- **Vista completa** de todos los productos
+- **Filtros por categoría** y búsqueda por nombre
+- **Estadísticas del inventario** calculadas automáticamente
+- **Exportación a Word** con formato profesional
+- **Vista de movimientos** por producto
+
+### Características Especiales
+- **Fraccionamiento de productos** (ej: cigarros sueltos)
+- **Productos en consignación** con control especial
+- **Cálculo automático** de valor total del inventario
+- **Alertas de stock bajo** configurables
+- **Actualización en tiempo real** de existencias
 
 ---
 
-*Documento actualizado: Diciembre 2024*
-*Versión del Sistema: 2.0.0*
-*Para más información técnica, consultar la documentación de desarrollo.* 
+## 📊 Módulo de Ventas
+
+### Historial y Consultas
+- **Todas las ventas** del período actual
+- **Filtros avanzados** por fecha, usuario y monto
+- **Búsqueda por ID** de transacción
+- **Detalles completos** de cada venta
+- **Estadísticas en tiempo real**
+
+### Información de Transacciones
+- **ID único** de cada venta
+- **Fecha y hora** exacta de la transacción
+- **Productos vendidos** con cantidades y precios
+- **Totales desglosados** por método de pago
+- **Usuario que realizó** la venta
+
+### Funciones de Gestión
+- **Ver detalles completos** de cada venta
+- **Cancelar ventas** (solo administradores)
+- **Exportar reportes** de ventas
+- **Filtros por período** personalizable
+- **Comparativas** entre períodos
+
+---
+
+## 🔄 Módulo de Movimientos
+
+### Tipos de Movimientos Implementados
+- **COMPRA**: Entrada de productos por compra
+- **VENTA**: Salida automática por ventas
+- **AJUSTE_ENTRADA**: Correcciones por sobrantes
+- **AJUSTE_SALIDA**: Correcciones por faltantes
+- **TRASPASO_ENTRADA**: Recibo de otros locales
+- **TRASPASO_SALIDA**: Envío a otros locales
+- **DESAGREGACION_BAJA**: Baja por fraccionamiento
+- **DESAGREGACION_ALTA**: Alta por fraccionamiento
+- **CONSIGNACION_ENTRADA**: Productos en consignación
+- **CONSIGNACION_DEVOLUCION**: Devoluciones de consignación
+
+### Gestión de Movimientos
+- **Crear movimientos manuales** con validaciones
+- **Importar desde Excel** para movimientos masivos
+- **Filtros avanzados** por tipo, fecha y producto
+- **Paginación optimizada** para grandes volúmenes
+- **Búsqueda en tiempo real** de movimientos
+
+### Funciones Especiales
+- **Recepción de traspasos** pendientes
+- **Validación automática** de existencias
+- **Cálculo automático** de costos
+- **Auditoría completa** de movimientos
+- **Seguimiento de traspasos** entre locales
+
+---
+
+## 💰 Módulo de Cierre de Caja
+
+### Proceso de Cierre
+- **Verificación de ventas** pendientes de sincronización
+- **Resumen automático** del período actual
+- **Confirmación de cierre** con validaciones
+- **Generación de reportes** automáticos
+- **Apertura automática** del nuevo período
+
+### Información del Cierre
+- **Total de ventas** del período
+- **Ganancia total** calculada automáticamente
+- **Productos vendidos** con detalles completos
+- **Totales por método** de pago
+- **Ventas por usuario** del período
+
+### Reportes Generados
+- **Resumen ejecutivo** del período
+- **Detalle de productos** vendidos
+- **Análisis de ganancias** por producto
+- **Estadísticas de ventas** por usuario
+- **Totales de transferencias** por destino
+
+---
+
+## 📈 Módulo de Dashboard
+
+### Métricas Principales
+- **Ventas del período** vs período anterior
+- **Ventas de hoy** con comparativas
+- **Productos más vendidos** con rankings
+- **Estado del inventario** con alertas
+- **Movimientos recientes** con tendencias
+
+### Filtros Disponibles
+- **Por período**: Hoy, semana, mes, período actual
+- **Por tienda**: Local actual o todos los locales
+- **Por fecha personalizada**: Rango específico
+- **Actualización en tiempo real** de métricas
+
+### Visualizaciones
+- **Gráficos de tendencias** de ventas
+- **Indicadores de progreso** de inventario
+- **Alertas automáticas** de stock bajo
+- **Comparativas** entre períodos
+
+---
+
+## 🏪 Módulo Multi-Tienda
+
+### Tipos de Locales
+- **Tienda**: Punto de venta completo con POS
+- **Almacén**: Solo gestión de inventario
+
+### Funciones por Tipo
+**Tienda:**
+- Punto de venta completo
+- Gestión de inventario
+- Cierre de caja
+- Reportes de ventas
+
+**Almacén:**
+- Solo gestión de inventario
+- Movimientos de stock
+- Traspasos a tiendas
+- Reportes de inventario
+
+### Traspasos Entre Locales
+- **Envío de productos** entre tiendas/almacenes
+- **Recepción automática** con validaciones
+- **Seguimiento de traspasos** pendientes
+- **Historial completo** de movimientos
+- **Destinos configurables** de transferencia
+
+---
+
+## 👥 Módulo de Proveedores
+
+### Gestión de Proveedores
+- **Información completa** del proveedor
+- **Productos asociados** al proveedor
+- **Historial de compras** y movimientos
+- **Estado de liquidaciones** pendientes
+- **Control de productos** en consignación
+
+### Productos en Consignación
+- **Control especial** de productos en consignación
+- **Liquidaciones automáticas** por ventas
+- **Reportes de comisiones** por proveedor
+- **Gestión de devoluciones** de consignación
+- **Cálculo automático** de comisiones
+
+### Liquidaciones
+- **Cálculo automático** de comisiones
+- **Reportes de liquidación** por período
+- **Historial de pagos** realizados
+- **Estado de cuentas** por proveedor
+- **Exportación de reportes** de liquidación
+
+---
+
+## ⚙️ Módulo de Configuración
+
+### Gestión de Productos
+- **Crear y editar** productos
+- **Asignar categorías** y proveedores
+- **Configurar precios** y costos
+- **Gestionar fraccionamientos** de productos
+- **Validaciones automáticas** de datos
+
+### Gestión de Categorías
+- **Crear categorías** para organización
+- **Asignar productos** a categorías
+- **Jerarquía de categorías** (categorías padre/hijo)
+- **Reportes por categoría**
+- **Colores distintivos** por categoría
+
+### Gestión de Usuarios
+- **Crear usuarios** con roles específicos
+- **Asignar permisos** granulares
+- **Gestionar acceso** a locales específicos
+- **Auditoría de acciones** por usuario
+- **Control de sesiones** activas
+
+### Gestión de Locales
+- **Crear tiendas y almacenes**
+- **Configurar destinos** de transferencia
+- **Asignar usuarios** a locales
+- **Configurar parámetros** específicos
+- **Control de acceso** por local
+
+---
+
+## 🔧 Funciones Avanzadas
+
+### Análisis de Costo Promedio Ponderado (CPP)
+- **Cálculo automático** de costos promedio
+- **Análisis de desviaciones** de costos
+- **Migración de datos** históricos
+- **Reportes de confiabilidad** de costos
+- **Vista previa** de migraciones
+
+### Conformación de Precios
+- **Edición masiva** de precios y costos
+- **Validaciones automáticas** de datos
+- **Guardado incremental** de cambios
+- **Historial de modificaciones**
+- **Exportación** de cambios
+
+### Sincronización Offline
+- **Funcionamiento sin internet** en POS
+- **Sincronización automática** al recuperar conexión
+- **Validación de datos** antes de sincronizar
+- **Indicadores de estado** de sincronización
+- **Prevención de duplicados** en sincronización
+
+---
+
+## 📊 Reportes y Exportaciones
+
+### Reportes Disponibles
+- **Reporte de inventario** exportable a Word
+- **Reporte de ventas** por período
+- **Reporte de cierre** de caja
+- **Reporte de movimientos** con filtros
+- **Reporte de proveedores** y liquidaciones
+
+### Exportaciones
+- **Formato Word** para reportes profesionales
+- **Datos estructurados** para análisis externos
+- **Imágenes y gráficos** incluidos
+- **Formato empresarial** listo para presentación
+- **Descarga automática** con nombres descriptivos
+
+---
+
+## 🛡️ Seguridad y Permisos
+
+### Roles de Usuario
+- **SUPER_ADMIN**: Acceso total al sistema
+- **ADMIN**: Administración de su negocio
+- **VENDEDOR**: Solo ventas y consultas básicas
+- **INVENTARIO**: Gestión de inventario y movimientos
+
+### Permisos Granulares
+- **Acceso a locales** específicos
+- **Funciones permitidas** por rol
+- **Auditoría completa** de acciones
+- **Control de sesiones** activas
+- **Validación de permisos** en cada acción
+
+### Seguridad de Datos
+- **Encriptación** de información sensible
+- **Respaldos automáticos** de datos
+- **Validación de entrada** de datos
+- **Protección contra** pérdida de información
+- **Autenticación segura** con JWT
+
+---
+
+## 📱 Características Técnicas
+
+### Compatibilidad
+- **Navegadores modernos** (Chrome, Firefox, Safari, Edge)
+- **Dispositivos móviles** y tablets
+- **Funcionamiento offline** en POS
+- **Interfaz responsive** para todos los tamaños
+- **PWA Ready** para instalación como app
+
+### Rendimiento
+- **Carga rápida** de datos
+- **Búsqueda instantánea** de productos
+- **Paginación optimizada** para grandes volúmenes
+- **Sincronización eficiente** de datos
+- **Caché inteligente** para mejor rendimiento
+
+### Usabilidad
+- **Interfaz intuitiva** y fácil de usar
+- **Navegación clara** entre secciones
+- **Accesos rápidos** a funciones frecuentes
+- **Ayuda contextual** en cada sección
+- **Feedback visual** para todas las acciones
+
+---
+
+## 🔄 Integraciones y APIs
+
+### APIs Internas
+- **API RESTful** para todas las operaciones
+- **Endpoints organizados** por módulos
+- **Validación automática** de datos
+- **Manejo de errores** estandarizado
+- **Documentación automática** de APIs
+
+### Integraciones Externas
+- **Exportación a Word** con formato profesional
+- **Importación desde Excel** para datos masivos
+- **Sincronización con sistemas** externos
+- **Webhooks** para notificaciones
+- **APIs públicas** para integraciones
+
+---
+
+## 🚀 Optimizaciones y Mejoras
+
+### Rendimiento
+- **Lazy loading** de componentes
+- **Optimización de consultas** a base de datos
+- **Caché inteligente** de datos frecuentes
+- **Compresión de assets** para carga rápida
+- **CDN** para archivos estáticos
+
+### Escalabilidad
+- **Arquitectura multi-tenant** escalable
+- **Separación de responsabilidades** por módulos
+- **Base de datos optimizada** para grandes volúmenes
+- **Load balancing** preparado
+- **Monitoreo** de performance
+
+### Mantenibilidad
+- **Código modular** y reutilizable
+- **TypeScript** para type safety
+- **Testing automatizado** de funcionalidades
+- **Documentación** completa del código
+- **Versionado** de APIs
+
+---
+
+## 📋 Base de Datos
+
+### Esquema Principal
+- **Negocios**: Información de empresas
+- **Locales**: Tiendas y almacenes
+- **Usuarios**: Usuarios del sistema
+- **Productos**: Catálogo de productos
+- **Categorías**: Organización de productos
+- **Proveedores**: Información de proveedores
+- **Movimientos**: Historial de movimientos
+- **Ventas**: Transacciones de venta
+- **Cierres**: Períodos de cierre
+- **Productos_Tienda**: Productos por local
+
+### Relaciones
+- **Multi-tenant**: Aislamiento por negocio
+- **Locales**: Múltiples por negocio
+- **Usuarios**: Asignados a locales específicos
+- **Productos**: Únicos por negocio
+- **Movimientos**: Trazabilidad completa
+- **Ventas**: Vinculadas a períodos y usuarios
+
+---
+
+## 🔧 Configuración y Deployment
+
+### Variables de Entorno
+- **Base de datos**: Configuración de PostgreSQL
+- **Autenticación**: Configuración de NextAuth
+- **APIs externas**: Configuración de servicios
+- **Entorno**: Desarrollo, staging, producción
+- **Logs**: Configuración de logging
+
+### Docker
+- **Dockerfile** optimizado para producción
+- **Docker Compose** para desarrollo
+- **Volúmenes** para persistencia de datos
+- **Networks** para comunicación entre servicios
+- **Health checks** para monitoreo
+
+### CI/CD
+- **GitHub Actions** para automatización
+- **Testing automatizado** en cada commit
+- **Deployment automático** a staging
+- **Rollback automático** en caso de errores
+- **Notificaciones** de estado de deployment
+
+---
+
+## 📊 Monitoreo y Analytics
+
+### Métricas del Sistema
+- **Performance** de la aplicación
+- **Uso de recursos** del servidor
+- **Errores** y excepciones
+- **Tiempo de respuesta** de APIs
+- **Uso de base de datos**
+
+### Logs y Auditoría
+- **Logs estructurados** para análisis
+- **Auditoría de acciones** de usuarios
+- **Trazabilidad** de transacciones
+- **Alertas automáticas** para errores críticos
+- **Retención** configurable de logs
+
+---
+
+**🎯 Cuadre de Caja - Sistema técnicamente robusto y escalable** 

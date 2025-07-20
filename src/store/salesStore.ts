@@ -15,6 +15,7 @@ export interface Sale {
 
   synced: boolean;
   syncState: "synced" | "syncing" | "not_synced" | "sync_err";
+  transferDestinationId?: string;
 }
 
 export interface Products {

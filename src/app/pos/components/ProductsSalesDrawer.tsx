@@ -53,6 +53,7 @@ export const ProducsSalesDrawer: React.FC<IProps> = ({
                 productoId: prod.id
               };
             }),
+            totalVentasPorUsuario: []
           }}
           totales={{ totalCantidad: 0, totalGanancia: 0, totalMonto: 0 }}
           hideTotales

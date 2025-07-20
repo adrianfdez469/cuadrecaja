@@ -74,7 +74,7 @@ export function ProductModal({
             <Typography variant="h4" mb={2} textAlign="left">
               {category ? category.nombre : ""}
             </Typography>
-            <Fab size="small" aria-label="close" onClick={closeModal}>
+            <Fab size="small" aria-label="close" onClick={closeModal} sx={{position: 'absolute', top: 20, right: 20}}>
               <CloseIcon />
             </Fab>
           </Box>

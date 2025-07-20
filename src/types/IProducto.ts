@@ -28,6 +28,7 @@ export interface IProductoTienda {
   categoria: ICategory;
   productoTiendaId: string;
   enConsignacion?: boolean;
+  proveedor?: IProveedor;
 
   fraccionDeId?: string;
   unidadesPorFraccion?: number;

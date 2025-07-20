@@ -226,7 +226,7 @@ const PreciosCantidades = () => {
 
     {
       field: "porciento",
-      headerName: "Porcentaje",
+      headerName: "Rentabilidad",
       flex: 1,
       minWidth: 120,
       renderCell: (params) => {
@@ -234,7 +234,7 @@ const PreciosCantidades = () => {
         if(row.costo === 0) return '0%';
         if(row.precio === 0) return '0%';
 
-        const porciento = ((row.precio / row.costo) * 100).toFixed(2);
+        const porciento = (((row.precio-row.costo) / row.costo) * 100).toFixed(2);
         return (
           <Typography variant="body2" fontWeight="medium">
             {porciento}%

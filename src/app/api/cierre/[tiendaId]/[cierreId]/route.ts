@@ -36,6 +36,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
   
               },
             },
+            transferDestination: {
+              select: {
+                id: true,
+                nombre: true,
+              }
+            },
+            usuario: {
+              select: {
+                id: true,
+                nombre: true,
+              }
+            }
           },
         },
       },
@@ -53,6 +65,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
     let totalVentasConsignacion = 0;
     let totalGananciasPropias = 0;
     let totalGananciasConsignacion = 0;
+    const totalTransferenciasByDestination: {
+      id: string;
+      nombre: string;
+      total: number;
+    }[] = [];
+    const totalVentasPorUsuario: {
+      id: string;
+      nombre: string;
+      total: number;
+    }[] = [];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const productosVendidos: Record<string, any> = {};
@@ -60,6 +82,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
     cierre.ventas.forEach((venta) => {
       totalVentas += venta.total;
       totalTransferencia += venta.totaltransfer;
+
+      if(venta.transferDestination) {
+        const { id, nombre } = venta.transferDestination;
+        if(!totalTransferenciasByDestination.find(t => t.id === id)) {
+          totalTransferenciasByDestination.push({ id, nombre, total: 0 });
+        }
+        totalTransferenciasByDestination.find(t => t.id === id).total += venta.totaltransfer;
+      }
+
+      if(!totalVentasPorUsuario.find(u => u.id === venta.usuario.id)) {
+        totalVentasPorUsuario.push({ id: venta.usuario.id, nombre: venta.usuario.nombre, total: 0 });
+      }
+      totalVentasPorUsuario.find(u => u.id === venta.usuario.id).total += venta.total;
   
       venta.productos.forEach((ventaProducto) => {
         const { producto: productoTienda, cantidad, costo, precio } = ventaProducto;
@@ -118,6 +153,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       totalVentasConsignacion,
       totalGananciasPropias,
       totalGananciasConsignacion,
+      totalTransferenciasByDestination,
+      totalVentasPorUsuario,
       productosVendidos: Object.values(productosVendidos).sort((a, b) => a.nombre.localeCompare(b.nombre)),
     };
     return NextResponse.json(cierreData);

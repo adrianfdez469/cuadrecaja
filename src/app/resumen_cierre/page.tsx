@@ -172,6 +172,8 @@ export default function ResumenCierrePage() {
         totalVentasConsignacion: itemCierre.totalVentasConsignacion,
         totalGananciasPropias: itemCierre.totalGananciasPropias,
         totalGananciasConsignacion: itemCierre.totalGananciasConsignacion,
+        totalTransferenciasByDestination: cierreData.totalTransferenciasByDestination,
+        totalVentasPorUsuario: cierreData.totalVentasPorUsuario
       },
       totales: totales
     });
@@ -697,9 +699,8 @@ export default function ResumenCierrePage() {
           onClose={() => setShowProducts(false)}
           PaperProps={{
             sx: {
-              height: isMobile ? "95vh" : "90vh",
-              maxHeight: "95vh",
-              borderRadius: "16px 16px 0 0",
+              height: "100vh",
+              maxHeight: "100vh",
               bgcolor: "background.default",
               overflow: "hidden",
             },

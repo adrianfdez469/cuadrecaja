@@ -11,6 +11,7 @@ datasource db {
 model Negocio {
   id           String    @id @default(uuid())
   nombre       String    @unique
+  descripcion  String?
   createdAt    DateTime  @default(now())
 
   limitTime    DateTime
@@ -34,7 +35,13 @@ model Tienda {
   ventas          Venta[] // Relación con las ventas realizadas en el local
   cierres         CierrePeriodo[]
   tipo            String            @default("tienda")
-  MovimientoStock MovimientoStock[]
+  
+  // Relaciones inversas para MovimientoStock con nombres específicos
+  movimientosOrigen MovimientoStock[] @relation("MovimientoStockOrigen")
+  movimientosDestino MovimientoStock[] @relation("MovimientoStockDestino")
+
+  // Destinos de transferencia para esta tienda
+  transferDestinations TransferDestinations[]
 
   negocio         Negocio          @relation(fields: [negocioId], references: [id])
   negocioId       String              @default("")
@@ -164,6 +171,9 @@ model Venta {
 
   cierrePeriodo   CierrePeriodo? @relation(fields: [cierrePeriodoId], references: [id])
   cierrePeriodoId String?
+
+  transferDestination TransferDestinations? @relation(fields: [transferDestinationId], references: [id])
+  transferDestinationId String?
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Venta y ProductoTienda.
@@ -230,12 +240,17 @@ model MovimientoStock {
   usuario   Usuario? @relation(fields: [usuarioId], references: [id])
   usuarioId String?
 
-  tienda   Tienda @relation(fields: [tiendaId], references: [id])
+  tienda   Tienda @relation("MovimientoStockOrigen", fields: [tiendaId], references: [id])
   tiendaId String
 
   // Proveedor para movimientos de consignación
   proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
   proveedorId String?
+
+  destination Tienda? @relation("MovimientoStockDestino", fields: [destinationId], references: [id])
+  destinationId String?
+
+  state MovimientoState @default(APROBADO)
 
   @@index([productoTiendaId])
   @@index([fecha])
@@ -265,6 +280,23 @@ model Proveedor {
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
   @@index([nombre])
+}
+
+// Representa los destinos de transferencia para cada tienda
+model TransferDestinations {
+  id          String   @id @default(uuid())
+  nombre      String   // Nombre del destino de transferencia
+  descripcion String?  // Descripción del destino (opcional)
+  default     Boolean  @default(false) // Indica si es el destino por defecto
+  tienda      Tienda   @relation(fields: [tiendaId], references: [id])
+  tiendaId    String
+
+  // Relación con las ventas que usan este destino
+  ventas      Venta[]
+
+  // Índice de unicidad compuesto: nombre único por tienda
+  @@unique([nombre, tiendaId])
+  @@index([tiendaId])
 }
 
 model ProductoProveedorConsignadorLiquidaciónCierre {
@@ -301,4 +333,9 @@ enum MovimientoTipo {
   DESAGREGACION_ALTA
   CONSIGNACION_ENTRADA
   CONSIGNACION_DEVOLUCION
+}
+
+enum MovimientoState {
+  PENDIENTE
+  APROBADO
 }

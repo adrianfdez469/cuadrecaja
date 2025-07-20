@@ -1,23 +1,31 @@
 import React, { FC, useEffect, useState } from "react";
-import { Modal, Box, Typography, Button, FormControl, InputLabel, InputAdornment, OutlinedInput } from "@mui/material";
+import { Modal, Box, Typography, Button, FormControl, InputLabel, InputAdornment, OutlinedInput, Select, MenuItem } from "@mui/material";
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { moneyRegex } from '../../../utils/regex'
 import { useMessageContext } from "@/context/MessageContext";
 import { formatCurrency } from "@/utils/formatters";
+import { ITransferDestination } from "@/types/ITransferDestination";
 
 interface IProps {
   open: boolean;
   onClose: () => void;
   total: number;
-  makePay: (total: number, totalchash: number, totaltransfer: number) => Promise<void>
+  makePay: (total: number, totalchash: number, totaltransfer: number, transferDestinationId?: string) => Promise<void>
+  transferDestinations: ITransferDestination[]
 }
 
-const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
+const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDestinations }) => {
+  console.log(transferDestinations);
   
   const [cashReceived, setCashReceived] = useState(0);
   const [transferReceived, setTransferReceived] = useState(0);
   const { showMessage } = useMessageContext();
+  const [tasnferDestinationId, setTasnferDestinationId] = useState(
+    transferDestinations.length === 0 ? "" :
+    transferDestinations.length === 1 ? transferDestinations[0].id :
+    transferDestinations.find(destination => destination.default)?.id || transferDestinations[0].id
+  );
 
   const handlePayment = async () => {
     try {
@@ -26,7 +34,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
       
       // Ejecutar el pago de forma asíncrona
       // No mostramos notificaciones aquí porque handleMakePay se encarga de eso
-      makePay(total, cashReceived, transferReceived)
+      makePay(total, cashReceived, transferReceived, tasnferDestinationId)
         .then(() => {
           console.log("✅ Pago procesado exitosamente");
         })
@@ -63,8 +71,10 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
   const handleTransferReceived = (trasnfer: string) => {
     if(validateMoneyInput(trasnfer)){
       setTransferReceived(Number.parseInt(trasnfer));
+      setCashReceived(total - Number.parseInt(trasnfer));
     } else if(trasnfer === "") {
       setTransferReceived(0);
+      setCashReceived(total);
     }
   }
 
@@ -114,6 +124,22 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay }) => {
             onChange={(e) => handleTransferReceived(e.target.value)}
           />
         </FormControl>
+
+        {transferReceived > 0 && transferDestinations.length > 0 && 
+          <FormControl fullWidth margin="normal">
+          <InputLabel>Local</InputLabel>
+          <Select
+            value={tasnferDestinationId}
+            onChange={(e) => setTasnferDestinationId(e.target.value as string)}
+          >
+            {transferDestinations.map((destination) => (
+              <MenuItem key={destination.id} value={destination.id}>
+                {destination.nombre}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        }
 
         <Typography variant="h6" mt={2}>Total: {formatCurrency(total)}</Typography>
         <Typography variant="h6" color="green" mt={1}>

@@ -1,416 +1,368 @@
-# 📦 Cuadre de Caja - Manual de Usuario
+# 📚 Manual de Usuario - Cuadre de Caja
 
-## 🎯 ¿Qué es Cuadre de Caja?
+## 🎯 Introducción
 
-**Cuadre de Caja** es un sistema integral de punto de venta (POS) diseñado para gestionar múltiples tiendas o locales comerciales de manera eficiente. Permite el control completo de inventarios, ventas, usuarios, reportes financieros y mucho más, todo desde una interfaz web moderna y fácil de usar.
-
-## ✨ Características Principales
-
-### 📱 **Punto de Venta (POS)**
-- **Interfaz táctil intuitiva** optimizada para tablets y computadoras
-- **Búsqueda rápida de productos** por nombre, categoría o código
-- **Carrito de compras inteligente** con gestión automática de cantidades
-- **Múltiples métodos de pago**: efectivo, transferencia bancaria y combinados
-- **Funcionamiento offline** con sincronización automática
-- **Impresión de tickets** y comprobantes de venta
-
-### 🏪 **Gestión Multi-Tienda**
-- **Múltiples locales** bajo un mismo negocio
-- **Usuarios especializados** asignados a tiendas específicas
-- **Inventarios independientes** para cada punto de venta
-- **Traspasos de productos** entre tiendas en tiempo real
-- **Nombres únicos por negocio**: Flexibilidad total en nomenclatura
-
-### 📊 **Control de Inventarios**
-- **Gestión completa de productos** organizados por categorías
-- **Control de existencias** en tiempo real con alertas
-- **Historial detallado de movimientos** con trazabilidad completa
-- **Fraccionamiento de productos** (ej: vender cigarros sueltos de una caja)
-- **Ajustes de inventario** manuales con justificación
-- **Exportación profesional a Word** con reportes organizados por categoría
-- **Productos únicos por negocio** sin conflictos entre diferentes empresas
-
-### 💰 **Control Financiero Avanzado**
-- **Cierres de período automáticos** con cálculos precisos
-- **Reportes de ventas detallados** por período, producto y vendedor
-- **Control de costos y precios** por tienda con márgenes automáticos
-- **Análisis de ganancias** y rentabilidad por producto
-- **Resumen de cierres** con tendencias y comparativas
-
-### 👥 **Gestión de Usuarios y Seguridad**
-- **Roles diferenciados**: vendedor, administrador, superadmin
-- **Control de acceso granular** por tienda y funcionalidad
-- **Historial de actividades** por usuario para auditoría
-- **Autenticación segura** con sesiones controladas
-
-### 🌐 **Funcionalidades Modernas**
-- **Responsive Design**: Funciona en móviles, tablets y computadoras
-- **Modo offline**: Continúa trabajando sin conexión a internet
-- **Sincronización automática**: Los datos se actualizan al reconectar
-- **Notificaciones inteligentes**: Alertas de stock, errores y confirmaciones
-
-## 🚀 Primeros Pasos
-
-### 1. **Acceso al Sistema**
-1. **Abrir la aplicación web** en tu navegador preferido
-2. **Ingresar credenciales**: Usuario y contraseña proporcionados por el administrador
-3. **Seleccionar tienda**: Elige el local donde vas a trabajar (si tienes múltiples asignadas)
-4. **Verificar conexión**: El sistema mostrará tu estado de conexión
-
-### 2. **Configuración Inicial**
-- **Revisar información personal**: Verifica que tus datos estén correctos
-- **Familiarizarse con la interfaz**: Explora los menús y opciones disponibles
-- **Verificar permisos**: Confirma qué funciones tienes habilitadas según tu rol
-
-### 3. **Iniciar Período de Trabajo**
-- Al comenzar el día, el sistema puede requerir **abrir un nuevo período de ventas**
-- Es **obligatorio** tener un período abierto para realizar ventas
-- Solo puede existir **un período activo** por tienda simultáneamente
-
-## 📋 Guía Completa de Uso
-
-### 🛒 **Realizar Ventas en el POS**
-
-#### **Selección de Productos**
-1. **Navegación por categorías**:
-   - Haz clic en cualquier categoría para ver sus productos
-   - Las categorías están codificadas por colores para fácil identificación
-   - Usa los filtros para encontrar productos específicos
-
-2. **Búsqueda inteligente**:
-   - Utiliza la barra de búsqueda en la parte superior
-   - Busca por nombre completo o parcial del producto
-   - Los resultados aparecen en tiempo real mientras escribes
-
-3. **Agregar al carrito**:
-   - Haz clic en cualquier producto para agregarlo
-   - La cantidad se añade automáticamente al carrito
-   - Verifica que el producto tenga existencias disponibles
-
-#### **Gestión del Carrito de Compras**
-1. **Revisar productos**:
-   - Haz clic en el ícono del carrito para ver el resumen
-   - Verifica nombres, cantidades y precios de cada producto
-   - El total se calcula automáticamente incluyendo impuestos
-
-2. **Modificar cantidades**:
-   - Ajusta las cantidades usando los botones + y -
-   - Elimina productos completos si es necesario
-   - Los totales se actualizan en tiempo real
-
-3. **Validaciones automáticas**:
-   - El sistema previene vender más productos de los disponibles
-   - Alerta sobre productos sin precio configurado
-   - Verifica la disponibilidad antes de procesar
-
-#### **Procesar Pagos**
-1. **Iniciar proceso de pago**:
-   - Haz clic en "Procesar Pago" desde el carrito
-   - Revisa el total final de la venta
-   - Selecciona el método de pago
-
-2. **Métodos de pago disponibles**:
-   - **Solo efectivo**: Ingresa el monto exacto o superior
-   - **Solo transferencia**: Registra el monto transferido
-   - **Pago mixto**: Combina efectivo y transferencia hasta completar el total
-
-3. **Finalizar venta**:
-   - Confirma los montos ingresados
-   - El sistema calculará el cambio automáticamente (si aplica)
-   - Haz clic en "Confirmar Venta" para completar la transacción
-
-4. **Post-venta**:
-   - El inventario se actualiza automáticamente
-   - Se genera el comprobante de venta
-   - El carrito se limpia para la siguiente venta
-
-### 📦 **Gestión Completa de Inventario**
-
-#### **Visualización de Productos**
-1. **Acceder al inventario**:
-   - Ve al menú "Inventario" desde la navegación principal
-   - Visualiza todos los productos disponibles en tu tienda
-   - Usa filtros por categoría o búsqueda por nombre
-
-2. **Información detallada**:
-   - **Existencias actuales**: Cantidad disponible para venta
-   - **Precios y costos**: Valores configurados por producto
-   - **Última actualización**: Fecha del último movimiento
-   - **Estado del producto**: Activo, sin existencias, etc.
-
-#### **📄 Exportación Profesional a Word**
-1. **Generar reporte**:
-   - En la página de "Inventario", localiza el botón "Exportar a Word"
-   - Haz clic para iniciar la generación del documento
-   - El proceso puede tomar unos segundos dependiendo de la cantidad de productos
-
-2. **Contenido del reporte**:
-   - **Título profesional** con fecha y hora de generación
-   - **Productos organizados por categoría** en orden alfabético
-   - **Tabla detallada** con columnas:
-     - Nombre del producto
-     - Precio de venta actual
-     - Cantidad inicial en inventario
-     - Cantidad vendida en el período
-     - Cantidad final disponible
-   - **Formato empresarial** con encabezados destacados
-
-3. **Descarga y uso**:
-   - El archivo se descarga automáticamente como .docx
-   - Nombre del archivo incluye la fecha para fácil identificación
-   - Compatible con Microsoft Word, Google Docs y similares
-
-#### **Movimientos de Stock**
-1. **Acceder al historial**:
-   - Ve a "Movimientos" para ver todas las transacciones
-   - Filtra por fechas, tipos de movimiento o productos específicos
-   - Usa la búsqueda para encontrar movimientos particulares
-
-2. **Tipos de movimientos**:
-   - **Compra**: Ingreso de nueva mercancía al inventario
-   - **Venta**: Salida automática por transacciones de venta
-   - **Traspaso Entrada**: Productos recibidos de otra tienda
-   - **Traspaso Salida**: Productos enviados a otra tienda
-   - **Ajuste Entrada**: Correcciones por sobrantes o encontrados
-   - **Ajuste Salida**: Correcciones por faltantes, daños o robos
-   - **Desagregación**: Fraccionamiento o combinación de productos
-
-3. **Crear movimientos manuales**:
-   - Haz clic en "Crear Movimiento" para registrar entradas o ajustes
-   - Selecciona el tipo de movimiento apropiado
-   - Especifica el producto y la cantidad
-   - Añade un motivo o comentario para justificar el movimiento
-   - Confirma para actualizar el inventario automáticamente
-
-### 💰 **Cierres y Reportes Financieros**
-
-#### **Realizar Cierre de Período**
-1. **Acceder a cierres**:
-   - Ve a "Cierre" al finalizar tu jornada o período de trabajo
-   - Revisa el resumen automático de ventas del período
-   - Verifica que todas las transacciones estén registradas
-
-2. **Información del cierre**:
-   - **Total de ventas**: Suma de todas las transacciones
-   - **Ventas en efectivo**: Dinero físico recaudado
-   - **Ventas por transferencia**: Pagos electrónicos
-   - **Número de transacciones**: Cantidad de ventas realizadas
-   - **Productos vendidos**: Resumen por categorías
-
-3. **Confirmar cierre**:
-   - Revisa cuidadosamente todos los totales
-   - Confirma que el dinero físico coincida con el reporte
-   - Haz clic en "Cerrar Período" para finalizar
-   - Una vez cerrado, no se pueden modificar las ventas de ese período
-
-#### **Consultar Historial de Ventas**
-1. **Acceder a ventas**:
-   - Ve a "Ventas" para consultar el historial completo
-   - Filtra por fechas, vendedores o montos específicos
-   - Exporta reportes para análisis externos
-
-2. **Resumen de cierres**:
-   - Accede a "Resumen Cierres" para ver tendencias
-   - Compara períodos anteriores
-   - Analiza el rendimiento por fechas y vendedores
-
-### ⚙️ **Configuración y Administración**
-
-#### **Gestión de Precios (Administradores)**
-1. **Acceder a configuración**:
-   - Ve a "Costos y Precios" desde el menú de configuración
-   - Visualiza todos los productos con sus precios actuales
-   - Identifica productos sin precios configurados
-
-2. **Actualizar precios**:
-   - Modifica precios de venta por producto
-   - Actualiza costos para calcular márgenes automáticamente
-   - Los cambios se aplican inmediatamente en el POS
-
-#### **Gestión de Productos y Categorías**
-1. **Crear categorías**:
-   - Accede a "Configuración > Categorías"
-   - Crea nuevas categorías con nombres descriptivos
-   - Asigna colores distintivos para fácil identificación
-   - Los nombres son únicos dentro de tu negocio
-
-2. **Gestionar productos**:
-   - Ve a "Configuración > Productos" para el catálogo completo
-   - Crea nuevos productos especificando nombre, descripción y categoría
-   - Configura fraccionamientos si vendes productos por unidades menores
-   - Asigna productos a tiendas específicas
-
-#### **Administración de Usuarios (Solo Administradores)**
-1. **Gestionar usuarios**:
-   - Accede a "Configuración > Usuarios"
-   - Crea nuevos usuarios con roles específicos
-   - Asigna usuarios a tiendas particulares
-   - Modifica permisos según las necesidades del negocio
-
-2. **Roles disponibles**:
-   - **Vendedor**: Solo acceso al POS e inventario de consulta
-   - **Administrador**: Gestión completa de su negocio
-   - **Superadmin**: Acceso total al sistema (múltiples negocios)
-
-## 🎯 Consejos y Mejores Prácticas
-
-### ✅ **Recomendaciones de Uso Diario**
-- **Abre siempre un período** antes de comenzar las ventas del día
-- **Revisa el inventario** regularmente para evitar quedarte sin stock
-- **Realiza cierres diarios** para mantener reportes organizados y precisos
-- **Sincroniza regularmente** si trabajas en modo offline
-- **Exporta reportes periódicamente** usando la función de Word para respaldos
-- **Organiza productos por categorías** para facilitar búsquedas y reportes
-- **Verifica precios** antes de confirmar ventas grandes
-- **Usa traspasos** en lugar de ajustes para mover productos entre tiendas
-
-### ⚠️ **Precauciones Importantes**
-- **No cierres períodos** sin revisar minuciosamente todas las ventas
-- **Verifica siempre los montos** antes de confirmar pagos
-- **Mantén actualizado el inventario** para evitar sobreventa
-- **Justifica todos los ajustes** de inventario con motivos claros
-- **Respalda información importante** exportando reportes regularmente
-- **Cambia contraseñas** periódicamente por seguridad
-- **Reporta errores** inmediatamente al administrador
-
-### 🚀 **Funciones Avanzadas**
-- **Usa atajos de teclado** para agilizar las ventas
-- **Configura alertas** de stock mínimo por producto
-- **Aprovecha los filtros** en reportes para análisis específicos
-- **Utiliza la búsqueda global** para encontrar información rápidamente
-- **Personaliza tu workspace** según tus necesidades diarias
-
-## 🆘 Resolución de Problemas
-
-### **Problemas de Ventas**
-
-**❓ No puedo realizar ventas**
-- ✅ Verifica que tengas un período abierto en tu tienda
-- ✅ Confirma que los productos tengan existencias disponibles
-- ✅ Revisa que los precios estén configurados correctamente
-- ✅ Asegúrate de tener permisos de vendedor o superior
-
-**❓ El producto no aparece en la búsqueda**
-- ✅ Verifica que tenga precio asignado en tu tienda
-- ✅ Confirma que tenga existencias (o su producto padre si es fracción)
-- ✅ Revisa que esté asignado específicamente a tu tienda
-- ✅ Comprueba que esté en una categoría activa
-
-**❓ Error al procesar pago**
-- ✅ Verifica que los montos sean correctos y positivos
-- ✅ Confirma que la suma de efectivo + transferencia = total
-- ✅ Revisa tu conexión a internet
-- ✅ Intenta procesar de nuevo después de unos segundos
-
-### **Problemas de Inventario**
-
-**❓ Las existencias no coinciden**
-- ✅ Revisa el historial de movimientos del producto
-- ✅ Verifica si hay ventas no sincronizadas
-- ✅ Consulta con otros usuarios de la misma tienda
-- ✅ Realiza un ajuste de inventario con justificación
-
-**❓ No puedo crear productos/categorías**
-- ✅ Verifica que no exista ya un producto con ese nombre en tu negocio
-- ✅ Confirma que tengas permisos de administrador
-- ✅ Revisa que todos los campos obligatorios estén completos
-- ✅ Asegúrate de estar en la tienda correcta
-
-### **Problemas Técnicos**
-
-**❓ Error de sincronización**
-- ✅ Revisa tu conexión a internet
-- ✅ Actualiza la página del navegador
-- ✅ Intenta cerrar sesión y volver a ingresar
-- ✅ Contacta al administrador si persiste
-
-**❓ La aplicación funciona lenta**
-- ✅ Cierra otras pestañas del navegador
-- ✅ Limpia el caché del navegador
-- ✅ Verifica tu conexión a internet
-- ✅ Reinicia el navegador si es necesario
-
-**❓ No se pueden descargar reportes**
-- ✅ Verifica que tu navegador permita descargas
-- ✅ Desactiva temporalmente bloqueadores de pop-ups
-- ✅ Intenta desde otro navegador o dispositivo
-- ✅ Asegúrate de tener productos en el inventario
-
-**❓ Páginas muestran errores en negocios nuevos**
-- ℹ️ Es normal cuando el negocio no tiene datos históricos
-- ✅ Realiza algunas ventas y cierres para generar información
-- ✅ Las páginas funcionarán correctamente una vez que tengas datos
-- ✅ Contacta al administrador si los errores persisten después de usar el sistema
-
-## 🎉 Novedades y Actualizaciones
-
-### 🆕 **Últimas Funcionalidades**
-
-#### **📄 Exportación Profesional a Word**
-- **Nueva funcionalidad** para generar reportes empresariales
-- **Organización automática** por categorías con formato visual distintivo
-- **Datos completos** incluyendo cantidades iniciales, vendidas y finales
-- **Descarga automática** del documento con nombre y fecha
-
-#### **🏢 Gestión Multi-Negocio Mejorada**
-- **Restricciones de unicidad por negocio**: Cada empresa puede usar sus propios nombres
-- **Mayor flexibilidad** para crear productos y categorías sin conflictos
-- **Mejor aislamiento** entre diferentes negocios en el sistema
-
-#### **🌐 Funcionamiento Offline Mejorado**
-- **Detección automática** del estado de conexión
-- **Banner informativo** cuando estás trabajando sin internet
-- **Sincronización inteligente** al recuperar la conexión
-
-#### **📱 Interfaz Responsive Optimizada**
-- **Diseño adaptativo** para móviles, tablets y computadoras
-- **Navegación táctil** mejorada para dispositivos touch
-- **Componentes optimizados** para diferentes tamaños de pantalla
-
-## 📞 Soporte y Ayuda
-
-### **Canales de Soporte**
-- **Administrador de tienda**: Primera línea de soporte para problemas operativos
-- **Soporte técnico**: Para problemas del sistema o errores técnicos
-- **Manual de usuario**: Esta documentación para consultas rápidas
-- **Capacitación**: Solicita sesiones de entrenamiento si es necesario
-
-### **Información para Reportar Problemas**
-Cuando contactes soporte, incluye:
-- **Descripción detallada** del problema
-- **Pasos para reproducir** el error
-- **Mensaje de error** exacto (si aparece)
-- **Navegador y dispositivo** que estás usando
-- **Hora aproximada** cuando ocurrió el problema
-
-### **Recursos Adicionales**
-- **Videos tutoriales**: Disponibles para funciones principales
-- **Guías rápidas**: Resúmenes de procesos comunes
-- **FAQ**: Preguntas frecuentes y respuestas
-- **Actualizaciones**: Notificaciones de nuevas funcionalidades
+**Cuadre de Caja** es un sistema completo de gestión de puntos de venta (POS) diseñado para pequeñas y medianas empresas. Este manual te guiará a través de todas las funcionalidades disponibles para maximizar el uso del sistema.
 
 ---
 
-## 📊 Glosario de Términos
+## 🏠 Panel de Control Principal
 
-**Período de Ventas**: Intervalo de tiempo durante el cual se registran ventas, generalmente un día laboral.
+### Acceso Rápido
+El panel principal te permite acceder rápidamente a las funciones más importantes:
 
-**Cierre de Período**: Proceso de finalización que calcula totales y bloquea modificaciones.
+- **Punto de Venta (POS)**: Realizar ventas y transacciones
+- **Inventario**: Consultar stock y existencias
+- **Ventas**: Revisar historial de ventas
+- **Movimientos**: Historial de movimientos de inventario
+- **Cierre de Caja**: Cerrar períodos y generar reportes
+- **Resumen de Cierres**: Ver historial de cierres
 
-**Movimiento de Stock**: Cualquier cambio en el inventario (entrada, salida, ajuste, traspaso).
-
-**Fraccionamiento**: Venta de unidades menores de un producto (ej: cigarros sueltos de una cajetilla).
-
-**Traspaso**: Movimiento de productos entre tiendas del mismo negocio.
-
-**Multi-tenant**: Capacidad del sistema de manejar múltiples negocios independientes.
-
-**Sincronización**: Proceso de actualización de datos cuando se recupera la conexión a internet.
+### Configuración del Sistema
+- **Productos**: Gestión de catálogo de productos
+- **Categorías**: Organización por categorías
+- **Locales**: Gestión de múltiples tiendas/almacenes
+- **Usuarios**: Administración de usuarios y permisos
 
 ---
 
-**Sistema Cuadre de Caja**  
-*Versión: 1.0.0*  
-*Manual de Usuario*  
-*Última actualización: Enero 2025*  
-*Desarrollado para facilitar la gestión de tu negocio* 📈 
+## 🛒 Punto de Venta (POS)
+
+### Características Principales
+- **Interfaz táctil optimizada** para tablets y computadoras
+- **Funcionamiento offline** - nunca pierdas una venta
+- **Búsqueda inteligente** de productos en tiempo real
+- **Múltiples métodos de pago** (efectivo y transferencias)
+- **Sincronización automática** cuando hay conexión
+
+### Proceso de Venta
+1. **Seleccionar productos** por categoría o búsqueda
+2. **Ajustar cantidades** según necesidad
+3. **Revisar carrito** con totales desglosados
+4. **Procesar pago** con método preferido
+5. **Confirmar venta** y generar ticket
+
+### Funciones Avanzadas
+- **Ventas pendientes de sincronización** cuando no hay internet
+- **Búsqueda por nombre de producto** con resultados instantáneos
+- **Gestión de transferencias** con destinos configurables
+- **Historial de ventas recientes** para consulta rápida
+
+---
+
+## 📦 Gestión de Inventario
+
+### Consulta de Stock
+- **Vista completa** de todos los productos con existencias
+- **Filtros por categoría** y búsqueda por nombre
+- **Indicadores visuales** de estado de stock:
+  - 🟢 En Stock (más de 5 unidades)
+  - 🟡 Bajo Stock (1-5 unidades)
+  - 🔴 Sin Stock (0 unidades)
+
+### Estadísticas del Inventario
+- **Total de productos** en el sistema
+- **Productos con stock** vs sin stock
+- **Valor total del inventario** calculado automáticamente
+- **Productos por proveedor** con desglose
+
+### Funciones Especiales
+- **Exportación a Word** del inventario completo
+- **Vista de movimientos** por producto (clic en fila)
+- **Actualización en tiempo real** de existencias
+- **Búsqueda avanzada** con filtros múltiples
+
+---
+
+## 📊 Gestión de Ventas
+
+### Historial Completo
+- **Todas las ventas** del período actual
+- **Filtros por fecha** y búsqueda por ID
+- **Detalles completos** de cada transacción
+- **Estadísticas en tiempo real**
+
+### Información de Venta
+- **ID único** de la transacción
+- **Fecha y hora** exacta
+- **Productos vendidos** con cantidades
+- **Totales desglosados** (efectivo/transferencia)
+- **Usuario que realizó la venta**
+
+### Funciones de Gestión
+- **Ver detalles completos** de cada venta
+- **Cancelar ventas** (solo administradores)
+- **Exportar reportes** de ventas
+- **Filtros avanzados** por período
+
+---
+
+## 🔄 Control de Movimientos
+
+### Tipos de Movimientos
+- **COMPRA**: Entrada de productos por compra
+- **VENTA**: Salida de productos por venta
+- **AJUSTE_ENTRADA**: Correcciones por sobrantes
+- **AJUSTE_SALIDA**: Correcciones por faltantes
+- **TRASPASO_ENTRADA**: Recibo de otros locales
+- **TRASPASO_SALIDA**: Envío a otros locales
+- **DESAGREGACION_BAJA**: Baja por fraccionamiento
+- **DESAGREGACION_ALTA**: Alta por fraccionamiento
+- **CONSIGNACION_ENTRADA**: Productos en consignación
+- **CONSIGNACION_DEVOLUCION**: Devoluciones de consignación
+
+### Gestión de Movimientos
+- **Crear movimientos manuales** con validaciones
+- **Importar desde Excel** para movimientos masivos
+- **Filtros avanzados** por tipo, fecha y producto
+- **Paginación optimizada** para grandes volúmenes
+
+### Funciones Especiales
+- **Recepción de traspasos** pendientes
+- **Validación automática** de existencias
+- **Cálculo automático** de costos
+- **Auditoría completa** de movimientos
+
+---
+
+## 💰 Cierre de Caja
+
+### Proceso de Cierre
+1. **Verificar ventas pendientes** de sincronización
+2. **Revisar resumen** del período actual
+3. **Confirmar cierre** con validaciones
+4. **Generar reporte** automático
+5. **Abrir nuevo período** automáticamente
+
+### Información del Cierre
+- **Total de ventas** del período
+- **Ganancia total** calculada automáticamente
+- **Productos vendidos** con detalles
+- **Totales por método de pago**
+- **Ventas por usuario** del período
+
+### Reportes Generados
+- **Resumen ejecutivo** del período
+- **Detalle de productos** vendidos
+- **Análisis de ganancias** por producto
+- **Estadísticas de ventas** por usuario
+- **Totales de transferencias** por destino
+
+---
+
+## 📈 Dashboard y Analytics
+
+### Métricas Principales
+- **Ventas del período** vs período anterior
+- **Ventas de hoy** con comparativas
+- **Productos más vendidos** con rankings
+- **Estado del inventario** con alertas
+- **Movimientos recientes** con tendencias
+
+### Filtros Disponibles
+- **Por período**: Hoy, semana, mes, período actual
+- **Por tienda**: Local actual o todos los locales
+- **Por fecha personalizada**: Rango específico
+- **Actualización en tiempo real** de métricas
+
+### Visualizaciones
+- **Gráficos de tendencias** de ventas
+- **Indicadores de progreso** de inventario
+- **Alertas automáticas** de stock bajo
+- **Comparativas** entre períodos
+
+---
+
+## 🏪 Gestión Multi-Tienda
+
+### Tipos de Locales
+- **Tienda**: Punto de venta con POS
+- **Almacén**: Solo gestión de inventario
+
+### Funciones por Tipo
+**Tienda:**
+- Punto de venta completo
+- Gestión de inventario
+- Cierre de caja
+- Reportes de ventas
+
+**Almacén:**
+- Solo gestión de inventario
+- Movimientos de stock
+- Traspasos a tiendas
+- Reportes de inventario
+
+### Traspasos Entre Locales
+- **Envío de productos** entre tiendas/almacenes
+- **Recepción automática** con validaciones
+- **Seguimiento de traspasos** pendientes
+- **Historial completo** de movimientos
+
+---
+
+## 👥 Gestión de Proveedores
+
+### Información del Proveedor
+- **Datos básicos**: Nombre, contacto, dirección
+- **Productos asociados** al proveedor
+- **Historial de compras** y movimientos
+- **Estado de liquidaciones** pendientes
+
+### Productos en Consignación
+- **Control de productos** en consignación
+- **Liquidaciones automáticas** por ventas
+- **Reportes de comisiones** por proveedor
+- **Gestión de devoluciones** de consignación
+
+### Liquidaciones
+- **Cálculo automático** de comisiones
+- **Reportes de liquidación** por período
+- **Historial de pagos** realizados
+- **Estado de cuentas** por proveedor
+
+---
+
+## ⚙️ Configuración del Sistema
+
+### Gestión de Productos
+- **Crear y editar** productos
+- **Asignar categorías** y proveedores
+- **Configurar precios** y costos
+- **Gestionar fraccionamientos** de productos
+
+### Gestión de Categorías
+- **Crear categorías** para organización
+- **Asignar productos** a categorías
+- **Jerarquía de categorías** (categorías padre/hijo)
+- **Reportes por categoría**
+
+### Gestión de Usuarios
+- **Crear usuarios** con roles específicos
+- **Asignar permisos** granulares
+- **Gestionar acceso** a locales específicos
+- **Auditoría de acciones** por usuario
+
+### Gestión de Locales
+- **Crear tiendas y almacenes**
+- **Configurar destinos** de transferencia
+- **Asignar usuarios** a locales
+- **Configurar parámetros** específicos
+
+---
+
+## 📊 Reportes y Exportaciones
+
+### Reportes Disponibles
+- **Reporte de inventario** exportable a Word
+- **Reporte de ventas** por período
+- **Reporte de cierre** de caja
+- **Reporte de movimientos** con filtros
+- **Reporte de proveedores** y liquidaciones
+
+### Exportaciones
+- **Formato Word** para reportes profesionales
+- **Datos estructurados** para análisis externos
+- **Imágenes y gráficos** incluidos
+- **Formato empresarial** listo para presentación
+
+---
+
+## 🔧 Funciones Avanzadas
+
+### Análisis de Costo Promedio Ponderado (CPP)
+- **Cálculo automático** de costos promedio
+- **Análisis de desviaciones** de costos
+- **Migración de datos** históricos
+- **Reportes de confiabilidad** de costos
+
+### Conformación de Precios
+- **Edición masiva** de precios y costos
+- **Validaciones automáticas** de datos
+- **Guardado incremental** de cambios
+- **Historial de modificaciones**
+
+### Sincronización Offline
+- **Funcionamiento sin internet** en POS
+- **Sincronización automática** al recuperar conexión
+- **Validación de datos** antes de sincronizar
+- **Indicadores de estado** de sincronización
+
+---
+
+## 🛡️ Seguridad y Permisos
+
+### Roles de Usuario
+- **SUPER_ADMIN**: Acceso total al sistema
+- **ADMIN**: Administración de su negocio
+- **VENDEDOR**: Solo ventas y consultas básicas
+- **INVENTARIO**: Gestión de inventario y movimientos
+
+### Permisos Granulares
+- **Acceso a locales** específicos
+- **Funciones permitidas** por rol
+- **Auditoría completa** de acciones
+- **Control de sesiones** activas
+
+### Seguridad de Datos
+- **Encriptación** de información sensible
+- **Respaldos automáticos** de datos
+- **Validación de entrada** de datos
+- **Protección contra** pérdida de información
+
+---
+
+## 📱 Características Técnicas
+
+### Compatibilidad
+- **Navegadores modernos** (Chrome, Firefox, Safari, Edge)
+- **Dispositivos móviles** y tablets
+- **Funcionamiento offline** en POS
+- **Interfaz responsive** para todos los tamaños
+
+### Rendimiento
+- **Carga rápida** de datos
+- **Búsqueda instantánea** de productos
+- **Paginación optimizada** para grandes volúmenes
+- **Sincronización eficiente** de datos
+
+### Usabilidad
+- **Interfaz intuitiva** y fácil de usar
+- **Navegación clara** entre secciones
+- **Accesos rápidos** a funciones frecuentes
+- **Ayuda contextual** en cada sección
+
+---
+
+## 🆘 Soporte y Ayuda
+
+### Recursos Disponibles
+- **Videos tutoriales** para cada función
+- **Manual de usuario** completo
+- **FAQ** con preguntas frecuentes
+- **Soporte técnico** por email y WhatsApp
+
+### Contacto de Soporte
+- **Email**: soporte@cuadredecaja.com
+- **WhatsApp**: [Número de soporte]
+- **Horarios**: Lunes a Viernes 9:00 - 18:00
+- **Respuesta**: Máximo 24 horas
+
+---
+
+## 🔄 Actualizaciones y Mejoras
+
+### Nuevas Funcionalidades
+- **Actualizaciones mensuales** con nuevas características
+- **Mejoras basadas** en feedback de usuarios
+- **Nuevas integraciones** con sistemas externos
+- **Optimizaciones** de rendimiento
+
+### Proceso de Actualización
+- **Actualizaciones automáticas** sin interrupciones
+- **Notificaciones** de nuevas funciones
+- **Capacitación** para nuevas características
+- **Soporte** durante transiciones
+
+---
+
+**🎯 Cuadre de Caja - Tu socio estratégico para el éxito empresarial** 
