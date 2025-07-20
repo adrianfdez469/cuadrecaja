@@ -67,24 +67,26 @@ export async function PUT(
       totalTransferencia += venta.totaltransfer;
 
       for (const vp of venta.productos) {
-        const costoTotal = vp.producto.proveedorId ? 0 : vp.costo * vp.cantidad;
-        const ventaTotal = vp.precio * vp.cantidad;
-        const ganancia = ventaTotal - costoTotal;
-
-        totalInversion += costoTotal;
-
-        // Separar por tipo de producto
-        if (vp.producto.proveedorId) {
-          totalVentasConsignacion += ventaTotal;
-          totalGananciasConsignacion += ganancia;
+        
+        if(vp.producto.proveedorId){
+          const costoConsignacion = vp.costo * vp.cantidad;
+          const ventaConsignacion = vp.precio * vp.cantidad;
+          const gananciaConsignacion = ventaConsignacion - costoConsignacion;
+          totalVentasConsignacion += ventaConsignacion;
+          totalGananciasConsignacion += gananciaConsignacion;
         } else {
+          const costoTotal = vp.costo * vp.cantidad;
+          const ventaTotal = vp.precio * vp.cantidad;
+          const ganancia = ventaTotal - costoTotal;
+
+          totalInversion += costoTotal;
           totalVentasPropias += ventaTotal;
           totalGananciasPropias += ganancia;
         }
       }
     }
 
-    const totalGanancia = totalVentas - totalInversion;
+    const totalGanancia = totalGananciasPropias + totalGananciasConsignacion;
 
     const [periodoCerrado] = await prisma.$transaction(async (tx) => {
 
