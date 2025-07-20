@@ -23,7 +23,12 @@ import {
   Button,
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import { Sync } from "@mui/icons-material";
+import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
+import Sync from "@mui/icons-material/Sync";
+import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
+import BlurOnIcon from "@mui/icons-material/BlurOn";
+
 import { useCartStore } from "@/store/cartStore";
 import axios from "axios";
 import { useAppContext } from "@/context/AppContext";
@@ -38,16 +43,16 @@ import { ICierrePeriodo } from "@/types/ICierre";
 import useConfirmDialog from "@/components/confirmDialog";
 import { createSell } from "@/services/sellService";
 import { useSalesStore } from "@/store/salesStore";
-import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
-import BlurOnIcon from "@mui/icons-material/BlurOn";
+
 import { ProducsSalesDrawer } from "./components/ProductsSalesDrawer";
 import { SalesDrawer } from "./components/SalesDrawer";
-import SearchIcon from "@mui/icons-material/Search";
-import CloseIcon from "@mui/icons-material/Close";
+
 import { QuantityDialog } from "./components/QuantityDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
-import { formatDate } from "@/utils/formatters";
+
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
+import { formatDate } from "@/utils/formatters";
+
 import {IProcessedData} from "@/types/IProcessedData";
 import { ITransferDestination } from "@/types/ITransferDestination";
 import { fetchTransferDestinations } from "@/services/transferDestinationsService";
