@@ -18,13 +18,29 @@ import {
   Card,
   CardContent,
   Grid,
+  IconButton,
+  Tooltip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  CircularProgress,
+  useMediaQuery,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import { ICierreData } from "@/types/ICierre";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
+import {
+  exportProductosVendidosToExcel,
+  exportProductosPropiosToExcel,
+  exportProductosProveedorToExcel
+} from "@/utils/excelExport";
+import { useMessageContext } from "@/context/MessageContext";
+import theme from "@/theme";
 
 // Tipos específicos para los productos
 interface ProductoVendido {
@@ -71,9 +87,16 @@ export const TablaProductosCierre: FC<IProps> = ({
   showOnlyCants,
 }) => {
   const { user } = useAppContext();
+  const { showMessage } = useMessageContext();
   const [disableCierreBtn, setDisableCierreBtn] = useState(false);
   const [expandedPropios, setExpandedPropios] = useState(true);
   const [expandedConsignacion, setExpandedConsignacion] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [anchorElPropios, setAnchorElPropios] = useState<null | HTMLElement>(null);
+  const [anchorElConsignacion, setAnchorElConsignacion] = useState<null | HTMLElement>(null);
+
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const handleCierre = async () => {
     if (handleCerrarCaja) {
@@ -85,6 +108,87 @@ export const TablaProductosCierre: FC<IProps> = ({
 
   const isAdminOrSuperAdmin = () => {
     return user?.rol === "ADMIN" || user?.rol === "SUPER_ADMIN";
+  };
+
+  // Funciones de exportación
+  const handleExportAll = async () => {
+    try {
+      setExporting(true);
+      await exportProductosVendidosToExcel({
+        cierreData,
+        tiendaNombre: user.localActual.nombre,
+        fechaInicio: new Date(), // Esto debería venir del cierre
+        fechaFin: new Date()
+      });
+      showMessage("Archivo Excel exportado exitosamente", "success");
+    } catch (error) {
+      console.error("Error al exportar:", error);
+      showMessage("Error al exportar el archivo Excel", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPropios = async () => {
+    try {
+      setExporting(true);
+      await exportProductosPropiosToExcel({
+        cierreData,
+        tiendaNombre: user.localActual.nombre,
+        fechaInicio: new Date(),
+        fechaFin: new Date()
+      });
+      showMessage("Productos propios exportados exitosamente", "success");
+    } catch (error) {
+      console.error("Error al exportar productos propios:", error);
+      showMessage("Error al exportar productos propios", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportProveedor = async (proveedorId: string) => {
+    try {
+      setExporting(true);
+      await exportProductosProveedorToExcel({
+        cierreData,
+        tiendaNombre: user.localActual.nombre,
+        fechaInicio: new Date(),
+        fechaFin: new Date(),
+        proveedorId
+      });
+      showMessage("Productos del proveedor exportados exitosamente", "success");
+    } catch (error) {
+      console.error("Error al exportar productos del proveedor:", error);
+      showMessage("Error al exportar productos del proveedor", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Funciones para manejar menús
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleMenuPropiosOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorElPropios(event.currentTarget);
+  };
+
+  const handleMenuPropiosClose = () => {
+    setAnchorElPropios(null);
+  };
+
+  const handleMenuConsignacionOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorElConsignacion(event.currentTarget);
+  };
+
+  const handleMenuConsignacionClose = () => {
+    setAnchorElConsignacion(null);
   };
 
   const {
@@ -99,6 +203,15 @@ export const TablaProductosCierre: FC<IProps> = ({
     totalTransferenciasByDestination,
     totalVentasPorUsuario
   } = cierreData;
+
+  // Obtener proveedores únicos para el menú de consignación
+  const proveedoresUnicos = Array.from(
+    new Map(
+      productosVendidos
+        .filter(p => p.proveedor)
+        .map(p => [p.proveedor!.id, { id: p.proveedor!.id, nombre: p.proveedor!.nombre }])
+    ).values()
+  ).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   // Función para renderizar tabla con agrupamiento
   const ProductTable = ({ productos, title, isConsignacion = false }: {
@@ -273,7 +386,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                 </Typography>
               </Box>
             </Grid>
-            
+
             {isAdminOrSuperAdmin && (
               <Grid item xs={12} sm={6} md={3}>
                 <Box textAlign="center">
@@ -286,7 +399,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                 </Box>
               </Grid>
             )}
-            
+
             <Grid item xs={12} sm={6} md={3}>
               <Box textAlign="center">
                 <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -297,7 +410,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                 </Typography>
               </Box>
             </Grid>
-            
+
             {totalTransferenciasByDestination.length > 0 && (
               <Grid item xs={12} sm={6} md={3}>
                 <Box>
@@ -322,17 +435,18 @@ export const TablaProductosCierre: FC<IProps> = ({
           </Grid>
 
           {handleCerrarCaja && (
-            <Box sx={{ 
-              display: 'flex', 
+            <Box sx={{
+              display: 'flex',
               justifyContent: { xs: 'center', sm: 'flex-end' },
-              minWidth: { sm: 'auto', md: '200px' }
+              minWidth: { sm: 'auto', md: '200px' },
+              gap: 1
             }}>
               <Button
                 variant="contained"
                 onClick={handleCierre}
                 disabled={disableCierreBtn}
                 size="large"
-                sx={{ 
+                sx={{
                   minWidth: '140px',
                   height: '48px'
                 }}
@@ -341,11 +455,33 @@ export const TablaProductosCierre: FC<IProps> = ({
               </Button>
             </Box>
           )}
+
+          {/* Menú de exportación general */}
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+          >
+            <MenuItem onClick={handleExportAll} disabled={exporting}>
+              <ListItemIcon>
+                <FileDownloadIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Exportar todos los productos</ListItemText>
+            </MenuItem>
+          </Menu>
         </Paper>
       )}
 
       {/* Resumen de Ventas por Usuario */}
-      
+
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="h6" gutterBottom>
           📊 Resumen de Ventas por Usuario
@@ -401,7 +537,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                 <Box display="flex" alignItems="center" gap={1} mb={1}>
                   <HandshakeIcon color="secondary" />
                   <Typography variant="subtitle1" fontWeight="bold">
-                    Productos en Consignación
+                    Productos Consginación
                   </Typography>
                 </Box>
                 <Typography variant="body2" color="text.secondary">
@@ -422,12 +558,33 @@ export const TablaProductosCierre: FC<IProps> = ({
       <Box sx={{ mb: 2 }}>
         {productosVendidos.filter(p => !p.proveedor).length > 0 && (
           <Accordion expanded={expandedPropios}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon /> } onClick={() => setExpandedPropios(!expandedPropios)}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              onClick={() => setExpandedPropios(!expandedPropios)}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                pr: 1
+              }}
+            >
               <Box display="flex" alignItems="center" gap={1}>
                 <StoreIcon color="primary" />
                 <Typography variant="subtitle1" fontWeight="bold">
-                  Productos Propios ({productosVendidos.filter(p => !p.proveedor).length})
+                {isMobile ? "Propios" : "Productos Propios"} ({productosVendidos.filter(p => !p.proveedor).length})
                 </Typography>
+              </Box>
+              <Box onClick={(e) => e.stopPropagation()} flex={1} display={'flex'} justifyContent={'flex-end'}>
+                <Tooltip title="Exportar productos propios">
+                  <IconButton
+                    onClick={handleMenuPropiosOpen}
+                    disabled={exporting}
+                    size="small"
+                    color="primary"
+                  >
+                    {exporting ? <CircularProgress size={16} /> : <FileDownloadIcon />}
+                  </IconButton>
+                </Tooltip>
               </Box>
             </AccordionSummary>
             <AccordionDetails>
@@ -441,12 +598,33 @@ export const TablaProductosCierre: FC<IProps> = ({
         )}
         {productosVendidos.filter(p => p.proveedor).length > 0 && (
           <Accordion expanded={expandedConsignacion}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />} onClick={() => setExpandedConsignacion(!expandedConsignacion)}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              onClick={() => setExpandedConsignacion(!expandedConsignacion)}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                pr: 1
+              }}
+            >
               <Box display="flex" alignItems="center" gap={1}>
                 <HandshakeIcon color="secondary" />
                 <Typography variant="subtitle1" fontWeight="bold">
-                  Productos en Consignación ({productosVendidos.filter(p => p.proveedor).length})
+                {isMobile ? "Consignación" : "Productos Consignación"} ({productosVendidos.filter(p => p.proveedor).length})
                 </Typography>
+              </Box>
+              <Box onClick={(e) => e.stopPropagation()} flex={1} display={'flex'} justifyContent={'flex-end'}>
+                <Tooltip title="Exportar productos en consignación">
+                  <IconButton
+                    onClick={handleMenuConsignacionOpen}
+                    disabled={exporting}
+                    size="small"
+                    color="secondary"
+                  >
+                    {exporting ? <CircularProgress size={16} /> : <FileDownloadIcon />}
+                  </IconButton>
+                </Tooltip>
               </Box>
             </AccordionSummary>
             <AccordionDetails>
@@ -458,6 +636,59 @@ export const TablaProductosCierre: FC<IProps> = ({
             </AccordionDetails>
           </Accordion>
         )}
+
+        {/* Menú de exportación para productos propios */}
+        <Menu
+          anchorEl={anchorElPropios}
+          open={Boolean(anchorElPropios)}
+          onClose={handleMenuPropiosClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+        >
+          <MenuItem onClick={handleExportPropios} disabled={exporting}>
+            <ListItemIcon>
+              <FileDownloadIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Exportar productos propios</ListItemText>
+          </MenuItem>
+        </Menu>
+
+        {/* Menú de exportación para productos en consignación */}
+        <Menu
+          anchorEl={anchorElConsignacion}
+          open={Boolean(anchorElConsignacion)}
+          onClose={handleMenuConsignacionClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+        >
+          {proveedoresUnicos.map((proveedor) => (
+            <MenuItem
+              key={proveedor.id}
+              onClick={() => {
+                handleExportProveedor(proveedor.id);
+                handleMenuConsignacionClose();
+              }}
+              disabled={exporting}
+            >
+              <ListItemIcon>
+                <FileDownloadIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Exportar productos de {proveedor.nombre}</ListItemText>
+            </MenuItem>
+          ))}
+        </Menu>
       </Box>
 
       <Divider sx={{ my: 2 }} />
@@ -465,9 +696,28 @@ export const TablaProductosCierre: FC<IProps> = ({
       {/* Tabla original (mantenida para compatibilidad) */}
       <Box sx={{ m: 2 }}>
 
-        <Typography variant="h6" gutterBottom>
-          📋 Vista Completa de Productos
-        </Typography>
+        <Box display={'flex'} flexDirection={'row'} gap={2}>
+
+          <Typography variant="h6" gutterBottom>
+            {isMobile ? "📋 Todos" : "📋 Todos los Productos"}
+          </Typography>
+          
+          <Box onClick={(e) => e.stopPropagation()} flex={1} display={'flex'} justifyContent={'flex-end'}>
+            <Tooltip title="Exportar a Excel">
+              <IconButton
+                onClick={handleMenuOpen}
+                disabled={exporting}
+                color="primary"
+              >
+                {exporting ? <CircularProgress size={20} /> : <FileDownloadIcon />}
+              </IconButton>
+            </Tooltip>
+          </Box>
+
+        </Box>
+
+
+
         <TableContainer component={Paper} sx={{ mt: 2 }}>
           <Table size="small">
             <TableHead>
@@ -514,7 +764,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                     }))
                     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-                  return gruposOrdenados.map((grupo) => 
+                  return gruposOrdenados.map((grupo) =>
                     grupo.items.map((producto, index) => (
                       <TableRow key={`${grupo.productoId}-${index}`}>
                         {/* Celda del nombre del producto con rowSpan */}
@@ -525,17 +775,17 @@ export const TablaProductosCierre: FC<IProps> = ({
                                 {producto.nombre || 'Producto sin nombre'}
                               </Typography>
                               {grupo.items.length > 1 && (
-                                <Chip 
-                                  label={`${grupo.items.length} variantes`} 
-                                  size="small" 
-                                  color="info" 
+                                <Chip
+                                  label={`${grupo.items.length} variantes`}
+                                  size="small"
+                                  color="info"
                                   variant="outlined"
                                 />
                               )}
                             </Box>
                           </TableCell>
                         )}
-                        
+
                         {/* Celdas de datos específicos de cada variante */}
                         <TableCell>{formatNumber(producto.cantidad || 0)}</TableCell>
                         {!showOnlyCants && (
