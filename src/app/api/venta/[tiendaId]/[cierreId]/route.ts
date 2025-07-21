@@ -6,13 +6,25 @@ import { IVenta } from "@/types/IVenta";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
   try {
     const { cierreId, tiendaId } = await params;
-    
+
     console.log('🔍 [POST /api/venta] Recibiendo petición de venta:', {
       tiendaId,
       cierreId
     });
 
-    const { usuarioId, productos, total, totalcash, totaltransfer, syncId, transferDestinationId } = await req.json();
+    const {
+      usuarioId,
+      productos,
+      total,
+      totalcash,
+      totaltransfer,
+      transferDestinationId,
+
+      syncId, // Id unico de transación y sincronización
+      createdAt, // Fecha y hora real de la creación la venta en el frontend
+      wasOffline, // El intento de venta fue realizado sin conexión?
+      syncAttempts // Cantidad de reintentos alcanzados 
+    } = await req.json();
 
     console.log('🔍 [POST /api/venta] Datos de la venta:', {
       usuarioId,
@@ -21,7 +33,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       totaltransfer,
       syncId,
       productos,
-      transferDestinationId
+      transferDestinationId,
+      createdAt,
+      wasOffline,
+      syncAttempts
     });
 
     if (!tiendaId || !usuarioId || !cierreId || !productos.length || !syncId) {
@@ -55,17 +70,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       return NextResponse.json(existeVenta, { status: 200 });
     }
 
-    // Buscar el período
-    const periodoActual = await prisma.cierrePeriodo.findUnique({
-      where: {
-        id: cierreId
-      }
+    const ultimoPeriodo = await prisma.cierrePeriodo.findFirst({
+      where: { tiendaId, fechaFin: null },
+      orderBy: { fechaInicio: "desc" },
     });
 
-    console.log('🔍 [POST /api/venta] Período actual:', periodoActual);
 
-    if (!periodoActual) {
-      return NextResponse.json({ error: "Período no encontrado" }, { status: 404 });
+
+    console.log('🔍 [POST /api/venta] Período actual:', ultimoPeriodo);
+
+    if (!ultimoPeriodo) {
+      return NextResponse.json({ error: "No existe un período abierto en la tienda" }, { status: 404 });
+    }
+
+    // 🆕 VALIDACIÓN: Verificar que la venta pertenece al período actual
+    if (ultimoPeriodo.id !== cierreId) {
+      // Buscar el período
+      const periodoDeLaVenta = await prisma.cierrePeriodo.findUnique({
+        where: {
+          id: cierreId
+        }
+      });
+
+      const ventaCreatedAt = new Date(createdAt);
+      const periodoInicio = new Date(periodoDeLaVenta.fechaInicio);
+      const periodoFin = periodoDeLaVenta.fechaFin ? new Date(periodoDeLaVenta.fechaFin) : new Date();
+      return NextResponse.json({
+        error: `La venta fue creada fuera del período actual. Venta: ${ventaCreatedAt.toLocaleString()}, Período: ${periodoInicio.toLocaleString()} - ${periodoFin.toLocaleString()}. No se puede sincronizar ventas de períodos anteriores.`,
+        ventaCreatedAt: ventaCreatedAt.toISOString(),
+        periodoInicio: periodoInicio.toISOString(),
+        periodoFin: periodoFin.toISOString()
+      }, { status: 400 });
     }
 
     // **TRANSACCIÓN ATÓMICA: Todo o nada**
@@ -116,8 +151,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           total,
           totalcash,
           totaltransfer,
-          cierrePeriodoId: periodoActual.id,
+          cierrePeriodoId: ultimoPeriodo.id,
           syncId,
+          // 🆕 NUEVOS CAMPOS
+          frontendCreatedAt: createdAt ? new Date(createdAt) : null,
+          wasOffline: wasOffline || false,
+          syncAttempts: syncAttempts || 0, // 🆕 Usar syncAttempts enviado desde frontend
           productos: {
             create: productosMegrados.map((p) => ({
               productoTiendaId: p.productoTiendaId,
@@ -126,7 +165,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
               precio: p.precio
             })),
           },
-          ...((transferDestinationId && totaltransfer > 0) && {transferDestinationId: transferDestinationId}),
+          ...((transferDestinationId && totaltransfer > 0) && { transferDestinationId: transferDestinationId }),
         },
         include: {
           productos: true
@@ -161,7 +200,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         console.log('🔍 [POST /api/venta] Procesando productos fraccionables:', productosFraccionables.length);
 
         const productosFraccionablesData = productosFraccionables.filter(pf => pf.producto.fraccionDeId);
-        
+
         // Usar existencias originales para el cálculo
         const productosFraccionablesNeedDesagregateData = productosFraccionablesData
           .filter((prodFracc) => {
@@ -204,6 +243,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
             if (productoTiendaDesagregar) {
               const existenciaAnterior = productoTiendaDesagregar.existencia;
+              
+              if(existenciaAnterior < item.cantidad){
+                console.log('🔍 [POST /api/venta] No hay suficiente existencia para desagregar. Existencia:', existenciaAnterior, 'Cantidad a desagregar:', item.cantidad);
+                throw new Error(`Existencia insuficiente, no hay suficiente existencia para desagregar. Existencia: ${existenciaAnterior}, Cantidad a desagregar: ${item.cantidad}`);
+              }
 
               await tx.productoTienda.update({
                 where: { id: productoTiendaDesagregar.id },
@@ -288,6 +332,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
         const existenciaAnterior = productoTiendaActual.existencia;
 
+        if(existenciaAnterior < producto.cantidad) {
+          console.log(`[POST /api/venta] No hay suficiente existencia para realizar la venta de productoTiendaId: ${producto.productoTiendaId}, existenciaAnterior: ${existenciaAnterior}, 'Cantidad a vender:`, producto.cantidad);
+          throw new Error(`Existencia insuficiente para realizar la venta de productoTiendaId: ${producto.productoTiendaId}. Existencia: ${existenciaAnterior}, Cantidad a vender: ${producto.cantidad}`);
+          
+        }
+
         // Actualizar existencia
         await tx.productoTienda.update({
           where: { id: producto.productoTiendaId },
@@ -309,7 +359,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
             existenciaAnterior,
             referenciaId: venta.id,
             motivo: `Venta ${venta.id}`,
-            ...(productoTienda.proveedorId && {proveedorId: productoTienda.proveedorId})
+            ...(productoTienda.proveedorId && { proveedorId: productoTienda.proveedorId })
           }
         });
 
@@ -352,7 +402,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
             precio: true,
             costo: true,
 
-            
+
             producto: {
               select: {
                 proveedor: {
@@ -380,7 +430,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         createdAt: 'desc',
       },
     });
-    
+
     const ventas: IVenta[] = ventasPrisma.map((venta) => ({
       id: venta.id,
       createdAt: venta.createdAt,

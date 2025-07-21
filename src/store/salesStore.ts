@@ -16,6 +16,12 @@ export interface Sale {
   synced: boolean;
   syncState: "synced" | "syncing" | "not_synced" | "sync_err";
   transferDestinationId?: string;
+  syncStartedAt?: number; // Timestamp cuando comenzó la sincronización
+  
+  // 🆕 NUEVOS CAMPOS
+  createdAt: number; // Timestamp exacto de creación de la venta
+  wasOffline: boolean; // Si la venta se creó sin conexión
+  syncAttempts: number; // Contador de intentos de sincronización
 }
 
 export interface Products {
@@ -34,11 +40,12 @@ interface SalesState {
   deleteSale: (id: string) => void;
   clearSales: () => void;
   synchronizeSales: (sales: Sale[]) => void;
+  checkSyncTimeouts: () => void; // Nueva función para verificar timeouts
 }
 
 export const useSalesStore = create<SalesState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       sales: [],
       productos: [],
       addSale: (sale) =>
@@ -69,7 +76,14 @@ export const useSalesStore = create<SalesState>()(
           });
           return {
             fullySynced: false,
-            sales: [...state.sales, { ...sale, synced: false }],
+            sales: [...state.sales, { 
+              ...sale, 
+              synced: false,
+              // 🆕 VALORES POR DEFECTO PARA NUEVOS CAMPOS
+              createdAt: sale.createdAt || Date.now(),
+              wasOffline: sale.wasOffline || false,
+              syncAttempts: 0
+            }],
             productos: [...stateProds, ...prodsToAdd],
           };
         }),
@@ -77,7 +91,14 @@ export const useSalesStore = create<SalesState>()(
         set((state) => ({
           sales: state.sales.map((sale) => {
             if (sale.identifier === id) {
-              return { ...sale, synced: true, syncState: "synced", dbId: idDb };
+              return { 
+                ...sale, 
+                synced: true, 
+                syncState: "synced", 
+                dbId: idDb,
+                syncStartedAt: undefined // Limpiar timestamp
+                // 🆕 NO limpiar syncAttempts - se mantiene para guardar en DB
+              };
             }
             return sale;
           }),
@@ -86,7 +107,12 @@ export const useSalesStore = create<SalesState>()(
         set((state) => ({
           sales: state.sales.map((sale) => {
             if (sale.identifier === id) {
-              return { ...sale, synced: false, syncState: "not_synced" };
+              return { 
+                ...sale, 
+                synced: false, 
+                syncState: "not_synced",
+                syncStartedAt: undefined // Limpiar timestamp
+              };
             }
             return sale;
           }),
@@ -95,7 +121,13 @@ export const useSalesStore = create<SalesState>()(
         set((state) => ({
           sales: state.sales.map((sale) => {
             if (sale.identifier === id) {
-              return { ...sale, synced: false, syncState: "syncing" };
+              return { 
+                ...sale, 
+                synced: false, 
+                syncState: "syncing",
+                syncStartedAt: Date.now(), // Registrar cuando comenzó la sincronización
+                syncAttempts: sale.syncAttempts + 1 // 🆕 Incrementar contador de intentos
+              };
             }
             return sale;
           }),
@@ -160,6 +192,36 @@ export const useSalesStore = create<SalesState>()(
             productos: prods,
           };
         }),
+      checkSyncTimeouts: () => {
+        const state = get();
+        const now = Date.now();
+        const TIMEOUT_DURATION = 60000; // 60 segundos de timeout
+        
+        const hasTimeouts = state.sales.some(sale => 
+          sale.syncState === "syncing" && 
+          sale.syncStartedAt && 
+          (now - sale.syncStartedAt) > TIMEOUT_DURATION
+        );
+        
+        if (hasTimeouts) {
+          set((state) => ({
+            sales: state.sales.map((sale) => {
+              if (sale.syncState === "syncing" && 
+                  sale.syncStartedAt && 
+                  (now - sale.syncStartedAt) > TIMEOUT_DURATION) {
+                console.warn(`⚠️ Timeout detectado para venta ${sale.identifier}, marcando como error`);
+                return { 
+                  ...sale, 
+                  synced: false, 
+                  syncState: "sync_err",
+                  syncStartedAt: undefined
+                };
+              }
+              return sale;
+            }),
+          }));
+        }
+      },
     }),
     {
       name: "sales-storage", // nombre de la clave en localStorage
