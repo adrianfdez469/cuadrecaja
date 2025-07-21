@@ -104,6 +104,7 @@ const configurationMenuItems = [
 
 const mainMenuItems = [
   { label: "Dashboard", path: "/dashboard", icon: <Analytics /> },
+  { label: "Resumen del Negocio", path: "/dashboard-resumen", icon: <Summarize /> },
   { label: "POS", path: "/pos", icon: <PointOfSale /> },
   { label: "Ventas", path: "/ventas", icon: <Receipt /> },
   { label: "Conformar Precios", path: "/conformar_precios", icon: <GridView /> },
