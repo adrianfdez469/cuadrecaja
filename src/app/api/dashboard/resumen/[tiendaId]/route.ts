@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import getUserFromRequest from "@/utils/getUserFromRequest";
+import { hasAdminPrivileges } from "@/utils/auth";
 
 export interface DashboardResumenMetrics {
   ventas: {
@@ -34,7 +35,7 @@ export async function GET(
   try {
     const user = await getUserFromRequest(req);
     
-    if (!user) {
+    if (!user || !hasAdminPrivileges()) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -107,7 +108,8 @@ export async function GET(
           include: {
             producto: {
               include: {
-                producto: true
+                producto: true,
+                proveedor: true
               }
             }
           }
@@ -137,17 +139,18 @@ export async function GET(
         // Actualizar mapas de productos
         const productoId = ventaProducto.productoTiendaId;
         const nombreProducto = ventaProducto.producto.producto.nombre;
+        const nombreProveedor = ventaProducto.producto.proveedor ? ventaProducto.producto.proveedor.nombre : undefined;
 
         // Actualizar mapa de unidades vendidas
         if (productosVendidosMap.has(productoId)) {
           const actual = productosVendidosMap.get(productoId)!;
           productosVendidosMap.set(productoId, {
-            nombre: nombreProducto,
+            nombre: nombreProveedor ? `${nombreProducto} - ${nombreProveedor}` : nombreProducto,
             unidades: actual.unidades + ventaProducto.cantidad
           });
         } else {
           productosVendidosMap.set(productoId, {
-            nombre: nombreProducto,
+            nombre: nombreProveedor ? `${nombreProducto} - ${nombreProveedor}` : nombreProducto,
             unidades: ventaProducto.cantidad
           });
         }
@@ -156,12 +159,12 @@ export async function GET(
         if (productosGananciaMap.has(productoId)) {
           const actual = productosGananciaMap.get(productoId)!;
           productosGananciaMap.set(productoId, {
-            nombre: nombreProducto,
+            nombre: nombreProveedor ? `${nombreProducto} - ${nombreProveedor}` : nombreProducto,
             ganancia: actual.ganancia + gananciaProducto
           });
         } else {
           productosGananciaMap.set(productoId, {
-            nombre: nombreProducto,
+            nombre: nombreProveedor ? `${nombreProducto} - ${nombreProveedor}` : nombreProducto,
             ganancia: gananciaProducto
           });
         }
