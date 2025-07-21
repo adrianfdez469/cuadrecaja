@@ -1,67 +1,67 @@
 "use client";
 
-import { PropsWithChildren, useEffect, useState, useRef } from "react";
+import {PropsWithChildren, useEffect, useRef, useState} from "react";
 import {
   AppBar,
-  Toolbar,
-  IconButton,
-  Typography,
-  Drawer,
-  List,
-  ListItem,
-  ListItemText,
   Box,
   Button,
+  Chip,
+  CircularProgress,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  Drawer,
+  FormControlLabel,
+  IconButton,
+  List,
+  ListItem,
   ListItemButton,
   ListItemIcon,
-  Divider,
+  ListItemText,
   Menu,
   MenuItem,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  FormControlLabel,
   Radio,
   RadioGroup,
-  DialogActions,
-  CircularProgress,
-  Chip,
-  Container,
+  Toolbar,
+  Typography,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
 import StoreIcon from "@mui/icons-material/Store";
 import CategoryIcon from "@mui/icons-material/Category";
 import ChangeHistoryIcon from "@mui/icons-material/ChangeHistory";
-import { useAppContext } from "@/context/AppContext";
-import { AccountCircle, CardGiftcardOutlined } from "@mui/icons-material";
+import {useAppContext} from "@/context/AppContext";
+import {
+  AccountBalanceWallet,
+  AccountCircle,
+  CardGiftcardOutlined,
+  GridView,
+  Handshake,
+  Inventory,
+  LocalShipping,
+  PointOfSale,
+  Receipt,
+  Summarize,
+  SwapVert
+} from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
-import { cambiarNegocio, cambiarLocal, getLocalesDisponibles } from "@/services/authService";
-import { useSession, signOut } from "next-auth/react";
-import { useMessageContext } from "@/context/MessageContext";
-import { getNegocios } from "@/services/negocioServce";
-import { INegocio } from "@/types/INegocio";
+import {cambiarLocal, cambiarNegocio, getLocalesDisponibles} from "@/services/authService";
+import {signOut, useSession} from "next-auth/react";
+import {useMessageContext} from "@/context/MessageContext";
+import {getNegocios} from "@/services/negocioServce";
+import {INegocio} from "@/types/INegocio";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChangeCircleIcon from '@mui/icons-material/ChangeCircleOutlined';
 import NextWeekIcon from '@mui/icons-material/NextWeekOutlined';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import {useNetworkStatus} from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
-import { 
-  Analytics, 
-  PointOfSale, 
-  Receipt, 
-  AccountBalanceWallet,
-  SwapVert,
-  Inventory,
-  Summarize,
-  GridView,
-  LocalShipping,
-  Handshake,
-} from '@mui/icons-material';
-import { TipoLocal } from "@/types/ILocal";
-import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
+import {TipoLocal} from "@/types/ILocal";
+import {excludeOnWarehouse} from "@/utils/excludeOnWarehouse";
 
 const configurationMenuItems = [
   {
@@ -103,7 +103,8 @@ const configurationMenuItems = [
 ];
 
 const mainMenuItems = [
-  { label: "Dashboard", path: "/dashboard", icon: <Analytics /> },
+  // { label: "Dashboard", path: "/dashboard", icon: <Analytics /> },
+  { label: "Dashboard", path: "/dashboard-resumen", icon: <Summarize /> },
   { label: "POS", path: "/pos", icon: <PointOfSale /> },
   { label: "Ventas", path: "/ventas", icon: <Receipt /> },
   { label: "Conformar Precios", path: "/conformar_precios", icon: <GridView /> },
