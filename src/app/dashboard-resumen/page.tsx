@@ -191,7 +191,7 @@ export default function DashboardResumenPage() {
           <MenuItem value="semana">Semana</MenuItem>
           <MenuItem value="mes">Mes</MenuItem>
           <MenuItem value="anio">Año</MenuItem>
-          <MenuItem value="personalizado">Personalizado</MenuItem>
+          {/*<MenuItem value="personalizado">Personalizado</MenuItem>*/}
         </Select>
       </FormControl>
 
