@@ -371,6 +371,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
     });
 
     console.log('🔍 [POST /api/venta] Venta y movimientos creados exitosamente:', result.id);
+
+    
     return NextResponse.json(result, { status: 201 });
 
   } catch (error) {

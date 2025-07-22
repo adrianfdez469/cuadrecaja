@@ -38,9 +38,10 @@ interface IProps {
   showSales: boolean;
   period: ICierrePeriodo;
   handleClose: () => void;
+  reloadProdsAndCategories: () => void;
 }
 
-export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
+export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reloadProdsAndCategories }) => {
   const {
     sales,
     markSynced,
@@ -85,6 +86,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
         );
         markSynced(syncObj.identifier, ventaDb.id);
         setOffline(false);
+        reloadProdsAndCategories();
       } catch (error) {
         console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
         
@@ -133,6 +135,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
       );
       markSynced(syncObj.identifier, ventaDb.id);
       setOffline(false);
+      reloadProdsAndCategories();
     } catch (error) {
       console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
       
@@ -197,7 +200,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
     );
   };
 
-  const syncronizeProdsAndSales = async () => {
+  const reloadSales = async () => {
     try {
       setDisableAll(true);
       const tiendaId = user.localActual.id;
@@ -259,7 +262,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
 
   useEffect(() => {
     (async () => {
-      await syncronizeProdsAndSales();
+      await reloadSales();
     })();
   }, [showSales]);
 

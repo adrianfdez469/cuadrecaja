@@ -55,12 +55,13 @@ export const useSalesStore = create<SalesState>()(
           
           const stateProds = state.productos;
           console.log(stateProds);
-          console.log(sale);
+          console.log('sale',sale);
           
           
           const prodsToAdd: Products[] = [];
           
           sale.productos.forEach((prod) => {
+            
             const index = state.productos.findIndex(
               (stProd) => stProd.id === prod.productId
             );
@@ -164,7 +165,10 @@ export const useSalesStore = create<SalesState>()(
           console.log(sales);
           
 
-          const salesToKeep = state.sales.filter((s) => !s.synced);
+          const salesToKeep = state.sales
+            .filter((s) => !sales.find((s2) => s2.identifier === s.identifier))
+            .filter((s) => !s.synced);
+
           const newSales = [...salesToKeep, ...sales];
 
           const prods: Products[] = [];
