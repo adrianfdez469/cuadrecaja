@@ -105,7 +105,7 @@ const getPlansForUI = () => {
       description: 'Plan gratuito por un mes',
       duration: `${planesNegocio.FREEMIUM.duracion} días de validez`,
       features: [
-        `${planesNegocio.FREEMIUM.limiteLocales} tienda`,
+        `${planesNegocio.FREEMIUM.limiteLocales} locales (tiendas/almacenes)`,
         `${planesNegocio.FREEMIUM.limiteUsuarios} usuario`,
         `Hasta ${planesNegocio.FREEMIUM.limiteProductos} productos`,
         'Funcionalidades básicas',
@@ -123,7 +123,7 @@ const getPlansForUI = () => {
       description: 'Plan básico mensual',
       duration: `${planesNegocio.BASICO.duracion} días de validez`,
       features: [
-        `${planesNegocio.BASICO.limiteLocales} tienda`,
+        `${planesNegocio.BASICO.limiteLocales} locales (tiendas/almacenes)`,
         `${planesNegocio.BASICO.limiteUsuarios} usuario`,
         `Hasta ${planesNegocio.BASICO.limiteProductos} productos`,
         'Reportes básicos',
@@ -141,7 +141,7 @@ const getPlansForUI = () => {
       description: 'Plan silver con usuarios ilimitados',
       duration: `${planesNegocio.SILVER.duracion} días de validez`,
       features: [
-        `Hasta ${planesNegocio.SILVER.limiteLocales} tiendas`,
+        `Hasta ${planesNegocio.SILVER.limiteLocales} locales (tiendas/almacenes)`,
         'Usuarios ilimitados',
         `Hasta ${planesNegocio.SILVER.limiteProductos} productos`,
         'Reportes avanzados',
@@ -160,7 +160,7 @@ const getPlansForUI = () => {
       description: 'Plan premium con productos ilimitados',
       duration: `${planesNegocio.PREMIUM.duracion} días de validez`,
       features: [
-        `Hasta ${planesNegocio.PREMIUM.limiteLocales} tiendas`,
+        `Hasta ${planesNegocio.PREMIUM.limiteLocales} locales (tiendas/almacenes)`,
         'Usuarios ilimitados',
         'Productos ilimitados',
         'Reportes personalizados',
@@ -180,7 +180,7 @@ const getPlansForUI = () => {
       description: 'Plan personalizado según tus necesidades',
       duration: 'Duración negociable',
       features: [
-        'Tiendas según necesidad',
+        'Locales según necesidad (tiendas/almacenes)',
         'Usuarios según necesidad',
         'Productos según necesidad',
         'Funcionalidades personalizadas',
@@ -372,7 +372,7 @@ export default function PlanesPage() {
                     <Grid item xs={12} sm={4}>
                       <UsageStatsCard
                         icon={<Store color="primary" />}
-                        title="Tiendas"
+                        title="Locales"
                         actual={stats.tiendas.actual}
                         limite={stats.tiendas.limite}
                         porcentaje={stats.tiendas.porcentaje}
