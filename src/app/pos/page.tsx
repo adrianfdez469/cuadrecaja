@@ -314,6 +314,16 @@ export default function POSInterface() {
       !silent && setLoading(false);
     }
   };
+
+  const incrementarCantidades = (id: string, cantidad: number) => {
+    const productosTiendaEditados = productosTienda.map(p => {
+      if(p.id === id) {
+        return { ...p, existencia: p.existencia + cantidad };
+      }
+      return p;
+    });
+    setProductosTienda(productosTiendaEditados);
+  }
   
   useEffect(() => {
     if (periodo) {
@@ -927,6 +937,7 @@ export default function POSInterface() {
         handleClose={() => handleCloseSyncView()}
         period={periodo}
         reloadProdsAndCategories= {() => fetchProductosAndCategories(true)}
+        incrementarCantidades={incrementarCantidades}
       />
 
       {/* Botón de sincronización */}

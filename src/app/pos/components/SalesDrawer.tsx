@@ -39,9 +39,10 @@ interface IProps {
   period: ICierrePeriodo;
   handleClose: () => void;
   reloadProdsAndCategories: () => void;
+  incrementarCantidades: (id: string, nuevaCantidad: number) => void;
 }
 
-export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reloadProdsAndCategories }) => {
+export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reloadProdsAndCategories, incrementarCantidades }) => {
   const {
     sales,
     markSynced,
@@ -174,10 +175,15 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
             // eliminar de las ventas en backend
             const tiendaId = user.localActual.id;
             await removeSell(tiendaId, period.id, sale.dbId, user.id);
+
           }
 
           // eliminar de las ventas y los productos en el storage
           deleteSale(sale.identifier);
+          // restaurar las cantidades de los productos
+          sale.productos.forEach((p) => {
+            incrementarCantidades(p.productoTiendaId, p.cantidad);
+          });
           setOffline(false);
           showMessage("La venta fue eliminada satisfactoriamente", "success");
         } catch (error) {
