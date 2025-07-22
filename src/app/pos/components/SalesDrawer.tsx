@@ -358,7 +358,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
                     }
                     return b.createdAt - a.createdAt; // Ordenar por fecha de creación (más reciente primero)
                   })
-                  .map((s, index) => {
+                  .map((s) => {
                     const saleInfo = formatSaleInfo(s);
                     return (
                       <>

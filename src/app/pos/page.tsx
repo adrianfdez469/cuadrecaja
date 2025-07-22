@@ -256,7 +256,7 @@ export default function POSInterface() {
   
   const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
-      !silent && setLoading(true);
+      if(!silent) setLoading(true);
       const response = await axios.get<IProductoTiendaV2[]>(
         `/api/productos_tienda/${user.localActual.id}/productos_venta`,
         {
@@ -309,9 +309,9 @@ export default function POSInterface() {
       setCategories(categorias);
     } catch (error) {
       console.error("Error al obtener productos", error);
-      !silent && showMessage("Error al obtener productos", "error");
+      if(!silent) showMessage("Error al obtener productos", "error");
     } finally {
-      !silent && setLoading(false);
+      if(!silent) setLoading(false);
     }
   };
 
