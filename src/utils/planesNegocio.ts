@@ -1,6 +1,6 @@
 export const planesNegocio = {
   FREEMIUM: {
-    limiteLocales: 1,
+    limiteLocales: 2,
     limiteUsuarios: 1,
     limiteProductos: 30,
     precio: 0,
@@ -9,8 +9,8 @@ export const planesNegocio = {
     descripcion: 'Plan gratuito por un mes'
   },
   BASICO: {
-    limiteLocales: 1,
-    limiteUsuarios: 1,
+    limiteLocales: 2,
+    limiteUsuarios: 2,
     limiteProductos: 100,
     precio: 5,
     moneda: 'USD',
