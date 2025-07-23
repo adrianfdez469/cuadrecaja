@@ -38,9 +38,11 @@ interface IProps {
   showSales: boolean;
   period: ICierrePeriodo;
   handleClose: () => void;
+  reloadProdsAndCategories: () => void;
+  incrementarCantidades: (id: string, nuevaCantidad: number) => void;
 }
 
-export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
+export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reloadProdsAndCategories, incrementarCantidades }) => {
   const {
     sales,
     markSynced,
@@ -77,18 +79,35 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
           syncObj.totalcash,
           syncObj.totaltransfer,
           syncObj.productos,
-          syncObj.identifier
+          syncObj.identifier,
+          syncObj.transferDestinationId,
+          syncObj.createdAt, // 🆕 Usar timestamp de la venta
+          syncObj.wasOffline, // 🆕 Usar estado offline de la venta
+          syncObj.syncAttempts // 🆕 Enviar intentos de sincronización
         );
         markSynced(syncObj.identifier, ventaDb.id);
         setOffline(false);
+        reloadProdsAndCategories();
       } catch (error) {
-        markSyncError(syncObj.identifier);
         console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
-        if (error && error.code && error.code === "ERR_NETWORK") {
-          showMessage("Error de red al sincronizar ventas", "warning", error);
+        
+        // Manejo mejorado de errores
+        if (error.message?.includes('TIMEOUT_ERROR')) {
+          markSyncError(syncObj.identifier);
+          showMessage("Timeout al sincronizar venta - se reintentará automáticamente", "warning");
+        } else if (error.message?.includes('NETWORK_ERROR')) {
+          markSyncError(syncObj.identifier);
+          showMessage("Error de red al sincronizar venta", "warning");
           setOffline(true);
+        } else if (error.message?.includes('SERVER_ERROR')) {
+          markSyncError(syncObj.identifier);
+          showMessage("Error del servidor al sincronizar venta", "error");
+        } else if (error.message?.includes('CLIENT_ERROR')) {
+          markSyncError(syncObj.identifier);
+          showMessage("Error en los datos de la venta", "error");
         } else {
-          showMessage("Error al sincronizar ventas", "error", error);
+          markSyncError(syncObj.identifier);
+          showMessage("Error al sincronizar venta", "error", error);
         }
       } finally {
         setDisableAll(false);
@@ -109,17 +128,34 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
         syncObj.totalcash,
         syncObj.totaltransfer,
         syncObj.productos,
-        syncObj.identifier
+        syncObj.identifier,
+        syncObj.transferDestinationId,
+        syncObj.createdAt, // 🆕 Usar timestamp de la venta
+        syncObj.wasOffline, // 🆕 Usar estado offline de la venta
+        syncObj.syncAttempts // 🆕 Enviar intentos de sincronización
       );
       markSynced(syncObj.identifier, ventaDb.id);
       setOffline(false);
+      reloadProdsAndCategories();
     } catch (error) {
-      markSyncError(syncObj.identifier);
       console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
-      if (error && error.code && error.code === "ERR_NETWORK") {
+      
+      // Manejo mejorado de errores
+      if (error.message?.includes('TIMEOUT_ERROR')) {
+        markSyncError(syncObj.identifier);
+        showMessage("Timeout al sincronizar venta - se reintentará automáticamente", "warning");
+      } else if (error.message?.includes('NETWORK_ERROR')) {
+        markSyncError(syncObj.identifier);
+        showMessage("Error de red al sincronizar venta", "warning");
         setOffline(true);
-        showMessage("Error de red al sincronizar venta", "warning", error);
+      } else if (error.message?.includes('SERVER_ERROR')) {
+        markSyncError(syncObj.identifier);
+        showMessage("Error del servidor al sincronizar venta", "error");
+      } else if (error.message?.includes('CLIENT_ERROR')) {
+        markSyncError(syncObj.identifier);
+        showMessage("Error en los datos de la venta", "error");
       } else {
+        markSyncError(syncObj.identifier);
         showMessage("Error al sincronizar venta", "error", error);
       }
     } finally {
@@ -139,10 +175,15 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
             // eliminar de las ventas en backend
             const tiendaId = user.localActual.id;
             await removeSell(tiendaId, period.id, sale.dbId, user.id);
+
           }
 
           // eliminar de las ventas y los productos en el storage
           deleteSale(sale.identifier);
+          // restaurar las cantidades de los productos
+          sale.productos.forEach((p) => {
+            incrementarCantidades(p.productoTiendaId, p.cantidad);
+          });
           setOffline(false);
           showMessage("La venta fue eliminada satisfactoriamente", "success");
         } catch (error) {
@@ -165,7 +206,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
     );
   };
 
-  const syncronizeProdsAndSales = async () => {
+  const reloadSales = async () => {
     try {
       setDisableAll(true);
       const tiendaId = user.localActual.id;
@@ -182,6 +223,10 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
           totaltransfer: venta.totaltransfer,
           usuarioId: venta.usuarioId,
           dbId: venta.id,
+          // 🆕 USAR CAMPOS DE LA BASE DE DATOS
+          createdAt: venta.frontendCreatedAt ? new Date(venta.frontendCreatedAt).getTime() : new Date(venta.createdAt).getTime(),
+          wasOffline: venta.wasOffline || false,
+          syncAttempts: venta.syncAttempts || 0, // 🆕 Preservar intentos de la base de datos
           productos: venta.productos.map((p) => {
             return {
               name: p.name,
@@ -207,9 +252,23 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
     }
   };
 
+  const formatSaleInfo = (sale: Sale) => {
+    const createdDate = new Date(sale.createdAt);
+    // 🆕 Mostrar intentos solo si la venta no está sincronizada o si tiene intentos
+    const syncAttemptsText = sale.syncAttempts > 0 ? ` (${sale.syncAttempts} intentos)` : '';
+    const offlineText = sale.wasOffline ? ' - Creada offline' : ' - Creada online';
+    
+    return {
+      date: createdDate.toLocaleString(),
+      status: `${sale.syncState}${syncAttemptsText}${offlineText}`,
+      total: `$${sale.total.toFixed(2)}`,
+      products: sale.productos.length
+    };
+  };
+
   useEffect(() => {
     (async () => {
-      await syncronizeProdsAndSales();
+      await reloadSales();
     })();
   }, [showSales]);
 
@@ -273,13 +332,18 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell></TableCell>
+                  <TableCell><b>Estado</b></TableCell>
+                  <TableCell><b>Fecha</b></TableCell>
                   <TableCell align="right">
                     <b>Efectivo</b>
                   </TableCell>
                   <TableCell align="right">
                     <b>Transf</b>
                   </TableCell>
+                  <TableCell align="right">
+                    <b>Total</b>
+                  </TableCell>
+                  <TableCell><b>Acciones</b></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -292,42 +356,46 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
                     if (a.synced && !b.synced) {
                       return 1;
                     }
-                    return 0;
+                    return b.createdAt - a.createdAt; // Ordenar por fecha de creación (más reciente primero)
                   })
-                  .map((s, index) => {
+                  .map((s) => {
+                    const saleInfo = formatSaleInfo(s);
                     return (
                       <>
                         <TableRow sx={{ borderColor: "Highlight" }}>
                           <TableCell>
                             <Box
                               display={"flex"}
-                              flexDirection={"row"}
-                              justifyContent={"space-between"}
-                              alignContent={"center"}
+                              flexDirection={"column"}
+                              gap={0.5}
                             >
-                              {s.synced ? (
-                                <Sync fontSize="small" color="success" />
-                              ) : (
-                                <SyncDisabled
-                                  fontSize="small"
-                                  color="warning"
-                                />
-                              )}
-
-                              {`#${index + 1}`}
+                              <Box display="flex" alignItems="center" gap={1}>
+                                {s.synced ? (
+                                  <Sync fontSize="small" color="success" />
+                                ) : (
+                                  <SyncDisabled
+                                    fontSize="small"
+                                    color="warning"
+                                  />
+                                )}
+                                <Typography variant="caption" color="text.secondary">
+                                  {saleInfo.status}
+                                </Typography>
+                              </Box>
+                              <Typography variant="caption" color="text.secondary">
+                                {saleInfo.products} productos
+                              </Typography>
                             </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {saleInfo.date}
+                            </Typography>
                           </TableCell>
                           <TableCell align="right">${s.totalcash}</TableCell>
                           <TableCell align="right">
                             ${s.totaltransfer}
                           </TableCell>
-                        </TableRow>
-                        <TableRow
-                          sx={{
-                            "&:last-child td, &:last-child th": { border: 0 },
-                          }}
-                        >
-                          <TableCell align="right">Total:</TableCell>
                           <TableCell align="right">
                             <Typography variant="h6">${s.total}</Typography>
                           </TableCell>
@@ -373,7 +441,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose }) => {
                           </TableCell>
                         </TableRow>
                         <TableRow sx={{ backgroundColor: "ButtonFace" }}>
-                          <TableCell colSpan={4}></TableCell>
+                          <TableCell colSpan={6}></TableCell>
                         </TableRow>
                       </>
                     );
