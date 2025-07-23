@@ -104,7 +104,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         error: `La venta fue creada fuera del período actual. Venta: ${ventaCreatedAt.toLocaleString()}, Período: ${periodoInicio.toLocaleString()} - ${periodoFin.toLocaleString()}. No se puede sincronizar ventas de períodos anteriores.`,
         ventaCreatedAt: ventaCreatedAt.toISOString(),
         periodoInicio: periodoInicio.toISOString(),
-        periodoFin: periodoFin?.toISOString()
+        periodoFin: periodoFin ? periodoFin.toISOString() : undefined
       }, { status: 400 });
     }
 
