@@ -203,7 +203,6 @@ export const TablaProductosCierre: FC<IProps> = ({
     totalTransferenciasByDestination,
     totalVentasPorUsuario
   } = cierreData;
-
   // Obtener proveedores únicos para el menú de consignación
   const proveedoresUnicos = Array.from(
     new Map(
@@ -219,8 +218,8 @@ export const TablaProductosCierre: FC<IProps> = ({
         if (acc[prod.proveedor.id]) {
           acc[prod.proveedor.id] = {
             ...acc[prod.proveedor.id],
-            total: acc[prod.proveedor.id] + prod.total,
-            ganancia: acc[prod.proveedor.id] + prod.ganancia
+            total: acc[prod.proveedor.id].total + prod.total,
+            ganancia: acc[prod.proveedor.id].ganancia + prod.ganancia
           }
         } else {
           acc[prod.proveedor.id] = {
@@ -234,6 +233,8 @@ export const TablaProductosCierre: FC<IProps> = ({
       return acc;
     }, {})
   )
+  console.log('totalVentasPorProveedor', totalVentasPorProveedor);
+  
 
   // Función para renderizar tabla con agrupamiento
   const ProductTable = ({ productos, title, isConsignacion = false }: {
