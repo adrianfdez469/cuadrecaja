@@ -39,13 +39,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       syncAttempts
     });
 
-    if (!tiendaId || !usuarioId || !cierreId || !productos.length || !syncId) {
+    if (!tiendaId || !usuarioId || !cierreId || !productos.length || !syncId || !createdAt) {
       console.error('❌ [POST /api/venta] Datos insuficientes:', {
         tiendaId,
         usuarioId,
         cierreId,
         productosLength: productos.length,
-        syncId
+        syncId,
+        createdAt
       });
       return NextResponse.json({ error: "Datos insuficientes para crear la venta" }, { status: 400 });
     }
@@ -92,14 +93,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         }
       });
 
+      if(!periodoDeLaVenta) {
+        return NextResponse.json({ error: "No existe un período con el id proporcionado" }, { status: 404 });
+      }
+
       const ventaCreatedAt = new Date(createdAt);
       const periodoInicio = new Date(periodoDeLaVenta.fechaInicio);
-      const periodoFin = periodoDeLaVenta.fechaFin ? new Date(periodoDeLaVenta.fechaFin) : new Date();
+      const periodoFin = periodoDeLaVenta.fechaFin && new Date(periodoDeLaVenta.fechaFin);
       return NextResponse.json({
         error: `La venta fue creada fuera del período actual. Venta: ${ventaCreatedAt.toLocaleString()}, Período: ${periodoInicio.toLocaleString()} - ${periodoFin.toLocaleString()}. No se puede sincronizar ventas de períodos anteriores.`,
         ventaCreatedAt: ventaCreatedAt.toISOString(),
         periodoInicio: periodoInicio.toISOString(),
-        periodoFin: periodoFin.toISOString()
+        periodoFin: periodoFin?.toISOString()
       }, { status: 400 });
     }
 

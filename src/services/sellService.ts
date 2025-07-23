@@ -6,7 +6,6 @@ const API_URL = (tiendaId, cierreId) => `/api/venta/${tiendaId}/${cierreId}`;
 
 // Extender la interfaz de configuración de axios para incluir propiedades de reintento
 interface RetryConfig extends AxiosRequestConfig {
-  _retry?: boolean;
   _retryCount?: number;
 }
 
@@ -26,9 +25,8 @@ axiosInstance.interceptors.response.use(
     
     // Solo reintentar para errores de red y timeouts
     if ((error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') && 
-        config && !(config as RetryConfig)._retry && (config as RetryConfig)._retryCount < 2) {
+        config && (config as RetryConfig)._retryCount < 2) {
       
-      (config as RetryConfig)._retry = true;
       (config as RetryConfig)._retryCount = ((config as RetryConfig)._retryCount || 0) + 1;
       
       console.log(`🔄 Reintentando petición (intento ${(config as RetryConfig)._retryCount}/2)...`);
