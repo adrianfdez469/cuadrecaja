@@ -45,6 +45,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
             include: {
               proveedor: true
             }
+          },
+          codigosProducto: {
+            select: {
+              codigo: true
+            }
           }
         },
         take,
@@ -104,6 +109,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
             where: whereProductoTienda,
             include: {
               proveedor: true
+            }
+          },
+          codigosProducto: {
+            select: {
+              codigo: true
             }
           }
         },

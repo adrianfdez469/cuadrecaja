@@ -774,7 +774,7 @@ export default function POSInterface() {
       </Box>
 
       {/* --- SCANNERS ABOVE CATEGORIES (ONE LINE, FULL WIDTH) --- */}
-      <Box sx={{ mb: 3, width: '100%' }}>
+      <Box sx={{ mb: 1, width: '100%' }}>
         <ProductProcessorData onProcessedData={(data: IProcessedData) => {
           if (data?.code) handleProductScan(data.code);
         }} />

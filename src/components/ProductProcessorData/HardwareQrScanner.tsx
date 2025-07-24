@@ -41,14 +41,15 @@ function HardwareQrScanner({ qrCodeSuccessCallback, style, value, onChange }: Ha
 
   return (
     <TextField
+
       inputRef={inputRef}
-      placeholder="Hardware QR Scanner"
+      placeholder="Pistola de escaneo"
       onChange={handleQRDataChange}
       value={typeof value === 'string' ? value : internalQrData}
       onKeyUp={handleKeyUp}
       variant="outlined"
       size="small"
-      sx={style || { width: '80%' }}
+      sx={style || { width: '100%' }}
       fullWidth={!!style?.width || !style}
     />
   );

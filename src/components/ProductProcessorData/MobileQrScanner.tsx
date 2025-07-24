@@ -44,7 +44,7 @@ function MobileQrScanner({ qrCodeSuccessCallback, qrCodeErrorCallback, buttonLab
 
   return (
     <>
-      <Button size="large" startIcon={<QrCode2Icon />} onClick={handleOpen} variant="contained">
+      <Button size="large" startIcon={<QrCode2Icon />} onClick={handleOpen} variant="contained" color='info'>
         {buttonLabel}
       </Button>
 
