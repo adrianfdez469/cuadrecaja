@@ -142,6 +142,18 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
     );
   };
 
+  const handleSelectAllProducts = (checked: boolean) => {
+    if (checked) {
+      setSelectedProducts(filteredProducts.map(p => ({
+        ...p,
+        cantidad: 1,
+        needsCode: p.producto.codigosProducto.length === 0
+      })));
+    } else {
+      setSelectedProducts([]);
+    }
+  };
+
   const generateMissingCodes = async () => {
     const productsNeedingCodes = selectedProducts.filter(p => p.needsCode);
     if (productsNeedingCodes.length === 0) return;
@@ -467,6 +479,19 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
             {/* Lista de productos */}
             <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
               <List>
+
+              {/* Checkbox para seleccionar todos los productos */}
+              <ListItem>
+                <Checkbox
+                  checked={selectedProducts.length === filteredProducts.length}
+                  onChange={(e) => handleSelectAllProducts(e.target.checked)}
+                />
+                <ListItemText
+                  primary="Seleccionar todos"
+                  secondary={`${filteredProducts.length} productos disponibles`}
+                />
+              </ListItem>
+
                 {filteredProducts.map((product) => {
                   const isSelected = selectedProducts.some(p => p.id === product.id);
                   const selectedProduct = selectedProducts.find(p => p.id === product.id);
