@@ -263,7 +263,7 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
           // Verificar si necesitamos nueva página
           if (labelCount > 0 && labelCount % (cols * rows) === 0) {
             doc.addPage();
-            currentPage++;
+            // currentPage++;
             currentRow = 0;
             currentCol = 0;
           }

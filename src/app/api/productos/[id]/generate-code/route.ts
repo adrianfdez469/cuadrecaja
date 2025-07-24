@@ -39,6 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       try {
         codigoToSave = generateEAN13(codesSet);
       } catch (error) {
+        console.error("Error al generar código:", error);
         return NextResponse.json(
           { error: "No se pudo generar un código único" },
           { status: 500 }
