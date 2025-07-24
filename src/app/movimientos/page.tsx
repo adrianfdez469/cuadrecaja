@@ -208,7 +208,8 @@ export default function MovimientosPage() {
         proveedorId: item.productoTienda?.proveedorId,
         proveedor: item.productoTienda?.proveedor,
         
-        movimientoOrigenId: item.movimientoOrigenId
+        movimientoOrigenId: item.movimientoOrigenId,
+        codigosProducto: item.productoTienda?.producto?.codigosProducto
       }
     });
   }

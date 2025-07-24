@@ -48,18 +48,46 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const user = await getUserFromRequest(req);
     const { id } = await params;
 
-    const { nombre, categoriaId, descripcion, fraccion } = await req.json();
+    const { nombre, categoriaId, descripcion, fraccion, codigosProducto } = await req.json();
 
-    const updatedProduct = await prisma.producto.update({
+    // Actualizar producto
+    await prisma.producto.update({
       where: { id, negocioId: user.negocio.id },
       data: { 
         nombre, 
         descripcion, 
         categoriaId,
-        ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion})
+        ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion}),
       },
+      include: { codigosProducto: true }
     });
-    return NextResponse.json(updatedProduct);
+
+    // Sincronizar códigos: eliminar los que no están y agregar los nuevos
+    if (Array.isArray(codigosProducto)) {
+      // Eliminar los que ya no están
+      await prisma.codigoProducto.deleteMany({
+        where: {
+          productoId: id,
+          codigo: { notIn: codigosProducto }
+        }
+      });
+      // Agregar los nuevos
+      for (const codigo of codigosProducto) {
+        await prisma.codigoProducto.upsert({
+          where: { codigo },
+          update: { productoId: id },
+          create: { codigo, productoId: id },
+        });
+      }
+    }
+
+    // Obtener actualizado con los códigos
+    const productoFinal = await prisma.producto.findUnique({
+      where: { id },
+      include: { codigosProducto: true }
+    });
+
+    return NextResponse.json(productoFinal);
   } catch (error) {
     console.log(error);
     

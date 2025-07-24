@@ -141,7 +141,7 @@ export async function PUT(
       }
 
       if (Object.keys(liquidaciones).length > 0) {
-        await tx.productoProveedorConsignadorLiquidaciónCierre.createMany({
+        await tx.productoProveedorLiquidacion.createMany({
           data: Object.values(liquidaciones) as {
             vendidos: number,
             monto: number,

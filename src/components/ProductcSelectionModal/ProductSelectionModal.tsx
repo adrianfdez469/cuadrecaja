@@ -28,6 +28,9 @@ import TableProductosDisponibles from './tables/TableProductosDisponibles';
 import TableProductosSeleccionados from './tables/TableProductosSeleccionados';
 import { sanitizeNumber } from '@/utils/formatters';
 import { useMessageContext } from '@/context/MessageContext';
+import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
+
+import { IProcessedData } from '@/types/IProcessedData';
 
 // Tipos para el componente
 export type OperacionTipo = 'ENTRADA' | 'SALIDA';
@@ -51,6 +54,10 @@ export interface IProductoDisponible {
     nombre: string;
   };
   movimientoOrigenId?: string;
+
+  codigosProducto?: {
+    codigo: string;
+  }[];
 }
 
 export interface IProductoSeleccionado extends IProductoDisponible {
@@ -112,7 +119,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       return `${prodId}-${provId}-${movId}`;
     };
     const idsSeleccionados = new Set(productosSeleccionados.map(p => buildId(p)));
-    
+
     return productos.filter(p => !idsSeleccionados.has(buildId(p)));
   }, [productos, productosSeleccionados]);
 
@@ -291,6 +298,39 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     }
   }, [open, operacion, loadProductos, currentFilters, productos.length, isLoadingMore, currentPage]);
 
+  const handleProductScan = useCallback((qrText: string) => {
+    console.log('handleProductScan', qrText);
+
+    // productosDisponibles
+    // productosSeleccionados
+    console.log(qrText);
+    
+    console.log('productosDisponibles', productosDisponibles);
+    console.log('productosSeleccionados', productosSeleccionados);
+    
+    const producto = productosDisponibles.find(p => {
+      if(p.codigosProducto && p.codigosProducto.some(c => c.codigo === qrText)) return p;
+      return null;
+    });
+
+    if(producto) {
+      agregarProducto(producto);
+    } else {
+      const prod = productosSeleccionados.find(p => {
+        if(p.codigosProducto && p.codigosProducto.some(c => c.codigo === qrText)) return p;
+        return null;
+      });
+
+      if(prod) {
+        showMessage(`Producto ${prod.nombre} ya seleccionado`, 'warning');
+      } else {
+        showMessage(`Producto ${qrText} no encontrado`, 'error');
+      }
+    }
+
+  }, [productosDisponibles, productosSeleccionados]);
+
+
   // Funciones para manejar productos - MEMOIZADAS
   const agregarProducto = useCallback((producto: IProductoDisponible) => {
 
@@ -320,14 +360,15 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       proveedor: producto.proveedor,
       cantidad: cantidadInicial,
       costoTotal: cantidadInicial * costoInicial,
-      movimientoOrigenId: producto.movimientoOrigenId
+      movimientoOrigenId: producto.movimientoOrigenId,
+      codigosProducto: producto.codigosProducto
     };
 
     setProductosSeleccionados(prev => [...prev, nuevoProducto]);
   }, [operacion]);
 
   const actualizarCantidad = useCallback((productoId: string, nuevaCantidad: number, proveedorId?: string) => {
-    
+
     const nuevaCantidadNumber = sanitizeNumber(Number(nuevaCantidad));
     setProductosSeleccionados(prev => prev.map(p => {
 
@@ -493,28 +534,41 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         <TableProductosSeleccionados {...tableProductosSeleccionadosProps} show={activeTab === 1} />
       </DialogContent>
 
+
+
+
       {/* Footer */}
       <DialogActions sx={{ p: isMobile ? 2 : 3, pt: 1 }}>
-        <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
-          <Button
-            onClick={onClose}
-            variant="outlined"
-            color="secondary"
-            fullWidth={isMobile}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            variant="contained"
-            color="primary"
-            disabled={hayErrores || (totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length === 0) || loading}
-            fullWidth={isMobile}
-            startIcon={operacion === 'ENTRADA' ? <TrendingUp /> : <TrendingDown />}
-          >
-            {loading ? 'Procesando...' : totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0 ? 'Terminar' : `Confirmar ${operacion}`}
-          </Button>
-        </Stack>
+        
+          <Stack direction="column" spacing={1} sx={{ width: '100%' }}>
+            <ProductProcessorData onProcessedData={(data: IProcessedData) => {
+              if (data?.code) handleProductScan(data.code);
+            }} />
+
+            <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
+              <Button
+                onClick={onClose}
+                variant="outlined"
+                color="secondary"
+                fullWidth={isMobile}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirm}
+                variant="contained"
+                color="primary"
+                disabled={hayErrores || (totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length === 0) || loading}
+                fullWidth={isMobile}
+                startIcon={operacion === 'ENTRADA' ? <TrendingUp /> : <TrendingDown />}
+              >
+                {loading ? 'Procesando...' : totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0 ? 'Terminar' : `Confirmar ${operacion}`}
+              </Button>
+            </Stack>
+
+          </Stack>
+
+        
       </DialogActions>
     </Dialog>
   );

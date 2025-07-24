@@ -22,7 +22,7 @@ import {
   Autocomplete,
   Chip,
   Card,
-  CardContent
+  CardContent,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
@@ -295,6 +295,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 existencia: pt.existencia,
                 proveedorId: pt.proveedor?.id,
                 proveedor: pt.proveedor,
+                codigosProducto: p.codigosProducto,
                 // tiendaId: tiendaId,
               });
             });
@@ -312,6 +313,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
               existencia: null,
               proveedorId: null,
               proveedor: null,
+              codigosProducto: p.codigosProducto,
               // tiendaId: tiendaId,
             });
           }
@@ -337,6 +339,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
               existencia: pt.existencia,
               proveedorId: pt.proveedor?.id,
               proveedor: pt.proveedor,
+              codigosProducto: p.codigosProducto,
               // tiendaId: tiendaId,
 
             });

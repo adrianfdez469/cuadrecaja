@@ -21,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
                 id
             },
             include: {
-                prodProveedorConsignadorLiquidacionCierre: {
+                prodProveedorLiquidacion: {
                     include: {
                         cierre: true,
                         producto: {

@@ -53,6 +53,10 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import LimitDialog from "@/components/LimitDialog";
+import jsPDF from "jspdf";
+import QRCode from "qrcode";
+import bwipjs from "bwip-js";
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 
 export default function ProductList() {
   const [products, setProducts] = useState<IProducto[]>([]);
@@ -102,14 +106,15 @@ export default function ProductList() {
     nombre: string,
     descripcion: string,
     categoriaId: string,
-    fraccion?: { fraccionDeId?: string; unidadesPorFraccion?: number }
+    fraccion?: { fraccionDeId?: string; unidadesPorFraccion?: number },
+    codigoProducto?: string[]
   ) => {
     try {
       if (editingProd) {
-        await editProduct(editingProd.id, nombre, descripcion, categoriaId, fraccion);
+        await editProduct(editingProd.id, nombre, descripcion, categoriaId, fraccion, codigoProducto);
         showMessage('Producto actualizado exitosamente', 'success');
       } else {
-        await createProduct(nombre, descripcion, categoriaId, fraccion);
+        await createProduct(nombre, descripcion, categoriaId, fraccion, codigoProducto);
         showMessage('Producto creado exitosamente', 'success');
       }
       await loadProducts();
@@ -243,6 +248,53 @@ export default function ProductList() {
   const handleCloseLimitDialog = () => {
     setLimitDialog(false);
   };
+
+  // --- PDF GENERATION UTILITY ---
+  async function generateProductCodesPDF(product: IProducto) {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'A4' });
+    const padding = 24;
+    const codeHeight = 60;
+    const qrSize = 60;
+    let y = padding;
+
+    for (const codigo of product.codigosProducto) {
+      // Barcode as PNG (bwip-js to canvas, then to dataURL)
+      const canvas = document.createElement('canvas');
+      try {
+        bwipjs.toCanvas(canvas, {
+          bcid: 'code128',
+          text: codigo.codigo,
+          scale: 2,
+          height: codeHeight,
+          includetext: true,
+          textxalign: 'center',
+        });
+      } catch (e) {
+        console.error(e);
+        // fallback: skip this code
+        continue;
+      }
+      const barcodeDataUrl = canvas.toDataURL('image/png');
+
+      // QR as PNG (qrcode toDataURL)
+      const qrDataUrl = await QRCode.toDataURL(codigo.codigo, { width: qrSize, margin: 0 });
+
+      // Draw barcode
+      doc.addImage(barcodeDataUrl, 'PNG', padding, y, 180, codeHeight + 20);
+      // Draw QR
+      doc.addImage(qrDataUrl, 'PNG', padding + 200, y, qrSize, qrSize);
+      // Draw code text
+      doc.setFontSize(12);
+      doc.text(codigo.codigo, padding + 200 + qrSize + 16, y + qrSize/2 + 8);
+      // Space for cutting
+      y += Math.max(codeHeight + 32, qrSize + 32);
+      if (y > 750) {
+        doc.addPage();
+        y = padding;
+      }
+    }
+    doc.save(`codigos_${product.nombre.replace(/\s+/g, '_')}.pdf`);
+  }
 
   if (loading) {
     return (
@@ -551,6 +603,18 @@ export default function ProductList() {
                             color="error"
                           >
                             <Delete fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Descargar códigos PDF">
+                          <IconButton
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await generateProductCodesPDF(product);
+                            }}
+                            size="small"
+                            color="secondary"
+                          >
+                            <PictureAsPdfIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       </Stack>

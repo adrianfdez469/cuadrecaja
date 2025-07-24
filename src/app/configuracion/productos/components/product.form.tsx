@@ -1,27 +1,31 @@
-import { useState, useEffect, FC } from "react";
+import {FC, useEffect, useState} from "react";
 import {
+  Box,
+  Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  TextField,
+  FormControl,
+  FormControlLabel,
+  IconButton,
+  InputLabel,
   MenuItem,
   Select,
-  Box,
-  Button,
-  Checkbox,
-  FormControlLabel,
-  FormControl,
-  InputLabel,
+  TextField,
   Tooltip,
-  IconButton,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Info } from "@mui/icons-material";
-import { Categoria } from "../types/categorias";
-import { fetchProducts } from "@/services/productServise";
-import { IProducto } from "@/types/IProducto";
+import {Info} from "@mui/icons-material";
+import {Categoria} from "../types/categorias";
+import {fetchProducts} from "@/services/productServise";
+import {IProducto} from "@/types/IProducto";
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import HardwareQrScanner from '@/components/ProductProcessorData/HardwareQrScanner';
+import MobileQrScanner from '@/components/ProductProcessorData/MobileQrScanner';
 
 const API_CATEGORIES = "/api/categorias";
 
@@ -32,7 +36,8 @@ interface IProps {
     nombre: string, 
     descripcion: string, 
     categoriaId: string, 
-    fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number}
+    fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number},
+    codigosProducto?: string[]
   ) => Promise<void>;
   editingProd?: IProducto;
 }
@@ -48,11 +53,12 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
   const [categorias, setCategorias] = useState<Categoria[]>([]);
 
   const [esFraccion, setEsFraccion] = useState(false);
-  const [productos, setProductos] = useState([]);
+  const [productos, setProductos] = useState<IProducto[]>([]);
   const [selectedFraccionProduct, setSelectedFraccionProduct] = useState<IProducto>();
   const [fraccionValue, setFraccionValue] = useState<number>();
 
-  // Estados para controlar los tooltips
+  const [codigosProducto, setCodigosProducto] = useState<string[]>([]);
+
   const [consignacionTooltipOpen, setConsignacionTooltipOpen] = useState(false);
   const [fraccionTooltipOpen, setFraccionTooltipOpen] = useState(false);
 
@@ -67,13 +73,26 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
     }
   }
 
+  const handleAddCodigo = (codigo?: string) => {
+    if (!codigo) codigo = '';
+    setCodigosProducto((prev) => [...prev, codigo]);
+  };
+
+  const handleRemoveCodigo = (idx: number) => {
+    setCodigosProducto((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleCodigoChange = (idx: number, value: string) => {
+    setCodigosProducto((prev) => prev.map((c, i) => (i === idx ? value : c)));
+  };
+
   const handleSaveProduct = () => {
     if(selectedFraccionProduct) {
-      handleSave(nombre, descripcion, categoria, {fraccionDeId: selectedFraccionProduct?.id, unidadesPorFraccion: fraccionValue})
+      handleSave(nombre, descripcion, categoria, {fraccionDeId: selectedFraccionProduct?.id, unidadesPorFraccion: fraccionValue}, codigosProducto.filter(Boolean));
     } else {
-      handleSave(nombre, descripcion, categoria);
+      handleSave(nombre, descripcion, categoria, undefined, codigosProducto.filter(Boolean));
     }
-  }
+  };
 
   const handleFraccionTooltipToggle = () => {
     setFraccionTooltipOpen(!fraccionTooltipOpen);
@@ -88,15 +107,17 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
       .then((res) => res.json())
       .then((data) => {
         setCategorias(data);
-        console.log('editingProd', editingProd);
-        
         if(editingProd) {
           setNombre(editingProd.nombre);
           setDescripcion(editingProd.descripcion);
           setCategoria(editingProd.categoriaId);
-          setEsFraccion(!!editingProd.fraccionDeId);  
+          setEsFraccion(!!editingProd.fraccionDeId);
+          if(editingProd.codigosProducto) {
+            setCodigosProducto(editingProd.codigosProducto.map(c => c.codigo));
+          }
         }
       });
+    fetchProducts().then((prods) => setProductos(prods));
   }, []);
 
   useEffect(() => {
@@ -136,16 +157,15 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
           value={descripcion}
           onChange={(e) => setDescripcion(e.target.value)}
         />
-
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <FormControlLabel
             control={
               <Checkbox
                 checked={esFraccion}
-                onChange={(e, checked) => setEsFraccion(checked)}
+                onChange={(e) => setEsFraccion(e.target.checked)}
               />
             }
-            label={`Es producto fracción${esFraccion ? " de" : ""}`}
+            label="¿Es fracción de otro producto?"
           />
           <Tooltip 
             title="Los productos fracción permiten vender un producto existente en unidades más pequeñas. Por ejemplo, si tienes un paquete de 12 unidades, puedes crear una fracción para vender de 1 en 1."
@@ -200,13 +220,18 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
             <Select
               labelId="prod-select-label"
               id="prod-select"
-              value={selectedFraccionProduct}
+              value={selectedFraccionProduct?.id || ''}
               label="Producto"
-              onChange={(e) => hendleSelectProduct(e.target.value)}
+              onChange={(e) => {
+                const selectedProduct = productos.find(p => p.id === e.target.value);
+                if (selectedProduct) {
+                  hendleSelectProduct(selectedProduct);
+                }
+              }}
             >
               {productos.map((p) => {
                 return (
-                  <MenuItem key={p.id} value={p}>
+                  <MenuItem key={p.id} value={p.id}>
                     {p.nombre}
                   </MenuItem>
                 );
@@ -244,20 +269,45 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
             </MenuItem>
           ))}
         </Select>
+        <Box mb={2} mt={3}>
+          <Box display="flex" alignItems="center" mb={1}>
+            <span style={{ fontWeight: 600 }}>Códigos de Producto</span>
+            <Tooltip title="Agregar código">
+              <IconButton size="small" onClick={() => handleAddCodigo()} sx={{ ml: 1 }}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          {codigosProducto.map((codigo, idx) => (
+            <Box key={idx} display="flex" alignItems="center" mb={1}>
+              <HardwareQrScanner
+                qrCodeSuccessCallback={(qrText) => handleCodigoChange(idx, qrText)}
+                style={{ width: '100%' }}
+                value={codigo}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleCodigoChange(idx, e.target.value)}
+              />
+              <Tooltip title="Escanear QR con cámara móvil">
+                <Box ml={1}>
+                  <MobileQrScanner
+                    qrCodeSuccessCallback={(qrText) => handleCodigoChange(idx, qrText)}
+                  />
+                </Box>
+              </Tooltip>
+              <Tooltip title="Eliminar código">
+                <IconButton onClick={() => handleRemoveCodigo(idx)}>
+                  <DeleteIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          ))}
+        </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose} color="secondary">
-          Cancelar
-        </Button>
-        <Button
-          onClick={handleSaveProduct}
-          color="primary"
-          disabled={!nombre || !categoria}
-        >
-          Guardar
+        <Button onClick={handleClose}>Cancelar</Button>
+        <Button variant="contained" onClick={handleSaveProduct} color="primary">
+          {editingProd ? "Guardar cambios" : "Crear producto"}
         </Button>
       </DialogActions>
     </Dialog>
   );
 };
-

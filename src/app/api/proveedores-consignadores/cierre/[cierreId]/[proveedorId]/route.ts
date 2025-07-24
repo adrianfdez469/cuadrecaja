@@ -15,7 +15,7 @@ export async function PUT(
       );
     }
 
-    await prisma.productoProveedorConsignadorLiquidaciónCierre.updateMany({
+    await prisma.productoProveedorLiquidacion.updateMany({
       where: {
         cierreId,
         proveedorId

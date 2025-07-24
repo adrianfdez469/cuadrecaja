@@ -16,7 +16,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ tiendaId
       include: {
         productoTienda: {
           include: {
-            producto: true,
+            producto: {
+              include: {
+                codigosProducto: {
+                  select: {
+                    codigo: true
+                  }
+                }
+              }
+            },
             tienda: {
               select: {
                 id: true,

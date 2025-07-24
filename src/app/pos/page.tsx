@@ -23,7 +23,12 @@ import {
   Button,
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import { Sync } from "@mui/icons-material";
+import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
+import Sync from "@mui/icons-material/Sync";
+import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
+import BlurOnIcon from "@mui/icons-material/BlurOn";
+
 import { useCartStore } from "@/store/cartStore";
 import axios from "axios";
 import { useAppContext } from "@/context/AppContext";
@@ -38,15 +43,17 @@ import { ICierrePeriodo } from "@/types/ICierre";
 import useConfirmDialog from "@/components/confirmDialog";
 import { createSell } from "@/services/sellService";
 import { useSalesStore } from "@/store/salesStore";
-import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
-import BlurOnIcon from "@mui/icons-material/BlurOn";
+
 import { ProducsSalesDrawer } from "./components/ProductsSalesDrawer";
 import { SalesDrawer } from "./components/SalesDrawer";
-import SearchIcon from "@mui/icons-material/Search";
-import CloseIcon from "@mui/icons-material/Close";
+
 import { QuantityDialog } from "./components/QuantityDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+
+import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
 import { formatDate } from "@/utils/formatters";
+
+import {IProcessedData} from "@/types/IProcessedData";
 import { ITransferDestination } from "@/types/ITransferDestination";
 import { fetchTransferDestinations } from "@/services/transferDestinationsService";
 
@@ -85,6 +92,28 @@ export default function POSInterface() {
   // Estado para prevenir múltiples sincronizaciones simultáneas (no para pagos)
   const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(new Set());
 
+  // Estado para el scanner
+  const [scannerError, setScannerError] = useState<string | null>(null);
+
+  // Busca producto por código (en cualquier código asociado)
+  function findProductByCode(code: string) {
+    console.log({productosTienda})
+    return productosTienda.find((p) =>
+      p.producto.codigosProducto?.some((c) => c.codigo === code)
+    );
+  }
+
+  function handleProductScan(code: string) {
+    const product = findProductByCode(code);
+    if (product) {
+      setSelectedProduct(product);
+      setShowProducts(false); // Cierra modal de categorías si está abierto
+      // El modal de cantidad se abre automáticamente por el estado selectedProduct
+      setScannerError(null);
+    } else {
+      setScannerError('Producto no encontrado para el código escaneado');
+    }
+  }
 
   const syncPendingSales = async () => {
     console.log('🔄 Sincronización automática');
@@ -744,6 +773,16 @@ export default function POSInterface() {
         )}
       </Box>
 
+      {/* --- SCANNERS ABOVE CATEGORIES (ONE LINE, FULL WIDTH) --- */}
+      <Box sx={{ mb: 1, width: '100%' }}>
+        <ProductProcessorData onProcessedData={(data: IProcessedData) => {
+          if (data?.code) handleProductScan(data.code);
+        }} />
+        {scannerError && (
+            <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
+        )}
+      </Box>
+
       {/* Contenido principal */}
       <Box
         sx={{
@@ -764,6 +803,7 @@ export default function POSInterface() {
           zIndex: 1,
         }}
       >
+
         {categories.map((category) => (
           <Box
             key={category.id}
