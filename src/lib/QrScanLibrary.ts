@@ -1,7 +1,12 @@
 import { Html5Qrcode, Html5QrcodeCameraScanConfig, QrcodeErrorCallback, QrcodeSuccessCallback } from 'html5-qrcode';
 
-const backCameraSelection = { facingMode: { exact: 'environment' } };
-// const backCameraSelection = { facingMode: 'user' };
+let cameraSelection: { facingMode: { exact: string } } | { facingMode: string };
+
+if (process.env.NODE_ENV === 'development') {
+  cameraSelection = { facingMode: 'user' };
+} else {
+  cameraSelection = { facingMode: { exact: 'environment' } };
+}
 
 const config: Html5QrcodeCameraScanConfig = {
   fps: 24, // Optional, frame per seconds for qr code scanning
@@ -16,7 +21,7 @@ export function init(containerId: string) {
 }
 
 export async function start(qrCodeSuccessCallback: QrcodeSuccessCallback, qrCodeErrorCallback: QrcodeErrorCallback) {
-  return html5QrCodeInstance.start(backCameraSelection, config, qrCodeSuccessCallback, qrCodeErrorCallback);
+  return html5QrCodeInstance.start(cameraSelection, config, qrCodeSuccessCallback, qrCodeErrorCallback);
   // .catch((err) => {
   //   console.error('Error at start QR scanning process',err);
   // });

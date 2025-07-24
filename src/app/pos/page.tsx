@@ -53,7 +53,7 @@ import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
 import { formatDate } from "@/utils/formatters";
 
-import {IProcessedData} from "@/types/IProcessedData";
+import { IProcessedData } from "@/types/IProcessedData";
 import { ITransferDestination } from "@/types/ITransferDestination";
 import { fetchTransferDestinations } from "@/services/transferDestinationsService";
 
@@ -88,7 +88,7 @@ export default function POSInterface() {
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
   const [transferDestinations, setTransferDestinations] = useState<ITransferDestination[]>([]);
-  
+
   // Estado para prevenir múltiples sincronizaciones simultáneas (no para pagos)
   const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(new Set());
 
@@ -97,10 +97,28 @@ export default function POSInterface() {
 
   // Busca producto por código (en cualquier código asociado)
   function findProductByCode(code: string) {
-    console.log({productosTienda})
-    return productosTienda.find((p) =>
+    console.log({ productosTienda })
+
+    const products = productosTienda.filter((p) =>
       p.producto.codigosProducto?.some((c) => c.codigo === code)
-    );
+    ).filter((p) => p.existencia > 0);
+
+    if (products.length > 1) {
+      return products.sort((a, b) => {
+        // TODO: organizar primero los productos sin proveedor
+        if (a.proveedorId === null) {
+          return -1;
+        } else if (b.proveedorId === null) {
+          return 1;
+        } else {
+          return a.existencia - b.existencia;
+        }
+      })[0];
+    } else if (products.length === 1) {
+      return products[0];
+    } else {
+      return null;
+    }
   }
 
   function handleProductScan(code: string) {
@@ -117,11 +135,11 @@ export default function POSInterface() {
 
   const syncPendingSales = async () => {
     console.log('🔄 Sincronización automática');
-    
-    const salesNotSynced = sales.filter((sale) => 
+
+    const salesNotSynced = sales.filter((sale) =>
       sale.syncState === "not_synced" && !syncingIdentifiers.has(sale.identifier)
     );
-    
+
     if (salesNotSynced.length === 0) return;
 
     console.log(`🔄 Sincronizando automáticamente ${salesNotSynced.length} ventas pendientes...`);
@@ -155,10 +173,10 @@ export default function POSInterface() {
         );
         markSynced(sale.identifier, ventaDb.id);
         syncedCount++;
-      } 
+      }
       catch (error) {
         console.error(`❌ Error al sincronizar venta ${sale.identifier}:`, error);
-        
+
         // Manejo mejorado de errores
         if (error.message?.includes('TIMEOUT_ERROR')) {
           console.warn(`⚠️ Timeout en venta ${sale.identifier} - se reintentará más tarde`);
@@ -172,13 +190,13 @@ export default function POSInterface() {
           console.error(`❌ Error crítico: Existencia insuficiente en venta ${sale.identifier}:`, error.message);
           // Marcar como error permanente para evitar reintentos
           markSyncError(sale.identifier);
-        } else if (error.response?.status === 400 && 
-                   error.response?.data?.error?.includes("fuera del período actual")) {
+        } else if (error.response?.status === 400 &&
+          error.response?.data?.error?.includes("fuera del período actual")) {
           console.error(`❌ Error crítico: Venta ${sale.identifier} fuera del período actual - no se puede sincronizar`);
           // Marcar como error permanente para evitar reintentos
           markSyncError(sale.identifier);
         }
-        
+
         errorCount++;
       } finally {
         // Remover del set de sincronización
@@ -189,20 +207,20 @@ export default function POSInterface() {
         });
       }
     }
-    
+
     if (errorCount > 0) {
       showMessage(`⚠️ ${errorCount} ventas no pudieron sincronizarse`, "warning");
     }
 
     if (syncedCount > 0) {
       showMessage(`✅ ${syncedCount} ventas sincronizadas correctamente`, "success");
-      
-      if(isOnline) {
+
+      if (isOnline) {
         fetchProductosAndCategories(true);
       }
     }
-    
-  }; 
+
+  };
 
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
@@ -282,10 +300,10 @@ export default function POSInterface() {
       }
     })();
   }, [loadingContext]);
-  
+
   const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
-      if(!silent) setLoading(true);
+      if (!silent) setLoading(true);
       const response = await axios.get<IProductoTiendaV2[]>(
         `/api/productos_tienda/${user.localActual.id}/productos_venta`,
         {
@@ -338,22 +356,22 @@ export default function POSInterface() {
       setCategories(categorias);
     } catch (error) {
       console.error("Error al obtener productos", error);
-      if(!silent) showMessage("Error al obtener productos", "error");
+      if (!silent) showMessage("Error al obtener productos", "error");
     } finally {
-      if(!silent) setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   const incrementarCantidades = (id: string, cantidad: number) => {
     const productosTiendaEditados = productosTienda.map(p => {
-      if(p.id === id) {
+      if (p.id === id) {
         return { ...p, existencia: p.existencia + cantidad };
       }
       return p;
     });
     setProductosTienda(productosTiendaEditados);
   }
-  
+
   useEffect(() => {
     if (periodo) {
       fetchProductosAndCategories().catch((error) => {
@@ -365,7 +383,7 @@ export default function POSInterface() {
       });
     }
   }, [periodo]);
-  
+
   const handleOpenProducts = (category: ICategory) => {
     setSelectedCategory(category);
     setShowProducts(true);
@@ -384,7 +402,7 @@ export default function POSInterface() {
         const tiendaId = user.localActual.id;
         const cierreId = periodo.id;
         const identifier = crypto.randomUUID();
-        
+
         console.log('🔍 [handleMakePay] Preparando datos de venta:', {
           tiendaId,
           cierreId,
@@ -412,12 +430,12 @@ export default function POSInterface() {
         console.log('🔍 [handleMakePay] Productos en carrito:', data);
 
         const cash = total - totalTransfer;
-        
+
         // 1. INMEDIATAMENTE: Vaciar carrito, cerrar modal y drawer
         clearCart();
         setPaymentDialog(false);
         setOpenCart(false);
-        
+
         // 2. Agregar la venta al store local
         addSale({
           identifier: identifier,
@@ -474,7 +492,7 @@ export default function POSInterface() {
             showMessage("✅ Venta procesada y sincronizada exitosamente", "success");
           } catch (syncError) {
             console.log('🔍 [handleMakePay] Error de sincronización:', syncError);
-            
+
             // Manejo mejorado de errores de sincronización
             if (syncError.message?.includes('TIMEOUT_ERROR')) {
               showMessage("📱 Venta guardada localmente. Timeout en sincronización - se reintentará automáticamente.", "warning");
@@ -488,8 +506,8 @@ export default function POSInterface() {
               showMessage("❌ Error: No hay suficiente stock para completar la venta. Verifique el inventario.", "error");
               // Marcar como error permanente para evitar reintentos
               markSyncError(identifier);
-            } else if (syncError.response?.status === 400 && 
-                       syncError.response?.data?.error?.includes("fuera del período actual")) {
+            } else if (syncError.response?.status === 400 &&
+              syncError.response?.data?.error?.includes("fuera del período actual")) {
               showMessage("❌ Error crítico: La venta no se puede sincronizar porque pertenece a un período anterior. Contacte al administrador.", "error");
               // Marcar como error permanente para evitar reintentos
               markSyncError(identifier);
@@ -513,27 +531,27 @@ export default function POSInterface() {
   };
   const handleUpdateQuantity = (id: string, quantity: number) => {
     const oldQuantity = cart.find(item => item.productoTiendaId === id)?.quantity || 0;
-    if(oldQuantity < quantity) {
+    if (oldQuantity < quantity) {
       const productoTienda = productosTienda.find(p => p.id === id);
       // Si el producto tiene unidades por fracción, se usa ese valor.
       // Si si no son productos con fracción se debe verificar que ese producto no esté ya en el carrito,
       // si no está en el carrito la cantidad maxima seria igual a la existencia del producto.
       // si está en el carrito la cantidad maxima seria igual a la existencia del producto menos la cantidad de productos en el carrito.
-      
+
       let maxQuantity = 0;
 
       const cartQuantity = cart.find(item => item.productoTiendaId === productoTienda.id)?.quantity || 0;
-      
+
       if (cartQuantity > 0) {
-        maxQuantity = productoTienda.producto.unidadesPorFraccion 
-          ? productoTienda.producto.unidadesPorFraccion - 1 
-          : productoTienda.existencia; 
+        maxQuantity = productoTienda.producto.unidadesPorFraccion
+          ? productoTienda.producto.unidadesPorFraccion - 1
+          : productoTienda.existencia;
       }
-      if(quantity > maxQuantity) {
-       return;
+      if (quantity > maxQuantity) {
+        return;
       }
     }
-    
+
     updateQuantity(id, quantity);
   };
 
@@ -680,16 +698,16 @@ export default function POSInterface() {
                 alignItems: "center",
                 gap: 0.5,
                 // Color de fondo dinámico según el estado
-                bgcolor: sales.filter(sale => sale.syncState === "syncing").length > 0 
+                bgcolor: sales.filter(sale => sale.syncState === "syncing").length > 0
                   ? "primary.light" // Azul cuando está sincronizando
                   : "rgba(255, 152, 0, 0.2)", // Warning claro cuando está offline/pendiente
                 // Color del texto dinámico
-                color: sales.filter(sale => sale.syncState === "syncing").length > 0 
-                  ? "primary.contrastText" 
+                color: sales.filter(sale => sale.syncState === "syncing").length > 0
+                  ? "primary.contrastText"
                   : "warning.main",
                 // Borde solo cuando está pendiente (offline)
-                border: sales.filter(sale => sale.syncState === "syncing").length > 0 
-                  ? "none" 
+                border: sales.filter(sale => sale.syncState === "syncing").length > 0
+                  ? "none"
                   : "1px solid",
                 borderColor: "warning.main",
                 px: 1.5,
@@ -717,18 +735,18 @@ export default function POSInterface() {
             >
               {/* Spinner solo cuando está sincronizando */}
               {sales.filter(sale => sale.syncState === "syncing").length > 0 && (
-                <CircularProgress 
-                  size={12} 
-                  sx={{ 
+                <CircularProgress
+                  size={12}
+                  sx={{
                     color: "primary.contrastText",
                     zIndex: 1 // Para que esté encima del gradiente
-                  }} 
+                  }}
                 />
               )}
-              
+
               {/* Texto dinámico según el estado */}
               <Box sx={{ zIndex: 1 }}>
-                {sales.filter(sale => sale.syncState === "syncing").length > 0 
+                {sales.filter(sale => sale.syncState === "syncing").length > 0
                   ? `${sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length} sincronizando`
                   : `${sales.filter(sale => sale.syncState === "not_synced").length} pendientes`
                 }
@@ -779,7 +797,7 @@ export default function POSInterface() {
           if (data?.code) handleProductScan(data.code);
         }} />
         {scannerError && (
-            <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
+          <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
         )}
       </Box>
 
@@ -968,7 +986,7 @@ export default function POSInterface() {
         setShowProducts={setShowProductsSells}
         showProducts={showProductsSells}
         productos={productos}
-        
+
       />
 
       {/* Drawer de ventas y sincronización  */}
@@ -976,7 +994,7 @@ export default function POSInterface() {
         showSales={showSyncView}
         handleClose={() => handleCloseSyncView()}
         period={periodo}
-        reloadProdsAndCategories= {() => fetchProductosAndCategories(true)}
+        reloadProdsAndCategories={() => fetchProductosAndCategories(true)}
         incrementarCantidades={incrementarCantidades}
       />
 
@@ -1088,7 +1106,7 @@ export default function POSInterface() {
           }}
         />
       </Box>
-      
+
       {/* Popper para resultados de búsqueda */}
       <Popper
         open={showSearchResults && searchResults.length > 0}
