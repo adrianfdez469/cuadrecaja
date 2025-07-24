@@ -69,7 +69,7 @@ export default function POSInterface() {
   const { user, loadingContext, gotToPath } = useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
-  const { productos, sales, addSale, markSynced, markSyncing } = useSalesStore();
+  const { productos, sales, addSale, markSynced, markSyncing, checkSyncTimeouts, markSyncError } = useSalesStore();
   const [showProductsSells, setShowProductsSells] = useState(false);
   const [showSyncView, setShowSyncView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -115,64 +115,97 @@ export default function POSInterface() {
     }
   }
 
+  const syncPendingSales = async () => {
+    console.log('🔄 Sincronización automática');
+    
+    const salesNotSynced = sales.filter((sale) => 
+      sale.syncState === "not_synced" && !syncingIdentifiers.has(sale.identifier)
+    );
+    
+    if (salesNotSynced.length === 0) return;
+
+    console.log(`🔄 Sincronizando automáticamente ${salesNotSynced.length} ventas pendientes...`);
+    showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
+
+    // Marcar como "sincronizando" para evitar duplicados
+    const newSyncingIds = new Set(syncingIdentifiers);
+    salesNotSynced.forEach(sale => newSyncingIds.add(sale.identifier));
+    setSyncingIdentifiers(newSyncingIds);
+
+    let syncedCount = 0;
+    let errorCount = 0;
+
+    for (const sale of salesNotSynced) {
+      try {
+        console.log(`🔄 Sincronizando venta: ${sale.identifier}`);
+        markSyncing(sale.identifier); // Marcar como sincronizando
+        const ventaDb = await createSell(
+          sale.tiendaId,
+          sale.cierreId,
+          sale.usuarioId,
+          sale.total,
+          sale.totalcash,
+          sale.totaltransfer,
+          sale.productos,
+          sale.identifier,
+          sale.transferDestinationId,
+          sale.createdAt, // 🆕 Usar timestamp de la venta
+          sale.wasOffline, // 🆕 Usar estado offline de la venta
+          sale.syncAttempts // 🆕 Enviar intentos de sincronización
+        );
+        markSynced(sale.identifier, ventaDb.id);
+        syncedCount++;
+      } 
+      catch (error) {
+        console.error(`❌ Error al sincronizar venta ${sale.identifier}:`, error);
+        
+        // Manejo mejorado de errores
+        if (error.message?.includes('TIMEOUT_ERROR')) {
+          console.warn(`⚠️ Timeout en venta ${sale.identifier} - se reintentará más tarde`);
+        } else if (error.message?.includes('NETWORK_ERROR')) {
+          console.warn(`⚠️ Error de red en venta ${sale.identifier} - se reintentará cuando haya conexión`);
+        } else if (error.message?.includes('SERVER_ERROR')) {
+          console.warn(`⚠️ Error del servidor en venta ${sale.identifier} - se reintentará más tarde`);
+        } else if (error.message?.includes('CLIENT_ERROR')) {
+          console.error(`❌ Error de datos en venta ${sale.identifier}:`, error.message);
+        } else if (error.message?.includes('Existencia insuficiente')) {
+          console.error(`❌ Error crítico: Existencia insuficiente en venta ${sale.identifier}:`, error.message);
+          // Marcar como error permanente para evitar reintentos
+          markSyncError(sale.identifier);
+        } else if (error.response?.status === 400 && 
+                   error.response?.data?.error?.includes("fuera del período actual")) {
+          console.error(`❌ Error crítico: Venta ${sale.identifier} fuera del período actual - no se puede sincronizar`);
+          // Marcar como error permanente para evitar reintentos
+          markSyncError(sale.identifier);
+        }
+        
+        errorCount++;
+      } finally {
+        // Remover del set de sincronización
+        setSyncingIdentifiers(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(sale.identifier);
+          return newSet;
+        });
+      }
+    }
+    
+    if (errorCount > 0) {
+      showMessage(`⚠️ ${errorCount} ventas no pudieron sincronizarse`, "warning");
+    }
+
+    if (syncedCount > 0) {
+      showMessage(`✅ ${syncedCount} ventas sincronizadas correctamente`, "success");
+      
+      if(isOnline) {
+        fetchProductosAndCategories(true);
+      }
+    }
+    
+  }; 
+
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
-    const syncPendingSales = async () => {
-      const salesNotSynced = sales.filter((sale) => 
-        sale.syncState === "not_synced" && !syncingIdentifiers.has(sale.identifier)
-      );
-      
-      if (salesNotSynced.length === 0) return;
-
-      console.log(`🔄 Sincronizando automáticamente ${salesNotSynced.length} ventas pendientes...`);
-      showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
-
-      // Marcar como "sincronizando" para evitar duplicados
-      const newSyncingIds = new Set(syncingIdentifiers);
-      salesNotSynced.forEach(sale => newSyncingIds.add(sale.identifier));
-      setSyncingIdentifiers(newSyncingIds);
-
-      let syncedCount = 0;
-      let errorCount = 0;
-
-      for (const sale of salesNotSynced) {
-        try {
-          console.log(`🔄 Sincronizando venta: ${sale.identifier}`);
-          markSyncing(sale.identifier); // Marcar como sincronizando
-          const ventaDb = await createSell(
-            sale.tiendaId,
-            sale.cierreId,
-            sale.usuarioId,
-            sale.total,
-            sale.totalcash,
-            sale.totaltransfer,
-            sale.productos,
-            sale.identifier
-          );
-          markSynced(sale.identifier, ventaDb.id);
-          syncedCount++;
-        } catch (error) {
-          console.error(`❌ Error al sincronizar venta ${sale.identifier}:`, error);
-          errorCount++;
-        } finally {
-          // Remover del set de sincronización
-          setSyncingIdentifiers(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(sale.identifier);
-            return newSet;
-          });
-        }
-      }
-
-      if (syncedCount > 0) {
-        showMessage(`✅ ${syncedCount} ventas sincronizadas correctamente`, "success");
-      }
-      
-      if (errorCount > 0) {
-        showMessage(`⚠️ ${errorCount} ventas no pudieron sincronizarse`, "warning");
-      }
-    };
-
     // Solo sincronizar si:
     // 1. Acabamos de recuperar la conexión (isOnline es true)
     // 2. Hay ventas pendientes de sincronizar
@@ -182,11 +215,20 @@ export default function POSInterface() {
       const timeoutId = setTimeout(() => {
         syncPendingSales();
       }, 2000);
-
       return () => clearTimeout(timeoutId);
     }
   }, [isOnline, sales, periodo, showMessage, markSynced, syncingIdentifiers]);
 
+  // Verificación periódica de timeouts de sincronización
+  useEffect(() => {
+    const timeoutCheckInterval = setInterval(() => {
+      checkSyncTimeouts();
+    }, 10000); // Verificar cada 10 segundos
+
+    return () => clearInterval(timeoutCheckInterval);
+  }, [checkSyncTimeouts]);
+
+  // useEffect de carga de datos iniciales
   useEffect(() => {
     (async () => {
       if (!loadingContext) {
@@ -241,9 +283,9 @@ export default function POSInterface() {
     })();
   }, [loadingContext]);
   
-  const fetchProductosAndCategories = async () => {
+  const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
-      setLoading(true);
+      if(!silent) setLoading(true);
       const response = await axios.get<IProductoTiendaV2[]>(
         `/api/productos_tienda/${user.localActual.id}/productos_venta`,
         {
@@ -296,11 +338,21 @@ export default function POSInterface() {
       setCategories(categorias);
     } catch (error) {
       console.error("Error al obtener productos", error);
-      showMessage("Error al obtener productos", "error");
+      if(!silent) showMessage("Error al obtener productos", "error");
     } finally {
-      setLoading(false);
+      if(!silent) setLoading(false);
     }
   };
+
+  const incrementarCantidades = (id: string, cantidad: number) => {
+    const productosTiendaEditados = productosTienda.map(p => {
+      if(p.id === id) {
+        return { ...p, existencia: p.existencia + cantidad };
+      }
+      return p;
+    });
+    setProductosTienda(productosTiendaEditados);
+  }
   
   useEffect(() => {
     if (periodo) {
@@ -377,6 +429,10 @@ export default function POSInterface() {
           productos: data,
           usuarioId: user.id,
           syncState: "not_synced",
+          // 🆕 NUEVOS CAMPOS
+          createdAt: Date.now(), // Timestamp exacto de creación
+          wasOffline: !isOnline, // Si se creó sin conexión
+          syncAttempts: 0, // Inicializar contador
           ...(totalTransfer > 0 && { transferDestinationId })
         });
 
@@ -408,14 +464,38 @@ export default function POSInterface() {
               totalTransfer,
               data,
               identifier,
-              transferDestinationId
+              transferDestinationId,
+              Date.now(), // 🆕 Timestamp actual
+              !isOnline, // 🆕 Estado offline
+              1 // 🆕 Primer intento exitoso
             );
             console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
             markSynced(identifier, ventaDb.id);
             showMessage("✅ Venta procesada y sincronizada exitosamente", "success");
           } catch (syncError) {
             console.log('🔍 [handleMakePay] Error de sincronización:', syncError);
-            showMessage("📱 Venta guardada localmente. Se sincronizará automáticamente.", "info");
+            
+            // Manejo mejorado de errores de sincronización
+            if (syncError.message?.includes('TIMEOUT_ERROR')) {
+              showMessage("📱 Venta guardada localmente. Timeout en sincronización - se reintentará automáticamente.", "warning");
+            } else if (syncError.message?.includes('NETWORK_ERROR')) {
+              showMessage("📱 Venta guardada localmente. Error de red - se sincronizará cuando haya conexión.", "warning");
+            } else if (syncError.message?.includes('SERVER_ERROR')) {
+              showMessage("📱 Venta guardada localmente. Error del servidor - se reintentará automáticamente.", "warning");
+            } else if (syncError.message?.includes('CLIENT_ERROR')) {
+              showMessage("📱 Venta guardada localmente. Error en los datos - contacte al administrador.", "error");
+            } else if (syncError.message?.includes('Existencia insuficiente')) {
+              showMessage("❌ Error: No hay suficiente stock para completar la venta. Verifique el inventario.", "error");
+              // Marcar como error permanente para evitar reintentos
+              markSyncError(identifier);
+            } else if (syncError.response?.status === 400 && 
+                       syncError.response?.data?.error?.includes("fuera del período actual")) {
+              showMessage("❌ Error crítico: La venta no se puede sincronizar porque pertenece a un período anterior. Contacte al administrador.", "error");
+              // Marcar como error permanente para evitar reintentos
+              markSyncError(identifier);
+            } else {
+              showMessage("📱 Venta guardada localmente. Se sincronizará automáticamente.", "info");
+            }
           }
         } else {
           showMessage("📱 Venta guardada localmente. Se sincronizará cuando haya conexión.", "info");
@@ -888,6 +968,7 @@ export default function POSInterface() {
         setShowProducts={setShowProductsSells}
         showProducts={showProductsSells}
         productos={productos}
+        
       />
 
       {/* Drawer de ventas y sincronización  */}
@@ -895,6 +976,8 @@ export default function POSInterface() {
         showSales={showSyncView}
         handleClose={() => handleCloseSyncView()}
         period={periodo}
+        reloadProdsAndCategories= {() => fetchProductosAndCategories(true)}
+        incrementarCantidades={incrementarCantidades}
       />
 
       {/* Botón de sincronización */}

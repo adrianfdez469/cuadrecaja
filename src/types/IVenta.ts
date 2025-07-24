@@ -11,7 +11,11 @@ export interface IVenta {
   cierrePeriodoId: string;
   productos?: VentaProducto[];
   usuario?: IUser;
-  syncId?: string; 
+  syncId?: string;
+  // 🆕 NUEVOS CAMPOS
+  frontendCreatedAt?: Date;
+  wasOffline?: boolean;
+  syncAttempts?: number;
 }
 
 interface VentaProducto {

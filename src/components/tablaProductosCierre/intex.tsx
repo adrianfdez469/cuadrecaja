@@ -203,7 +203,6 @@ export const TablaProductosCierre: FC<IProps> = ({
     totalTransferenciasByDestination,
     totalVentasPorUsuario
   } = cierreData;
-
   // Obtener proveedores únicos para el menú de consignación
   const proveedoresUnicos = Array.from(
     new Map(
@@ -212,6 +211,30 @@ export const TablaProductosCierre: FC<IProps> = ({
         .map(p => [p.proveedor!.id, { id: p.proveedor!.id, nombre: p.proveedor!.nombre }])
     ).values()
   ).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const totalVentasPorProveedor = Object.values(
+    productosVendidos.reduce((acc, prod) => {
+      if (prod.proveedor) {
+        if (acc[prod.proveedor.id]) {
+          acc[prod.proveedor.id] = {
+            ...acc[prod.proveedor.id],
+            total: acc[prod.proveedor.id].total + prod.total,
+            ganancia: acc[prod.proveedor.id].ganancia + prod.ganancia
+          }
+        } else {
+          acc[prod.proveedor.id] = {
+            id: prod.proveedor.id,
+            nombre: prod.proveedor.nombre,
+            total: prod.total,
+            ganancia: prod.ganancia
+          }
+        }
+      }
+      return acc;
+    }, {})
+  )
+  console.log('totalVentasPorProveedor', totalVentasPorProveedor);
+  
 
   // Función para renderizar tabla con agrupamiento
   const ProductTable = ({ productos, title, isConsignacion = false }: {
@@ -551,7 +574,33 @@ export const TablaProductosCierre: FC<IProps> = ({
               </CardContent>
             </Card>
           </Grid>
-        </Grid>
+          
+            {totalVentasPorProveedor.map((item: { id: string, nombre: string, total: number, ganancia: number }) => {
+              return (
+                <Grid item xs={6} md={3} key={item.id}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Box display="flex" alignItems="center" gap={1} mb={1}>
+                        <HandshakeIcon color="secondary" />
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {item.nombre}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Ventas: {formatCurrency(item.total)}
+                      </Typography>
+                      {isAdminOrSuperAdmin && (
+                        <Typography variant="body2" color="text.secondary">
+                          Ganancia: {formatCurrency(item.ganancia)}
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )
+            })}
+          </Grid>
+        
       </Paper>
 
       {/* Acordeones para productos separados con datos reales */}
@@ -571,7 +620,7 @@ export const TablaProductosCierre: FC<IProps> = ({
               <Box display="flex" alignItems="center" gap={1}>
                 <StoreIcon color="primary" />
                 <Typography variant="subtitle1" fontWeight="bold">
-                {isMobile ? "Propios" : "Productos Propios"} ({productosVendidos.filter(p => !p.proveedor).length})
+                  {isMobile ? "Propios" : "Productos Propios"} ({productosVendidos.filter(p => !p.proveedor).length})
                 </Typography>
               </Box>
               <Box onClick={(e) => e.stopPropagation()} flex={1} display={'flex'} justifyContent={'flex-end'}>
@@ -611,7 +660,7 @@ export const TablaProductosCierre: FC<IProps> = ({
               <Box display="flex" alignItems="center" gap={1}>
                 <HandshakeIcon color="secondary" />
                 <Typography variant="subtitle1" fontWeight="bold">
-                {isMobile ? "Consignación" : "Productos Consignación"} ({productosVendidos.filter(p => p.proveedor).length})
+                  {isMobile ? "Consignación" : "Productos Consignación"} ({productosVendidos.filter(p => p.proveedor).length})
                 </Typography>
               </Box>
               <Box onClick={(e) => e.stopPropagation()} flex={1} display={'flex'} justifyContent={'flex-end'}>
@@ -701,7 +750,7 @@ export const TablaProductosCierre: FC<IProps> = ({
           <Typography variant="h6" gutterBottom>
             {isMobile ? "📋 Todos" : "📋 Todos los Productos"}
           </Typography>
-          
+
           <Box onClick={(e) => e.stopPropagation()} flex={1} display={'flex'} justifyContent={'flex-end'}>
             <Tooltip title="Exportar a Excel">
               <IconButton

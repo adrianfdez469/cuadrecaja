@@ -56,7 +56,7 @@ export async function GET(
         ? { id: tiendaId } // SUPER_ADMIN puede acceder a cualquier tienda
         : {
             id: tiendaId,
-            usuarios: {
+            usuario: {
               some: { id: user.id }
             }
           }
