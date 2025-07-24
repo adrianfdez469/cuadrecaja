@@ -122,7 +122,7 @@ export default function ProveedorDetallePage() {
       const proveedorData = await getProveedoresConsignacionById(id.toString());
 
 
-      const pclc = proveedorData.prodProveedorConsignadorLiquidacionCierre;
+      const pclc = proveedorData.prodProveedorLiquidacion;
       const dataProveedor: IProveedorConsignacion = {
         nombre: proveedorData.nombre,
         telefono: proveedorData.telefono,

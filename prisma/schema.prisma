@@ -108,7 +108,7 @@ model Producto {
   categoria       Categoria        @relation(fields: [categoriaId], references: [id]) // Categoría a la que pertenece
   categoriaId     String
   productosTienda ProductoTienda[] // Relación con las tiendas donde se vende
-  prodProveedoresConsignadorLiquidacion ProductoProveedorConsignadorLiquidaciónCierre[]
+  prodProveedoresLiquidacion ProductoProveedorLiquidacion[]
   
   // 🔗 Fracción: Este producto es una fracción de otro (ej: Cigarro Suelto -> Caja de Cigarro)
   fraccionDe       Producto?       @relation("ProductoFraccion", fields: [fraccionDeId], references: [id])
@@ -214,7 +214,7 @@ model CierrePeriodo {
   totalGananciasPropias      Float @default(0)
   totalGananciasConsignacion Float @default(0)
 
-  prodProveedoresConsignadorLiquidacion ProductoProveedorConsignadorLiquidaciónCierre[]
+  prodProveedoresLiquidacion ProductoProveedorLiquidacion[]
 
   // Idices
   @@index([fechaInicio])
@@ -280,7 +280,7 @@ model Proveedor {
   // Relación con productos en consignación
   productosConsignacion ProductoTienda[]
 
-  prodProveedorConsignadorLiquidacionCierre ProductoProveedorConsignadorLiquidaciónCierre[]
+  prodProveedorLiquidacion ProductoProveedorLiquidacion[]
 
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
@@ -304,7 +304,7 @@ model TransferDestinations {
   @@index([tiendaId])
 }
 
-model ProductoProveedorConsignadorLiquidaciónCierre {
+model ProductoProveedorLiquidacion {
   id               String           @id @default(uuid())
   monto            Float            @default(0)
   vendidos         Float            @default(0)

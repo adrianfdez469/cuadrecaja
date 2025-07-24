@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         const proveedores = await prisma.proveedor.findMany({
             where: whereClause,
             include: {
-                prodProveedorConsignadorLiquidacionCierre: {
+                prodProveedorLiquidacion: {
                     include: {
                         cierre: true,
                         producto: true,

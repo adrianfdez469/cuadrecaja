@@ -39,7 +39,7 @@ export const findUltimaLiquidacion = (acc, item) => {
 export const getProveedoresConsignacion = async (): Promise<IProveedorConsignacion[]> => {
     const response = await axios.get(API_URL);
     const data = response.data.map((proveedor) => {
-        const pclc = proveedor.prodProveedorConsignadorLiquidacionCierre;
+        const pclc = proveedor.prodProveedorLiquidacion;
         const dataProveedor:IProveedorConsignacion = {
             nombre: proveedor.nombre,
             telefono: proveedor.telefono,
