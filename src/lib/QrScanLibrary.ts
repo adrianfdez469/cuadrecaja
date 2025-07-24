@@ -1,7 +1,7 @@
 import { Html5Qrcode, Html5QrcodeCameraScanConfig, QrcodeErrorCallback, QrcodeSuccessCallback } from 'html5-qrcode';
 
-// const backCameraSelection = { facingMode: { exact: 'environment' } };
-const backCameraSelection = { facingMode: 'user' };
+const backCameraSelection = { facingMode: { exact: 'environment' } };
+// const backCameraSelection = { facingMode: 'user' };
 
 const config: Html5QrcodeCameraScanConfig = {
   fps: 24, // Optional, frame per seconds for qr code scanning
