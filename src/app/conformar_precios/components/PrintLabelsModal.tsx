@@ -253,7 +253,7 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
       const cols = Math.floor((pageWidth - 2 * margin) / (labelWidth + spacing));
       const rows = Math.floor((pageHeight - 2 * margin) / (labelHeight + spacing));
       
-      let currentPage = 1;
+      // let currentPage = 1;
       let currentRow = 0;
       let currentCol = 0;
       let labelCount = 0;
