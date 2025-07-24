@@ -220,9 +220,14 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
             <Select
               labelId="prod-select-label"
               id="prod-select"
-              value={selectedFraccionProduct}
+              value={selectedFraccionProduct?.id || ''}
               label="Producto"
-              onChange={(e) => hendleSelectProduct(e.target.value)}
+              onChange={(e) => {
+                const selectedProduct = productos.find(p => p.id === e.target.value);
+                if (selectedProduct) {
+                  hendleSelectProduct(selectedProduct);
+                }
+              }}
             >
               {productos.map((p) => {
                 return (
