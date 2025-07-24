@@ -1,36 +1,38 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  Box, 
-  TextField, 
-  CircularProgress, 
-  Button, 
+import {
+  Box,
+  TextField,
+  CircularProgress,
+  Button,
   Alert,
   Typography,
   InputAdornment,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  IconButton
 } from "@mui/material";
-import { 
-  DataGrid, 
-  GridRowModel, 
+import {
+  DataGrid,
+  GridRowModel,
   GridColDef,
   GridRenderCellParams,
   GridRenderEditCellParams
 } from "@mui/x-data-grid";
-import { Search, Save, Refresh } from "@mui/icons-material";
+import { Search, Save, Refresh, Print } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { fecthCostosPreciosProds } from "@/services/costoPrecioServices";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency } from '@/utils/formatters';
+import { PrintLabelsModal } from './components/PrintLabelsModal';
 
 // Componente personalizado para editar precios
 const PriceEditCell = (params: GridRenderEditCellParams) => {
   const { id, value, field } = params;
-  
+
   return (
     <TextField
       fullWidth
@@ -43,8 +45,8 @@ const PriceEditCell = (params: GridRenderEditCellParams) => {
       InputProps={{
         startAdornment: <InputAdornment position="start">$</InputAdornment>,
       }}
-      inputProps={{ 
-        min: 0, 
+      inputProps={{
+        min: 0,
         step: 0.01,
         style: { fontSize: '0.875rem' }
       }}
@@ -76,16 +78,17 @@ const PreciosCantidades = () => {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [idDirtyProds, setIdDirtyProds] = useState([]);
+  const [printLabelsOpen, setPrintLabelsOpen] = useState(false);
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
-  
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const fetchProductos = async () => {
     try {
       setLoading(true);
-      if(user?.localActual?.id){
+      if (user?.localActual?.id) {
         const data = await fecthCostosPreciosProds(user?.localActual?.id);
         setProductos(data || []);
         setFilteredProductos(data || []);
@@ -100,14 +103,14 @@ const PreciosCantidades = () => {
   };
 
   useEffect(() => {
-    if(!loadingContext) {
+    if (!loadingContext) {
       fetchProductos();
     }
   }, [loadingContext]);
 
   useEffect(() => {
     console.log(productos);
-    
+
     const mapProductos = productos.map(p => {
       return {
         ...p,
@@ -140,7 +143,7 @@ const PreciosCantidades = () => {
 
     // Actualizar el producto en el estado
     setProductos(prev => prev.map(p => p.id === newRow.id ? newRow : p));
-    
+
     return newRow;
   };
 
@@ -150,7 +153,7 @@ const PreciosCantidades = () => {
   };
 
   const save = async () => {
-    const productsToSave = productos.filter(prod => 
+    const productsToSave = productos.filter(prod =>
       idDirtyProds.includes(prod.id)
     ).map(prod => ({
       id: prod.id,
@@ -186,13 +189,13 @@ const PreciosCantidades = () => {
   };
 
   const columns: GridColDef[] = [
-    { 
-      field: "nombre", 
-      headerName: "Producto", 
+    {
+      field: "nombre",
+      headerName: "Producto",
       flex: isMobile ? 1 : 2,
       minWidth: 200,
       renderCell: (params) => (
-        
+
         <Box sx={{ py: 1 }}>
           <Typography variant="body2" fontWeight="medium">
             {params.value}
@@ -231,17 +234,17 @@ const PreciosCantidades = () => {
       minWidth: 120,
       renderCell: (params) => {
         const { row } = params;
-        if(row.costo === 0) return '0%';
-        if(row.precio === 0) return '0%';
+        if (row.costo === 0) return '0%';
+        if (row.precio === 0) return '0%';
 
-        const porciento = (((row.precio-row.costo) / row.costo) * 100).toFixed(2);
+        const porciento = (((row.precio - row.costo) / row.costo) * 100).toFixed(2);
         return (
           <Typography variant="body2" fontWeight="medium">
             {porciento}%
           </Typography>
 
         );
-      }      
+      }
     }
   ];
 
@@ -284,15 +287,48 @@ const PreciosCantidades = () => {
 
   const headerActions = (
     <Box display="flex" gap={1} alignItems="center">
-      <Button
-        variant="outlined"
-        size="small"
-        startIcon={<Refresh />}
-        onClick={fetchProductos}
-        disabled={loading}
-      >
-        {isMobile ? "" : "Actualizar"}
-      </Button>
+
+      {isMobile ?
+        <IconButton
+          size="small"
+          onClick={fetchProductos}
+          disabled={loading}
+        >
+          <Refresh />
+        </IconButton>
+        :
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<Refresh />}
+          onClick={fetchProductos}
+          disabled={loading}
+        >
+          Actualizar
+        </Button>
+      }
+
+      {isMobile ?
+        <IconButton
+          size="small"
+          onClick={() => setPrintLabelsOpen(true)}
+          disabled={loading || !user?.localActual?.id}
+        >
+          <Print />
+        </IconButton>
+        :
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<Print />}
+          onClick={() => setPrintLabelsOpen(true)}
+          disabled={loading || !user?.localActual?.id}
+          color="secondary"
+        >
+          Etiquetas
+        </Button>
+      }
+
       <Button
         variant="contained"
         size="small"
@@ -303,7 +339,7 @@ const PreciosCantidades = () => {
       >
         {saving ? "Guardando..." : isMobile ? "Guardar" : `Guardar${idDirtyProds.length > 0 ? ` (${idDirtyProds.length})` : ""}`}
       </Button>
-    </Box>
+    </Box >
   );
 
   return (
@@ -330,7 +366,7 @@ const PreciosCantidades = () => {
                 </InputAdornment>
               ),
             }}
-            sx={{ 
+            sx={{
               minWidth: isMobile ? 160 : 250,
               maxWidth: isMobile ? 200 : 'none'
             }}
@@ -346,8 +382,8 @@ const PreciosCantidades = () => {
                 {searchTerm ? 'No se encontraron productos' : 'No hay productos registrados'}
               </Typography>
               <Typography variant="body1">
-                {searchTerm ? 
-                  'Intenta con otros términos de búsqueda.' : 
+                {searchTerm ?
+                  'Intenta con otros términos de búsqueda.' :
                   'Primero debes realizar operaiones de entrada de productos desde los movimientos productos.'
                 }
               </Typography>
@@ -359,13 +395,13 @@ const PreciosCantidades = () => {
               <Box sx={{ p: 2, bgcolor: 'warning.50', borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Alert severity="warning" sx={{ py: 0.5 }}>
                   <Typography variant="body2">
-                    Tienes {idDirtyProds.length} producto{idDirtyProds.length !== 1 ? 's' : ''} con cambios sin guardar. 
+                    Tienes {idDirtyProds.length} producto{idDirtyProds.length !== 1 ? 's' : ''} con cambios sin guardar.
                     {`Haz clic en \"Guardar\" para aplicar los cambios.`}
                   </Typography>
                 </Alert>
               </Box>
             )}
-            
+
             <Box sx={{ height: 'calc(100vh - 300px)', minHeight: 400, width: '100%' }}>
               <DataGrid
                 rows={filteredProductos}
@@ -380,7 +416,7 @@ const PreciosCantidades = () => {
                     paginationModel: { pageSize: 25 }
                   }
                 }}
-                getRowClassName={(params) => 
+                getRowClassName={(params) =>
                   idDirtyProds.includes(params.id) ? 'row-modified' : ''
                 }
                 sx={{
@@ -427,6 +463,15 @@ const PreciosCantidades = () => {
           </>
         )}
       </ContentCard>
+
+      {/* Modal para imprimir etiquetas */}
+      {printLabelsOpen && (
+        <PrintLabelsModal
+          open={printLabelsOpen}
+          onClose={() => setPrintLabelsOpen(false)}
+          tiendaId={user?.localActual?.id || ''}
+        />
+      )}
     </PageContainer>
   );
 };
