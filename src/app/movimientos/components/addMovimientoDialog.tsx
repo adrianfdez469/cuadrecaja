@@ -23,7 +23,6 @@ import {
   Chip,
   Card,
   CardContent,
-  Stack
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
@@ -44,8 +43,6 @@ import { Add, Info } from "@mui/icons-material";
 import { getProveedores, createProveedor } from "@/services/proveedorService";
 import { IProveedor } from "@/types/IProveedor";
 import { requiereCPP } from "@/lib/cpp-calculator";
-import HardwareQrScanner from '@/components/ProductProcessorData/HardwareQrScanner';
-import MobileQrScanner from '@/components/ProductProcessorData/MobileQrScanner';
 import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
 import { IProductoDisponible, OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal";
 import { ILocal } from "@/types/ILocal";
