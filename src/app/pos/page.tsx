@@ -842,10 +842,16 @@ export default function POSInterface() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: {
+          gridTemplateColumns: isCartPinned ?  {
+            xs: "repeat(2, 1fr)",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(3, 1fr)",
+            lg: "repeat(4, 1fr)",
+          } : {
             xs: "repeat(2, 1fr)",
             sm: "repeat(3, 1fr)",
             md: "repeat(4, 1fr)",
+            lg: "repeat(5, 1fr)",
           },
           gap: { xs: 0.5, sm: 1.5, md: 2 },
           p: { xs: 0.5, sm: 2 },
@@ -938,7 +944,9 @@ export default function POSInterface() {
                 sx={{
                   color: "white",
                   fontWeight: 600,
-                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                  fontSize: isCartPinned ? 
+                    { xs: "0.7rem", sm: "0.8rem", md: "1rem", lg: "1.25rem" } : 
+                    { xs: "1.25rem", sm: "1.5rem" },
                   textAlign: "center",
                   textShadow: `
               0 0 1px rgba(0,0,0,0.8),
