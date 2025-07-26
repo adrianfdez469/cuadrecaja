@@ -1,5 +1,4 @@
 "use client";
-"use client";
 
 import { useState, useEffect, useRef } from "react";
 import {
@@ -21,6 +20,8 @@ import {
   ListItemButton,
   Alert,
   Button,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import SearchIcon from "@mui/icons-material/Search";
@@ -56,6 +57,7 @@ import { formatDate } from "@/utils/formatters";
 import { IProcessedData } from "@/types/IProcessedData";
 import { ITransferDestination } from "@/types/ITransferDestination";
 import { fetchTransferDestinations } from "@/services/transferDestinationsService";
+import { CartContent } from "@/components/cartDrawer/components/cartContent";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -94,6 +96,26 @@ export default function POSInterface() {
 
   // Estado para el scanner
   const [scannerError, setScannerError] = useState<string | null>(null);
+
+  const [isCartPinned, setIsCartPinned] = useState(false);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Calcular ancho del carrito según la pantalla
+  const getCartWidth = () => {
+    if (isMobile) return '100%';
+    if (isTablet) return '40vw';
+    return '35vw';
+  };
+
+  const getMainContentWidth = () => {
+    if (!isCartPinned) return '100%';
+    if (isMobile) return '100%';
+    if (isTablet) return 'calc(100% - 40vw)';
+    return 'calc(100% - 35vw)';
+  };
 
   // Busca producto por código (en cualquier código asociado)
   function findProductByCode(code: string) {
@@ -222,84 +244,7 @@ export default function POSInterface() {
 
   };
 
-  // Sincronización automática cuando regresa la conexión
-  useEffect(() => {
-    // Solo sincronizar si:
-    // 1. Acabamos de recuperar la conexión (isOnline es true)
-    // 2. Hay ventas pendientes de sincronizar
-    // 3. El periodo está cargado
-    if (isOnline && periodo && sales.some(sale => sale.syncState === "not_synced")) {
-      // Pequeño delay para asegurar que la conexión esté estable
-      const timeoutId = setTimeout(() => {
-        syncPendingSales();
-      }, 2000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isOnline, sales, periodo, showMessage, markSynced, syncingIdentifiers]);
-
-  // Verificación periódica de timeouts de sincronización
-  useEffect(() => {
-    const timeoutCheckInterval = setInterval(() => {
-      checkSyncTimeouts();
-    }, 10000); // Verificar cada 10 segundos
-
-    return () => clearInterval(timeoutCheckInterval);
-  }, [checkSyncTimeouts]);
-
-  // useEffect de carga de datos iniciales
-  useEffect(() => {
-    (async () => {
-      if (!loadingContext) {
-        // Validar que el usuario tenga una tienda actual
-        if (!user.localActual || !user.localActual.id) {
-          setNoLocalActual(true);
-          setLoading(false);
-          return;
-        }
-        try {
-
-          const data = await fetchTransferDestinations(user.localActual.id);;
-          setTransferDestinations(data);
-
-          const lastPeriod = await fetchLastPeriod(user.localActual.id);
-          let message = "";
-          if (!lastPeriod || lastPeriod.fechaFin) {
-            message =
-              "No existe un período abierto. Desea abrir un nuevo período?";
-          }
-          if (!lastPeriod || lastPeriod.fechaFin) {
-            // Mostrar un mensaje
-            confirmDialog(
-              message,
-              () => {
-                openPeriod(user.localActual.id).then((newPeriod) => {
-                  setPeriodo(newPeriod);
-                  return fetchProductosAndCategories();
-                });
-              },
-              () => {
-                showMessage(
-                  "No puede comenzar a vender si no tiene un período abierto",
-                  "warning"
-                );
-                gotToPath("/");
-              }
-            );
-          } else {
-            setPeriodo(lastPeriod);
-          }
-        } catch (error) {
-          console.log(error);
-          showMessage(
-            "Ocurrió un erro intentando cargar le período",
-            "error"
-          );
-        } finally {
-          setLoading(false);
-        }
-      }
-    })();
-  }, [loadingContext]);
+  
 
   const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
@@ -372,17 +317,7 @@ export default function POSInterface() {
     setProductosTienda(productosTiendaEditados);
   }
 
-  useEffect(() => {
-    if (periodo) {
-      fetchProductosAndCategories().catch((error) => {
-        console.log(error);
-        showMessage(
-          "Ocurrió un error intentando cargar las categorías",
-          "error"
-        );
-      });
-    }
-  }, [periodo]);
+  
 
   const handleOpenProducts = (category: ICategory) => {
     setSelectedCategory(category);
@@ -587,6 +522,99 @@ export default function POSInterface() {
     setSelectedProduct(null);
     setOpenCart(true);
   };
+
+  // Sincronización automática cuando regresa la conexión
+  useEffect(() => {
+    // Solo sincronizar si:
+    // 1. Acabamos de recuperar la conexión (isOnline es true)
+    // 2. Hay ventas pendientes de sincronizar
+    // 3. El periodo está cargado
+    if (isOnline && periodo && sales.some(sale => sale.syncState === "not_synced")) {
+      // Pequeño delay para asegurar que la conexión esté estable
+      const timeoutId = setTimeout(() => {
+        syncPendingSales();
+      }, 2000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isOnline, sales, periodo, showMessage, markSynced, syncingIdentifiers]);
+
+  // Verificación periódica de timeouts de sincronización
+  useEffect(() => {
+    const timeoutCheckInterval = setInterval(() => {
+      checkSyncTimeouts();
+    }, 10000); // Verificar cada 10 segundos
+
+    return () => clearInterval(timeoutCheckInterval);
+  }, [checkSyncTimeouts]);
+
+  // useEffect de carga de datos iniciales
+  useEffect(() => {
+    (async () => {
+      if (!loadingContext) {
+        // Validar que el usuario tenga una tienda actual
+        if (!user.localActual || !user.localActual.id) {
+          setNoLocalActual(true);
+          setLoading(false);
+          return;
+        }
+        try {
+
+          const data = await fetchTransferDestinations(user.localActual.id);;
+          setTransferDestinations(data);
+
+          const lastPeriod = await fetchLastPeriod(user.localActual.id);
+          let message = "";
+          if (!lastPeriod || lastPeriod.fechaFin) {
+            message =
+              "No existe un período abierto. Desea abrir un nuevo período?";
+          }
+          if (!lastPeriod || lastPeriod.fechaFin) {
+            // Mostrar un mensaje
+            confirmDialog(
+              message,
+              () => {
+                openPeriod(user.localActual.id).then((newPeriod) => {
+                  setPeriodo(newPeriod);
+                  return fetchProductosAndCategories();
+                });
+              },
+              () => {
+                showMessage(
+                  "No puede comenzar a vender si no tiene un período abierto",
+                  "warning"
+                );
+                gotToPath("/");
+              }
+            );
+          } else {
+            setPeriodo(lastPeriod);
+          }
+        } catch (error) {
+          console.log(error);
+          showMessage(
+            "Ocurrió un erro intentando cargar le período",
+            "error"
+          );
+        } finally {
+          setLoading(false);
+        }
+      }
+    })();
+  }, [loadingContext]);
+
+  useEffect(() => {
+    if (periodo) {
+      fetchProductosAndCategories().catch((error) => {
+        console.log(error);
+        showMessage(
+          "Ocurrió un error intentando cargar las categorías",
+          "error"
+        );
+      });
+    }
+  }, [periodo]);
+
+
   if (loadingContext || loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -632,7 +660,16 @@ export default function POSInterface() {
   }
 
   return (
-    <>
+    <Box p={0} display={'flex'} flexDirection={'row'} sx={{ height: '100vh', overflow: 'hidden' }}>
+      <Box sx={{ 
+        flex: isCartPinned ? '1' : 'none',
+        width: getMainContentWidth(),
+        overflow: 'auto',
+        height: '100vh',
+        p: 0
+      }}>
+
+
       {/* Barra superior con información del sistema - posicionada debajo del menú */}
       <Box
         sx={{
@@ -962,12 +999,14 @@ export default function POSInterface() {
       <CartDrawer
         cart={cart}
         onClose={() => setOpenCart(false)}
-        open={openCart}
+        open={!isCartPinned && openCart}
         onOkButtonClick={async () => setPaymentDialog(true)}
         total={total}
         clear={clearCart}
         removeItem={removeFromCart}
         updateQuantity={handleUpdateQuantity}
+        isCartPinned={isCartPinned}
+        setIsCartPinned={setIsCartPinned}
       />
 
       {/* Modal de pago */}
@@ -1181,6 +1220,31 @@ export default function POSInterface() {
         onConfirm={handleConfirmQuantity}
       />
       {ConfirmDialogComponent}
-    </>
+      </Box>
+
+      {isCartPinned && 
+        <Box sx={{ 
+          width: getCartWidth(),
+          maxWidth: getCartWidth(),
+          minWidth: '360px',
+          height: '100vh',
+          overflow: 'hidden',
+          borderLeft: '1px solid rgba(0,0,0,0.1)',
+          backgroundColor: 'background.paper'
+        }}>
+          <CartContent 
+            cart={cart} 
+            total={total} 
+            clear={clearCart} 
+            updateQuantity={handleUpdateQuantity}
+            onClose={() => setOpenCart(false)}
+            removeItem={removeFromCart}
+            onOkButtonClick={async () => setPaymentDialog(true)}
+            isCartPinned={isCartPinned}
+            setIsCartPinned={setIsCartPinned}
+          />
+        </Box>
+      }
+    </Box>
   );
 }
