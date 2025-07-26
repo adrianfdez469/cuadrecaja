@@ -2,7 +2,6 @@ import React, { FC, useEffect } from "react";
 import { Drawer } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import { CartContent } from "./components/cartContent";
-import PushPinIcon from '@mui/icons-material/PushPin';
 
 interface IProps {
   open: boolean;

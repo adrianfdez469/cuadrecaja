@@ -1,4 +1,4 @@
-import { Close, Delete, Remove, Add, PinDropOutlined, PinDrop, Pin } from "@mui/icons-material";
+import { Close, Delete, Remove, Add } from "@mui/icons-material";
 import { Box, Typography,Button, IconButton, Paper, useMediaQuery, useTheme } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import PushPinIcon from '@mui/icons-material/PushPin';
@@ -37,7 +37,6 @@ export const CartContent = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-  const isDesk = useMediaQuery(theme.breakpoints.down('lg'))
 
   const handleRemoveItem = (item: ICartItem) => {
     if (removeItem) {
