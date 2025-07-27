@@ -285,6 +285,7 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
                 style={{ width: '100%' }}
                 value={codigo}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleCodigoChange(idx, e.target.value)}
+                keepFocus={false} // Evitar que robe el foco de otros campos
               />
               <Tooltip title="Escanear QR con cámara móvil">
                 <Box ml={1}>

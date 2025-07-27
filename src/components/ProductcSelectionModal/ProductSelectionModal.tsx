@@ -548,7 +548,8 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
               }}
               onHardwareScan={(data: IProcessedData) => {
                 if (data?.code) handleProductScan(data.code);
-              }} 
+              }}
+              keepFocus={false} // Evitar que robe el foco de otros campos
             />
 
             <Stack direction="row" spacing={1} sx={{ width: '100%' }}>

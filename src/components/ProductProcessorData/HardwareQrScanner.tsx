@@ -7,19 +7,26 @@ type HardwareQrScannerProps = {
   style?: React.CSSProperties;
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  keepFocus?: boolean; // Nueva prop para controlar si mantener el foco
 };
 
-function HardwareQrScanner({ qrCodeSuccessCallback, style, value, onChange }: HardwareQrScannerProps) {
+function HardwareQrScanner({ 
+  qrCodeSuccessCallback, 
+  style, 
+  value, 
+  onChange, 
+  keepFocus = true // Por defecto mantiene el comportamiento original
+}: HardwareQrScannerProps) {
   const [internalQrData, setInternalQrData] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Put the focus in the qr input
   useEffect(() => {
-    if (inputRef.current) {
+    if (inputRef.current && keepFocus) {
       inputRef.current.focus();
     }
-  }, []);
+  }, [keepFocus]);
 
   function handleQRDataChange(event: React.ChangeEvent<HTMLInputElement>) {
     if (typeof value === 'string' && onChange) {
@@ -45,8 +52,8 @@ function HardwareQrScanner({ qrCodeSuccessCallback, style, value, onChange }: Ha
         if (typeof value !== 'string') {
           setInternalQrData('');
         }
-        // Asegurar que el foco se mantenga en el campo
-        if (inputRef.current) {
+        // Asegurar que el foco se mantenga en el campo solo si keepFocus es true
+        if (inputRef.current && keepFocus) {
           inputRef.current.focus();
         }
       }, 500);
@@ -64,15 +71,15 @@ function HardwareQrScanner({ qrCodeSuccessCallback, style, value, onChange }: Ha
       size="small"
       sx={style || { width: '100%' }}
       fullWidth={!!style?.width || !style}
-      // Asegurar que el campo siempre esté enfocado
-      onBlur={() => {
+      // Asegurar que el campo siempre esté enfocado solo si keepFocus es true
+      onBlur={keepFocus ? () => {
         // Pequeño delay para evitar conflictos con otros eventos
         setTimeout(() => {
           if (inputRef.current) {
             inputRef.current.focus();
           }
         }, 10);
-      }}
+      } : undefined}
     />
   );
 }

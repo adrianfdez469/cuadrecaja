@@ -6,6 +6,7 @@ import { Box } from '@mui/material';
 type QrModuleScannerProps = {
   onScan: (qrText: string) => void;
   onHardwareScan?: (qrText: string) => void; // Nueva prop para escaneo de hardware
+  keepFocus?: boolean; // Nueva prop para controlar el foco del hardware scanner
 };
 
 export interface QrModuleScannerRef {
@@ -13,7 +14,7 @@ export interface QrModuleScannerRef {
 }
 
 const QrModuleScanner = forwardRef<QrModuleScannerRef, QrModuleScannerProps>(
-  ({ onScan, onHardwareScan }, ref) => {
+  ({ onScan, onHardwareScan, keepFocus = true }, ref) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mobileScannerRef = React.useRef<any>(null);
 
@@ -34,7 +35,8 @@ const QrModuleScanner = forwardRef<QrModuleScannerRef, QrModuleScannerProps>(
       >
         <MobileQrScanner ref={mobileScannerRef} qrCodeSuccessCallback={onScan} />
         <HardwareQrScanner 
-          qrCodeSuccessCallback={onHardwareScan || onScan} 
+          qrCodeSuccessCallback={onHardwareScan || onScan}
+          keepFocus={keepFocus}
         />
       </Box>
     );
