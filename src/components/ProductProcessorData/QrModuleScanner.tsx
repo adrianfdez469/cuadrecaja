@@ -14,6 +14,7 @@ export interface QrModuleScannerRef {
 
 const QrModuleScanner = forwardRef<QrModuleScannerRef, QrModuleScannerProps>(
   ({ onScan, onHardwareScan }, ref) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mobileScannerRef = React.useRef<any>(null);
 
     useImperativeHandle(ref, () => ({

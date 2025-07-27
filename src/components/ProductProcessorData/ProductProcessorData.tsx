@@ -15,6 +15,7 @@ export interface ProductProcessorDataRef {
 
 const ProductProcessorData = forwardRef<ProductProcessorDataRef, ClientProcessorDataProps>(
   ({ onProcessedData, onHardwareScan }, ref) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const qrModuleRef = React.useRef<any>(null);
 
     useImperativeHandle(ref, () => ({

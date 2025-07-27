@@ -38,6 +38,7 @@ function HardwareQrScanner({ qrCodeSuccessCallback, style, value, onChange }: Ha
           qrCodeSuccessCallback(data);
           audioService.playSuccessSound();
         } catch (error) {
+          console.log(error);
           audioService.playErrorSound();
         }
         // Limpiar el campo y mantener el foco para continuar escaneando

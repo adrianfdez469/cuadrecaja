@@ -39,6 +39,7 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
     }
 
     // Callback de éxito personalizado con sonido
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleSuccess = (qrText: string, result: any) => {
       audioService.playSuccessSound();
       qrCodeSuccessCallback(qrText, result);
