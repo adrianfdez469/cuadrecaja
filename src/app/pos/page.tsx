@@ -59,6 +59,7 @@ import { ITransferDestination } from "@/types/ITransferDestination";
 import { fetchTransferDestinations } from "@/services/transferDestinationsService";
 import { CartContent } from "@/components/cartDrawer/components/cartContent";
 import { ProductProcessorDataRef } from "@/components/ProductProcessorData/ProductProcessorData";
+import audioService from "@/utils/audioService";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -158,8 +159,10 @@ export default function POSInterface() {
         // Mostrar notificación
         showMessage(`✅ ${product.producto.nombre} agregado al carrito`, "success");
         setScannerError(null);
+        audioService.playSuccessSound();
       } else {
         setScannerError('Producto no encontrado para el código escaneado');
+        audioService.playErrorSound();
       }
     }
   };
@@ -199,6 +202,7 @@ export default function POSInterface() {
       setScannerError(null);
     } else {
       setScannerError('Producto no encontrado para el código escaneado');
+      audioService.playErrorSound();
     }
   }
 
@@ -648,6 +652,11 @@ export default function POSInterface() {
       }
     })();
   }, [loadingContext]);
+
+  // Activar audio context cuando se carga la página
+  useEffect(() => {
+    audioService.resumeAudioContext();
+  }, []);
 
   useEffect(() => {
     if (periodo) {

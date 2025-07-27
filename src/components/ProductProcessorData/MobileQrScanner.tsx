@@ -1,8 +1,9 @@
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
 import { Button, Dialog, DialogTitle, DialogContent, Alert, Skeleton } from '@mui/material';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
 import { init, start, stop } from '@/lib/QrScanLibrary';
 import { QrcodeErrorCallback, QrcodeSuccessCallback } from 'html5-qrcode';
+import audioService from '@/utils/audioService';
 
 type MobileQrScannerProps = {
   qrCodeSuccessCallback: QrcodeSuccessCallback;
@@ -20,6 +21,13 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
 
+    // Activar audio context cuando se abre el scanner
+    useEffect(() => {
+      if (isOpen) {
+        audioService.resumeAudioContext();
+      }
+    }, [isOpen]);
+
     useImperativeHandle(ref, () => ({
       openScanner: () => {
         setIsOpen(true);
@@ -30,18 +38,23 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
       setIsOpen(true);
     }
 
+    // Callback de éxito personalizado con sonido
+    const handleSuccess = (qrText: string, result: any) => {
+      audioService.playSuccessSound();
+      qrCodeSuccessCallback(qrText, result);
+      handleStop();
+    };
+
     async function handleStartScanner() {
       init('qrTest');
       setLoading(true);
       await start(
-        (qrText, result) => {
-          qrCodeSuccessCallback(qrText, result);
-          handleStop();
-        },
+        handleSuccess,
         qrCodeErrorCallback || (() => {})
       ).catch((e) => {
         console.error(e);
         setError(true);
+        audioService.playErrorSound();
       });
 
       setLoading(false);

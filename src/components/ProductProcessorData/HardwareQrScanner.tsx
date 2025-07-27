@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import TextField from '@mui/material/TextField';
+import audioService from '@/utils/audioService';
 
 type HardwareQrScannerProps = {
   qrCodeSuccessCallback: (qrData: string) => void;
@@ -33,7 +34,12 @@ function HardwareQrScanner({ qrCodeSuccessCallback, style, value, onChange }: Ha
     const data = typeof value === 'string' ? value : internalQrData;
     if (data && data.length > 0) {
       timeoutRef.current = setTimeout(() => {
-        qrCodeSuccessCallback(data);
+        try {
+          qrCodeSuccessCallback(data);
+          audioService.playSuccessSound();
+        } catch (error) {
+          audioService.playErrorSound();
+        }
         // Limpiar el campo y mantener el foco para continuar escaneando
         if (typeof value !== 'string') {
           setInternalQrData('');
