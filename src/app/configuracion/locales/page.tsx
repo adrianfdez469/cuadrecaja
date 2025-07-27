@@ -740,7 +740,6 @@ export default function Locales() {
               
               {/* Selector para agregar nuevos usuarios */}
               <FormControl fullWidth>
-                <InputLabel>Agregar Usuario</InputLabel>
                 <Select
                   value=""
                   onChange={(e) => {
@@ -750,7 +749,6 @@ export default function Locales() {
                     }
                   }}
                   displayEmpty
-                  label="Agregar Usuario"
                 >
                   <MenuItem value="">
                     <em>Seleccionar usuario para agregar...</em>

@@ -1,92 +1,86 @@
 {
-  "pos.vender": {
+  "configuracion.usuarios": {
+    "descripcion": "Permite realizar configuraciones de usuarios"
+  },
+  "configuracion.locales": {
+    "descripcion": "Permite realizar configuraciones de locales/tiendas"
+  },
+  "configuracion.categorias": {
+    "descripcion": "Permite realizar configuraciones de categorías"
+  },
+  "configuracion.productos": {
+    "descripcion": "Permite realizar configuraciones de productos"
+  },
+  "configuracion.proveedores": {
+    "descripcion": "Permite realizar configuraciones de proveedores"
+  },
+  "configuracion.destinostransferencia": {
+    "descripcion": "Permite realizar configuraciones de destinos de transferencia"
+  },
+  "configuracion.roles": {
+    "descripcion": "Permite realizar configuraciones de roles"
+  },
+  "recuperaciones.dashboard": {
+    "descripcion": "Permite acceder al dashboard de recuperaciones"
+  },
+  "recuperaciones.inventario": {
+    "descripcion": "Permite realizar recuperaciones del inventario actual de los productos"
+  },
+  "recuperaciones.resumencierres": {
+    "descripcion": "Permite revisar los resumentes de los cierres anteriores"
+  },
+  "recuperaciones.analisiscpp": {
+    "descripcion": "Permite acceder a las recuperaciones de los análisis de costo y costo promedio ponderado (CPP) de los productos"
+  },
+  "recuperaciones.proveedoresconsignación": {
+    "descripcion": "Permite acceder y realizar todas las funciones disponibles en la recuperacion de los proveedores y productos en consignación."
+  },
+  "operaciones.pos.vender": {
     "descripcion": "Permite realizar ventas desde el punto de venta (POS)"
   },
-  "pos.cancelarventa": {
+  "operaciones.pos.cancelarventa": {
     "descripcion": "Permite cancelar ventas realizadas desde el punto de venta"
   },
-  "pos.resumen.ganancias": {
-    "descripcion": "Permite ver las ganancias en el resumen de ventas del POS"
+  "operaciones.pos.gananciascostos": {
+    "descripcion": "Permite ver las ganancias y costos en el resumen de ventas del POS"
   },
-  "movimientos.ver": {
+  "operaciones.ventas.ver": {
+    "descripcion": "Permite acceder a la interfaz de ventas"
+  },
+  "operaciones.ventas.eliminar": {
+    "descripcion": "Permite eliminar ventas"
+  },
+  "operaciones.conformarprecios": {
+    "descripcion": "Permite conformar precios de productos"
+  },
+  "operaciones.cierre.ver": {
+    "descripcion": "Permite acceder a la interfaz de cierre de caja"
+  },
+  "operaciones.cierre.cerrar": {
+    "descripcion": "Permite crear un nuevo cierre de caja"
+  },
+  "operaciones.movimientos.ver": {
     "descripcion": "Permite acceder a la interfaz de movimientos de stock"
   },
-  "movimientos.crear.compra": {
+  "operaciones.movimientos.crear.compra": {
     "descripcion": "Permite crear movimientos de compra de productos"
   },
-  "movimientos.crear.ajuste": {
-    "descripcion": "Permite crear ajustes de inventario (entradas y salidas)"
+  "operaciones.movimientos.crear.ajuste_entradas": {
+    "descripcion": "Permite crear ajustes de inventario (entradas)"
   },
-  "movimientos.crear.traspaso": {
-    "descripcion": "Permite crear traspasos entre tiendas"
+  "operaciones.movimientos.crear.ajuste_salidas": {
+    "descripcion": "Permite crear ajustes de inventario (salidas)"
   },
-  "configuracion.productos.ver": {
-    "descripcion": "Permite ver la configuración de productos"
+  "operaciones.movimientos.crear.transferencia": {
+    "descripcion": "Permite crear transferencias entre tiendas"
   },
-  "configuracion.productos.crear": {
-    "descripcion": "Permite crear nuevos productos"
+  "operaciones.movimientos.crear.recepcion": {
+    "descripcion": "Permite crear recepciones de productos"
   },
-  "configuracion.productos.editar": {
-    "descripcion": "Permite editar productos existentes"
+  "operaciones.movimientos.consignacion_entrada": {
+    "descripcion": "Permite crear entradas de productos en consignación"
   },
-  "configuracion.productos.eliminar": {
-    "descripcion": "Permite eliminar productos"
-  },
-  "configuracion.categorias.ver": {
-    "descripcion": "Permite ver las categorías de productos"
-  },
-  "configuracion.categorias.crear": {
-    "descripcion": "Permite crear nuevas categorías"
-  },
-  "configuracion.categorias.editar": {
-    "descripcion": "Permite editar categorías existentes"
-  },
-  "configuracion.categorias.eliminar": {
-    "descripcion": "Permite eliminar categorías"
-  },
-  "configuracion.usuarios.ver": {
-    "descripcion": "Permite ver la lista de usuarios"
-  },
-  "configuracion.usuarios.crear": {
-    "descripcion": "Permite crear nuevos usuarios"
-  },
-  "configuracion.usuarios.editar": {
-    "descripcion": "Permite editar usuarios existentes"
-  },
-  "configuracion.usuarios.eliminar": {
-    "descripcion": "Permite eliminar usuarios"
-  },
-  "configuracion.roles.ver": {
-    "descripcion": "Permite ver la configuración de roles"
-  },
-  "configuracion.roles.crear": {
-    "descripcion": "Permite crear nuevos roles"
-  },
-  "configuracion.roles.editar": {
-    "descripcion": "Permite editar roles existentes"
-  },
-  "configuracion.roles.eliminar": {
-    "descripcion": "Permite eliminar roles"
-  },
-  "configuracion.locales.ver": {
-    "descripcion": "Permite ver la configuración de locales/tiendas"
-  },
-  "configuracion.locales.crear": {
-    "descripcion": "Permite crear nuevos locales/tiendas"
-  },
-  "configuracion.locales.editar": {
-    "descripcion": "Permite editar locales/tiendas existentes"
-  },
-  "configuracion.locales.eliminar": {
-    "descripcion": "Permite eliminar locales/tiendas"
-  },
-  "reportes.ventas.ver": {
-    "descripcion": "Permite acceder a los reportes de ventas"
-  },
-  "reportes.inventario.ver": {
-    "descripcion": "Permite acceder a los reportes de inventario"
-  },
-  "reportes.ganancias.ver": {
-    "descripcion": "Permite ver reportes detallados de ganancias"
+  "operaciones.movimientos.consignacion_devolucion": {
+    "descripcion": "Permite crear devoluciones de productos en consignación"
   }
-} 
+}
