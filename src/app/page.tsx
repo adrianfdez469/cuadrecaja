@@ -28,7 +28,8 @@ import {
   Person,
   Store,
   ShoppingCart,
-  Summarize
+  Summarize,
+  Security
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { TipoLocal } from "@/types/ILocal";
@@ -197,6 +198,11 @@ const HomePage = () => {
       title: "Usuarios",
       icon: <Person />,
       path: "/configuracion/usuarios"
+    },
+    {
+      title: "Roles",
+      icon: <Security />,
+      path: "/configuracion/roles"
     }
   ];
 

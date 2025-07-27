@@ -1,0 +1,92 @@
+{
+  "pos.vender": {
+    "descripcion": "Permite realizar ventas desde el punto de venta (POS)"
+  },
+  "pos.cancelarventa": {
+    "descripcion": "Permite cancelar ventas realizadas desde el punto de venta"
+  },
+  "pos.resumen.ganancias": {
+    "descripcion": "Permite ver las ganancias en el resumen de ventas del POS"
+  },
+  "movimientos.ver": {
+    "descripcion": "Permite acceder a la interfaz de movimientos de stock"
+  },
+  "movimientos.crear.compra": {
+    "descripcion": "Permite crear movimientos de compra de productos"
+  },
+  "movimientos.crear.ajuste": {
+    "descripcion": "Permite crear ajustes de inventario (entradas y salidas)"
+  },
+  "movimientos.crear.traspaso": {
+    "descripcion": "Permite crear traspasos entre tiendas"
+  },
+  "configuracion.productos.ver": {
+    "descripcion": "Permite ver la configuración de productos"
+  },
+  "configuracion.productos.crear": {
+    "descripcion": "Permite crear nuevos productos"
+  },
+  "configuracion.productos.editar": {
+    "descripcion": "Permite editar productos existentes"
+  },
+  "configuracion.productos.eliminar": {
+    "descripcion": "Permite eliminar productos"
+  },
+  "configuracion.categorias.ver": {
+    "descripcion": "Permite ver las categorías de productos"
+  },
+  "configuracion.categorias.crear": {
+    "descripcion": "Permite crear nuevas categorías"
+  },
+  "configuracion.categorias.editar": {
+    "descripcion": "Permite editar categorías existentes"
+  },
+  "configuracion.categorias.eliminar": {
+    "descripcion": "Permite eliminar categorías"
+  },
+  "configuracion.usuarios.ver": {
+    "descripcion": "Permite ver la lista de usuarios"
+  },
+  "configuracion.usuarios.crear": {
+    "descripcion": "Permite crear nuevos usuarios"
+  },
+  "configuracion.usuarios.editar": {
+    "descripcion": "Permite editar usuarios existentes"
+  },
+  "configuracion.usuarios.eliminar": {
+    "descripcion": "Permite eliminar usuarios"
+  },
+  "configuracion.roles.ver": {
+    "descripcion": "Permite ver la configuración de roles"
+  },
+  "configuracion.roles.crear": {
+    "descripcion": "Permite crear nuevos roles"
+  },
+  "configuracion.roles.editar": {
+    "descripcion": "Permite editar roles existentes"
+  },
+  "configuracion.roles.eliminar": {
+    "descripcion": "Permite eliminar roles"
+  },
+  "configuracion.locales.ver": {
+    "descripcion": "Permite ver la configuración de locales/tiendas"
+  },
+  "configuracion.locales.crear": {
+    "descripcion": "Permite crear nuevos locales/tiendas"
+  },
+  "configuracion.locales.editar": {
+    "descripcion": "Permite editar locales/tiendas existentes"
+  },
+  "configuracion.locales.eliminar": {
+    "descripcion": "Permite eliminar locales/tiendas"
+  },
+  "reportes.ventas.ver": {
+    "descripcion": "Permite acceder a los reportes de ventas"
+  },
+  "reportes.inventario.ver": {
+    "descripcion": "Permite acceder a los reportes de inventario"
+  },
+  "reportes.ganancias.ver": {
+    "descripcion": "Permite ver reportes detallados de ganancias"
+  }
+} 

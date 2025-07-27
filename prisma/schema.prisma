@@ -24,6 +24,7 @@ model Negocio {
   categorias   Categoria[]
   productos    Producto[]
   proveedores  Proveedor[]
+  roles        Rol[]
 }
 
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
@@ -82,8 +83,32 @@ model UsuarioTienda {
   usuarioId String
   tienda    Tienda  @relation(fields: [tiendaId], references: [id]) // Tienda asociada
   tiendaId  String
+  rol       Rol?    @relation(fields: [rolId], references: [id]) // Rol del usuario en esta tienda
+  rolId     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([usuarioId, tiendaId]) // Garantiza que un usuario no se duplique en una tienda
+}
+
+// Representa un rol que puede tener un usuario en una tienda específica
+model Rol {
+  id          String   @id @default(uuid())
+  nombre      String   // Nombre del rol (ej: "Vendedor", "Administrador")
+  descripcion String?  // Descripción opcional del rol
+  permisos    String   // String con permisos separados por "|" (ej: "pos.vender|pos.cancelarventa")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  negocio     Negocio  @relation(fields: [negocioId], references: [id])
+  negocioId   String
+
+  // Relación con las asignaciones usuario-tienda
+  usuariosTiendas UsuarioTienda[]
+
+  // Índice de unicidad compuesto: nombre único por negocio
+  @@unique([nombre, negocioId])
+  @@index([negocioId])
 }
 
 // Representa una categoría de productos (ej. Electrónica, Ropa, etc.)
