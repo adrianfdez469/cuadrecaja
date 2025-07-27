@@ -326,6 +326,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       } else {
         showMessage(`Producto ${qrText} no encontrado`, 'error');
       }
+      throw new Error('Producto no encontrado');
     }
 
   }, [productosDisponibles, productosSeleccionados]);
@@ -541,9 +542,14 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       <DialogActions sx={{ p: isMobile ? 2 : 3, pt: 1 }}>
         
           <Stack direction="column" spacing={1} sx={{ width: '100%' }}>
-            <ProductProcessorData onProcessedData={(data: IProcessedData) => {
-              if (data?.code) handleProductScan(data.code);
-            }} />
+            <ProductProcessorData 
+              onProcessedData={(data: IProcessedData) => {
+                if (data?.code) handleProductScan(data.code);
+              }}
+              onHardwareScan={(data: IProcessedData) => {
+                if (data?.code) handleProductScan(data.code);
+              }} 
+            />
 
             <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
               <Button
