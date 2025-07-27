@@ -892,6 +892,7 @@ export default function POSInterface() {
             if (data?.code) handleProductScan(data.code);
           }}
           onHardwareScan={handleHardwareScan}
+          keepFocus={false}
         />
         {scannerError && (
           <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
