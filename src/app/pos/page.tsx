@@ -58,6 +58,7 @@ import { IProcessedData } from "@/types/IProcessedData";
 import { ITransferDestination } from "@/types/ITransferDestination";
 import { fetchTransferDestinations } from "@/services/transferDestinationsService";
 import { CartContent } from "@/components/cartDrawer/components/cartContent";
+import { ProductProcessorDataRef } from "@/components/ProductProcessorData/ProductProcessorData";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -91,6 +92,9 @@ export default function POSInterface() {
   const { isOnline } = useNetworkStatus();
   const [transferDestinations, setTransferDestinations] = useState<ITransferDestination[]>([]);
 
+  // Referencia al scanner para poder reabrirlo
+  const scannerRef = useRef<ProductProcessorDataRef>(null);
+
   // Estado para prevenir múltiples sincronizaciones simultáneas (no para pagos)
   const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(new Set());
 
@@ -115,6 +119,16 @@ export default function POSInterface() {
     if (isMobile) return '100%';
     if (isTablet) return 'calc(100% - 40vw)';
     return 'calc(100% - 35vw)';
+  };
+
+  // Función para reabrir el scanner
+  const reopenScanner = () => {
+    if (scannerRef.current) {
+      // Pequeño delay para asegurar que el modal se haya cerrado
+      setTimeout(() => {
+        scannerRef.current?.openScanner();
+      }, 100);
+    }
   };
 
   // Busca producto por código (en cualquier código asociado)
@@ -830,9 +844,12 @@ export default function POSInterface() {
 
       {/* --- SCANNERS ABOVE CATEGORIES (ONE LINE, FULL WIDTH) --- */}
       <Box sx={{ mb: 1, width: '100%' }}>
-        <ProductProcessorData onProcessedData={(data: IProcessedData) => {
-          if (data?.code) handleProductScan(data.code);
-        }} />
+        <ProductProcessorData 
+          ref={scannerRef}
+          onProcessedData={(data: IProcessedData) => {
+            if (data?.code) handleProductScan(data.code);
+          }} 
+        />
         {scannerError && (
           <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
         )}
@@ -1226,6 +1243,7 @@ export default function POSInterface() {
         productoTienda={selectedProduct}
         onClose={handleResetProductQuantity}
         onConfirm={handleConfirmQuantity}
+        onAddToCart={reopenScanner}
       />
       {ConfirmDialogComponent}
       </Box>

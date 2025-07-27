@@ -13,9 +13,10 @@ interface QuantityDialogProps {
   productoTienda: IProductoTiendaV2 | null;
   onClose: () => void;
   onConfirm: () => void;
+  onAddToCart?: () => void; // Nueva prop para callback después de agregar al carrito
 }
 
-export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityDialogProps) => {
+export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart }: QuantityDialogProps) => {
   const [quantity, setQuantity] = useState(1);
   const [direction, setDirection] = useState<'up' | 'down'>('up');
   const { addToCart, items } = useCartStore();
@@ -124,6 +125,10 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
         productoTiendaId: productoTienda.id
       }, quantity);
       onClose();
+      // Ejecutar callback después de agregar al carrito
+      if (onAddToCart) {
+        onAddToCart();
+      }
     }
   };
 
@@ -136,6 +141,10 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm }: QuantityD
         productoTiendaId: productoTienda.id,
       }, quantity);
       onConfirm();
+      // Ejecutar callback después de agregar al carrito
+      if (onAddToCart) {
+        onAddToCart();
+      }
     }
   };
 
