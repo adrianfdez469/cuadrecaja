@@ -131,6 +131,39 @@ export default function POSInterface() {
     }
   };
 
+  // Función para manejar escaneo de hardware (pistola)
+  const handleHardwareScan = (data: IProcessedData) => {
+    if (data?.code) {
+      const product = findProductByCode(data.code);
+      if (product) {
+        // Agregar directamente al carrito con cantidad 1
+        const { addToCart } = useCartStore.getState();
+        addToCart({
+          id: product.id,
+          name: product.producto.nombre,
+          price: product.precio,
+          productoTiendaId: product.id
+        }, 1);
+        
+        // Actualizar inventario local
+        const newProds = productosTienda.map((p) => {
+          if (p.id === product.id) {
+            return { ...p, existencia: p.existencia - 1 }
+          } else {
+            return p;
+          }
+        });
+        setProductosTienda(newProds);
+        
+        // Mostrar notificación
+        showMessage(`✅ ${product.producto.nombre} agregado al carrito`, "success");
+        setScannerError(null);
+      } else {
+        setScannerError('Producto no encontrado para el código escaneado');
+      }
+    }
+  };
+
   // Busca producto por código (en cualquier código asociado)
   function findProductByCode(code: string) {
     console.log({ productosTienda })
@@ -848,7 +881,8 @@ export default function POSInterface() {
           ref={scannerRef}
           onProcessedData={(data: IProcessedData) => {
             if (data?.code) handleProductScan(data.code);
-          }} 
+          }}
+          onHardwareScan={handleHardwareScan}
         />
         {scannerError && (
           <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>

@@ -34,14 +34,20 @@ function HardwareQrScanner({ qrCodeSuccessCallback, style, value, onChange }: Ha
     if (data && data.length > 0) {
       timeoutRef.current = setTimeout(() => {
         qrCodeSuccessCallback(data);
-        if (typeof value !== 'string') setInternalQrData('');
+        // Limpiar el campo y mantener el foco para continuar escaneando
+        if (typeof value !== 'string') {
+          setInternalQrData('');
+        }
+        // Asegurar que el foco se mantenga en el campo
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
       }, 500);
     }
   }
 
   return (
     <TextField
-
       inputRef={inputRef}
       placeholder="Pistola de escaneo"
       onChange={handleQRDataChange}
@@ -51,6 +57,15 @@ function HardwareQrScanner({ qrCodeSuccessCallback, style, value, onChange }: Ha
       size="small"
       sx={style || { width: '100%' }}
       fullWidth={!!style?.width || !style}
+      // Asegurar que el campo siempre esté enfocado
+      onBlur={() => {
+        // Pequeño delay para evitar conflictos con otros eventos
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        }, 10);
+      }}
     />
   );
 }

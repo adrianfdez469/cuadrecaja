@@ -6,6 +6,7 @@ import { Box } from '@mui/material';
 
 type ClientProcessorDataProps = {
   onProcessedData: (processedData: IProcessedData) => void;
+  onHardwareScan?: (processedData: IProcessedData) => void; // Nueva prop para escaneo de hardware
 };
 
 export interface ProductProcessorDataRef {
@@ -13,7 +14,7 @@ export interface ProductProcessorDataRef {
 }
 
 const ProductProcessorData = forwardRef<ProductProcessorDataRef, ClientProcessorDataProps>(
-  ({ onProcessedData }, ref) => {
+  ({ onProcessedData, onHardwareScan }, ref) => {
     const qrModuleRef = React.useRef<any>(null);
 
     useImperativeHandle(ref, () => ({
@@ -30,9 +31,19 @@ const ProductProcessorData = forwardRef<ProductProcessorDataRef, ClientProcessor
       onProcessedData && onProcessedData(processedData);
     }
 
+    function handleHardwareScan(qrText: string) {
+      const processedData = processClientDataFromQR(qrText);
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      onHardwareScan && onHardwareScan(processedData);
+    }
+
     return (
       <Box display="flex" justifyContent="left" alignItems="left" height="100%">
-        <QrModuleScanner ref={qrModuleRef} onScan={handleScan} />
+        <QrModuleScanner 
+          ref={qrModuleRef} 
+          onScan={handleScan} 
+          onHardwareScan={handleHardwareScan}
+        />
       </Box>
     );
   }

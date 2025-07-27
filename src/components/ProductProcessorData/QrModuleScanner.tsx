@@ -5,6 +5,7 @@ import { Box } from '@mui/material';
 
 type QrModuleScannerProps = {
   onScan: (qrText: string) => void;
+  onHardwareScan?: (qrText: string) => void; // Nueva prop para escaneo de hardware
 };
 
 export interface QrModuleScannerRef {
@@ -12,7 +13,7 @@ export interface QrModuleScannerRef {
 }
 
 const QrModuleScanner = forwardRef<QrModuleScannerRef, QrModuleScannerProps>(
-  ({ onScan }, ref) => {
+  ({ onScan, onHardwareScan }, ref) => {
     const mobileScannerRef = React.useRef<any>(null);
 
     useImperativeHandle(ref, () => ({
@@ -31,7 +32,9 @@ const QrModuleScanner = forwardRef<QrModuleScannerRef, QrModuleScannerProps>(
         width="100%" 
       >
         <MobileQrScanner ref={mobileScannerRef} qrCodeSuccessCallback={onScan} />
-        <HardwareQrScanner qrCodeSuccessCallback={onScan} />
+        <HardwareQrScanner 
+          qrCodeSuccessCallback={onHardwareScan || onScan} 
+        />
       </Box>
     );
   }
