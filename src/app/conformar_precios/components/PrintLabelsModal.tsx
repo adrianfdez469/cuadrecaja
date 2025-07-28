@@ -40,7 +40,7 @@ import { useMessageContext } from "@/context/MessageContext";
 
 interface ProductoConCodigos {
   id: string;
-  nombre: string;
+  // nombre: string;
   precio: number;
   categoria?: {
     nombre: string;
@@ -101,14 +101,14 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
       
       const data2 = (data as ProductoConCodigos[])
       .reduce((acum: ProductoConCodigos[], item) => {
-        const prod = acum.find(p => p.nombre === item.nombre && p.precio === item.precio);
+        const prod = acum.find(p => p.producto.nombre === item.producto.nombre && p.precio === item.precio);
         if(!prod) {
           acum.push(item);
-        } else {
-          console.log('prod-encontrado', prod);
         }
         return acum;
       }, []);
+
+      
 
       
 
