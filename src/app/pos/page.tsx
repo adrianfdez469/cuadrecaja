@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Typography,
   CircularProgress,
@@ -151,17 +151,20 @@ export default function POSInterface() {
           price: product.precio,
           productoTiendaId: product.id
         }, 1);
-        
+
         // Actualizar inventario local
-        const newProds = productosTienda.map((p) => {
-          if (p.id === product.id) {
-            return { ...p, existencia: p.existencia - 1 }
-          } else {
-            return p;
-          }
-        });
-        setProductosTienda(newProds);
         
+        // incrementarCantidades(product.id, -1);
+        
+        // const newProds = productosTienda.map((p) => {
+        //   if (p.id === product.id) {
+        //     return { ...p, existencia: p.existencia - 1 }
+        //   } else {
+        //     return p;
+        //   }
+        // });
+        // setProductosTienda(newProds);
+
         // Mostrar notificación
         showMessage(`✅ ${product.producto.nombre} agregado al carrito`, "success");
         setScannerError(null);
@@ -174,13 +177,22 @@ export default function POSInterface() {
     }
   };
 
+
+  // Crear un Map/índice al cargar productos una sola vez
+  const productCodeMap = useMemo(() => {
+    const map = new Map<string, IProductoTiendaV2[]>();
+    productosTienda.forEach(product => {
+      product.producto.codigosProducto?.forEach(code => {
+        if (!map.has(code.codigo)) map.set(code.codigo, []);
+        map.get(code.codigo).push(product);
+      });
+    });
+    return map;
+  }, [productosTienda]);
+
   // Busca producto por código (en cualquier código asociado)
   function findProductByCode(code: string) {
-    console.log({ productosTienda })
-
-    const products = productosTienda.filter((p) =>
-      p.producto.codigosProducto?.some((c) => c.codigo === code)
-    ).filter((p) => p.existencia > 0);
+    const products = productCodeMap.get(code) || [];
 
     if (products.length > 1) {
       return products.sort((a, b) => {
@@ -303,8 +315,6 @@ export default function POSInterface() {
 
   };
 
-  
-
   const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
       if (!silent) setLoading(true);
@@ -367,16 +377,26 @@ export default function POSInterface() {
   };
 
   const incrementarCantidades = (id: string, cantidad: number) => {
-    const productosTiendaEditados = productosTienda.map(p => {
-      if (p.id === id) {
-        return { ...p, existencia: p.existencia + cantidad };
-      }
-      return p;
-    });
-    setProductosTienda(productosTiendaEditados);
+    const productIndex = productosTienda.findIndex(p => p.id === id);
+    if (productIndex !== -1) {
+      const newProds = [...productosTienda];
+      newProds[productIndex] = {
+        ...newProds[productIndex],
+        existencia: newProds[productIndex].existencia + cantidad
+      };
+      setProductosTienda(newProds);
+    }
+
+    // const productosTiendaEditados = productosTienda.map(p => {
+    //   if (p.id === id) {
+    //     return { ...p, existencia: p.existencia + cantidad };
+    //   }
+    //   return p;
+    // });
+    // setProductosTienda(productosTiendaEditados);
   }
 
-  
+
 
   const handleOpenProducts = (category: ICategory) => {
     setSelectedCategory(category);
@@ -751,7 +771,7 @@ export default function POSInterface() {
 
   return (
     <Box p={0} display={'flex'} flexDirection={'row'} sx={{ height: '100vh', overflow: 'hidden' }}>
-      <Box sx={{ 
+      <Box sx={{
         flex: isCartPinned ? '1' : 'none',
         width: getMainContentWidth(),
         overflow: 'auto',
@@ -760,48 +780,143 @@ export default function POSInterface() {
       }}>
 
 
-      {/* Barra superior con información del sistema - posicionada debajo del menú */}
-      <Box
-        sx={{
-          position: "sticky",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 100,
-          bgcolor: "rgba(255, 255, 255, 0.95)",
-          backdropFilter: "blur(10px)",
-          borderBottom: "1px solid rgba(0,0,0,0.1)",
-          px: 2,
-          py: 1,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          mb: 1,
-        }}
-      >
-        {/* Información del lado izquierdo */}
+        {/* Barra superior con información del sistema - posicionada debajo del menú */}
         <Box
           sx={{
+            position: "sticky",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 100,
+            bgcolor: "rgba(255, 255, 255, 0.95)",
+            backdropFilter: "blur(10px)",
+            borderBottom: "1px solid rgba(0,0,0,0.1)",
+            px: 2,
+            py: 1,
             display: "flex",
+            justifyContent: "space-between",
             alignItems: "center",
-            gap: 1,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            mb: 1,
           }}
         >
-          {/* Información del corte */}
-          {periodo && periodo.fechaInicio && (
+          {/* Información del lado izquierdo */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            {/* Información del corte */}
+            {periodo && periodo.fechaInicio && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  bgcolor: "primary.main",
+                  color: "white",
+                  px: 2,
+                  py: 0.5,
+                  borderRadius: "20px",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    bgcolor: "rgba(255,255,255,0.8)",
+                  }}
+                />
+                Período: {formatDate(periodo.fechaInicio)}
+              </Box>
+            )}
+
+            {/* Indicador unificado de ventas pendientes/sincronizando */}
+            {(sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length > 0) && (
+              <Box
+                sx={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  // Color de fondo dinámico según el estado
+                  bgcolor: sales.filter(sale => sale.syncState === "syncing").length > 0
+                    ? "primary.light" // Azul cuando está sincronizando
+                    : "rgba(255, 152, 0, 0.2)", // Warning claro cuando está offline/pendiente
+                  // Color del texto dinámico
+                  color: sales.filter(sale => sale.syncState === "syncing").length > 0
+                    ? "primary.contrastText"
+                    : "warning.main",
+                  // Borde solo cuando está pendiente (offline)
+                  border: sales.filter(sale => sale.syncState === "syncing").length > 0
+                    ? "none"
+                    : "1px solid",
+                  borderColor: "warning.main",
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: "16px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  overflow: "hidden",
+                  // Efecto visual solo cuando está sincronizando
+                  "&::before": sales.filter(sale => sale.syncState === "syncing").length > 0 ? {
+                    content: '""',
+                    position: "absolute",
+                    top: 0,
+                    left: "-100%",
+                    width: "100%",
+                    height: "100%",
+                    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
+                    animation: "syncProgress 2s infinite",
+                  } : {},
+                  "@keyframes syncProgress": {
+                    "0%": { left: "-100%" },
+                    "100%": { left: "100%" },
+                  },
+                }}
+              >
+                {/* Spinner solo cuando está sincronizando */}
+                {sales.filter(sale => sale.syncState === "syncing").length > 0 && (
+                  <CircularProgress
+                    size={12}
+                    sx={{
+                      color: "primary.contrastText",
+                      zIndex: 1 // Para que esté encima del gradiente
+                    }}
+                  />
+                )}
+
+                {/* Texto dinámico según el estado */}
+                <Box sx={{ zIndex: 1 }}>
+                  {sales.filter(sale => sale.syncState === "syncing").length > 0
+                    ? `${sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length} sincronizando`
+                    : `${sales.filter(sale => sale.syncState === "not_synced").length} pendientes`
+                  }
+                </Box>
+              </Box>
+            )}
+          </Box>
+
+          {/* Estado de conexión del lado derecho - Solo se muestra si no hay ventas pendientes ni sincronizando */}
+          {sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length === 0 && (
             <Box
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 1,
-                bgcolor: "primary.main",
+                gap: 0.5,
+                bgcolor: isOnline ? "success.main" : "warning.main",
                 color: "white",
-                px: 2,
+                px: 1.5,
                 py: 0.5,
-                borderRadius: "20px",
-                fontSize: "0.875rem",
+                borderRadius: "16px",
+                fontSize: "0.75rem",
                 fontWeight: 600,
+                transition: "all 0.3s ease",
               }}
             >
               <Box
@@ -809,537 +924,442 @@ export default function POSInterface() {
                   width: 8,
                   height: 8,
                   borderRadius: "50%",
-                  bgcolor: "rgba(255,255,255,0.8)",
+                  bgcolor: "rgba(255,255,255,0.9)",
+                  animation: isOnline ? "none" : "pulse 2s infinite",
+                  "@keyframes pulse": {
+                    "0%": { opacity: 1 },
+                    "50%": { opacity: 0.5 },
+                    "100%": { opacity: 1 },
+                  },
                 }}
               />
-              Período: {formatDate(periodo.fechaInicio)}
-            </Box>
-          )}
-
-          {/* Indicador unificado de ventas pendientes/sincronizando */}
-          {(sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length > 0) && (
-            <Box
-              sx={{
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.5,
-                // Color de fondo dinámico según el estado
-                bgcolor: sales.filter(sale => sale.syncState === "syncing").length > 0
-                  ? "primary.light" // Azul cuando está sincronizando
-                  : "rgba(255, 152, 0, 0.2)", // Warning claro cuando está offline/pendiente
-                // Color del texto dinámico
-                color: sales.filter(sale => sale.syncState === "syncing").length > 0
-                  ? "primary.contrastText"
-                  : "warning.main",
-                // Borde solo cuando está pendiente (offline)
-                border: sales.filter(sale => sale.syncState === "syncing").length > 0
-                  ? "none"
-                  : "1px solid",
-                borderColor: "warning.main",
-                px: 1.5,
-                py: 0.5,
-                borderRadius: "16px",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                overflow: "hidden",
-                // Efecto visual solo cuando está sincronizando
-                "&::before": sales.filter(sale => sale.syncState === "syncing").length > 0 ? {
-                  content: '""',
-                  position: "absolute",
-                  top: 0,
-                  left: "-100%",
-                  width: "100%",
-                  height: "100%",
-                  background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
-                  animation: "syncProgress 2s infinite",
-                } : {},
-                "@keyframes syncProgress": {
-                  "0%": { left: "-100%" },
-                  "100%": { left: "100%" },
-                },
-              }}
-            >
-              {/* Spinner solo cuando está sincronizando */}
-              {sales.filter(sale => sale.syncState === "syncing").length > 0 && (
-                <CircularProgress
-                  size={12}
-                  sx={{
-                    color: "primary.contrastText",
-                    zIndex: 1 // Para que esté encima del gradiente
-                  }}
-                />
-              )}
-
-              {/* Texto dinámico según el estado */}
-              <Box sx={{ zIndex: 1 }}>
-                {sales.filter(sale => sale.syncState === "syncing").length > 0
-                  ? `${sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length} sincronizando`
-                  : `${sales.filter(sale => sale.syncState === "not_synced").length} pendientes`
-                }
-              </Box>
+              {isOnline ? "Conectado" : "Desconectado"}
             </Box>
           )}
         </Box>
 
-        {/* Estado de conexión del lado derecho - Solo se muestra si no hay ventas pendientes ni sincronizando */}
-        {sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length === 0 && (
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              bgcolor: isOnline ? "success.main" : "warning.main",
-              color: "white",
-              px: 1.5,
-              py: 0.5,
-              borderRadius: "16px",
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              transition: "all 0.3s ease",
+        {/* --- SCANNERS ABOVE CATEGORIES (ONE LINE, FULL WIDTH) --- */}
+        <Box sx={{ mb: 1, width: '100%' }}>
+          <ProductProcessorData
+            ref={scannerRef}
+            onProcessedData={(data: IProcessedData) => {
+              if (data?.code) handleProductScan(data.code);
             }}
-          >
-            <Box
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                bgcolor: "rgba(255,255,255,0.9)",
-                animation: isOnline ? "none" : "pulse 2s infinite",
-                "@keyframes pulse": {
-                  "0%": { opacity: 1 },
-                  "50%": { opacity: 0.5 },
-                  "100%": { opacity: 1 },
-                },
-              }}
-            />
-            {isOnline ? "Conectado" : "Desconectado"}
-          </Box>
-        )}
-      </Box>
+            onHardwareScan={handleHardwareScan}
+            keepFocus={intentToSearch ? false : true}
+          />
+          {scannerError && (
+            <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
+          )}
+        </Box>
 
-      {/* --- SCANNERS ABOVE CATEGORIES (ONE LINE, FULL WIDTH) --- */}
-      <Box sx={{ mb: 1, width: '100%' }}>
-        <ProductProcessorData 
-          ref={scannerRef}
-          onProcessedData={(data: IProcessedData) => {
-            if (data?.code) handleProductScan(data.code);
+        {/* Contenido principal */}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: isCartPinned ? {
+              xs: "repeat(2, 1fr)",
+              sm: "repeat(2, 1fr)",
+              md: "repeat(3, 1fr)",
+              lg: "repeat(4, 1fr)",
+            } : {
+              xs: "repeat(2, 1fr)",
+              sm: "repeat(3, 1fr)",
+              md: "repeat(4, 1fr)",
+              lg: "repeat(5, 1fr)",
+            },
+            gap: { xs: 0.5, sm: 1.5, md: 2 },
+            p: { xs: 0.5, sm: 2 },
+            width: "100%",
+            maxWidth: "1400px",
+            margin: "0 auto",
+            pb: { xs: "80px", sm: "90px" },
+            minHeight: "90vh",
+            position: "relative",
+            zIndex: 1,
           }}
-          onHardwareScan={handleHardwareScan}
-          keepFocus={intentToSearch ? false : true}
-        />
-        {scannerError && (
-          <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
-        )}
-      </Box>
+        >
 
-      {/* Contenido principal */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: isCartPinned ?  {
-            xs: "repeat(2, 1fr)",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
-          } : {
-            xs: "repeat(2, 1fr)",
-            sm: "repeat(3, 1fr)",
-            md: "repeat(4, 1fr)",
-            lg: "repeat(5, 1fr)",
-          },
-          gap: { xs: 0.5, sm: 1.5, md: 2 },
-          p: { xs: 0.5, sm: 2 },
-          width: "100%",
-          maxWidth: "1400px",
-          margin: "0 auto",
-          pb: { xs: "80px", sm: "90px" },
-          minHeight: "90vh",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-
-        {categories.map((category) => (
-          <Box
-            key={category.id}
-            onClick={() => handleOpenProducts(category)}
-            sx={{
-              position: "relative",
-              aspectRatio: "1/1", // Mantiene proporción cuadrada
-              borderRadius: { xs: "12px", sm: "16px" },
-              overflow: "hidden",
-              cursor: "pointer",
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-              "&:active": {
-                transform: "scale(0.98)",
-              },
-              "&:hover": {
-                transform: "translateY(-4px)",
-                "& .category-content": {
-                  transform: "translateY(0)",
-                  opacity: 1,
+          {categories.map((category) => (
+            <Box
+              key={category.id}
+              onClick={() => handleOpenProducts(category)}
+              sx={{
+                position: "relative",
+                aspectRatio: "1/1", // Mantiene proporción cuadrada
+                borderRadius: { xs: "12px", sm: "16px" },
+                overflow: "hidden",
+                cursor: "pointer",
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                "&:active": {
+                  transform: "scale(0.98)",
                 },
-                "& .category-overlay": {
-                  opacity: 0.85,
+                "&:hover": {
+                  transform: "translateY(-4px)",
+                  "& .category-content": {
+                    transform: "translateY(0)",
+                    opacity: 1,
+                  },
+                  "& .category-overlay": {
+                    opacity: 0.85,
+                  },
                 },
-              },
-            }}
-          >
-            {/* Fondo con gradiente */}
-            <Box
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: `linear-gradient(135deg, ${category.color} 0%, ${category.color}dd 100%)`,
-                zIndex: 1,
-              }}
-            />
-            {/* Overlay que se oscurece al hover */}
-            <Box
-              className="category-overlay"
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6))",
-                opacity: 0.6,
-                transition: "opacity 0.3s ease",
-                zIndex: 2,
-              }}
-            />
-            {/* Contenido de la categoría */}
-            <Box
-              className="category-content"
-              sx={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                p: { xs: 1.5, sm: 2 },
-                transform: "translateY(10px)",
-                opacity: 0.9,
-                transition: "all 0.3s ease",
-                zIndex: 3,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                height: "100%",
-                background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
               }}
             >
-              <Typography
-                variant="h6"
+              {/* Fondo con gradiente */}
+              <Box
                 sx={{
-                  color: "white",
-                  fontWeight: 600,
-                  fontSize: isCartPinned ? 
-                    { xs: "0.7rem", sm: "0.8rem", md: "1rem", lg: "1.25rem" } : 
-                    { xs: "1.25rem", sm: "1.5rem" },
-                  textAlign: "center",
-                  textShadow: `
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: `linear-gradient(135deg, ${category.color} 0%, ${category.color}dd 100%)`,
+                  zIndex: 1,
+                }}
+              />
+              {/* Overlay que se oscurece al hover */}
+              <Box
+                className="category-overlay"
+                sx={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: "linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6))",
+                  opacity: 0.6,
+                  transition: "opacity 0.3s ease",
+                  zIndex: 2,
+                }}
+              />
+              {/* Contenido de la categoría */}
+              <Box
+                className="category-content"
+                sx={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  p: { xs: 1.5, sm: 2 },
+                  transform: "translateY(10px)",
+                  opacity: 0.9,
+                  transition: "all 0.3s ease",
+                  zIndex: 3,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  height: "100%",
+                  background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
+                }}
+              >
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: "white",
+                    fontWeight: 600,
+                    fontSize: isCartPinned ?
+                      { xs: "0.7rem", sm: "0.8rem", md: "1rem", lg: "1.25rem" } :
+                      { xs: "1.25rem", sm: "1.5rem" },
+                    textAlign: "center",
+                    textShadow: `
               0 0 1px rgba(0,0,0,0.8),
               0 0 2px rgba(0,0,0,0.8),
               0 0 3px rgba(0,0,0,0.8)
             `,
-                  mb: 0.5,
-                  width: "100%",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {category.nombre}
-              </Typography>
+                    mb: 0.5,
+                    width: "100%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {category.nombre}
+                </Typography>
 
-              {/* Indicador de toque */}
+                {/* Indicador de toque */}
+                <Box
+                  sx={{
+                    width: "30%",
+                    height: "3px",
+                    background: "rgba(255,255,255,0.8)",
+                    borderRadius: "2px",
+                    mt: 1,
+                    opacity: 0.7,
+                  }}
+                />
+              </Box>
+              {/* Efecto de brillo */}
               <Box
                 sx={{
-                  width: "30%",
-                  height: "3px",
-                  background: "rgba(255,255,255,0.8)",
-                  borderRadius: "2px",
-                  mt: 1,
-                  opacity: 0.7,
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: "linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)",
+                  zIndex: 2,
+                  pointerEvents: "none",
                 }}
               />
             </Box>
-            {/* Efecto de brillo */}
-            <Box
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)",
-                zIndex: 2,
-                pointerEvents: "none",
-              }}
-            />
-          </Box>
-        ))}
-      </Box>
-      {selectedCategory && (
-        <ProductModal
-          open={showProducts}
-          productosTienda={productosTienda.filter(
-            (p) => p.producto.categoria.id === selectedCategory.id
-          )}
-          category={selectedCategory}
-          closeModal={() => setShowProducts(false)}
-          openCart={() => setOpenCart(true)}
+          ))}
+        </Box>
+        {selectedCategory && (
+          <ProductModal
+            open={showProducts}
+            productosTienda={productosTienda.filter(
+              (p) => p.producto.categoria.id === selectedCategory.id
+            )}
+            category={selectedCategory}
+            closeModal={() => setShowProducts(false)}
+            openCart={() => setOpenCart(true)}
+          />
+        )}
+
+        {/* Carrito de compras */}
+        <CartDrawer
+          cart={cart}
+          onClose={() => setOpenCart(false)}
+          open={!isCartPinned && openCart}
+          onOkButtonClick={async () => setPaymentDialog(true)}
+          total={total}
+          clear={clearCart}
+          removeItem={removeFromCart}
+          updateQuantity={handleUpdateQuantity}
+          isCartPinned={isCartPinned}
+          setIsCartPinned={setIsCartPinned}
         />
-      )}
 
-      {/* Carrito de compras */}
-      <CartDrawer
-        cart={cart}
-        onClose={() => setOpenCart(false)}
-        open={!isCartPinned && openCart}
-        onOkButtonClick={async () => setPaymentDialog(true)}
-        total={total}
-        clear={clearCart}
-        removeItem={removeFromCart}
-        updateQuantity={handleUpdateQuantity}
-        isCartPinned={isCartPinned}
-        setIsCartPinned={setIsCartPinned}
-      />
+        {/* Modal de pago */}
+        <PaymentModal
+          open={paymentDialog}
+          onClose={() => setPaymentDialog(false)}
+          total={total}
+          makePay={(total: number, totalchash: number, totaltransfer: number, transferDestinationId?: string) =>
+            handleMakePay(total, totalchash, totaltransfer, transferDestinationId)
+          }
+          transferDestinations={transferDestinations}
+        />
 
-      {/* Modal de pago */}
-      <PaymentModal
-        open={paymentDialog}
-        onClose={() => setPaymentDialog(false)}
-        total={total}
-        makePay={(total: number, totalchash: number, totaltransfer: number, transferDestinationId?: string) =>
-          handleMakePay(total, totalchash, totaltransfer, transferDestinationId)
-        }
-        transferDestinations={transferDestinations}
-      />
+        {/* Modal de productos vendidos */}
+        <ProducsSalesDrawer
+          setShowProducts={setShowProductsSells}
+          showProducts={showProductsSells}
+          productos={productos}
 
-      {/* Modal de productos vendidos */}
-      <ProducsSalesDrawer
-        setShowProducts={setShowProductsSells}
-        showProducts={showProductsSells}
-        productos={productos}
+        />
 
-      />
+        {/* Drawer de ventas y sincronización  */}
+        <SalesDrawer
+          showSales={showSyncView}
+          handleClose={() => handleCloseSyncView()}
+          period={periodo}
+          reloadProdsAndCategories={() => fetchProductosAndCategories(true)}
+          incrementarCantidades={incrementarCantidades}
+        />
 
-      {/* Drawer de ventas y sincronización  */}
-      <SalesDrawer
-        showSales={showSyncView}
-        handleClose={() => handleCloseSyncView()}
-        period={periodo}
-        reloadProdsAndCategories={() => fetchProductosAndCategories(true)}
-        incrementarCantidades={incrementarCantidades}
-      />
-
-      {/* Botón de sincronización */}
-      {productos.length > 0 && (
-        <SpeedDial
-          ariaLabel="Offline mode"
-          sx={{ position: "fixed", top: 80, right: 16 }}
-          icon={<BlurOnIcon />}
-          direction="down"
-        >
-          <SpeedDialAction
-            key={"sync"}
-            icon={
-              sales.filter((s) => !s.synced).length > 0 ? (
-                <Badge badgeContent={sales.filter((s) => !s.synced).length} color="secondary">
+        {/* Botón de sincronización */}
+        {productos.length > 0 && (
+          <SpeedDial
+            ariaLabel="Offline mode"
+            sx={{ position: "fixed", top: 80, right: 16 }}
+            icon={<BlurOnIcon />}
+            direction="down"
+          >
+            <SpeedDialAction
+              key={"sync"}
+              icon={
+                sales.filter((s) => !s.synced).length > 0 ? (
+                  <Badge badgeContent={sales.filter((s) => !s.synced).length} color="secondary">
+                    <Sync />
+                  </Badge>
+                ) : (
                   <Sync />
-                </Badge>
-              ) : (
-                <Sync />
-              )
-            }
-            slotProps={{
-              tooltip: {
-                title: "Sincronizar",
-                open: true,
-              },
-            }}
-            onClick={handleShowSyncView}
-          />
-          <SpeedDialAction
-            key={"sells"}
-            icon={<CancelPresentationIcon />}
-            slotProps={{
-              tooltip: {
-                title: "Productos vendidos",
-                open: true,
-              },
-            }}
-            onClick={() => setShowProductsSells(true)}
-          />
-        </SpeedDial>
-      )}
-
-      {/* Botón de carrito */}
-      {cart.length > 0 && !openCart && (
-        <Fab
-          color="primary"
-          aria-label="cart"
-          sx={{ position: "fixed", bottom: 100, right: 16 }}
-          onClick={handleCartIcon}
-        >
-          <Badge badgeContent={cart.length} color="secondary">
-            <ShoppingCartIcon />
-          </Badge>
-        </Fab>
-      )}
-
-      {/* Buscador flotante */}
-      <Box
-        ref={searchAnchorRef}
-        sx={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          p: 2,
-          zIndex: 1200,
-          background: "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
-          backdropFilter: "blur(10px)",
-          borderTop: "1px solid rgba(0,0,0,0.1)",
-          boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
-        }}
-      >
-        <TextField
-          inputRef={searchInputRef}
-          fullWidth
-          variant="outlined"
-          placeholder="Buscar productos..."
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-          // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
-          onFocus={() => handleSearchFocus()}
-          onBlur={() => handleSearchBlur()}
-          onMouseDown={() => handleSearchMouseDown()}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-            endAdornment: searchQuery && (
-              <InputAdornment position="end">
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setShowSearchResults(false);
-                    setIntentToSearch(false); // Permitir que el escáner recupere el foco
-                  }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              </InputAdornment>
-            ),
-            sx: {
-              bgcolor: "white",
-              borderRadius: "12px",
-              "& .MuiOutlinedInput-root": {
-                borderRadius: "12px",
-              },
-            },
-          }}
-        />
-      </Box>
-
-      {/* Popper para resultados de búsqueda */}
-      <Popper
-        open={showSearchResults && searchResults.length > 0}
-        anchorEl={searchAnchorRef.current}
-        placement="top"
-        transition
-        style={{ width: searchAnchorRef.current?.offsetWidth }}
-        modifiers={[
-          {
-            name: "preventOverflow",
-            enabled: true,
-            options: {
-              altAxis: true,
-              altBoundary: true,
-              tether: true,
-              rootBoundary: "viewport",
-            },
-          },
-        ]}
-        sx={{ zIndex: 1300 }}
-      >
-        {({ TransitionProps }) => (
-          <Fade {...TransitionProps} timeout={200}>
-            <MuiPaper
-              elevation={3}
-              sx={{
-                width: "100%",
-                maxHeight: "70vh",
-                overflow: "auto",
-                borderRadius: "12px 12px 0 0",
-                mt: -2,
-                bgcolor: "rgba(255,255,255,0.98)",
-                backdropFilter: "blur(10px)",
-                boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
+                )
+              }
+              slotProps={{
+                tooltip: {
+                  title: "Sincronizar",
+                  open: true,
+                },
               }}
-            >
-              <List sx={{ p: 0 }}>
-                {searchResults.map((product) => (
-                  <ListItemButton
-                    key={product.id}
-                    onMouseDown={(e) => {
-                      // Prevenir que el onBlur del input se ejecute antes del onClick
-                      e.preventDefault();
-                    }}
+              onClick={handleShowSyncView}
+            />
+            <SpeedDialAction
+              key={"sells"}
+              icon={<CancelPresentationIcon />}
+              slotProps={{
+                tooltip: {
+                  title: "Productos vendidos",
+                  open: true,
+                },
+              }}
+              onClick={() => setShowProductsSells(true)}
+            />
+          </SpeedDial>
+        )}
+
+        {/* Botón de carrito */}
+        {cart.length > 0 && !openCart && (
+          <Fab
+            color="primary"
+            aria-label="cart"
+            sx={{ position: "fixed", bottom: 100, right: 16 }}
+            onClick={handleCartIcon}
+          >
+            <Badge badgeContent={cart.length} color="secondary">
+              <ShoppingCartIcon />
+            </Badge>
+          </Fab>
+        )}
+
+        {/* Buscador flotante */}
+        <Box
+          ref={searchAnchorRef}
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            p: 2,
+            zIndex: 1200,
+            background: "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
+            backdropFilter: "blur(10px)",
+            borderTop: "1px solid rgba(0,0,0,0.1)",
+            boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
+          }}
+        >
+          <TextField
+            inputRef={searchInputRef}
+            fullWidth
+            variant="outlined"
+            placeholder="Buscar productos..."
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
+            onFocus={() => handleSearchFocus()}
+            onBlur={() => handleSearchBlur()}
+            onMouseDown={() => handleSearchMouseDown()}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery && (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
                     onClick={() => {
-                      handleProductSelect(product);
-                      // Asegurar que el foco regrese al escáner después de seleccionar
-                      setIntentToSearch(false);
-                    }}
-                    sx={{
-                      borderBottom: "1px solid rgba(0,0,0,0.05)",
-                      "&:hover": {
-                        bgcolor: "rgba(0,0,0,0.04)",
-                      },
+                      setSearchQuery("");
+                      setShowSearchResults(false);
+                      setIntentToSearch(false); // Permitir que el escáner recupere el foco
                     }}
                   >
-                    <ListItemText
-                      primary={product.producto.nombre}
-                      secondary={`$${product.precio} - ${product.existencia} disponibles`}
-                      primaryTypographyProps={{
-                        sx: {
-                          fontWeight: product.producto.nombre.toLowerCase().startsWith(searchQuery.toLowerCase())
-                            ? 600
-                            : 400,
+                    <CloseIcon />
+                  </IconButton>
+                </InputAdornment>
+              ),
+              sx: {
+                bgcolor: "white",
+                borderRadius: "12px",
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "12px",
+                },
+              },
+            }}
+          />
+        </Box>
+
+        {/* Popper para resultados de búsqueda */}
+        <Popper
+          open={showSearchResults && searchResults.length > 0}
+          anchorEl={searchAnchorRef.current}
+          placement="top"
+          transition
+          style={{ width: searchAnchorRef.current?.offsetWidth }}
+          modifiers={[
+            {
+              name: "preventOverflow",
+              enabled: true,
+              options: {
+                altAxis: true,
+                altBoundary: true,
+                tether: true,
+                rootBoundary: "viewport",
+              },
+            },
+          ]}
+          sx={{ zIndex: 1300 }}
+        >
+          {({ TransitionProps }) => (
+            <Fade {...TransitionProps} timeout={200}>
+              <MuiPaper
+                elevation={3}
+                sx={{
+                  width: "100%",
+                  maxHeight: "70vh",
+                  overflow: "auto",
+                  borderRadius: "12px 12px 0 0",
+                  mt: -2,
+                  bgcolor: "rgba(255,255,255,0.98)",
+                  backdropFilter: "blur(10px)",
+                  boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
+                }}
+              >
+                <List sx={{ p: 0 }}>
+                  {searchResults.map((product) => (
+                    <ListItemButton
+                      key={product.id}
+                      onMouseDown={(e) => {
+                        // Prevenir que el onBlur del input se ejecute antes del onClick
+                        e.preventDefault();
+                      }}
+                      onClick={() => {
+                        handleProductSelect(product);
+                        // Asegurar que el foco regrese al escáner después de seleccionar
+                        setIntentToSearch(false);
+                      }}
+                      sx={{
+                        borderBottom: "1px solid rgba(0,0,0,0.05)",
+                        "&:hover": {
+                          bgcolor: "rgba(0,0,0,0.04)",
                         },
                       }}
-                    />
-                  </ListItemButton>
-                ))}
-              </List>
-            </MuiPaper>
-          </Fade>
-        )}
-      </Popper>
+                    >
+                      <ListItemText
+                        primary={product.producto.nombre}
+                        secondary={`$${product.precio} - ${product.existencia} disponibles`}
+                        primaryTypographyProps={{
+                          sx: {
+                            fontWeight: product.producto.nombre.toLowerCase().startsWith(searchQuery.toLowerCase())
+                              ? 600
+                              : 400,
+                          },
+                        }}
+                      />
+                    </ListItemButton>
+                  ))}
+                </List>
+              </MuiPaper>
+            </Fade>
+          )}
+        </Popper>
 
-      {/* Dialog de cantidad */}
-      <QuantityDialog
-        productoTienda={selectedProduct}
-        onClose={handleResetProductQuantity}
-        onConfirm={handleConfirmQuantity}
-        onAddToCart={reopenScannerIfNeeded}
-      />
-      {ConfirmDialogComponent}
+        {/* Dialog de cantidad */}
+        <QuantityDialog
+          productoTienda={selectedProduct}
+          onClose={handleResetProductQuantity}
+          onConfirm={handleConfirmQuantity}
+          onAddToCart={reopenScannerIfNeeded}
+        />
+        {ConfirmDialogComponent}
       </Box>
 
-      {isCartPinned && 
-        <Box sx={{ 
+      {isCartPinned &&
+        <Box sx={{
           width: getCartWidth(),
           maxWidth: getCartWidth(),
           minWidth: '360px',
@@ -1348,10 +1368,10 @@ export default function POSInterface() {
           borderLeft: '1px solid rgba(0,0,0,0.1)',
           backgroundColor: 'background.paper'
         }}>
-          <CartContent 
-            cart={cart} 
-            total={total} 
-            clear={clearCart} 
+          <CartContent
+            cart={cart}
+            total={total}
+            clear={clearCart}
             updateQuantity={handleUpdateQuantity}
             onClose={() => setOpenCart(false)}
             removeItem={removeFromCart}

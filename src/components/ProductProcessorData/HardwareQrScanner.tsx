@@ -56,7 +56,7 @@ function HardwareQrScanner({
         if (inputRef.current && keepFocus) {
           inputRef.current.focus();
         }
-      }, 500);
+      }, 100);
     }
   }
 
