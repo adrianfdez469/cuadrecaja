@@ -26,6 +26,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
             nombre: true
           }
         }
+      },
+      orderBy: {
+        precio: 'asc',
+        producto: {
+          nombre: 'asc'
+        }
       }
     });
 
