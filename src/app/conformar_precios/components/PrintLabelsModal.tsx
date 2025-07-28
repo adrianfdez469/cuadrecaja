@@ -107,11 +107,6 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
         }
         return acum;
       }, []);
-
-      
-
-      
-
       setProductos(data2);
     } catch (error) {
       console.error("Error al cargar productos:", error);

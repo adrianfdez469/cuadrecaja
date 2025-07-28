@@ -102,6 +102,9 @@ export default function POSInterface() {
   // Estado para el scanner
   const [scannerError, setScannerError] = useState<string | null>(null);
 
+  // Estado para rastrear el origen del producto seleccionado
+  const [productOrigin, setProductOrigin] = useState<'camera' | 'search' | 'hardware' | null>(null);
+
   const [isCartPinned, setIsCartPinned] = useState(false);
 
   const theme = useTheme();
@@ -122,14 +125,16 @@ export default function POSInterface() {
     return 'calc(100% - 35vw)';
   };
 
-  // Función para reabrir el scanner
-  const reopenScanner = () => {
-    if (scannerRef.current) {
+  // Función para reabrir el scanner solo si el producto vino de escaneo de cámara
+  const reopenScannerIfNeeded = () => {
+    if (productOrigin === 'camera' && scannerRef.current) {
       // Pequeño delay para asegurar que el modal se haya cerrado
       setTimeout(() => {
         scannerRef.current?.openScanner();
       }, 100);
     }
+    // Limpiar el origen después de usar
+    setProductOrigin(null);
   };
 
   // Función para manejar escaneo de hardware (pistola)
@@ -160,6 +165,7 @@ export default function POSInterface() {
         showMessage(`✅ ${product.producto.nombre} agregado al carrito`, "success");
         setScannerError(null);
         audioService.playSuccessSound();
+        // NO reabrir escáner para escaneo de hardware
       } else {
         setScannerError('Producto no encontrado para el código escaneado');
         audioService.playErrorSound();
@@ -200,6 +206,7 @@ export default function POSInterface() {
       setShowProducts(false); // Cierra modal de categorías si está abierto
       // El modal de cantidad se abre automáticamente por el estado selectedProduct
       setScannerError(null);
+      setProductOrigin('camera'); // Marcar como escaneo de cámara
     } else {
       setScannerError('Producto no encontrado para el código escaneado');
       audioService.playErrorSound();
@@ -563,11 +570,13 @@ export default function POSInterface() {
   };
   const handleProductSelect = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
+    setProductOrigin('search'); // Marcar como selección manual
     setShowSearchResults(false);
     setSearchQuery("");
   };
   const handleResetProductQuantity = () => {
     setSelectedProduct(null);
+    setProductOrigin(null); // Limpiar origen al cancelar
   };
   const handleConfirmQuantity = () => {
     setSelectedProduct(null);
@@ -1287,7 +1296,7 @@ export default function POSInterface() {
         productoTienda={selectedProduct}
         onClose={handleResetProductQuantity}
         onConfirm={handleConfirmQuantity}
-        onAddToCart={reopenScanner}
+        onAddToCart={reopenScannerIfNeeded}
       />
       {ConfirmDialogComponent}
       </Box>
