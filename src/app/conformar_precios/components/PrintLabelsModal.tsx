@@ -101,13 +101,15 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
       
       const data2 = (data as ProductoConCodigos[])
       .reduce((acum: ProductoConCodigos[], item) => {
-        const index = 
-        acum.findIndex(p => p.nombre === item.nombre && p.precio === item.precio);
-        if(index === -1) {
+        const prod = 
+        acum.find(p => p.nombre === item.nombre && p.precio === item.precio);
+        if(!prod) {
           acum.push(item);
         } 
         return acum;
       }, []);
+
+      
 
       setProductos(data2);
     } catch (error) {
