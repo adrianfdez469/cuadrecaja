@@ -28,7 +28,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         }
       },
       orderBy: {
-        precio: 'asc',
         producto: {
           nombre: 'asc'
         }
