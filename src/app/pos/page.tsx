@@ -92,6 +92,7 @@ export default function POSInterface() {
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
   const [transferDestinations, setTransferDestinations] = useState<ITransferDestination[]>([]);
+  const [intentToSearch, setIntentToSearch] = useState(false);
 
   // Referencia al scanner para poder reabrirlo
   const scannerRef = useRef<ProductProcessorDataRef>(null);
@@ -568,19 +569,43 @@ export default function POSInterface() {
     setSearchResults(filtered.slice(0, 10)); // Limitar a 10 resultados
     setShowSearchResults(true);
   };
+
   const handleProductSelect = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
     setProductOrigin('search'); // Marcar como selección manual
     setShowSearchResults(false);
     setSearchQuery("");
   };
+
   const handleResetProductQuantity = () => {
     setSelectedProduct(null);
     setProductOrigin(null); // Limpiar origen al cancelar
   };
+
   const handleConfirmQuantity = () => {
     setSelectedProduct(null);
     setOpenCart(true);
+  };
+
+  const handleSearchFocus = () => {
+    if (searchQuery.length > 0) {
+      setShowSearchResults(true);
+    }
+    setIntentToSearch(true);
+  };
+
+  const handleSearchMouseDown = () => {
+    // Establecer la intención de búsqueda ANTES del evento de foco
+    // para que el escáner no robe el foco
+    setIntentToSearch(true);
+  };
+
+  const handleSearchBlur = () => {
+    // Delay para permitir que los clicks en los resultados funcionen
+    setTimeout(() => {
+      setIntentToSearch(false);
+      setShowSearchResults(false);
+    }, 150);
   };
 
   // Sincronización automática cuando regresa la conexión
@@ -901,7 +926,7 @@ export default function POSInterface() {
             if (data?.code) handleProductScan(data.code);
           }}
           onHardwareScan={handleHardwareScan}
-          keepFocus={false}
+          keepFocus={intentToSearch ? false : true}
         />
         {scannerError && (
           <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
@@ -1193,7 +1218,10 @@ export default function POSInterface() {
           placeholder="Buscar productos..."
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
-          onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
+          // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
+          onFocus={() => handleSearchFocus()}
+          onBlur={() => handleSearchBlur()}
+          onMouseDown={() => handleSearchMouseDown()}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -1207,6 +1235,7 @@ export default function POSInterface() {
                   onClick={() => {
                     setSearchQuery("");
                     setShowSearchResults(false);
+                    setIntentToSearch(false); // Permitir que el escáner recupere el foco
                   }}
                 >
                   <CloseIcon />
@@ -1264,7 +1293,15 @@ export default function POSInterface() {
                 {searchResults.map((product) => (
                   <ListItemButton
                     key={product.id}
-                    onClick={() => handleProductSelect(product)}
+                    onMouseDown={(e) => {
+                      // Prevenir que el onBlur del input se ejecute antes del onClick
+                      e.preventDefault();
+                    }}
+                    onClick={() => {
+                      handleProductSelect(product);
+                      // Asegurar que el foco regrese al escáner después de seleccionar
+                      setIntentToSearch(false);
+                    }}
                     sx={{
                       borderBottom: "1px solid rgba(0,0,0,0.05)",
                       "&:hover": {
