@@ -16,6 +16,7 @@ declare module "next-auth" {
       localActual?: ILocal | null;
       negocio: INegocio;
       expiresAt: string;
+      permisos?: string; // Nueva propiedad para permisos del sistema nuevo
     } & DefaultSession["user"];
   }
 
@@ -29,6 +30,7 @@ declare module "next-auth" {
     locales: ILocal[];
     localActual?: ILocal | null;
     negocio: INegocio;
+    permisos?: string; // Nueva propiedad para permisos del sistema nuevo
     // expiresAt: string;
   }
 }
@@ -45,5 +47,6 @@ declare module "next-auth/jwt" {
     localActual?: ILocal | null;
     negocio: INegocio;
     expCustom: string;
+    permisos?: string; // Nueva propiedad para permisos del sistema nuevo
   }
 }

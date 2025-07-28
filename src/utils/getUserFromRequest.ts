@@ -8,7 +8,8 @@ export default async function(req: Request): Promise<{
   usuario: string,
   negocio: INegocio,
   tienda: ILocal,
-  tiendas: ILocal[]
+  tiendas: ILocal[],
+  permisos?: string
 }> {
   try {
     const headers = new Headers(await req.headers);
@@ -28,6 +29,7 @@ export default async function(req: Request): Promise<{
     const userRol = decodeFromHeader(headers.get('x-user-rol'));
     const nombre = decodeFromHeader(headers.get('x-user-nombre'));
     const usuario = decodeFromHeader(headers.get('x-user-usuario'));
+    const permisos = decodeFromHeader(headers.get('x-user-permisos')); // Nuevos permisos
 
     if (!userId) {
       throw new Error('No autorizado - Token de usuario no encontrado');
@@ -69,11 +71,11 @@ export default async function(req: Request): Promise<{
       usuario,
       negocio,
       tienda,
-      tiendas
+      tiendas,
+      permisos: permisos || ""
     };
-    
   } catch (error) {
-    console.error('❌ [getUserFromRequest] Error crítico:', error);
+    console.error('❌ [getUserFromRequest] Error general:', error);
     throw error;
   }
 } 
