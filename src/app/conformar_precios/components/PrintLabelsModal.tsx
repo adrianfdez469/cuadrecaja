@@ -98,13 +98,15 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
       const response = await fetch(`/api/productos_tienda/${tiendaId}/with-codes`);
       if (!response.ok) throw new Error("Error al cargar productos");
       const data = await response.json();
-      const data2 = (data as ProductoConCodigos[]).reduce((acum: ProductoConCodigos[], item) => {
-        const prodFind = acum.find(p => p.nombre === item.nombre && p.precio === item.precio);
-        if(prodFind) {
-          return acum;
-        } else {
-          return [...acum, item];
-        }
+      
+      const data2 = (data as ProductoConCodigos[])
+      .reduce((acum: ProductoConCodigos[], item) => {
+        const index = 
+        acum.findIndex(p => p.nombre === item.nombre && p.precio === item.precio);
+        if(index === -1) {
+          acum.push(item);
+        } 
+        return acum;
       }, []);
 
       setProductos(data2);

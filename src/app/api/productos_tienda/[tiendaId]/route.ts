@@ -8,6 +8,26 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(req: NextRequest, { params }: { params: Promise<{ tiendaId: string }> }) {
   try {
     const { tiendaId } = await params;
+    const { searchParams } = new URL(req.url);
+    const orderBy = searchParams.get('orderBy');
+
+    let orderByClause: {
+      producto?: {
+        nombre?: 'asc' | 'desc'
+      }
+      precio?: 'asc' | 'desc'
+    } = {
+      producto: {
+        nombre: 'asc'
+      }
+    };
+
+    if(orderBy === 'precio'){
+      orderByClause = {
+        precio: 'asc',
+        ...orderByClause
+      }
+    }
 
     const productosTienda = await prisma.productoTienda.findMany({
       where: {
@@ -27,11 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
           }
         }
       },
-      orderBy: {
-        producto: {
-          nombre: 'asc'
-        }
-      }
+      orderBy: orderByClause
     });
 
     return NextResponse.json(productosTienda);
