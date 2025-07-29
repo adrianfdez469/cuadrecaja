@@ -946,7 +946,7 @@ export default function POSInterface() {
               if (data?.code) handleProductScan(data.code);
             }}
             onHardwareScan={handleHardwareScan}
-            keepFocus={intentToSearch ? false : true}
+            keepFocus={intentToSearch || paymentDialog ? false : true}
           />
           {scannerError && (
             <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
