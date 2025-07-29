@@ -398,7 +398,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 alignItems="end"
                 sx={{ 
                   mr: 1,
-                  display: { xs: 'none', md: 'flex' }
+                  display: 'flex'
                 }}
               >
                 <Typography variant="body2" fontWeight={600} color="text.primary">
