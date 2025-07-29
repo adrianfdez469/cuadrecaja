@@ -357,35 +357,41 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               <MenuIcon />
             </IconButton>
           )}
-          
-          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography 
-              variant="h6" 
-              component="h1"
-              sx={{ 
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                fontSize: { xs: '1.1rem', sm: '1.25rem' }
-              }}
+
+          <Box sx={{
+            flexGrow: 1,
+            display: 'flex',
+            alignItems: 'start',
+            flexDirection: {xs: 'column', sm: 'row'},
+            gap: {xs: 1, sm: 2}
+          }}>
+            <Typography
+                variant="h6"
+                component="h1"
+                sx={{
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  fontSize: {xs: '1.1rem', sm: '1.25rem'}
+                }}
             >
               Cuadre de Caja
             </Typography>
-            
+
             {user?.negocio?.nombre && (
-              <Chip 
-                label={user?.negocio?.nombre}
-                size="small"
-                variant="outlined"
-                sx={{ 
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  fontWeight: 500,
-                  display: { xs: 'none', sm: 'flex' }
-                }}
-              />
+                <Chip
+                    label={user?.negocio?.nombre}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      borderColor: 'primary.main',
+                      color: 'primary.main',
+                      fontWeight: 500,
+                      display: 'flex'
+                    }}
+                />
             )}
           </Box>
 
