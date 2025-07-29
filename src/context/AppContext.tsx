@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ILocal } from "@/types/ILocal";
 import { INegocio } from "@/types/INegocio";
+import { permission } from "process";
 
 interface ISessionUser {
   id: string; 
@@ -17,6 +18,7 @@ interface ISessionUser {
   localActual: ILocal;
   locales: ILocal[];
   negocio: INegocio;
+  permisos: string;
 }
 
 const AppContext = createContext<{

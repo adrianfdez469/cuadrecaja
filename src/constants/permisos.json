@@ -20,6 +20,7 @@
   "configuracion.roles": {
     "descripcion": "Permite realizar configuraciones de roles"
   },
+  
   "recuperaciones.dashboard": {
     "descripcion": "Permite acceder al dashboard de recuperaciones"
   },
@@ -35,6 +36,7 @@
   "recuperaciones.proveedoresconsignación": {
     "descripcion": "Permite acceder y realizar todas las funciones disponibles en la recuperacion de los proveedores y productos en consignación."
   },
+  
   "operaciones.pos.vender": {
     "descripcion": "Permite realizar ventas desde el punto de venta (POS)"
   },

@@ -67,73 +67,87 @@ import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
+import { permission } from "process";
 
 const configurationMenuItems = [
   {
     label: "Negocios",
     path: "/configuracion/negocios",
     icon: BusinessCenterIcon,
+    permission: '-'
   },
   {
     label: "Usuarios",
     path: "/configuracion/usuarios",
     icon: SupervisedUserCircleIcon,
+    permission: 'configuracion.usuarios'
   },
   {
     label: "Roles",
     path: "/configuracion/roles",
     icon: Security,
+    permission: 'configuracion.roles'
   },
-  { label: "Locales", path: "/configuracion/locales", icon: StoreIcon },
+  {
+    label: "Locales",
+    path: "/configuracion/locales",
+    icon: StoreIcon,
+    permission: 'configuracion.locales'
+  },
   {
     label: "Categorías",
     path: "/configuracion/categorias",
     icon: CategoryIcon,
+    permission: 'configuracion.categorias'
   },
   {
     label: "Productos",
     path: "/configuracion/productos",
     icon: ChangeHistoryIcon,
+    permission: 'configuracion.productos'
   },
   {
     label: "Proveedores",
     path: "/configuracion/proveedores",
     icon: LocalShipping,
+    permission: 'configuracion.proveedores'
   },
   {
     label: "Destinos de Transferencia",
     path: "/configuracion/destinos-transferencia",
-    icon: CardGiftcardOutlined
+    icon: CardGiftcardOutlined,
+    permission: 'configuracion.destinostransferencia'
   },
   {
     label: "Planes y Suscripción",
     path: "/configuracion/planes",
     icon: UpgradeIcon,
+    permission: '*'
   },
 ];
 
 const mainMenuItems = [
-  { label: "POS", path: "/pos", icon: PointOfSale },
-  { label: "Ventas", path: "/ventas", icon: Receipt },
-  { label: "Conformar Precios", path: "/conformar_precios", icon: GridView },
-  { label: "Movimientos", path: "/movimientos", icon: SwapVert },
-  { label: "Cierre", path: "/cierre", icon: AccountBalanceWallet },
+  { label: "POS", path: "/pos", icon: PointOfSale, permission: 'operaciones.pos.vender' },
+  { label: "Ventas", path: "/ventas", icon: Receipt, permission: 'operaciones.ventas.ver' },
+  { label: "Conformar Precios", path: "/conformar_precios", icon: GridView, permission: 'operaciones.conformarprecios' },
+  { label: "Movimientos", path: "/movimientos", icon: SwapVert, permission: 'operaciones.movimientos.ver' },
+  { label: "Cierre", path: "/cierre", icon: AccountBalanceWallet, permission: 'operaciones.cierre.ver' },
 ];
 
 const resumenMenuItems = [
-  { label: "Dashboard", path: "/dashboard-resumen", icon: Summarize },
-  { label: "Inventario", path: "/inventario", icon: Inventory },
-  { label: "Resumen Cierres", path: "/resumen_cierre", icon: Summarize },
-  { label: "Análisis de CPP", path: "/cpp-analysis", icon: Summarize },
-  { label: "Proveedores Consignación", path: "/proveedores", icon: Handshake },
+  { label: "Dashboard", path: "/dashboard-resumen", icon: Summarize, permission: 'recuperaciones.dashboard' },
+  { label: "Inventario", path: "/inventario", icon: Inventory, permission: 'recuperaciones.inventario' },
+  { label: "Resumen Cierres", path: "/resumen_cierre", icon: Summarize, permission: 'recuperaciones.resumencierres' },
+  { label: "Análisis de CPP", path: "/cpp-analysis", icon: Summarize, permission: 'recuperaciones.analisiscpp' },
+  { label: "Proveedores Consignación", path: "/proveedores", icon: Handshake, permission: 'recuperaciones.proveedoresconsignación' },
 ];
 
-const getMainMenuItemsByLocalType = (localType: string, type: string) => {
-  
+const getMainMenuItemsByLocalType = (localType: string, type: string, user: { rol: string, permisos: string }) => {
+
   let items = [];
-  if(type === "resumen"){
+  if (type === "resumen") {
     items = resumenMenuItems;
-  }else{
+  } else {
     items = mainMenuItems;
   }
   return items.filter(item => {
@@ -141,6 +155,9 @@ const getMainMenuItemsByLocalType = (localType: string, type: string) => {
       return !excludeOnWarehouse.includes(item.path);
     }
     return true;
+  }).filter(item => {
+    if (user.rol === 'SUPER_ADMIN') return true;
+    return user.permisos.includes(item.permission) || item.permission === '*';
   })
 }
 
@@ -161,7 +178,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [loadingLocales, setLoadingLocales] = useState(false);
   const [totalLocalesDisponibles, setTotalLocalesDisponibles] = useState(0);
   const { isOnline, wasOffline } = useNetworkStatus();
-  const [menuState, setMenuState] = useState<{operaciones: boolean, resumenes: boolean, configuracion: boolean}>({
+  const [menuState, setMenuState] = useState<{ operaciones: boolean, resumenes: boolean, configuracion: boolean }>({
     operaciones: true,
     resumenes: false,
     configuracion: false
@@ -302,14 +319,14 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const handleMenuAccordion = (type: string) => {
-    if(menuState[type] === false){
+    if (menuState[type] === false) {
       setMenuState({
         configuracion: false,
         operaciones: false,
         resumenes: false,
         [type]: true
-      });  
-    } else{
+      });
+    } else {
       setMenuState({
         ...menuState,
         [type]: !menuState[type]
@@ -580,133 +597,142 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 </Typography>
               </Box>
 
-              <Accordion expanded={menuState.operaciones} onChange={() => handleMenuAccordion('operaciones')}>
-                <AccordionSummary expandIcon={<ExpandMore />}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                    Operaciones
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {user?.localActual && (
-                    <List sx={{ pt: 0 }}>
-                      {getMainMenuItemsByLocalType(user.localActual.tipo, 'operaciones').map((item) => (
-                        <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
-                          <ListItemButton
-                            onClick={() => {
-                              gotToPath(item.path);
-                              setOpen(false);
-                            }}
-                            sx={{
-                              borderRadius: 2,
-                              py: 1.5,
-                              '&:hover': {
-                                backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                              }
-                            }}
-                          >
-                            <ListItemIcon sx={{ minWidth: 40 }} color="primary">
-                              <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={item.label}
-                              primaryTypographyProps={{
-                                fontWeight: 500,
-                                fontSize: '0.875rem'
+              {user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'operaciones', user).length > 0 &&
+                <Accordion expanded={menuState.operaciones} onChange={() => handleMenuAccordion('operaciones')}>
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      Operaciones
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    {user?.localActual && (
+                      <List sx={{ pt: 0 }}>
+                        {getMainMenuItemsByLocalType(user.localActual.tipo, 'operaciones', user).map((item) => (
+                          <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                            <ListItemButton
+                              onClick={() => {
+                                gotToPath(item.path);
+                                setOpen(false);
                               }}
-                            />
-                          </ListItemButton>
-                        </ListItem>
-                      ))}
+                              sx={{
+                                borderRadius: 2,
+                                py: 1.5,
+                                '&:hover': {
+                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                }
+                              }}
+                            >
+                              <ListItemIcon sx={{ minWidth: 40 }} color="primary">
+                                <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={item.label}
+                                primaryTypographyProps={{
+                                  fontWeight: 500,
+                                  fontSize: '0.875rem'
+                                }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+              }
+
+              { user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).length > 0 &&
+                <Accordion expanded={menuState.resumenes} onChange={() => handleMenuAccordion('resumenes')}>
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      Resumenes
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    {user?.localActual && (
+                      <List sx={{ pt: 0 }}>
+                        {getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).map((item) => (
+                          <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                            <ListItemButton
+                              onClick={() => {
+                                gotToPath(item.path);
+                                setOpen(false);
+                              }}
+                              sx={{
+                                borderRadius: 2,
+                                py: 1.5,
+                                '&:hover': {
+                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                }
+                              }}
+                            >
+                              <ListItemIcon sx={{ minWidth: 40 }} color="primary">
+                                <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={item.label}
+                                primaryTypographyProps={{
+                                  fontWeight: 500,
+                                  fontSize: '0.875rem'
+                                }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+              }
+
+              {configurationMenuItems
+                .filter((item) => {
+                  // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
+                  if (user.rol === 'SUPER_ADMIN') return true;
+                  return user.permisos.includes(item.permission) || item.permission === '*';
+                }).length > 0 &&
+                <Accordion expanded={menuState.configuracion} onChange={() => handleMenuAccordion('configuracion')}>
+                  <AccordionSummary expandIcon={<ExpandMore />}>Configuración</AccordionSummary>
+                  <AccordionDetails>
+                    <List sx={{ pt: 2 }}>
+                      {configurationMenuItems
+                        .filter((item) => {
+                          // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
+                          if (user.rol === 'SUPER_ADMIN') return true;
+                          return user.permisos.includes(item.permission) || item.permission === '*';
+                        })
+                        .map((item) => (
+                          <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                            <ListItemButton
+                              onClick={() => {
+                                gotToPath(item.path);
+                                setOpen(false);
+                              }}
+                              sx={{
+                                borderRadius: 2,
+                                py: 1.5,
+                                '&:hover': {
+                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                }
+                              }}
+                            >
+                              <ListItemIcon sx={{ minWidth: 40 }}>
+                                <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={item.label}
+                                primaryTypographyProps={{
+                                  fontWeight: 500,
+                                  fontSize: '0.875rem'
+                                }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
                     </List>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-              
-              <Accordion expanded={menuState.resumenes} onChange={() => handleMenuAccordion('resumenes')}>
-                <AccordionSummary expandIcon={<ExpandMore />}>
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                    Resumenes
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {user?.localActual && (
-                    <List sx={{ pt: 0 }}>
-                      {getMainMenuItemsByLocalType(user.localActual.tipo, 'resumen').map((item) => (
-                        <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
-                          <ListItemButton
-                            onClick={() => {
-                              gotToPath(item.path);
-                              setOpen(false);
-                            }}
-                            sx={{
-                              borderRadius: 2,
-                              py: 1.5,
-                              '&:hover': {
-                                backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                              }
-                            }}
-                          >
-                            <ListItemIcon sx={{ minWidth: 40 }} color="primary">
-                              <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={item.label}
-                              primaryTypographyProps={{
-                                fontWeight: 500,
-                                fontSize: '0.875rem'
-                              }}
-                            />
-                          </ListItemButton>
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-              
-              <Accordion expanded={menuState.configuracion} onChange={() => handleMenuAccordion('configuracion')}>
-                <AccordionSummary expandIcon={<ExpandMore /> }>Configuración</AccordionSummary>
-                <AccordionDetails>
-                  <List sx={{ pt: 2 }}>
-                    {configurationMenuItems
-                      .filter((item) => {
-                        // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
-                        if (item.label === "Negocios") {
-                          return user?.rol === "SUPER_ADMIN";
-                        }
-                        return true;
-                      })
-                      .map((item) => (
-                        <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
-                          <ListItemButton
-                            onClick={() => {
-                              gotToPath(item.path);
-                              setOpen(false);
-                            }}
-                            sx={{
-                              borderRadius: 2,
-                              py: 1.5,
-                              '&:hover': {
-                                backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                              }
-                            }}
-                          >
-                            <ListItemIcon sx={{ minWidth: 40 }}>
-                              <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={item.label}
-                              primaryTypographyProps={{
-                                fontWeight: 500,
-                                fontSize: '0.875rem'
-                              }}
-                            />
-                          </ListItemButton>
-                        </ListItem>
-                      ))}
-                  </List>
-                </AccordionDetails>
-              </Accordion>
+                  </AccordionDetails>
+                </Accordion>
+              }
 
             </Box>
           </Drawer>
