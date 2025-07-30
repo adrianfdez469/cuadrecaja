@@ -93,6 +93,7 @@ export default function POSInterface() {
   const { isOnline } = useNetworkStatus();
   const [transferDestinations, setTransferDestinations] = useState<ITransferDestination[]>([]);
   const [intentToSearch, setIntentToSearch] = useState(false);
+  const [openSpeedDial, setOpenSpeedDial] = useState(false);
 
   // Referencia al scanner para poder reabrirlo
   const scannerRef = useRef<ProductProcessorDataRef>(null);
@@ -572,8 +573,15 @@ export default function POSInterface() {
   const handleShowSyncView = () => {
     setShowSyncView(true);
   };
+
+  const handleShowProductsSells = () => {
+    setShowProductsSells(true);
+    setOpenSpeedDial(false);
+  };
+
   const handleCloseSyncView = () => {
     setShowSyncView(false);
+    setOpenSpeedDial(false);
   };
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -946,7 +954,7 @@ export default function POSInterface() {
               if (data?.code) handleProductScan(data.code);
             }}
             onHardwareScan={handleHardwareScan}
-            keepFocus={intentToSearch || paymentDialog || showProductsSells || showSyncView ? false : true}
+            keepFocus={intentToSearch || paymentDialog || showProductsSells || showSyncView || openSpeedDial ? false : true}
           />
           {scannerError && (
             <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
@@ -1167,6 +1175,8 @@ export default function POSInterface() {
             sx={{ position: "fixed", top: 80, right: 16 }}
             icon={<BlurOnIcon />}
             direction="down"
+            open={openSpeedDial}
+            onClick={() => setOpenSpeedDial(!openSpeedDial)}
           >
             <SpeedDialAction
               key={"sync"}
@@ -1196,7 +1206,7 @@ export default function POSInterface() {
                   open: true,
                 },
               }}
-              onClick={() => setShowProductsSells(true)}
+              onClick={handleShowProductsSells}
             />
           </SpeedDial>
         )}
