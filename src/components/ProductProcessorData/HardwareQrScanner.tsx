@@ -28,12 +28,7 @@ function HardwareQrScanner({
     }
   }, [keepFocus]);
 
-  // Función para manejar entrada de teclado (pistola escáner)
-  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    // Las pistolas escáner envían secuencias rápidas de teclas
-    // No necesitamos prevenir nada, solo dejamos que funcione naturalmente
-  }
-
+  
   function handleInput(event: React.FormEvent<HTMLInputElement>) {
     // Esta función captura la entrada de pistolas escáner
     const target = event.target as HTMLInputElement;
@@ -78,7 +73,6 @@ function HardwareQrScanner({
       inputRef={inputRef}
       placeholder="Pistola de escaneo"
       value={typeof value === 'string' ? value : internalQrData}
-      onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}
       onInput={handleInput}
       variant="outlined"
