@@ -1,67 +1,67 @@
 {
-  "configuracion.usuarios": {
+  "configuracion.usuarios.acceder": {
     "descripcion": "Permite realizar configuraciones de usuarios"
   },
-  "configuracion.locales": {
+  "configuracion.locales.acceder": {
     "descripcion": "Permite realizar configuraciones de locales/tiendas"
   },
-  "configuracion.categorias": {
+  "configuracion.categorias.acceder": {
     "descripcion": "Permite realizar configuraciones de categorías"
   },
-  "configuracion.productos": {
+  "configuracion.productos.acceder": {
     "descripcion": "Permite realizar configuraciones de productos"
   },
-  "configuracion.proveedores": {
+  "configuracion.proveedores.acceder": {
     "descripcion": "Permite realizar configuraciones de proveedores"
   },
-  "configuracion.destinostransferencia": {
+  "configuracion.destinostransferencia.acceder": {
     "descripcion": "Permite realizar configuraciones de destinos de transferencia"
   },
-  "configuracion.roles": {
+  "configuracion.roles.acceder": {
     "descripcion": "Permite realizar configuraciones de roles"
   },
   
-  "recuperaciones.dashboard": {
+  "recuperaciones.dashboard.acceder": {
     "descripcion": "Permite acceder al dashboard de recuperaciones"
   },
-  "recuperaciones.inventario": {
-    "descripcion": "Permite realizar recuperaciones del inventario actual de los productos"
+  "recuperaciones.inventario.acceder": {
+    "descripcion": "Permite acceder a la interfaz de recuperaciones del inventario actual de los productos"
   },
-  "recuperaciones.resumencierres": {
+  "recuperaciones.resumencierres.acceder": {
     "descripcion": "Permite revisar los resumentes de los cierres anteriores"
   },
-  "recuperaciones.analisiscpp": {
+  "recuperaciones.analisiscpp.acceder": {
     "descripcion": "Permite acceder a las recuperaciones de los análisis de costo y costo promedio ponderado (CPP) de los productos"
   },
-  "recuperaciones.proveedoresconsignación": {
+  "recuperaciones.proveedoresconsignación.acceder": {
     "descripcion": "Permite acceder y realizar todas las funciones disponibles en la recuperacion de los proveedores y productos en consignación."
   },
   
-  "operaciones.pos.vender": {
-    "descripcion": "Permite realizar ventas desde el punto de venta (POS)"
+  "operaciones.pos-venta.acceder": {
+    "descripcion": "Permite acceder a la interfaz de ventas (POS)"
   },
-  "operaciones.pos.cancelarventa": {
+  "operaciones.pos-venta.cancelarventa": {
     "descripcion": "Permite cancelar ventas realizadas desde el punto de venta"
   },
-  "operaciones.pos.gananciascostos": {
+  "operaciones.pos-venta.gananciascostos": {
     "descripcion": "Permite ver las ganancias y costos en el resumen de ventas del POS"
   },
-  "operaciones.ventas.ver": {
+  "operaciones.ventas.acceder": {
     "descripcion": "Permite acceder a la interfaz de ventas"
   },
   "operaciones.ventas.eliminar": {
     "descripcion": "Permite eliminar ventas"
   },
-  "operaciones.conformarprecios": {
+  "operaciones.conformarprecios.acceder": {
     "descripcion": "Permite conformar precios de productos"
   },
-  "operaciones.cierre.ver": {
+  "operaciones.cierre.acceder": {
     "descripcion": "Permite acceder a la interfaz de cierre de caja"
   },
   "operaciones.cierre.cerrar": {
     "descripcion": "Permite crear un nuevo cierre de caja"
   },
-  "operaciones.movimientos.ver": {
+  "operaciones.movimientos.acceder": {
     "descripcion": "Permite acceder a la interfaz de movimientos de stock"
   },
   "operaciones.movimientos.crear.compra": {
@@ -79,10 +79,10 @@
   "operaciones.movimientos.crear.recepcion": {
     "descripcion": "Permite crear recepciones de productos"
   },
-  "operaciones.movimientos.consignacion_entrada": {
+  "operaciones.movimientos.crear.consignacion_entrada": {
     "descripcion": "Permite crear entradas de productos en consignación"
   },
-  "operaciones.movimientos.consignacion_devolucion": {
+  "operaciones.movimientos.crear.consignacion_devolucion": {
     "descripcion": "Permite crear devoluciones de productos en consignación"
   }
 }

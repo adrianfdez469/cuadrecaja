@@ -34,11 +34,12 @@ import {
 import { useRouter } from "next/navigation";
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
-import { permission } from "process";
+import { usePermisos } from "@/utils/permisos";
 
 const HomePage = () => {
   const { loadingContext, user } = useAppContext();
   const router = useRouter();
+  const { verificarPermiso } = usePermisos();
 
   const handleNavigate = (path: string) => {
     router.push(path);
@@ -136,7 +137,7 @@ const HomePage = () => {
       color: "primary",
       path: "/pos",
       gradient: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-      permission: 'operaciones.pos.vender'
+      permission: 'operaciones.pos-venta.acceder'
     },
     {
       title: "Inventario",
@@ -145,7 +146,7 @@ const HomePage = () => {
       color: "success",
       path: "/inventario",
       gradient: "linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)",
-      permission: 'recuperaciones.inventario'
+      permission: 'recuperaciones.inventario.acceder'
     },
     {
       title: "Ventas",
@@ -154,7 +155,7 @@ const HomePage = () => {
       color: "secondary",
       path: "/ventas",
       gradient: "linear-gradient(135deg, #dc004e 0%, #9a0036 100%)",
-      permission: 'operaciones.ventas.ver'
+      permission: 'operaciones.ventas.acceder'
     },
     {
       title: "Movimientos",
@@ -163,7 +164,7 @@ const HomePage = () => {
       color: "info",
       path: "/movimientos",
       gradient: "linear-gradient(135deg, #0288d1 0%, #01579b 100%)",
-      permission: 'operaciones.movimientos.ver'
+      permission: 'operaciones.movimientos.acceder'
     },
     {
       title: "Cierre de Caja",
@@ -172,7 +173,7 @@ const HomePage = () => {
       color: "warning",
       path: "/cierre",
       gradient: "linear-gradient(135deg, #ed6c02 0%, #e65100 100%)",
-      permission: 'operaciones.cierre.ver'
+      permission: 'operaciones.cierre.acceder'
     },
     {
       title: "Resumen Cierres",
@@ -181,7 +182,7 @@ const HomePage = () => {
       color: "default",
       path: "/resumen_cierre",
       gradient: "linear-gradient(135deg, #757575 0%, #424242 100%)",
-      permission: 'recuperaciones.resumencierres'
+      permission: 'recuperaciones.resumencierres.acceder'
     }
   ];
 
@@ -190,38 +191,40 @@ const HomePage = () => {
       title: "Productos",
       icon: <ShoppingCart />,
       path: "/configuracion/productos",
-      permission: 'configuracion.productos'
+      permission: 'configuracion.productos.acceder'
     },
     {
       title: "Categorías",
       icon: <BarChart />,
       path: "/configuracion/categorias",
-      permission: 'configuracion.categorias'
+      permission: 'configuracion.categorias.acceder'
     },
     {
       title: "Locales",
       icon: <Store />,
       path: "/configuracion/locales",
-      permission: 'configuracion.locales'
+      permission: 'configuracion.locales.acceder'
     },
     {
       title: "Usuarios",
       icon: <Person />,
       path: "/configuracion/usuarios",
-      permission: 'configuracion.usuarios'
+      permission: 'configuracion.usuarios.acceder'
     },
     {
       title: "Roles",
       icon: <Security />,
       path: "/configuracion/roles",
-      permission: 'configuracion.roles'
+      permission: 'configuracion.roles.acceder'
     }
   ];
 
 
   const getQuickAction = (localType: string) => {
     return quickActions.filter(item => {
-      if (user.permisos.includes(item.permission) || user.rol === 'SUPER_ADMIN') {
+      if (//user.permisos.includes(item.permission)
+        verificarPermiso(item.permission) 
+         || user.rol === 'SUPER_ADMIN') {
         if (localType === TipoLocal.ALMACEN) {
           return !excludeOnWarehouse.includes(item.path);
         }
@@ -232,7 +235,9 @@ const HomePage = () => {
 
   const getConfigOptions = () => {
     return configOptions.filter(item => {
-      if (user.permisos.includes(item.permission) || user.rol === 'SUPER_ADMIN') {
+      if (//user.permisos.includes(item.permission) 
+        verificarPermiso(item.permission) 
+        || user.rol === 'SUPER_ADMIN') {
         return true;
       }
     })

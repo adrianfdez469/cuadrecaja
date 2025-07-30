@@ -68,8 +68,9 @@ import UpgradeIcon from '@mui/icons-material/Upgrade';
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { permission } from "process";
+import { usePermisos } from "@/utils/permisos";
 
-const configurationMenuItems = [
+const CONFIGURATION_MENU_ITEMS = [
   {
     label: "Negocios",
     path: "/configuracion/negocios",
@@ -86,37 +87,37 @@ const configurationMenuItems = [
     label: "Roles",
     path: "/configuracion/roles",
     icon: Security,
-    permission: 'configuracion.roles'
+    permission: 'configuracion.roles.acceder'
   },
   {
     label: "Locales",
     path: "/configuracion/locales",
     icon: StoreIcon,
-    permission: 'configuracion.locales'
+    permission: 'configuracion.locales.acceder'
   },
   {
     label: "Categorías",
     path: "/configuracion/categorias",
     icon: CategoryIcon,
-    permission: 'configuracion.categorias'
+    permission: 'configuracion.categorias.acceder'
   },
   {
     label: "Productos",
     path: "/configuracion/productos",
     icon: ChangeHistoryIcon,
-    permission: 'configuracion.productos'
+    permission: 'configuracion.productos.acceder'
   },
   {
     label: "Proveedores",
     path: "/configuracion/proveedores",
     icon: LocalShipping,
-    permission: 'configuracion.proveedores'
+    permission: 'configuracion.proveedores.acceder'
   },
   {
     label: "Destinos de Transferencia",
     path: "/configuracion/destinos-transferencia",
     icon: CardGiftcardOutlined,
-    permission: 'configuracion.destinostransferencia'
+    permission: 'configuracion.destinostransferencia.acceder'
   },
   {
     label: "Planes y Suscripción",
@@ -126,40 +127,23 @@ const configurationMenuItems = [
   },
 ];
 
-const mainMenuItems = [
-  { label: "POS", path: "/pos", icon: PointOfSale, permission: 'operaciones.pos.vender' },
-  { label: "Ventas", path: "/ventas", icon: Receipt, permission: 'operaciones.ventas.ver' },
-  { label: "Conformar Precios", path: "/conformar_precios", icon: GridView, permission: 'operaciones.conformarprecios' },
-  { label: "Movimientos", path: "/movimientos", icon: SwapVert, permission: 'operaciones.movimientos.ver' },
-  { label: "Cierre", path: "/cierre", icon: AccountBalanceWallet, permission: 'operaciones.cierre.ver' },
+const MAIN_MENU_ITEMS = [
+  { label: "POS", path: "/pos", icon: PointOfSale, permission: 'operaciones.pos-venta.acceder' },
+  { label: "Ventas", path: "/ventas", icon: Receipt, permission: 'operaciones.ventas.acceder' },
+  { label: "Conformar Precios", path: "/conformar_precios", icon: GridView, permission: 'operaciones.conformarprecios.acceder' },
+  { label: "Movimientos", path: "/movimientos", icon: SwapVert, permission: 'operaciones.movimientos.acceder' },
+  { label: "Cierre", path: "/cierre", icon: AccountBalanceWallet, permission: 'operaciones.cierre.acceder' },
 ];
 
-const resumenMenuItems = [
-  { label: "Dashboard", path: "/dashboard-resumen", icon: Summarize, permission: 'recuperaciones.dashboard' },
-  { label: "Inventario", path: "/inventario", icon: Inventory, permission: 'recuperaciones.inventario' },
-  { label: "Resumen Cierres", path: "/resumen_cierre", icon: Summarize, permission: 'recuperaciones.resumencierres' },
-  { label: "Análisis de CPP", path: "/cpp-analysis", icon: Summarize, permission: 'recuperaciones.analisiscpp' },
-  { label: "Proveedores Consignación", path: "/proveedores", icon: Handshake, permission: 'recuperaciones.proveedoresconsignación' },
+const RESUMEN_MENU_ITEMS = [
+  { label: "Dashboard", path: "/dashboard-resumen", icon: Summarize, permission: 'recuperaciones.dashboard.acceder' },
+  { label: "Inventario", path: "/inventario", icon: Inventory, permission: 'recuperaciones.inventario.acceder' },
+  { label: "Resumen Cierres", path: "/resumen_cierre", icon: Summarize, permission: 'recuperaciones.resumencierres.acceder' },
+  { label: "Análisis de CPP", path: "/cpp-analysis", icon: Summarize, permission: 'recuperaciones.analisiscpp.acceder' },
+  { label: "Proveedores Consignación", path: "/proveedores", icon: Handshake, permission: 'recuperaciones.proveedoresconsignación.acceder' },
 ];
 
-const getMainMenuItemsByLocalType = (localType: string, type: string, user: { rol: string, permisos: string }) => {
 
-  let items = [];
-  if (type === "resumen") {
-    items = resumenMenuItems;
-  } else {
-    items = mainMenuItems;
-  }
-  return items.filter(item => {
-    if (localType === TipoLocal.ALMACEN) {
-      return !excludeOnWarehouse.includes(item.path);
-    }
-    return true;
-  }).filter(item => {
-    if (user.rol === 'SUPER_ADMIN') return true;
-    return user.permisos.includes(item.permission) || item.permission === '*';
-  })
-}
 
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [open, setOpen] = useState(false);
@@ -183,6 +167,25 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     resumenes: false,
     configuracion: false
   });
+  const { verificarPermiso } = usePermisos()
+
+  const getMainMenuItemsByLocalType = (localType: string, type: string, user: { rol: string, permisos: string }) => {
+    let items = [];
+    if (type === "resumen") {
+      items = RESUMEN_MENU_ITEMS;
+    } else {
+      items = MAIN_MENU_ITEMS;
+    }
+    return items.filter(item => {
+      if (localType === TipoLocal.ALMACEN) {
+        return !excludeOnWarehouse.includes(item.path);
+      }
+      return true;
+    }).filter(item => {
+      if (user.rol === 'SUPER_ADMIN') return true;
+      return verificarPermiso(item.permission)
+    })
+  }
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -685,21 +688,23 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 </Accordion>
               }
 
-              {configurationMenuItems
+              {CONFIGURATION_MENU_ITEMS
                 .filter((item) => {
                   // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
                   if (user.rol === 'SUPER_ADMIN') return true;
-                  return user.permisos.includes(item.permission) || item.permission === '*';
+                  // return user.permisos.includes(item.permission) || item.permission === '*';
+                  return verificarPermiso(item.permission);
                 }).length > 0 &&
                 <Accordion expanded={menuState.configuracion} onChange={() => handleMenuAccordion('configuracion')}>
                   <AccordionSummary expandIcon={<ExpandMore />}>Configuración</AccordionSummary>
                   <AccordionDetails>
                     <List sx={{ pt: 2 }}>
-                      {configurationMenuItems
+                      {CONFIGURATION_MENU_ITEMS
                         .filter((item) => {
                           // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
                           if (user.rol === 'SUPER_ADMIN') return true;
-                          return user.permisos.includes(item.permission) || item.permission === '*';
+                          // return user.permisos.includes(item.permission) || item.permission === '*';
+                          return verificarPermiso(item.permission);
                         })
                         .map((item) => (
                           <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>

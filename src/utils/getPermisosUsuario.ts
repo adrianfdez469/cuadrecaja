@@ -50,6 +50,10 @@ export async function getPermisosUsuario(usuarioId: string, tiendaId: string | n
  * @returns true si tiene el permiso, false en caso contrario
  */
 export function tienePermiso(permisos: string, permisoRequerido: string): boolean {
+  if(permisoRequerido === '*') {
+    return true
+  }
+  
   if (!permisos || !permisoRequerido) {
     return false;
   }

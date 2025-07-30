@@ -26,7 +26,7 @@ La sesión del usuario ahora incluye:
 
 Los permisos están definidos en `src/constants/permisos.json` con formato:
 ```
-"operaciones.pos.vender|configuracion.usuarios|recuperaciones.inventario"
+"operaciones.pos-venta.acceder|configuracion.usuarios.acceder|recuperaciones.inventario.acceder"
 ```
 
 ## Ejemplos de Uso
@@ -40,12 +40,12 @@ function MiComponente() {
   const { verificarPermiso, permisos, listaPermisos } = usePermisos();
 
   // Verificar un permiso específico
-  const puedeVender = verificarPermiso("operaciones.pos.vender");
+  const puedeVender = verificarPermiso("operaciones.pos-venta.acceder");
   
   // Verificar múltiples permisos (cualquiera)
   const puedeConfigurar = puedeAcceder([
-    "configuracion.usuarios", 
-    "configuracion.productos"
+    "configuracion.usuarios.acceder", 
+    "configuracion.productos.acceder"
   ]);
 
   // Ver todos los permisos
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   const user = await getUserFromRequest(request);
   
   // Verificar permiso específico
-  if (!verificarPermisoUsuario(user.permisos, "operaciones.pos.vender")) {
+  if (!verificarPermisoUsuario(user.permisos, "operaciones.pos-venta.acceder")) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
@@ -87,7 +87,7 @@ import { getPermisosUsuario, tienePermiso } from "@/utils/getPermisosUsuario";
 const permisos = await getPermisosUsuario(usuarioId, tiendaId);
 
 // Verificar si tiene un permiso específico
-const puedeAcceder = tienePermiso(permisos, "configuracion.roles");
+const puedeAcceder = tienePermiso(permisos, "configuracion.roles.acceder");
 
 // Convertir string de permisos a array
 const listaPermisos = parsearPermisos(permisos);
