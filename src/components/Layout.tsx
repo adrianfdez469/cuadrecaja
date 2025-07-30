@@ -27,7 +27,6 @@ import {
   RadioGroup,
   Toolbar,
   Typography,
-  useMediaQuery,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
@@ -143,7 +142,6 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [loadingLocales, setLoadingLocales] = useState(false);
   const [totalLocalesDisponibles, setTotalLocalesDisponibles] = useState(0);
   const { isOnline, wasOffline } = useNetworkStatus();
-  const isMobile = useMediaQuery('(max-width: 600px)');
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
