@@ -8,6 +8,7 @@ type ClientProcessorDataProps = {
   onProcessedData: (processedData: IProcessedData) => void;
   onHardwareScan?: (processedData: IProcessedData) => void; // Nueva prop para escaneo de hardware
   keepFocus?: boolean; // Nueva prop para controlar el foco del hardware scanner
+  forceKeepFocus?: boolean; // Forzar mantener foco incluso en móviles
 };
 
 export interface ProductProcessorDataRef {
@@ -15,7 +16,7 @@ export interface ProductProcessorDataRef {
 }
 
 const ProductProcessorData = forwardRef<ProductProcessorDataRef, ClientProcessorDataProps>(
-  ({ onProcessedData, onHardwareScan, keepFocus = true }, ref) => {
+  ({ onProcessedData, onHardwareScan, keepFocus = true, forceKeepFocus }, ref) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const qrModuleRef = React.useRef<any>(null);
 
@@ -46,6 +47,7 @@ const ProductProcessorData = forwardRef<ProductProcessorDataRef, ClientProcessor
           onScan={handleScan} 
           onHardwareScan={handleHardwareScan}
           keepFocus={keepFocus}
+          forceKeepFocus={forceKeepFocus}
         />
       </Box>
     );

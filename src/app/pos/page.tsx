@@ -29,6 +29,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import Sync from "@mui/icons-material/Sync";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import BlurOnIcon from "@mui/icons-material/BlurOn";
+import BluetoothIcon from "@mui/icons-material/Bluetooth";
 
 import { useCartStore } from "@/store/cartStore";
 import axios from "axios";
@@ -109,6 +110,13 @@ export default function POSInterface() {
 
   const [isCartPinned, setIsCartPinned] = useState(false);
 
+  // Estado para detectar si hay escáner Bluetooth
+  const [hasBluetoothScanner, setHasBluetoothScanner] = useState(() => {
+    // Recuperar configuración guardada del localStorage
+    const saved = localStorage.getItem('hasBluetoothScanner');
+    return saved ? JSON.parse(saved) : false;
+  });
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -141,6 +149,13 @@ export default function POSInterface() {
 
   // Función para manejar escaneo de hardware (pistola)
   const handleHardwareScan = (data: IProcessedData) => {
+    // Detectar automáticamente que hay un escáner Bluetooth/hardware
+    if (!hasBluetoothScanner) {
+      setHasBluetoothScanner(true);
+      localStorage.setItem('hasBluetoothScanner', 'true');
+      console.log('🔍 Escáner Bluetooth detectado automáticamente');
+    }
+
     if (data?.code) {
       const product = findProductByCode(data.code);
       if (product) {
@@ -583,6 +598,15 @@ export default function POSInterface() {
     setShowSyncView(false);
     setOpenSpeedDial(false);
   };
+
+  // Función para resetear configuración de escáner Bluetooth
+  const handleResetBluetoothScanner = () => {
+    setHasBluetoothScanner(false);
+    localStorage.removeItem('hasBluetoothScanner');
+    setOpenSpeedDial(false);
+    showMessage('Configuración de escáner Bluetooth reseteada', 'info');
+  };
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (query.trim() === "") {
@@ -955,6 +979,7 @@ export default function POSInterface() {
             }}
             onHardwareScan={handleHardwareScan}
             keepFocus={intentToSearch || paymentDialog || showProductsSells || showSyncView || openSpeedDial ? false : true}
+            forceKeepFocus={hasBluetoothScanner}
           />
           {scannerError && (
             <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
@@ -1208,6 +1233,19 @@ export default function POSInterface() {
               }}
               onClick={handleShowProductsSells}
             />
+            {hasBluetoothScanner && (
+              <SpeedDialAction
+                key={"bluetooth"}
+                icon={<BluetoothIcon />}
+                slotProps={{
+                  tooltip: {
+                    title: "Resetear escáner Bluetooth",
+                    open: true,
+                  },
+                }}
+                onClick={handleResetBluetoothScanner}
+              />
+            )}
           </SpeedDial>
         )}
 
