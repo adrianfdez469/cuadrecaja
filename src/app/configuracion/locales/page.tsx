@@ -33,10 +33,7 @@ import {
   InputLabel,
   Collapse,
   Alert,
-  Divider,
   Paper,
-  ListItemText,
-  Checkbox
 } from "@mui/material";
 import { 
   Delete, 
@@ -61,7 +58,7 @@ import { ContentCard } from "@/components/ContentCard";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import LimitDialog from "@/components/LimitDialog";
-import { ILocal, TipoLocal, IUsuarioTienda } from "@/types/ILocal";
+import { ILocal, TipoLocal } from "@/types/ILocal";
 import { IRol } from "@/types/IRol";
 import { getLocales } from "@/services/localesService";
 import { getRoles } from "@/services/rolService";
@@ -666,7 +663,7 @@ export default function Locales() {
                   <Stack spacing={1}>
                     {usuariosRoles.map((usuarioRol, index) => {
                       const usuario = usuarios.find(u => u.id === usuarioRol.usuarioId);
-                      const rol = roles.find(r => r.id === usuarioRol.rolId);
+                      // const rol = roles.find(r => r.id === usuarioRol.rolId);
                       
                       if (!usuario) return null;
                       

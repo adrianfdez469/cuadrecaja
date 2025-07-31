@@ -172,7 +172,7 @@ export default function RolesPage() {
       
       handleCloseDialog();
       fetchRoles();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al guardar rol:', error);
       const errorMessage = error.response?.data?.error || 'Error al guardar el rol';
       showMessage(errorMessage, 'error');
@@ -185,7 +185,7 @@ export default function RolesPage() {
         await deleteRol(rol.id);
         showMessage('Rol eliminado correctamente', 'success');
         fetchRoles();
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error al eliminar rol:', error);
         const errorMessage = error.response?.data?.error || 'Error al eliminar el rol';
         showMessage(errorMessage, 'error');
@@ -203,13 +203,13 @@ export default function RolesPage() {
     
     Object.keys(permisosData).forEach(key => {
       const parts = key.split('.');
-      const module = parts[0];
+      const moduleGroup = parts[0];
       
-      if (!grouped[module]) {
-        grouped[module] = {};
+      if (!grouped[moduleGroup]) {
+        grouped[moduleGroup] = {};
       }
       
-      grouped[module][key] = permisosData[key];
+      grouped[moduleGroup][key] = permisosData[key];
     });
     
     return grouped;

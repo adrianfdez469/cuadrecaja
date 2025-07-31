@@ -6,7 +6,7 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 // GET - Obtener un rol específico por ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request);
@@ -14,9 +14,11 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const { id } = await params;
+
     const rol = await prisma.rol.findUnique({
       where: {
-        id: params.id
+        id: id
       }
     });
 
@@ -42,7 +44,7 @@ export async function GET(
 // PUT - Actualizar un rol
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request);
@@ -54,13 +56,15 @@ export async function PUT(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    const { id } = await params;
+
     const body = await request.json();
     const { nombre, descripcion, permisos } = body;
 
     // Verificar que el rol existe y pertenece al negocio del usuario
     const existingRol = await prisma.rol.findUnique({
       where: {
-        id: params.id
+        id: id
       }
     });
 
@@ -93,7 +97,7 @@ export async function PUT(
 
     const rolActualizado = await prisma.rol.update({
       where: {
-        id: params.id
+        id: id
       },
       data: {
         ...(nombre && { nombre }),
@@ -115,7 +119,7 @@ export async function PUT(
 // DELETE - Eliminar un rol
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromRequest(request);
@@ -127,10 +131,12 @@ export async function DELETE(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    const { id } = await params;
+
     // Verificar que el rol existe y pertenece al negocio del usuario
     const existingRol = await prisma.rol.findUnique({
       where: {
-        id: params.id
+        id: id
       }
     });
 
@@ -147,7 +153,7 @@ export async function DELETE(
 
     await prisma.rol.delete({
       where: {
-        id: params.id
+        id: id
       }
     });
 

@@ -67,7 +67,6 @@ import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
-import { permission } from "process";
 import { usePermisos } from "@/utils/permisos_front";
 
 const CONFIGURATION_MENU_ITEMS = [

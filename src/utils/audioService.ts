@@ -9,6 +9,12 @@ class AudioService {
 
   private async initAudioContext() {
     try {
+      // Verificar si estamos en el navegador (no en el servidor)
+      if (typeof window === 'undefined') {
+        console.warn('Audio context no disponible: ejecutándose en servidor');
+        return;
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       await this.loadSounds();
@@ -30,7 +36,9 @@ class AudioService {
   }
 
   private async loadAudioFile(url: string): Promise<AudioBuffer> {
-    if (!this.audioContext) throw new Error('Audio context no disponible');
+    if (typeof window === 'undefined' || !this.audioContext) {
+      throw new Error('Audio context no disponible');
+    }
 
     const response = await fetch(url);
     const arrayBuffer = await response.arrayBuffer();
@@ -49,44 +57,38 @@ class AudioService {
 
   // Generar beep personalizado
   private playBeep(frequency: number, duration: number, type: OscillatorType = 'sine') {
-    if (!this.audioContext) {
-      console.warn('Audio context no disponible');
-      return;
-    }
+    // Verificar si estamos en el navegador y tenemos audio context
+    if (typeof window === 'undefined' || !this.audioContext) return;
 
     try {
-      // Crear oscilador
       const oscillator = this.audioContext.createOscillator();
       const gainNode = this.audioContext.createGain();
 
-      // Configurar oscilador
-      oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
-      oscillator.type = type;
-
-      // Configurar ganancia (volumen)
-      gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime); // Volumen al 30%
-      gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration / 1000);
-
-      // Conectar nodos
       oscillator.connect(gainNode);
       gainNode.connect(this.audioContext.destination);
 
-      // Reproducir sonido
-      oscillator.start(this.audioContext.currentTime);
-      oscillator.stop(this.audioContext.currentTime + duration / 1000);
+      oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+      oscillator.type = type;
 
-      // Limpiar recursos
-      oscillator.onended = () => {
-        oscillator.disconnect();
-        gainNode.disconnect();
-      };
+      // Configurar envelope (fade in/out)
+      const now = this.audioContext.currentTime;
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.3, now + 0.01); // Fade in
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration / 1000); // Fade out
+
+      oscillator.start(now);
+      oscillator.stop(now + duration / 1000);
+
     } catch (error) {
-      console.warn('Error al reproducir sonido:', error);
+      console.warn('Error reproduciendo sonido:', error);
     }
   }
 
   // Método para activar el audio context (necesario en algunos navegadores)
   async resumeAudioContext() {
+    // Verificar si estamos en el navegador
+    if (typeof window === 'undefined') return;
+    
     if (this.audioContext && this.audioContext.state === 'suspended') {
       await this.audioContext.resume();
     }
