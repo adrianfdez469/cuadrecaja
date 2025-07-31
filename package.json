@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma migrate resolve --rolled-back 20250727145951_add_rol_to_usuario_tienda && prisma generate && prisma migrate deploy"
+    "postinstall": "prisma generate && prisma migrate deploy"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
