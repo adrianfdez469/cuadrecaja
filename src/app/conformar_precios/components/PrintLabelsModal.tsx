@@ -40,7 +40,7 @@ import { useMessageContext } from "@/context/MessageContext";
 
 interface ProductoConCodigos {
   id: string;
-  nombre: string;
+  // nombre: string;
   precio: number;
   categoria?: {
     nombre: string;
@@ -98,15 +98,15 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
       const response = await fetch(`/api/productos_tienda/${tiendaId}/with-codes`);
       if (!response.ok) throw new Error("Error al cargar productos");
       const data = await response.json();
-      const data2 = (data as ProductoConCodigos[]).reduce((acum: ProductoConCodigos[], item) => {
-        const prodFind = acum.find(p => p.nombre === item.nombre && p.precio === item.precio);
-        if(prodFind) {
-          return acum;
-        } else {
-          return [...acum, item];
+      
+      const data2 = (data as ProductoConCodigos[])
+      .reduce((acum: ProductoConCodigos[], item) => {
+        const prod = acum.find(p => p.producto.nombre === item.producto.nombre && p.precio === item.precio);
+        if(!prod) {
+          acum.push(item);
         }
+        return acum;
       }, []);
-
       setProductos(data2);
     } catch (error) {
       console.error("Error al cargar productos:", error);

@@ -28,11 +28,19 @@ function HardwareQrScanner({
     }
   }, [keepFocus]);
 
-  function handleQRDataChange(event: React.ChangeEvent<HTMLInputElement>) {
+  
+  function handleInput(event: React.FormEvent<HTMLInputElement>) {
+    // Esta función captura la entrada de pistolas escáner
+    const target = event.target as HTMLInputElement;
+    const newValue = target.value;
+    
     if (typeof value === 'string' && onChange) {
-      onChange(event);
+      const syntheticEvent = {
+        target: { value: newValue }
+      } as React.ChangeEvent<HTMLInputElement>;
+      onChange(syntheticEvent);
     } else {
-      setInternalQrData(event.target.value);
+      setInternalQrData(newValue);
     }
   }
 
@@ -56,7 +64,7 @@ function HardwareQrScanner({
         if (inputRef.current && keepFocus) {
           inputRef.current.focus();
         }
-      }, 500);
+      }, 100);
     }
   }
 
@@ -64,13 +72,34 @@ function HardwareQrScanner({
     <TextField
       inputRef={inputRef}
       placeholder="Pistola de escaneo"
-      onChange={handleQRDataChange}
       value={typeof value === 'string' ? value : internalQrData}
       onKeyUp={handleKeyUp}
+      onInput={handleInput}
       variant="outlined"
       size="small"
       sx={style || { width: '100%' }}
       fullWidth={!!style?.width || !style}
+      // Configuración para evitar teclado virtual pero permitir pistolas escáner
+      inputMode="none" // Evita teclado virtual en móviles
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck={false}
+      InputProps={{
+        inputProps: {
+          inputMode: 'none', // Refuerza no mostrar teclado
+          autoComplete: 'off',
+          autoCorrect: 'off',
+          autoCapitalize: 'off',
+          spellCheck: false,
+          // Hacer que el campo sea menos "atractivo" para entrada manual
+          style: { 
+            caretColor: 'transparent', // Ocultar cursor
+            userSelect: 'none' // Prevenir selección de texto
+          },
+          'data-testid': 'hardware-scanner-input'
+        }
+      }}
       // Asegurar que el campo siempre esté enfocado solo si keepFocus es true
       onBlur={keepFocus ? () => {
         // Pequeño delay para evitar conflictos con otros eventos

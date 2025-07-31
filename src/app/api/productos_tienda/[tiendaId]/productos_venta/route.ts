@@ -18,6 +18,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
           }
         },
         proveedor: true
+      },
+      orderBy: {
+        producto: {
+          nombre: 'asc'
+        }
       }
     });
     

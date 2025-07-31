@@ -407,8 +407,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               color="inherit"
               aria-label="menu"
               onClick={() => setOpen(true)}
-              sx={{
-                mr: 2,
+              sx={{ 
+                mr: {xs: 0, sm: 2},
                 '&:hover': {
                   backgroundColor: 'rgba(25, 118, 210, 0.08)',
                 }
@@ -418,47 +418,57 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             </IconButton>
           )}
 
-          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{
+            flexGrow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            alignContent: 'center',
+            // gap: {xs: 0, sm: 2}
+          }}>
             <Typography
-              variant="h6"
-              component="h1"
-              sx={{
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                fontSize: { xs: '1.1rem', sm: '1.25rem' }
-              }}
+                variant="h6"
+                component="h1"
+                sx={{
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  fontSize: {xs: '1.1rem', sm: '1.25rem'}
+
+                }}
             >
               Cuadre de Caja
             </Typography>
 
             {user?.negocio?.nombre && (
-              <Chip
-                label={user?.negocio?.nombre}
-                size="small"
-                variant="outlined"
-                sx={{
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  fontWeight: 500,
-                  display: { xs: 'none', sm: 'flex' }
-                }}
-              />
+
+                <Chip
+                    label={user?.negocio?.nombre}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      borderColor: 'primary.main',
+                      color: 'primary.main',
+                      fontWeight: 500,
+                      display: 'flex'
+                    }}
+                />
             )}
           </Box>
 
           {isAuth && user ? (
-            <Box display="flex" alignItems="center" gap={1}>
+            <Box display="flex" flexDirection={'row'} alignItems="flex-end" gap={0}>
               {/* Info del usuario mejorada */}
               <Box
                 display="flex"
                 flexDirection="column"
                 alignItems="end"
-                sx={{
-                  mr: 1,
-                  display: { xs: 'none', md: 'flex' }
+                sx={{ 
+                  mr: {xs: 0, sm: 0},
+                  display: 'flex'
                 }}
               >
                 <Typography variant="body2" fontWeight={600} color="text.primary">
@@ -470,13 +480,13 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               </Box>
 
               <IconButton
-                size="large"
+                // size="large"
                 aria-label="cuenta del usuario actual"
                 aria-controls="menu-appbar"
                 aria-haspopup="true"
                 onClick={handleMenu}
                 sx={{
-                  border: '2px solid transparent',
+                  // border: '2px solid transparent',
                   '&:hover': {
                     borderColor: 'primary.main',
                     backgroundColor: 'rgba(25, 118, 210, 0.08)',

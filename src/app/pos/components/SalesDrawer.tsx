@@ -169,8 +169,6 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
       async () => {
         try {
           setDisableAll(true);
-          console.log(sale);
-
           if (sale.synced) {
             // eliminar de las ventas en backend
             const tiendaId = user.localActual.id;

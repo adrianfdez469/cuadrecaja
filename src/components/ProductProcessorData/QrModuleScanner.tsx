@@ -35,7 +35,7 @@ const QrModuleScanner = forwardRef<QrModuleScannerRef, QrModuleScannerProps>(
       >
         <MobileQrScanner ref={mobileScannerRef} qrCodeSuccessCallback={onScan} />
         <HardwareQrScanner 
-          qrCodeSuccessCallback={onHardwareScan || onScan}
+          qrCodeSuccessCallback={onHardwareScan ? onHardwareScan : () => {}}
           keepFocus={keepFocus}
         />
       </Box>

@@ -16,8 +16,6 @@ interface IProps {
 }
 
 const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDestinations }) => {
-  console.log(transferDestinations);
-  
   const [cashReceived, setCashReceived] = useState(0);
   const [transferReceived, setTransferReceived] = useState(0);
   const { showMessage } = useMessageContext();
