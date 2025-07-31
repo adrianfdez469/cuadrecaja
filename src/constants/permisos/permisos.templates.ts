@@ -1,4 +1,4 @@
-const permisosTemplates = {
+export const permisosTemplates = {
     "vendedor": [
         "operaciones.pos-venta.acceder",
         "operaciones.pos-venta.cancelarventa",

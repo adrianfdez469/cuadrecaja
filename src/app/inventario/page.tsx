@@ -25,7 +25,6 @@ import {
   CardContent,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import DownloadIcon from "@mui/icons-material/Download";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
