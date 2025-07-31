@@ -1,7 +1,10 @@
 "use client";
 
-import {PropsWithChildren, useEffect, useRef, useState} from "react";
+import { PropsWithChildren, useEffect, useRef, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   AppBar,
   Box,
   Button,
@@ -33,97 +36,113 @@ import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
 import StoreIcon from "@mui/icons-material/Store";
 import CategoryIcon from "@mui/icons-material/Category";
 import ChangeHistoryIcon from "@mui/icons-material/ChangeHistory";
-import {useAppContext} from "@/context/AppContext";
+import { useAppContext } from "@/context/AppContext";
 import {
   AccountBalanceWallet,
   AccountCircle,
   CardGiftcardOutlined,
+  ExpandMore,
   GridView,
   Handshake,
   Inventory,
   LocalShipping,
   PointOfSale,
   Receipt,
+  Security,
   Summarize,
   SwapVert
 } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
-import {cambiarLocal, cambiarNegocio, getLocalesDisponibles} from "@/services/authService";
-import {signOut, useSession} from "next-auth/react";
-import {useMessageContext} from "@/context/MessageContext";
-import {getNegocios} from "@/services/negocioServce";
-import {INegocio} from "@/types/INegocio";
+import { cambiarLocal, cambiarNegocio, getLocalesDisponibles } from "@/services/authService";
+import { signOut, useSession } from "next-auth/react";
+import { useMessageContext } from "@/context/MessageContext";
+import { getNegocios } from "@/services/negocioServce";
+import { INegocio } from "@/types/INegocio";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChangeCircleIcon from '@mui/icons-material/ChangeCircleOutlined';
 import NextWeekIcon from '@mui/icons-material/NextWeekOutlined';
-import {useNetworkStatus} from '@/hooks/useNetworkStatus';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
-import {TipoLocal} from "@/types/ILocal";
-import {excludeOnWarehouse} from "@/utils/excludeOnWarehouse";
+import { TipoLocal } from "@/types/ILocal";
+import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
+import { usePermisos } from "@/utils/permisos_front";
 
-const configurationMenuItems = [
+const CONFIGURATION_MENU_ITEMS = [
   {
     label: "Negocios",
     path: "/configuracion/negocios",
     icon: BusinessCenterIcon,
+    permission: '-'
   },
   {
     label: "Usuarios",
     path: "/configuracion/usuarios",
     icon: SupervisedUserCircleIcon,
+    permission: 'configuracion.usuarios'
   },
-  { label: "Locales", path: "/configuracion/locales", icon: StoreIcon },
+  {
+    label: "Roles",
+    path: "/configuracion/roles",
+    icon: Security,
+    permission: 'configuracion.roles.acceder'
+  },
+  {
+    label: "Locales",
+    path: "/configuracion/locales",
+    icon: StoreIcon,
+    permission: 'configuracion.locales.acceder'
+  },
   {
     label: "Categorías",
     path: "/configuracion/categorias",
     icon: CategoryIcon,
+    permission: 'configuracion.categorias.acceder'
   },
   {
     label: "Productos",
     path: "/configuracion/productos",
     icon: ChangeHistoryIcon,
+    permission: 'configuracion.productos.acceder'
   },
   {
     label: "Proveedores",
     path: "/configuracion/proveedores",
     icon: LocalShipping,
+    permission: 'configuracion.proveedores.acceder'
   },
   {
     label: "Destinos de Transferencia",
     path: "/configuracion/destinos-transferencia",
-    icon: CardGiftcardOutlined
+    icon: CardGiftcardOutlined,
+    permission: 'configuracion.destinostransferencia.acceder'
   },
   {
     label: "Planes y Suscripción",
     path: "/configuracion/planes",
     icon: UpgradeIcon,
+    permission: '*'
   },
 ];
 
-const mainMenuItems = [
-  // { label: "Dashboard", path: "/dashboard", icon: <Analytics /> },
-  { label: "Dashboard", path: "/dashboard-resumen", icon: <Summarize /> },
-  { label: "POS", path: "/pos", icon: <PointOfSale /> },
-  { label: "Ventas", path: "/ventas", icon: <Receipt /> },
-  { label: "Conformar Precios", path: "/conformar_precios", icon: <GridView /> },
-  { label: "Inventario", path: "/inventario", icon: <Inventory /> },
-  { label: "Movimientos", path: "/movimientos", icon: <SwapVert /> },
-  { label: "Proveedores Consignación", path: "/proveedores", icon: <Handshake /> },
-  { label: "Cierre", path: "/cierre", icon: <AccountBalanceWallet /> },
-  { label: "Resumen Cierres", path: "/resumen_cierre", icon: <Summarize /> },
-  { label: "Análisis de CPP", path: "/cpp-analysis", icon: <Summarize /> },
+const MAIN_MENU_ITEMS = [
+  { label: "POS", path: "/pos", icon: PointOfSale, permission: 'operaciones.pos-venta.acceder' },
+  { label: "Ventas", path: "/ventas", icon: Receipt, permission: 'operaciones.ventas.acceder' },
+  { label: "Conformar Precios", path: "/conformar_precios", icon: GridView, permission: 'operaciones.conformarprecios.acceder' },
+  { label: "Movimientos", path: "/movimientos", icon: SwapVert, permission: 'operaciones.movimientos.acceder' },
+  { label: "Cierre", path: "/cierre", icon: AccountBalanceWallet, permission: 'operaciones.cierre.acceder' },
 ];
 
-const getMainMenuItemsByLocalType = (localType: string) => {
-  return mainMenuItems.filter(item => {
-    if(localType === TipoLocal.ALMACEN) {
-      return !excludeOnWarehouse.includes(item.path);
-    }
-    return true;
-  })
-}
+const RESUMEN_MENU_ITEMS = [
+  { label: "Dashboard", path: "/dashboard-resumen", icon: Summarize, permission: 'recuperaciones.dashboard.acceder' },
+  { label: "Inventario", path: "/inventario", icon: Inventory, permission: 'recuperaciones.inventario.acceder' },
+  { label: "Resumen Cierres", path: "/resumen_cierre", icon: Summarize, permission: 'recuperaciones.resumencierres.acceder' },
+  { label: "Análisis de CPP", path: "/cpp-analysis", icon: Summarize, permission: 'recuperaciones.analisiscpp.acceder' },
+  { label: "Proveedores Consignación", path: "/proveedores", icon: Handshake, permission: 'recuperaciones.proveedoresconsignación.acceder' },
+];
+
+
 
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [open, setOpen] = useState(false);
@@ -142,6 +161,30 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [loadingLocales, setLoadingLocales] = useState(false);
   const [totalLocalesDisponibles, setTotalLocalesDisponibles] = useState(0);
   const { isOnline, wasOffline } = useNetworkStatus();
+  const [menuState, setMenuState] = useState<{ operaciones: boolean, resumenes: boolean, configuracion: boolean }>({
+    operaciones: true,
+    resumenes: false,
+    configuracion: false
+  });
+  const { verificarPermiso } = usePermisos()
+
+  const getMainMenuItemsByLocalType = (localType: string, type: string, user: { rol: string, permisos: string }) => {
+    let items = [];
+    if (type === "resumen") {
+      items = RESUMEN_MENU_ITEMS;
+    } else {
+      items = MAIN_MENU_ITEMS;
+    }
+    return items.filter(item => {
+      if (localType === TipoLocal.ALMACEN) {
+        return !excludeOnWarehouse.includes(item.path);
+      }
+      return true;
+    }).filter(item => {
+      if (user.rol === 'SUPER_ADMIN') return true;
+      return verificarPermiso(item.permission)
+    })
+  }
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -208,7 +251,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     setCambiandoNegocio(true);
     setNegocioRecienCambiado(true);
     selectorLocalAbiertoRef.current = false; // Reset del ref
-    
+
     const resp = await cambiarNegocio(selectedNegocio);
     if (resp.status === 201) {
       await update({
@@ -216,15 +259,15 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         localActual: null, // Limpiar local actual al cambiar negocio
       });
       showMessage("El negocio fue actualizado satisfactoriamente", "success");
-      
+
       // Cargar las nuevas local disponibles y abrir selector
       try {
         const locales = await getLocalesDisponibles();
         setLocalesDisponibles(locales);
         setTotalLocalesDisponibles(locales.length);
-        
+
         console.log("🏪 Locales disponibles:", locales.length);
-        
+
         // Solo abrir selector si hay locales disponibles
         if (locales.length > 0) {
           console.log("⏰ Programando apertura del selector en 300ms");
@@ -239,7 +282,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           showMessage("Este negocio no tiene locales disponibles", "warning");
           setNegocioRecienCambiado(false);
         }
-        
+
         // Resetear el flag después de un tiempo más largo solo si hay locales
         if (locales.length > 0) {
           setTimeout(() => {
@@ -257,7 +300,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       setNegocioRecienCambiado(false);
     }
     handleCloseCambiarNegocio();
-    
+
     // Usar setTimeout para asegurar que el estado se actualice después del render
     setTimeout(() => {
       setCambiandoNegocio(false);
@@ -277,6 +320,22 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     }
   };
 
+  const handleMenuAccordion = (type: string) => {
+    if (menuState[type] === false) {
+      setMenuState({
+        configuracion: false,
+        operaciones: false,
+        resumenes: false,
+        [type]: true
+      });
+    } else {
+      setMenuState({
+        ...menuState,
+        [type]: !menuState[type]
+      });
+    }
+  }
+
   // Cargar el conteo de locales al montar el componente
   useEffect(() => {
     if (isAuth && user && totalLocalesDisponibles === 0) {
@@ -295,13 +354,13 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       cambiandoNegocio,
       selectorAbierto: selectorLocalAbiertoRef.current
     });
-    
+
     // SOLO ejecutar si NO acabamos de cambiar de negocio
     if (negocioRecienCambiado) {
       console.log("⏹️ Saliendo temprano - negocio recién cambiado");
       return; // Salir temprano si acabamos de cambiar negocio
     }
-    
+
     // No mostrar selector automáticamente si estamos cambiando de negocio, ya está abierto, ya se abrió antes
     if (isAuth && user && !user.localActual && totalLocalesDisponibles >= 1 && !openSelectLocal && !cambiandoNegocio && !selectorLocalAbiertoRef.current) {
       console.log("🚀 Abriendo selector de local desde useEffect");
@@ -315,7 +374,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     if (session?.user.expiresAt && new Date() > new Date(session.user.expiresAt)) {
       signOut();
     }
-    
+
     // Verificar si hay conexión antes de redirigir al login
     // Esto evita que la app se recargue cuando está funcionando offline
     // Solo redirigir si:
@@ -330,10 +389,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       {/* Barra superior mejorada */}
-      <AppBar 
-        position="static" 
+      <AppBar
+        position="static"
         elevation={0}
-        sx={{ 
+        sx={{
           backgroundColor: '#ffffff',
           color: '#1a202c',
           borderBottom: '1px solid #e2e8f0',
@@ -384,6 +443,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             </Typography>
 
             {user?.negocio?.nombre && (
+
                 <Chip
                     label={user?.negocio?.nombre}
                     size="small"
@@ -434,7 +494,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               >
                 <AccountCircle sx={{ color: 'primary.main', fontSize: 32 }} />
               </IconButton>
-              
+
               {/* Menú de usuario mejorado */}
               <Menu
                 id="menu-appbar"
@@ -470,7 +530,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   }
                 }}
               >
-              
+
                 {user.rol === "SUPER_ADMIN" && (
                   <MenuItem onClick={() => handleCambiarNegocio()}>
                     <NextWeekIcon sx={{ mr: 2, color: 'primary.main' }} />
@@ -480,7 +540,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   </MenuItem>
                 )}
                 {(user.rol === "SUPER_ADMIN" || totalLocalesDisponibles > 1 || (totalLocalesDisponibles >= 1 && !user?.localActual)) && (
-                [
+                  [
                     <MenuItem key="cambiar-local" onClick={() => handleCambiarLocal()}>
                       <ChangeCircleIcon sx={{ mr: 2, color: 'info.main' }} />
                       <Typography variant="body2" fontWeight={500}>
@@ -488,7 +548,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                       </Typography>
                     </MenuItem>,
                     <Divider key="divider-local" sx={{ my: 1 }} />
-                 ] 
+                  ]
                 )}
                 <MenuItem onClick={handleLogout}>
                   <LogoutIcon sx={{ mr: 2, color: 'error.main' }} />
@@ -496,12 +556,12 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     Cerrar sesión
                   </Typography>
                 </MenuItem>
-              
+
               </Menu>
             </Box>
           ) : (
-            <Button 
-              color="inherit" 
+            <Button
+              color="inherit"
               onClick={goToLogin}
               variant="outlined"
               sx={{
@@ -523,11 +583,11 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         <>
           {/* Banner de estado offline */}
           <OfflineBanner />
-          
+
           {/* Menú lateral mejorado */}
-          <Drawer 
-            anchor="left" 
-            open={open} 
+          <Drawer
+            anchor="left"
+            open={open}
             onClose={() => setOpen(false)}
             PaperProps={{
               sx: {
@@ -541,110 +601,171 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             <Box
               sx={{ width: 280 }}
               role="presentation"
-              onClick={() => setOpen(false)}
             >
               {/* Header del menú */}
-              <Box sx={{ p: 3, borderBottom: '1px solid #e2e8f0' }}>
+              <Box sx={{ p: 2, borderBottom: '1px solid #e2e8f0' }}>
                 <Typography variant="h6" fontWeight={700} color="primary.main">
-                  Configuración
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Gestión del sistema
+                  Menú
                 </Typography>
               </Box>
 
-              <List sx={{ pt: 2 }}>
-                {configurationMenuItems
-                  .filter((item) => {
-                    // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
-                    if (item.label === "Negocios") {
-                      return user?.rol === "SUPER_ADMIN";
-                    }
-                    return true;
-                  })
-                  .map((item) => (
-                  <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
-                    <ListItemButton 
-                      onClick={() => gotToPath(item.path)}
-                      sx={{
-                        borderRadius: 2,
-                        py: 1.5,
-                        '&:hover': {
-                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                        }
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 40 }}>
-                        <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary={item.label}
-                        primaryTypographyProps={{
-                          fontWeight: 500,
-                          fontSize: '0.875rem'
-                        }}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                ))}
-              </List>
-              
-              <Divider sx={{ mx: 2, my: 2 }} />
-              
-              {/* Operaciones principales */}
-              <Box sx={{ px: 3, pb: 2 }}>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                  Operaciones
-                </Typography>
-              </Box>
-              
-              {user?.localActual && (
-              <List sx={{ pt: 0 }}>
-                {getMainMenuItemsByLocalType(user.localActual.tipo).map((item) => (
-                  <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
-                    <ListItemButton 
-                      onClick={() => gotToPath(item.path)}
-                      sx={{
-                        borderRadius: 2,
-                        py: 1.5,
-                        '&:hover': {
-                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                        }
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 40 }}>
-                        {item.icon}
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary={item.label}
-                        primaryTypographyProps={{
-                          fontWeight: 500,
-                          fontSize: '0.875rem'
-                        }}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                ))}
-              </List>
-              )}
+              {user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'operaciones', user).length > 0 &&
+                <Accordion expanded={menuState.operaciones} onChange={() => handleMenuAccordion('operaciones')}>
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      Operaciones
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    {user?.localActual && (
+                      <List sx={{ pt: 0 }}>
+                        {getMainMenuItemsByLocalType(user.localActual.tipo, 'operaciones', user).map((item) => (
+                          <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                            <ListItemButton
+                              onClick={() => {
+                                gotToPath(item.path);
+                                setOpen(false);
+                              }}
+                              sx={{
+                                borderRadius: 2,
+                                py: 1.5,
+                                '&:hover': {
+                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                }
+                              }}
+                            >
+                              <ListItemIcon sx={{ minWidth: 40 }} color="primary">
+                                <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={item.label}
+                                primaryTypographyProps={{
+                                  fontWeight: 500,
+                                  fontSize: '0.875rem'
+                                }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+              }
+
+              { user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).length > 0 &&
+                <Accordion expanded={menuState.resumenes} onChange={() => handleMenuAccordion('resumenes')}>
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      Resumenes
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    {user?.localActual && (
+                      <List sx={{ pt: 0 }}>
+                        {getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).map((item) => (
+                          <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                            <ListItemButton
+                              onClick={() => {
+                                gotToPath(item.path);
+                                setOpen(false);
+                              }}
+                              sx={{
+                                borderRadius: 2,
+                                py: 1.5,
+                                '&:hover': {
+                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                }
+                              }}
+                            >
+                              <ListItemIcon sx={{ minWidth: 40 }} color="primary">
+                                <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={item.label}
+                                primaryTypographyProps={{
+                                  fontWeight: 500,
+                                  fontSize: '0.875rem'
+                                }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+              }
+
+              {CONFIGURATION_MENU_ITEMS
+                .filter((item) => {
+                  // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
+                  if (user.rol === 'SUPER_ADMIN') return true;
+                  // return user.permisos.includes(item.permission) || item.permission === '*';
+                  return verificarPermiso(item.permission);
+                }).length > 0 &&
+                <Accordion expanded={menuState.configuracion} onChange={() => handleMenuAccordion('configuracion')}>
+                  <AccordionSummary expandIcon={<ExpandMore />}>Configuración</AccordionSummary>
+                  <AccordionDetails>
+                    <List sx={{ pt: 2 }}>
+                      {CONFIGURATION_MENU_ITEMS
+                        .filter((item) => {
+                          // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
+                          if (user.rol === 'SUPER_ADMIN') return true;
+                          // return user.permisos.includes(item.permission) || item.permission === '*';
+                          return verificarPermiso(item.permission);
+                        })
+                        .map((item) => (
+                          <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                            <ListItemButton
+                              onClick={() => {
+                                gotToPath(item.path);
+                                setOpen(false);
+                              }}
+                              sx={{
+                                borderRadius: 2,
+                                py: 1.5,
+                                '&:hover': {
+                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                }
+                              }}
+                            >
+                              <ListItemIcon sx={{ minWidth: 40 }}>
+                                <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={item.label}
+                                primaryTypographyProps={{
+                                  fontWeight: 500,
+                                  fontSize: '0.875rem'
+                                }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
+                    </List>
+                  </AccordionDetails>
+                </Accordion>
+              }
+
             </Box>
           </Drawer>
         </>
       )}
 
       {/* Contenido dinámico mejorado */}
-      <Box 
-        component="main" 
-        sx={{ 
-          flexGrow: 1, 
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
           backgroundColor: '#f8fafc',
           minHeight: 'calc(100vh - 64px)',
           p: { xs: 0, sm: 0.5, md: 0.5 },
         }}
       >
-        <Container 
-          maxWidth="xl" 
-          sx={{ 
+        <Container
+          maxWidth="xl"
+          sx={{
             py: 0,
             px: { xs: 0.5, sm: 1, md: 1 }
           }}
@@ -670,7 +791,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             {!user?.localActual ? 'Seleccionar local' : 'Cambiar local'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {!user?.localActual 
+            {!user?.localActual
               ? 'Necesitas seleccionar un local para comenzar a trabajar'
               : 'Selecciona el local donde deseas trabajar'
             }

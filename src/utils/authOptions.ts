@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
 import { JWT } from "next-auth/jwt";
 import dayjs from 'dayjs';
+import { getPermisosUsuario } from "./getPermisosUsuario";
 
 export const authOptions:NextAuthOptions  = {
   session: {
@@ -63,6 +64,9 @@ export const authOptions:NextAuthOptions  = {
           }));
         }
 
+        // Obtener permisos basados en la tienda actual
+        const permisos = await getPermisosUsuario(user.id, user.localActual?.id || null);
+
         return {
           id: user.id,
           usuario: user.usuario,
@@ -72,9 +76,10 @@ export const authOptions:NextAuthOptions  = {
           // tiendas: tiendasDisponibles,
           locales: localesDisponibles,
           // tiendaActual: user.tiendaActual
-          localActual: user.localActual
+          localActual: user.localActual,
+          permisos: permisos
         };
-      },
+      }
     }),
   ],
   callbacks: {
@@ -97,6 +102,7 @@ export const authOptions:NextAuthOptions  = {
           // token.tiendas = user.tiendas;
           token.localActual = user.localActual;
           token.locales = user.locales;
+          token.permisos = user.permisos;
           
         } else {
           token.id = null;
@@ -109,6 +115,7 @@ export const authOptions:NextAuthOptions  = {
             // token.tiendas = null;
             token.localActual = null;
             token.locales = null;
+            token.permisos = null;
             return token;
         }
       }
@@ -119,6 +126,12 @@ export const authOptions:NextAuthOptions  = {
       // }
       if (trigger === "update" && session?.localActual) {
         token.localActual = session.localActual;
+        
+        // Actualizar permisos cuando cambia la tienda actual
+        if (token.id && session.localActual?.id) {
+          const nuevosPermisos = await getPermisosUsuario(token.id as string, session.localActual.id);
+          token.permisos = nuevosPermisos;
+        }
       }
       if (trigger === "update" && session?.negocio) {
         console.log('cambiando negocio');
@@ -126,6 +139,7 @@ export const authOptions:NextAuthOptions  = {
         token.negocio = session.negocio;
         // token.tiendaActual = null;
         token.localActual = null;
+        token.permisos = ""; // Limpiar permisos al cambiar de negocio
 
       }
 
@@ -145,9 +159,10 @@ export const authOptions:NextAuthOptions  = {
         session.user.locales = token.locales;
         session.user.localActual = token.localActual;
         session.user.expiresAt = token.expCustom; // puedes usar esto en el frontend
+        session.user.permisos = token.permisos; // Agregar permisos a la sesión
       }
       return session;
-    },
+    }
   },
   pages: {
     signIn: "/login",

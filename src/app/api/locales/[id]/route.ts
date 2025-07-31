@@ -89,36 +89,54 @@ export async function PUT(
       );
     }
 
-    const { nombre, tipo, idusuarios } = await req.json();
+    const { nombre, tipo, usuariosRoles } = await req.json();
+    console.log('Actualizando con usuariosRoles:', usuariosRoles);
 
     const updatedTienda = await prisma.tienda.update({
       where: { id },
       data: {
         nombre,
-        tipo: tipo || "TIENDA", // Usar el tipo enviado o valor por defecto
+        tipo: tipo || "TIENDA",
         usuarios: {
-          // Primero desconectamos todos los usuarios existentes
+          // Primero eliminamos todas las relaciones existentes
           deleteMany: {},
-          // Luego conectamos los nuevos usuarios
-          create: idusuarios.map((usuarioId: string) => ({
-            usuario: { connect: { id: usuarioId } },
+          // Luego creamos las nuevas relaciones con roles
+          create: usuariosRoles.map((item: { usuarioId: string, rolId?: string }) => ({
+            usuario: { connect: { id: item.usuarioId } },
+            ...(item.rolId && { rol: { connect: { id: item.rolId } } })
           })),
         },
       },
       include: {
         usuarios: {
           include: {
-            usuario: true,
-          },
+            usuario: {
+              select: {
+                id: true,
+                nombre: true,
+                usuario: true,
+                rol: true
+              }
+            },
+            rol: {
+              select: {
+                id: true,
+                nombre: true,
+                descripcion: true
+              }
+            }
+          }
         },
       },
     });
 
-    // Formatear la respuesta
+    // Formatear la respuesta manteniendo compatibilidad
     const tiendaFormateada = {
       ...updatedTienda,
-      usuarios: updatedTienda.usuarios.map((u) => u.usuario),
+      usuarios: updatedTienda.usuarios.map((u) => u.usuario), // Compatibilidad
+      usuariosTiendas: updatedTienda.usuarios // Nueva estructura con roles
     };
+    
     return NextResponse.json(tiendaFormateada, { status: 201 });
   } catch (error) {
     console.log(error);

@@ -32,7 +32,8 @@ import {
   FormControl,
   InputLabel,
   Collapse,
-  Alert
+  Alert,
+  Paper,
 } from "@mui/material";
 import { 
   Delete, 
@@ -46,7 +47,10 @@ import {
   Refresh,
   ExpandMore,
   ExpandLess,
-  Warehouse
+  Warehouse,
+  Security,
+  PersonAdd,
+  Close
 } from "@mui/icons-material";
 import axios from "axios";
 import { PageContainer } from "@/components/PageContainer";
@@ -55,16 +59,24 @@ import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import LimitDialog from "@/components/LimitDialog";
 import { ILocal, TipoLocal } from "@/types/ILocal";
+import { IRol } from "@/types/IRol";
 import { getLocales } from "@/services/localesService";
+import { getRoles } from "@/services/rolService";
+
+interface IUsuarioRol {
+  usuarioId: string;
+  rolId?: string;
+}
 
 export default function Locales() {
   const [locales, setLocales] = useState<ILocal[]>([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [roles, setRoles] = useState<IRol[]>([]);
   const [open, setOpen] = useState(false);
   const [selectedLocal, setSelectedLocal] = useState(null);
   const [nombre, setNombre] = useState("");
   const [tipo, setTipo] = useState<string>(TipoLocal.TIENDA);
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [usuariosRoles, setUsuariosRoles] = useState<IUsuarioRol[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -79,6 +91,7 @@ export default function Locales() {
   useEffect(() => {
     fetchLocales();
     fetchUsuarios();
+    fetchRoles();
   }, []);
 
   const fetchLocales = async () => {
@@ -104,6 +117,16 @@ export default function Locales() {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      const response = await getRoles();
+      setRoles(response);
+    } catch (error) {
+      console.error("Error al cargar roles:", error);
+      showMessage("Error al cargar los roles", "error");
+    }
+  };
+
   const handleSave = async () => {
     if (!nombre.trim()) {
       showMessage("El nombre del local es obligatorio", "warning");
@@ -116,14 +139,14 @@ export default function Locales() {
         await axios.put(`/api/locales/${selectedLocal.id}`, {
           nombre,
           tipo,
-          idusuarios: selectedUsers,
+          usuariosRoles: usuariosRoles
         });
         showMessage("Local actualizado exitosamente", "success");
       } else {
         await axios.post("/api/locales", {
           nombre,
           tipo,
-          idusuarios: selectedUsers,
+          usuariosRoles: usuariosRoles
         });
         showMessage("Local creado exitosamente", "success");
       }
@@ -171,7 +194,18 @@ export default function Locales() {
     setSelectedLocal(local);
     setNombre(local.nombre);
     setTipo(local.tipo || TipoLocal.TIENDA);
-    setSelectedUsers(local.usuarios.map((u) => u.id));
+    
+    // Usar usuariosTiendas si está disponible, sino usar usuarios para compatibilidad
+    if (local.usuariosTiendas) {
+      setUsuariosRoles(local.usuariosTiendas.map(ut => ({ 
+        usuarioId: ut.usuario.id, 
+        rolId: ut.rol?.id 
+      })));
+    } else {
+      // Fallback para compatibilidad con datos antiguos
+      setUsuariosRoles(local.usuarios.map(u => ({ usuarioId: u.id, rolId: undefined })));
+    }
+    
     setOpen(true);
   };
 
@@ -179,7 +213,7 @@ export default function Locales() {
     setSelectedLocal(null);
     setNombre("");
     setTipo(TipoLocal.TIENDA);
-    setSelectedUsers([]);
+    setUsuariosRoles([]);
   };
 
   const handleClose = () => {
@@ -439,14 +473,27 @@ export default function Locales() {
                       </Box>
                       
                       <Box display="flex" flexWrap="wrap" gap={0.5}>
-                        {local.usuarios.length > 0 ? (
+                        {local.usuariosTiendas && local.usuariosTiendas.length > 0 ? (
+                          local.usuariosTiendas.map((usuarioTienda) => (
+                            <Chip 
+                              key={usuarioTienda.usuario.id}
+                              label={`${usuarioTienda.usuario.nombre}${usuarioTienda.rol ? ` (${usuarioTienda.rol.nombre})` : ''}`}
+                              size="small"
+                              variant="outlined"
+                              icon={usuarioTienda.rol ? <Security fontSize="small" /> : <Person fontSize="small" />}
+                              sx={{ fontSize: '0.6875rem', height: 24 }}
+                            />
+                          ))
+                        ) : local.usuarios && local.usuarios.length > 0 ? (
+                          // Fallback para compatibilidad
                           local.usuarios.map((user) => (
                             <Chip 
                               key={user.id}
                               label={user.nombre}
                               size="small"
                               variant="outlined"
-                              sx={{ fontSize: '0.6875rem', height: 20 }}
+                              icon={<Person fontSize="small" />}
+                              sx={{ fontSize: '0.6875rem', height: 24 }}
                             />
                           ))
                         ) : (
@@ -504,13 +551,25 @@ export default function Locales() {
                     </TableCell>
                     <TableCell>
                       <Box display="flex" flexWrap="wrap" gap={0.5}>
-                        {local.usuarios.length > 0 ? (
+                        {local.usuariosTiendas && local.usuariosTiendas.length > 0 ? (
+                          local.usuariosTiendas.map((usuarioTienda) => (
+                            <Chip 
+                              key={usuarioTienda.usuario.id}
+                              label={`${usuarioTienda.usuario.nombre}${usuarioTienda.rol ? ` (${usuarioTienda.rol.nombre})` : ''}`}
+                              size="small"
+                              variant="outlined"
+                              icon={usuarioTienda.rol ? <Security fontSize="small" /> : <Person fontSize="small" />}
+                            />
+                          ))
+                        ) : local.usuarios && local.usuarios.length > 0 ? (
+                          // Fallback para compatibilidad
                           local.usuarios.map((user) => (
                             <Chip 
                               key={user.id}
                               label={user.nombre}
                               size="small"
                               variant="outlined"
+                              icon={<Person fontSize="small" />}
                             />
                           ))
                         ) : (
@@ -594,32 +653,121 @@ export default function Locales() {
             </FormControl>
 
             <FormControl fullWidth disabled={saving}>
-              <InputLabel>Usuarios asignados</InputLabel>
-              <Select
-                multiple
-                value={selectedUsers}
-                onChange={(e) => setSelectedUsers(e.target.value as string[])}
-                renderValue={(selected) => (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {selected.map((userId) => {
-                      const usuario = usuarios.find(u => u.id === userId);
-                      return usuario ? (
-                        <Chip key={userId} label={usuario.nombre} size="small" />
-                      ) : null;
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                Usuarios y Roles Asignados
+              </Typography>
+              
+              {/* Lista de usuarios asignados con roles */}
+              {usuariosRoles.length > 0 && (
+                <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                  <Stack spacing={1}>
+                    {usuariosRoles.map((usuarioRol, index) => {
+                      const usuario = usuarios.find(u => u.id === usuarioRol.usuarioId);
+                      // const rol = roles.find(r => r.id === usuarioRol.rolId);
+                      
+                      if (!usuario) return null;
+                      
+                      return (
+                        <Box 
+                          key={usuario.id} 
+                          display="flex" 
+                          alignItems="center" 
+                          gap={2}
+                          sx={{ 
+                            p: 1, 
+                            border: '1px solid', 
+                            borderColor: 'divider', 
+                            borderRadius: 1,
+                            bgcolor: 'background.paper'
+                          }}
+                        >
+                          <Person fontSize="small" color="primary" />
+                          
+                          <Box flex={1}>
+                            <Typography variant="body2" fontWeight="medium">
+                              {usuario.nombre}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {usuario.usuario}
+                            </Typography>
+                          </Box>
+                          
+                          <FormControl size="small" sx={{ minWidth: 150 }}>
+                            <InputLabel>Rol</InputLabel>
+                            <Select
+                              value={usuarioRol.rolId || ''}
+                              onChange={(e) => {
+                                const newUsuariosRoles = [...usuariosRoles];
+                                newUsuariosRoles[index].rolId = e.target.value || undefined;
+                                setUsuariosRoles(newUsuariosRoles);
+                              }}
+                              label="Rol"
+                            >
+                              <MenuItem value="">
+                                <em>Sin rol específico</em>
+                              </MenuItem>
+                              {roles.map((rol) => (
+                                <MenuItem key={rol.id} value={rol.id}>
+                                  <Box display="flex" alignItems="center" gap={1}>
+                                    <Security fontSize="small" />
+                                    {rol.nombre}
+                                  </Box>
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          
+                          <Tooltip title="Remover usuario">
+                            <IconButton 
+                              size="small" 
+                              color="error"
+                              onClick={() => {
+                                setUsuariosRoles(usuariosRoles.filter((_, i) => i !== index));
+                              }}
+                            >
+                              <Close fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      );
                     })}
-                  </Box>
-                )}
-                label="Usuarios asignados"
-              >
-                {usuarios.map((user) => (
-                  <MenuItem key={user.id} value={user.id}>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Person fontSize="small" />
-                      {user.nombre} ({user.rol})
-                    </Box>
+                  </Stack>
+                </Paper>
+              )}
+              
+              {/* Selector para agregar nuevos usuarios */}
+              <FormControl fullWidth>
+                <Select
+                  value=""
+                  onChange={(e) => {
+                    const userId = e.target.value as string;
+                    if (userId && !usuariosRoles.some(ur => ur.usuarioId === userId)) {
+                      setUsuariosRoles([...usuariosRoles, { usuarioId: userId, rolId: undefined }]);
+                    }
+                  }}
+                  displayEmpty
+                >
+                  <MenuItem value="">
+                    <em>Seleccionar usuario para agregar...</em>
                   </MenuItem>
-                ))}
-              </Select>
+                  {usuarios
+                    .filter(u => !usuariosRoles.some(ur => ur.usuarioId === u.id))
+                    .map((user) => (
+                      <MenuItem key={user.id} value={user.id}>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <PersonAdd fontSize="small" />
+                          {user.nombre} ({user.rol})
+                        </Box>
+                      </MenuItem>
+                    ))}
+                </Select>
+              </FormControl>
+              
+              {usuariosRoles.length === 0 && (
+                <Alert severity="info" sx={{ mt: 1 }}>
+                  No hay usuarios asignados a este local. Agregue al menos un usuario.
+                </Alert>
+              )}
             </FormControl>
           </Stack>
         </DialogContent>

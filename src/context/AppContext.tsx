@@ -17,6 +17,7 @@ interface ISessionUser {
   localActual: ILocal;
   locales: ILocal[];
   negocio: INegocio;
+  permisos: string;
 }
 
 const AppContext = createContext<{

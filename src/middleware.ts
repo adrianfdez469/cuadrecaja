@@ -25,6 +25,7 @@ export async function middleware(req: NextRequest) {
       if (token.negocio) requestHeaders.set('x-user-negocio', encodeForHeader(token.negocio));
       if (token.localActual) requestHeaders.set('x-user-localActual', encodeForHeader(token.localActual));
       if (token.locales) requestHeaders.set('x-user-locales', encodeForHeader(token.locales));
+      if (token.permisos) requestHeaders.set('x-user-permisos', encodeForHeader(token.permisos)); // Agregar permisos
 
       return NextResponse.next({
         request: {

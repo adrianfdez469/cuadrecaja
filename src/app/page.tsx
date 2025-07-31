@@ -1,12 +1,12 @@
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
-import { 
-  CircularProgress, 
-  Typography, 
-  Box, 
-  Grid, 
-  Card, 
+import {
+  CircularProgress,
+  Typography,
+  Box,
+  Grid,
+  Card,
   CardContent,
   Button,
   Chip,
@@ -17,10 +17,10 @@ import {
   Divider,
   Alert
 } from "@mui/material";
-import { 
-  Storefront, 
-  Inventory, 
-  TrendingUp, 
+import {
+  Storefront,
+  Inventory,
+  TrendingUp,
   AccountBalanceWallet,
   Receipt,
   BarChart,
@@ -28,15 +28,18 @@ import {
   Person,
   Store,
   ShoppingCart,
-  Summarize
+  Summarize,
+  Security
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
+import { usePermisos } from "@/utils/permisos_front";
 
 const HomePage = () => {
   const { loadingContext, user } = useAppContext();
   const router = useRouter();
+  const { verificarPermiso } = usePermisos();
 
   const handleNavigate = (path: string) => {
     router.push(path);
@@ -44,10 +47,10 @@ const HomePage = () => {
 
   if (loadingContext) {
     return (
-      <Box 
-        display="flex" 
-        justifyContent="center" 
-        alignItems="center" 
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
         minHeight="60vh"
         flexDirection="column"
         gap={2}
@@ -63,11 +66,11 @@ const HomePage = () => {
   if (user.locales.length === 0) {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
-        <Paper 
-          elevation={0} 
-          sx={{ 
-            p: 4, 
-            textAlign: 'center', 
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            textAlign: 'center',
             backgroundColor: 'background.paper',
             borderRadius: 3,
             border: '1px solid',
@@ -75,34 +78,34 @@ const HomePage = () => {
           }}
         >
           <Avatar
-            sx={{ 
-              width: 80, 
-              height: 80, 
-              mx: 'auto', 
+            sx={{
+              width: 80,
+              height: 80,
+              mx: 'auto',
               mb: 3,
               bgcolor: 'primary.main'
             }}
           >
             <Store fontSize="large" />
           </Avatar>
-          
+
           <Typography variant="h4" gutterBottom color="text.primary">
             ¡Bienvenido a Cuadre de Caja!
           </Typography>
-          
+
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 500, mx: 'auto' }}>
-            Para comenzar a usar el sistema, necesitas tener al menos un local asociada a tu usuario. 
+            Para comenzar a usar el sistema, necesitas tener al menos un local asociada a tu usuario.
             Contacta al administrador para que configure tu acceso.
           </Typography>
-          
+
           <Alert severity="info" sx={{ mb: 3 }}>
             <Typography variant="body2">
               <strong>Estado:</strong> Usuario sin locales asociadas
             </Typography>
           </Alert>
-          
-          <Button 
-            variant="contained" 
+
+          <Button
+            variant="contained"
             size="large"
             startIcon={<Settings />}
             onClick={() => handleNavigate('/configuracion')}
@@ -133,7 +136,8 @@ const HomePage = () => {
       icon: <Storefront fontSize="large" />,
       color: "primary",
       path: "/pos",
-      gradient: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)"
+      gradient: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+      permission: 'operaciones.pos-venta.acceder'
     },
     {
       title: "Inventario",
@@ -141,7 +145,8 @@ const HomePage = () => {
       icon: <Inventory fontSize="large" />,
       color: "success",
       path: "/inventario",
-      gradient: "linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)"
+      gradient: "linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)",
+      permission: 'recuperaciones.inventario.acceder'
     },
     {
       title: "Ventas",
@@ -149,7 +154,8 @@ const HomePage = () => {
       icon: <Receipt fontSize="large" />,
       color: "secondary",
       path: "/ventas",
-      gradient: "linear-gradient(135deg, #dc004e 0%, #9a0036 100%)"
+      gradient: "linear-gradient(135deg, #dc004e 0%, #9a0036 100%)",
+      permission: 'operaciones.ventas.acceder'
     },
     {
       title: "Movimientos",
@@ -157,7 +163,8 @@ const HomePage = () => {
       icon: <TrendingUp fontSize="large" />,
       color: "info",
       path: "/movimientos",
-      gradient: "linear-gradient(135deg, #0288d1 0%, #01579b 100%)"
+      gradient: "linear-gradient(135deg, #0288d1 0%, #01579b 100%)",
+      permission: 'operaciones.movimientos.acceder'
     },
     {
       title: "Cierre de Caja",
@@ -165,7 +172,8 @@ const HomePage = () => {
       icon: <AccountBalanceWallet fontSize="large" />,
       color: "warning",
       path: "/cierre",
-      gradient: "linear-gradient(135deg, #ed6c02 0%, #e65100 100%)"
+      gradient: "linear-gradient(135deg, #ed6c02 0%, #e65100 100%)",
+      permission: 'operaciones.cierre.acceder'
     },
     {
       title: "Resumen Cierres",
@@ -173,7 +181,8 @@ const HomePage = () => {
       icon: <Summarize fontSize="large" />,
       color: "default",
       path: "/resumen_cierre",
-      gradient: "linear-gradient(135deg, #757575 0%, #424242 100%)"
+      gradient: "linear-gradient(135deg, #757575 0%, #424242 100%)",
+      permission: 'recuperaciones.resumencierres.acceder'
     }
   ];
 
@@ -181,56 +190,80 @@ const HomePage = () => {
     {
       title: "Productos",
       icon: <ShoppingCart />,
-      path: "/configuracion/productos"
+      path: "/configuracion/productos",
+      permission: 'configuracion.productos.acceder'
     },
     {
-      title: "Categorías", 
+      title: "Categorías",
       icon: <BarChart />,
-      path: "/configuracion/categorias"
+      path: "/configuracion/categorias",
+      permission: 'configuracion.categorias.acceder'
     },
     {
       title: "Locales",
       icon: <Store />,
-      path: "/configuracion/locales"
+      path: "/configuracion/locales",
+      permission: 'configuracion.locales.acceder'
     },
     {
       title: "Usuarios",
       icon: <Person />,
-      path: "/configuracion/usuarios"
+      path: "/configuracion/usuarios",
+      permission: 'configuracion.usuarios.acceder'
+    },
+    {
+      title: "Roles",
+      icon: <Security />,
+      path: "/configuracion/roles",
+      permission: 'configuracion.roles.acceder'
     }
   ];
 
-  
+
   const getQuickAction = (localType: string) => {
     return quickActions.filter(item => {
-      if(localType === TipoLocal.ALMACEN) {
-        return !excludeOnWarehouse.includes(item.path);
+      if (//user.permisos.includes(item.permission)
+        verificarPermiso(item.permission) 
+         || user.rol === 'SUPER_ADMIN') {
+        if (localType === TipoLocal.ALMACEN) {
+          return !excludeOnWarehouse.includes(item.path);
+        }
+        return true;
       }
-      return true;
     })
   };
 
+  const getConfigOptions = () => {
+    return configOptions.filter(item => {
+      if (//user.permisos.includes(item.permission) 
+        verificarPermiso(item.permission) 
+        || user.rol === 'SUPER_ADMIN') {
+        return true;
+      }
+    })
+  }
+
   const getTipoLocalText = (tipoLocal: string) => {
     return tipoLocal === TipoLocal.ALMACEN ? 'Alamcén' : 'Tienda';
-  } 
+  }
 
   return (
     <Container maxWidth="xl" sx={{ py: 2 }}>
       {/* Header mejorado */}
       <Box sx={{ mb: 4 }}>
-        <Box 
-          display="flex" 
+        <Box
+          display="flex"
           flexDirection={{ xs: "column", md: "row" }}
-          justifyContent="space-between" 
+          justifyContent="space-between"
           alignItems={{ xs: "flex-start", md: "flex-start" }}
           gap={{ xs: 3, md: 0 }}
           mb={2}
         >
           <Box>
-            <Typography 
-              variant="h3" 
-              gutterBottom 
-              sx={{ 
+            <Typography
+              variant="h3"
+              gutterBottom
+              sx={{
                 fontWeight: 700,
                 background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
                 backgroundClip: 'text',
@@ -245,12 +278,12 @@ const HomePage = () => {
               Bienvenido, {user.nombre || user.usuario}
             </Typography>
           </Box>
-          
-          <Paper 
-            elevation={0} 
-            sx={{ 
-              p: 2, 
-              bgcolor: 'primary.main', 
+
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              bgcolor: 'primary.main',
               color: 'white',
               borderRadius: 2,
               minWidth: { xs: '100%', md: 200 },
@@ -258,9 +291,9 @@ const HomePage = () => {
               boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
             }}
           >
-            <Typography 
-              variant="h6" 
-              sx={{ 
+            <Typography
+              variant="h6"
+              sx={{
                 color: 'rgba(255, 255, 255, 0.95)',
                 fontWeight: 600,
                 textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
@@ -272,11 +305,11 @@ const HomePage = () => {
               }}
             >
               {`${getTipoLocalText(user.localActual.tipo)}: ${user.localActual.nombre}`}
-              
+
             </Typography>
-            <Typography 
-              variant="caption" 
-              sx={{ 
+            <Typography
+              variant="caption"
+              sx={{
                 color: 'rgba(255, 255, 255, 0.92)',
                 fontWeight: 400,
                 textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
@@ -286,7 +319,7 @@ const HomePage = () => {
             </Typography>
           </Paper>
         </Box>
-        
+
         <Divider sx={{ my: 3 }} />
       </Box>
 
@@ -295,13 +328,13 @@ const HomePage = () => {
         <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
           Acceso Rápido
         </Typography>
-        
+
         <Grid container spacing={3}>
 
           {getQuickAction(user.localActual.tipo).map((action, index) => (
             <Grid item xs={12} sm={6} md={4} key={index}>
-              <Card 
-                sx={{ 
+              <Card
+                sx={{
                   height: '100%',
                   cursor: 'pointer',
                   position: 'relative',
@@ -325,7 +358,7 @@ const HomePage = () => {
                     background: action.gradient,
                   }}
                 />
-                
+
                 <CardContent sx={{ p: 3 }}>
                   <Box display="flex" alignItems="flex-start" gap={2}>
                     <Avatar
@@ -337,7 +370,7 @@ const HomePage = () => {
                     >
                       {action.icon}
                     </Avatar>
-                    
+
                     <Box flex={1}>
                       <Typography variant="h6" gutterBottom fontWeight={600}>
                         {action.title}
@@ -345,12 +378,12 @@ const HomePage = () => {
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                         {action.description}
                       </Typography>
-                      
-                      <Chip 
-                        label="Acceder" 
-                        size="small" 
+
+                      <Chip
+                        label="Acceder"
+                        size="small"
                         variant="outlined"
-                        sx={{ 
+                        sx={{
                           borderColor: 'primary.main',
                           color: 'primary.main',
                           fontWeight: 500
@@ -367,45 +400,49 @@ const HomePage = () => {
 
       {/* Configuración */}
       <Box>
-        <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
-          Configuración del Sistema
-        </Typography>
-        
-        <Grid container spacing={2}>
-          {configOptions.map((option, index) => (
-            <Grid item xs={6} sm={3} key={index}>
-              <Card 
-                sx={{ 
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  p: 2,
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                  },
-                  transition: 'all 0.2s ease',
-                }}
-                onClick={() => handleNavigate(option.path)}
-              >
-                <IconButton 
-                  size="large" 
-                  sx={{ 
-                    mb: 1,
-                    bgcolor: 'primary.light',
-                    color: 'white',
-                    '&:hover': {
-                      bgcolor: 'primary.main',
-                    }
-                  }}
-                >
-                  {option.icon}
-                </IconButton>
-                <Typography variant="subtitle2" fontWeight={500}>
-                  {option.title}
-                </Typography>
-              </Card>
+        {getConfigOptions().length > 0 &&
+          <>
+            <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
+              Configuración del Sistema
+            </Typography>
+
+            <Grid container spacing={2}>
+              {getConfigOptions().map((option, index) => (
+                <Grid item xs={6} sm={3} key={index}>
+                  <Card
+                    sx={{
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      p: 2,
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      },
+                      transition: 'all 0.2s ease',
+                    }}
+                    onClick={() => handleNavigate(option.path)}
+                  >
+                    <IconButton
+                      size="large"
+                      sx={{
+                        mb: 1,
+                        bgcolor: 'primary.light',
+                        color: 'white',
+                        '&:hover': {
+                          bgcolor: 'primary.main',
+                        }
+                      }}
+                    >
+                      {option.icon}
+                    </IconButton>
+                    <Typography variant="subtitle2" fontWeight={500}>
+                      {option.title}
+                    </Typography>
+                  </Card>
+                </Grid>
+              ))}
             </Grid>
-          ))}
-        </Grid>
+          </>
+        }
       </Box>
     </Container>
   );

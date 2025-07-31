@@ -87,7 +87,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if(userId === id ){
       data = {
         nombre,
-        password: await bcrypt.hash(password, 10),
+        ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
       }
     } else {
       if ( !(await hasPermision(rol))) {
@@ -101,7 +101,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         nombre,
         rol: (rol as string).toUpperCase(),
         usuario,
-        password: await bcrypt.hash(password, 10),
+        ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
       }
     }
 

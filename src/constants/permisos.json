@@ -1,0 +1,99 @@
+{
+  "configuracion.usuarios.acceder": {
+    "descripcion": "Permite realizar configuraciones de usuarios"
+  },
+  "configuracion.usuarios.cambiarpassword": {
+    "descripcion": "Permite cambiar la contraseña de un usuario."
+  },
+
+  
+  "configuracion.locales.acceder": {
+    "descripcion": "Permite realizar configuraciones de locales/tiendas"
+  },
+  "configuracion.categorias.acceder": {
+    "descripcion": "Permite realizar configuraciones de categorías"
+  },
+  "configuracion.productos.acceder": {
+    "descripcion": "Permite realizar configuraciones de productos"
+  },
+  "configuracion.proveedores.acceder": {
+    "descripcion": "Permite realizar configuraciones de proveedores"
+  },
+  "configuracion.destinostransferencia.acceder": {
+    "descripcion": "Permite realizar configuraciones de destinos de transferencia"
+  },
+  "configuracion.roles.acceder": {
+    "descripcion": "Permite realizar configuraciones de roles"
+  },
+  "configuracion.roles.escribir": {
+    "descripcion": "Permite realizar configuraciones de roles"
+  },
+  
+  "recuperaciones.dashboard.acceder": {
+    "descripcion": "Permite acceder al dashboard de recuperaciones"
+  },
+  "recuperaciones.inventario.acceder": {
+    "descripcion": "Permite acceder a la interfaz de recuperaciones del inventario actual de los productos"
+  },
+  "recuperaciones.resumencierres.acceder": {
+    "descripcion": "Permite revisar los resumentes de los cierres anteriores"
+  },
+  "recuperaciones.analisiscpp.acceder": {
+    "descripcion": "Permite acceder a las recuperaciones de los análisis de costo y costo promedio ponderado (CPP) de los productos"
+  },
+  "recuperaciones.proveedoresconsignación.acceder": {
+    "descripcion": "Permite acceder y realizar todas las funciones disponibles en la recuperacion de los proveedores y productos en consignación."
+  },
+  
+  "operaciones.pos-venta.acceder": {
+    "descripcion": "Permite acceder a la interfaz de ventas (POS)"
+  },
+  "operaciones.pos-venta.cancelarventa": {
+    "descripcion": "Permite cancelar ventas realizadas desde el punto de venta"
+  },
+  "operaciones.pos-venta.gananciascostos": {
+    "descripcion": "Permite ver las ganancias y costos en el resumen de ventas del POS"
+  },
+  "operaciones.ventas.acceder": {
+    "descripcion": "Permite acceder a la interfaz de ventas"
+  },
+  "operaciones.ventas.eliminar": {
+    "descripcion": "Permite eliminar ventas"
+  },
+  "operaciones.conformarprecios.acceder": {
+    "descripcion": "Permite conformar precios de productos"
+  },
+  "operaciones.cierre.acceder": {
+    "descripcion": "Permite acceder a la interfaz de cierre de caja"
+  },
+  "operaciones.cierre.cerrar": {
+    "descripcion": "Permite crear un nuevo cierre de caja"
+  },
+  "operaciones.cierre.gananciascostos": {
+    "descripcion": "Permite ver las ganancias y costos en el resumen de cierre de caja"
+  },
+  "operaciones.movimientos.acceder": {
+    "descripcion": "Permite acceder a la interfaz de movimientos de stock"
+  },
+  "operaciones.movimientos.crear.compra": {
+    "descripcion": "Permite crear movimientos de compra de productos"
+  },
+  "operaciones.movimientos.crear.ajuste_entradas": {
+    "descripcion": "Permite crear ajustes de inventario (entradas)"
+  },
+  "operaciones.movimientos.crear.ajuste_salidas": {
+    "descripcion": "Permite crear ajustes de inventario (salidas)"
+  },
+  "operaciones.movimientos.crear.transferencia": {
+    "descripcion": "Permite crear transferencias entre tiendas"
+  },
+  "operaciones.movimientos.crear.recepcion": {
+    "descripcion": "Permite crear recepciones de productos"
+  },
+  "operaciones.movimientos.crear.consignacion_entrada": {
+    "descripcion": "Permite crear entradas de productos en consignación"
+  },
+  "operaciones.movimientos.crear.consignacion_devolucion": {
+    "descripcion": "Permite crear devoluciones de productos en consignación"
+  }
+}
