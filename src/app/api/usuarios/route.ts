@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       data: {
         ...data,
         nombre: nombreUsuario,
-        password,
+        ...(data.password ? { password } : {}),
         negocioId: user.negocio.id,
         localActualId: null
       },

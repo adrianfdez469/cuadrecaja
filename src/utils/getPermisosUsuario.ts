@@ -43,6 +43,8 @@ export async function getPermisosUsuario(usuarioId: string, tiendaId: string | n
   }
 }
 
+const DISABLED_CHECK_PERMISSIONS = false;
+
 /**
  * Verifica si un usuario tiene un permiso específico
  * @param permisos - String con permisos separados por "|"
@@ -50,6 +52,10 @@ export async function getPermisosUsuario(usuarioId: string, tiendaId: string | n
  * @returns true si tiene el permiso, false en caso contrario
  */
 export function tienePermiso(permisos: string, permisoRequerido: string): boolean {
+  if(DISABLED_CHECK_PERMISSIONS) {
+    return true;
+  }
+
   if(permisoRequerido === '*') {
     return true
   }

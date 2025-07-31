@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import getUserFromRequest from "@/utils/getUserFromRequest";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 // GET - Obtener un rol específico por ID
 export async function GET(
@@ -49,8 +50,7 @@ export async function PUT(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Solo administradores pueden actualizar roles
-    if (user.rol !== "administrador" && user.rol !== "SUPER_ADMIN") {
+    if(!verificarPermisoUsuario(user.permisos, 'configuracion.roles.escribir', user.rol)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -123,8 +123,7 @@ export async function DELETE(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Solo administradores pueden eliminar roles
-    if (user.rol !== "administrador" && user.rol !== "SUPER_ADMIN") {
+    if(!verificarPermisoUsuario(user.permisos, 'configuracion.roles.escribir', user.rol)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 

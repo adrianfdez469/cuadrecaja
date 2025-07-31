@@ -34,7 +34,7 @@ import {
 import { useRouter } from "next/navigation";
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
-import { usePermisos } from "@/utils/permisos";
+import { usePermisos } from "@/utils/permisos_front";
 
 const HomePage = () => {
   const { loadingContext, user } = useAppContext();

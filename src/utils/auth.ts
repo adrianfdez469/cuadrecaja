@@ -6,11 +6,6 @@ export async function getSession() {
   return await getServerSession(authOptions);
 }
 
-export async function isVendedor() {
-  const session = await getSession();
-  return session?.user?.rol === roles.SUPER_ADMIN;
-}
-
 export async function isAdmin() {
   const session = await getSession();
   return session?.user?.rol === roles.ADMIN;

@@ -41,12 +41,6 @@ function MiComponente() {
 
   // Verificar un permiso específico
   const puedeVender = verificarPermiso("operaciones.pos-venta.acceder");
-  
-  // Verificar múltiples permisos (cualquiera)
-  const puedeConfigurar = puedeAcceder([
-    "configuracion.usuarios.acceder", 
-    "configuracion.productos.acceder"
-  ]);
 
   // Ver todos los permisos
   console.log("Permisos del usuario:", listaPermisos);

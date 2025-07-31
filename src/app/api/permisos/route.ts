@@ -10,11 +10,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Solo administradores pueden ver la lista de permisos
-    if (user.rol !== "administrador" && user.rol !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
-
     return NextResponse.json(permisos);
   } catch (error) {
     console.error("Error al obtener permisos:", error);

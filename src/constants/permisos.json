@@ -2,6 +2,11 @@
   "configuracion.usuarios.acceder": {
     "descripcion": "Permite realizar configuraciones de usuarios"
   },
+  "configuracion.usuarios.cambiarpassword": {
+    "descripcion": "Permite cambiar la contraseña de un usuario."
+  },
+
+  
   "configuracion.locales.acceder": {
     "descripcion": "Permite realizar configuraciones de locales/tiendas"
   },
@@ -18,6 +23,9 @@
     "descripcion": "Permite realizar configuraciones de destinos de transferencia"
   },
   "configuracion.roles.acceder": {
+    "descripcion": "Permite realizar configuraciones de roles"
+  },
+  "configuracion.roles.escribir": {
     "descripcion": "Permite realizar configuraciones de roles"
   },
   
@@ -60,6 +68,9 @@
   },
   "operaciones.cierre.cerrar": {
     "descripcion": "Permite crear un nuevo cierre de caja"
+  },
+  "operaciones.cierre.gananciascostos": {
+    "descripcion": "Permite ver las ganancias y costos en el resumen de cierre de caja"
   },
   "operaciones.movimientos.acceder": {
     "descripcion": "Permite acceder a la interfaz de movimientos de stock"

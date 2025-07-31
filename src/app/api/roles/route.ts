@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import getUserFromRequest from "@/utils/getUserFromRequest";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 // GET - Obtener todos los roles del negocio del usuario
 export async function GET(request: NextRequest) {
@@ -46,8 +47,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Solo administradores pueden crear roles
-    if (user.rol !== "administrador" && user.rol !== "SUPER_ADMIN") {
+    if(!verificarPermisoUsuario(user.permisos, 'configuracion.roles.escribir', user.rol)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
