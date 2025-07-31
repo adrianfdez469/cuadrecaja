@@ -31,11 +31,14 @@ import InventoryIcon from "@mui/icons-material/Inventory";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import DescriptionIcon from "@mui/icons-material/Description";
+import TableViewIcon from "@mui/icons-material/TableView";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import axios from "axios";
 import { IProductoTiendaV2 } from "@/types/IProducto";
 import { exportInventoryToWord } from "@/utils/wordExport";
+import { exportInventarioToExcel } from "@/utils/excelExport";
 import { ProductMovementsModal } from "./components/ProductMovementsModal";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
@@ -111,6 +114,32 @@ export default function InventarioPage() {
     }
   };
 
+  const handleExportToExcel = async () => {
+    try {
+      setExporting(true);
+      
+      const productosParaExportar = productos.filter(producto => producto.precio > 0);
+      
+      if (productosParaExportar.length === 0) {
+        showMessage("No hay productos con precio para exportar", "warning");
+        return;
+      }
+
+      await exportInventarioToExcel({
+        productos: productosParaExportar,
+        tiendaNombre: user.localActual.nombre,
+        fecha: new Date()
+      });
+
+      showMessage(`Inventario exportado a Excel exitosamente (${productosParaExportar.length} productos)`, "success");
+    } catch (error) {
+      console.error("Error al exportar inventario a Excel:", error);
+      showMessage("Error al exportar el inventario a Excel", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleRowClick = (producto: IProductoTiendaV2) => {
     setSelectedProduct(producto);
     setMovementsModalOpen(true);
@@ -154,14 +183,24 @@ export default function InventarioPage() {
         </IconButton>
       </Tooltip>
       <Button
-        variant="contained"
-        startIcon={!isMobile ? <DownloadIcon /> : undefined}
+        variant="outlined"
+        startIcon={!isMobile ? <DescriptionIcon /> : undefined}
         onClick={handleExportToWord}
         disabled={exporting || loading || productos.length === 0}
         size={isMobile ? "small" : "medium"}
         fullWidth={isMobile}
       >
-        {exporting ? "Exportando..." : isMobile ? "Exportar" : "Exportar"}
+        {exporting ? "Exportando..." : isMobile ? "Word" : "Exportar Word"}
+      </Button>
+      <Button
+        variant="contained"
+        startIcon={!isMobile ? <TableViewIcon /> : undefined}
+        onClick={handleExportToExcel}
+        disabled={exporting || loading || productos.length === 0}
+        size={isMobile ? "small" : "medium"}
+        fullWidth={isMobile}
+      >
+        {exporting ? "Exportando..." : isMobile ? "Excel" : "Exportar Excel"}
       </Button>
     </Stack>
   );

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import getUserFromRequest from "@/utils/getUserFromRequest";
-import permisos from "@/constants/permisos.json";
+import permisos from "@/constants/permisos/permisos.json";
 
 // GET - Obtener todos los permisos disponibles del sistema
 export async function GET(request: NextRequest) {

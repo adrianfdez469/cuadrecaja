@@ -245,3 +245,158 @@ export const exportProductosProveedorToExcel = async ({
         throw new Error('Error al generar el archivo Excel del proveedor');
     }
 }; 
+
+// Función para exportar inventario completo
+interface ExportInventarioOptions {
+    productos: Array<{
+        id: string;
+        producto: { nombre: string };
+        existencia: number;
+        precio: number;
+        costo: number;
+        proveedor?: { nombre: string } | null;
+    }>;
+    tiendaNombre: string;
+    fecha: Date;
+}
+
+export const exportInventarioToExcel = async ({
+    productos,
+    tiendaNombre,
+    fecha
+}: ExportInventarioOptions) => {
+    try {
+        const workbook = XLSX.utils.book_new();
+
+        // Preparar datos del inventario
+        const inventarioData = productos.map(producto => ({
+            'Producto': producto.producto.nombre,
+            'Existencia': producto.existencia,
+            'Precio': producto.precio,
+            'Costo': producto.costo,
+            'Valor Stock': producto.existencia * producto.costo,
+            'Proveedor': producto.proveedor?.nombre || 'Propio',
+            'Estado': producto.existencia <= 0 ? 'Sin Stock' : producto.existencia <= 5 ? 'Bajo Stock' : 'En Stock'
+        }));
+
+        // Calcular totales
+        const totalProductos = productos.length;
+        const productosConStock = productos.filter(p => p.existencia > 0).length;
+        const productosSinStock = productos.filter(p => p.existencia <= 0).length;
+        const valorTotalInventario = productos.reduce((total, p) => total + (p.existencia * p.costo), 0);
+
+        // Agregar filas de totales
+        const dataConTotales = [
+            ...inventarioData,
+            {},  // Fila vacía
+            {
+                'Producto': 'RESUMEN',
+                'Existencia': '',
+                'Precio': '',
+                'Costo': '',
+                'Valor Stock': '',
+                'Proveedor': '',
+                'Estado': ''
+            },
+            {
+                'Producto': 'Total Productos',
+                'Existencia': totalProductos,
+                'Precio': '',
+                'Costo': '',
+                'Valor Stock': '',
+                'Proveedor': '',
+                'Estado': ''
+            },
+            {
+                'Producto': 'Productos con Stock',
+                'Existencia': productosConStock,
+                'Precio': '',
+                'Costo': '',
+                'Valor Stock': '',
+                'Proveedor': '',
+                'Estado': ''
+            },
+            {
+                'Producto': 'Productos sin Stock',
+                'Existencia': productosSinStock,
+                'Precio': '',
+                'Costo': '',
+                'Valor Stock': '',
+                'Proveedor': '',
+                'Estado': ''
+            },
+            {
+                'Producto': 'Valor Total Inventario',
+                'Existencia': '',
+                'Precio': '',
+                'Costo': '',
+                'Valor Stock': valorTotalInventario,
+                'Proveedor': '',
+                'Estado': ''
+            }
+        ];
+
+        const worksheet = XLSX.utils.json_to_sheet(dataConTotales);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventario Completo');
+
+        // Crear hojas adicionales por proveedor si hay productos con proveedor
+        const productosPorProveedor = productos
+            .filter(producto => producto.proveedor)
+            .reduce((acc, producto) => {
+                const proveedorNombre = producto.proveedor!.nombre;
+                if (!acc[proveedorNombre]) {
+                    acc[proveedorNombre] = [];
+                }
+                acc[proveedorNombre].push(producto);
+                return acc;
+            }, {} as Record<string, typeof productos>);
+
+        // Crear una hoja por cada proveedor
+        Object.entries(productosPorProveedor).forEach(([proveedorNombre, productosProveedor]) => {
+            const dataProveedor = productosProveedor.map(producto => ({
+                'Producto': producto.producto.nombre,
+                'Existencia': producto.existencia,
+                'Precio': producto.precio,
+                'Costo': producto.costo,
+                'Valor Stock': producto.existencia * producto.costo,
+                'Estado': producto.existencia <= 0 ? 'Sin Stock' : producto.existencia <= 5 ? 'Bajo Stock' : 'En Stock'
+            }));
+
+            const valorTotalProveedor = productosProveedor.reduce((total, p) => total + (p.existencia * p.costo), 0);
+            
+            const dataProveedorConTotal = [
+                ...dataProveedor,
+                {},  // Fila vacía
+                {
+                    'Producto': 'TOTAL PROVEEDOR',
+                    'Existencia': productosProveedor.length,
+                    'Precio': '',
+                    'Costo': '',
+                    'Valor Stock': valorTotalProveedor,
+                    'Estado': ''
+                }
+            ];
+
+            const worksheetProveedor = XLSX.utils.json_to_sheet(dataProveedorConTotal);
+            // Limitar el nombre de la hoja a 31 caracteres (límite de Excel)
+            const nombreHoja = proveedorNombre.length > 31
+                ? proveedorNombre.substring(0, 28) + '...'
+                : proveedorNombre;
+            XLSX.utils.book_append_sheet(workbook, worksheetProveedor, nombreHoja);
+        });
+
+        // Generar y descargar el archivo
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+        const fechaStr = fecha.toISOString().split('T')[0];
+        const fileName = `Inventario_${tiendaNombre.replace(/\s+/g, '_')}_${fechaStr}.xlsx`;
+
+        saveAs(blob, fileName);
+
+        return true;
+    } catch (error) {
+        console.error('Error al generar el archivo Excel del inventario:', error);
+        throw new Error('Error al generar el archivo Excel del inventario');
+    }
+}; 
