@@ -43,7 +43,7 @@ export async function getPermisosUsuario(usuarioId: string, tiendaId: string | n
   }
 }
 
-const DISABLED_CHECK_PERMISSIONS = false;
+const DISABLED_CHECK_PERMISSIONS = true;
 
 /**
  * Verifica si un usuario tiene un permiso específico
