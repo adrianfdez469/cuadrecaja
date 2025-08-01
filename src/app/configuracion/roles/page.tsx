@@ -70,6 +70,7 @@ export default function RolesPage() {
   
   const { showMessage } = useMessageContext();
   const { user, loadingContext } = useAppContext();
+  const [templates, setTemplates] = useState()
 
   // Estados del formulario
   const [nombre, setNombre] = useState("");
@@ -96,8 +97,11 @@ export default function RolesPage() {
   const fetchPermisos = async () => {
     setPermisosLoading(true);
     try {
-      const response = await axios.get('/api/permisos');
-      setPermisos(response.data);
+      const permisosResponse = await axios.get('/api/permisos');
+      const permisosTemplates = await axios.get('/api/permisos/templates');
+
+      setPermisos(permisosResponse.data);
+      setTemplates(permisosTemplates.data);
     } catch (error) {
       console.error("Error al cargar permisos:", error);
       showMessage('Error al cargar los permisos del sistema', 'error');
