@@ -45,3 +45,9 @@ export const editProduct = async (
 export const deleteProduct = async (id: string) => {
   await axios.delete(`${API_URL}/${id}`);
 }
+
+export const generateProductsCode = async (prodsCodes: {productoId: string, code: string}[]) => {
+  return axios.post(`${API_URL}/bulk-code-generate`, {
+    codes: prodsCodes
+  })
+}

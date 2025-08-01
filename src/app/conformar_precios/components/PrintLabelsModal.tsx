@@ -37,6 +37,7 @@ import bwipjs from "bwip-js";
 import QRCode from "qrcode";
 import generateEAN13 from '@/utils/generateProductCode';
 import { useMessageContext } from "@/context/MessageContext";
+import { generateProductsCode } from "@/services/productServise";
 
 interface ProductoConCodigos {
   id: string;
@@ -170,60 +171,64 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 
     try {
       // Generar códigos para cada producto que los necesite
-      const updatedProducts = [];
-      let successCount = 0;
-      let errorCount = 0;
+      const prodPayload:{ productoId: string, code: string}[] = [];
       
       for (const product of productsNeedingCodes) {
         try {
           // Generar código
           const generatedCode = generateEAN13(existingCodes);
           existingCodes.add(generatedCode);
-          
-          // Guardar en la base de datos
-          const response = await fetch(`/api/productos/${product.producto.id}/generate-code`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ codigo: generatedCode })
+
+          prodPayload.push({
+            productoId: product.producto.id,
+            code: generatedCode
           });
+        } catch (error) {
+          console.error(`Error generando código para ${product.producto.nombre}:`, error);
+        }
+      }
 
-          if (!response.ok) {
-            throw new Error(`Error guardando código para ${product.producto.nombre}`);
-          }
+      const response = await generateProductsCode(prodPayload);
 
-          const savedCode = await response.json();
-          updatedProducts.push({
+      // Procesar la respuesta del endpoint bulk
+      const responseData = response.data;
+      
+      // Crear un mapa de productos actualizados basado en la respuesta
+      const successMap = new Map();
+      responseData.success.forEach((item: any) => {
+        successMap.set(item.productoId, item.codigo);
+      });
+
+      // Actualizar productos exitosos
+      const updatedProducts = selectedProducts.map(product => {
+        if (product.needsCode && successMap.has(product.producto.id)) {
+          const newCode = successMap.get(product.producto.id);
+          return {
             ...product,
-            generatedCode: savedCode.codigo,
+            generatedCode: newCode.codigo,
             needsCode: false,
             producto: {
               ...product.producto,
               codigosProducto: [
                 ...product.producto.codigosProducto,
-                { id: savedCode.id, codigo: savedCode.codigo }
+                { id: newCode.id, codigo: newCode.codigo }
               ]
             }
-          });
-          successCount++;
-        } catch (error) {
-          console.error(`Error generando código para ${product.producto.nombre}:`, error);
-          // Mantener el producto sin cambios si hay error
-          updatedProducts.push(product);
-          errorCount++;
+          };
         }
-      }
+        return product;
+      });
+
+      // Contar éxitos y errores
+      const successCount = responseData.success.length;
+      const errorCount = responseData.errors.length;
 
       // Actualizar el estado con los productos que se pudieron actualizar
-      setSelectedProducts(prev => prev.map(product => {
-        const updated = updatedProducts.find(up => up.id === product.id);
-        return updated || product;
-      }));
+      setSelectedProducts(updatedProducts);
 
       // También actualizar la lista principal de productos para reflejar los nuevos códigos
       setProductos(prev => prev.map(product => {
-        const updated = updatedProducts.find(up => up.id === product.id);
+        const updated = updatedProducts.find(up => up.producto.id === product.producto.id);
         return updated ? {
           ...product,
           producto: updated.producto
@@ -237,6 +242,11 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
         showMessage(`Se generaron ${successCount} códigos. ${errorCount} fallaron.`, 'warning');
       } else if (errorCount > 0) {
         showMessage(`Error generando códigos para ${errorCount} producto(s)`, 'error');
+      }
+
+      // Mostrar errores específicos si los hay
+      if (errorCount > 0) {
+        console.error('Errores específicos:', responseData.errors);
       }
 
     } catch (error) {
