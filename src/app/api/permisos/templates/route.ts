@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { permisosTemplates } from "@/constants/permisos/permisos.templates";
 
 // GET - Obtener todos los permisos disponibles del sistema
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
 
     return NextResponse.json(permisosTemplates);
