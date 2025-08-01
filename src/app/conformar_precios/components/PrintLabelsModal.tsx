@@ -195,6 +195,7 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
       
       // Crear un mapa de productos actualizados basado en la respuesta
       const successMap = new Map();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       responseData.success.forEach((item: any) => {
         successMap.set(item.productoId, item.codigo);
       });
