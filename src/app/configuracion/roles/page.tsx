@@ -56,6 +56,10 @@ interface PermisosData {
   [key: string]: IPermiso;
 }
 
+interface IPlantillas {
+  [key: string]: string[]
+}
+
 export default function RolesPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -70,12 +74,13 @@ export default function RolesPage() {
   
   const { showMessage } = useMessageContext();
   const { user, loadingContext } = useAppContext();
-  const [templates, setTemplates] = useState()
+  const [templates, setTemplates] = useState<IPlantillas>();
 
   // Estados del formulario
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [permisosSeleccionados, setPermisosSeleccionados] = useState<string[]>([]);
+  const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<string>("");
 
   const fetchRoles = async () => {
     if (!user) return;
@@ -100,6 +105,8 @@ export default function RolesPage() {
       const permisosResponse = await axios.get('/api/permisos');
       const permisosTemplates = await axios.get('/api/permisos/templates');
 
+      
+
       setPermisos(permisosResponse.data);
       setTemplates(permisosTemplates.data);
     } catch (error) {
@@ -123,11 +130,13 @@ export default function RolesPage() {
       setNombre(rol.nombre);
       setDescripcion(rol.descripcion || "");
       setPermisosSeleccionados(rol.permisos ? rol.permisos.split("|") : []);
+      setPlantillaSeleccionada(""); // No hay plantilla para roles existentes
     } else {
       setSelectedRol(null);
       setNombre("");
       setDescripcion("");
       setPermisosSeleccionados([]);
+      setPlantillaSeleccionada("");
     }
     setOpen(true);
   };
@@ -138,6 +147,7 @@ export default function RolesPage() {
     setNombre("");
     setDescripcion("");
     setPermisosSeleccionados([]);
+    setPlantillaSeleccionada("");
   };
 
   const handleSubmit = async () => {
@@ -200,6 +210,20 @@ export default function RolesPage() {
   const handlePermisosChange = (event: SelectChangeEvent<typeof permisosSeleccionados>) => {
     const value = event.target.value;
     setPermisosSeleccionados(typeof value === 'string' ? value.split(',') : value);
+  };
+
+  const handlePlantillaChange = (event: SelectChangeEvent<string>) => {
+    const plantillaId = event.target.value;
+    setPlantillaSeleccionada(plantillaId);
+    
+    if (plantillaId && templates) {
+      const permisos = templates[plantillaId];
+      if (permisos) {
+        setPermisosSeleccionados(permisos);
+      }
+    } else {
+      setPermisosSeleccionados([]);
+    }
   };
 
   const groupPermissions = (permisosData: PermisosData) => {
@@ -380,6 +404,54 @@ export default function RolesPage() {
                 rows={2}
                 placeholder="Descripción opcional del rol..."
               />
+
+              {!selectedRol && (
+                <FormControl fullWidth>
+                  <InputLabel>Plantilla de Permisos (Opcional)</InputLabel>
+                  <Select
+                    value={plantillaSeleccionada}
+                    onChange={handlePlantillaChange}
+                    input={<OutlinedInput label="Plantilla de Permisos (Opcional)" />}
+                    disabled={permisosLoading}
+                  >
+                    <MenuItem value="">
+                      <em>Seleccionar una plantilla predefinida...</em>
+                    </MenuItem>
+                    {templates && 
+                      Object.entries(templates)
+                      .map((item) => {
+                        const nombrePlantilla = item[0];
+                        
+return (
+
+
+                      <MenuItem key={nombrePlantilla} value={nombrePlantilla}>
+                        <Box>
+                          <Typography variant="body2" fontWeight="medium">
+                            {nombrePlantilla}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+)
+                      })
+                    }
+                    
+                  </Select>
+                </FormControl>
+              )}
+
+              {plantillaSeleccionada && !selectedRol && templates && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>Plantilla aplicada:</strong> {
+                      plantillaSeleccionada
+                    }
+                  </Typography>
+                  <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                    Puedes modificar los permisos seleccionados según tus necesidades específicas.
+                  </Typography>
+                </Alert>
+              )}
 
               <FormControl fullWidth>
                 <InputLabel>Permisos</InputLabel>

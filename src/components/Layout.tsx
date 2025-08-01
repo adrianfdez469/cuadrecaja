@@ -80,7 +80,7 @@ const CONFIGURATION_MENU_ITEMS = [
     label: "Usuarios",
     path: "/configuracion/usuarios",
     icon: SupervisedUserCircleIcon,
-    permission: 'configuracion.usuarios'
+    permission: 'configuracion.usuarios.acceder'
   },
   {
     label: "Roles",
