@@ -756,7 +756,7 @@ export default function Locales() {
                       <MenuItem key={user.id} value={user.id}>
                         <Box display="flex" alignItems="center" gap={1}>
                           <PersonAdd fontSize="small" />
-                          {user.nombre} ({user.rol})
+                          {user.nombre}
                         </Box>
                       </MenuItem>
                     ))}

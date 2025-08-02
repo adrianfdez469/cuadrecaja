@@ -54,6 +54,7 @@ import {
   formatPercentage 
 } from '@/utils/formatters';
 import axios from 'axios';
+import { subscriptionPlansForUi } from '@/constants/subscriptionsPlans';
 
 interface SupportUser {
   name: string;
@@ -94,109 +95,6 @@ const supportUsers: SupportUser[] = [
   }
 ];
 
-// Convertir los datos de planesNegocio al formato necesario para la UI
-const getPlansForUI = () => {
-  const plans = [
-    {
-      key: 'FREEMIUM',
-      name: 'Freemium',
-      price: '$0',
-      period: 'mes',
-      description: 'Plan gratuito por un mes',
-      duration: `${planesNegocio.FREEMIUM.duracion} días de validez`,
-      features: [
-        `${planesNegocio.FREEMIUM.limiteLocales} locales (tiendas/almacenes)`,
-        `${planesNegocio.FREEMIUM.limiteUsuarios} usuario`,
-        `Hasta ${planesNegocio.FREEMIUM.limiteProductos} productos`,
-        'Funcionalidades básicas',
-        'Soporte por email',
-        `Validez: ${planesNegocio.FREEMIUM.duracion} días`
-      ],
-      recommended: false,
-      color: 'info'
-    },
-    {
-      key: 'BASICO',
-      name: 'Básico',
-      price: `$${planesNegocio.BASICO.precio}`,
-      period: 'mes',
-      description: 'Plan básico mensual',
-      duration: `${planesNegocio.BASICO.duracion} días de validez`,
-      features: [
-        `${planesNegocio.BASICO.limiteLocales} locales (tiendas/almacenes)`,
-        `${planesNegocio.BASICO.limiteUsuarios} usuario`,
-        `Hasta ${planesNegocio.BASICO.limiteProductos} productos`,
-        'Reportes básicos',
-        'Soporte por email',
-        `Validez: ${planesNegocio.BASICO.duracion} días`
-      ],
-      recommended: false,
-      color: 'primary'
-    },
-    {
-      key: 'SILVER',
-      name: 'Silver',
-      price: `$${planesNegocio.SILVER.precio}`,
-      period: 'mes',
-      description: 'Plan silver con usuarios ilimitados',
-      duration: `${planesNegocio.SILVER.duracion} días de validez`,
-      features: [
-        `Hasta ${planesNegocio.SILVER.limiteLocales} locales (tiendas/almacenes)`,
-        'Usuarios ilimitados',
-        `Hasta ${planesNegocio.SILVER.limiteProductos} productos`,
-        'Reportes avanzados',
-        'Soporte prioritario',
-        'Gestión de inventario avanzada',
-        `Validez: ${planesNegocio.SILVER.duracion} días`
-      ],
-      recommended: true,
-      color: 'secondary'
-    },
-    {
-      key: 'PREMIUM',
-      name: 'Premium',
-      price: `$${planesNegocio.PREMIUM.precio}`,
-      period: 'mes',
-      description: 'Plan premium con productos ilimitados',
-      duration: `${planesNegocio.PREMIUM.duracion} días de validez`,
-      features: [
-        `Hasta ${planesNegocio.PREMIUM.limiteLocales} locales (tiendas/almacenes)`,
-        'Usuarios ilimitados',
-        'Productos ilimitados',
-        'Reportes personalizados',
-        'Soporte prioritario 24/7',
-        'API personalizada',
-        'Integración con sistemas externos',
-        `Validez: ${planesNegocio.PREMIUM.duracion} días`
-      ],
-      recommended: false,
-      color: 'warning'
-    },
-    {
-      key: 'CUSTOM',
-      name: 'Personalizado',
-      price: 'Cotización',
-      period: '',
-      description: 'Plan personalizado según tus necesidades',
-      duration: 'Duración negociable',
-      features: [
-        'Locales según necesidad (tiendas/almacenes)',
-        'Usuarios según necesidad',
-        'Productos según necesidad',
-        'Funcionalidades personalizadas',
-        'Soporte dedicado 24/7',
-        'Integración completa',
-        'Capacitación incluida',
-        'Duración personalizada'
-      ],
-      recommended: false,
-      color: 'success'
-    }
-  ];
-
-  return plans;
-};
-
 export default function PlanesPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -207,8 +105,6 @@ export default function PlanesPage() {
   const [selectedSupport, setSelectedSupport] = useState<string>('');
   const [stats, setStats] = useState<NegocioStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
-
-  const plans = getPlansForUI();
 
   // Cargar estadísticas del negocio
   useEffect(() => {
@@ -466,7 +362,7 @@ export default function PlanesPage() {
         {isMobile ? (
           // Vista móvil: Stack vertical con cards más compactas
           <Stack spacing={3}>
-            {plans.map((plan) => (
+            {subscriptionPlansForUi.map((plan) => (
               <Card 
                 key={plan.key}
                 variant="outlined"
@@ -567,7 +463,7 @@ export default function PlanesPage() {
         ) : (
           // Vista desktop/tablet: Grid
           <Grid container spacing={isTablet ? 3 : 4}>
-            {plans.map((plan) => (
+            {subscriptionPlansForUi.map((plan) => (
               <Grid item xs={12} sm={6} md={4} key={plan.key}>
                 <Card 
                   variant="outlined"

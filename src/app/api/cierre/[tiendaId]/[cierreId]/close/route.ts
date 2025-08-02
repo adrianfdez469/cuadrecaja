@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "next-auth/react";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import { getSession } from "@/utils/auth";
 
 export async function PUT(
   req: NextRequest,

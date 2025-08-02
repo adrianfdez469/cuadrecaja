@@ -39,7 +39,7 @@ import {
   Star,
   CheckCircle
 } from '@mui/icons-material';
-import { planesNegocio } from '@/utils/planesNegocio';
+import { subscriptionPlansForUi } from '@/constants/subscriptionsPlans';
 
 export type LimitType = 'locales' | 'usuarios' | 'productos';
 
@@ -68,99 +68,6 @@ const supportUsers: SupportUser[] = [
   }
 ];
 
-// Convertir los datos de planesNegocio al formato necesario para la UI
-const getPlansForUI = () => {
-  const plans = [
-    {
-      key: 'FREEMIUM',
-      name: 'Freemium',
-      price: '$0',
-      period: 'mes',
-      description: 'Plan gratuito por un mes',
-      features: [
-        `${planesNegocio.FREEMIUM.limiteLocales} local`,
-        `${planesNegocio.FREEMIUM.limiteUsuarios} usuario`,
-        `Hasta ${planesNegocio.FREEMIUM.limiteProductos} productos`,
-        'Funcionalidades básicas',
-        'Soporte por email'
-      ],
-      recommended: false,
-      color: 'info'
-    },
-    {
-      key: 'BASICO',
-      name: 'Básico',
-      price: `$${planesNegocio.BASICO.precio}`,
-      period: 'mes',
-      description: 'Plan básico mensual',
-      features: [
-        `${planesNegocio.BASICO.limiteLocales} local`,
-        `${planesNegocio.BASICO.limiteUsuarios} usuario`,
-        `Hasta ${planesNegocio.BASICO.limiteProductos} productos`,
-        'Reportes básicos',
-        'Soporte por email'
-      ],
-      recommended: false,
-      color: 'primary'
-    },
-    {
-      key: 'SILVER',
-      name: 'Silver',
-      price: `$${planesNegocio.SILVER.precio}`,
-      period: 'mes',
-      description: 'Plan silver con usuarios ilimitados',
-      features: [
-        `Hasta ${planesNegocio.SILVER.limiteLocales} locales`,
-        'Usuarios ilimitados',
-        `Hasta ${planesNegocio.SILVER.limiteProductos} productos`,
-        'Reportes avanzados',
-        'Soporte prioritario',
-        'Gestión de inventario avanzada'
-      ],
-      recommended: true,
-      color: 'secondary'
-    },
-    {
-      key: 'PREMIUM',
-      name: 'Premium',
-      price: `$${planesNegocio.PREMIUM.precio}`,
-      period: 'mes',
-      description: 'Plan premium con productos ilimitados',
-      features: [
-        `Hasta ${planesNegocio.PREMIUM.limiteLocales} locales`,
-        'Usuarios ilimitados',
-        'Productos ilimitados',
-        'Reportes personalizados',
-        'Soporte prioritario 24/7',
-        'API personalizada',
-        'Integración con sistemas externos'
-      ],
-      recommended: false,
-      color: 'warning'
-    },
-    {
-      key: 'CUSTOM',
-      name: 'Personalizado',
-      price: 'Cotización',
-      period: '',
-      description: 'Plan personalizado según tus necesidades',
-      features: [
-        'Locales según necesidad',
-        'Usuarios según necesidad',
-        'Productos según necesidad',
-        'Funcionalidades personalizadas',
-        'Soporte dedicado 24/7',
-        'Integración completa',
-        'Capacitación incluida'
-      ],
-      recommended: false,
-      color: 'success'
-    }
-  ];
-
-  return plans;
-};
-
 const LimitDialog: React.FC<LimitDialogProps> = ({
   open,
   onClose,
@@ -172,8 +79,6 @@ const LimitDialog: React.FC<LimitDialogProps> = ({
   const [showContactSupport, setShowContactSupport] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
   const [selectedSupport, setSelectedSupport] = useState<string>('');
-
-  const plans = getPlansForUI();
 
   const getConfig = () => {
     switch (limitType) {
@@ -571,7 +476,7 @@ const LimitDialog: React.FC<LimitDialogProps> = ({
           {isMobile ? (
             // Vista móvil: Stack vertical con cards más compactas
             <Stack spacing={2}>
-              {plans.map((plan) => (
+              {subscriptionPlansForUi.map((plan) => (
                 <Card 
                   key={plan.key}
                   variant="outlined"
@@ -661,7 +566,7 @@ const LimitDialog: React.FC<LimitDialogProps> = ({
           ) : (
             // Vista desktop/tablet: Grid
             <Grid container spacing={isTablet ? 2 : 3}>
-              {plans.map((plan) => (
+              {subscriptionPlansForUi.map((plan) => (
                 <Grid item xs={12} sm={6} md={4} key={plan.key}>
                   <Card 
                     variant="outlined"

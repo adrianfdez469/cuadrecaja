@@ -59,7 +59,7 @@ model Usuario {
   nombre          String
   usuario         String            @unique // Nombre de usuario único
   password        String
-  rol             String            @default("vendedor") // Rol del usuario en el sistema
+  rol             String?             // Aqui solo se registrará si el usuario es superadministrador con el rol SUPER_ADMIN
 
   //tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
   locales         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
