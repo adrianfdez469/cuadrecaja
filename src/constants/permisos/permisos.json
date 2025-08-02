@@ -28,9 +28,6 @@
   "configuracion.roles.acceder": {
     "descripcion": "Permite realizar configuraciones de roles"
   },
-  "configuracion.roles.escribir": {
-    "descripcion": "Permite realizar configuraciones de roles"
-  },
   
   "recuperaciones.dashboard.acceder": {
     "descripcion": "Permite acceder al dashboard de recuperaciones"
