@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hasAdminPrivileges } from "@/utils/auth";
-import getUserFromRequest from "@/utils/getUserFromRequest";
+import { getSession } from "@/utils/auth";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 // Obtener todos los productos (Accesible para todos)
 export async function GET(req: Request) {
   try {
 
-    const user = await getUserFromRequest(req);
+    const session = await getSession();
+    const user = session.user;
 
     const productos = await prisma.producto.findMany({
       include: {
@@ -46,15 +47,15 @@ export async function GET(req: Request) {
 // Crear un nuevo producto (Solo Admin)
 export async function POST(req: Request) {
   try {
-    if (!(await hasAdminPrivileges())) {
+    const session = await getSession();
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.productos.acceder", user.rol)) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
         { status: 403 }
       );
     }
-
-    const user = await getUserFromRequest(req);
-
     // Validar límite de productos
     const productosCounter = await prisma.producto.count({
       where: {

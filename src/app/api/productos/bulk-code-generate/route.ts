@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hasAdminPrivileges } from "@/utils/auth";
-import getUserFromRequest from "@/utils/getUserFromRequest";
+import { getSession } from "@/utils/auth";
 import generateEAN13 from "@/utils/generateProductCode";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 export async function POST(req: NextRequest) {
   try {
-    if (!(await hasAdminPrivileges())) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
-    }
+    const session = await getSession();
+    const user = session.user;
 
-    const user = await getUserFromRequest(req);
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.productos.generar_codigo", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
     const { codes } = await req.json();
 
     if (!codes || !Array.isArray(codes) || codes.length === 0) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; // Asegúrate de tener la configuración de Prisma en `lib/prisma.ts`
-import { hasAdminPrivileges } from "@/utils/auth";
-import getUserFromRequest from "@/utils/getUserFromRequest";
+import { getSession } from "@/utils/auth";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 // Actualizar una categoría existente
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,10 +9,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { id } = await params;
 
-    if (!(await hasAdminPrivileges())) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+    const session = await getSession();
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.categorias.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
     }
-    const user = await getUserFromRequest(req);
     const { nombre, color } = await req.json();
     const updatedCategory = await prisma.categoria.update({
       where: { id, negocioId: user.negocio.id },
@@ -28,10 +33,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
 
-    if (!(await hasAdminPrivileges())) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+    const session = await getSession();
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.categorias.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
     }
-    const user = await getUserFromRequest(req);
     const { id } = await params;
 
     if (!id) {

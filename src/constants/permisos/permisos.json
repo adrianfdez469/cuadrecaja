@@ -19,6 +19,9 @@
   "configuracion.productos.acceder": {
     "descripcion": "Permite realizar configuraciones de productos"
   },
+  "configuracion.productos.generar_codigo": {
+    "descripcion": "Permite generar códigos de barra a productos que no lo tienen"
+  },
   "configuracion.proveedores.acceder": {
     "descripcion": "Permite realizar configuraciones de proveedores"
   },
