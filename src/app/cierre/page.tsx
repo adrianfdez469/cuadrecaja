@@ -55,10 +55,6 @@ const CierreCajaPage = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { verificarPermiso } = usePermisos()
 
-  const isAdminOrSuperAdmin = () => {
-    return user.rol === 'ADMIN' || user.rol === 'SUPER_ADMIN';
-  }
-
   const handleCerrarCaja = async () => {
     if(sales.filter(sale => !sale.synced).length > 0) {
       showMessage("Debe sincronizar las ventas en la interfaz del pos de ventas", "warning");
@@ -343,7 +339,7 @@ const CierreCajaPage = () => {
             />
           </Grid>
 
-          {isAdminOrSuperAdmin() && (
+          {verificarPermiso("operaciones.cierre.gananciascostos") && (
             <Grid item xs={12} sm={6} md={4}>
               <StatCard
                 icon={<TrendingUpIcon fontSize={"medium"} />}

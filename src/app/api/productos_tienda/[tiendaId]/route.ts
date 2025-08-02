@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getSession, hasAdminPrivileges } from "@/utils/auth";
+import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -70,14 +70,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
     const user = session.user;
 
     if (!verificarPermisoUsuario(user.permisos, "operaciones.conformarprecios.acceder", user.rol)) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado" },
-        { status: 403 }
-      );
-    }
-
-
-    if (!(await hasAdminPrivileges())) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
         { status: 403 }

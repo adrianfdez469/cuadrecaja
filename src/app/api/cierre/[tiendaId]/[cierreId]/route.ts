@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ICierreData } from "@/types/ICierre";
-import { hasAdminPrivileges } from "@/utils/auth";
+import { getSession } from "@/utils/auth";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ cierreId }> }): Promise<NextResponse<ICierreData|{error: string}>> {
   try {
     
     const { cierreId } = await params;
+
+    const session = await getSession();
+    const user = session.user;
   
     const cierre = await prisma.cierrePeriodo.findUnique({
       where: { id: cierreId },
@@ -114,7 +118,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
 
         // Crear clave única que incluya el proveedor para productos en consignación
         let productoKey;
-        if(hasAdminPrivileges()){
+        if(verificarPermisoUsuario(user.permisos, "operaciones.cierre.gananciascostos", user.rol)){
           productoKey = proveedor ? `${id}-${proveedor.id}-${costo}-${precio}` : `${id}-${costo}-${precio}`;
         } else {
           productoKey = proveedor ? `${id}-${proveedor.id}` : id;
