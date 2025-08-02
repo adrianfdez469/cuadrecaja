@@ -3,6 +3,7 @@ import { TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
 import { Products } from "@/store/salesStore";
 import { Close } from "@mui/icons-material";
 import { Box, Drawer, IconButton } from "@mui/material";
+import { usePermisos } from "@/utils/permisos_front";
 
 interface IProps {
   showProducts: boolean;
@@ -15,6 +16,8 @@ export const ProducsSalesDrawer: React.FC<IProps> = ({
   setShowProducts,
   productos
 }) => {
+
+  const { verificarPermiso } = usePermisos()
 
   return (
     <Drawer
@@ -57,7 +60,7 @@ export const ProducsSalesDrawer: React.FC<IProps> = ({
           }}
           totales={{ totalCantidad: 0, totalGanancia: 0, totalMonto: 0 }}
           hideTotales
-          showOnlyCants
+          showOnlyCants={!verificarPermiso("operaciones.pos-venta.gananciascostos")}
         />
       </Box>
     </Drawer>

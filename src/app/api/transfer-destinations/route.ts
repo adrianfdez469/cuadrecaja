@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hasAdminPrivileges } from "@/utils/auth";
-import getUserFromRequest from '@/utils/getUserFromRequest';
+import { getSession } from '@/utils/auth';
+import { verificarPermisoUsuario } from '@/utils/permisos_back';
 
 // Obtener todos los destinos de transferencia de una tienda
 export async function GET(req: Request) {
@@ -31,11 +31,16 @@ export async function GET(req: Request) {
 // Crear un nuevo destino de transferencia
 export async function POST(request: Request) {
   try {
-    if (!(await hasAdminPrivileges())) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+    const session = await getSession();
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.destinostransferencia.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
     }
 
-    const user = await getUserFromRequest(request);
     const { nombre, descripcion, default: isDefault, tiendaId } = await request.json();
 
     // Verificar que la tienda pertenece al negocio del usuario

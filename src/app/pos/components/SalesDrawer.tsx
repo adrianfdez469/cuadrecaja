@@ -33,6 +33,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useAppContext } from "@/context/AppContext";
 import { ICierrePeriodo } from "@/types/ICierre";
+import { usePermisos } from "@/utils/permisos_front";
 
 interface IProps {
   showSales: boolean;
@@ -59,6 +60,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const [offline, setOffline] = useState(false);
   const { user } = useAppContext();
+  const { verificarPermiso } = usePermisos()
 
   const handleSelectViewSale = (sale) => {
     setSelectedSale(sale);
@@ -90,7 +92,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
         reloadProdsAndCategories();
       } catch (error) {
         console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
-        
+
         // Manejo mejorado de errores
         if (error.message?.includes('TIMEOUT_ERROR')) {
           markSyncError(syncObj.identifier);
@@ -139,7 +141,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
       reloadProdsAndCategories();
     } catch (error) {
       console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
-      
+
       // Manejo mejorado de errores
       if (error.message?.includes('TIMEOUT_ERROR')) {
         markSyncError(syncObj.identifier);
@@ -255,7 +257,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
     // 🆕 Mostrar intentos solo si la venta no está sincronizada o si tiene intentos
     const syncAttemptsText = sale.syncAttempts > 0 ? ` (${sale.syncAttempts} intentos)` : '';
     const offlineText = sale.wasOffline ? ' - Creada offline' : ' - Creada online';
-    
+
     return {
       date: createdDate.toLocaleString(),
       status: `${sale.syncState}${syncAttemptsText}${offlineText}`,
@@ -291,7 +293,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
             {sales.length > 0 ? (
               <Chip
                 label={offline ? `Desconectado` : "Conectado!"}
-                onDelete={() => {}}
+                onDelete={() => { }}
                 deleteIcon={offline ? <WifiOff /> : <Wifi />}
                 color={offline ? "warning" : "success"}
               />
@@ -427,14 +429,16 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
                                 </IconButton>
                               )}
 
-                              <IconButton
-                                aria-label="delete"
-                                color="error"
-                                onClick={() => handleDeleteOne(s)}
-                                disabled={disableAll || (offline && s.synced)}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
+                              {verificarPermiso("operaciones.pos-venta.cancelarventa") &&
+                                <IconButton
+                                  aria-label="delete"
+                                  color="error"
+                                  onClick={() => handleDeleteOne(s)}
+                                  disabled={disableAll || (offline && s.synced)}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              }
                             </Box>
                           </TableCell>
                         </TableRow>

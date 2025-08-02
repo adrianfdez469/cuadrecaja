@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "next-auth/react";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 export async function PUT(
   req: NextRequest,
@@ -12,6 +14,16 @@ export async function PUT(
       return NextResponse.json(
         { error: "Tienda ID es requerido" },
         { status: 400 }
+      );
+    }
+
+    const session = await getSession();
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "operaciones.cierre.cerrar", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
       );
     }
 

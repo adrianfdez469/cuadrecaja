@@ -34,6 +34,7 @@ import InventoryIcon from "@mui/icons-material/Inventory";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import { formatDate, formatCurrency, formatNumber } from '@/utils/formatters';
+import { usePermisos } from "@/utils/permisos_front";
 
 const CierreCajaPage = () => {
   const { user, loadingContext, gotToPath } = useAppContext();
@@ -52,7 +53,7 @@ const CierreCajaPage = () => {
   const { clearSales, sales } = useSalesStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
+  const { verificarPermiso } = usePermisos()
 
   const isAdminOrSuperAdmin = () => {
     return user.rol === 'ADMIN' || user.rol === 'SUPER_ADMIN';
@@ -383,8 +384,8 @@ const CierreCajaPage = () => {
           <TablaProductosCierre
             cierreData={cierreData}
             totales={totales}
-            handleCerrarCaja={handleCerrarCaja}
-            showOnlyCants={false}
+            handleCerrarCaja={!verificarPermiso("operaciones.cierre.cerrar") ? undefined : handleCerrarCaja}
+            showOnlyCants={!verificarPermiso("operaciones.cierre.gananciascostos")}
           />
         </ContentCard>
         

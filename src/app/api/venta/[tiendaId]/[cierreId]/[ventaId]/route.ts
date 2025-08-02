@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; // Asegúrate de tener la configuración de Prisma en `lib/prisma.ts`
 import { MovimientoTipo } from "@prisma/client";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
+import { getSession } from "@/utils/auth";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 export async function DELETE(
   req: NextRequest,
@@ -9,6 +11,18 @@ export async function DELETE(
 ) {
   try {
     
+    const session = await getSession();
+    const user = session.user;
+
+    if (
+      !verificarPermisoUsuario(user.permisos, "operaciones.pos-venta.cancelarventa", user.rol) && 
+      !verificarPermisoUsuario(user.permisos, "operaciones.ventas.eliminar", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
+
     const { tiendaId, ventaId } = await params;
     const { searchParams } = new URL(req.url);
     const usuarioId = searchParams.get("usuarioId");

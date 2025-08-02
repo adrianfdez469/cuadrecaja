@@ -47,6 +47,7 @@ import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
 import { IProductoDisponible, OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal";
 import { ILocal } from "@/types/ILocal";
 import { getLocales } from "@/services/localesService";
+import { usePermisos } from "@/utils/permisos_front";
 
 interface IProductoMovimiento {
   nombre: string;
@@ -96,7 +97,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
   // productos,
   fetchMovimientos
 }) => {
-  const [tipo, setTipo] = useState<ITipoMovimiento>("COMPRA");
+  const [tipo, setTipo] = useState<ITipoMovimiento>();
   const [itemsProductos, setItemsProductos] = useState<IProductoMovimiento[]>([]);
   const [saving, setSaving] = useState(false);
   const { showMessage } = useMessageContext();
@@ -119,6 +120,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
 
   const [destinations, setDestinations] = useState<ILocal[]>([])
   const [destinationId, setDestinationId] = useState<string>("")
+  const { verificarPermiso } = usePermisos()
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -158,6 +160,40 @@ export const AddMovimientoDialog: FC<IProps> = ({
       );
     });
   }, [operacion, setOnConfirm]);
+
+  useEffect(() => {
+    if(verificarPermiso("operaciones.movimientos.crear.compra")) {
+      setTipo("COMPRA")
+    } else if ( verificarPermiso("operaciones.movimientos.crear.transferencia")) {
+      setTipo("TRASPASO_SALIDA") 
+    }
+  }, [])
+
+  const tienePermisoAMovimiento = (tipoMov: ITipoMovimiento) => {
+
+    console.log(tipoMov);
+    console.log('verificarPermiso("operaciones.movimientos.crear.ajuste_entradas")', verificarPermiso("operaciones.movimientos.crear.ajuste_entradas"));
+    
+
+    switch(tipoMov) {
+      case "AJUSTE_ENTRADA":
+        return verificarPermiso("operaciones.movimientos.crear.ajuste_entradas");
+      case "AJUSTE_SALIDA":
+        return verificarPermiso("operaciones.movimientos.crear.ajuste_salidas");
+      case "COMPRA":
+        return verificarPermiso("operaciones.movimientos.crear.compra");
+      case "CONSIGNACION_DEVOLUCION":
+        return verificarPermiso("operaciones.movimientos.crear.consignacion_devolucion");
+      case "CONSIGNACION_ENTRADA":
+        return verificarPermiso("operaciones.movimientos.crear.consignacion_entrada");
+      case "TRASPASO_ENTRADA":
+        return verificarPermiso("operaciones.movimientos.crear.recepcion");
+      case "TRASPASO_SALIDA":
+        return verificarPermiso("operaciones.movimientos.crear.transferencia");
+      default:
+        return false;
+    }
+  }
 
   const fetchProveedores = async () => {
     setLoadingProveedores(true);
@@ -387,7 +423,11 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 }
               }}
             >
-              {TIPOS_MOVIMIENTO_MANUAL.map((tipoMovimiento) => (
+              {TIPOS_MOVIMIENTO_MANUAL
+                
+                .filter(tienePermisoAMovimiento)
+                
+                .map((tipoMovimiento) => (
                 <MenuItem key={tipoMovimiento} value={tipoMovimiento}>
                   <Box sx={{ width: '100%' }}>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
