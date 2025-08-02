@@ -50,6 +50,7 @@ import { findUltimaLiquidacion, getProveedoresConsignacionById, liquidarProveedo
 import { IProveedorConsignacion } from "@/types/IProveedorConsignación";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
+import { usePermisos } from "@/utils/permisos_front";
 
 interface ILiquidacion {
   id: string;
@@ -111,6 +112,7 @@ export default function ProveedorDetallePage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const { showMessage } = useMessageContext();
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
+  const { verificarPermiso } = usePermisos();
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -579,6 +581,7 @@ console.log('liquidacionesData',liquidacionesData);
                             startIcon={<Payment />}
                             onClick={() => handleLiquidarProveedor(liquidacion.id, id.toString())}
                             fullWidth
+                            disabled={!verificarPermiso("configuracion.proveedores.liquidar")}
                           >
                             Liquidar
                           </Button>
