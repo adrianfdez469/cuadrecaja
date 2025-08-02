@@ -25,6 +25,10 @@
   "configuracion.proveedores.acceder": {
     "descripcion": "Permite realizar configuraciones de proveedores"
   },
+  "configuracion.proveedores.liquidar": {
+    "descripcion": "Permite registrar liquidaciones a proveedores"
+  },
+
   "configuracion.destinostransferencia.acceder": {
     "descripcion": "Permite realizar configuraciones de destinos de transferencia"
   },

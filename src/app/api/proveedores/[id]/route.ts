@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import getUserFromRequest from '@/utils/getUserFromRequest';
-import { hasAdminPrivileges } from "@/utils/auth";
+import { getSession } from "@/utils/auth";
 import { IProveedorUpdate } from '@/types/IProveedor';
+import { verificarPermisoUsuario } from '@/utils/permisos_back';
 
 // GET /api/proveedores/[id] - Obtener un proveedor por ID
 export async function GET(
@@ -10,7 +10,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUserFromRequest(request);
+    const session = await getSession();
+    const user = session.user;
     const { id } = await params;
     
     if (!user) {
@@ -41,15 +42,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUserFromRequest(request);
+    
     const { id } = await params;
     
-    if (!user) {
-      return NextResponse.json({ error: 'Usuario no autenticado' }, { status: 401 });
-    }
+    const session = await getSession();
+    const user = session.user;
 
-    if (!(await hasAdminPrivileges())) {
-      return NextResponse.json({ error: 'No tienes permisos para actualizar proveedores' }, { status: 403 });
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.proveedores.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
     }
 
     const body: IProveedorUpdate = await request.json();
@@ -104,15 +107,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUserFromRequest(request);
+    
     const { id } = await params;
     
-    if (!user) {
-      return NextResponse.json({ error: 'Usuario no autenticado' }, { status: 401 });
-    }
+    const session = await getSession();
+    const user = session.user;
 
-    if (!(await hasAdminPrivileges())) {
-      return NextResponse.json({ error: 'No tienes permisos para eliminar proveedores' }, { status: 403 });
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.proveedores.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
     }
 
     // Verificar que el proveedor existe y pertenece al negocio

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/utils/auth";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 export async function PUT(
   req: NextRequest,
@@ -7,6 +9,15 @@ export async function PUT(
 ) {
   try {
     const { cierreId, proveedorId } = await params;
+
+    const session = await getSession();
+    const user = session.user;
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.proveedores.liquidar", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
 
     if (!cierreId) {
       return NextResponse.json(

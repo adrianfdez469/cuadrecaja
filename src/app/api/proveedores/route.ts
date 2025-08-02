@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import getUserFromRequest from '@/utils/getUserFromRequest';
 import { IProveedorCreate } from '@/types/IProveedor';
-import { hasAdminPrivileges } from "@/utils/auth";
+import { getSession } from "@/utils/auth";
+import { verificarPermisoUsuario } from '@/utils/permisos_back';
 
 // GET /api/proveedores - Obtener todos los proveedores con filtro opcional por nombre
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request);
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Usuario no autenticado' }, { status: 401 });
-    }
+    const session = await getSession();
+    const user = session.user;
+
 
     const { searchParams } = new URL(request.url);
     const nombre = searchParams.get('nombre');
@@ -44,14 +42,14 @@ export async function GET(request: NextRequest) {
 // POST /api/proveedores - Crear un nuevo proveedor
 export async function POST(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request);
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Usuario no autenticado' }, { status: 401 });
-    }
+    const session = await getSession();
+    const user = session.user;
 
-    if (!hasAdminPrivileges()) {
-      return NextResponse.json({ error: 'No tienes permisos para crear proveedores' }, { status: 403 });
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.proveedores.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
     }
 
     const body: IProveedorCreate = await request.json();
