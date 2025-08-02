@@ -67,7 +67,16 @@ export const authOptions:NextAuthOptions  = {
 
         // Obtener permisos basados en la tienda actual
         const permisos = await getPermisosUsuario(user.id, user.localActual?.id || null);
-        const rol = await getRolUsuario(user.id, user.localActual?.id || null)
+        
+        let rol = "";
+        
+        if(user.rol === "SUPER_ADMIN") {
+          rol = "SUPER_ADMIN";
+        } else {
+          rol = await getRolUsuario(user.id, user.localActual?.id || null)
+        }
+
+        
 
         return {
           id: user.id,
@@ -144,8 +153,6 @@ export const authOptions:NextAuthOptions  = {
         // token.tiendaActual = null;
         token.localActual = null;
         token.permisos = ""; // Limpiar permisos al cambiar de negocio
-        
-
       }
 
       return token;

@@ -8,8 +8,13 @@ import { prisma } from "@/lib/prisma";
  */
 export async function getRolUsuario(usuarioId: string, tiendaId: string | null): Promise<string> {
   try {
+
+    console.log('getRolUsuario');
+    
+
     // Si no hay tienda actual, no hay permisos específicos
     if (!tiendaId) {
+      console.log('No hay tiendaId');
       return "";
     }
 
@@ -30,10 +35,6 @@ export async function getRolUsuario(usuarioId: string, tiendaId: string | null):
     // Si no hay relación o no hay rol asignado, devolver cadena vacía
     if (!usuarioTienda || !usuarioTienda.rol) {
       return "";
-    }
-
-    if(usuarioTienda.usuario.rol === "SUPER_ADMIN") {
-        return "Super Admin";
     }
 
     // Devolver los permisos del rol

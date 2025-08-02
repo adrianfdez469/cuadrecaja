@@ -12,12 +12,12 @@ export async function GET(req: Request) {
     const usuarios = await prisma.usuario.findMany({
       where: {
         negocioId: user.negocio.id,
-        rol: {
-          not: "SUPER_ADMIN"
-        }
       }
     });
-    return NextResponse.json(usuarios);
+    
+    const usuariosFiltrados = usuarios.filter(user => user.rol !== "SUPER_ADMIN");
+
+    return NextResponse.json(usuariosFiltrados);
   } catch (error) {
     console.log(error);
     return NextResponse.json(
