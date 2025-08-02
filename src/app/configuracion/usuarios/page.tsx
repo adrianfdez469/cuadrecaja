@@ -53,6 +53,7 @@ import { ContentCard } from "@/components/ContentCard";
 import LimitDialog from "@/components/LimitDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
+import { usePermisos } from "@/utils/permisos_front";
 
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState([]);
@@ -61,7 +62,6 @@ export default function UsuariosPage() {
   const [nombre, setNombre] = useState("");
   const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
-  const [rol, setRol] = useState("VENDEDOR");
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statsExpanded, setStatsExpanded] = useState(false);
@@ -70,6 +70,7 @@ export default function UsuariosPage() {
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { showMessage } = useMessageContext();
   const { user: actualUser } = useAppContext();
+  const { verificarPermiso } = usePermisos();
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -95,7 +96,6 @@ export default function UsuariosPage() {
     setNombre(user?.nombre || "");
     setUsuario(user?.usuario || "");
     setPassword(user?.password || "");
-    setRol(user?.rol || "VENDEDOR");
     setOpen(true);
   };
 
@@ -125,7 +125,6 @@ export default function UsuariosPage() {
       nombre: nombre,
       usuario: usuario,
       password: password,
-      rol: rol,
     };
 
     setSaving(true);
@@ -168,8 +167,6 @@ export default function UsuariosPage() {
 
   // Cálculos para estadísticas
   const totalUsuarios = usuarios.length;
-  const adminUsuarios = usuarios.filter(u => u.rol === "ADMIN").length;
-  const vendedorUsuarios = usuarios.filter(u => u.rol === "VENDEDOR").length;
 
   const breadcrumbs = [
     { label: 'Inicio', href: '/' },
@@ -287,7 +284,7 @@ export default function UsuariosPage() {
                   color="primary.light"
                 />
               </Grid>
-              <Grid item xs={4}>
+              {/* <Grid item xs={4}>
                 <StatCard
                   icon={<AdminPanelSettings />}
                   value={adminUsuarios.toLocaleString()}
@@ -302,7 +299,7 @@ export default function UsuariosPage() {
                   label="Vendedores"
                   color="info.light"
                 />
-              </Grid>
+              </Grid> */}
             </Grid>
             <Divider sx={{ mb: 2 }} />
           </Collapse>
@@ -317,7 +314,7 @@ export default function UsuariosPage() {
               color="primary.light"
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          {/* <Grid item xs={12} sm={6} md={4}>
             <StatCard
               icon={<AdminPanelSettings />}
               value={adminUsuarios.toLocaleString()}
@@ -332,7 +329,7 @@ export default function UsuariosPage() {
               label="Vendedores"
               color="info.light"
             />
-          </Grid>
+          </Grid> */}
         </Grid>
       )}
 
@@ -395,12 +392,14 @@ export default function UsuariosPage() {
                         <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
                           {user.nombre}
                         </Typography>
-                        <Chip 
-                          label={user.rol}
-                          color={user.rol === 'ADMIN' ? 'error' : 'info'}
-                          size="small"
-                          sx={{ height: 20 }}
-                        />
+                        {user.rol === "SUPER_ADMIN" && 
+                          <Chip 
+                            label={user.rol}
+                            color={'info'}
+                            size="small"
+                            sx={{ height: 20 }}
+                          />
+                        }
                       </Box>
                       
                       <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -414,7 +413,7 @@ export default function UsuariosPage() {
                           }}
                           size="small"
                           color="error"
-                          disabled={user.rol === 'ADMIN' && adminUsuarios <= 1 && actualUser.rol !== 'SUPER_ADMIN'}
+                          disabled={!verificarPermiso('configuracion.usuarios.deleteOrDisable')}
                         >
                           <Delete fontSize="small" />
                         </IconButton>
@@ -433,7 +432,6 @@ export default function UsuariosPage() {
                 <TableRow>
                   <TableCell>Nombre</TableCell>
                   <TableCell>Usuario</TableCell>
-                  <TableCell>Rol</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
@@ -462,13 +460,7 @@ export default function UsuariosPage() {
                         {user.usuario}
                       </Typography>
                     </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={user.rol}
-                        color={user.rol === 'ADMIN' ? 'error' : 'info'}
-                        size="small"
-                      />
-                    </TableCell>
+                    
                     <TableCell align="center">
                       <Stack direction="row" spacing={0.5} justifyContent="center">
                         <Tooltip title="Editar usuario">
@@ -483,7 +475,7 @@ export default function UsuariosPage() {
                             <Edit fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title={user.rol === 'ADMIN' && adminUsuarios <= 1 ? "No se puede eliminar el último administrador" : "Eliminar usuario"}>
+                        <Tooltip title={"Eliminar usuario"}>
                           <span>
                             <IconButton
                               onClick={(e) => {
@@ -492,7 +484,7 @@ export default function UsuariosPage() {
                               }}
                               size="small"
                               color="error"
-                              disabled={user.rol === 'ADMIN' && adminUsuarios <= 1}
+                              disabled={!verificarPermiso('configuracion.usuarios.deleteOrDisable')}
                             >
                               <Delete fontSize="small" />
                             </IconButton>
@@ -540,28 +532,6 @@ export default function UsuariosPage() {
               required={!selectedUsuario}
               placeholder={selectedUsuario ? "Dejar vacío para mantener la actual" : "Contraseña segura"}
             />
-
-            <FormControl fullWidth>
-              <InputLabel>Rol</InputLabel>
-              <Select
-                value={rol}
-                onChange={(e) => setRol(e.target.value)}
-                label="Rol"
-              >
-                <MenuItem value="ADMIN">
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <AdminPanelSettings fontSize="small" />
-                    Administrador
-                  </Box>
-                </MenuItem>
-                <MenuItem value="VENDEDOR">
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Store fontSize="small" />
-                    Vendedor
-                  </Box>
-                </MenuItem>
-              </Select>
-            </FormControl>
           </Stack>
         </DialogContent>
         <DialogActions>

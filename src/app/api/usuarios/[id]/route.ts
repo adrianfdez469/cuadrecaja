@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { getSession, hasPermision } from "@/utils/auth";
+import { getSession } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
-import getUserFromRequest from "@/utils/getUserFromRequest";
+import { verificarPermisoUsuario  } from "@/utils/permisos_back";
 
 
 // Eliminar un usuario (DELETE)
@@ -17,7 +17,9 @@ export async function DELETE(
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }
 
-    const user = await getUserFromRequest(req);
+    // const user = await getUserFromRequest(req);
+    const session = await getSession();
+    const user = session.user;
 
     const usuario = await prisma.usuario.findUnique({where: {id, negocioId: user.negocio.id}});
     if(!usuario) {
@@ -27,7 +29,7 @@ export async function DELETE(
       );
     }
 
-    if ( !(await hasPermision(usuario.rol))) {
+    if(!verificarPermisoUsuario(user.permisos || '', "configuracion.usuarios.deleteOrDisable", user.rol )) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
         { status: 403 }
@@ -65,6 +67,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     
     const session = await getSession();
+    const user = session?.user;
     const userId = session?.user?.id;
 
     const { id } = await params;
@@ -72,8 +75,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }
     
-    const user = await getUserFromRequest(req);
-    const { nombre, rol, usuario, password } = await req.json();
+    // const user = await getUserFromRequest(req);
+    const { nombre, usuario, password } = await req.json();
+
+    if(!verificarPermisoUsuario(user.permisos, "configuracion.usuarios.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
 
     const usuarioDB = await prisma.usuario.findUnique({where: {id, negocioId: user.negocio.id}});
     if(!usuarioDB) {
@@ -86,11 +96,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     let data = {};
     if(userId === id ){
       data = {
-        nombre,
+        ...(nombre ? {nombre} : {}),
         ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
       }
     } else {
-      if ( !(await hasPermision(rol))) {
+      if(password && !verificarPermisoUsuario(user.permisos, "configuracion.usuarios.cambiarpassword", user.rol)) {
+        return NextResponse.json(
+          { error: "Acceso no autorizado a cambiar contraseñas" },
+          { status: 403 }
+        );
+      }
+      if(!verificarPermisoUsuario(user.permisos, "configuracion.usuarios.acceder", user.rol)) {
         return NextResponse.json(
           { error: "Acceso no autorizado" },
           { status: 403 }
@@ -99,7 +115,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       data = {
         nombre,
-        rol: (rol as string).toUpperCase(),
         usuario,
         ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
       }

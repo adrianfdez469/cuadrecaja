@@ -5,6 +5,9 @@
   "configuracion.usuarios.cambiarpassword": {
     "descripcion": "Permite cambiar la contraseña de un usuario."
   },
+  "configuracion.usuarios.deleteOrDisable": {
+    "descripcion": "Permite eliminar o desabilitar usuarios"
+  },
 
   
   "configuracion.locales.acceder": {
