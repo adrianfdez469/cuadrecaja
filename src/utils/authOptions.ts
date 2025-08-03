@@ -142,8 +142,13 @@ export const authOptions:NextAuthOptions  = {
         if (token.id && session.localActual?.id) {
           const nuevosPermisos = await getPermisosUsuario(token.id as string, session.localActual.id);
           token.permisos = nuevosPermisos;
-          const nuevoRol = await getRolUsuario(token.id as string, session.localActual.id);
-          token.rol = nuevoRol;
+          
+          // ✅ PRESERVAR ROL SUPER_ADMIN - Solo actualizar rol si no es SUPER_ADMIN
+          if (token.rol !== "SUPER_ADMIN") {
+            const nuevoRol = await getRolUsuario(token.id as string, session.localActual.id);
+            token.rol = nuevoRol;
+          }
+          // Si es SUPER_ADMIN, mantener el rol original sin cambios
         }
       }
       if (trigger === "update" && session?.negocio) {
