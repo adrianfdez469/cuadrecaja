@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 // Obtener usuarios del negocio (excluyendo SUPER_ADMIN)
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const session = await getSession();
     const user = session.user;

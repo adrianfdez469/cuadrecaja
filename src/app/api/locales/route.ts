@@ -4,7 +4,7 @@ import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 // Obtener todas las tiendas con usuarios y roles
-export async function GET(req: Request) {
+export async function GET() {
   const session = await getSession();
   const user = session.user; 
 

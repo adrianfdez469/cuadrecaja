@@ -16,10 +16,6 @@ import {
   DialogContent, 
   DialogActions, 
   TextField, 
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Select,
   Box,
   CircularProgress,
   InputAdornment,
@@ -39,8 +35,6 @@ import {
   Delete, 
   Add,
   Person,
-  AdminPanelSettings,
-  Store,
   Search,
   Refresh,
   ExpandMore,
@@ -52,7 +46,6 @@ import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import LimitDialog from "@/components/LimitDialog";
 import { useMessageContext } from "@/context/MessageContext";
-import { useAppContext } from "@/context/AppContext";
 import { usePermisos } from "@/utils/permisos_front";
 
 export default function UsuariosPage() {
@@ -69,7 +62,6 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { showMessage } = useMessageContext();
-  const { user: actualUser } = useAppContext();
   const { verificarPermiso } = usePermisos();
   
   const theme = useTheme();
