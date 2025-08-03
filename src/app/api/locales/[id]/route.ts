@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // Asegúrate de tener la configuración de Prisma en `lib/prisma.ts`
-import { hasAdminPrivileges } from "@/utils/auth";
-import getUserFromRequest from "@/utils/getUserFromRequest";
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/utils/auth";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!(await hasAdminPrivileges())) {
+    const session = await getSession();
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.locales.acceder", user.rol)) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
         { status: 403 }
       );
     }
-    const user = await getUserFromRequest(req);
+    
     const { id } = await params;
 
     if (!id) {
@@ -82,7 +85,10 @@ export async function PUT(
   try {
     const { id } = await params;
 
-    if (!(await hasAdminPrivileges())) {
+    const session = await getSession();
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.locales.acceder", user.rol)) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
         { status: 403 }

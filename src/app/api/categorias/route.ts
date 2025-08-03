@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hasAdminPrivileges } from "@/utils/auth";
-import getUserFromRequest from '@/utils/getUserFromRequest';
+import { getSession } from "@/utils/auth";
+import { verificarPermisoUsuario } from '@/utils/permisos_back';
 
 // Obtener todas las categorías
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const user = await getUserFromRequest(req);
+    const session = await getSession();
+    const user = session.user;
 
     const categorias = await prisma.categoria.findMany({
       orderBy: {
@@ -27,11 +28,15 @@ export async function GET(req: Request) {
 export async function POST(request: Request) {
   try {
 
-    if (!(await hasAdminPrivileges())) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
-    }
+    const session = await getSession();
+    const user = session.user;
 
-    const user = await getUserFromRequest(request);
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.categorias.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
 
     const { nombre, color } = await request.json();
     const newCategory = await prisma.categoria.create({

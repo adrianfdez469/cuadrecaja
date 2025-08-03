@@ -38,6 +38,7 @@ import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
+import { usePermisos } from "@/utils/permisos_front";
 
 export default function ResumenCierrePage() {
   const [data, setData] = useState<ISummaryCierre>();
@@ -59,6 +60,7 @@ export default function ResumenCierrePage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const { verificarPermiso } = usePermisos();
 
   const fetchData = async () => {
     setLoading(true);
@@ -813,8 +815,7 @@ export default function ResumenCierrePage() {
                   <TablaProductosCierre
                     cierreData={cierreProducData.ciereData}
                     totales={cierreProducData.totales}
-                    showOnlyCants={false}
-                    
+                    showOnlyCants={!verificarPermiso("operaciones.cierre.gananciascostos")}
                   />
                 </Box>
               </ContentCard>

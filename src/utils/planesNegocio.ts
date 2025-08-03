@@ -12,7 +12,7 @@ export const planesNegocio = {
     limiteLocales: 2,
     limiteUsuarios: 2,
     limiteProductos: 100,
-    precio: 5,
+    precio: 10,
     moneda: 'USD',
     duracion: 30, // días
     descripcion: 'Plan básico mensual'
@@ -21,7 +21,7 @@ export const planesNegocio = {
     limiteLocales: 5,
     limiteUsuarios: -1, // ilimitados
     limiteProductos: 500,
-    precio: 15,
+    precio: 20,
     moneda: 'USD',
     duracion: 30, // días
     descripcion: 'Plan silver con usuarios ilimitados'

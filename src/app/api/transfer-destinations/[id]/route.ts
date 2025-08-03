@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hasAdminPrivileges } from "@/utils/auth";
-import getUserFromRequest from "@/utils/getUserFromRequest";
+import { getSession } from "@/utils/auth";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 // Actualizar un destino de transferencia existente
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
 
-    if (!(await hasAdminPrivileges())) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
-    }
+    const session = await getSession();
+    const user = session.user;
 
-    const user = await getUserFromRequest(req);
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.destinostransferencia.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
     const { nombre, descripcion, default: isDefault } = await req.json();
 
     // Verificar que el destino existe y pertenece al negocio del usuario
@@ -64,11 +68,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 // Eliminar un destino de transferencia
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    if (!(await hasAdminPrivileges())) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
-    }
+    const session = await getSession();
+    const user = session.user;
 
-    const user = await getUserFromRequest(req);
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.destinostransferencia.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
     const { id } = await params;
 
     if (!id) {

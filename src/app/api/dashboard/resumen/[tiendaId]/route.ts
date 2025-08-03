@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import getUserFromRequest from "@/utils/getUserFromRequest";
-import { hasAdminPrivileges } from "@/utils/auth";
+import { getSession } from "@/utils/auth";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 export interface DashboardResumenMetrics {
   ventas: {
@@ -33,9 +33,10 @@ export async function GET(
   { params }: { params: Promise<{ tiendaId: string }> }
 ): Promise<NextResponse<DashboardResumenMetrics | { error: string }>> {
   try {
-    const user = await getUserFromRequest(req);
+    const session = await getSession();
+    const user = session.user;
     
-    if (!user || !hasAdminPrivileges()) {
+    if (!user || !verificarPermisoUsuario(user.permisos, "recuperaciones.dashboard.acceder", user.rol)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 

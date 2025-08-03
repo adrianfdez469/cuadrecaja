@@ -30,6 +30,9 @@ import {
   RadioGroup,
   Toolbar,
   Typography,
+  TextField,
+  InputAdornment,
+  Alert
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
@@ -50,7 +53,10 @@ import {
   Receipt,
   Security,
   Summarize,
-  SwapVert
+  SwapVert,
+  Lock,
+  Visibility,
+  VisibilityOff
 } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
@@ -68,6 +74,7 @@ import UpgradeIcon from '@mui/icons-material/Upgrade';
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
+import { Avatar } from "@mui/material";
 
 const CONFIGURATION_MENU_ITEMS = [
   {
@@ -167,6 +174,21 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     configuracion: false
   });
   const { verificarPermiso } = usePermisos()
+
+  // Estados para cambio de contraseña
+  const [openChangePassword, setOpenChangePassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [loadingPasswordChange, setLoadingPasswordChange] = useState(false);
 
   const getMainMenuItemsByLocalType = (localType: string, type: string, user: { rol: string, permisos: string }) => {
     let items = [];
@@ -335,6 +357,122 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       });
     }
   }
+
+  const handleChangePassword = () => {
+    setOpenChangePassword(true);
+    handleClose(); // Cerrar el menú de usuario
+  };
+
+  const handleCloseChangePassword = () => {
+    setOpenChangePassword(false);
+    setPasswordData({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setPasswordErrors([]);
+    setShowPasswords({
+      current: false,
+      new: false,
+      confirm: false
+    });
+  };
+
+  const validatePassword = (password: string): string[] => {
+    const errors: string[] = [];
+    if (password.length < 8) {
+      errors.push('La contraseña debe tener al menos 8 caracteres');
+    }
+    if (!/[A-Z]/.test(password)) {
+      errors.push('La contraseña debe contener al menos una mayúscula');
+    }
+    if (!/[a-z]/.test(password)) {
+      errors.push('La contraseña debe contener al menos una minúscula');
+    }
+    if (!/[0-9]/.test(password)) {
+      errors.push('La contraseña debe contener al menos un número');
+    }
+    return errors;
+  };
+
+  const handlePasswordChange = (field: string, value: string) => {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Limpiar errores cuando el usuario empiece a escribir
+    if (passwordErrors.length > 0) {
+      setPasswordErrors([]);
+    }
+  };
+
+  const handleSubmitPasswordChange = async () => {
+    const errors: string[] = [];
+    
+    // Validaciones
+    if (!passwordData.currentPassword) {
+      errors.push('La contraseña actual es requerida');
+    }
+    
+    if (!passwordData.newPassword) {
+      errors.push('La nueva contraseña es requerida');
+    } else {
+      const passwordValidationErrors = validatePassword(passwordData.newPassword);
+      errors.push(...passwordValidationErrors);
+    }
+    
+    if (!passwordData.confirmPassword) {
+      errors.push('Confirmar la nueva contraseña es requerido');
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      errors.push('Las nuevas contraseñas no coinciden');
+    }
+    
+    if (passwordData.currentPassword === passwordData.newPassword) {
+      errors.push('La nueva contraseña debe ser diferente a la actual');
+    }
+    
+    if (errors.length > 0) {
+      setPasswordErrors(errors);
+      return;
+    }
+    
+    setLoadingPasswordChange(true);
+    
+    try {
+      const response = await fetch('/api/auth/cambiar-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        showMessage('Contraseña cambiada exitosamente', 'success');
+        handleCloseChangePassword();
+      } else {
+        setPasswordErrors([result.error || 'Error al cambiar la contraseña']);
+      }
+    } catch (error) {
+      console.error('Error al cambiar contraseña:', error);
+      setPasswordErrors(['Error de conexión. Intenta nuevamente.']);
+    } finally {
+      setLoadingPasswordChange(false);
+    }
+  };
+
+  const togglePasswordVisibility = (field: string) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
 
   // Cargar el conteo de locales al montar el componente
   useEffect(() => {
@@ -515,7 +653,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   sx: {
                     mt: 1,
                     borderRadius: 2,
-                    minWidth: 200,
+                    minWidth: 280,
                     border: '1px solid #e2e8f0',
                     '& .MuiMenuItem-root': {
                       px: 2,
@@ -530,6 +668,43 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   }
                 }}
               >
+                {/* Sección de información del usuario */}
+                <Box sx={{ p: 2, pb: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Avatar
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        bgcolor: 'primary.main',
+                        mr: 2,
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {(user?.nombre || user?.usuario)?.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Typography variant="body1" fontWeight={600} color="text.primary">
+                        {user?.nombre || user?.usuario}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {user?.rol}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+                
+                <Divider sx={{ mx: 2, my: 1 }} />
+
+                {/* Opción de cambiar contraseña */}
+                <MenuItem onClick={handleChangePassword}>
+                  <Lock sx={{ mr: 2, color: 'info.main' }} />
+                  <Typography variant="body2" fontWeight={500}>
+                    Cambiar contraseña
+                  </Typography>
+                </MenuItem>
+
+                <Divider sx={{ mx: 2, my: 1 }} />
 
                 {user.rol === "SUPER_ADMIN" && (
                   <MenuItem onClick={() => handleCambiarNegocio()}>
@@ -547,7 +722,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                         {!user?.localActual ? 'Seleccionar local' : 'Cambiar de local'}
                       </Typography>
                     </MenuItem>,
-                    <Divider key="divider-local" sx={{ my: 1 }} />
+                    <Divider key="divider-local" sx={{ mx: 2, my: 1 }} />
                   ]
                 )}
                 <MenuItem onClick={handleLogout}>
@@ -917,6 +1092,118 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           </DialogActions>
         </Dialog>
       )}
+
+      {/* Dialog de cambio de contraseña */}
+      <Dialog
+        open={openChangePassword}
+        onClose={handleCloseChangePassword}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            minWidth: 400,
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h6" fontWeight={600}>
+            Cambiar Contraseña
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Ingresa tu contraseña actual y define una nueva contraseña segura.
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {passwordErrors.length > 0 && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              <Box>
+                {passwordErrors.map((error, index) => (
+                  <Typography key={index} variant="body2">
+                    • {error}
+                  </Typography>
+                ))}
+              </Box>
+            </Alert>
+          )}
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField
+              label="Contraseña Actual"
+              type={showPasswords.current ? "text" : "password"}
+              value={passwordData.currentPassword}
+              onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+              fullWidth
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => togglePasswordVisibility('current')}
+                      edge="end"
+                    >
+                      {showPasswords.current ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+            <TextField
+              label="Nueva Contraseña"
+              type={showPasswords.new ? "text" : "password"}
+              value={passwordData.newPassword}
+              onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+              fullWidth
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => togglePasswordVisibility('new')}
+                      edge="end"
+                    >
+                      {showPasswords.new ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+              helperText="Mínimo 8 caracteres, incluyendo mayúsculas, minúsculas y números"
+            />
+            <TextField
+              label="Confirmar Nueva Contraseña"
+              type={showPasswords.confirm ? "text" : "password"}
+              value={passwordData.confirmPassword}
+              onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+              fullWidth
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => togglePasswordVisibility('confirm')}
+                      edge="end"
+                    >
+                      {showPasswords.confirm ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button 
+            onClick={handleCloseChangePassword} 
+            variant="outlined"
+            disabled={loadingPasswordChange}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmitPasswordChange}
+            variant="contained"
+            color="primary"
+            disabled={loadingPasswordChange}
+          >
+            {loadingPasswordChange ? <CircularProgress size={24} /> : "Cambiar Contraseña"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

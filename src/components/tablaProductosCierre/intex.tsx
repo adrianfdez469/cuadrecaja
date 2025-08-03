@@ -106,10 +106,6 @@ export const TablaProductosCierre: FC<IProps> = ({
     }
   };
 
-  const isAdminOrSuperAdmin = () => {
-    return user?.rol === "ADMIN" || user?.rol === "SUPER_ADMIN";
-  };
-
   // Funciones de exportación
   const handleExportAll = async () => {
     try {
@@ -294,9 +290,9 @@ export const TablaProductosCierre: FC<IProps> = ({
               {!showOnlyCants && (
                 <>
                   <TableCell>Venta</TableCell>
-                  {isAdminOrSuperAdmin() && <TableCell>Ganancia</TableCell>}
-                  {isAdminOrSuperAdmin() && <TableCell>Costo</TableCell>}
-                  {isAdminOrSuperAdmin() && <TableCell>Precio</TableCell>}
+                  {!showOnlyCants && <TableCell>Ganancia</TableCell>}
+                  {!showOnlyCants && <TableCell>Costo</TableCell>}
+                  {!showOnlyCants && <TableCell>Precio</TableCell>}
                   {isConsignacion && <TableCell>Proveedor</TableCell>}
                 </>
               )}
@@ -347,15 +343,15 @@ export const TablaProductosCierre: FC<IProps> = ({
                     {!showOnlyCants && (
                       <>
                         <TableCell>{formatCurrency(producto.total || 0)}</TableCell>
-                        {isAdminOrSuperAdmin() && <TableCell>{formatCurrency(producto.ganancia || 0)}</TableCell>}
-                        {isAdminOrSuperAdmin() && (
+                        {!showOnlyCants && <TableCell>{formatCurrency(producto.ganancia || 0)}</TableCell>}
+                        {!showOnlyCants && (
                           <TableCell>
                             <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
                               {formatCurrency(producto.costo || 0)}
                             </Typography>
                           </TableCell>
                         )}
-                        {isAdminOrSuperAdmin() && (
+                        {!showOnlyCants && (
                           <TableCell>
                             <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
                               {formatCurrency(producto.precio || 0)}
@@ -410,7 +406,7 @@ export const TablaProductosCierre: FC<IProps> = ({
               </Box>
             </Grid>
 
-            {isAdminOrSuperAdmin && (
+            {!showOnlyCants && (
               <Grid item xs={12} sm={6} md={3}>
                 <Box textAlign="center">
                   <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -546,7 +542,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                 <Typography variant="body2" color="text.secondary">
                   Ventas: {formatCurrency(totalVentasPropias)}
                 </Typography>
-                {isAdminOrSuperAdmin && (
+                {!showOnlyCants && (
                   <Typography variant="body2" color="text.secondary">
                     Ganancia: {formatCurrency(totalGananciasPropias)}
                   </Typography>
@@ -566,7 +562,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                 <Typography variant="body2" color="text.secondary">
                   Ventas: {formatCurrency(totalVentasConsignacion)}
                 </Typography>
-                {isAdminOrSuperAdmin && (
+                {!showOnlyCants && (
                   <Typography variant="body2" color="text.secondary">
                     Ganancia: {formatCurrency(totalGananciasConsignacion)}
                   </Typography>
@@ -589,7 +585,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                       <Typography variant="body2" color="text.secondary">
                         Ventas: {formatCurrency(item.total)}
                       </Typography>
-                      {isAdminOrSuperAdmin && (
+                      {!showOnlyCants && (
                         <Typography variant="body2" color="text.secondary">
                           Ganancia: {formatCurrency(item.ganancia)}
                         </Typography>
@@ -776,9 +772,9 @@ export const TablaProductosCierre: FC<IProps> = ({
                 {!showOnlyCants && (
                   <>
                     <TableCell>Venta</TableCell>
-                    {isAdminOrSuperAdmin() && <TableCell>Ganancia</TableCell>}
-                    {isAdminOrSuperAdmin() && <TableCell>Costo</TableCell>}
-                    {isAdminOrSuperAdmin() && <TableCell>Precio</TableCell>}
+                    {!showOnlyCants && <TableCell>Ganancia</TableCell>}
+                    {!showOnlyCants && <TableCell>Costo</TableCell>}
+                    {!showOnlyCants && <TableCell>Precio</TableCell>}
                   </>
                 )}
               </TableRow>
@@ -840,15 +836,15 @@ export const TablaProductosCierre: FC<IProps> = ({
                         {!showOnlyCants && (
                           <>
                             <TableCell>{formatCurrency(producto.total || 0)}</TableCell>
-                            {isAdminOrSuperAdmin() && <TableCell>{formatCurrency(producto.ganancia || 0)}</TableCell>}
-                            {isAdminOrSuperAdmin() && (
+                            {!showOnlyCants && <TableCell>{formatCurrency(producto.ganancia || 0)}</TableCell>}
+                            {!showOnlyCants && (
                               <TableCell>
                                 <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
                                   {formatCurrency(producto.costo || 0)}
                                 </Typography>
                               </TableCell>
                             )}
-                            {isAdminOrSuperAdmin() && (
+                            {!showOnlyCants && (
                               <TableCell>
                                 <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
                                   {formatCurrency(producto.precio || 0)}
@@ -869,9 +865,9 @@ export const TablaProductosCierre: FC<IProps> = ({
                   {!showOnlyCants && (
                     <>
                       <TableCell>{formatCurrency(totales?.totalMonto || 0)}</TableCell>
-                      {isAdminOrSuperAdmin() && <TableCell>{formatCurrency(totales?.totalGanancia || 0)}</TableCell>}
-                      {isAdminOrSuperAdmin() && <TableCell></TableCell>}
-                      {isAdminOrSuperAdmin() && <TableCell></TableCell>}
+                      <TableCell>{formatCurrency(totales?.totalGanancia || 0)}</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
                     </>
                   )}
                 </TableRow>

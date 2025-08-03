@@ -5,8 +5,9 @@
   "configuracion.usuarios.cambiarpassword": {
     "descripcion": "Permite cambiar la contraseña de un usuario."
   },
-
-  
+  "configuracion.usuarios.deleteOrDisable": {
+    "descripcion": "Permite eliminar o desabilitar usuarios"
+  },
   "configuracion.locales.acceder": {
     "descripcion": "Permite realizar configuraciones de locales/tiendas"
   },
@@ -16,8 +17,14 @@
   "configuracion.productos.acceder": {
     "descripcion": "Permite realizar configuraciones de productos"
   },
+  "configuracion.productos.generar_codigo": {
+    "descripcion": "Permite generar códigos de barra a productos que no lo tienen"
+  },
   "configuracion.proveedores.acceder": {
     "descripcion": "Permite realizar configuraciones de proveedores"
+  },
+  "configuracion.proveedores.liquidar": {
+    "descripcion": "Permite registrar liquidaciones a proveedores"
   },
   "configuracion.destinostransferencia.acceder": {
     "descripcion": "Permite realizar configuraciones de destinos de transferencia"
@@ -25,10 +32,6 @@
   "configuracion.roles.acceder": {
     "descripcion": "Permite realizar configuraciones de roles"
   },
-  "configuracion.roles.escribir": {
-    "descripcion": "Permite realizar configuraciones de roles"
-  },
-  
   "recuperaciones.dashboard.acceder": {
     "descripcion": "Permite acceder al dashboard de recuperaciones"
   },
@@ -44,7 +47,6 @@
   "recuperaciones.proveedoresconsignación.acceder": {
     "descripcion": "Permite acceder y realizar todas las funciones disponibles en la recuperacion de los proveedores y productos en consignación."
   },
-  
   "operaciones.pos-venta.acceder": {
     "descripcion": "Permite acceder a la interfaz de ventas (POS)"
   },
@@ -75,6 +77,7 @@
   "operaciones.movimientos.acceder": {
     "descripcion": "Permite acceder a la interfaz de movimientos de stock"
   },
+  
   "operaciones.movimientos.crear.compra": {
     "descripcion": "Permite crear movimientos de compra de productos"
   },

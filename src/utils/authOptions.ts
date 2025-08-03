@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import { JWT } from "next-auth/jwt";
 import dayjs from 'dayjs';
 import { getPermisosUsuario } from "./getPermisosUsuario";
+import { getRolUsuario } from "./getRolUsuario";
 
 export const authOptions:NextAuthOptions  = {
   session: {
@@ -66,13 +67,23 @@ export const authOptions:NextAuthOptions  = {
 
         // Obtener permisos basados en la tienda actual
         const permisos = await getPermisosUsuario(user.id, user.localActual?.id || null);
+        
+        let rol = "";
+        
+        if(user.rol === "SUPER_ADMIN") {
+          rol = "SUPER_ADMIN";
+        } else {
+          rol = await getRolUsuario(user.id, user.localActual?.id || null)
+        }
+
+        
 
         return {
           id: user.id,
           usuario: user.usuario,
           nombre: user.nombre,
           negocio: user.negocio,
-          rol: user.rol,
+          rol: rol,
           // tiendas: tiendasDisponibles,
           locales: localesDisponibles,
           // tiendaActual: user.tiendaActual
@@ -131,6 +142,13 @@ export const authOptions:NextAuthOptions  = {
         if (token.id && session.localActual?.id) {
           const nuevosPermisos = await getPermisosUsuario(token.id as string, session.localActual.id);
           token.permisos = nuevosPermisos;
+          
+          // ✅ PRESERVAR ROL SUPER_ADMIN - Solo actualizar rol si no es SUPER_ADMIN
+          if (token.rol !== "SUPER_ADMIN") {
+            const nuevoRol = await getRolUsuario(token.id as string, session.localActual.id);
+            token.rol = nuevoRol;
+          }
+          // Si es SUPER_ADMIN, mantener el rol original sin cambios
         }
       }
       if (trigger === "update" && session?.negocio) {
@@ -140,7 +158,6 @@ export const authOptions:NextAuthOptions  = {
         // token.tiendaActual = null;
         token.localActual = null;
         token.permisos = ""; // Limpiar permisos al cambiar de negocio
-
       }
 
       return token;

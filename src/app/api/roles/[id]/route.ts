@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import getUserFromRequest from "@/utils/getUserFromRequest";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import { getSession } from "@/utils/auth";
+
 
 // GET - Obtener un rol específico por ID
 export async function GET(
@@ -9,7 +10,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUserFromRequest(request);
+    const session = await getSession();
+    const user = session.user;
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
@@ -47,12 +49,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUserFromRequest(request);
+    const session = await getSession();
+    const user = session.user;
+
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    if(!verificarPermisoUsuario(user.permisos, 'configuracion.roles.escribir', user.rol)) {
+    if(!verificarPermisoUsuario(user.permisos, 'configuracion.roles.acceder', user.rol)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -122,12 +126,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUserFromRequest(request);
+    const session = await getSession();
+    const user = session.user;
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    if(!verificarPermisoUsuario(user.permisos, 'configuracion.roles.escribir', user.rol)) {
+    if(!verificarPermisoUsuario(user.permisos, 'configuracion.roles.acceder', user.rol)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 

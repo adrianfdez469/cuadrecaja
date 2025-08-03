@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import getUserFromRequest from '@/utils/getUserFromRequest';
+import { getSession } from '@/utils/auth';
 
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const user = await getUserFromRequest(request);
+        const session = await getSession();
+        const user = session.user;
         const { id } = await params;
 
         if (!user) {

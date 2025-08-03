@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import getUserFromRequest from "@/utils/getUserFromRequest";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import { getSession } from "@/utils/auth";
 
 // GET - Obtener todos los roles del negocio del usuario
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request);
+    const session = await getSession()
+    const user = session.user;
+
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
@@ -17,6 +20,10 @@ export async function GET(request: NextRequest) {
 
     // Solo SUPER_ADMIN puede ver roles de otros negocios
     if (negocioId !== user.negocio.id && user.rol !== "SUPER_ADMIN") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    if(!verificarPermisoUsuario(user.permisos, "configuracion.roles.acceder", user.rol)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
