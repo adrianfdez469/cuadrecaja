@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Drawer,
@@ -15,8 +15,10 @@ import {
   CardContent,
   Grid,
   Chip,
+  Button,
+  ButtonGroup,
 } from "@mui/material";
-import { Close } from "@mui/icons-material";
+import { Close, History, GroupWork } from "@mui/icons-material";
 import { useSalesStore } from "@/store/salesStore";
 import { useAppContext } from "@/context/AppContext";
 
@@ -31,6 +33,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
 }) => {
   const { sales } = useSalesStore();
   const { user } = useAppContext();
+  const [viewMode, setViewMode] = useState<'grouped' | 'historical'>('grouped');
 
   // Filtrar ventas del usuario actual
   const userSales = useMemo(() => {
@@ -45,31 +48,68 @@ export const UserSalesDrawer: React.FC<IProps> = ({
     const productosConsignacion = [];
     const productosPropios = [];
 
+    // Maps para agrupar productos
+    const groupedConsignacion = new Map();
+    const groupedPropios = new Map();
+
     userSales.forEach(sale => {
       totalGeneral += sale.total;
 
       sale.productos.forEach(producto => {
+        const precioUnitario = sale.total / sale.productos.reduce((sum, p) => sum + p.cantidad, 0);
+        const totalProducto = precioUnitario * producto.cantidad;
+
         const productoData = {
           nombre: producto.name,
           cantidad: producto.cantidad,
-          precio: sale.total / sale.productos.reduce((sum, p) => sum + p.cantidad, 0), // Precio promedio
-          total: (sale.total / sale.productos.reduce((sum, p) => sum + p.cantidad, 0)) * producto.cantidad,
+          precio: precioUnitario,
+          total: totalProducto,
           fecha: new Date(sale.createdAt).toLocaleDateString(),
           estado: sale.syncState === "synced" ? "Sincronizada" : sale.syncState === "syncing" ? "Sincronizando" : "Pendiente",
         };
 
-        // Aquí necesitarías lógica para determinar si es consignación o propio
-        // Por simplicidad, asumo que productos con proveedorId son consignación
-        // Esto debería ajustarse según tu lógica de negocio
-        if (producto.name.includes(" - ")) { // Productos con proveedor (consignación)
-          productosConsignacion.push(productoData);
-          totalConsignacion += productoData.total;
-        } else { // Productos propios
-          productosPropios.push(productoData);
-          totalPropios += productoData.total;
+        const isConsignacion = producto.name.includes(" - ");
+
+        if (viewMode === 'grouped') {
+          // Agrupar productos del mismo nombre
+          const targetMap = isConsignacion ? groupedConsignacion : groupedPropios;
+
+          if (targetMap.has(producto.name)) {
+            const existing = targetMap.get(producto.name);
+            existing.cantidad += producto.cantidad;
+            existing.total += totalProducto;
+            // Mantener precio promedio ponderado
+            existing.precio = existing.total / existing.cantidad;
+          } else {
+            targetMap.set(producto.name, {
+              nombre: producto.name,
+              cantidad: producto.cantidad,
+              precio: precioUnitario,
+              total: totalProducto,
+            });
+          }
+        } else {
+          // Vista histórica (comportamiento actual)
+          if (isConsignacion) {
+            productosConsignacion.push(productoData);
+          } else {
+            productosPropios.push(productoData);
+          }
+        }
+
+        if (isConsignacion) {
+          totalConsignacion += totalProducto;
+        } else {
+          totalPropios += totalProducto;
         }
       });
     });
+
+    // Convertir maps a arrays para vista agrupada
+    if (viewMode === 'grouped') {
+      productosConsignacion.push(...Array.from(groupedConsignacion.values()));
+      productosPropios.push(...Array.from(groupedPropios.values()));
+    }
 
     return {
       totalGeneral,
@@ -79,7 +119,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
       productosPropios,
       cantidadVentas: userSales.length,
     };
-  }, [userSales]);
+  }, [userSales, viewMode]);
 
   return (
     <Drawer
@@ -153,6 +193,26 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           </Grid>
         </Grid>
 
+        {/* Toggle de vista */}
+        <Box display="flex" justifyContent="center" mb={3}>
+          <ButtonGroup variant="outlined" size="small">
+            <Button
+              startIcon={<GroupWork />}
+              variant={viewMode === 'grouped' ? 'contained' : 'outlined'}
+              onClick={() => setViewMode('grouped')}
+            >
+              Vista Agrupada
+            </Button>
+            <Button
+              startIcon={<History />}
+              variant={viewMode === 'historical' ? 'contained' : 'outlined'}
+              onClick={() => setViewMode('historical')}
+            >
+              Vista Histórica
+            </Button>
+          </ButtonGroup>
+        </Box>
+
         <Box display="flex" alignItems="center" gap={2} mb={2}>
           <Typography variant="body2" color="textSecondary">
             {salesData.cantidadVentas} ventas realizadas
@@ -181,8 +241,12 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                     <TableCell align="center"><strong>Cantidad</strong></TableCell>
                     <TableCell align="right"><strong>Precio Unit.</strong></TableCell>
                     <TableCell align="right"><strong>Total</strong></TableCell>
-                    <TableCell align="center"><strong>Fecha</strong></TableCell>
-                    <TableCell align="center"><strong>Estado</strong></TableCell>
+                    {viewMode === 'historical' && (
+                      <>
+                        <TableCell align="center"><strong>Fecha</strong></TableCell>
+                        <TableCell align="center"><strong>Estado</strong></TableCell>
+                      </>
+                    )}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -196,22 +260,26 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                           ${producto.total.toFixed(2)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">{producto.fecha}</TableCell>
-                      <TableCell align="center">
-                        <Chip
-                          label={producto.estado}
-                          size="small"
-                          color={
-                            producto.estado === "Sincronizada" ? "success" :
-                            producto.estado === "Sincronizando" ? "info" : "warning"
-                          }
-                          variant="outlined"
-                        />
-                      </TableCell>
+                      {viewMode === 'historical' && (
+                        <>
+                          <TableCell align="center">{producto.fecha}</TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              label={producto.estado}
+                              size="small"
+                              color={
+                                producto.estado === "Sincronizada" ? "success" :
+                                producto.estado === "Sincronizando" ? "info" : "warning"
+                              }
+                              variant="outlined"
+                            />
+                          </TableCell>
+                        </>
+                      )}
                     </TableRow>
                   ))}
                   <TableRow sx={{ bgcolor: "warning.light" }}>
-                    <TableCell colSpan={3}>
+                    <TableCell colSpan={viewMode === 'grouped' ? 3 : 3}>
                       <Typography fontWeight="bold">Subtotal Consignación:</Typography>
                     </TableCell>
                     <TableCell align="right">
@@ -219,7 +287,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                         ${salesData.totalConsignacion.toFixed(2)}
                       </Typography>
                     </TableCell>
-                    <TableCell colSpan={2}></TableCell>
+                    {viewMode === 'historical' && <TableCell colSpan={2}></TableCell>}
                   </TableRow>
                 </TableBody>
               </Table>
@@ -249,8 +317,12 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                     <TableCell align="center"><strong>Cantidad</strong></TableCell>
                     <TableCell align="right"><strong>Precio Unit.</strong></TableCell>
                     <TableCell align="right"><strong>Total</strong></TableCell>
-                    <TableCell align="center"><strong>Fecha</strong></TableCell>
-                    <TableCell align="center"><strong>Estado</strong></TableCell>
+                    {viewMode === 'historical' && (
+                      <>
+                        <TableCell align="center"><strong>Fecha</strong></TableCell>
+                        <TableCell align="center"><strong>Estado</strong></TableCell>
+                      </>
+                    )}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -264,22 +336,26 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                           ${producto.total.toFixed(2)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">{producto.fecha}</TableCell>
-                      <TableCell align="center">
-                        <Chip
-                          label={producto.estado}
-                          size="small"
-                          color={
-                            producto.estado === "Sincronizada" ? "success" :
-                            producto.estado === "Sincronizando" ? "info" : "warning"
-                          }
-                          variant="outlined"
-                        />
-                      </TableCell>
+                      {viewMode === 'historical' && (
+                        <>
+                          <TableCell align="center">{producto.fecha}</TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              label={producto.estado}
+                              size="small"
+                              color={
+                                producto.estado === "Sincronizada" ? "success" :
+                                producto.estado === "Sincronizando" ? "info" : "warning"
+                              }
+                              variant="outlined"
+                            />
+                          </TableCell>
+                        </>
+                      )}
                     </TableRow>
                   ))}
                   <TableRow sx={{ bgcolor: "success.light" }}>
-                    <TableCell colSpan={3}>
+                    <TableCell colSpan={viewMode === 'grouped' ? 3 : 3}>
                       <Typography fontWeight="bold">Subtotal Propios:</Typography>
                     </TableCell>
                     <TableCell align="right">
@@ -287,7 +363,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                         ${salesData.totalPropios.toFixed(2)}
                       </Typography>
                     </TableCell>
-                    <TableCell colSpan={2}></TableCell>
+                    {viewMode === 'historical' && <TableCell colSpan={2}></TableCell>}
                   </TableRow>
                 </TableBody>
               </Table>
