@@ -45,8 +45,8 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { createSell } from "@/services/sellService";
 import { useSalesStore } from "@/store/salesStore";
 
-import { ProducsSalesDrawer } from "./components/ProductsSalesDrawer";
 import { SalesDrawer } from "./components/SalesDrawer";
+import { UserSalesDrawer } from "./components/UserSalesDrawer";
 
 import { QuantityDialog } from "./components/QuantityDialog";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
@@ -74,7 +74,7 @@ export default function POSInterface() {
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { productos, sales, addSale, markSynced, markSyncing, checkSyncTimeouts, markSyncError } = useSalesStore();
-  const [showProductsSells, setShowProductsSells] = useState(false);
+  const [showUserSales, setShowUserSales] = useState(false);
   const [showSyncView, setShowSyncView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<IProductoTiendaV2[]>([]);
@@ -574,8 +574,8 @@ export default function POSInterface() {
     setShowSyncView(true);
   };
 
-  const handleShowProductsSells = () => {
-    setShowProductsSells(true);
+  const handleShowUserSales = () => {
+    setShowUserSales(true);
     setOpenSpeedDial(false);
   };
 
@@ -954,7 +954,7 @@ export default function POSInterface() {
               if (data?.code) handleProductScan(data.code);
             }}
             onHardwareScan={handleHardwareScan}
-            keepFocus={intentToSearch || paymentDialog || showProductsSells || showSyncView || openSpeedDial ? false : true}
+            keepFocus={intentToSearch || paymentDialog || showSyncView || openSpeedDial ? false : true}
           />
           {scannerError && (
             <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
@@ -1151,12 +1151,10 @@ export default function POSInterface() {
           transferDestinations={transferDestinations}
         />
 
-        {/* Modal de productos vendidos */}
-        <ProducsSalesDrawer
-          setShowProducts={setShowProductsSells}
-          showProducts={showProductsSells}
-          productos={productos}
-
+        {/* Drawer de ventas del usuario */}
+        <UserSalesDrawer
+          showUserSales={showUserSales}
+          setShowUserSales={setShowUserSales}
         />
 
         {/* Drawer de ventas y sincronización  */}
@@ -1198,15 +1196,15 @@ export default function POSInterface() {
               onClick={handleShowSyncView}
             />
             <SpeedDialAction
-              key={"sells"}
+              key={"user-sales"}
               icon={<CancelPresentationIcon />}
               slotProps={{
                 tooltip: {
-                  title: "Productos vendidos",
+                  title: "Mis ventas",
                   open: true,
                 },
               }}
-              onClick={handleShowProductsSells}
+              onClick={handleShowUserSales}
             />
           </SpeedDial>
         )}
