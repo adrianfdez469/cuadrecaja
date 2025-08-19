@@ -11,7 +11,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Divider,
   Card,
   CardContent,
   Grid,
@@ -43,8 +42,8 @@ export const UserSalesDrawer: React.FC<IProps> = ({
     let totalGeneral = 0;
     let totalConsignacion = 0;
     let totalPropios = 0;
-    const productosConsignacion: any[] = [];
-    const productosPropios: any[] = [];
+    const productosConsignacion = [];
+    const productosPropios = [];
 
     userSales.forEach(sale => {
       totalGeneral += sale.total;
