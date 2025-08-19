@@ -137,20 +137,36 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           bgcolor: "background.default",
         }}
       >
+        {/* Botón de cerrar fijo */}
+        <IconButton 
+          onClick={() => setShowUserSales(false)} 
+          color="default"
+          sx={{
+            position: 'fixed',
+            top: 16,
+            right: 16,
+            zIndex: 1000,
+            bgcolor: 'background.paper',
+            boxShadow: 2,
+            '&:hover': {
+              bgcolor: 'background.default',
+            }
+          }}
+        >
+          <Close />
+        </IconButton>
+
         {/* Header */}
         <Box
           display="flex"
           flexDirection="row"
-          justifyContent="space-between"
+          justifyContent="flex-start"
           alignItems="center"
           mb={2}
         >
           <Typography variant="h5" fontWeight="bold" color="primary">
             Mis Ventas
           </Typography>
-          <IconButton onClick={() => setShowUserSales(false)} color="default">
-            <Close />
-          </IconButton>
         </Box>
 
         {/* Totales generales */}
