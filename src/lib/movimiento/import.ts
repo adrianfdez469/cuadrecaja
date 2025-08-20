@@ -1,4 +1,7 @@
 import { prisma } from '../prisma';
+import {Prisma, PrismaClient} from "@prisma/client";
+import PrismaClientOptions = Prisma.PrismaClientOptions;
+import {DefaultArgs} from "@prisma/client/runtime/binary";
 
 
 interface IImportarItemsMov {
@@ -8,6 +11,7 @@ interface IImportarItemsMov {
     cantidad: number;
     esConsignación?: boolean;
     nombreProveedor?: string;
+    categoria: string;
   }
   
   interface IImportData {
@@ -178,35 +182,18 @@ interface IImportarItemsMov {
     data: IImportData,
     items: IImportarItemsMov[]
   ): Promise<IImportarResponse> => {
-    const nombreCategoría = "SIN CATEGORIA";
     
-    return await prisma.$transaction(async (tx) => {
-      // Buscar o crear categoría
-      let categoriaId = "";
-      const categoría = await tx.categoria.findFirst({
-        where: {
-          nombre: nombreCategoría,
-          negocioId: data.negocioId
-        }
-      });
+    return prisma.$transaction(async (tx) => {
       
-      if (!categoría) {
-        const newCategoria = await tx.categoria.create({
-          data: {
-            nombre: nombreCategoría,
-            negocioId: data.negocioId,
-            color: "000000"
-          }
-        });
-        categoriaId = newCategoria.id;
-      } else {
-        categoriaId = categoría.id;
-      }
-  
+
       const proveedoresMap = new Map();
       const resultados = [];
-  
+
       for (const item of items) {
+        const nombreCategoria = item.categoria || "SIN CATEGORIA";
+        
+        const categoriaId = await getCategoryId(nombreCategoria, data.negocioId, tx);
+        
         // Verificar si el producto ya existe
         let producto = await tx.producto.findFirst({
           where: {
@@ -225,12 +212,12 @@ interface IImportarItemsMov {
             }
           });
         }
-  
+
         // Manejar proveedor si es consignación
         let proveedorId = "";
         if (item.nombreProveedor) {
           const nombreProveedorFinal = item.nombreProveedor;
-          
+
           if (proveedoresMap.has(nombreProveedorFinal)) {
             proveedorId = proveedoresMap.get(nombreProveedorFinal)!;
           } else {
@@ -240,7 +227,7 @@ interface IImportarItemsMov {
                 negocioId: data.negocioId
               }
             });
-            
+
             if (proveedor) {
               proveedorId = proveedor.id;
             } else {
@@ -255,7 +242,7 @@ interface IImportarItemsMov {
             proveedoresMap.set(nombreProveedorFinal, proveedorId);
           }
         }
-  
+
         // Crear productoTienda
         const productoTienda = await tx.productoTienda.create({
           data: {
@@ -264,10 +251,10 @@ interface IImportarItemsMov {
             existencia: item.cantidad,
             precio: item.precio,
             tiendaId: data.localId,
-            ...(proveedorId && { proveedorId: proveedorId })
+            ...(proveedorId && {proveedorId: proveedorId})
           }
         });
-  
+
         // Crear movimiento
         await tx.movimientoStock.create({
           data: {
@@ -281,16 +268,16 @@ interface IImportarItemsMov {
             costoTotal: item.costo * item.cantidad,
             costoAnterior: 0,
             costoNuevo: item.costo,
-            ...(proveedorId && { proveedorId: proveedorId })
+            ...(proveedorId && {proveedorId: proveedorId})
           },
         });
-  
+
         resultados.push({
           nombreProducto: item.nombreProducto,
           success: true
         });
       }
-  
+
       return {
         success: true,
         message: `Chunk procesado: ${resultados.length} productos`,
@@ -426,29 +413,6 @@ interface IImportarItemsMov {
       await prisma.$transaction(async (tx) => {
         console.log('🔄 Iniciando transacción de base de datos...');
     
-        // Paso 0: Crear o buscar categoría
-        let categoriaId = "";
-        const categoría = await tx.categoria.findFirst({
-          where: {
-            nombre: nombreCategoría,
-            negocioId: data.negocioId
-          }
-        })
-        if (!categoría) {
-          console.log('📝 Creando nueva categoría:', nombreCategoría);
-          const newCategoria = await tx.categoria.create({
-            data: {
-              nombre: nombreCategoría,
-              negocioId: data.negocioId,
-              color: "000000"
-            }
-          });
-          categoriaId = newCategoria.id;
-        } else {
-          console.log('✅ Categoría encontrada:', categoría.nombre);
-          categoriaId = categoría.id;
-        }
-    
         // Crear un mapa de proveedores para evitar duplicados
         const proveedoresMap = new Map();
     
@@ -456,7 +420,6 @@ interface IImportarItemsMov {
           tx,
           itemsSanitizados,
           data,
-          categoriaId,
           proveedoresMap
         );
   
@@ -561,7 +524,6 @@ interface IImportarItemsMov {
     tx: any,
     items: IImportarItemsMov[],
     data: IImportData,
-    categoriaId: string,
     proveedoresMap: Map<string, string>
   ) => {
     const resultados = [];
@@ -576,6 +538,8 @@ interface IImportarItemsMov {
     const productosMap = new Map();
   
     for (const nombreProducto of productosUnicos) {
+      const nombreCategoria = items.find(p => p.nombreProducto === nombreProducto)?.categoria || "SIN CATEGORIA";
+      const categoriaId = await getCategoryId(nombreCategoria, data.negocioId, tx);
       let producto = await tx.producto.findFirst({
         where: {
           nombre: nombreProducto,
@@ -698,4 +662,35 @@ interface IImportarItemsMov {
   
     return { resultados, errores };
   };
+
+
+  const getCategoryId = async (categoryName: string, negocioId: string, tx: Omit<PrismaClient<PrismaClientOptions, never, DefaultArgs>, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">) => {
+    const nombreCategoria = categoryName || "SIN CATEGORIA";
+
+    // Buscar o crear categoría
+    let categoriaId = "";
+    const categoria = await tx.categoria.findFirst({
+      where: {
+        nombre: nombreCategoria,
+        negocioId: negocioId
+      }
+    });
+
+    if (!categoria) {
+      const newCategoria = await tx.categoria.create({
+        data: {
+          nombre: nombreCategoria,
+          negocioId: negocioId,
+          color: `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`
+        }
+      });
+      categoriaId = newCategoria.id;
+    } else {
+      categoriaId = categoria.id;
+    }
+
+    return categoriaId;
+  }
+
+
   
