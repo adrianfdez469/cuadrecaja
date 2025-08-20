@@ -1,3 +1,10 @@
+// 🆕 Importar tipo de Usuario
+export interface IUsuarioBasico {
+  id: string;
+  nombre: string;
+  usuario: string;
+}
+
 export interface IProveedor {
   id: string;
   nombre: string;
@@ -7,6 +14,9 @@ export interface IProveedor {
   createdAt: Date;
   updatedAt: Date;
   negocioId: string;
+  // 🆕 Usuario asociado opcionalimente
+  usuarioId?: string;
+  usuario?: IUsuarioBasico;
 }
 
 export interface IProveedorCreate {
@@ -14,6 +24,8 @@ export interface IProveedorCreate {
   descripcion?: string;
   direccion?: string;
   telefono?: string;
+  // 🆕 Usuario asociado opcional
+  usuarioId?: string;
 }
 
 export interface IProveedorUpdate {
@@ -21,4 +33,6 @@ export interface IProveedorUpdate {
   descripcion?: string;
   direccion?: string;
   telefono?: string;
+  // 🆕 Usuario asociado opcional
+  usuarioId?: string;
 } 
