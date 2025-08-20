@@ -345,8 +345,6 @@ interface IImportarItemsMov {
   
       console.log('✅ Validación y sanitización de items completada');
   
-      const nombreCategoría = "SIN CATEGORIA";
-    
       console.log('🔍 Buscando negocio...');
       const negocio = await prisma.negocio.findUnique({
         where: {
