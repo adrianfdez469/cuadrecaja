@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { IVenta } from "@/types/IVenta";
+import {IProducto} from "@/types/IProducto";
 
 // Crear una venta
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
@@ -155,10 +156,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
       // Validar cantidades decimales según configuración del producto
       const invalidDecimalProducts = productosMegrados.filter(
-        (p: any) => p && typeof p.cantidad === 'number' && !Number.isInteger(p.cantidad) && !(p.producto && p.producto.permiteDecimal)
+        (p: IProducto) => p && typeof p.cantidad === 'number' && !Number.isInteger(p.cantidad) && !(p.producto && p.producto.permiteDecimal)
       );
       if (invalidDecimalProducts.length > 0) {
-        const ids = invalidDecimalProducts.map((p: any) => p.productoId || p.productoTiendaId).join(', ');
+        const ids = invalidDecimalProducts.map((p: IProducto) => p.productoId || p.productoTiendaId).join(', ');
         throw new Error(`Cantidad decimal no permitida para los productos: ${ids}`);
       }
 
