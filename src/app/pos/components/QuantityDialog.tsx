@@ -1,14 +1,7 @@
-import { useState, useEffect, ChangeEvent } from "react";
-import {
-  Dialog,
-  Box,
-  Typography,
-  Button,
-  Grow,
-  TextField,
-} from "@mui/material";
-import { IProductoTiendaV2 } from "@/types/IProducto";
-import { useCartStore } from "@/store/cartStore";
+import {ChangeEvent, useEffect, useState} from "react";
+import {Box, Button, Dialog, Grow, Typography,} from "@mui/material";
+import {IProductoTiendaV2} from "@/types/IProducto";
+import {useCartStore} from "@/store/cartStore";
 
 interface QuantityDialogProps {
   productoTienda: IProductoTiendaV2 | null;
@@ -94,32 +87,6 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
     if (quantity > 1) {
       setDirection('down');
       setQuantity(quantity - 1);
-    }
-  };
-
-  // Manejar input directo de cantidades decimales
-  const handleDecimalInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      if (productoTienda) {
-        const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
-        let maxQuantity = 0;
-
-        if (cartQuantity > 0) {
-          maxQuantity = (
-            productoTienda.producto.unidadesPorFraccion > 0
-              ? productoTienda.producto.unidadesPorFraccion
-              : productoTienda.existencia) - cartQuantity;
-        } else {
-          maxQuantity = productoTienda.producto.unidadesPorFraccion
-            ? productoTienda.producto.unidadesPorFraccion
-            : productoTienda.existencia;
-        }
-
-        if (value <= maxQuantity) {
-          setQuantity(value);
-        }
-      }
     }
   };
 
