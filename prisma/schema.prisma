@@ -130,6 +130,7 @@ model Producto {
   id              String           @id @default(uuid())
   nombre          String           // Removido @unique - ahora será único por negocio
   descripcion     String
+  permiteDecimal  Boolean          @default(false)
   categoria       Categoria        @relation(fields: [categoriaId], references: [id]) // Categoría a la que pertenece
   categoriaId     String
   productosTienda ProductoTienda[] // Relación con las tiendas donde se vende
@@ -167,7 +168,7 @@ model ProductoTienda {
   productoId  String
   costo       Float             @default(0) // Costo del producto en esa tienda
   precio      Float             @default(0) // Precio de venta en esa tienda específica
-  existencia  Int               @default(0)   // Cantidad en stock en esa tienda
+  existencia  Float             @default(0)   // Cantidad en stock en esa tienda (soporta decimales)
   ventas      VentaProducto[] // Relación con la tabla intermedia de ventas
   movimientos MovimientoStock[] // Relacion con la tabla de movimientos
 
@@ -213,7 +214,7 @@ model VentaProducto {
   ventaId          String
   producto         ProductoTienda @relation(fields: [productoTiendaId], references: [id]) // Producto vendido
   productoTiendaId String
-  cantidad         Int // Cantidad de productos vendidos en la transacción
+  cantidad         Float // Cantidad de productos vendidos en la transacción (soporta decimales)
   costo            Float          @default(0) // Costo al momento de la venta
   precio           Float          @default(0) // Precio al momento de la venta
 }
@@ -253,13 +254,13 @@ model MovimientoStock {
   productoTiendaId String
 
   tipo         MovimientoTipo // "ENTRADA" | "SALIDA" | "AJUSTE" | "VENTA"
-  cantidad     Int // Positiva para entradas, negativa para salidas
+  cantidad     Float // Positiva para entradas, negativa para salidas (soporta decimales)
   motivo       String? // Texto libre o tipos definidos (ajuste manual, error, etc.)
   referenciaId String? // Puede guardar el ID de una Venta, Entrada o Ajuste
   fecha        DateTime       @default(now())
-  
+
   // Existencia del producto ANTES de aplicar este movimiento
-  existenciaAnterior Int? // Null para movimientos existentes, valor para nuevos movimientos
+  existenciaAnterior Float? // Null para movimientos existentes, valor para nuevos movimientos
 
   // 🆕 CAMPOS PARA CPP
   costoUnitario     Float? // Costo unitario de la compra (solo para COMPRA)

@@ -70,15 +70,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const { nombre, descripcion, categoriaId, fraccion, codigosProducto } = await req.json();
+    const { nombre, descripcion, categoriaId, fraccion, codigosProducto, permiteDecimal } = await req.json();
     console.log('insert product endpoint => fraccion', fraccion);
-    
+
     const nuevoProducto = await prisma.producto.create({
       data: { 
         nombre: nombre.trim(), 
         descripcion: descripcion.trim(), 
         categoriaId, 
         negocioId: user.negocio.id, 
+        permiteDecimal: Boolean(permiteDecimal),
         ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion}),
         codigosProducto: {
           create: (codigosProducto || []).map((codigo: string) => ({ codigo }))

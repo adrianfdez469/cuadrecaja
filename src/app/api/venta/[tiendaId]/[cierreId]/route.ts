@@ -125,7 +125,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           existencia: true,
           costo: true,
           precio: true,
-          proveedorId: true
+          proveedorId: true,
+          producto: {
+            select: {
+              permiteDecimal: true
+            }
+          }
         }
       });
 
@@ -147,6 +152,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           ...producto
         };
       });
+
+      // Validar cantidades decimales según configuración del producto
+      const invalidDecimalProducts = productosMegrados.filter(
+        (p: any) => p && typeof p.cantidad === 'number' && !Number.isInteger(p.cantidad) && !(p.producto && p.producto.permiteDecimal)
+      );
+      if (invalidDecimalProducts.length > 0) {
+        const ids = invalidDecimalProducts.map((p: any) => p.productoId || p.productoTiendaId).join(', ');
+        throw new Error(`Cantidad decimal no permitida para los productos: ${ids}`);
+      }
 
       // 2. Crear la venta
       const venta = await tx.venta.create({
