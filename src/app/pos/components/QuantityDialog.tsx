@@ -1,4 +1,4 @@
-import {ChangeEvent, useEffect, useState} from "react";
+import {useEffect, useState} from "react";
 import {Box, Button, Dialog, Grow, Typography,} from "@mui/material";
 import {IProductoTiendaV2} from "@/types/IProducto";
 import {useCartStore} from "@/store/cartStore";
