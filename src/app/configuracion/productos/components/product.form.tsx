@@ -37,7 +37,8 @@ interface IProps {
     descripcion: string, 
     categoriaId: string, 
     fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number},
-    codigosProducto?: string[]
+    codigosProducto?: string[],
+    permiteDecimal?: boolean
   ) => Promise<void>;
   editingProd?: IProducto;
 }
@@ -51,6 +52,7 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
   const [descripcion, setDescripcion] = useState("");
   const [categoria, setCategoria] = useState("");
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [permiteDecimal, setPermiteDecimal] = useState(false);
 
   const [esFraccion, setEsFraccion] = useState(false);
   const [productos, setProductos] = useState<IProducto[]>([]);
@@ -61,6 +63,7 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
 
   const [consignacionTooltipOpen, setConsignacionTooltipOpen] = useState(false);
   const [fraccionTooltipOpen, setFraccionTooltipOpen] = useState(false);
+  const [decimalTooltipOpen, setDecimalTooltipOpen] = useState(false);
 
   const hendleSelectProduct = (p) => {
     setSelectedFraccionProduct(p);
@@ -88,17 +91,45 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
 
   const handleSaveProduct = () => {
     if(selectedFraccionProduct) {
-      handleSave(nombre, descripcion, categoria, {fraccionDeId: selectedFraccionProduct?.id, unidadesPorFraccion: fraccionValue}, codigosProducto.filter(Boolean));
+      handleSave(
+        nombre, 
+        descripcion, 
+        categoria, 
+        {fraccionDeId: selectedFraccionProduct?.id, unidadesPorFraccion: fraccionValue}, 
+        codigosProducto.filter(Boolean),
+        permiteDecimal
+      );
     } else {
-      handleSave(nombre, descripcion, categoria, undefined, codigosProducto.filter(Boolean));
+      handleSave(
+        nombre, 
+        descripcion, 
+        categoria, 
+        undefined, 
+        codigosProducto.filter(Boolean),
+        permiteDecimal
+      );
     }
   };
 
   const handleFraccionTooltipToggle = () => {
     setFraccionTooltipOpen(!fraccionTooltipOpen);
-    // Cerrar el otro tooltip si está abierto
+    // Cerrar los otros tooltips si están abiertos
     if (consignacionTooltipOpen) {
       setConsignacionTooltipOpen(false);
+    }
+    if (decimalTooltipOpen) {
+      setDecimalTooltipOpen(false);
+    }
+  };
+
+  const handleDecimalTooltipToggle = () => {
+    setDecimalTooltipOpen(!decimalTooltipOpen);
+    // Cerrar los otros tooltips si están abiertos
+    if (consignacionTooltipOpen) {
+      setConsignacionTooltipOpen(false);
+    }
+    if (fraccionTooltipOpen) {
+      setFraccionTooltipOpen(false);
     }
   };
 
@@ -112,6 +143,7 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
           setDescripcion(editingProd.descripcion);
           setCategoria(editingProd.categoriaId);
           setEsFraccion(!!editingProd.fraccionDeId);
+          setPermiteDecimal(!!editingProd.permiteDecimal);
           if(editingProd.codigosProducto) {
             setCodigosProducto(editingProd.codigosProducto.map(c => c.codigo));
           }
@@ -205,6 +237,62 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
               onClick={handleFraccionTooltipToggle}
               sx={{ 
                 color: fraccionTooltipOpen ? 'primary.main' : 'info.main',
+                '&:hover': { color: 'primary.main' }
+              }}
+            >
+              <Info fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={permiteDecimal}
+                onChange={(e) => setPermiteDecimal(e.target.checked)}
+              />
+            }
+            label="¿Permite cantidades decimales?"
+          />
+          <Tooltip 
+            title="Habilita esta opción para productos que se venden por peso o medida (ej: libras, kilos, metros). Permite registrar cantidades con decimales en el inventario y ventas."
+            arrow
+            placement={isMobile ? "top" : "left"}
+            open={decimalTooltipOpen}
+            disableHoverListener
+            disableFocusListener
+            disableTouchListener
+            PopperProps={{
+              modifiers: [
+                {
+                  name: 'preventOverflow',
+                  enabled: true,
+                  options: {
+                    altAxis: true,
+                    altBoundary: true,
+                    tether: true,
+                    rootBoundary: 'document',
+                    padding: 8,
+                  },
+                },
+                {
+                  name: 'flip',
+                  enabled: true,
+                  options: {
+                    altBoundary: true,
+                    rootBoundary: 'document',
+                    padding: 8,
+                  },
+                },
+              ],
+            }}
+          >
+            <IconButton 
+              size="small" 
+              onClick={handleDecimalTooltipToggle}
+              sx={{ 
+                color: decimalTooltipOpen ? 'primary.main' : 'info.main',
                 '&:hover': { color: 'primary.main' }
               }}
             >

@@ -130,6 +130,7 @@ model Producto {
   id              String           @id @default(uuid())
   nombre          String           // Removido @unique - ahora será único por negocio
   descripcion     String
+    permiteDecimal  Boolean          @default(false) // Permite cantidades decimales en ventas y existencias
   permiteDecimal  Boolean          @default(false)
   categoria       Categoria        @relation(fields: [categoriaId], references: [id]) // Categoría a la que pertenece
   categoriaId     String

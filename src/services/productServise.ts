@@ -14,14 +14,16 @@ export const createProduct = async (
   descripcion: string, 
   categoriaId: string, 
   fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number},
-  codigosProducto?: string[]
+  codigosProducto?: string[],
+  permiteDecimal?: boolean
 ) => {
   await axios.post(API_URL, {
       descripcion: descripcion,
       nombre: nombre,
       categoriaId: categoriaId,
       ...(fraccion && {fraccion}),
-      codigosProducto: codigosProducto || []
+      codigosProducto: codigosProducto || [],
+      permiteDecimal: permiteDecimal
   });
 }
 
@@ -31,14 +33,16 @@ export const editProduct = async (
   descripcion: string, 
   categoriaId: string, 
   fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number},
-  codigosProducto?: string[]
+  codigosProducto?: string[],
+  permiteDecimal?: boolean
 ) => {
   await axios.put(`${API_URL}/${id}`, {
       descripcion: descripcion,
       nombre: nombre,
       categoriaId: categoriaId,
       ...(fraccion && {fraccion}),
-      codigosProducto: codigosProducto || []
+      codigosProducto: codigosProducto || [],
+      permiteDecimal: permiteDecimal
   });
 }
 
