@@ -57,7 +57,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     const { id } = await params;
 
-    const { nombre, categoriaId, descripcion, fraccion, codigosProducto } = await req.json();
+    const { nombre, categoriaId, descripcion, fraccion, codigosProducto, permiteDecimal } = await req.json();
 
     // Actualizar producto
     await prisma.producto.update({
@@ -66,6 +66,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         nombre, 
         descripcion, 
         categoriaId,
+        permiteDecimal: Boolean(permiteDecimal), // Convertir a booleano
         ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion}),
       },
       include: { codigosProducto: true }
