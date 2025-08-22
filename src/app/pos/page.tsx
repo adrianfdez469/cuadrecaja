@@ -439,6 +439,7 @@ export default function POSInterface() {
             productoTiendaId: prod.productoTiendaId,
             productId: productoEnTienda.productoId,
             name: prod.name,
+            price: prod.price,
           };
         });
 

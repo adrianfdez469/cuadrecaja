@@ -233,6 +233,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
               cantidad: p.cantidad,
               productId: p.id,
               productoTiendaId: p.productoTiendaId,
+              price: p.price,
             };
           }),
         };
