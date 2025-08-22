@@ -34,11 +34,12 @@ export const UserSalesDrawer: React.FC<IProps> = ({
   const { sales } = useSalesStore();
   const { user } = useAppContext();
   const [viewMode, setViewMode] = useState<'grouped' | 'historical'>('grouped');
+  const [onlyOwnSales, setOnlyOwnSales] = useState(true);
 
   // Filtrar ventas del usuario actual
   const userSales = useMemo(() => {
-    return sales.filter(sale => sale.usuarioId === user.id);
-  }, [sales, user.id]);
+    return onlyOwnSales ? sales.filter(sale => sale.usuarioId === user.id) : sales;
+  }, [sales, user.id, onlyOwnSales]);
 
   // Calcular totales y separar productos por consignación
   const salesData = useMemo(() => {
@@ -216,8 +217,26 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           </Grid>
         </Grid>
 
-        {/* Toggle de vista */}
-        <Box display="flex" justifyContent="center" mb={3}>
+        {/* Toggle de vista y filtro de usuario */}
+        <Box display="flex" justifyContent="center" alignItems="center" mb={3} gap={2}>
+          {/* Toggle para filtrar ventas del usuario o todas */}
+          <ButtonGroup variant="outlined" size="small">
+            <Button
+              variant={onlyOwnSales ? 'contained' : 'outlined'}
+              color="primary"
+              onClick={() => setOnlyOwnSales(true)}
+            >
+              Mis ventas
+            </Button>
+            <Button
+              variant={!onlyOwnSales ? 'contained' : 'outlined'}
+              color="primary"
+              onClick={() => setOnlyOwnSales(false)}
+            >
+              Todas
+            </Button>
+          </ButtonGroup>
+          {/* Toggle de vista */}
           <ButtonGroup variant="outlined" size="small">
             <Button
               startIcon={<GroupWork />}
@@ -277,7 +296,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                     <TableRow key={index} hover>
                       <TableCell>{producto.nombre}</TableCell>
                       <TableCell align="center">{producto.cantidad}</TableCell>
-                      <TableCell align="right">${producto.precio.toFixed(2)}</TableCell>
+                      <TableCell align="right">${producto?.precio?.toFixed(2)}</TableCell>
                       <TableCell align="right">
                         <Typography fontWeight="bold">
                           ${producto.total.toFixed(2)}
@@ -353,7 +372,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                     <TableRow key={index} hover>
                       <TableCell>{producto.nombre}</TableCell>
                       <TableCell align="center">{producto.cantidad}</TableCell>
-                      <TableCell align="right">${producto.precio.toFixed(2)}</TableCell>
+                      <TableCell align="right">${producto.precio?.toFixed(2)}</TableCell>
                       <TableCell align="right">
                         <Typography fontWeight="bold">
                           ${producto.total.toFixed(2)}
