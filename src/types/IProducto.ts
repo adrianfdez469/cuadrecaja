@@ -40,6 +40,7 @@ export interface IProductoVenta {
   productoTiendaId: string;
   cantidad: number;
   productId: string;
+  price: number;
 }
 
 export interface IProductoTiendaV2 {

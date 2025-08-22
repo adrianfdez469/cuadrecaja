@@ -56,13 +56,12 @@ export const UserSalesDrawer: React.FC<IProps> = ({
       totalGeneral += sale.total;
 
       sale.productos.forEach(producto => {
-        const precioUnitario = sale.total / sale.productos.reduce((sum, p) => sum + p.cantidad, 0);
-        const totalProducto = precioUnitario * producto.cantidad;
+        const totalProducto = producto.price * producto.cantidad;
 
         const productoData = {
           nombre: producto.name,
           cantidad: producto.cantidad,
-          precio: precioUnitario,
+          precio: producto.price,
           total: totalProducto,
           fecha: new Date(sale.createdAt).toLocaleString('es-ES', {
             day: '2-digit',
@@ -92,7 +91,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
             targetMap.set(producto.name, {
               nombre: producto.name,
               cantidad: producto.cantidad,
-              precio: precioUnitario,
+              precio: producto.price,
               total: totalProducto,
             });
           }
