@@ -9,45 +9,45 @@ datasource db {
 }
 
 model Negocio {
-  id           String    @id @default(uuid())
-  nombre       String    @unique
-  descripcion  String?
-  createdAt    DateTime  @default(now())
+  id          String   @id @default(uuid())
+  nombre      String   @unique
+  descripcion String?
+  createdAt   DateTime @default(now())
 
   limitTime    DateTime
   userlimit    Int
   locallimit   Int
-  productlimit Int       @default(0) // Límite de productos por plan
+  productlimit Int      @default(0) // Límite de productos por plan
 
-  usuarios     Usuario[]
-  tiendas      Tienda[]
-  categorias   Categoria[]
-  productos    Producto[]
-  proveedores  Proveedor[]
-  roles        Rol[]
+  usuarios    Usuario[]
+  tiendas     Tienda[]
+  categorias  Categoria[]
+  productos   Producto[]
+  proveedores Proveedor[]
+  roles       Rol[]
 }
 
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
 model Tienda {
-  id              String            @id @default(uuid())
-  nombre          String            // Removido @unique - ahora será único por negocio
-  usuarios        UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
-  productos       ProductoTienda[] // Relación con los productos que vende el local
-  ventas          Venta[] // Relación con las ventas realizadas en el local
-  cierres         CierrePeriodo[]
-  tipo            String            @default("tienda")
-  
+  id        String           @id @default(uuid())
+  nombre    String // Removido @unique - ahora será único por negocio
+  usuarios  UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
+  productos ProductoTienda[] // Relación con los productos que vende el local
+  ventas    Venta[] // Relación con las ventas realizadas en el local
+  cierres   CierrePeriodo[]
+  tipo      String           @default("tienda")
+
   // Relaciones inversas para MovimientoStock con nombres específicos
-  movimientosOrigen MovimientoStock[] @relation("MovimientoStockOrigen")
+  movimientosOrigen  MovimientoStock[] @relation("MovimientoStockOrigen")
   movimientosDestino MovimientoStock[] @relation("MovimientoStockDestino")
 
   // Destinos de transferencia para esta tienda
   transferDestinations TransferDestinations[]
 
-  negocio         Negocio          @relation(fields: [negocioId], references: [id])
-  negocioId       String              @default("")
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+  negocioId String  @default("")
 
-  usuario         Usuario[]
+  usuario Usuario[]
 
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
@@ -55,37 +55,37 @@ model Tienda {
 
 // Representa un usuario que puede estar vinculado a múltiples tiendas.
 model Usuario {
-  id              String            @id @default(uuid())
-  nombre          String
-  usuario         String            @unique // Nombre de usuario único
-  password        String
-  rol             String?             // Aqui solo se registrará si el usuario es superadministrador con el rol SUPER_ADMIN
+  id       String  @id @default(uuid())
+  nombre   String
+  usuario  String  @unique // Nombre de usuario único
+  password String
+  rol      String? // Aqui solo se registrará si el usuario es superadministrador con el rol SUPER_ADMIN
 
   //tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
   locales         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
   ventas          Venta[] // Un usuario puede realizar múltiples ventas
   MovimientoStock MovimientoStock[]
 
-  negocio         Negocio           @relation(fields: [negocioId], references: [id])
-  negocioId       String             @default("")
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+  negocioId String  @default("")
 
   //tiendaActual    Tienda?            @relation(fields: [tiendaActualId], references: [id])
   //tiendaActualId     String?
 
-  localActual    Tienda?            @relation(fields: [localActualId], references: [id])
-  localActualId     String?
+  localActual   Tienda? @relation(fields: [localActualId], references: [id])
+  localActualId String?
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.
 model UsuarioTienda {
-  id        String  @id @default(uuid())
-  usuario   Usuario @relation(fields: [usuarioId], references: [id]) // Usuario asociado
+  id        String    @id @default(uuid())
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id]) // Usuario asociado
   usuarioId String
-  tienda    Tienda  @relation(fields: [tiendaId], references: [id]) // Tienda asociada
+  tienda    Tienda    @relation(fields: [tiendaId], references: [id]) // Tienda asociada
   tiendaId  String
-  rol       Rol?    @relation(fields: [rolId], references: [id]) // Rol del usuario en esta tienda
+  rol       Rol?      @relation(fields: [rolId], references: [id]) // Rol del usuario en esta tienda
   rolId     String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 
   @@unique([usuarioId, tiendaId]) // Garantiza que un usuario no se duplique en una tienda
@@ -94,14 +94,14 @@ model UsuarioTienda {
 // Representa un rol que puede tener un usuario en una tienda específica
 model Rol {
   id          String   @id @default(uuid())
-  nombre      String   // Nombre del rol (ej: "Vendedor", "Administrador")
-  descripcion String?  // Descripción opcional del rol
-  permisos    String   // String con permisos separados por "|" (ej: "pos.vender|pos.cancelarventa")
+  nombre      String // Nombre del rol (ej: "Vendedor", "Administrador")
+  descripcion String? // Descripción opcional del rol
+  permisos    String // String con permisos separados por "|" (ej: "pos.vender|pos.cancelarventa")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  negocio     Negocio  @relation(fields: [negocioId], references: [id])
-  negocioId   String
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+  negocioId String
 
   // Relación con las asignaciones usuario-tienda
   usuariosTiendas UsuarioTienda[]
@@ -114,12 +114,12 @@ model Rol {
 // Representa una categoría de productos (ej. Electrónica, Ropa, etc.)
 model Categoria {
   id        String     @id @default(uuid())
-  nombre    String     // Removido @unique - ahora será único por negocio
+  nombre    String // Removido @unique - ahora será único por negocio
   color     String // Color representativo (hexadecimal)
   productos Producto[] // Relación con los productos de esta categoría
 
-  negocio   Negocio   @relation(fields: [negocioId], references: [id])
-  negocioId String       @default("")
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+  negocioId String  @default("")
 
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
@@ -127,25 +127,24 @@ model Categoria {
 
 // Representa un producto genérico, sin relación con tiendas específicas.
 model Producto {
-  id              String           @id @default(uuid())
-  nombre          String           // Removido @unique - ahora será único por negocio
-  descripcion     String
-    permiteDecimal  Boolean          @default(false) // Permite cantidades decimales en ventas y existencias
-  permiteDecimal  Boolean          @default(false)
-  categoria       Categoria        @relation(fields: [categoriaId], references: [id]) // Categoría a la que pertenece
-  categoriaId     String
-  productosTienda ProductoTienda[] // Relación con las tiendas donde se vende
+  id                         String                         @id @default(uuid())
+  nombre                     String // Removido @unique - ahora será único por negocio
+  descripcion                String
+  permiteDecimal             Boolean                        @default(false)
+  categoria                  Categoria                      @relation(fields: [categoriaId], references: [id]) // Categoría a la que pertenece
+  categoriaId                String
+  productosTienda            ProductoTienda[] // Relación con las tiendas donde se vende
   prodProveedoresLiquidacion ProductoProveedorLiquidacion[]
-  
+
   // 🔗 Fracción: Este producto es una fracción de otro (ej: Cigarro Suelto -> Caja de Cigarro)
-  fraccionDe       Producto?       @relation("ProductoFraccion", fields: [fraccionDeId], references: [id])
-  fraccionDeId     String?         // ID del producto padre (opcional)
-  fracciones       Producto[]      @relation("ProductoFraccion") // Productos que se derivan de este
+  fraccionDe   Producto?  @relation("ProductoFraccion", fields: [fraccionDeId], references: [id])
+  fraccionDeId String? // ID del producto padre (opcional)
+  fracciones   Producto[] @relation("ProductoFraccion") // Productos que se derivan de este
 
-  unidadesPorFraccion Int?         // Cuántas unidades se generan al fraccionar 1 del producto padre
+  unidadesPorFraccion Int? // Cuántas unidades se generan al fraccionar 1 del producto padre
 
-  negocio         Negocio          @relation(fields: [negocioId], references: [id])
-  negocioId       String            @default("")
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+  negocioId String  @default("")
 
   codigosProducto CodigoProducto[]
 
@@ -154,9 +153,9 @@ model Producto {
 }
 
 model CodigoProducto {
-  id        String   @id @default(uuid())
-  codigo    String  @unique
-  producto  Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  codigo     String   @unique
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
   productoId String
 }
 
@@ -169,7 +168,7 @@ model ProductoTienda {
   productoId  String
   costo       Float             @default(0) // Costo del producto en esa tienda
   precio      Float             @default(0) // Precio de venta en esa tienda específica
-  existencia  Float             @default(0)   // Cantidad en stock en esa tienda (soporta decimales)
+  existencia  Float             @default(0) // Cantidad en stock en esa tienda (soporta decimales)
   ventas      VentaProducto[] // Relación con la tabla intermedia de ventas
   movimientos MovimientoStock[] // Relacion con la tabla de movimientos
 
@@ -199,7 +198,7 @@ model Venta {
   cierrePeriodo   CierrePeriodo? @relation(fields: [cierrePeriodoId], references: [id])
   cierrePeriodoId String?
 
-  transferDestination TransferDestinations? @relation(fields: [transferDestinationId], references: [id])
+  transferDestination   TransferDestinations? @relation(fields: [transferDestinationId], references: [id])
   transferDestinationId String?
 
   // 🆕 NUEVOS CAMPOS PARA TRAZABILIDAD
@@ -230,10 +229,10 @@ model CierrePeriodo {
   ventas      Venta[]
 
   // Campos denormalizados para resumen
-  totalVentas         Float @default(0)
-  totalGanancia       Float @default(0)
-  totalInversion      Float @default(0)
-  totalTransferencia  Float @default(0)
+  totalVentas        Float @default(0)
+  totalGanancia      Float @default(0)
+  totalInversion     Float @default(0)
+  totalTransferencia Float @default(0)
 
   // Nuevos campos para consignación
   totalVentasPropias         Float @default(0)
@@ -264,10 +263,10 @@ model MovimientoStock {
   existenciaAnterior Float? // Null para movimientos existentes, valor para nuevos movimientos
 
   // 🆕 CAMPOS PARA CPP
-  costoUnitario     Float? // Costo unitario de la compra (solo para COMPRA)
-  costoTotal        Float? // Costo total de la compra (cantidad * costoUnitario)
-  costoAnterior     Float? // Costo promedio ANTES de este movimiento
-  costoNuevo        Float? // Costo promedio DESPUÉS de este movimiento (CPP calculado)
+  costoUnitario Float? // Costo unitario de la compra (solo para COMPRA)
+  costoTotal    Float? // Costo total de la compra (cantidad * costoUnitario)
+  costoAnterior Float? // Costo promedio ANTES de este movimiento
+  costoNuevo    Float? // Costo promedio DESPUÉS de este movimiento (CPP calculado)
 
   usuario   Usuario? @relation(fields: [usuarioId], references: [id])
   usuarioId String?
@@ -279,7 +278,7 @@ model MovimientoStock {
   proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
   proveedorId String?
 
-  destination Tienda? @relation("MovimientoStockDestino", fields: [destinationId], references: [id])
+  destination   Tienda? @relation("MovimientoStockDestino", fields: [destinationId], references: [id])
   destinationId String?
 
   state MovimientoState @default(APROBADO)
@@ -291,19 +290,19 @@ model MovimientoStock {
 // Representa un proveedor del negocio
 model Proveedor {
   id          String   @id @default(uuid())
-  nombre      String   // Nombre del proveedor (obligatorio)
-  descripcion String?  // Descripción del proveedor (opcional)
-  direccion   String?  // Dirección del proveedor (opcional)
-  telefono    String?  // Teléfono del proveedor (opcional)
+  nombre      String // Nombre del proveedor (obligatorio)
+  descripcion String? // Descripción del proveedor (opcional)
+  direccion   String? // Dirección del proveedor (opcional)
+  telefono    String? // Teléfono del proveedor (opcional)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  negocio     Negocio  @relation(fields: [negocioId], references: [id])
-  negocioId   String
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+  negocioId String
 
   // Relación con movimientos de consignación
   movimientos MovimientoStock[]
-  
+
   // Relación con productos en consignación
   productosConsignacion ProductoTienda[]
 
@@ -316,15 +315,15 @@ model Proveedor {
 
 // Representa los destinos de transferencia para cada tienda
 model TransferDestinations {
-  id          String   @id @default(uuid())
-  nombre      String   // Nombre del destino de transferencia
-  descripcion String?  // Descripción del destino (opcional)
-  default     Boolean  @default(false) // Indica si es el destino por defecto
-  tienda      Tienda   @relation(fields: [tiendaId], references: [id])
+  id          String  @id @default(uuid())
+  nombre      String // Nombre del destino de transferencia
+  descripcion String? // Descripción del destino (opcional)
+  default     Boolean @default(false) // Indica si es el destino por defecto
+  tienda      Tienda  @relation(fields: [tiendaId], references: [id])
   tiendaId    String
 
   // Relación con las ventas que usan este destino
-  ventas      Venta[]
+  ventas Venta[]
 
   // Índice de unicidad compuesto: nombre único por tienda
   @@unique([nombre, tiendaId])
@@ -332,23 +331,23 @@ model TransferDestinations {
 }
 
 model ProductoProveedorLiquidacion {
-  id               String           @id @default(uuid())
-  monto            Float            @default(0)
-  vendidos         Float            @default(0)
-  costo            Float            @default(0)
-  precio           Float            @default(0)
-  existencia       Float            @default(0)
+  id         String @id @default(uuid())
+  monto      Float  @default(0)
+  vendidos   Float  @default(0)
+  costo      Float  @default(0)
+  precio     Float  @default(0)
+  existencia Float  @default(0)
 
-  createdAt        DateTime         @default(now()) 
-  liquidatedAt     DateTime?
-  
-  cierre      CierrePeriodo @relation(fields: [cierreId], references: [id])
-  cierreId    String
+  createdAt    DateTime  @default(now())
+  liquidatedAt DateTime?
 
-  proveedor   Proveedor  @relation(fields: [proveedorId], references: [id])
+  cierre   CierrePeriodo @relation(fields: [cierreId], references: [id])
+  cierreId String
+
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
   proveedorId String
 
-  producto  Producto @relation(fields: [productoId], references: [id])
+  producto   Producto @relation(fields: [productoId], references: [id])
   productoId String
 
   @@unique([cierreId, proveedorId, productoId])

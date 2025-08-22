@@ -3,7 +3,7 @@ ALTER TABLE "MovimientoStock" ALTER COLUMN "cantidad" SET DATA TYPE DOUBLE PRECI
 ALTER COLUMN "existenciaAnterior" SET DATA TYPE DOUBLE PRECISION;
 
 -- AlterTable
-ALTER TABLE "Producto" ADD COLUMN     "permiteDecimal" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Producto" ADD COLUMN  "permiteDecimal" BOOLEAN NOT NULL DEFAULT false;
 
 -- AlterTable
 ALTER TABLE "ProductoTienda" ALTER COLUMN "existencia" SET DEFAULT 0,
