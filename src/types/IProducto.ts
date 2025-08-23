@@ -8,6 +8,7 @@ export interface IProducto {
   descripcion: string;
   categoria: ICategory;
   categoriaId: string;
+  permiteDecimal?: boolean;
 
   fraccionDeId?: string;
   unidadesPorFraccion?: number;
@@ -29,6 +30,7 @@ export interface IProductoTienda {
   productoTiendaId: string;
   enConsignacion?: boolean;
   proveedor?: IProveedor;
+  permiteDecimal?: boolean;
 
   fraccionDeId?: string;
   unidadesPorFraccion?: number;
@@ -38,6 +40,7 @@ export interface IProductoVenta {
   productoTiendaId: string;
   cantidad: number;
   productId: string;
+  price: number;
 }
 
 export interface IProductoTiendaV2 {

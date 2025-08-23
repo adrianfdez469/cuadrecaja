@@ -355,7 +355,7 @@ export default function MovimientosPage() {
       >
         {isMobile ? "Crear" : "Crear Movimiento"}
       </Button>
-      {(movimientos.length === 0 && !searchTerm) &&
+      {((movimientos.length === 0 && !searchTerm) || user.rol === 'SUPER_ADMIN') &&
         <Button
           variant="contained"
           startIcon={!isMobile ? <Dock /> : undefined}

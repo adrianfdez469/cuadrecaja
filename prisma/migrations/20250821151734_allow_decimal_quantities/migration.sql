@@ -1,0 +1,13 @@
+-- AlterTable
+ALTER TABLE "MovimientoStock" ALTER COLUMN "cantidad" SET DATA TYPE DOUBLE PRECISION,
+ALTER COLUMN "existenciaAnterior" SET DATA TYPE DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "Producto" ADD COLUMN  "permiteDecimal" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable
+ALTER TABLE "ProductoTienda" ALTER COLUMN "existencia" SET DEFAULT 0,
+ALTER COLUMN "existencia" SET DATA TYPE DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "VentaProducto" ALTER COLUMN "cantidad" SET DATA TYPE DOUBLE PRECISION;
