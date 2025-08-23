@@ -193,7 +193,6 @@ export default function Proveedores() {
   const totalProveedores = proveedores.length;
   const proveedoresConTelefono = proveedores.filter(p => p.telefono).length;
   const proveedoresConDireccion = proveedores.filter(p => p.direccion).length;
-  const proveedoresCompletos = proveedores.filter(p => p.descripcion && p.telefono && p.direccion).length;
   const proveedoresConUsuario = proveedores.filter(p => p.usuarioId).length;
 
   const breadcrumbs = [

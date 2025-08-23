@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
       }
     });
     
-    const filter: any = {};
+    const filter: {proveedor?: {id: {in: string[]}}} = {};
     if(proveedores.length > 0) {
       // Solo mostrar los productos de los proveedores asociados al usuario
       filter.proveedor = {
