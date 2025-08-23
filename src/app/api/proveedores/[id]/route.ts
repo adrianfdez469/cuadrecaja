@@ -29,7 +29,25 @@ export async function GET(
       return NextResponse.json({ error: 'Proveedor no encontrado' }, { status: 404 });
     }
 
-    return NextResponse.json(proveedor);
+    // Obtener información del usuario si existe
+    let usuarioInfo = null;
+    if (proveedor.usuarioId) {
+      usuarioInfo = await prisma.usuario.findUnique({
+        where: { id: proveedor.usuarioId },
+        select: {
+          id: true,
+          nombre: true,
+          usuario: true,
+        },
+      });
+    }
+
+    const respuesta = {
+      ...proveedor,
+      usuario: usuarioInfo,
+    };
+
+    return NextResponse.json(respuesta);
   } catch (error) {
     console.error('Error al obtener proveedor:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
@@ -69,6 +87,20 @@ export async function PUT(
       return NextResponse.json({ error: 'Proveedor no encontrado' }, { status: 404 });
     }
 
+    // Validar que el usuario asociado existe y pertenece al mismo negocio
+    if (body.usuarioId) {
+      const usuarioExiste = await prisma.usuario.findFirst({
+        where: {
+          id: body.usuarioId,
+          negocioId: user.negocio.id,
+        },
+      });
+
+      if (!usuarioExiste) {
+        return NextResponse.json({ error: 'El usuario seleccionado no existe o no pertenece al negocio' }, { status: 400 });
+      }
+    }
+
     // Si se está actualizando el nombre, verificar que no exista otro con el mismo nombre
     if (body.nombre && body.nombre.trim() !== existingProveedor.nombre) {
       const duplicateProveedor = await prisma.proveedor.findFirst({
@@ -91,10 +123,29 @@ export async function PUT(
         ...(body.descripcion !== undefined && { descripcion: body.descripcion?.trim() || null }),
         ...(body.direccion !== undefined && { direccion: body.direccion?.trim() || null }),
         ...(body.telefono !== undefined && { telefono: body.telefono?.trim() || null }),
+        ...(body.usuarioId !== undefined && { usuarioId: body.usuarioId || null }),
       },
     });
 
-    return NextResponse.json(proveedorActualizado);
+    // Obtener información del usuario si existe para la respuesta
+    let usuarioInfo = null;
+    if (proveedorActualizado.usuarioId) {
+      usuarioInfo = await prisma.usuario.findUnique({
+        where: { id: proveedorActualizado.usuarioId },
+        select: {
+          id: true,
+          nombre: true,
+          usuario: true,
+        },
+      });
+    }
+
+    const respuesta = {
+      ...proveedorActualizado,
+      usuario: usuarioInfo,
+    };
+
+    return NextResponse.json(respuesta);
   } catch (error) {
     console.error('Error al actualizar proveedor:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });

@@ -28,6 +28,11 @@ import {
   useTheme,
   useMediaQuery,
   Collapse,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Avatar,
 } from "@mui/material";
 import { 
   Delete, 
@@ -40,7 +45,9 @@ import {
   Refresh,
   ExpandMore,
   ExpandLess,
-  LocalShipping
+  LocalShipping,
+  Person,
+  PersonOff,
 } from "@mui/icons-material";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
@@ -48,15 +55,18 @@ import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from "@/services/proveedorService";
 import { IProveedor, IProveedorCreate, IProveedorUpdate } from "@/types/IProveedor";
+import { getUsuarios, IUsuarioBasico } from "@/services/usuarioService";
 
 export default function Proveedores() {
   const [proveedores, setProveedores] = useState<IProveedor[]>([]);
+  const [usuarios, setUsuarios] = useState<IUsuarioBasico[]>([]);
   const [open, setOpen] = useState(false);
   const [selectedProveedor, setSelectedProveedor] = useState<IProveedor | null>(null);
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [direccion, setDireccion] = useState("");
   const [telefono, setTelefono] = useState("");
+  const [usuarioId, setUsuarioId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -69,7 +79,18 @@ export default function Proveedores() {
 
   useEffect(() => {
     fetchProveedores();
+    fetchUsuarios();
   }, []);
+
+  const fetchUsuarios = async () => {
+    try {
+      const response = await getUsuarios();
+      setUsuarios(response);
+    } catch (error) {
+      console.error("Error al cargar usuarios:", error);
+      showMessage("Error al cargar los usuarios", "error");
+    }
+  };
 
   const fetchProveedores = async () => {
     setLoading(true);
@@ -97,6 +118,7 @@ export default function Proveedores() {
         descripcion: descripcion.trim() || undefined,
         direccion: direccion.trim() || undefined,
         telefono: telefono.trim() || undefined,
+        usuarioId: usuarioId || undefined,
       };
 
       if (selectedProveedor) {
@@ -144,6 +166,7 @@ export default function Proveedores() {
     setDescripcion(proveedor.descripcion || "");
     setDireccion(proveedor.direccion || "");
     setTelefono(proveedor.telefono || "");
+    setUsuarioId(proveedor.usuarioId || "");
     setOpen(true);
   };
 
@@ -153,6 +176,7 @@ export default function Proveedores() {
     setDescripcion("");
     setDireccion("");
     setTelefono("");
+    setUsuarioId("");
   };
 
   const handleClose = () => {
@@ -169,7 +193,7 @@ export default function Proveedores() {
   const totalProveedores = proveedores.length;
   const proveedoresConTelefono = proveedores.filter(p => p.telefono).length;
   const proveedoresConDireccion = proveedores.filter(p => p.direccion).length;
-  const proveedoresCompletos = proveedores.filter(p => p.descripcion && p.telefono && p.direccion).length;
+  const proveedoresConUsuario = proveedores.filter(p => p.usuarioId).length;
 
   const breadcrumbs = [
     { label: 'Inicio', href: '/' },
@@ -251,11 +275,11 @@ export default function Proveedores() {
             <Grid item xs={12} sm={6} md={3}>
               <Card>
                 <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                  <Typography variant="h4" color="warning.main" fontWeight="bold">
-                    {proveedoresCompletos}
+                  <Typography variant="h4" color="secondary.main" fontWeight="bold">
+                    {proveedoresConUsuario}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Información Completa
+                    Con Usuario Asociado
                   </Typography>
                 </CardContent>
               </Card>
@@ -352,6 +376,16 @@ export default function Proveedores() {
                       </Box>
                       
                       <Box display="flex" gap={1} flexWrap="wrap">
+                        {proveedor.usuarioId && (
+                          <Chip
+                            icon={<Person fontSize="small" />}
+                            label={usuarios.find(u => u.id === proveedor.usuarioId)?.nombre || 'Usuario'}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            sx={{ fontSize: '0.6875rem', height: 20 }}
+                          />
+                        )}
                         {proveedor.telefono && (
                           <Chip
                             icon={<Phone fontSize="small" />}
@@ -387,6 +421,7 @@ export default function Proveedores() {
                 <TableRow>
                   <TableCell>Nombre</TableCell>
                   <TableCell>Descripción</TableCell>
+                  <TableCell>Usuario Asociado</TableCell>
                   <TableCell>Teléfono</TableCell>
                   <TableCell>Dirección</TableCell>
                   <TableCell align="center">Acciones</TableCell>
@@ -416,6 +451,20 @@ export default function Proveedores() {
                       <Typography variant="body2" color="text.secondary">
                         {proveedor.descripcion || '-'}
                       </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {proveedor.usuarioId ? (
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <Avatar sx={{ width: 24, height: 24 }}>
+                            {usuarios.find(u => u.id === proveedor.usuarioId)?.nombre.charAt(0)}
+                          </Avatar>
+                          <Typography variant="body2" fontWeight="medium">
+                            {usuarios.find(u => u.id === proveedor.usuarioId)?.nombre}
+                          </Typography>
+                        </Stack>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">-</Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       {proveedor.telefono ? (
@@ -545,6 +594,41 @@ export default function Proveedores() {
                 ),
               }}
             />
+
+            <FormControl fullWidth disabled={saving}>
+              <InputLabel id="usuario-label">Usuario Asociado (Opcional)</InputLabel>
+              <Select
+                labelId="usuario-label"
+                value={usuarioId}
+                onChange={(e) => setUsuarioId(e.target.value as string)}
+                label="Usuario Asociado (Opcional)"
+                displayEmpty
+              >
+                <MenuItem value="">
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <PersonOff fontSize="small" color="disabled" />
+                    <Typography variant="body2" color="text.secondary">
+                      Sin usuario asignado
+                    </Typography>
+                  </Stack>
+                </MenuItem>
+                {usuarios.map((usuario) => (
+                  <MenuItem key={usuario.id} value={usuario.id}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Avatar sx={{ width: 24, height: 24 }}>
+                        {usuario.nombre.charAt(0)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2">{usuario.nombre}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          @{usuario.usuario}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Stack>
         </DialogContent>
         <DialogActions>

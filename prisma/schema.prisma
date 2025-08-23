@@ -66,8 +66,11 @@ model Usuario {
   ventas          Venta[] // Un usuario puede realizar múltiples ventas
   MovimientoStock MovimientoStock[]
 
-  negocio   Negocio @relation(fields: [negocioId], references: [id])
-  negocioId String  @default("")
+  // 🆕 Relación con proveedores asociados
+  proveedores     Proveedor[]       @relation("ProveedorUsuario")
+
+  negocio         Negocio           @relation(fields: [negocioId], references: [id])
+  negocioId       String            @default("")
 
   //tiendaActual    Tienda?            @relation(fields: [tiendaActualId], references: [id])
   //tiendaActualId     String?
@@ -299,6 +302,10 @@ model Proveedor {
 
   negocio   Negocio @relation(fields: [negocioId], references: [id])
   negocioId String
+
+  // 🆕 Relación opcional con Usuario
+  usuario     Usuario? @relation("ProveedorUsuario", fields: [usuarioId], references: [id])
+  usuarioId   String?
 
   // Relación con movimientos de consignación
   movimientos MovimientoStock[]

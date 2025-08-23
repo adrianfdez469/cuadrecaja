@@ -10,7 +10,6 @@ export async function GET(request: NextRequest) {
     const session = await getSession();
     const user = session.user;
 
-
     const { searchParams } = new URL(request.url);
     const nombre = searchParams.get('nombre');
 
@@ -25,6 +24,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    // Obtener proveedores básicos
     const proveedores = await prisma.proveedor.findMany({
       where: whereClause,
       orderBy: {
@@ -32,7 +32,25 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(proveedores);
+    // Enriquecer con información del usuario si existe
+    const proveedoresConUsuarios = await Promise.all(
+      proveedores.map(async (proveedor) => {
+        if (proveedor.usuarioId) {
+          const usuario = await prisma.usuario.findUnique({
+            where: { id: proveedor.usuarioId },
+            select: {
+              id: true,
+              nombre: true,
+              usuario: true,
+            },
+          });
+          return { ...proveedor, usuario };
+        }
+        return proveedor;
+      })
+    );
+
+    return NextResponse.json(proveedoresConUsuarios);
   } catch (error) {
     console.error('Error al obtener proveedores:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
@@ -58,6 +76,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'El nombre del proveedor es obligatorio' }, { status: 400 });
     }
 
+    // Validar que el usuario asociado existe y pertenece al mismo negocio
+    if (body.usuarioId) {
+      const usuarioExiste = await prisma.usuario.findFirst({
+        where: {
+          id: body.usuarioId,
+          negocioId: user.negocio.id,
+        },
+      });
+
+      if (!usuarioExiste) {
+        return NextResponse.json({ error: 'El usuario seleccionado no existe o no pertenece al negocio' }, { status: 400 });
+      }
+    }
+
     // Verificar si ya existe un proveedor con el mismo nombre en el negocio
     const existingProveedor = await prisma.proveedor.findFirst({
       where: {
@@ -77,10 +109,29 @@ export async function POST(request: NextRequest) {
         direccion: body.direccion?.trim() || null,
         telefono: body.telefono?.trim() || null,
         negocioId: user.negocio.id,
+        usuarioId: body.usuarioId || null,
       },
     });
 
-    return NextResponse.json(nuevoProveedor, { status: 201 });
+    // Obtener información del usuario si existe para la respuesta
+    let usuarioInfo = null;
+    if (nuevoProveedor.usuarioId) {
+      usuarioInfo = await prisma.usuario.findUnique({
+        where: { id: nuevoProveedor.usuarioId },
+        select: {
+          id: true,
+          nombre: true,
+          usuario: true,
+        },
+      });
+    }
+
+    const respuesta = {
+      ...nuevoProveedor,
+      usuario: usuarioInfo,
+    };
+
+    return NextResponse.json(respuesta, { status: 201 });
   } catch (error) {
     console.error('Error al crear proveedor:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
