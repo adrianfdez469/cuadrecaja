@@ -5,16 +5,18 @@ import { NextResponse } from "next/server";
 // GET - Obtener una notificación específica por ID (solo SUPER_ADMIN)
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     if (!(await hasSuperAdminPrivileges())) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
+    const { id } = await params;
+
     const notificacion = await prisma.notificacion.findUnique({
       where: {
-        id: params.id
+        id: id
       }
     });
 
@@ -32,12 +34,14 @@ export async function GET(
 // PUT - Actualizar una notificación específica por ID (solo SUPER_ADMIN)
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     if (!(await hasSuperAdminPrivileges())) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
+
+    const { id } = await params;
 
     const {
       titulo,
@@ -52,7 +56,7 @@ export async function PUT(
 
     // Verificar que la notificación existe
     const notificacionExistente = await prisma.notificacion.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     });
 
     if (!notificacionExistente) {
@@ -74,7 +78,7 @@ export async function PUT(
     }
 
     const notificacionActualizada = await prisma.notificacion.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         titulo: titulo.trim(),
         descripcion: descripcion.trim(),
@@ -98,16 +102,18 @@ export async function PUT(
 // DELETE - Eliminar una notificación específica por ID (solo SUPER_ADMIN)
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     if (!(await hasSuperAdminPrivileges())) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
+    const { id } = await params;
+
     // Verificar que la notificación existe
     const notificacionExistente = await prisma.notificacion.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     });
 
     if (!notificacionExistente) {
@@ -115,7 +121,7 @@ export async function DELETE(
     }
 
     await prisma.notificacion.delete({
-      where: { id: params.id }
+      where: { id: id }
     });
 
     return NextResponse.json({ message: 'Notificación eliminada correctamente' });

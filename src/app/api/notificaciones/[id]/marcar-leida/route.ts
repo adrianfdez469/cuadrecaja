@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 // POST - Marcar una notificación como leída por el usuario actual
 export async function POST(
   request: Request,
-  // { params }: { params: { id: string } }
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -67,6 +66,7 @@ export async function POST(
 }
 
 // Función auxiliar para verificar si un usuario puede ver una notificación
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function verificarAccesoUsuario(notificacion: any, userId: string): Promise<boolean> {
   // Si la notificación está dirigida a usuarios específicos
   if (notificacion.usuariosDestino) {

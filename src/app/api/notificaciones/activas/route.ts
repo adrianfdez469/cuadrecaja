@@ -73,6 +73,7 @@ export async function GET() {
 }
 
 // Función auxiliar para verificar si un usuario puede ver una notificación
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function verificarAccesoUsuario(notificacion: any, userId: string): Promise<boolean> {
   // Si la notificación está dirigida a usuarios específicos
   if (notificacion.usuariosDestino) {

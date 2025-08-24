@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Negocio, Prisma, Producto, Usuario } from "@prisma/client";
 
 export interface NotificationData {
   titulo: string;
@@ -43,7 +44,7 @@ export class NotificationService {
    * Buscar notificación existente por título y negocio
    */
   static async findExistingNotification(titulo: string, negocioId?: string) {
-    const whereClause: any = {
+    const whereClause: Prisma.NotificacionWhereInput = {
       titulo: {
         contains: titulo
       },
@@ -141,7 +142,7 @@ export class NotificationService {
   /**
    * Procesar expiración de suscripción para un negocio específico
    */
-  private static async processSubscriptionExpiration(negocio: any) {
+  private static async processSubscriptionExpiration(negocio: Negocio) {
     const ahora = new Date();
     const diasRestantes = Math.ceil((negocio.limitTime.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
     
@@ -237,7 +238,7 @@ export class NotificationService {
   /**
    * Procesar límites de productos para un negocio específico
    */
-  private static async processProductLimits(negocio: any) {
+  private static async processProductLimits(negocio: Negocio & { productos: Producto[] }) {
     if (negocio.productlimit <= 0) {
       // Si no hay límite, eliminar notificación si existe
       const titulo = `Límite de productos - ${negocio.nombre}`;
@@ -338,7 +339,7 @@ export class NotificationService {
   /**
    * Procesar límites de usuarios para un negocio específico
    */
-  private static async processUserLimits(negocio: any) {
+  private static async processUserLimits(negocio: Negocio & { usuarios: Usuario[] }) {
     if (negocio.userlimit <= 0) {
       // Si no hay límite, eliminar notificación si existe
       const titulo = `Límite de usuarios - ${negocio.nombre}`;

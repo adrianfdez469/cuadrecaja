@@ -158,6 +158,7 @@ export class NotificationApiService {
   /**
    * Obtener información sobre verificaciones automáticas (solo SUPER_ADMIN)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static async getAutoCheckInfo(): Promise<any> {
     const response = await fetch(`${this.baseUrl}/auto-check`);
     

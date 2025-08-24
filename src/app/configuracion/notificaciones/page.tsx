@@ -28,27 +28,20 @@ import {
   useTheme,
   useMediaQuery,
   Collapse,
-  Divider,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  FormHelperText,
-  Switch,
-  FormControlLabel,
   Autocomplete
 } from "@mui/material";
 import { 
   Edit, 
   Delete, 
   Add,
-  Notifications,
   Search,
   Refresh,
   ExpandMore,
   ExpandLess,
-  Visibility,
-  VisibilityOff,
   Warning,
   Info,
   Campaign,
@@ -60,8 +53,8 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useMessageContext } from "@/context/MessageContext";
-import { usePermisos } from "@/utils/permisos_front";
 import dayjs from 'dayjs';
+import { INegocio } from "@/types/INegocio";
 
 export default function NotificacionesPage() {
   const [notificaciones, setNotificaciones] = useState<INotificacion[]>([]);
@@ -72,7 +65,8 @@ export default function NotificacionesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [stats, setStats] = useState<INotificacionStats | null>(null);
-  const [negocios, setNegocios] = useState<any[]>([]);
+  const [negocios, setNegocios] = useState<INegocio[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [usuarios, setUsuarios] = useState<any[]>([]);
   
   // Form data
@@ -89,7 +83,6 @@ export default function NotificacionesPage() {
 
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { showMessage } = useMessageContext();
-  const { verificarPermiso } = usePermisos();
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -432,7 +425,7 @@ export default function NotificacionesPage() {
                     <TableCell>
                       <Chip
                         label={notificacion.nivelImportancia}
-                        color={getImportanceColor(notificacion.nivelImportancia) as any}
+                        color={getImportanceColor(notificacion.nivelImportancia)}
                         size="small"
                       />
                     </TableCell>

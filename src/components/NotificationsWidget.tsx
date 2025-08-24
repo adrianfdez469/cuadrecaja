@@ -21,9 +21,7 @@ import {
   ListItemIcon,
   Divider,
   Badge,
-  Tooltip,
-  useTheme,
-  useMediaQuery
+  Tooltip
 } from '@mui/material';
 import {
   Notifications,
@@ -33,7 +31,6 @@ import {
   Info,
   Campaign,
   Message,
-  Close,
   Visibility,
   VisibilityOff
 } from '@mui/icons-material';
@@ -42,7 +39,6 @@ import { INotificacionConEstado, NivelImportancia, TipoNotificacion } from '@/ty
 import { useMessageContext } from '@/context/MessageContext';
 import { useNotificationCheck } from '@/hooks/useNotificationCheck';
 import dayjs from 'dayjs';
-import { userAgent } from 'next/server';
 import { useAppContext } from '@/context/AppContext';
 
 interface NotificationsWidgetProps {
@@ -62,9 +58,6 @@ export default function NotificationsWidget({
   const { showMessage } = useMessageContext();
   const { user } = useAppContext();
   
-  const theme = useTheme();
-  // const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
   // Hook para manejar verificaciones automáticas
   useNotificationCheck({ 
     negocioId: user?.negocio?.id,
@@ -210,7 +203,7 @@ export default function NotificationsWidget({
                           </Typography>
                           <Chip
                             label={notification.nivelImportancia}
-                            color={getImportanceColor(notification.nivelImportancia) as any}
+                            color={getImportanceColor(notification.nivelImportancia)}
                             size="small"
                           />
                           {!notification.yaLeida && (
@@ -290,7 +283,7 @@ export default function NotificationsWidget({
                 />
                 <Chip
                   label={selectedNotification.nivelImportancia}
-                  color={getImportanceColor(selectedNotification.nivelImportancia) as any}
+                  color={getImportanceColor(selectedNotification.nivelImportancia)}
                   size="small"
                 />
               </Stack>
