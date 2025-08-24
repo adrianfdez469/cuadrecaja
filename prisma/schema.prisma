@@ -373,6 +373,41 @@ enum MovimientoTipo {
   CONSIGNACION_DEVOLUCION
 }
 
+// Modelo para las notificaciones del sistema
+model Notificacion {
+  id                String   @id @default(uuid())
+  titulo            String
+  descripcion       String
+  fechaInicio       DateTime
+  fechaFin          DateTime
+  nivelImportancia  NivelImportancia @default(MEDIA)
+  tipo              TipoNotificacion
+  leidoPor          String   @default("") // Array de userIds separados por coma
+  negociosDestino   String   @default("") // Array de negocioIds separados por coma (vacío = todos)
+  usuariosDestino   String   @default("") // Array de userIds separados por coma (vacío = todos)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([fechaInicio])
+  @@index([fechaFin])
+  @@index([tipo])
+  @@index([nivelImportancia])
+}
+
+enum NivelImportancia {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum TipoNotificacion {
+  ALERTA
+  NOTIFICACION
+  PROMOCION
+  MENSAJE
+}
+
 enum MovimientoState {
   PENDIENTE
   APROBADO

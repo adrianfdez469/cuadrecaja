@@ -35,6 +35,7 @@ import { useRouter } from "next/navigation";
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
+import NotificationsWidget from "@/components/NotificationsWidget";
 
 const HomePage = () => {
   const { loadingContext, user } = useAppContext();
@@ -321,6 +322,11 @@ const HomePage = () => {
         </Box>
 
         <Divider sx={{ my: 3 }} />
+      </Box>
+
+      {/* Widget de Notificaciones */}
+      <Box sx={{ mb: 3 }}>
+        <NotificationsWidget maxNotifications={5} showBadge={true} />
       </Box>
 
       {/* Acciones rápidas */}

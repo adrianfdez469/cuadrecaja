@@ -56,7 +56,8 @@ import {
   SwapVert,
   Lock,
   Visibility,
-  VisibilityOff
+  VisibilityOff,
+  Notifications
 } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
@@ -129,6 +130,12 @@ const CONFIGURATION_MENU_ITEMS = [
     label: "Planes y Suscripción",
     path: "/configuracion/planes",
     icon: UpgradeIcon,
+    permission: '*'
+  },
+  {
+    label: "Notificaciones",
+    path: "/configuracion/notificaciones",
+    icon: Notifications,
     permission: '*'
   },
 ];
