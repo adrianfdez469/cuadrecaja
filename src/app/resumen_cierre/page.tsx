@@ -85,6 +85,7 @@ export default function ResumenCierrePage() {
           page * rowsPerPage
         );
       }
+      console.log("Resumen de cierres:", dataResp);
       setData(dataResp);
       setTotales(
         dataResp.cierres.reduce(
@@ -342,7 +343,7 @@ export default function ResumenCierrePage() {
         <Grid item xs={12} sm={6} md={4}>
           <StatCard
             icon={<AttachMoney fontSize={"medium"} />}
-            value={formatCurrency(totales.venta)}
+            value={formatCurrency(data.sumTotalVentas)}
             label="Total Ventas"
             color="success.light"
           />
@@ -351,7 +352,7 @@ export default function ResumenCierrePage() {
         <Grid item xs={12} sm={6} md={4}>
           <StatCard
             icon={<TrendingUp fontSize={"medium"} />}
-            value={formatCurrency(totales.ganancia)}
+            value={formatCurrency(data.sumTotalGanancia)}
             label="Ganancia Total"
             color="info.light"
           />
@@ -360,7 +361,7 @@ export default function ResumenCierrePage() {
         <Grid item xs={12} sm={6} md={4}>
           <StatCard
             icon={<Assessment fontSize={"medium"} />}
-            value={formatCurrency(totales.inversion)}
+            value={formatCurrency(data.sumTotalInversion)}
             label="Inversión Total"
             color="warning.light"
           />
@@ -369,7 +370,7 @@ export default function ResumenCierrePage() {
         <Grid item xs={12} sm={6} md={4}>
           <StatCard
             icon={<AttachMoney fontSize={"medium"} />}
-            value={formatCurrency(totales.transf)}
+            value={formatCurrency(data.sumTotalTransferencia)}
             label="Transferencias"
             color="primary.light"
           />
