@@ -224,18 +224,6 @@ export default function NotificationsWidget({
                         </Typography>
                       }
                     />
-                    <Tooltip title={notification.yaLeida ? "Ya leída" : "Marcar como leída"}>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMarkAsRead(notification.id);
-                        }}
-                        color={notification.yaLeida ? "default" : "primary"}
-                      >
-                        {notification.yaLeida ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </Tooltip>
                   </ListItem>
                   {index < displayedNotifications.length - 1 && <Divider />}
                 </React.Fragment>

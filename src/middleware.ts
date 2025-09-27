@@ -1,9 +1,13 @@
 // middleware.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { subscriptionMiddleware } from './middleware/subscriptionCheck'
 
 export async function middleware(req: NextRequest) {
   try {
+    const { pathname } = req.nextUrl;
+    
+    // Primero verificar autenticación y agregar headers de usuario
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
 
     if (token) {
@@ -25,13 +29,30 @@ export async function middleware(req: NextRequest) {
       if (token.negocio) requestHeaders.set('x-user-negocio', encodeForHeader(token.negocio));
       if (token.localActual) requestHeaders.set('x-user-localActual', encodeForHeader(token.localActual));
       if (token.locales) requestHeaders.set('x-user-locales', encodeForHeader(token.locales));
-      if (token.permisos) requestHeaders.set('x-user-permisos', encodeForHeader(token.permisos)); // Agregar permisos
+      if (token.permisos) requestHeaders.set('x-user-permisos', encodeForHeader(token.permisos));
 
+      // Crear una nueva request con los headers actualizados
+      const requestWithHeaders = new NextRequest(req.url, {
+        ...req,
+        headers: requestHeaders,
+      });
+
+      // Ahora verificar el estado de suscripción para rutas de páginas (no APIs)
+      if (!pathname.startsWith('/api/')) {
+        return await subscriptionMiddleware(requestWithHeaders);
+      }
+
+      // Para APIs, solo pasar los headers
       return NextResponse.next({
         request: {
           headers: requestHeaders,
         },
-      })
+      });
+    }
+
+    // Si no hay token, verificar si es una ruta que requiere verificación de suscripción
+    if (!pathname.startsWith('/api/')) {
+      return await subscriptionMiddleware(req);
     }
 
     return NextResponse.next()
@@ -44,5 +65,8 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/:path*'], // solo aplica el middleware a las rutas del API
+  matcher: [
+    '/api/:path*',
+    '/((?!_next/static|_next/image|favicon.ico|login|subscription-expired).*)',
+  ],
 }

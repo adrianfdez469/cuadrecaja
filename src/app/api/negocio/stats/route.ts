@@ -31,25 +31,22 @@ export async function GET(req: Request): Promise<NextResponse<NegocioStats | { e
     }
 
     // Obtener conteos actuales
-    const [tiendasCount, usuariosCount, productosCount] = await Promise.all([
-      // Contar tiendas del negocio
-      prisma.tienda.count({
-        where: { negocioId: user.negocio.id }
-      }),
-      
-      // Contar usuarios del negocio (excluyendo SUPER_ADMIN)
-      prisma.usuario.count({
-        where: {
-          negocioId: user.negocio.id,
-          rol: { not: "SUPER_ADMIN" }
+    const negocio = await prisma.negocio.findUnique({
+      where: { id: user.negocio.id },
+      select: {
+        usuarios: {
+          select: {
+            rol: true
+          }
+        },          
+        _count: {
+          select: {
+            tiendas: true,
+            productos: true
+          }
         }
-      }),
-      
-      // Contar productos del negocio
-      prisma.producto.count({
-        where: { negocioId: user.negocio.id }
-      })
-    ]);
+      },
+    });
 
     // Calcular días restantes
     const now = new Date();
@@ -62,6 +59,10 @@ export async function GET(req: Request): Promise<NextResponse<NegocioStats | { e
       if (limite === -1) return 0; // Ilimitado
       return limite === 0 ? 100 : Math.round((actual / limite) * 100);
     };
+
+    const tiendasCount = negocio._count.tiendas;
+    const usuariosCount = negocio.usuarios.filter((usuario) => usuario.rol !== "SUPER_ADMIN").length;
+    const productosCount = negocio._count.productos;
 
     const stats: NegocioStats = {
       tiendas: {

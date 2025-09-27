@@ -399,6 +399,16 @@ console.log(negocio.usuarios);
   }
 
   /**
+   * Eliminar notificaciones vencidas
+   */
+  static async deleteExpiredNotifications() {
+    const now = new Date();
+    await prisma.notificacion.deleteMany({
+      where: { fechaFin: { lt: now } }
+    });
+  }
+
+  /**
    * Ejecutar todas las verificaciones automáticas
    */
   static async runAutomaticChecks(negocioId?: string) {
@@ -408,6 +418,7 @@ console.log(negocio.usuarios);
       this.checkSubscriptionExpiration(negocioId),
       this.checkProductLimits(negocioId),
       this.checkUserLimits(negocioId),
+      this.deleteExpiredNotifications()
     ]);
     
     console.log('Verificaciones automáticas completadas');

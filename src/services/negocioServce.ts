@@ -32,3 +32,8 @@ export const deleteNegocio = async (id: string) => {
   const response = await axios.delete(`${API_URL}/${id}`);
   return response.data;
 }
+
+export const getNegocioStats = async () => {
+  const response = await axios.get(`${API_URL}/stats`);
+  return response.data;
+}

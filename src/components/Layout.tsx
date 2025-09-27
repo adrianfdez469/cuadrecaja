@@ -57,7 +57,8 @@ import {
   Lock,
   Visibility,
   VisibilityOff,
-  Notifications
+  Notifications,
+  Block
 } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
@@ -136,6 +137,12 @@ const CONFIGURATION_MENU_ITEMS = [
     label: "Notificaciones",
     path: "/configuracion/notificaciones",
     icon: Notifications,
+    permission: '*'
+  },
+  {
+    label: "Suspensiones",
+    path: "/configuracion/suspensiones",
+    icon: Block,
     permission: '*'
   },
 ];
