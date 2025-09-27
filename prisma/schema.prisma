@@ -25,6 +25,8 @@ model Negocio {
   productos   Producto[]
   proveedores Proveedor[]
   roles       Rol[]
+  suspended   Boolean  @default(false)
+  suspendedAt DateTime?
 }
 
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
@@ -77,6 +79,8 @@ model Usuario {
 
   localActual   Tienda? @relation(fields: [localActualId], references: [id])
   localActualId String?
+
+  isActive Boolean  @default(true)
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.
