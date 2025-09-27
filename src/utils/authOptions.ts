@@ -6,7 +6,6 @@ import { JWT } from "next-auth/jwt";
 import dayjs from 'dayjs';
 import { getPermisosUsuario } from "./getPermisosUsuario";
 import { getRolUsuario } from "./getRolUsuario";
-import { SubscriptionService } from "@/services/subscriptionService";
 
 export const authOptions: NextAuthOptions = {
   session: {

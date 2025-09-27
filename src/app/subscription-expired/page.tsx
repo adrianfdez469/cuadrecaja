@@ -16,7 +16,6 @@ import {
 import {
   Warning,
   Block,
-  Refresh,
   ContactSupport,
   Payment
 } from '@mui/icons-material';
@@ -25,7 +24,7 @@ import { SubscriptionService } from '@/services/subscriptionService';
 
 export default function SubscriptionExpired() {
   const { user } = useAppContext();
-  const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

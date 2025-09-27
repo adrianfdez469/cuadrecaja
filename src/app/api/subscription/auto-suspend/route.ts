@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import { SubscriptionService } from '@/services/subscriptionService';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     // Solo SUPER_ADMIN puede ejecutar suspensiones automáticas
-    // if (!(await hasSuperAdminPrivileges())) {
-    //   return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
-    // }
+    if (!(await hasSuperAdminPrivileges())) {
+      return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+    }
 
     console.log('Iniciando verificación de suspensiones automáticas...');
     

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { SubscriptionService } from '@/services/subscriptionService';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // Solo SUPER_ADMIN puede ver estadísticas de suscripciones
     if (!(await hasSuperAdminPrivileges())) {

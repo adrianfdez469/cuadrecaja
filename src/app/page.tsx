@@ -40,7 +40,6 @@ import NotificationsWidget from "@/components/NotificationsWidget";
 import SubscriptionWarning from "@/components/SubscriptionWarning";
 import SuspensionSummary from "@/components/SuspensionSummary";
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { getNegocioStats } from "@/services/negocioServce";
 import { formatDate } from "@/utils/formatters";
 
@@ -370,6 +369,7 @@ const HomePage = () => {
         </Box>
 
         <Divider sx={{ my: 1 }} />
+        {loadingNegocioStats ? <CircularProgress size="20px" /> : (
         <Box display="flex" flexDirection="row" gap={1}>
           <Chip
             label={`Productos: ${negocioStats?.productos.actual} / ${ user.negocio?.productlimit === -1 ? '∞' : user.negocio?.productlimit} (${negocioStats?.productos.porcentaje}%)`}
@@ -403,7 +403,7 @@ const HomePage = () => {
             variant="outlined"
             sx={{ borderColor: 'primary.main', color: 'primary.main', fontWeight: 500 }}
           />
-        </Box>
+        </Box>)}
         <Divider sx={{ my: 1 }} />
       </Box>
 

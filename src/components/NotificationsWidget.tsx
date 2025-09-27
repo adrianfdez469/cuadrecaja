@@ -21,7 +21,6 @@ import {
   ListItemIcon,
   Divider,
   Badge,
-  Tooltip
 } from '@mui/material';
 import {
   Notifications,
@@ -31,8 +30,6 @@ import {
   Info,
   Campaign,
   Message,
-  Visibility,
-  VisibilityOff
 } from '@mui/icons-material';
 import { NotificationApiService } from '@/services/notificationApiService';
 import { INotificacionConEstado, NivelImportancia, TipoNotificacion } from '@/types/INotificacion';

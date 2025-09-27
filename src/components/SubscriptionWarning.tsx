@@ -22,17 +22,9 @@ import {
 import { useAppContext } from '@/context/AppContext';
 import { SubscriptionService } from '@/services/subscriptionService';
 
-interface SubscriptionWarningProps {
-  showBadge?: boolean;
-  maxNotifications?: number;
-}
-
-export default function SubscriptionWarning({ 
-  showBadge = true, 
-  maxNotifications = 3 
-}: SubscriptionWarningProps) {
+export default function SubscriptionWarning() {
   const { user } = useAppContext();
-  const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
 

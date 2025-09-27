@@ -12,13 +12,10 @@ import {
   Grid,
   CircularProgress,
   Alert,
-  useTheme,
-  useMediaQuery
 } from '@mui/material';
 import {
   Block,
   Warning,
-  CheckCircle,
   Business,
   Refresh,
   PlayArrow
@@ -36,19 +33,12 @@ interface SuspensionStats {
 }
 
 export default function SuspensionSummary() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { user, gotToPath } = useAppContext();
   const { showMessage } = useMessageContext();
   
   const [stats, setStats] = useState<SuspensionStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [executing, setExecuting] = useState(false);
-
-  // Solo mostrar para SUPER_ADMIN
-  if (!user || user.rol !== 'SUPER_ADMIN') {
-    return null;
-  }
 
   const fetchStats = async () => {
     try {
@@ -60,10 +50,6 @@ export default function SuspensionSummary() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
 
   const handleExecuteVerification = async () => {
     setExecuting(true);
@@ -78,6 +64,15 @@ export default function SuspensionSummary() {
       setExecuting(false);
     }
   };
+  
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  // Solo mostrar para SUPER_ADMIN
+  if (!user || user.rol !== 'SUPER_ADMIN') {
+    return null;
+  }
 
   if (loading) {
     return (

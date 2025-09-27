@@ -31,29 +31,19 @@ import {
   MenuItem,
   Grid,
   Divider,
-  useTheme,
-  useMediaQuery
 } from '@mui/material';
 import {
   Block,
   Refresh,
   PlayArrow,
   Warning,
-  Error,
   CheckCircle,
   Business,
-  Person,
-  Store,
-  Inventory,
   Schedule,
-  Info,
-  Email,
-  Phone
 } from '@mui/icons-material';
 import { PageContainer } from '@/components/PageContainer';
 import { useAppContext } from '@/context/AppContext';
 import { useMessageContext } from '@/context/MessageContext';
-import { SubscriptionService } from '@/services/subscriptionService';
 import { formatDate, formatDaysRemaining, getDaysRemainingColor } from '@/utils/formatters';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
@@ -87,8 +77,6 @@ interface SuspensionStats {
 }
 
 export default function SuspensionesPage() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
   const router = useRouter();
@@ -99,7 +87,7 @@ export default function SuspensionesPage() {
   const [reactivating, setReactivating] = useState<string | null>(null);
   const [activating, setActivating] = useState<string | null>(null);
   const [managingDays, setManagingDays] = useState<string | null>(null);
-  
+
   const [reactivateDialog, setReactivateDialog] = useState<{
     open: boolean;
     negocio: NegocioSuspension | null;
@@ -156,7 +144,7 @@ export default function SuspensionesPage() {
 
       // Obtener estado de suscripción para cada negocio
       const negociosConEstado = await Promise.all(
-        negociosData.map(async (negocio: any) => {
+        negociosData.map(async (negocio: NegocioSuspension) => {
           try {
             const statusResponse = await axios.get(`/api/subscription/status/${negocio.id}`);
             return {
@@ -232,8 +220,8 @@ export default function SuspensionesPage() {
 
     setReactivating(reactivateDialog.negocio.id);
     try {
-      const payload: any = {};
-      
+      const payload: { specificDate?: string; daysToAdd?: number } = {};
+
       if (reactivateDialog.useSpecificDate) {
         payload.specificDate = reactivateDialog.specificDate;
       } else {
@@ -619,7 +607,7 @@ export default function SuspensionesPage() {
             <Typography variant="body2" color="text.secondary">
               Nueva fecha de expiración: {' '}
               <strong>
-                {reactivateDialog.useSpecificDate 
+                {reactivateDialog.useSpecificDate
                   ? (reactivateDialog.specificDate ? dayjs(reactivateDialog.specificDate).format('DD/MM/YYYY') : 'Seleccionar fecha')
                   : dayjs(reactivateDialog.negocio?.limitTime).add(reactivateDialog.daysToAdd, 'day').format('DD/MM/YYYY')
                 }
@@ -727,7 +715,7 @@ export default function SuspensionesPage() {
             <Typography variant="body2" color="primary">
               Nueva fecha de expiración: {' '}
               <strong>
-                {manageDaysDialog.useSpecificDate 
+                {manageDaysDialog.useSpecificDate
                   ? (manageDaysDialog.specificDate ? dayjs(manageDaysDialog.specificDate).format('DD/MM/YYYY') : 'Seleccionar fecha')
                   : dayjs(manageDaysDialog.negocio?.limitTime).add(manageDaysDialog.daysToAdd, 'day').format('DD/MM/YYYY')
                 }
@@ -754,7 +742,7 @@ export default function SuspensionesPage() {
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {ConfirmDialogComponent}
     </PageContainer>
   );

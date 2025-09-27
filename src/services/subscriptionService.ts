@@ -186,6 +186,7 @@ export class SubscriptionService {
   /**
    * Procesar notificación de período de gracia
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private static async processGracePeriodNotification(negocio: any): Promise<void> {
     const now = new Date();
     const limitTime = new Date(negocio.limitTime);
