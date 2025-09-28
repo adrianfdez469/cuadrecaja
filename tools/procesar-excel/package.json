@@ -1,0 +1,17 @@
+{
+  "name": "procesar-excel-util",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/procesarExcel.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/procesarExcel.js"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20"
+  }
+}
