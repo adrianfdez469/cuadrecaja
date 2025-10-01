@@ -29,21 +29,62 @@ import {
   Store,
   ShoppingCart,
   Summarize,
-  Security
+  Security,
+  CalendarMonth
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
+import NotificationsWidget from "@/components/NotificationsWidget";
+import SubscriptionWarning from "@/components/SubscriptionWarning";
+import SuspensionSummary from "@/components/SuspensionSummary";
+import { useEffect, useState } from "react";
+import { getNegocioStats } from "@/services/negocioServce";
+import { formatDate } from "@/utils/formatters";
+
+interface NegocioStats {
+  tiendas: {
+    actual: number;
+    limite: number;
+    porcentaje: number;
+  };
+  usuarios: {
+    actual: number;
+    limite: number;
+    porcentaje: number;
+  };
+  productos: {
+    actual: number;
+    limite: number;
+    porcentaje: number;
+  };
+  fechaVencimiento: Date;
+  diasRestantes: number;
+}
 
 const HomePage = () => {
   const { loadingContext, user } = useAppContext();
   const router = useRouter();
   const { verificarPermiso } = usePermisos();
+  const [loadingNegocioStats, setLoadingNegocioStats] = useState(true);
+  const [negocioStats, setNegocioStats] = useState<NegocioStats>();
 
   const handleNavigate = (path: string) => {
     router.push(path);
   };
+
+  useEffect(() => {
+
+    const fetchNegocioStats = async () => {
+      setLoadingNegocioStats(true);
+      const stats = await getNegocioStats();
+      console.log(stats);
+      setNegocioStats(stats);
+      setLoadingNegocioStats(false);
+    }
+    fetchNegocioStats();
+  }, []);
 
   if (loadingContext) {
     return (
@@ -223,8 +264,8 @@ const HomePage = () => {
   const getQuickAction = (localType: string) => {
     return quickActions.filter(item => {
       if (//user.permisos.includes(item.permission)
-        verificarPermiso(item.permission) 
-         || user.rol === 'SUPER_ADMIN') {
+        verificarPermiso(item.permission)
+        || user.rol === 'SUPER_ADMIN') {
         if (localType === TipoLocal.ALMACEN) {
           return !excludeOnWarehouse.includes(item.path);
         }
@@ -236,7 +277,7 @@ const HomePage = () => {
   const getConfigOptions = () => {
     return configOptions.filter(item => {
       if (//user.permisos.includes(item.permission) 
-        verificarPermiso(item.permission) 
+        verificarPermiso(item.permission)
         || user.rol === 'SUPER_ADMIN') {
         return true;
       }
@@ -246,6 +287,8 @@ const HomePage = () => {
   const getTipoLocalText = (tipoLocal: string) => {
     return tipoLocal === TipoLocal.ALMACEN ? 'Alamcén' : 'Tienda';
   }
+
+
 
   return (
     <Container maxWidth="xl" sx={{ py: 2 }}>
@@ -317,10 +360,58 @@ const HomePage = () => {
             >
               {user.negocio?.nombre}
             </Typography>
+
+
+
+
+
           </Paper>
         </Box>
 
-        <Divider sx={{ my: 3 }} />
+        <Divider sx={{ my: 1 }} />
+        {loadingNegocioStats ? <CircularProgress size="20px" /> : (
+        <Box display="flex" flexDirection="row" gap={1}>
+          <Chip
+            label={`Productos: ${negocioStats?.productos.actual} / ${ user.negocio?.productlimit === -1 ? '∞' : user.negocio?.productlimit} (${negocioStats?.productos.porcentaje}%)`}
+            icon={<ShoppingCart />}
+            color={negocioStats?.productos.porcentaje <= 0 ? 'error' : negocioStats?.productos.porcentaje <= 10 ? 'warning' : 'success'}
+            size="small"
+            variant="outlined"
+            sx={{ borderColor: 'primary.main', color: 'primary.main', fontWeight: 500 }}
+          />
+          <Chip
+            label={`Usuarios: ${negocioStats?.usuarios.actual} / ${ user.negocio?.userlimit === -1 ? '∞' : user.negocio?.userlimit} (${negocioStats?.usuarios.porcentaje}%)`}
+            icon={<Person />}
+            color={negocioStats?.usuarios.porcentaje <= 0 ? 'error' : negocioStats?.usuarios.porcentaje <= 3 ? 'warning' : 'success'}
+            size="small"
+            variant="outlined"
+            sx={{ borderColor: 'primary.main', color: 'primary.main', fontWeight: 500 }}
+          />
+          <Chip
+            label={`Tiendas: ${negocioStats?.tiendas.actual} / ${ user.negocio?.locallimit === -1 ? '∞' : user.negocio?.locallimit} (${negocioStats?.tiendas.porcentaje}%)`}
+            icon={<Store />}
+            color={negocioStats?.tiendas.porcentaje <= 0 ? 'error' : negocioStats?.tiendas.porcentaje <= 30 ? 'warning' : 'success'}
+            size="small"
+            variant="outlined"
+            sx={{ borderColor: 'primary.main', color: 'primary.main', fontWeight: 500 }}
+          />
+          <Chip
+            label={`Fecha de vencimiento: ${formatDate(negocioStats?.fechaVencimiento)} - ${negocioStats?.diasRestantes} días restantes`}
+            icon={<CalendarMonth />}
+            color={negocioStats?.diasRestantes <= 0 ? 'error' : negocioStats?.diasRestantes <= 7 ? 'warning' : 'success'}
+            size="small"
+            variant="outlined"
+            sx={{ borderColor: 'primary.main', color: 'primary.main', fontWeight: 500 }}
+          />
+        </Box>)}
+        <Divider sx={{ my: 1 }} />
+      </Box>
+
+      {/* Widget de Notificaciones */}
+      <Box sx={{ mb: 3 }}>
+        <SuspensionSummary />
+        <SubscriptionWarning />
+        <NotificationsWidget maxNotifications={5} showBadge={true} />
       </Box>
 
       {/* Acciones rápidas */}

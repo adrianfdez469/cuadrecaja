@@ -25,6 +25,8 @@ model Negocio {
   productos   Producto[]
   proveedores Proveedor[]
   roles       Rol[]
+  suspended   Boolean  @default(false)
+  suspendedAt DateTime?
 }
 
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
@@ -77,6 +79,8 @@ model Usuario {
 
   localActual   Tienda? @relation(fields: [localActualId], references: [id])
   localActualId String?
+
+  isActive Boolean  @default(true)
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.
@@ -371,6 +375,41 @@ enum MovimientoTipo {
   DESAGREGACION_ALTA
   CONSIGNACION_ENTRADA
   CONSIGNACION_DEVOLUCION
+}
+
+// Modelo para las notificaciones del sistema
+model Notificacion {
+  id                String   @id @default(uuid())
+  titulo            String
+  descripcion       String
+  fechaInicio       DateTime
+  fechaFin          DateTime
+  nivelImportancia  NivelImportancia @default(MEDIA)
+  tipo              TipoNotificacion
+  leidoPor          String   @default("") // Array de userIds separados por coma
+  negociosDestino   String   @default("") // Array de negocioIds separados por coma (vacío = todos)
+  usuariosDestino   String   @default("") // Array de userIds separados por coma (vacío = todos)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([fechaInicio])
+  @@index([fechaFin])
+  @@index([tipo])
+  @@index([nivelImportancia])
+}
+
+enum NivelImportancia {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum TipoNotificacion {
+  ALERTA
+  NOTIFICACION
+  PROMOCION
+  MENSAJE
 }
 
 enum MovimientoState {

@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 import { getPermisosUsuario } from "./getPermisosUsuario";
 import { getRolUsuario } from "./getRolUsuario";
 
-export const authOptions:NextAuthOptions  = {
+export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
@@ -15,7 +15,7 @@ export const authOptions:NextAuthOptions  = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        usuario: {label: "Usuario", type: "text"}, 
+        usuario: { label: "Usuario", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
@@ -67,16 +67,14 @@ export const authOptions:NextAuthOptions  = {
 
         // Obtener permisos basados en la tienda actual
         const permisos = await getPermisosUsuario(user.id, user.localActual?.id || null);
-        
+
         let rol = "";
-        
-        if(user.rol === "SUPER_ADMIN") {
+
+        if (user.rol === "SUPER_ADMIN") {
           rol = "SUPER_ADMIN";
         } else {
           rol = await getRolUsuario(user.id, user.localActual?.id || null)
         }
-
-        
 
         return {
           id: user.id,
@@ -96,7 +94,7 @@ export const authOptions:NextAuthOptions  = {
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       // válido
-      if(user) {
+      if (user) {
 
         if (!token.expCustom) {
           const tomorrowAt6AM = dayjs().add(1, 'day').set('hour', 6).set('minute', 0).set('second', 0);
@@ -114,20 +112,20 @@ export const authOptions:NextAuthOptions  = {
           token.localActual = user.localActual;
           token.locales = user.locales;
           token.permisos = user.permisos;
-          
+
         } else {
           token.id = null;
-            token.rol = null;
-            token.usuario = null;
-            token.nombre = null;
-            token.negocio = null;
-            token.negocio = null;
-            // token.tiendaActual = null;
-            // token.tiendas = null;
-            token.localActual = null;
-            token.locales = null;
-            token.permisos = null;
-            return token;
+          token.rol = null;
+          token.usuario = null;
+          token.nombre = null;
+          token.negocio = null;
+          token.negocio = null;
+          // token.tiendaActual = null;
+          // token.tiendas = null;
+          token.localActual = null;
+          token.locales = null;
+          token.permisos = null;
+          return token;
         }
       }
 
@@ -137,12 +135,12 @@ export const authOptions:NextAuthOptions  = {
       // }
       if (trigger === "update" && session?.localActual) {
         token.localActual = session.localActual;
-        
+
         // Actualizar permisos cuando cambia la tienda actual
         if (token.id && session.localActual?.id) {
           const nuevosPermisos = await getPermisosUsuario(token.id as string, session.localActual.id);
           token.permisos = nuevosPermisos;
-          
+
           // ✅ PRESERVAR ROL SUPER_ADMIN - Solo actualizar rol si no es SUPER_ADMIN
           if (token.rol !== "SUPER_ADMIN") {
             const nuevoRol = await getRolUsuario(token.id as string, session.localActual.id);
@@ -153,7 +151,7 @@ export const authOptions:NextAuthOptions  = {
       }
       if (trigger === "update" && session?.negocio) {
         console.log('cambiando negocio');
-        
+
         token.negocio = session.negocio;
         // token.tiendaActual = null;
         token.localActual = null;
