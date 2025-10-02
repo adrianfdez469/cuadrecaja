@@ -20,12 +20,9 @@ import FeaturesSection from './components/FeaturesSection';
 import BenefitsSection from './components/BenefitsSection';
 import PricingSection from './components/PricingSection';
 import ContactSection from './components/ContactSection';
-// import TestimonialsSection from './components/TestimonialsSection';
 import ChatbotWidget from './components/ChatbotWidget';
 
 export default function LandingPage() {
-//   const theme = useTheme();
-//   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   return (
     <Box sx={{ 
