@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ILocal } from "@/types/ILocal";
 import { INegocio } from "@/types/INegocio";
 
@@ -31,6 +31,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
 
   const router = useRouter();
+  const pathname = usePathname();
   
   const [user, setUser] = useState<ISessionUser>();
   const [isAuth, setIsAuth] = useState(false);
@@ -44,12 +45,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUser((session as any).user);
       setIsAuth(true);
       setLoading(false);
-      // Solo redirigir si estamos online para evitar problemas offline
-      if (navigator.onLine) {
+      // Solo redirigir si estamos online y NO estamos en la landing page
+      if (navigator.onLine && pathname !== '/landing') {
         router.push('/');
       }
     }
-  }, [status]);
+  }, [status, pathname]);
 
   return (
     <AppContext.Provider value={{ 
@@ -63,9 +64,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAppContext = () => {
-
-  
   const router = useRouter();
+  const pathname = usePathname();
   const {
     loadingContext: loading,
     isAuth,
@@ -77,8 +77,8 @@ export const useAppContext = () => {
   };
 
   const goToLogin = async () => {
-    // Solo redirigir al login si estamos online
-    if (navigator.onLine) {
+    // Solo redirigir al login si estamos online y NO estamos en la landing page
+    if (navigator.onLine && pathname !== '/landing') {
       await router.push('/login');
     }
   }

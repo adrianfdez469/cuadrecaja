@@ -8,6 +8,7 @@ import { SessionProvider } from "next-auth/react";
 import { MessageProvider } from "@/context/MessageContext";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { usePathname } from "next/navigation";
 
 export default function RootLayout({
   children,
@@ -30,7 +31,7 @@ export default function RootLayout({
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <MessageProvider>
                   <CssBaseline />
-                  <Layout>{children}</Layout>
+                  <LayoutWrapper>{children}</LayoutWrapper>
                 </MessageProvider>
               </LocalizationProvider>
             </ThemeProvider>
@@ -39,4 +40,17 @@ export default function RootLayout({
       </body>
     </html>
   );
+}
+
+// Componente wrapper que decide qué layout usar
+function LayoutWrapper({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  
+  // Si estamos en la landing page, no usar el Layout principal
+  if (pathname === '/landing') {
+    return <>{children}</>;
+  }
+  
+  // Para todas las demás rutas, usar el Layout principal con autenticación
+  return <Layout>{children}</Layout>;
 }
