@@ -15,20 +15,14 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Stack,
-  Divider,
 } from '@mui/material';
 import {
   CheckCircle,
   Star,
-  Business,
-  Store,
-  AccountBalance,
-  TrendingUp,
   Security,
   CloudSync,
   Support,
-  Analytics,
+  
 } from '@mui/icons-material';
 
 const plans = [

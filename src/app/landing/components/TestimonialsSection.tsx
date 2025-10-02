@@ -7,7 +7,6 @@ import {
   Typography,
   Grid,
   Card,
-  CardContent,
   useTheme,
   Avatar,
   Rating,
@@ -234,7 +233,7 @@ export default function TestimonialsSection() {
                       zIndex: 1
                     }}
                   >
-                    "{testimonial.quote}"
+                    `&quot;`{testimonial.quote}`&quot;`
                   </Typography>
                 </Card>
               </Grid>

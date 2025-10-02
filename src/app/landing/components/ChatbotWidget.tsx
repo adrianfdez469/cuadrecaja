@@ -20,7 +20,6 @@ import {
   Close,
   Send,
   SmartToy,
-  Person,
   Minimize,
 } from '@mui/icons-material';
 

@@ -7,7 +7,6 @@ import {
   Typography,
   Grid,
   Card,
-  CardContent,
   Button,
   TextField,
   useTheme,
@@ -23,8 +22,6 @@ import {
 import {
   Phone,
   Email,
-  LocationOn,
-  WhatsApp,
   Send,
   Business,
   Person,

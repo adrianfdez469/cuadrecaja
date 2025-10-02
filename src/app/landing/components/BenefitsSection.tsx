@@ -7,10 +7,8 @@ import {
   Typography,
   Grid,
   Card,
-  CardContent,
   useTheme,
   Avatar,
-  Stack,
   Chip,
   List,
   ListItem,
@@ -26,10 +24,6 @@ import {
   BusinessCenter,
   Group,
   LocalOffer,
-  Assessment,
-  Security,
-  Speed,
-  CloudDone,
 } from '@mui/icons-material';
 
 const benefits = [

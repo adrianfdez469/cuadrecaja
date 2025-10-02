@@ -24,12 +24,6 @@ import {
   MobileFriendly,
   OfflineBolt,
   AutoAwesome,
-  BusinessCenter,
-  Assignment,
-  LocalOffer,
-  TrendingUp,
-  Group,
-  AccountBalance,
 } from '@mui/icons-material';
 
 const features = [
