@@ -71,14 +71,15 @@ export default function ChatbotWidget() {
 
   const sendMessageToN8N = async (message: string): Promise<string> => {
     try {
-      // TODO: Reemplazar con tu webhook URL de n8n
-      // const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_CHATBOT_WEBHOOK || 'https://your-n8n-instance.com/webhook/chatbot';
-      const N8N_WEBHOOK_URL = "https://n8n.srv1022003.hstgr.cloud/webhook-test/a53c36ec-c0db-4b1c-a1fc-afbe9111b79e";
+      const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_CHATBOT_WEBHOOK;
+      const N8N_API_KEY = process.env.N8N_API_KEY;
+      // const N8N_WEBHOOK_URL = "https://n8n.srv1022003.hstgr.cloud/webhook-test/a53c36ec-c0db-4b1c-a1fc-afbe9111b79e";
       
       const response = await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-api-key': N8N_API_KEY || '',
         },
         body: JSON.stringify({
           message: message,
