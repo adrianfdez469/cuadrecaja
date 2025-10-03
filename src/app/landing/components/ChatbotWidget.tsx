@@ -90,6 +90,7 @@ export default function ChatbotWidget() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log(data);
         return data.response || data.message || 'Gracias por tu pregunta. Un especialista se contactará contigo pronto.';
       } else {
         throw new Error('Error en la respuesta del servidor');
