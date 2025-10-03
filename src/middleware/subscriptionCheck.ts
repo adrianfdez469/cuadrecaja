@@ -15,6 +15,7 @@ const PROTECTED_ROUTES = [
 // Rutas que NO requieren verificación (siempre permitidas)
 const ALLOWED_ROUTES = [
   '/login',
+  '/landing',
   '/subscription-expired',
   '/api/auth',
   '/api/subscription/status',

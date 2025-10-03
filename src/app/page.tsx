@@ -370,14 +370,26 @@ const HomePage = () => {
 
         <Divider sx={{ my: 1 }} />
         {loadingNegocioStats ? <CircularProgress size="20px" /> : (
-        <Box display="flex" flexDirection="row" gap={1}>
+        <Box 
+          display="flex" 
+          flexDirection={{ xs: "column", sm: "row" }}
+          flexWrap="wrap"
+          gap={{ xs: 1, sm: 1, md: 2 }}
+          alignItems={{ xs: "stretch", sm: "center" }}
+        >
           <Chip
             label={`Productos: ${negocioStats?.productos.actual} / ${ user.negocio?.productlimit === -1 ? '∞' : user.negocio?.productlimit} (${negocioStats?.productos.porcentaje}%)`}
             icon={<ShoppingCart />}
             color={negocioStats?.productos.porcentaje <= 0 ? 'error' : negocioStats?.productos.porcentaje <= 10 ? 'warning' : 'success'}
             size="small"
             variant="outlined"
-            sx={{ borderColor: 'primary.main', color: 'primary.main', fontWeight: 500 }}
+            sx={{ 
+              borderColor: 'primary.main', 
+              color: 'primary.main', 
+              fontWeight: 500,
+              minWidth: { xs: 'auto', sm: 'fit-content' },
+              justifyContent: { xs: 'flex-start', sm: 'center' }
+            }}
           />
           <Chip
             label={`Usuarios: ${negocioStats?.usuarios.actual} / ${ user.negocio?.userlimit === -1 ? '∞' : user.negocio?.userlimit} (${negocioStats?.usuarios.porcentaje}%)`}
@@ -385,7 +397,13 @@ const HomePage = () => {
             color={negocioStats?.usuarios.porcentaje <= 0 ? 'error' : negocioStats?.usuarios.porcentaje <= 3 ? 'warning' : 'success'}
             size="small"
             variant="outlined"
-            sx={{ borderColor: 'primary.main', color: 'primary.main', fontWeight: 500 }}
+            sx={{ 
+              borderColor: 'primary.main', 
+              color: 'primary.main', 
+              fontWeight: 500,
+              minWidth: { xs: 'auto', sm: 'fit-content' },
+              justifyContent: { xs: 'flex-start', sm: 'center' }
+            }}
           />
           <Chip
             label={`Tiendas: ${negocioStats?.tiendas.actual} / ${ user.negocio?.locallimit === -1 ? '∞' : user.negocio?.locallimit} (${negocioStats?.tiendas.porcentaje}%)`}
@@ -393,7 +411,13 @@ const HomePage = () => {
             color={negocioStats?.tiendas.porcentaje <= 0 ? 'error' : negocioStats?.tiendas.porcentaje <= 30 ? 'warning' : 'success'}
             size="small"
             variant="outlined"
-            sx={{ borderColor: 'primary.main', color: 'primary.main', fontWeight: 500 }}
+            sx={{ 
+              borderColor: 'primary.main', 
+              color: 'primary.main', 
+              fontWeight: 500,
+              minWidth: { xs: 'auto', sm: 'fit-content' },
+              justifyContent: { xs: 'flex-start', sm: 'center' }
+            }}
           />
           <Chip
             label={`Fecha de vencimiento: ${formatDate(negocioStats?.fechaVencimiento)} - ${negocioStats?.diasRestantes} días restantes`}
@@ -401,7 +425,13 @@ const HomePage = () => {
             color={negocioStats?.diasRestantes <= 0 ? 'error' : negocioStats?.diasRestantes <= 7 ? 'warning' : 'success'}
             size="small"
             variant="outlined"
-            sx={{ borderColor: 'primary.main', color: 'primary.main', fontWeight: 500 }}
+            sx={{ 
+              borderColor: 'primary.main', 
+              color: 'primary.main', 
+              fontWeight: 500,
+              minWidth: { xs: 'auto', sm: 'fit-content' },
+              justifyContent: { xs: 'flex-start', sm: 'center' }
+            }}
           />
         </Box>)}
         <Divider sx={{ my: 1 }} />

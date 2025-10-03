@@ -45,8 +45,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUser((session as any).user);
       setIsAuth(true);
       setLoading(false);
-      // Solo redirigir si estamos online y NO estamos en la landing page
-      if (navigator.onLine && pathname !== '/landing') {
+      // Solo redirigir a la página principal si estamos en login o landing
+      if (navigator.onLine && (pathname === '/login' || pathname === '/landing')) {
         router.push('/');
       }
     }
@@ -77,8 +77,8 @@ export const useAppContext = () => {
   };
 
   const goToLogin = async () => {
-    // Solo redirigir al login si estamos online y NO estamos en la landing page
-    if (navigator.onLine && pathname !== '/landing') {
+    // Redirigir al login si estamos online
+    if (navigator.onLine) {
       await router.push('/login');
     }
   }
