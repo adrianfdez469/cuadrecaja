@@ -52,8 +52,28 @@ export default function ChatbotWidget() {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [sessionId, setSessionId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Generar o recuperar sessionId único para usuarios anónimos
+  useEffect(() => {
+    const generateSessionId = () => {
+      return 'anon_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    };
+
+    // Intentar recuperar sessionId existente del localStorage
+    const existingSessionId = localStorage.getItem('chatbot_session_id');
+    
+    if (existingSessionId) {
+      setSessionId(existingSessionId);
+    } else {
+      // Generar nuevo sessionId y guardarlo
+      const newSessionId = generateSessionId();
+      localStorage.setItem('chatbot_session_id', newSessionId);
+      setSessionId(newSessionId);
+    }
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -69,59 +89,37 @@ export default function ChatbotWidget() {
     }
   }, [isOpen, isMinimized]);
 
-  const sendMessageToN8N = async (message: string): Promise<string> => {
+  const sendMessageToChatbot = async (message: string): Promise<string> => {
     try {
-      const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_CHATBOT_WEBHOOK;
-      const N8N_API_KEY = process.env.N8N_API_KEY;
-      // const N8N_WEBHOOK_URL = "https://n8n.srv1022003.hstgr.cloud/webhook-test/a53c36ec-c0db-4b1c-a1fc-afbe9111b79e";
-      
-      const response = await fetch(N8N_WEBHOOK_URL, {
+      const response = await fetch('/api/chatbot', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': N8N_API_KEY || '',
         },
         body: JSON.stringify({
           message: message,
-          timestamp: new Date().toISOString(),
-          source: 'landing-page-chatbot'
+          sessionId: sessionId // Incluir el sessionId en la petición
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log(data);
-        return data.output || data.message || 'Gracias por tu pregunta. Un especialista se contactará contigo pronto.';
+        console.log('Respuesta del chatbot:', data);
+        
+        if (data.success && data.response) {
+          return data.response;
+        } else {
+          throw new Error('Respuesta inválida del servidor');
+        }
       } else {
-        throw new Error('Error en la respuesta del servidor');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error en la respuesta del servidor');
       }
     } catch (error) {
-      console.error('Error enviando mensaje a n8n:', error);
+      console.error('Error enviando mensaje al chatbot:', error);
       
-      // Respuestas de fallback basadas en palabras clave
-      const lowerMessage = message.toLowerCase();
-      
-      if (lowerMessage.includes('precio') || lowerMessage.includes('costo') || lowerMessage.includes('cuánto')) {
-        return 'Nuestros planes empiezan desde $89,000/mes. Tenemos planes Básico, Profesional y Empresarial. ¿Te gustaría que te envíe más detalles por email?';
-      }
-      
-      if (lowerMessage.includes('internet') || lowerMessage.includes('offline') || lowerMessage.includes('conexión')) {
-        return '¡Sí! Una de nuestras características principales es el funcionamiento offline. Puedes seguir vendiendo sin conexión a internet y todo se sincroniza automáticamente cuando vuelve la conexión.';
-      }
-      
-      if (lowerMessage.includes('demo') || lowerMessage.includes('prueba') || lowerMessage.includes('gratis')) {
-        return 'Ofrecemos una demo personalizada de 30 minutos completamente gratis. También incluye 15 días de prueba sin costo. ¿Te gustaría programar una demo?';
-      }
-      
-      if (lowerMessage.includes('tienda') || lowerMessage.includes('local') || lowerMessage.includes('multi')) {
-        return 'Sí, nuestro sistema está diseñado para manejar múltiples tiendas desde una sola plataforma. Puedes controlar inventarios independientes y hacer traspasos automáticos entre locales.';
-      }
-      
-      if (lowerMessage.includes('capacitación') || lowerMessage.includes('entrenamiento') || lowerMessage.includes('aprender')) {
-        return 'Incluimos capacitación completa para tu equipo sin costo adicional. También tenemos soporte técnico 24/7 y documentación detallada.';
-      }
-      
-      return 'Gracias por tu pregunta. Te recomiendo completar el formulario de contacto para que uno de nuestros especialistas pueda darte información más detallada. 😊';
+      // Respuesta de fallback genérica en caso de error
+      return 'Lo siento, estoy experimentando dificultades técnicas en este momento. Te recomiendo completar el formulario de contacto para que uno de nuestros especialistas pueda ayudarte directamente. 😊';
     }
   };
 
@@ -141,7 +139,7 @@ export default function ChatbotWidget() {
     setIsTyping(true);
 
     try {
-      const botResponse = await sendMessageToN8N(textToSend);
+      const botResponse = await sendMessageToChatbot(textToSend);
       
       // Simular delay de escritura
       setTimeout(() => {
