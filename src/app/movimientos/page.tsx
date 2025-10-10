@@ -649,10 +649,15 @@ export default function MovimientosPage() {
                           {formatDateTime(movimiento.fecha).split(' • ')[0]}
                         </Typography>
                       </Box>
+                      {movimiento?.motivo && (
+                        <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.6875rem' }}>
+                          Motivo: <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}> {movimiento.motivo}</Typography>
+                        </Typography>
+                      )}
 
                       {movimiento.usuario?.nombre && (
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
-                          Por: {movimiento.usuario.nombre}
+                        <Typography variant="subtitle2" sx={{ fontSize: '0.6875rem' }}>
+                          Por: <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}> {movimiento.usuario.nombre}</Typography>
                         </Typography>
                       )}
                     </Stack>
@@ -670,6 +675,7 @@ export default function MovimientosPage() {
                   <TableCell>Fecha</TableCell>
                   <TableCell>Tipo</TableCell>
                   <TableCell>Producto</TableCell>
+                  <TableCell>Motivo</TableCell>
                   <TableCell align="center">Cantidad</TableCell>
                   {!isTablet && <TableCell>Usuario</TableCell>}
                 </TableRow>
@@ -699,6 +705,9 @@ export default function MovimientosPage() {
                           : movimiento.productoTienda?.producto?.nombre || 'Producto no encontrado'}
 
                       </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {movimiento.motivo}
                     </TableCell>
                     <TableCell align="center">
                       <Typography
