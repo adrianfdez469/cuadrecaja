@@ -23,7 +23,29 @@ export async function GET(req: Request) {
       ...(fechaFin && {fecha: {lte: new Date(fechaFin).toISOString()}}),
       ...(tipo && {tipo: tipo}),
       ...(productoTiendaId && {productoTiendaId: productoTiendaId}),
-      ...(referenciaId && {referenciaId: referenciaId})
+      ...(referenciaId && {referenciaId: referenciaId}),
+      ...(search && {
+        OR: [
+          { motivo: { contains: search, mode: 'insensitive' } },
+          {
+            productoTienda: {
+              producto: {
+                nombre: { contains: search, mode: 'insensitive' }
+              }
+            }
+          },
+          {
+            usuario: {
+              nombre: { contains: search, mode: 'insensitive' }
+            }
+          },
+          {
+            proveedor: {
+              nombre: { contains: search, mode: 'insensitive' }
+            }
+          }
+        ]
+      })
     }
 
     // 🆕 Obtener el total de registros para paginación
@@ -66,22 +88,10 @@ export async function GET(req: Request) {
       }
     })
 
-    // 🆕 Filtrar por término de búsqueda en el frontend si es necesario
-    let filteredMovimientos = movimientos;
-    if (search) {
-      const searchLower = search.toLowerCase();
-      filteredMovimientos = movimientos.filter(movimiento => 
-        movimiento.tipo.toLowerCase().includes(searchLower) ||
-        movimiento.productoTienda?.producto?.nombre?.toLowerCase().includes(searchLower) ||
-        movimiento.usuario?.nombre?.toLowerCase().includes(searchLower) ||
-        movimiento.proveedor?.nombre?.toLowerCase().includes(searchLower)
-      );
-    }
-
     // 🆕 Retornar objeto con data y total
     return NextResponse.json({
-      data: filteredMovimientos,
-      total: search ? filteredMovimientos.length : total
+      data: movimientos,
+      total: total
     }, {status: 200});
   } catch (error) {
     console.log(error);
