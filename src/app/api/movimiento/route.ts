@@ -26,22 +26,22 @@ export async function GET(req: Request) {
       ...(referenciaId && {referenciaId: referenciaId}),
       ...(search && {
         OR: [
-          { motivo: { contains: search, mode: 'insensitive' } },
+          { motivo: { contains: search, mode: 'insensitive' as const } },
           {
             productoTienda: {
               producto: {
-                nombre: { contains: search, mode: 'insensitive' }
+                nombre: { contains: search, mode: 'insensitive' as const }
               }
             }
           },
           {
             usuario: {
-              nombre: { contains: search, mode: 'insensitive' }
+              nombre: { contains: search, mode: 'insensitive' as const }
             }
           },
           {
             proveedor: {
-              nombre: { contains: search, mode: 'insensitive' }
+              nombre: { contains: search, mode: 'insensitive' as const }
             }
           }
         ]
