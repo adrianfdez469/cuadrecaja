@@ -22,6 +22,8 @@ import {
   Button,
   useTheme,
   useMediaQuery,
+  Chip,
+  Stack,
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import SearchIcon from "@mui/icons-material/Search";
@@ -88,12 +90,21 @@ export default function POSInterface() {
     clearCart,
     removeFromCart,
     updateQuantity,
+    carts,
+    activeCartId,
+    createCart,
+    setActiveCart,
+    renameActiveCart,
+    removeActiveCart,
   } = useCartStore();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
   const [transferDestinations, setTransferDestinations] = useState<ITransferDestination[]>([]);
   const [intentToSearch, setIntentToSearch] = useState(false);
   const [openSpeedDial, setOpenSpeedDial] = useState(false);
+  // Edición de nombre de carrito (píldora)
+  const [editingCartId, setEditingCartId] = useState<string | null>(null);
+  const [editingCartName, setEditingCartName] = useState<string>("");
 
   // Referencia al scanner para poder reabrirlo
   const scannerRef = useRef<ProductProcessorDataRef>(null);
@@ -447,8 +458,8 @@ export default function POSInterface() {
 
         const cash = total - totalTransfer;
 
-        // 1. INMEDIATAMENTE: Vaciar carrito, cerrar modal y drawer
-        clearCart();
+        // 1. INMEDIATAMENTE: Eliminar carrito activo (y su píldora), cerrar modal y drawer
+        removeActiveCart();
         setPaymentDialog(false);
         setOpenCart(false);
 
@@ -1240,6 +1251,63 @@ export default function POSInterface() {
             boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
           }}
         >
+          {/* Píldoras de carritos */}
+          <Stack direction="row" spacing={1} sx={{ mb: 1, overflowX: 'auto', pb: 0.5 }}>
+            {carts.map((c) => (
+              <Box key={c.id} sx={{ display: 'flex', alignItems: 'center' }}>
+                {editingCartId === c.id ? (
+                  <TextField
+                    size="small"
+                    value={editingCartName}
+                    autoFocus
+                    onChange={(e) => setEditingCartName(e.target.value)}
+                    onBlur={() => {
+                      if (editingCartId === activeCartId) renameActiveCart(editingCartName.trim() || c.name);
+                      setEditingCartId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (editingCartId === activeCartId) renameActiveCart(editingCartName.trim() || c.name);
+                        setEditingCartId(null);
+                      } else if (e.key === 'Escape') {
+                        setEditingCartId(null);
+                      }
+                    }}
+                    sx={{ minWidth: 140 }}
+                  />
+                ) : (
+                  <Chip
+                    label={c.name}
+                    color={c.id === activeCartId ? 'primary' : 'default'}
+                    variant={c.id === activeCartId ? 'filled' : 'outlined'}
+                    onClick={() => setActiveCart(c.id)}
+                    onDoubleClick={() => {
+                      setActiveCart(c.id);
+                      setEditingCartId(c.id);
+                      setEditingCartName(c.name);
+                    }}
+                    onDelete={() => {
+                      if (carts.length <= 1) return; // mantener al menos uno
+                      if (c.id !== activeCartId) {
+                        setActiveCart(c.id);
+                      }
+                      removeActiveCart();
+                    }}
+                    sx={{
+                      cursor: 'pointer',
+                      '& .MuiChip-label': { maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' },
+                    }}
+                  />
+                )}
+              </Box>
+            ))}
+            <Chip
+              label="Nueva cuenta"
+              variant="outlined"
+              onClick={() => createCart()}
+              sx={{ cursor: 'pointer' }}
+            />
+          </Stack>
           <TextField
             inputRef={searchInputRef}
             fullWidth
