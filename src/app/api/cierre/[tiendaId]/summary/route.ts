@@ -19,6 +19,15 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
       ...(fechaInicio && {fechaInicio: { gte: new Date(fechaInicio).toISOString() }}),
       ...(fechaFin ? {fechaFin: {lte: new Date(fechaFin).toISOString()}} : {fechaFin: { not: null}})
     }
+
+    const flitrosVentas = {
+      tiendaId: tiendaId,
+      transferDestinationId: {not: null},
+      createdAt: {
+        ...(fechaInicio && {gte: new Date(fechaInicio).toISOString()}),
+        ...(fechaFin && {lte: new Date(fechaFin).toISOString()})
+      }
+    }
   
     const cierres = await prisma.cierrePeriodo.findMany({
       where: {
@@ -37,6 +46,37 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
         ...filtros
       }
     });
+
+    const transferenciasDesglosadas = await prisma.venta.groupBy({
+      by: ['transferDestinationId'],
+      _sum: {
+        totaltransfer: true,
+      },
+      where: {
+        ...flitrosVentas
+      }
+    })
+
+    // Resolver nombres de destinos de transferencia
+    const destinationIds = transferenciasDesglosadas
+      .map(item => item.transferDestinationId)
+      .filter(id => id !== null);
+
+    const destinationsNames = await prisma.transferDestinations.findMany({
+      where: {
+        id: { in: destinationIds }
+      },
+      select: {
+        id: true,
+        nombre: true
+      }
+    });
+
+    // Combinar datos con nombres
+    const transferenciasConNombres = transferenciasDesglosadas.map(item => ({
+      ...item,
+      destinationName: destinationsNames.find(dest => dest.id === item.transferDestinationId)?.nombre || 'Sin nombre'
+    }));
 
     const totales = await prisma.cierrePeriodo.aggregate({
       _sum: {
@@ -60,6 +100,7 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
       sumTotalInversion: totales._sum.totalInversion,
       sumTotalVentas: totales._sum.totalVentas,
       sumTotalTransferencia: totales._sum.totalTransferencia,
+      desgloseTransferencias: transferenciasConNombres,
       sumTotalVentasPropias: totales._sum.totalVentasPropias,
       sumTotalVentasConsignacion: totales._sum.totalVentasConsignacion,
       sumTotalGananciasPropias: totales._sum.totalGananciasPropias,
