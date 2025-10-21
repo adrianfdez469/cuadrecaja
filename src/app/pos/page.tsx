@@ -22,6 +22,8 @@ import {
   Button,
   useTheme,
   useMediaQuery,
+  Chip,
+  Stack,
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import SearchIcon from "@mui/icons-material/Search";
@@ -29,6 +31,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import Sync from "@mui/icons-material/Sync";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import BlurOnIcon from "@mui/icons-material/BlurOn";
+import EditIcon from "@mui/icons-material/Edit";
 
 import { useCartStore } from "@/store/cartStore";
 import axios from "axios";
@@ -88,12 +91,38 @@ export default function POSInterface() {
     clearCart,
     removeFromCart,
     updateQuantity,
+    carts,
+    activeCartId,
+    createCart,
+    setActiveCart,
+    renameCart,
+    removeActiveCart,
   } = useCartStore();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
   const [transferDestinations, setTransferDestinations] = useState<ITransferDestination[]>([]);
   const [intentToSearch, setIntentToSearch] = useState(false);
   const [openSpeedDial, setOpenSpeedDial] = useState(false);
+  // Edición de nombre de carrito (píldora)
+  const [editingCartId, setEditingCartId] = useState<string | null>(null);
+  const [editingCartName, setEditingCartName] = useState<string>("");
+  // Ref del input de edición para forzar foco en móviles
+  const editCartInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (editingCartId) {
+      // Forzar foco de forma robusta tras renderizar el TextField
+      const focusLater = () => {
+        const el = editCartInputRef.current;
+        if (el) {
+          try { el.focus({ preventScroll: true } as FocusOptions); } catch { try { el.focus(); } catch {} }
+          // Seleccionar el texto para facilitar la edición
+          try { el.select(); } catch {}
+        }
+      };
+      const raf = requestAnimationFrame(() => setTimeout(focusLater, 0));
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [editingCartId]);
 
   // Referencia al scanner para poder reabrirlo
   const scannerRef = useRef<ProductProcessorDataRef>(null);
@@ -447,8 +476,8 @@ export default function POSInterface() {
 
         const cash = total - totalTransfer;
 
-        // 1. INMEDIATAMENTE: Vaciar carrito, cerrar modal y drawer
-        clearCart();
+        // 1. INMEDIATAMENTE: Eliminar carrito activo (y su píldora), cerrar modal y drawer
+        removeActiveCart();
         setPaymentDialog(false);
         setOpenCart(false);
 
@@ -955,7 +984,7 @@ export default function POSInterface() {
               if (data?.code) handleProductScan(data.code);
             }}
             onHardwareScan={handleHardwareScan}
-            keepFocus={intentToSearch || paymentDialog || showSyncView || openSpeedDial ? false : true}
+            keepFocus={editingCartId ? false : !(intentToSearch || paymentDialog || showSyncView || openSpeedDial)}
           />
           {scannerError && (
             <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
@@ -1215,7 +1244,7 @@ export default function POSInterface() {
           <Fab
             color="primary"
             aria-label="cart"
-            sx={{ position: "fixed", bottom: 100, right: 16 }}
+            sx={{ position: "fixed", bottom: 122, right: 16 }}
             onClick={handleCartIcon}
           >
             <Badge badgeContent={cart.length} color="secondary">
@@ -1223,6 +1252,122 @@ export default function POSInterface() {
             </Badge>
           </Fab>
         )}
+
+        <Box
+            ref={searchAnchorRef}
+            sx={{
+              m: 0,
+              position: "fixed",
+              bottom: 60,
+              left: 0,
+              right: 0,
+              p: 1,
+              zIndex: 1200,
+              background: "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
+              backdropFilter: "blur(10px)",
+              borderTop: "1px solid rgba(0,0,0,0.1)",
+              boxShadow: "0 -2px 1px rgba(0,0,0,0.1)",
+            }}
+        >
+          {/* Píldoras de carritos */}
+          <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+            {carts.map((c) => (
+                <Box key={c.id} sx={{ display: 'flex', alignItems: 'center' }}>
+                  {editingCartId === c.id ? (
+                      <TextField
+                          size="small"
+                          value={editingCartName}
+                          autoFocus
+                          inputRef={editCartInputRef}
+                          onChange={(e) => setEditingCartName(e.target.value)}
+                          onBlur={() => {
+                            if (editingCartId) {
+                              const newName = (editingCartName || '').trim() || c.name;
+                              renameCart(editingCartId, newName);
+                            }
+                            setEditingCartId(null);
+                          }}
+                          onKeyDown={(e) => {
+                            const key = e.key;
+                            // Evitar interferencia de IME y de manejadores globales
+                            const composing = e?.nativeEvent?.isComposing ?? false;
+                            if (!composing && (key === 'Enter' || key === 'NumpadEnter')) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (editingCartId) {
+                                const newName = (editingCartName || '').trim() || c.name;
+                                renameCart(editingCartId, newName);
+                              }
+                              setEditingCartId(null);
+                            } else if (key === 'Escape') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setEditingCartId(null);
+                            }
+                          }}
+                          InputProps={{
+                            inputProps: {
+                              inputMode: 'text',
+                              autoComplete: 'off',
+                              autoCorrect: 'off',
+                              autoCapitalize: 'off',
+                              spellCheck: false,
+                            }
+                          }}
+                          sx={{ minWidth: 140 }}
+                      />
+                  ) : (
+                      <Chip
+                          tabIndex={-1}
+                          label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Box sx={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</Box>
+                              <IconButton
+                                aria-label="Editar nombre"
+                                size="small"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setEditingCartId(c.id);
+                                  setEditingCartName(c.name);
+                                }}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                onTouchStart={(e) => { e.stopPropagation(); }}
+                                onTouchEnd={(e) => { e.stopPropagation(); }}
+                                onTouchMove={(e) => { e.stopPropagation(); }}
+                                edge="end"
+                                sx={{ p: 0.25 }}
+                              >
+                                <EditIcon fontSize="inherit" />
+                              </IconButton>
+                            </Box>
+                          }
+                          color={c.id === activeCartId ? 'primary' : 'default'}
+                          variant={c.id === activeCartId ? 'filled' : 'outlined'}
+                          onClick={() => setActiveCart(c.id)}
+                          onDelete={() => {
+                            if (carts.length <= 1) return; // mantener al menos uno
+                            if (c.id !== activeCartId) {
+                              setActiveCart(c.id);
+                            }
+                            removeActiveCart();
+                          }}
+                          sx={{
+                            cursor: 'pointer',
+                            '& .MuiChip-label': { maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' },
+                          }}
+                      />
+                  )}
+                </Box>
+            ))}
+            <Chip
+                label="Nueva cuenta"
+                variant="outlined"
+                onClick={() => createCart()}
+                sx={{ cursor: 'pointer' }}
+            />
+          </Stack>
+        </Box>
 
         {/* Buscador flotante */}
         <Box
@@ -1232,14 +1377,13 @@ export default function POSInterface() {
             bottom: 0,
             left: 0,
             right: 0,
-            p: 2,
+            p: 1,
             zIndex: 1200,
             background: "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
             backdropFilter: "blur(10px)",
-            borderTop: "1px solid rgba(0,0,0,0.1)",
-            boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
           }}
         >
+
           <TextField
             inputRef={searchInputRef}
             fullWidth
