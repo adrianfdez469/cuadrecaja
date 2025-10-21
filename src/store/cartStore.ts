@@ -32,6 +32,7 @@ interface CartState {
   createCart: (name?: string) => void;
   setActiveCart: (id: string) => void;
   renameActiveCart: (name: string) => void;
+  renameCart: (id: string, name: string) => void;
   removeActiveCart: () => void;
 }
 
@@ -78,6 +79,13 @@ export const useCartStore = create<CartState>()(
       renameActiveCart: (name) => {
         set((state) => {
           const carts = state.carts.map(c => c.id === state.activeCartId ? { ...c, name } : c);
+          return { carts } as Partial<CartState>;
+        });
+      },
+
+      renameCart: (id: string, name: string) => {
+        set((state) => {
+          const carts = state.carts.map(c => c.id === id ? { ...c, name } : c);
           return { carts } as Partial<CartState>;
         });
       },

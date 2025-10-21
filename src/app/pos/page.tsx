@@ -31,6 +31,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import Sync from "@mui/icons-material/Sync";
 import CancelPresentationIcon from "@mui/icons-material/CancelPresentation";
 import BlurOnIcon from "@mui/icons-material/BlurOn";
+import EditIcon from "@mui/icons-material/Edit";
 
 import { useCartStore } from "@/store/cartStore";
 import axios from "axios";
@@ -94,7 +95,7 @@ export default function POSInterface() {
     activeCartId,
     createCart,
     setActiveCart,
-    renameActiveCart,
+    renameCart,
     removeActiveCart,
   } = useCartStore();
   const [loading, setLoading] = useState(true);
@@ -966,7 +967,7 @@ export default function POSInterface() {
               if (data?.code) handleProductScan(data.code);
             }}
             onHardwareScan={handleHardwareScan}
-            keepFocus={intentToSearch || paymentDialog || showSyncView || openSpeedDial ? false : true}
+            keepFocus={editingCartId ? false : !(intentToSearch || paymentDialog || showSyncView || openSpeedDial)}
           />
           {scannerError && (
             <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
@@ -1262,12 +1263,18 @@ export default function POSInterface() {
                           autoFocus
                           onChange={(e) => setEditingCartName(e.target.value)}
                           onBlur={() => {
-                            if (editingCartId === activeCartId) renameActiveCart(editingCartName.trim() || c.name);
+                            if (editingCartId) {
+                              const newName = (editingCartName || '').trim() || c.name;
+                              renameCart(editingCartId, newName);
+                            }
                             setEditingCartId(null);
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              if (editingCartId === activeCartId) renameActiveCart(editingCartName.trim() || c.name);
+                              if (editingCartId) {
+                                const newName = (editingCartName || '').trim() || c.name;
+                                renameCart(editingCartId, newName);
+                              }
                               setEditingCartId(null);
                             } else if (e.key === 'Escape') {
                               setEditingCartId(null);
@@ -1277,15 +1284,28 @@ export default function POSInterface() {
                       />
                   ) : (
                       <Chip
-                          label={c.name}
+                          label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Box sx={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</Box>
+                              <IconButton
+                                aria-label="Editar nombre"
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingCartId(c.id);
+                                  setEditingCartName(c.name);
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                edge="end"
+                                sx={{ p: 0.25 }}
+                              >
+                                <EditIcon fontSize="inherit" />
+                              </IconButton>
+                            </Box>
+                          }
                           color={c.id === activeCartId ? 'primary' : 'default'}
                           variant={c.id === activeCartId ? 'filled' : 'outlined'}
                           onClick={() => setActiveCart(c.id)}
-                          onDoubleClick={() => {
-                            setActiveCart(c.id);
-                            setEditingCartId(c.id);
-                            setEditingCartName(c.name);
-                          }}
                           onDelete={() => {
                             if (carts.length <= 1) return; // mantener al menos uno
                             if (c.id !== activeCartId) {
