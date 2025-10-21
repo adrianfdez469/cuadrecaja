@@ -1290,7 +1290,6 @@ export default function POSInterface() {
                           onKeyDown={(e) => {
                             const key = e.key;
                             // Evitar interferencia de IME y de manejadores globales
-                            // @ts-expect-error React typings may omit nativeEvent.isComposing; safe to probe for IME composition
                             const composing = e?.nativeEvent?.isComposing ?? false;
                             if (!composing && (key === 'Enter' || key === 'NumpadEnter')) {
                               e.preventDefault();
