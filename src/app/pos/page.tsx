@@ -1226,7 +1226,7 @@ export default function POSInterface() {
           <Fab
             color="primary"
             aria-label="cart"
-            sx={{ position: "fixed", bottom: 100, right: 16 }}
+            sx={{ position: "fixed", bottom: 122, right: 16 }}
             onClick={handleCartIcon}
           >
             <Badge badgeContent={cart.length} color="secondary">
@@ -1234,6 +1234,81 @@ export default function POSInterface() {
             </Badge>
           </Fab>
         )}
+
+        <Box
+            ref={searchAnchorRef}
+            sx={{
+              m: 0,
+              position: "fixed",
+              bottom: 60,
+              left: 0,
+              right: 0,
+              p: 1,
+              zIndex: 1200,
+              background: "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
+              backdropFilter: "blur(10px)",
+              borderTop: "1px solid rgba(0,0,0,0.1)",
+              boxShadow: "0 -2px 1px rgba(0,0,0,0.1)",
+            }}
+        >
+          {/* Píldoras de carritos */}
+          <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+            {carts.map((c) => (
+                <Box key={c.id} sx={{ display: 'flex', alignItems: 'center' }}>
+                  {editingCartId === c.id ? (
+                      <TextField
+                          size="small"
+                          value={editingCartName}
+                          autoFocus
+                          onChange={(e) => setEditingCartName(e.target.value)}
+                          onBlur={() => {
+                            if (editingCartId === activeCartId) renameActiveCart(editingCartName.trim() || c.name);
+                            setEditingCartId(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              if (editingCartId === activeCartId) renameActiveCart(editingCartName.trim() || c.name);
+                              setEditingCartId(null);
+                            } else if (e.key === 'Escape') {
+                              setEditingCartId(null);
+                            }
+                          }}
+                          sx={{ minWidth: 140 }}
+                      />
+                  ) : (
+                      <Chip
+                          label={c.name}
+                          color={c.id === activeCartId ? 'primary' : 'default'}
+                          variant={c.id === activeCartId ? 'filled' : 'outlined'}
+                          onClick={() => setActiveCart(c.id)}
+                          onDoubleClick={() => {
+                            setActiveCart(c.id);
+                            setEditingCartId(c.id);
+                            setEditingCartName(c.name);
+                          }}
+                          onDelete={() => {
+                            if (carts.length <= 1) return; // mantener al menos uno
+                            if (c.id !== activeCartId) {
+                              setActiveCart(c.id);
+                            }
+                            removeActiveCart();
+                          }}
+                          sx={{
+                            cursor: 'pointer',
+                            '& .MuiChip-label': { maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' },
+                          }}
+                      />
+                  )}
+                </Box>
+            ))}
+            <Chip
+                label="Nueva cuenta"
+                variant="outlined"
+                onClick={() => createCart()}
+                sx={{ cursor: 'pointer' }}
+            />
+          </Stack>
+        </Box>
 
         {/* Buscador flotante */}
         <Box
@@ -1243,71 +1318,13 @@ export default function POSInterface() {
             bottom: 0,
             left: 0,
             right: 0,
-            p: 2,
+            p: 1,
             zIndex: 1200,
             background: "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
             backdropFilter: "blur(10px)",
-            borderTop: "1px solid rgba(0,0,0,0.1)",
-            boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
           }}
         >
-          {/* Píldoras de carritos */}
-          <Stack direction="row" spacing={1} sx={{ mb: 1, overflowX: 'auto', pb: 0.5 }}>
-            {carts.map((c) => (
-              <Box key={c.id} sx={{ display: 'flex', alignItems: 'center' }}>
-                {editingCartId === c.id ? (
-                  <TextField
-                    size="small"
-                    value={editingCartName}
-                    autoFocus
-                    onChange={(e) => setEditingCartName(e.target.value)}
-                    onBlur={() => {
-                      if (editingCartId === activeCartId) renameActiveCart(editingCartName.trim() || c.name);
-                      setEditingCartId(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        if (editingCartId === activeCartId) renameActiveCart(editingCartName.trim() || c.name);
-                        setEditingCartId(null);
-                      } else if (e.key === 'Escape') {
-                        setEditingCartId(null);
-                      }
-                    }}
-                    sx={{ minWidth: 140 }}
-                  />
-                ) : (
-                  <Chip
-                    label={c.name}
-                    color={c.id === activeCartId ? 'primary' : 'default'}
-                    variant={c.id === activeCartId ? 'filled' : 'outlined'}
-                    onClick={() => setActiveCart(c.id)}
-                    onDoubleClick={() => {
-                      setActiveCart(c.id);
-                      setEditingCartId(c.id);
-                      setEditingCartName(c.name);
-                    }}
-                    onDelete={() => {
-                      if (carts.length <= 1) return; // mantener al menos uno
-                      if (c.id !== activeCartId) {
-                        setActiveCart(c.id);
-                      }
-                      removeActiveCart();
-                    }}
-                    sx={{
-                      cursor: 'pointer',
-                      '& .MuiChip-label': { maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' },
-                    }}
-                  />
-                )}
-              </Box>
-            ))}
-            <Chip
-              label="Nueva cuenta"
-              variant="outlined"
-              onClick={() => createCart()}
-              sx={{ cursor: 'pointer' }}
-            />
-          </Stack>
+
           <TextField
             inputRef={searchInputRef}
             fullWidth
