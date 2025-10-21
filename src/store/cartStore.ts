@@ -78,21 +78,21 @@ export const useCartStore = create<CartState>()(
       renameActiveCart: (name) => {
         set((state) => {
           const carts = state.carts.map(c => c.id === state.activeCartId ? { ...c, name } : c);
-          return { carts } as Partial<CartState> as any;
+          return { carts } as Partial<CartState>;
         });
       },
 
       removeActiveCart: () => {
         set((state) => {
           const idx = state.carts.findIndex(c => c.id === state.activeCartId);
-          if (idx === -1) return {} as any;
+          if (idx === -1) return {} as Partial<CartState>;
           const carts = state.carts.filter(c => c.id !== state.activeCartId);
           if (carts.length === 0) {
             const first = createEmptyCart(1);
-            return { carts: [first], activeCartId: first.id, items: first.items, total: first.total } as Partial<CartState> as any;
+            return { carts: [first], activeCartId: first.id, items: first.items, total: first.total } as Partial<CartState>;
           }
           const newActive = carts[Math.min(idx, carts.length - 1)];
-          return { carts, activeCartId: newActive.id, items: newActive.items, total: newActive.total } as Partial<CartState> as any;
+          return { carts, activeCartId: newActive.id, items: newActive.items, total: newActive.total } as Partial<CartState>;
         });
       },
 
@@ -117,7 +117,7 @@ export const useCartStore = create<CartState>()(
             carts,
             items: active.items,
             total: active.total,
-          } as Partial<CartState> as any;
+          } as Partial<CartState>;
         });
       },
 
@@ -130,7 +130,7 @@ export const useCartStore = create<CartState>()(
             return { ...c, items: updatedItems, total };
           });
           const active = carts.find(c => c.id === state.activeCartId)!;
-          return { carts, items: active.items, total: active.total } as Partial<CartState> as any;
+          return { carts, items: active.items, total: active.total } as Partial<CartState>;
         });
       },
 
@@ -143,7 +143,7 @@ export const useCartStore = create<CartState>()(
             return { ...c, items: updatedItems, total };
           });
           const active = carts.find(c => c.id === state.activeCartId)!;
-          return { carts, items: active.items, total: active.total } as Partial<CartState> as any;
+          return { carts, items: active.items, total: active.total } as Partial<CartState>;
         });
       },
 
@@ -151,28 +151,29 @@ export const useCartStore = create<CartState>()(
         // For compatibility: clear the active cart contents but keep the cart
         set((state) => {
           const carts = state.carts.map(c => (c.id === state.activeCartId ? { ...c, items: [], total: 0 } : c));
-          return { carts, items: [], total: 0 } as Partial<CartState> as any;
+          return { carts, items: [], total: 0 } as Partial<CartState>;
         });
       },
     }),
     {
       name: "cart-storage",
       version: 2,
-      migrate: (persistedState: any, version) => {
+      migrate: (persistedState: unknown, version: number) => {
         // If coming from legacy single-cart structure
         if (version < 2) {
           // persistedState may be undefined initially
-          const items: ICartItem[] = persistedState?.items ?? [];
-          const total: number = persistedState?.total ?? 0;
-          const first = { id: "1", name: "Cuenta #1", items, total } as ICart;
+          const legacy = (persistedState as { items?: ICartItem[]; total?: number } | undefined);
+          const items: ICartItem[] = legacy?.items ?? [];
+          const total: number = legacy?.total ?? 0;
+          const first: ICart = { id: "1", name: "Cuenta #1", items, total };
           return {
             carts: [first],
             activeCartId: "1",
             items,
             total,
-          };
+          } satisfies Partial<CartState> & { carts: ICart[]; activeCartId: string };
         }
-        return persistedState;
+        return persistedState as Partial<CartState>;
       },
       // Ensure partialize keeps full state for now to not break across sessions
     }
