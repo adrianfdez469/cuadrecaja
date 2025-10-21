@@ -106,6 +106,23 @@ export default function POSInterface() {
   // Edición de nombre de carrito (píldora)
   const [editingCartId, setEditingCartId] = useState<string | null>(null);
   const [editingCartName, setEditingCartName] = useState<string>("");
+  // Ref del input de edición para forzar foco en móviles
+  const editCartInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (editingCartId) {
+      // Forzar foco de forma robusta tras renderizar el TextField
+      const focusLater = () => {
+        const el = editCartInputRef.current;
+        if (el) {
+          try { el.focus({ preventScroll: true } as any); } catch (_) { try { el.focus(); } catch(_) {} }
+          // Seleccionar el texto para facilitar la edición
+          try { el.select(); } catch(_) {}
+        }
+      };
+      const raf = requestAnimationFrame(() => setTimeout(focusLater, 0));
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [editingCartId]);
 
   // Referencia al scanner para poder reabrirlo
   const scannerRef = useRef<ProductProcessorDataRef>(null);
@@ -1261,6 +1278,7 @@ export default function POSInterface() {
                           size="small"
                           value={editingCartName}
                           autoFocus
+                          inputRef={editCartInputRef}
                           onChange={(e) => setEditingCartName(e.target.value)}
                           onBlur={() => {
                             if (editingCartId) {
@@ -1270,20 +1288,38 @@ export default function POSInterface() {
                             setEditingCartId(null);
                           }}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
+                            const key = e.key;
+                            // Evitar interferencia de IME y de manejadores globales
+                            // @ts-expect-error
+                            const composing = e?.nativeEvent?.isComposing ?? false;
+                            if (!composing && (key === 'Enter' || key === 'NumpadEnter')) {
+                              e.preventDefault();
+                              e.stopPropagation();
                               if (editingCartId) {
                                 const newName = (editingCartName || '').trim() || c.name;
                                 renameCart(editingCartId, newName);
                               }
                               setEditingCartId(null);
-                            } else if (e.key === 'Escape') {
+                            } else if (key === 'Escape') {
+                              e.preventDefault();
+                              e.stopPropagation();
                               setEditingCartId(null);
+                            }
+                          }}
+                          InputProps={{
+                            inputProps: {
+                              inputMode: 'text',
+                              autoComplete: 'off',
+                              autoCorrect: 'off',
+                              autoCapitalize: 'off',
+                              spellCheck: false,
                             }
                           }}
                           sx={{ minWidth: 140 }}
                       />
                   ) : (
                       <Chip
+                          tabIndex={-1}
                           label={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                               <Box sx={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</Box>
@@ -1291,11 +1327,15 @@ export default function POSInterface() {
                                 aria-label="Editar nombre"
                                 size="small"
                                 onClick={(e) => {
+                                  e.preventDefault();
                                   e.stopPropagation();
                                   setEditingCartId(c.id);
                                   setEditingCartName(c.name);
                                 }}
-                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                onTouchStart={(e) => { e.stopPropagation(); }}
+                                onTouchEnd={(e) => { e.stopPropagation(); }}
+                                onTouchMove={(e) => { e.stopPropagation(); }}
                                 edge="end"
                                 sx={{ p: 0.25 }}
                               >
