@@ -114,9 +114,9 @@ export default function POSInterface() {
       const focusLater = () => {
         const el = editCartInputRef.current;
         if (el) {
-          try { el.focus({ preventScroll: true } as any); } catch (_) { try { el.focus(); } catch(_) {} }
+          try { el.focus({ preventScroll: true } as FocusOptions); } catch { try { el.focus(); } catch {} }
           // Seleccionar el texto para facilitar la edición
-          try { el.select(); } catch(_) {}
+          try { el.select(); } catch {}
         }
       };
       const raf = requestAnimationFrame(() => setTimeout(focusLater, 0));
@@ -1290,7 +1290,7 @@ export default function POSInterface() {
                           onKeyDown={(e) => {
                             const key = e.key;
                             // Evitar interferencia de IME y de manejadores globales
-                            // @ts-expect-error
+                            // @ts-expect-error React typings may omit nativeEvent.isComposing; safe to probe for IME composition
                             const composing = e?.nativeEvent?.isComposing ?? false;
                             if (!composing && (key === 'Enter' || key === 'NumpadEnter')) {
                               e.preventDefault();
