@@ -17,17 +17,24 @@ import {
     TrendingUp,
     Store,
     Speed,
+    Login as LoginIcon,
 } from '@mui/icons-material';
+import { useRouter } from 'next/navigation';
 
 export default function HeroSection() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const router = useRouter();
 
     const scrollToContact = () => {
         const contactSection = document.getElementById('contact-section');
         if (contactSection) {
             contactSection.scrollIntoView({ behavior: 'smooth' });
         }
+    };
+
+    const handleGoToLogin = () => {
+        router.push('/login');
     };
 
     return (
@@ -142,20 +149,24 @@ export default function HeroSection() {
                             <Button
                                 variant="outlined"
                                 size="large"
-                                startIcon={<PlayArrow />}
+                                startIcon={<LoginIcon />}
+                                onClick={handleGoToLogin}
                                 sx={{
-                                    borderColor: 'rgba(255,255,255,0.5)',
+                                    borderColor: 'rgba(255,255,255,0.7)',
                                     color: 'white',
                                     px: 4,
                                     py: 1.5,
                                     fontSize: '1.1rem',
+                                    fontWeight: 600,
                                     '&:hover': {
                                         borderColor: 'white',
-                                        bgcolor: 'rgba(255,255,255,0.1)',
+                                        bgcolor: 'rgba(255,255,255,0.15)',
+                                        transform: 'translateY(-2px)',
                                     },
+                                    transition: 'all 0.3s ease',
                                 }}
                             >
-                                Ver Demo
+                                Iniciar Sesión
                             </Button>
                         </Stack>
                     </Grid>

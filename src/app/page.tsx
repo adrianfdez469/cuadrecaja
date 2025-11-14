@@ -6,15 +6,18 @@ import {
   Container,
   Typography,
   Grid,
-//   useTheme,
-//   useMediaQuery,
+  Button,
+  AppBar,
+  Toolbar,
   Divider,
 } from '@mui/material';
 import {
   Phone,
   Email,
-//   LocationOn,
+  Login as LoginIcon,
+  Store,
 } from '@mui/icons-material';
+import { useRouter } from 'next/navigation';
 import HeroSection from './landing-components/HeroSection';
 import FeaturesSection from './landing-components/FeaturesSection';
 import BenefitsSection from './landing-components/BenefitsSection';
@@ -23,6 +26,11 @@ import ContactSection from './landing-components/ContactSection';
 import ChatbotWidget from './landing-components/ChatbotWidget';
 
 export default function LandingPage() {
+  const router = useRouter();
+
+  const handleGoToLogin = () => {
+    router.push('/login');
+  };
 
   return (
     <Box sx={{ 
@@ -30,6 +38,57 @@ export default function LandingPage() {
       bgcolor: 'background.default',
       overflow: 'hidden'
     }}>
+      {/* Navigation Bar */}
+      <AppBar 
+        position="sticky" 
+        elevation={0}
+        sx={{
+          bgcolor: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+        }}
+      >
+        <Toolbar>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <Store sx={{ color: 'primary.main', fontSize: 32, mr: 1.5 }} />
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Cuadre de Caja
+            </Typography>
+          </Box>
+          
+          <Button
+            variant="contained"
+            startIcon={<LoginIcon />}
+            onClick={handleGoToLogin}
+            sx={{
+              background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+              px: 3,
+              py: 1,
+              fontWeight: 600,
+              textTransform: 'none',
+              boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
+              },
+              transition: 'all 0.3s ease',
+            }}
+          >
+            Iniciar Sesión
+          </Button>
+        </Toolbar>
+      </AppBar>
+
       {/* Hero Section */}
       <HeroSection />
 
