@@ -1,0 +1,17 @@
+{
+  "name": "limpiar-negocio-util",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/limpiarNegocio.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/limpiarNegocio.js --help"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20"
+  }
+}
