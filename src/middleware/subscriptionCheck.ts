@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SubscriptionService } from '@/services/subscriptionService';
 
 // Rutas que requieren verificación de suscripción
 const PROTECTED_ROUTES = [

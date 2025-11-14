@@ -24,8 +24,6 @@ import {
   Lock,
   Store,
   Login as LoginIcon,
-  Phone,
-  Email,
   Warning,
   WhatsApp
 } from "@mui/icons-material";
