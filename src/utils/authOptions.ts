@@ -42,6 +42,30 @@ export const authOptions: NextAuthOptions = {
         const passwordMatch = await bcrypt.compare(credentials.password, user.password);
         if (!passwordMatch) throw new Error("Contraseña incorrecta");
 
+        // ⚠️ VERIFICAR ESTADO DE SUSCRIPCIÓN - Bloquear login si está suspendido (excepto SUPER_ADMIN)
+        if (user.rol !== "SUPER_ADMIN") {
+          const now = new Date();
+          const limitTime = new Date(user.negocio.limitTime);
+          const diffTime = limitTime.getTime() - now.getTime();
+          const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const isExpired = daysRemaining <= 0;
+          const gracePeriodDays = 7;
+          const isInGracePeriod = daysRemaining > -gracePeriodDays;
+          
+          // Consultar si el negocio está marcado como suspendido manualmente
+          const negocioCompleto = await prisma.negocio.findUnique({
+            where: { id: user.negocio.id },
+            select: { suspended: true }
+          });
+          
+          const isSuspended = negocioCompleto?.suspended || (isExpired && !isInGracePeriod);
+          
+          if (isSuspended) {
+            // Error específico para suscripción expirada (será detectado en el frontend)
+            throw new Error("SUBSCRIPTION_EXPIRED");
+          }
+        }
+
         // Para usuarios SUPER_ADMIN, obtener todas las tiendas del negocio
         // Para otros usuarios, solo las tiendas asociadas
         let localesDisponibles;

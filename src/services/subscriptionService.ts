@@ -31,7 +31,10 @@ export class SubscriptionService {
     const isExpired = daysRemaining <= 0;
     const gracePeriodDays = 7; // Período de gracia de 7 días
     const isInGracePeriod = daysRemaining > -gracePeriodDays;
-    const isSuspended = isExpired && !isInGracePeriod;
+    // Un negocio está suspendido si:
+    // 1. Está marcado manualmente como suspendido (negocio.suspended = true)
+    // 2. O ha expirado y ya pasó el período de gracia (expirado hace más de 7 días)
+    const isSuspended = negocio.suspended || (isExpired && !isInGracePeriod);
     const canRenew = isExpired || daysRemaining <= 3;
 
     return {

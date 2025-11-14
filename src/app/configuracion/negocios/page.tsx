@@ -135,7 +135,7 @@ export default function Negocios() {
     if (!loadingContext && user) {
       if (user.rol !== "SUPER_ADMIN") {
         showMessage("No tienes permisos para acceder a la gestión de negocios", "error");
-        router.push("/");
+        router.push("/home");
         return;
       }
     }
