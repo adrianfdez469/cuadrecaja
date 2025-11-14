@@ -13,7 +13,6 @@ import {
     Stack,
 } from '@mui/material';
 import {
-    PlayArrow,
     TrendingUp,
     Store,
     Speed,
