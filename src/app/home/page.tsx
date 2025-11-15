@@ -30,8 +30,10 @@ import {
   ShoppingCart,
   Summarize,
   Security,
-  CalendarMonth
+  CalendarMonth,
+  Backup
 } from "@mui/icons-material";
+import { useMessageContext } from "@/context/MessageContext";
 import { useRouter } from "next/navigation";
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
@@ -67,11 +69,40 @@ const HomePage = () => {
   const { loadingContext, user } = useAppContext();
   const router = useRouter();
   const { verificarPermiso } = usePermisos();
+  const { showMessage } = useMessageContext();
   const [loadingNegocioStats, setLoadingNegocioStats] = useState(true);
   const [negocioStats, setNegocioStats] = useState<NegocioStats>();
+  const [generatingBackup, setGeneratingBackup] = useState(false);
 
   const handleNavigate = (path: string) => {
     router.push(path);
+  };
+
+  const handleGenerateBackup = async () => {
+    try {
+      setGeneratingBackup(true);
+      showMessage('Generando backup de la base de datos...', 'info');
+
+      const response = await fetch('/api/backup/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al generar backup');
+      }
+
+      showMessage('Backup generado exitosamente', 'success');
+    } catch (error) {
+      console.error('Error al generar backup:', error);
+      showMessage(`Error al generar backup: ${error instanceof Error ? error.message : 'Error desconocido'}`, 'error');
+    } finally {
+      setGeneratingBackup(false);
+    }
   };
 
   useEffect(() => {
@@ -322,50 +353,77 @@ const HomePage = () => {
             </Typography>
           </Box>
 
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              bgcolor: 'primary.main',
-              color: 'white',
-              borderRadius: 2,
-              minWidth: { xs: '100%', md: 200 },
-              width: { xs: '100%', md: 'auto' },
-              boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
-            }}
-          >
-            <Typography
-              variant="h6"
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, width: { xs: '100%', md: 'auto' } }}>
+            <Paper
+              elevation={0}
               sx={{
-                color: 'rgba(255, 255, 255, 0.95)',
-                fontWeight: 600,
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-                display: 'flex',
-                flexDirection: 'row',
-                alignContent: 'center',
-                justifyItems: 'center',
-                alignItems: 'center'
+                p: 2,
+                bgcolor: 'primary.main',
+                color: 'white',
+                borderRadius: 2,
+                minWidth: { xs: '100%', md: 200 },
+                boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
               }}
             >
-              {`${getTipoLocalText(user.localActual.tipo)}: ${user.localActual.nombre}`}
+              <Typography
+                variant="h6"
+                sx={{
+                  color: 'rgba(255, 255, 255, 0.95)',
+                  fontWeight: 600,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignContent: 'center',
+                  justifyItems: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                {`${getTipoLocalText(user.localActual.tipo)}: ${user.localActual.nombre}`}
 
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'rgba(255, 255, 255, 0.92)',
-                fontWeight: 400,
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-              }}
-            >
-              {user.negocio?.nombre}
-            </Typography>
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: 'rgba(255, 255, 255, 0.92)',
+                  fontWeight: 400,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                }}
+              >
+                {user.negocio?.nombre}
+              </Typography>
+            </Paper>
 
-
-
-
-
-          </Paper>
+            {/* Botón de Backup - Solo SUPER_ADMIN */}
+            {user.rol === 'SUPER_ADMIN' && (
+              <Button
+                variant="contained"
+                color="warning"
+                startIcon={generatingBackup ? <CircularProgress size={20} color="inherit" /> : <Backup />}
+                onClick={handleGenerateBackup}
+                disabled={generatingBackup}
+                sx={{
+                  height: 'fit-content',
+                  alignSelf: { xs: 'stretch', md: 'center' },
+                  px: 3,
+                  py: 1.5,
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  boxShadow: '0 2px 8px rgba(237, 108, 2, 0.3)',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(237, 108, 2, 0.4)',
+                    transform: 'translateY(-2px)',
+                  },
+                  '&:disabled': {
+                    bgcolor: 'warning.light',
+                    color: 'white',
+                  },
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                {generatingBackup ? 'Generando Backup...' : 'Generar Backup BD'}
+              </Button>
+            )}
+          </Box>
         </Box>
 
         <Divider sx={{ my: 1 }} />
@@ -565,6 +623,8 @@ const HomePage = () => {
           </>
         }
       </Box>
+
+      
     </Container>
   );
 };
