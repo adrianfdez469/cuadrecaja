@@ -121,7 +121,8 @@ export async function PUT(
                 id: true,
                 nombre: true,
                 usuario: true,
-                rol: true
+                rol: true,
+                localActualId: true
               }
             },
             rol: {
@@ -135,6 +136,18 @@ export async function PUT(
         },
       },
     });
+
+    // Asignar localActual a usuarios que no lo tengan
+    for (const usuarioTienda of updatedTienda.usuarios) {
+      // Si el usuario no tiene localActual asignado, asignarle este local
+      if (!usuarioTienda.usuario.localActualId) {
+        await prisma.usuario.update({
+          where: { id: usuarioTienda.usuario.id },
+          data: { localActualId: id }
+        });
+        console.log(`✅ LocalActual asignado automáticamente al usuario ${usuarioTienda.usuario.nombre} (ID: ${usuarioTienda.usuario.id})`);
+      }
+    }
 
     // Formatear la respuesta manteniendo compatibilidad
     const tiendaFormateada = {
