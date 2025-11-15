@@ -89,6 +89,27 @@ export const authOptions: NextAuthOptions = {
           }));
         }
 
+        // ⚠️ VALIDACIÓN: Usuario debe tener locales asignados (excepto SUPER_ADMIN)
+        if (user.rol !== "SUPER_ADMIN") {
+          // Verificar si tiene locales asignados
+          if (localesDisponibles.length === 0) {
+            throw new Error("USUARIO_SIN_CONFIGURAR: No tienes locales (tiendas o almacenes) asignados. Contacta al administrador para completar tu configuración.");
+          }
+
+          // Verificar si tiene al menos un rol asignado en algún local
+          const tieneRolAsignado = await prisma.usuarioTienda.findFirst({
+            where: {
+              usuarioId: user.id,
+              rolId: { not: null } // Tiene un rol asignado
+            },
+            select: { id: true }
+          });
+
+          if (!tieneRolAsignado) {
+            throw new Error("USUARIO_SIN_CONFIGURAR: No tienes un rol asignado en ningún local. Contacta al administrador para completar tu configuración.");
+          }
+        }
+
         // Obtener permisos basados en la tienda actual
         const permisos = await getPermisosUsuario(user.id, user.localActual?.id || null);
 
