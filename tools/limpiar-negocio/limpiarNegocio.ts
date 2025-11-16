@@ -77,24 +77,44 @@ async function main() {
   console.log(`Negocio seleccionado: ${negocio.nombre} (${negocio.id})`);
 
   // Recolectamos IDs relacionados
-  const [tiendas, usuarios, categorias, productos, proveedores, roles] = await Promise.all([
-    prisma.tienda.findMany({ where: { negocioId }, select: { id: true } }),
-    prisma.usuario.findMany({ where: { negocioId }, select: { id: true } }),
-    prisma.categoria.findMany({ where: { negocioId }, select: { id: true } }),
-    prisma.producto.findMany({ where: { negocioId }, select: { id: true } }),
-    prisma.proveedor.findMany({ where: { negocioId }, select: { id: true } }),
-    prisma.rol.findMany({ where: { negocioId }, select: { id: true } }),
-  ]);
+  const tiendas = await prisma.tienda.findMany({
+    where: { negocioId },
+    select: { id: true },
+  });
+
+  const usuarios = await prisma.usuario.findMany({
+    where: { negocioId },
+    select: { id: true },
+  });
+
+  const categorias = await prisma.categoria.findMany({
+    where: { negocioId },
+    select: { id: true },
+  });
+
+  const productos = await prisma.producto.findMany({
+    where: { negocioId },
+    select: { id: true },
+  });
+
+  const proveedores = await prisma.proveedor.findMany({
+    where: { negocioId },
+    select: { id: true },
+  });
+
+  const roles = await prisma.rol.findMany({
+    where: { negocioId },
+    select: { id: true },
+  });
+
 
   const tiendaIds = tiendas.map(t => t.id);
   const usuarioIds = usuarios.map(u => u.id);
   const productoIds = productos.map(p => p.id);
 
-  const [productoTiendas, ventas, cierres] = await Promise.all([
-    prisma.productoTienda.findMany({ where: { tiendaId: { in: tiendaIds } }, select: { id: true } }),
-    prisma.venta.findMany({ where: { tiendaId: { in: tiendaIds } }, select: { id: true } }),
-    prisma.cierrePeriodo.findMany({ where: { tiendaId: { in: tiendaIds } }, select: { id: true } }),
-  ]);
+  const productoTiendas = await prisma.productoTienda.findMany({ where: { tiendaId: { in: tiendaIds } }, select: { id: true } });
+  const ventas =  await prisma.venta.findMany({ where: { tiendaId: { in: tiendaIds } }, select: { id: true } });
+  const cierres = await  prisma.cierrePeriodo.findMany({ where: { tiendaId: { in: tiendaIds } }, select: { id: true } });
 
   const productoTiendaIds = productoTiendas.map(pt => pt.id);
   const ventaIds = ventas.map(v => v.id);
@@ -114,18 +134,49 @@ async function main() {
   };
 
   // Conteos de tablas hija directas
-  const [ventaProductoCount, movimientoCount, transferDestCount, usuarioTiendaCount, codigoProductoCount, pplCount] = await Promise.all([
-    prisma.ventaProducto.count({ where: { ventaId: { in: ventaIds } } }),
-    prisma.movimientoStock.count({ where: { OR: [
-      { productoTiendaId: { in: productoTiendaIds } },
-      { tiendaId: { in: tiendaIds } },
-      { destinationId: { in: tiendaIds } },
-    ] } }),
-    prisma.transferDestinations.count({ where: { tiendaId: { in: tiendaIds } } }),
-    prisma.usuarioTienda.count({ where: { OR: [ { tiendaId: { in: tiendaIds } }, { usuarioId: { in: usuarioIds } } ] } }),
-    prisma.codigoProducto.count({ where: { productoId: { in: productoIds } } }),
-    prisma.productoProveedorLiquidacion.count({ where: { cierreId: { in: cierreIds } } }),
-  ]);
+  const ventaProductoCount = await prisma.ventaProducto.count({
+    where: {
+      ventaId: { in: ventaIds },
+    },
+  });
+
+  const movimientoCount = await prisma.movimientoStock.count({
+    where: {
+      OR: [
+        { productoTiendaId: { in: productoTiendaIds } },
+        { tiendaId: { in: tiendaIds } },
+        { destinationId: { in: tiendaIds } },
+      ],
+    },
+  });
+
+  const transferDestCount = await prisma.transferDestinations.count({
+    where: {
+      tiendaId: { in: tiendaIds },
+    },
+  });
+
+  const usuarioTiendaCount = await prisma.usuarioTienda.count({
+    where: {
+      OR: [
+        { tiendaId: { in: tiendaIds } },
+        { usuarioId: { in: usuarioIds } },
+      ],
+    },
+  });
+
+  const codigoProductoCount = await prisma.codigoProducto.count({
+    where: {
+      productoId: { in: productoIds },
+    },
+  });
+
+  const pplCount = await prisma.productoProveedorLiquidacion.count({
+    where: {
+      cierreId: { in: cierreIds },
+    },
+  });
+
 
   console.log("Resumen (modo", args.dryRun ? "simulación" : "ejecución", "):");
   console.table({
