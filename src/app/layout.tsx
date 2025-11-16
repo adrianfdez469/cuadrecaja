@@ -46,8 +46,8 @@ export default function RootLayout({
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
-  // Si estamos en la landing page, no usar el Layout principal
-  if (pathname === '/landing') {
+  // Si estamos en la landing page (raíz), no usar el Layout principal
+  if (pathname === '/') {
     return <>{children}</>;
   }
   

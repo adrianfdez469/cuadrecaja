@@ -42,6 +42,30 @@ export const authOptions: NextAuthOptions = {
         const passwordMatch = await bcrypt.compare(credentials.password, user.password);
         if (!passwordMatch) throw new Error("Contraseña incorrecta");
 
+        // ⚠️ VERIFICAR ESTADO DE SUSCRIPCIÓN - Bloquear login si está suspendido (excepto SUPER_ADMIN)
+        if (user.rol !== "SUPER_ADMIN") {
+          const now = new Date();
+          const limitTime = new Date(user.negocio.limitTime);
+          const diffTime = limitTime.getTime() - now.getTime();
+          const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const isExpired = daysRemaining <= 0;
+          const gracePeriodDays = 7;
+          const isInGracePeriod = daysRemaining > -gracePeriodDays;
+          
+          // Consultar si el negocio está marcado como suspendido manualmente
+          const negocioCompleto = await prisma.negocio.findUnique({
+            where: { id: user.negocio.id },
+            select: { suspended: true }
+          });
+          
+          const isSuspended = negocioCompleto?.suspended || (isExpired && !isInGracePeriod);
+          
+          if (isSuspended) {
+            // Error específico para suscripción expirada (será detectado en el frontend)
+            throw new Error("SUBSCRIPTION_EXPIRED");
+          }
+        }
+
         // Para usuarios SUPER_ADMIN, obtener todas las tiendas del negocio
         // Para otros usuarios, solo las tiendas asociadas
         let localesDisponibles;
@@ -63,6 +87,27 @@ export const authOptions: NextAuthOptions = {
             negocioId: t.tienda.negocioId,
             tipo: t.tienda.tipo
           }));
+        }
+
+        // ⚠️ VALIDACIÓN: Usuario debe tener locales asignados (excepto SUPER_ADMIN)
+        if (user.rol !== "SUPER_ADMIN") {
+          // Verificar si tiene locales asignados
+          if (localesDisponibles.length === 0) {
+            throw new Error("USUARIO_SIN_CONFIGURAR: No tienes locales (tiendas o almacenes) asignados. Contacta al administrador para completar tu configuración.");
+          }
+
+          // Verificar si tiene al menos un rol asignado en algún local
+          const tieneRolAsignado = await prisma.usuarioTienda.findFirst({
+            where: {
+              usuarioId: user.id,
+              rolId: { not: null } // Tiene un rol asignado
+            },
+            select: { id: true }
+          });
+
+          if (!tieneRolAsignado) {
+            throw new Error("USUARIO_SIN_CONFIGURAR: No tienes un rol asignado en ningún local. Contacta al administrador para completar tu configuración.");
+          }
         }
 
         // Obtener permisos basados en la tienda actual

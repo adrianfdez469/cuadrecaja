@@ -40,6 +40,7 @@ import StoreIcon from "@mui/icons-material/Store";
 import CategoryIcon from "@mui/icons-material/Category";
 import ChangeHistoryIcon from "@mui/icons-material/ChangeHistory";
 import { useAppContext } from "@/context/AppContext";
+import { useRouter } from "next/navigation";
 import {
   AccountBalanceWallet,
   AccountCircle,
@@ -168,6 +169,7 @@ const RESUMEN_MENU_ITEMS = [
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [open, setOpen] = useState(false);
   const { user, isAuth, handleLogout, goToLogin, gotToPath } = useAppContext();
+  const router = useRouter();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openSelectLocal, setOpenSelectLocal] = useState(false);
   const [openSelectNegocio, setOpenSelectNegocio] = useState(false);
@@ -275,11 +277,15 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         localActual: localesDisponibles?.find((t) => t.id === selectedLocal),
       });
       showMessage("El local fue actualizada satisfactoriamente", "success");
+      handleCloseCambiarLocal();
+      
+      // Redirigir a /home para forzar re-render con el nuevo local
+      router.push('/home');
     } else {
       console.log(resp);
       showMessage("No se pudo actualizar el local", "error");
+      handleCloseCambiarLocal();
     }
-    handleCloseCambiarLocal();
   };
 
   const handleSelectNegocio = async (selectedNegocio) => {

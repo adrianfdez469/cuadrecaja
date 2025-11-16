@@ -45,9 +45,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUser((session as any).user);
       setIsAuth(true);
       setLoading(false);
-      // Solo redirigir a la página principal si estamos en login o landing
-      if (navigator.onLine && (pathname === '/login' || pathname === '/landing')) {
-        router.push('/');
+      // Solo redirigir a la página principal si estamos en login o raíz (landing)
+      if (navigator.onLine && (pathname === '/login' || pathname === '/')) {
+        router.push('/home');
       }
     }
   }, [status, pathname]);

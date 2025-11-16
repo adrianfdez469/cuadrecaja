@@ -23,7 +23,10 @@ import {
   Person, 
   Lock,
   Store,
-  Login as LoginIcon
+  Login as LoginIcon,
+  Warning,
+  WhatsApp,
+  Email
 } from "@mui/icons-material";
 
 export default function LoginPage() {
@@ -54,7 +57,19 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Credenciales inválidas. Verifica tu usuario y contraseña.");
+        // Detectar si es error de suscripción expirada
+        if (result.error.includes("SUBSCRIPTION_EXPIRED")) {
+          setError("SUBSCRIPTION_EXPIRED");
+        } 
+        // Detectar si es error de usuario sin configurar
+        else if (result.error.includes("USUARIO_SIN_CONFIGURAR")) {
+          // Extraer el mensaje completo del error
+          const mensajeError = result.error.split(": ")[1] || result.error;
+          setError(`USUARIO_SIN_CONFIGURAR: ${mensajeError}`);
+        } 
+        else {
+          setError("Credenciales inválidas. Verifica tu usuario y contraseña.");
+        }
       } else {
         // Éxito - NextAuth manejará la redirección automáticamente
         console.log("Login exitoso:", result);
@@ -249,18 +264,258 @@ export default function LoginPage() {
                 </Box>
 
                 {error && (
-                  <Alert 
-                    severity="error" 
-                    sx={{ 
-                      mb: 3,
-                      borderRadius: 2,
-                      "& .MuiAlert-message": {
-                        fontSize: "0.875rem",
-                      }
-                    }}
-                  >
-                    {error}
-                  </Alert>
+                  <>
+                    {error.startsWith("USUARIO_SIN_CONFIGURAR:") ? (
+                      <Alert 
+                        severity="warning" 
+                        icon={<Warning />}
+                        sx={{ 
+                          mb: 3,
+                          borderRadius: 2,
+                          "& .MuiAlert-message": {
+                            width: "100%"
+                          }
+                        }}
+                      >
+                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                          Usuario Sin Configurar
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2 }}>
+                          {error.split(": ")[1]}
+                        </Typography>
+                        
+                        <Box 
+                          sx={{ 
+                            mt: 2, 
+                            pt: 2, 
+                            borderTop: '1px solid rgba(237, 108, 2, 0.2)'
+                          }}
+                        >
+                          <Typography variant="body2" fontWeight={600} gutterBottom>
+                            Para completar tu configuración, contacta al administrador:
+                          </Typography>
+                          
+                          {/* WhatsApp Links */}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                            <Box
+                              component="a"
+                              href="https://wa.me/5354319958?text=Hola%2C%20mi%20usuario%20no%20est%C3%A1%20completamente%20configurado%20en%20Cuadre%20de%20Caja.%20%C2%BFPodr%C3%ADan%20ayudarme%3F"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                p: 1,
+                                pl: 1.5,
+                                borderRadius: 1,
+                                textDecoration: 'none',
+                                color: 'inherit',
+                                backgroundColor: 'rgba(237, 108, 2, 0.08)',
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(237, 108, 2, 0.15)',
+                                  transform: 'translateX(4px)'
+                                }
+                              }}
+                            >
+                              <WhatsApp sx={{ fontSize: 18, color: '#25D366' }} />
+                              <Typography variant="body2" fontWeight={500}>
+                                +53 5 4319958
+                              </Typography>
+                            </Box>
+                            <Box
+                              component="a"
+                              href="https://wa.me/5353334449?text=Hola%2C%20mi%20usuario%20no%20est%C3%A1%20completamente%20configurado%20en%20Cuadre%20de%20Caja.%20%C2%BFPodr%C3%ADan%20ayudarme%3F"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                p: 1,
+                                pl: 1.5,
+                                borderRadius: 1,
+                                textDecoration: 'none',
+                                color: 'inherit',
+                                backgroundColor: 'rgba(237, 108, 2, 0.08)',
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(237, 108, 2, 0.15)',
+                                  transform: 'translateX(4px)'
+                                }
+                              }}
+                            >
+                              <WhatsApp sx={{ fontSize: 18, color: '#25D366' }} />
+                              <Typography variant="body2" fontWeight={500}>
+                                +53 53334449
+                              </Typography>
+                            </Box>
+
+                            <Box
+                              component="a"
+                              href="https://wa.me/59897728107?text=Hola%2C%20mi%20usuario%20no%20est%C3%A1%20completamente%20configurado%20en%20Cuadre%20de%20Caja.%20%C2%BFPodr%C3%ADan%20ayudarme%3F"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                p: 1,
+                                pl: 1.5,
+                                borderRadius: 1,
+                                textDecoration: 'none',
+                                color: 'inherit',
+                                backgroundColor: 'rgba(237, 108, 2, 0.08)',
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(237, 108, 2, 0.15)',
+                                  transform: 'translateX(4px)'
+                                }
+                              }}
+                            >
+                              <WhatsApp sx={{ fontSize: 18, color: '#25D366' }} />
+                              <Typography variant="body2" fontWeight={500}>
+                                +598 97728107
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          {/* Email */}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: 1.5 }}>
+                            <Email sx={{ fontSize: 16, color: 'text.secondary' }} />
+                            <Typography variant="body2" color="text.secondary">
+                              adrianfdez469@gmail.com
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Alert>
+                    ) : error === "SUBSCRIPTION_EXPIRED" ? (
+                      <Alert 
+                        severity="error" 
+                        icon={<Warning />}
+                        sx={{ 
+                          mb: 3,
+                          borderRadius: 2,
+                          "& .MuiAlert-message": {
+                            width: "100%"
+                          }
+                        }}
+                      >
+                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                          Suscripción Expirada
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2 }}>
+                          La suscripción de su negocio ha expirado. No puede acceder al sistema hasta que se renueve la suscripción.
+                        </Typography>
+                        
+                        <Box 
+                          sx={{ 
+                            mt: 2, 
+                            pt: 2, 
+                            borderTop: '1px solid rgba(211, 47, 47, 0.2)'
+                          }}
+                        >
+                          <Typography variant="body2" fontWeight={600} gutterBottom>
+                            Para renovar, contacte a:
+                          </Typography>
+                          
+                          {/* WhatsApp Links */}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                            <Box
+                              component="a"
+                              href="https://wa.me/5354319958?text=Hola%2C%20necesito%20renovar%20la%20suscripci%C3%B3n%20de%20mi%20negocio%20en%20Cuadre%20de%20Caja.%20%C2%BFPodr%C3%ADan%20ayudarme%3F"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                color: '#25D366',
+                                textDecoration: 'none',
+                                padding: '6px 12px',
+                                borderRadius: 1,
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(37, 211, 102, 0.08)',
+                                  transform: 'translateX(2px)'
+                                }
+                              }}
+                            >
+                              <WhatsApp sx={{ fontSize: 18 }} />
+                              <Typography variant="body2" fontWeight={500}>
+                                +53 5 4319958
+                              </Typography>
+                            </Box>
+                            <Box
+                              component="a"
+                              href="https://wa.me/5353334449?text=Hola%2C%20necesito%20renovar%20la%20suscripci%C3%B3n%20de%20mi%20negocio%20en%20Cuadre%20de%20Caja.%20%C2%BFPodr%C3%ADan%20ayudarme%3F"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                color: '#25D366',
+                                textDecoration: 'none',
+                                padding: '6px 12px',
+                                borderRadius: 1,
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(37, 211, 102, 0.08)',
+                                  transform: 'translateX(2px)'
+                                }
+                              }}
+                            >
+                              <WhatsApp sx={{ fontSize: 18 }} />
+                              <Typography variant="body2" fontWeight={500}>
+                                +53 53334449
+                              </Typography>
+                            </Box>
+                            
+                            <Box
+                              component="a"
+                              href="https://wa.me/59897728107?text=Hola%2C%20necesito%20renovar%20la%20suscripci%C3%B3n%20de%20mi%20negocio%20en%20Cuadre%20de%20Caja.%20%C2%BFPodr%C3%ADan%20ayudarme%3F"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                color: '#25D366',
+                                textDecoration: 'none',
+                                padding: '6px 12px',
+                                borderRadius: 1,
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(37, 211, 102, 0.08)',
+                                  transform: 'translateX(2px)'
+                                }
+                              }}
+                            >
+                              <WhatsApp sx={{ fontSize: 18 }} />
+                              <Typography variant="body2" fontWeight={500}>
+                                +598 97728107
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                      </Alert>
+                    ) : (
+                      <Alert 
+                        severity="error" 
+                        sx={{ 
+                          mb: 3,
+                          borderRadius: 2,
+                          "& .MuiAlert-message": {
+                            fontSize: "0.875rem",
+                          }
+                        }}
+                      >
+                        {error}
+                      </Alert>
+                    )}
+                  </>
                 )}
 
                 <Button
