@@ -63,6 +63,12 @@ export interface ISummaryCierre {
   sumTotalVentasConsignacion?: number;
   sumTotalGananciasPropias?: number;
   sumTotalGananciasConsignacion?: number;
+  desgloseTransferencias?:
+      {
+        destinationName: string,
+        transferDestinationId: string,
+        _sum: {totaltransfer: number}
+      }[];
 }
 
 

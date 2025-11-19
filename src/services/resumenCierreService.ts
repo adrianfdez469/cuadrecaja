@@ -13,7 +13,6 @@ export const getResumenCierres = async (tiendaId, take: number, skip: number, in
       ...(intervalo?.fechaFin && {fechaFin: intervalo.fechaFin})
     }
   });
-console.log(response.data);
 
   return response.data;
 }

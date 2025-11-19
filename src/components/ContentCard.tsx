@@ -17,6 +17,7 @@ interface ContentCardProps {
   children: ReactNode;
   noPadding?: boolean;
   fullHeight?: boolean;
+  spaceButton?: boolean;
 }
 
 export const ContentCard: React.FC<ContentCardProps> = ({
@@ -25,7 +26,8 @@ export const ContentCard: React.FC<ContentCardProps> = ({
   headerActions,
   children,
   noPadding = false,
-  fullHeight = false
+  fullHeight = false,
+  spaceButton = false
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -35,7 +37,8 @@ export const ContentCard: React.FC<ContentCardProps> = ({
       sx={{ 
         height: fullHeight ? '100%' : 'auto',
         display: fullHeight ? 'flex' : 'block',
-        flexDirection: fullHeight ? 'column' : 'row'
+        flexDirection: fullHeight ? 'column' : 'row',
+        mb: spaceButton ? 2 : 0,
       }}
     >
       {(title || headerActions) && (
