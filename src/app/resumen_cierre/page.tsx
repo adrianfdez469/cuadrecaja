@@ -25,6 +25,8 @@ import {
   Tooltip,
   CardActions,
   Collapse,
+  Chip,
+  Divider,
 } from "@mui/material";
 import { IconButtonProps } from '@mui/material/IconButton';
 import { styled } from '@mui/material/styles';
@@ -35,7 +37,7 @@ import { useAppContext } from "@/context/AppContext";
 import { ICierreData, ICierrePeriodo, ISummaryCierre } from "@/types/ICierre";
 import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
-import { Close, AttachMoney, TrendingUp, Assessment, Refresh, FilterList } from "@mui/icons-material";
+import { Close, AttachMoney, TrendingUp, Assessment, Refresh, FilterList, ArrowForward, AccountBalance } from "@mui/icons-material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { fetchCierreData } from "@/services/cierrePeriodService";
 import { PageContainer } from "@/components/PageContainer";
@@ -181,33 +183,102 @@ export default function ResumenCierrePage() {
 
   // Componente para mostrar el desglose de transferencias
   const TransferenciasDesglose = ({ transferencias }: { transferencias?: Array<{ destinationName: string, transferDestinationId: string, _sum: {totaltransfer: number} }> }) => {
-    console.log("Transferencias:", transferencias);
+    if (!transferencias || transferencias.length === 0) {
+      return (
+        <Box sx={{ textAlign: 'center', py: 2 }}>
+          <AccountBalance sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+          <Typography variant="body2" color="text.secondary" fontStyle="italic">
+            No hay transferencias registradas en este período
+          </Typography>
+        </Box>
+      );
+    }
+
+    const totalTransferencias = transferencias.reduce((sum, t) => sum + t._sum.totaltransfer, 0);
 
     return (
-        <Box>
-          <Typography variant="subtitle2" gutterBottom color="text.secondary">
-            Desglose por destino:
-          </Typography>
-          {transferencias && transferencias.length > 0 ? (
-              <Stack spacing={1}>
-                {transferencias.map((transferencia, index) => (
-                    <Box key={index} display="flex" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body2" color="text.secondary">
-                        {transferencia.destinationName}
-                      </Typography>
-                      <Typography variant="body2" fontWeight="medium">
+      <Box>
+        <Box sx={{ mb: 2 }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+            <AccountBalance fontSize="small" color="primary" />
+            <Typography variant="subtitle2" fontWeight="bold" color="primary.main">
+              Desglose por destino
+            </Typography>
+          </Stack>
+          <Chip 
+            label={`${transferencias.length} ${transferencias.length === 1 ? 'destino' : 'destinos'}`}
+            size="small"
+            variant="outlined"
+            color="primary"
+          />
+        </Box>
+
+        <Stack spacing={1.5}>
+          {transferencias.map((transferencia, index) => (
+            <Card key={index} variant="outlined" sx={{ 
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              transition: 'all 0.2s',
+              '&:hover': {
+                borderColor: 'primary.light',
+                boxShadow: 1
+              }
+            }}>
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        bgcolor: `hsl(${(index * 137.508) % 360}, 70%, 50%)`,
+                        mr: 1.5,
+                        flexShrink: 0
+                      }}
+                    />
+                    <Typography 
+                      variant="body2" 
+                      fontWeight="medium"
+                      sx={{ 
+                        color: 'text.primary',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      {transferencia.destinationName}
+                    </Typography>
+                  </Box>
+
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <ArrowForward fontSize="small" sx={{ color: 'text.disabled' }} />
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Typography 
+                        variant="body1" 
+                        fontWeight="bold"
+                        sx={{ 
+                          color: 'success.main',
+                          fontSize: '1rem'
+                        }}
+                      >
                         {formatCurrency(transferencia._sum.totaltransfer)}
                       </Typography>
+                      <Typography 
+                        variant="caption" 
+                        color="text.secondary"
+                        sx={{ fontSize: '0.75rem' }}
+                      >
+                        {((transferencia._sum.totaltransfer / totalTransferencias) * 100).toFixed(1)}%
+                      </Typography>
                     </Box>
-                ))}
-              </Stack>
-          ) : (
-              <Typography variant="body2" color="text.secondary" fontStyle="italic">
-                No hay transferencias registradas
-              </Typography>
-          )}
-        </Box>
-    )
+                  </Stack>
+                </Stack>
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      </Box>
+    );
   }
 
   const handleViewMore = async (itemCierre: Omit<ICierrePeriodo, "tienda">) => {
@@ -462,61 +533,71 @@ export default function ResumenCierrePage() {
                 </Grid>
 
                 <Grid item xs={12} sm={6} md={4}>
-                  <Card sx={{ height: 'auto' }}>
-                    <CardContent sx={{ p: isMobile ? 1 : 3 }}>
-                      <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-                        <Box
-                          sx={{
-                            p: isMobile ? 1 : 1.5,
-                            borderRadius: 2,
-                            bgcolor: "primary.light",
-                            color: 'white',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minWidth: isMobile ? 40 : 48,
-                            minHeight: isMobile ? 40 : 48,
-                          }}
-                        >
-                          <Assessment fontSize={"medium"} />
-                        </Box>
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography 
-                            variant={isMobile ? "h5" : "h4"} 
-                            fontWeight="bold"
-                            sx={{ 
-                              fontSize: isMobile ? '1.25rem' : '2rem',
-                              lineHeight: 1.2,
-                              wordBreak: 'break-all'
+                    <Card sx={{ height: '100%' }}>
+                      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
+                        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
+                          <Box
+                            sx={{
+                              p: isMobile ? 1 : 1.5,
+                              borderRadius: 2,
+                              bgcolor: "primary.light",
+                              color: 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: isMobile ? 40 : 48,
+                              minHeight: isMobile ? 40 : 48,
                             }}
                           >
-                            {formatCurrency(data.sumTotalTransferencia)}
-                          </Typography>
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary"
-                            sx={{ 
-                              fontSize: isMobile ? '0.75rem' : '0.875rem',
-                              lineHeight: 1.2
-                            }}
-                          >
-                            Transferencias
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </CardContent>
-                    <CardActions disableSpacing>
-                      <ExpandMore
-                        expand={expandedTransfer}
-                        onClick={handleExpandTransferClick}
-                        aria-expanded={expandedTransfer}
-                        aria-label="mostrar desglose de transferencias"
-                      >
-                        <ExpandMoreIcon />
-                      </ExpandMore>
-                    </CardActions>
-                    <Collapse in={expandedTransfer} timeout="auto" unmountOnExit>
-                      <CardContent>
+                            <Assessment fontSize={"medium"} />
+                          </Box>
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography 
+                              variant={isMobile ? "h5" : "h4"} 
+                              fontWeight="bold"
+                              sx={{ 
+                                fontSize: isMobile ? '1.25rem' : '2rem',
+                                lineHeight: 1.2,
+                                wordBreak: 'break-all'
+                              }}
+                            >
+                              {formatCurrency(data.sumTotalTransferencia)}
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary"
+                              sx={{ 
+                                fontSize: isMobile ? '0.75rem' : '0.875rem',
+                                lineHeight: 1.2
+                              }}
+                            >
+                              Transferencias
+                            </Typography>
+                          </Box>
+                          <Tooltip title={expandedTransfer ? "Ocultar desglose" : "Ver desglose"}>
+                            <IconButton
+                              onClick={handleExpandTransferClick}
+                              aria-expanded={expandedTransfer}
+                              aria-label="mostrar desglose de transferencias"
+                              size={isMobile ? "small" : "medium"}
+                              sx={{
+                                transform: expandedTransfer ? 'rotate(180deg)' : 'rotate(0deg)',
+                                transition: theme.transitions.create('transform', {
+                                  duration: theme.transitions.duration.shortest,
+                                }),
+                                bgcolor: 'action.hover',
+                                '&:hover': {
+                                  bgcolor: 'action.selected',
+                                },
+                              }}
+                            >
+                              <ExpandMoreIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </CardContent>
+                      <Collapse in={expandedTransfer} timeout="auto" unmountOnExit>
+                        <CardContent sx={{ pt: 0 }}>
                         <TransferenciasDesglose 
                           transferencias={data.desgloseTransferencias}
                         />
