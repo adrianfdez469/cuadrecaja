@@ -23,7 +23,11 @@ import {
   useTheme,
   useMediaQuery,
   Tooltip,
+  CardActions,
+  Collapse,
 } from "@mui/material";
+import { IconButtonProps } from '@mui/material/IconButton';
+import { styled } from '@mui/material/styles';
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import { getResumenCierres } from "@/services/resumenCierreService";
@@ -32,6 +36,7 @@ import { ICierreData, ICierrePeriodo, ISummaryCierre } from "@/types/ICierre";
 import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import { Close, AttachMoney, TrendingUp, Assessment, Refresh, FilterList } from "@mui/icons-material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { fetchCierreData } from "@/services/cierrePeriodService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
@@ -39,6 +44,34 @@ import { formatCurrency, formatNumber } from "@/utils/formatters";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import { usePermisos } from "@/utils/permisos_front";
+
+interface ExpandMoreProps extends IconButtonProps {
+  expand: boolean;
+}
+
+const ExpandMore = styled((props: ExpandMoreProps) => {
+  const { expand, ...other } = props;
+  return <IconButton {...other} />;
+})(({ theme }) => ({
+  marginLeft: 'auto',
+  transition: theme.transitions.create('transform', {
+    duration: theme.transitions.duration.shortest,
+  }),
+  variants: [
+    {
+      props: ({ expand }) => !expand,
+      style: {
+        transform: 'rotate(0deg)',
+      },
+    },
+    {
+      props: ({ expand }) => !!expand,
+      style: {
+        transform: 'rotate(180deg)',
+      },
+    },
+  ],
+}));
 
 export default function ResumenCierrePage() {
   const [data, setData] = useState<ISummaryCierre>();
@@ -54,6 +87,7 @@ export default function ResumenCierrePage() {
     ganancia: number;
     transf: number;
   }>({ inversion: 0, venta: 0, ganancia: 0, transf: 0 });
+  const [expandedTransfer, setExpandedTransfer] = useState(false);
   const { user, loadingContext, gotToPath } = useAppContext();
   const [showProducts, setShowProducts] = useState(false);
   const [cierreProducData, setCierreProductData] = useState<{ciereData: ICierreData, totales: ITotales}>();
@@ -140,6 +174,41 @@ export default function ResumenCierrePage() {
     setEndDate(null);
     setPage(0);
   };
+
+  const handleExpandTransferClick = () => {
+    setExpandedTransfer(!expandedTransfer);
+  };
+
+  // Componente para mostrar el desglose de transferencias
+  const TransferenciasDesglose = ({ transferencias }: { transferencias?: Array<{ destinationName: string, transferDestinationId: string, _sum: {totaltransfer: number} }> }) => {
+    console.log("Transferencias:", transferencias);
+
+    return (
+        <Box>
+          <Typography variant="subtitle2" gutterBottom color="text.secondary">
+            Desglose por destino:
+          </Typography>
+          {transferencias && transferencias.length > 0 ? (
+              <Stack spacing={1}>
+                {transferencias.map((transferencia, index) => (
+                    <Box key={index} display="flex" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        {transferencia.destinationName}
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium">
+                        {formatCurrency(transferencia._sum.totaltransfer)}
+                      </Typography>
+                    </Box>
+                ))}
+              </Stack>
+          ) : (
+              <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                No hay transferencias registradas
+              </Typography>
+          )}
+        </Box>
+    )
+  }
 
   const handleViewMore = async (itemCierre: Omit<ICierrePeriodo, "tienda">) => {
     const tiendaId = user.localActual.id;
@@ -393,12 +462,67 @@ export default function ResumenCierrePage() {
                 </Grid>
 
                 <Grid item xs={12} sm={6} md={4}>
-                    <StatCard
-                        icon={<AttachMoney fontSize={"medium"} />}
-                        value={formatCurrency(data.sumTotalTransferencia)}
-                        label="Transferencias"
-                        color="primary.light"
-                    />
+                  <Card sx={{ height: 'auto' }}>
+                    <CardContent sx={{ p: isMobile ? 1 : 3 }}>
+                      <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
+                        <Box
+                          sx={{
+                            p: isMobile ? 1 : 1.5,
+                            borderRadius: 2,
+                            bgcolor: "primary.light",
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: isMobile ? 40 : 48,
+                            minHeight: isMobile ? 40 : 48,
+                          }}
+                        >
+                          <Assessment fontSize={"medium"} />
+                        </Box>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography 
+                            variant={isMobile ? "h5" : "h4"} 
+                            fontWeight="bold"
+                            sx={{ 
+                              fontSize: isMobile ? '1.25rem' : '2rem',
+                              lineHeight: 1.2,
+                              wordBreak: 'break-all'
+                            }}
+                          >
+                            {formatCurrency(data.sumTotalTransferencia)}
+                          </Typography>
+                          <Typography 
+                            variant="body2" 
+                            color="text.secondary"
+                            sx={{ 
+                              fontSize: isMobile ? '0.75rem' : '0.875rem',
+                              lineHeight: 1.2
+                            }}
+                          >
+                            Transferencias
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </CardContent>
+                    <CardActions disableSpacing>
+                      <ExpandMore
+                        expand={expandedTransfer}
+                        onClick={handleExpandTransferClick}
+                        aria-expanded={expandedTransfer}
+                        aria-label="mostrar desglose de transferencias"
+                      >
+                        <ExpandMoreIcon />
+                      </ExpandMore>
+                    </CardActions>
+                    <Collapse in={expandedTransfer} timeout="auto" unmountOnExit>
+                      <CardContent>
+                        <TransferenciasDesglose 
+                          transferencias={data.desgloseTransferencias}
+                        />
+                      </CardContent>
+                    </Collapse>
+                  </Card>
                 </Grid>
 
               {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}

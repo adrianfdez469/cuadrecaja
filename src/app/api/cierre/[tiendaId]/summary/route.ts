@@ -22,7 +22,7 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
 
     const flitrosVentas = {
       tiendaId: tiendaId,
-      transferDestinationId: {not: null},
+      totaltransfer: {gt: 0},
       createdAt: {
         ...(fechaInicio && {gte: new Date(fechaInicio).toISOString()}),
         ...(fechaFin && {lte: new Date(fechaFin).toISOString()})
