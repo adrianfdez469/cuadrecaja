@@ -23,6 +23,9 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
     const flitrosVentas = {
       tiendaId: tiendaId,
       totaltransfer: {gt: 0},
+      cierrePeriodo: {
+        fechaFin: { not: null }
+      },
       createdAt: {
         ...(fechaInicio && {gte: new Date(fechaInicio).toISOString()}),
         ...(fechaFin && {lte: new Date(fechaFin).toISOString()})
