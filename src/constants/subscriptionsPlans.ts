@@ -6,12 +6,12 @@ export const subscriptionPlansForUi = [
     name: 'Freemium',
     price: '$0',
     period: 'mes',
-    description: 'Plan gratuito por solo un mes',
+    description: 'Plan gratuito por 7 días',
     duration: `${planesNegocio.FREEMIUM.duracion} días de validez`,
     features: [
       `${planesNegocio.FREEMIUM.limiteLocales} locales (tiendas/almacenes)`,
-      `${planesNegocio.FREEMIUM.limiteUsuarios} usuario`,
-      `Hasta ${planesNegocio.FREEMIUM.limiteProductos} productos`,
+      planesNegocio.FREEMIUM.limiteUsuarios > 0 ?`${planesNegocio.FREEMIUM.limiteUsuarios} usuario`: 'Usuario ilimitado',
+      planesNegocio.FREEMIUM.limiteProductos > 0 ?`Hasta ${planesNegocio.FREEMIUM.limiteProductos} productos`: 'Productos ilimitados',
       'Funcionalidades básicas',
       'Soporte por email',
       `Validez: ${planesNegocio.FREEMIUM.duracion} días`

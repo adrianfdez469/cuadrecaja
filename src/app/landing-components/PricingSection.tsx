@@ -29,8 +29,8 @@ const plans = [
   {
     name: 'Freemium',
     price: '$0',
-    period: '/mes',
-    description: 'Plan gratuito por 30 días',
+    period: '/semana',
+    description: 'Plan gratuito por 7 días',
     popular: false,
     color: '#2196F3',
     features: [
@@ -39,7 +39,7 @@ const plans = [
       'Hasta 30 productos',
       'Funcionalidades básicas',
       'Soporte por email',
-      '30 días de validez'
+      '7 días de validez'
     ],
     notIncluded: [
       'Usuarios ilimitados',
@@ -178,7 +178,7 @@ export default function PricingSection() {
                   <Box
                     sx={{
                       position: 'absolute',
-                      top: -12,
+                      top: -5,
                       left: '50%',
                       transform: 'translateX(-50%)',
                       zIndex: 1,
@@ -222,7 +222,7 @@ export default function PricingSection() {
                       </Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary">
-                      USD • Validez 30 días
+                      USD • Validez 7 días
                     </Typography>
                   </Box>
 

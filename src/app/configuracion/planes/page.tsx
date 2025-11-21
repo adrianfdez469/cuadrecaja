@@ -344,7 +344,7 @@ export default function PlanesPage() {
           ⏰ Importante: Validez de los Planes
         </Typography>
         <Typography variant="body2">
-          Todos los planes tienen una <strong>validez de 30 días</strong> desde su activación. 
+          Todos los planes tienen una <strong>validez de 30 días(excepto el FREEMIUM)</strong> desde su activación.
           Después de este período, será necesario renovar la suscripción mensual para continuar 
           usando el servicio sin interrupciones.
         </Typography>

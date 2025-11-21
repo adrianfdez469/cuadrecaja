@@ -8,12 +8,13 @@ export const getNegocios = async () => {
   return response.data;
 }
 
-export const createNegocio = async (nombre: string, locallimit: number, userlimit: number, productlimit: number) => {
+export const createNegocio = async (nombre: string, locallimit: number, userlimit: number, productlimit: number, duracion: number) => {
   const response = await axios.post(API_URL, {
     nombre, 
     locallimit, 
     userlimit,
-    productlimit
+    productlimit,
+    duracion
   });
   return response.data;
 }
