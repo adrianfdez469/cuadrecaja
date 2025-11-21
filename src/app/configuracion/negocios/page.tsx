@@ -1126,7 +1126,7 @@ export default function Negocios() {
                   {selectedPlan.descripcion}
                 </Typography>
                 <Typography variant="body2" sx={{ mt: 0.5 }}>
-                  <strong>Validez:</strong> 30 días desde la activación
+                  <strong>Validez:</strong> 7 días desde la activación
                 </Typography>
               </Alert>
             )}
