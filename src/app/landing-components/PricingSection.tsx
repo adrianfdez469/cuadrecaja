@@ -30,6 +30,7 @@ const plans = [
     name: 'Freemium',
     price: '$0',
     period: '/semana',
+    expireDays: 7,
     description: 'Plan gratuito por 7 días',
     popular: false,
     color: '#2196F3',
@@ -52,6 +53,7 @@ const plans = [
     name: 'Silver',
     price: '$20',
     period: '/mes',
+    expireDays: 30,
     description: 'Recomendado para negocios en crecimiento',
     popular: true,
     color: '#4CAF50',
@@ -74,6 +76,7 @@ const plans = [
     name: 'Premium',
     price: '$30',
     period: '/mes',
+    expireDays: 30,
     description: 'Para empresas que necesitan todo',
     popular: false,
     color: '#9C27B0',
@@ -222,7 +225,7 @@ export default function PricingSection() {
                       </Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary">
-                      USD • Validez 7 días
+                      USD • Validez {plan.expireDays} días
                     </Typography>
                   </Box>
 
