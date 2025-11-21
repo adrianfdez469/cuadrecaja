@@ -110,6 +110,7 @@ export default function Negocios() {
     limiteLocales: number;
     limiteUsuarios: number;
     limiteProductos: number;
+    duracion: number;
     precio: number;
     descripcion: string;
   }>();
@@ -190,7 +191,8 @@ export default function Negocios() {
           nombre, 
           selectedPlan.limiteLocales, 
           selectedPlan.limiteUsuarios,
-          selectedPlan.limiteProductos
+          selectedPlan.limiteProductos,
+          selectedPlan.duracion
         );
         showMessage('Negocio creado satisfactoriamente', 'success');
       }
