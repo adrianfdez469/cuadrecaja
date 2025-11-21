@@ -175,9 +175,9 @@ export default function ContactSection() {
           </Typography>
         </Box>
 
-        <Grid container spacing={6}>
+        <Grid container spacing={3}>
           {/* Contact Form */}
-          <Grid item xs={12} md={7}>
+          <Grid item xs={12} md={6}>
             <Card sx={{ p: 4, boxShadow: theme.shadows[4] }}>
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
                 Solicita tu Demo Gratuita
@@ -334,53 +334,103 @@ export default function ContactSection() {
           </Grid>
 
           {/* Contact Information */}
-          <Grid item xs={12} md={5}>
-            <Stack spacing={3}>
-              {/* Contact Details */}
-              <Card sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                  Información de Contacto
-                </Typography>
-                
-                <Stack spacing={2}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Phone sx={{ mr: 2, color: theme.palette.primary.main }} />
-                    <Box>
-                      <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                        +53 53334449
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Adrián Fernández - Desarrollador
-                      </Typography>
-                    </Box>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Phone sx={{ mr: 2, color: theme.palette.primary.main }} />
-                    <Box>
-                      <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                        +598 97728107
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Número alternativo
-                      </Typography>
-                    </Box>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Email sx={{ mr: 2, color: theme.palette.primary.main }} />
-                    <Box>
-                      <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                        adrianfdez469@gmail.com
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Contacto directo con el desarrollador
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Stack>
-              </Card>
+          <Grid item xs={12} md={6}>
 
+            {/* Contact Details */}
+            <Grid container spacing={1} mb={3}>
+              <Grid item xs={12} md={6}>
+                <Card sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    Información de Contacto
+                  </Typography>
+
+                  <Stack spacing={2}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Phone sx={{ mr: 2, color: theme.palette.primary.main }} />
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                          +53 53334449
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Adrián Fernández - Desarrollador
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Phone sx={{ mr: 2, color: theme.palette.primary.main }} />
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                          +598 97728107
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Número alternativo
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Email sx={{ mr: 2, color: theme.palette.primary.main }} />
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                          adrianfdez469@gmail.com
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Contacto directo con el desarrollador
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Stack>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Card sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    Información de Contacto
+                  </Typography>
+
+                  <Stack spacing={2}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Phone sx={{ mr: 2, color: theme.palette.primary.main }} />
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                          +53 54319958
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Carlos Fernández - Desarrollador
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Phone sx={{ mr: 2, color: theme.palette.primary.main }} />
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                          No disponible
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Número alternativo
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Email sx={{ mr: 2, color: theme.palette.primary.main }} />
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                          olimac9010@gmail.com
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Contacto directo con el desarrollador
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Stack>
+                </Card>
+              </Grid>
+            </Grid>
+
+            <Stack spacing={3}>
               {/* Benefits */}
               <Card sx={{ p: 3, bgcolor: theme.palette.primary.main, color: 'white' }}>
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'white' }}>
