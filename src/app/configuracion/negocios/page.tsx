@@ -1128,7 +1128,7 @@ export default function Negocios() {
                   {selectedPlan.descripcion}
                 </Typography>
                 <Typography variant="body2" sx={{ mt: 0.5 }}>
-                  <strong>Validez:</strong> 7 días desde la activación
+                  <strong>Validez:</strong> {selectedPlan.duracion > 0 ? selectedPlan.duracion : 'Cantidad personalizable de'} días desde la activación
                 </Typography>
               </Alert>
             )}
