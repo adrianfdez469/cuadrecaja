@@ -38,6 +38,7 @@ export type OperacionTipo = 'ENTRADA' | 'SALIDA';
 export interface IProductoDisponible {
   productoId: string;
   nombre: string;
+  permiteDecimal: boolean;
   categoriaId?: string;
   categoria?: {
     id: string;
@@ -351,6 +352,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     const nuevoProducto: IProductoSeleccionado = {
       productoId: producto.productoId,
       nombre: producto.nombre,
+      permiteDecimal: producto.permiteDecimal,
       productoTiendaId: producto.productoTiendaId,
       categoriaId: producto.categoriaId,
       categoria: producto.categoria,
@@ -378,9 +380,11 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
           ? Math.min(nuevaCantidadNumber, p.existencia)
           : nuevaCantidadNumber;
 
+        const fixedAmount = p.permiteDecimal ? cantidad: Math.trunc(cantidad)
+
         return {
           ...p,
-          cantidad,
+          cantidad: fixedAmount,
           costoTotal: cantidad * p.costo
         };
       }
