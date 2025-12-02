@@ -62,9 +62,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
     }
   
     // Calcular totales
-    let totalVentas = 0;
+    let totalVentas = 0; // Neto (venta.total)
     let totalGanancia = 0;
     let totalTransferencia = 0;
+    let totalVentasBrutas = 0; // Suma de precio * cantidad
+    let totalDescuentos = 0;   // Suma de venta.discountTotal
     let totalVentasPropias = 0;
     let totalVentasConsignacion = 0;
     let totalGananciasPropias = 0;
@@ -86,6 +88,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
     cierre.ventas.forEach((venta) => {
       totalVentas += venta.total;
       totalTransferencia += venta.totaltransfer;
+      // Acumular descuentos del período
+      // @ts-ignore: campo agregado en Prisma (discountTotal)
+      totalDescuentos += Number((venta as any).discountTotal || 0);
 
       if(venta.transferDestination) {
         const { id, nombre } = venta.transferDestination;
@@ -103,9 +108,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       venta.productos.forEach((ventaProducto) => {
         const { producto: productoTienda, cantidad, costo, precio } = ventaProducto;
         const { id, productoId, producto: {nombre}, proveedor } = productoTienda;
-  
+
         const totalProducto = cantidad * precio;
         const gananciaProducto = cantidad * (precio - costo);
+
+        // Acumular total bruto del período
+        totalVentasBrutas += totalProducto;
   
         // Separar por tipo de producto
         if (proveedor) {
@@ -146,17 +154,40 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       });
     });
   
+    // Ajuste de ganancias por descuentos
+    // Los descuentos reducen la ganancia en la misma magnitud (se descuentan de la venta, no del costo)
+    // Para desglosar por tipo (propias vs consignación), prorrateamos el descuento total
+    const ventasBrutasTotales = totalVentasBrutas || 0;
+    let descuentoPropias = 0;
+    let descuentoConsignacion = 0;
+    if (ventasBrutasTotales > 0 && totalDescuentos > 0) {
+      const ratioPropias = (totalVentasPropias || 0) / ventasBrutasTotales;
+      const ratioConsig = (totalVentasConsignacion || 0) / ventasBrutasTotales;
+      descuentoPropias = totalDescuentos * ratioPropias;
+      descuentoConsignacion = totalDescuentos * ratioConsig;
+    }
+
+    // Ganancias netas por tipo tras descuentos (no permitir negativos)
+    const totalGananciasPropiasNet = Math.max(0, (totalGananciasPropias || 0) - (descuentoPropias || 0));
+    const totalGananciasConsignacionNet = Math.max(0, (totalGananciasConsignacion || 0) - (descuentoConsignacion || 0));
+    // Ganancia total neta
+    const totalGananciaNeta = Math.max(0, totalGananciasPropiasNet + totalGananciasConsignacionNet);
+
     const cierreData = {
       fechaInicio: cierre.fechaInicio,
       fechaFin: cierre.fechaFin,
       tienda: cierre.tienda,
       totalVentas,
-      totalGanancia,
+      totalVentasBrutas,
+      totalDescuentos,
+      // Reportar ganancia neta (ya considerando descuentos)
+      totalGanancia: totalGananciaNeta,
       totalTransferencia,
       totalVentasPropias,
       totalVentasConsignacion,
-      totalGananciasPropias,
-      totalGananciasConsignacion,
+      // También devolver desglose de ganancias netas por tipo
+      totalGananciasPropias: totalGananciasPropiasNet,
+      totalGananciasConsignacion: totalGananciasConsignacionNet,
       totalTransferenciasByDestination,
       totalVentasPorUsuario,
       productosVendidos: Object.values(productosVendidos).sort((a, b) => a.nombre.localeCompare(b.nombre)),

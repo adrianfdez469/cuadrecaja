@@ -96,9 +96,58 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
         ...filtros
       }
     });
+
+    // Calcular, para cada cierre en la página, los montos brutos y descuentos
+    const cierresIds = cierres.map(c => c.id);
+    let cierresConMontos = [...cierres];
+    if (cierresIds.length > 0) {
+      const ventasPorCierre = await prisma.venta.findMany({
+        where: { cierrePeriodoId: { in: cierresIds }, tiendaId },
+        select: {
+          id: true,
+          discountTotal: true,
+          cierrePeriodoId: true,
+          productos: { select: { cantidad: true, precio: true } }
+        }
+      });
+      const mapMontos: Record<string, { bruto: number; descuentos: number }> = {};
+      for (const v of ventasPorCierre) {
+        const bruto = (v.productos || []).reduce((acc, p) => acc + (Number(p.precio) || 0) * (Number(p.cantidad) || 0), 0);
+        const desc = Number((v as any).discountTotal || 0);
+        if (!mapMontos[v.cierrePeriodoId]) mapMontos[v.cierrePeriodoId] = { bruto: 0, descuentos: 0 };
+        mapMontos[v.cierrePeriodoId].bruto += bruto;
+        mapMontos[v.cierrePeriodoId].descuentos += desc;
+      }
+      // Mezclar con cierres
+      cierresConMontos = cierres.map(c => ({
+        ...c,
+        // @ts-ignore: campos adicionales para el resumen
+        totalVentasBrutas: mapMontos[c.id]?.bruto || 0,
+        // @ts-ignore
+        totalDescuentos: mapMontos[c.id]?.descuentos || 0,
+      }));
+    }
+
+    // Calcular agregados globales de bruto y descuentos dentro del rango/tienda
+    const ventasParaTotales = await prisma.venta.findMany({
+      where: {
+        tiendaId,
+        cierrePeriodo: { fechaFin: { not: null } },
+        createdAt: {
+          ...(fechaInicio && { gte: new Date(fechaInicio).toISOString() }),
+          ...(fechaFin && { lte: new Date(fechaFin).toISOString() })
+        }
+      },
+      select: {
+        discountTotal: true,
+        productos: { select: { cantidad: true, precio: true } }
+      }
+    });
+    const sumTotalDescuentos = ventasParaTotales.reduce((acc, v) => acc + Number((v as any).discountTotal || 0), 0);
+    const sumTotalVentasBrutas = ventasParaTotales.reduce((acc, v) => acc + (v.productos || []).reduce((a, p) => a + (Number(p.precio) || 0) * (Number(p.cantidad) || 0), 0), 0);
     
     return NextResponse.json({
-      cierres: cierres, 
+      cierres: cierresConMontos as any, 
       sumTotalGanancia: totales._sum.totalGanancia,
       sumTotalInversion: totales._sum.totalInversion,
       sumTotalVentas: totales._sum.totalVentas,
@@ -108,6 +157,8 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
       sumTotalVentasConsignacion: totales._sum.totalVentasConsignacion,
       sumTotalGananciasPropias: totales._sum.totalGananciasPropias,
       sumTotalGananciasConsignacion: totales._sum.totalGananciasConsignacion,
+      sumTotalVentasBrutas,
+      sumTotalDescuentos,
       totalItems: totalCierres
     });
   } catch (error) {

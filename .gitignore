@@ -41,3 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .qodo
+/tools/limpiar-negocio/node_modules/
+/tools/limpiar-negocio/dist/
+/tools/procesar-excel/dist/

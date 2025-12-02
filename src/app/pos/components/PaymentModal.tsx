@@ -1,5 +1,5 @@
-import React, { FC, useEffect, useState } from "react";
-import { Modal, Box, Typography, Button, FormControl, InputLabel, InputAdornment, OutlinedInput, Select, MenuItem } from "@mui/material";
+import React, { FC, useEffect, useMemo, useState } from "react";
+import { Modal, Box, Typography, Button, FormControl, InputLabel, InputAdornment, OutlinedInput, Select, MenuItem, TextField, Stack } from "@mui/material";
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { moneyRegex } from '../../../utils/regex'
@@ -11,11 +11,15 @@ interface IProps {
   open: boolean;
   onClose: () => void;
   total: number;
-  makePay: (total: number, totalchash: number, totaltransfer: number, transferDestinationId?: string) => Promise<void>
+  // Ahora permite enviar códigos de descuento opcionales
+  makePay: (total: number, totalchash: number, totaltransfer: number, transferDestinationId?: string, discountCodes?: string[]) => Promise<void>
   transferDestinations: ITransferDestination[]
+  // Datos necesarios para previsualizar descuentos
+  tiendaId: string;
+  products: { productoTiendaId: string; cantidad: number; precio: number }[];
 }
 
-const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDestinations }) => {
+const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDestinations, tiendaId, products }) => {
   const [cashReceived, setCashReceived] = useState(0);
   const [transferReceived, setTransferReceived] = useState(0);
   const { showMessage } = useMessageContext();
@@ -24,6 +28,11 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     transferDestinations.length === 1 ? transferDestinations[0].id :
     transferDestinations.find(destination => destination.default)?.id || transferDestinations[0].id
   );
+  // Descuentos
+  const [promoCode, setPromoCode] = useState("");
+  const [discountTotal, setDiscountTotal] = useState(0);
+  const [applied, setApplied] = useState<{ discountRuleId: string; amount: number; ruleName?: string }[]>([]);
+  const finalTotal = useMemo(() => Math.max(0, total - discountTotal), [total, discountTotal]);
 
   const handlePayment = async () => {
     try {
@@ -32,7 +41,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
       
       // Ejecutar el pago de forma asíncrona
       // No mostramos notificaciones aquí porque handleMakePay se encarga de eso
-      makePay(total, cashReceived, transferReceived, tasnferDestinationId)
+      makePay(finalTotal, cashReceived, transferReceived, tasnferDestinationId, promoCode ? [promoCode] : [])
         .then(() => {
           console.log("✅ Pago procesado exitosamente");
         })
@@ -69,18 +78,51 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   const handleTransferReceived = (trasnfer: string) => {
     if(validateMoneyInput(trasnfer)){
       setTransferReceived(Number.parseInt(trasnfer));
-      setCashReceived(total - Number.parseInt(trasnfer));
+      setCashReceived(finalTotal - Number.parseInt(trasnfer));
     } else if(trasnfer === "") {
       setTransferReceived(0);
-      setCashReceived(total);
+      setCashReceived(finalTotal);
     }
   }
 
   useEffect(() => {
     if(open === true){
-      setCashReceived(total);
+      setCashReceived(finalTotal);
     }
-  }, [open, total])
+  }, [open, total, finalTotal])
+
+  const previewDiscount = async (codes?: string[]) => {
+    try {
+      // Permitir previsualización incluso sin código para aplicar reglas automáticas
+      const res = await fetch('/api/discounts/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tiendaId,
+          products,
+          ...(codes && codes.length > 0 ? { discountCodes: codes } : {})
+        })
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Error previsualizando descuento');
+      const data = await res.json();
+      setDiscountTotal(Number(data.discountTotal) || 0);
+      setApplied(Array.isArray(data.applied) ? data.applied : []);
+    } catch (e:any) {
+      console.error('Error preview descuento', e);
+      setDiscountTotal(0);
+      setApplied([]);
+      showMessage('No se pudo aplicar el código de descuento', 'warning');
+    }
+  };
+
+  // Previsualizar automáticamente al abrir el modal o si cambian los productos
+  useEffect(() => {
+    console.log('llama')
+    if (open) {
+      previewDiscount(promoCode ? [promoCode] : undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, JSON.stringify(products)]);
 
   return (
     <Modal open={open} onClose={handleClose}>
@@ -94,12 +136,35 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
           p: 4,
           borderRadius: 2,
           boxShadow: 24,
-          width: 400,
+          width: 420,
         }}
       >
         <Typography variant="h5" fontWeight="bold" mb={2}>
-          Cobrar: {formatCurrency(total)}
+          Cobrar: {formatCurrency(finalTotal)}
         </Typography>
+        <Stack spacing={1} mb={2}>
+          <TextField
+            label="Código de descuento"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value.trim())}
+            onBlur={() => previewDiscount(promoCode ? [promoCode] : undefined)}
+            size="small"
+            fullWidth
+          />
+          {/* Listado de descuentos aplicados, uno debajo del otro */}
+          {applied.length > 0 && (
+            <Box>
+              {applied.map((d) => (
+                <Typography key={d.discountRuleId} variant="body2" color="success.main">
+                  {d.ruleName || 'Descuento'}: -{formatCurrency(d.amount)}
+                </Typography>
+              ))}
+              <Typography variant="body2" fontWeight={600} mt={0.5}>
+                Total descuentos: -{formatCurrency(discountTotal)} (Total a pagar: {formatCurrency(finalTotal)})
+              </Typography>
+            </Box>
+          )}
+        </Stack>
           
         <FormControl fullWidth>
           <InputLabel htmlFor="outlined-adornment-amount">Efectivo</InputLabel>
@@ -139,9 +204,9 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
         </FormControl>
         }
 
-        <Typography variant="h6" mt={2}>Total: {formatCurrency(total)}</Typography>
+        <Typography variant="h6" mt={2}>Total: {formatCurrency(finalTotal)}</Typography>
         <Typography variant="h6" color="green" mt={1}>
-          Cambio: {formatCurrency(cashReceived+transferReceived - total)}
+          Cambio: {formatCurrency(cashReceived+transferReceived - finalTotal)}
         </Typography>
         
         <Button
@@ -150,7 +215,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
           fullWidth
           sx={{ mt: 2 }}
           onClick={handlePayment}
-          disabled={cashReceived+transferReceived < total}
+          disabled={cashReceived+transferReceived < finalTotal}
         >
           🚀 Confirmar Pago
         </Button>

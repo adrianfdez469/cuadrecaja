@@ -439,7 +439,8 @@ export default function POSInterface() {
     total: number,
     totalCash: number,
     totalTransfer: number,
-    transferDestinationId?: string
+    transferDestinationId?: string,
+    discountCodes?: string[]
   ) => {
     try {
       if (total <= totalCash + totalTransfer) {
@@ -496,7 +497,9 @@ export default function POSInterface() {
           createdAt: Date.now(), // Timestamp exacto de creación
           wasOffline: !isOnline, // Si se creó sin conexión
           syncAttempts: 0, // Inicializar contador
-          ...(totalTransfer > 0 && { transferDestinationId })
+          ...(totalTransfer > 0 && { transferDestinationId }),
+          // Guardar los códigos para sincronización
+          ...(discountCodes && discountCodes.length > 0 ? { discountCodes } as any : {})
         });
 
         // 3. Actualizar inventario local
@@ -530,7 +533,8 @@ export default function POSInterface() {
               transferDestinationId,
               Date.now(), // 🆕 Timestamp actual
               !isOnline, // 🆕 Estado offline
-              1 // 🆕 Primer intento exitoso
+              1, // 🆕 Primer intento exitoso
+              discountCodes
             );
             console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
             markSynced(identifier, ventaDb.id);
@@ -1175,10 +1179,12 @@ export default function POSInterface() {
           open={paymentDialog}
           onClose={() => setPaymentDialog(false)}
           total={total}
-          makePay={(total: number, totalchash: number, totaltransfer: number, transferDestinationId?: string) =>
-            handleMakePay(total, totalchash, totaltransfer, transferDestinationId)
+          makePay={(total: number, totalchash: number, totaltransfer: number, transferDestinationId?: string, discountCodes?: string[]) =>
+            handleMakePay(total, totalchash, totaltransfer, transferDestinationId, discountCodes)
           }
           transferDestinations={transferDestinations}
+          tiendaId={user.localActual.id}
+          products={cart.map((prod) => ({ productoTiendaId: prod.productoTiendaId, cantidad: prod.quantity, precio: prod.price }))}
         />
 
         {/* Drawer de ventas del usuario */}

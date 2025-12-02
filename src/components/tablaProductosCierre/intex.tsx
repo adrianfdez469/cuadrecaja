@@ -191,6 +191,9 @@ export const TablaProductosCierre: FC<IProps> = ({
     totalVentas,
     totalGanancia,
     totalTransferencia,
+    // Totales ampliados desde el backend
+    totalVentasBrutas,
+    totalDescuentos,
     totalVentasPropias,
     totalVentasConsignacion,
     totalGananciasPropias,
@@ -876,6 +879,45 @@ export const TablaProductosCierre: FC<IProps> = ({
           </Table>
         </TableContainer>
       </Box>
+
+      {/* Resumen final con descuentos (Bruto -> Descuentos -> Neto) */}
+      <Paper sx={{ p: 2, mt: 2 }}>
+        {(() => {
+          // Usar totales del backend con fallbacks seguros
+          const bruto = typeof totalVentasBrutas === 'number' ? totalVentasBrutas : (totales?.totalMonto || 0);
+          const descuentos = typeof totalDescuentos === 'number' ? totalDescuentos : 0;
+          const neto = typeof totalVentas === 'number' ? totalVentas : Math.max(0, bruto - descuentos);
+
+          return (
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <Box textAlign="center">
+                  <Typography variant="body2" color="text.secondary">Total Ventas (Bruto)</Typography>
+                  <Typography variant="h6" fontWeight="bold" color="success.main">
+                    {formatCurrency(bruto)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Box textAlign="center">
+                  <Typography variant="body2" color="text.secondary">Descuentos aplicados</Typography>
+                  <Typography variant="h6" fontWeight="bold" color="error.main">
+                    - {formatCurrency(descuentos)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Box textAlign="center">
+                  <Typography variant="body2" color="text.secondary">Total Ventas (Neto)</Typography>
+                  <Typography variant="h6" fontWeight="bold" color="primary.main">
+                    {formatCurrency(neto)}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          );
+        })()}
+      </Paper>
     </>
   );
 };

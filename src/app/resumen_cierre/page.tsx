@@ -500,6 +500,30 @@ export default function ResumenCierrePage() {
                     />
                 </Grid>
 
+                {/* Ventas Brutas acumuladas (suma de precio*cantidad) */}
+                {typeof data.sumTotalVentasBrutas === 'number' && (
+                  <Grid item xs={12} sm={6} md={4}>
+                    <StatCard
+                      icon={<AttachMoney fontSize={"medium"} />}
+                      value={formatCurrency(data.sumTotalVentasBrutas || 0)}
+                      label="Total Ventas (Bruto)"
+                      color="success.light"
+                    />
+                  </Grid>
+                )}
+
+                {/* Total de Descuentos del intervalo */}
+                {typeof data.sumTotalDescuentos === 'number' && (data.sumTotalDescuentos || 0) > 0 && (
+                  <Grid item xs={12} sm={6} md={4}>
+                    <StatCard
+                      icon={<TrendingUp fontSize={"medium"} />}
+                      value={formatCurrency(data.sumTotalDescuentos || 0)}
+                      label="Descuentos (intervalo)"
+                      color="error.light"
+                    />
+                  </Grid>
+                )}
+
                 <Grid item xs={12} sm={6} md={4}>
                     <Card sx={{ height: '100%' }}>
                       <CardContent sx={{ p: isMobile ? 1 : 3 }}>
@@ -636,6 +660,27 @@ export default function ResumenCierrePage() {
                                       {formatCurrency(row.totalVentas)}
                                     </Typography>
                                   </Grid>
+                                  {/* Bruto y Descuentos por cierre (si están disponibles) */}
+                                  {typeof row.totalVentasBrutas === 'number' && (
+                                    <Grid item xs={6}>
+                                      <Typography variant="caption" color="text.secondary">
+                                        Bruto
+                                      </Typography>
+                                      <Typography variant="body2" fontWeight="medium" color="success.main">
+                                        {formatCurrency(row.totalVentasBrutas || 0)}
+                                      </Typography>
+                                    </Grid>
+                                  )}
+                                  {typeof row.totalDescuentos === 'number' && (
+                                    <Grid item xs={6}>
+                                      <Typography variant="caption" color="text.secondary">
+                                        Descuentos
+                                      </Typography>
+                                      <Typography variant="body2" fontWeight="medium" color="error.main">
+                                        - {formatCurrency(row.totalDescuentos || 0)}
+                                      </Typography>
+                                    </Grid>
+                                  )}
                                   <Grid item xs={6}>
                                     <Typography variant="caption" color="text.secondary">
                                       Ganancia
@@ -710,6 +755,9 @@ export default function ResumenCierrePage() {
                           <TableCell>Fin</TableCell>
                           <TableCell align="right">Inversión</TableCell>
                           <TableCell align="right">Venta</TableCell>
+                          {/* Nuevas columnas: Bruto y Descuentos */}
+                          <TableCell align="right">Bruto</TableCell>
+                          <TableCell align="right">Descuentos</TableCell>
                           <TableCell align="right">Transf</TableCell>
                           <TableCell align="right">Ganancia</TableCell>
                           {/* NUEVAS COLUMNAS PARA CONSIGNACIÓN */}
@@ -755,6 +803,17 @@ export default function ResumenCierrePage() {
                               <TableCell align="right">
                                 <Typography variant="body2" fontWeight="medium" color="success.main">
                                   {formatCurrency(row.totalVentas)}
+                                </Typography>
+                              </TableCell>
+                              {/* Celdas para Bruto y Descuentos con fallbacks */}
+                              <TableCell align="right">
+                                <Typography variant="body2" color="text.secondary">
+                                  {typeof row.totalVentasBrutas === 'number' ? formatCurrency(row.totalVentasBrutas || 0) : '—'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography variant="body2" color="error.main">
+                                  {typeof row.totalDescuentos === 'number' ? `- ${formatCurrency(row.totalDescuentos || 0)}` : '—'}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right">

@@ -1,6 +1,7 @@
 import {NextRequest, NextResponse} from "next/server";
 import {prisma} from "@/lib/prisma";
 import {IVenta} from "@/types/IVenta";
+import { applyDiscountsForSale } from "@/lib/discounts";
 
 // Crear una venta
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
@@ -23,7 +24,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       syncId, // Id unico de transación y sincronización
       createdAt, // Fecha y hora real de la creación la venta en el frontend
       wasOffline, // El intento de venta fue realizado sin conexión?
-      syncAttempts // Cantidad de reintentos alcanzados 
+      syncAttempts, // Cantidad de reintentos alcanzados 
+      discountCodes // 🆕 Lista opcional de códigos de descuento a aplicar
     } = await req.json();
 
     console.log('🔍 [POST /api/venta] Datos de la venta:', {
@@ -36,7 +38,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       transferDestinationId,
       createdAt,
       wasOffline,
-      syncAttempts
+      syncAttempts,
+      discountCodes
     });
 
     if (!tiendaId || !usuarioId || !cierreId || !productos.length || !syncId || !createdAt) {
@@ -162,12 +165,40 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         throw new Error(`Cantidad decimal no permitida para los productos: ${ids}`);
       }
 
-      // 2. Crear la venta
+      // 2. Calcular descuentos SIEMPRE en base a los productos del payload (códigos opcionales)
+      let discountTotalCalc = 0;
+      let discountCalcResult: Awaited<ReturnType<typeof applyDiscountsForSale>> | null = null;
+      try {
+        // Construir la lista de productos para el motor de descuentos con datos confiables
+        // Preferimos los valores de la DB (productosMegrados.precio) y hacemos fallback al payload (price | precio)
+        const discountProducts = productosMegrados.map((p: any) => ({
+          productoTiendaId: p.productoTiendaId,
+          cantidad: Number(p.cantidad) || 0,
+          precio: Number(p.precio ?? p.price) || 0,
+        }));
+
+        discountCalcResult = await applyDiscountsForSale({
+          tiendaId,
+          discountCodes: Array.isArray(discountCodes) ? discountCodes : [],
+          products: discountProducts
+        });
+        discountTotalCalc = discountCalcResult.discountTotal;
+        console.log('🧮 [POST /api/venta] Descuento calculado:', discountCalcResult);
+      } catch (e:any) {
+        console.error('❌ [POST /api/venta] Error calculando descuentos:', e?.message || e);
+        // En caso de error, continuar sin aplicar descuentos
+        discountTotalCalc = 0;
+        discountCalcResult = null;
+      }
+
+      // 3. Crear la venta
       const venta = await tx.venta.create({
         data: {
           tiendaId,
           usuarioId,
-          total,
+          // Ajustar total SIEMPRE basado en el cálculo del backend para evitar dobles descuentos
+          // Si discountCalcResult está disponible, usar finalTotal; de lo contrario, usar el total enviado
+          total: discountCalcResult ? Number(discountCalcResult.finalTotal) : Math.max(0, Number(total) || 0),
           totalcash,
           totaltransfer,
           cierrePeriodoId: ultimoPeriodo.id,
@@ -176,6 +207,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           frontendCreatedAt: createdAt ? new Date(createdAt) : null,
           wasOffline: wasOffline || false,
           syncAttempts: syncAttempts || 0, // 🆕 Usar syncAttempts enviado desde frontend
+          discountTotal: discountTotalCalc || 0,
           productos: {
             create: productosMegrados.map((p) => ({
               productoTiendaId: p.productoTiendaId,
@@ -192,6 +224,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       });
 
       console.log('🔍 [POST /api/venta] Venta creada:', venta.id);
+
+      // 3.1 Persistir AppliedDiscount si corresponde
+      try {
+        if ((discountTotalCalc || 0) > 0) {
+          const applied = discountCalcResult?.applied || [];
+          for (const a of applied) {
+            await tx.appliedDiscount.create({
+              data: {
+                ventaId: venta.id,
+                discountRuleId: a.discountRuleId,
+                amount: a.amount,
+                productsAffected: a.productsAffected ?? null,
+              }
+            });
+          }
+        }
+      } catch (e:any) {
+        console.error('❌ [POST /api/venta] Error guardando AppliedDiscount:', e?.message || e);
+      }
 
       // 3. Manejar productos fraccionables (si aplica) - PRIMERO
       const productosFraccionables = await tx.productoTienda.findMany({
@@ -441,6 +492,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
               }
             }
           },
+        },
+        appliedDiscounts: {
+          include: {
+            discountRule: {
+              select: { name: true }
+            }
+          }
         }
       },
       where: {
@@ -458,6 +516,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
       total: venta.total,
       totalcash: venta.totalcash,
       totaltransfer: venta.totaltransfer,
+      discountTotal: (venta as any).discountTotal ?? 0,
       tiendaId: venta.tiendaId,
       usuarioId: venta.usuarioId,
       cierrePeriodoId: venta.cierrePeriodoId,
@@ -474,6 +533,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         cantidad: p.cantidad,
         name: p.producto.proveedor ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}` : p.producto?.producto?.nombre ?? undefined,
         price: p.precio ?? undefined
+      })),
+      appliedDiscounts: ((venta as any).appliedDiscounts || []).map((ad: any) => ({
+        id: ad.id,
+        discountRuleId: ad.discountRuleId,
+        ventaId: ad.ventaId,
+        amount: ad.amount,
+        productsAffected: ad.productsAffected ?? undefined,
+        createdAt: ad.createdAt,
+        ruleName: ad.discountRule?.name
       })),
       syncId: venta.syncId
     }));
