@@ -50,7 +50,11 @@ import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatNumber, formatDateTime } from '@/utils/formatters';
 import ImportarExcelDialog from "./components/importExcelDialog";
-import { OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal/ProductSelectionModal";
+import {
+  IProductoDisponible,
+  OperacionTipo,
+  ProductSelectionModal
+} from "@/components/ProductcSelectionModal/ProductSelectionModal";
 import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
 import { useMessageContext } from "@/context/MessageContext";
 
@@ -192,7 +196,7 @@ export default function MovimientosPage() {
     }
   }
 
-  const loadPendientesRecep = async (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string}) => {
+  const loadPendientesRecep = async (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string}): Promise<IProductoDisponible[]> => {
     console.log(operacion, take, skip, filter);
     
     return pendienteRecepcion.map((item) => {
@@ -207,7 +211,7 @@ export default function MovimientosPage() {
         existencia: item.productoTienda?.existencia,
         proveedorId: item.productoTienda?.proveedorId,
         proveedor: item.productoTienda?.proveedor,
-        
+        permiteDecimal: item.permiteDecimal,
         movimientoOrigenId: item.movimientoOrigenId,
         codigosProducto: item.productoTienda?.producto?.codigosProducto
       }
