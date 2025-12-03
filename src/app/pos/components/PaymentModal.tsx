@@ -142,29 +142,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
         <Typography variant="h5" fontWeight="bold" mb={2}>
           Cobrar: {formatCurrency(finalTotal)}
         </Typography>
-        <Stack spacing={1} mb={2}>
-          <TextField
-            label="Código de descuento"
-            value={promoCode}
-            onChange={(e) => setPromoCode(e.target.value.trim())}
-            onBlur={() => previewDiscount(promoCode ? [promoCode] : undefined)}
-            size="small"
-            fullWidth
-          />
-          {/* Listado de descuentos aplicados, uno debajo del otro */}
-          {applied.length > 0 && (
-            <Box>
-              {applied.map((d) => (
-                <Typography key={d.discountRuleId} variant="body2" color="success.main">
-                  {d.ruleName || 'Descuento'}: -{formatCurrency(d.amount)}
-                </Typography>
-              ))}
-              <Typography variant="body2" fontWeight={600} mt={0.5}>
-                Total descuentos: -{formatCurrency(discountTotal)} (Total a pagar: {formatCurrency(finalTotal)})
-              </Typography>
-            </Box>
-          )}
-        </Stack>
+
           
         <FormControl fullWidth>
           <InputLabel htmlFor="outlined-adornment-amount">Efectivo</InputLabel>
@@ -204,10 +182,35 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
         </FormControl>
         }
 
-        <Typography variant="h6" mt={2}>Total: {formatCurrency(finalTotal)}</Typography>
-        <Typography variant="h6" color="green" mt={1}>
-          Cambio: {formatCurrency(cashReceived+transferReceived - finalTotal)}
-        </Typography>
+        <Stack spacing={1} mb={2} sx={{ marginTop: 2}}>
+          <TextField
+              label="Código de descuento"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value.trim())}
+              onBlur={() => previewDiscount(promoCode ? [promoCode] : undefined)}
+              size="small"
+              fullWidth
+          />
+          {/* Listado de descuentos aplicados, uno debajo del otro */}
+          {applied.length > 0 && (
+              <Box>
+                {applied.map((d) => (
+                    <Typography key={d.discountRuleId} variant="body2" color="success.main">
+                      {d.ruleName || 'Descuento'}: -{formatCurrency(d.amount)}
+                    </Typography>
+                ))}
+                <Typography variant="body2" fontWeight={600} mt={0.5}>
+                  Total descuentos: -({formatCurrency(discountTotal)})
+                </Typography>
+              </Box>
+          )}
+          <Typography variant="h6" mt={2}>Total: {formatCurrency(finalTotal)}</Typography>
+          <Typography variant="h6" color="green" mt={1}>
+            Cambio: {formatCurrency(cashReceived+transferReceived - finalTotal)}
+          </Typography>
+        </Stack>
+
+
         
         <Button
           variant="contained"
