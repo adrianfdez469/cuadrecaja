@@ -118,14 +118,45 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
         mapMontos[v.cierrePeriodoId].bruto += bruto;
         mapMontos[v.cierrePeriodoId].descuentos += desc;
       }
-      // Mezclar con cierres
-      cierresConMontos = cierres.map(c => ({
-        ...c,
-        // @ts-ignore: campos adicionales para el resumen
-        totalVentasBrutas: mapMontos[c.id]?.bruto || 0,
-        // @ts-ignore
-        totalDescuentos: mapMontos[c.id]?.descuentos || 0,
-      }));
+      // Mezclar con cierres y además recalcular ganancias NETAS por cierre considerando descuentos
+      cierresConMontos = cierres.map(c => {
+        // Bruto y descuentos calculados
+        const totalVentasBrutas = mapMontos[c.id]?.bruto || 0;
+        const totalDescuentos = mapMontos[c.id]?.descuentos || 0;
+
+        // Datos base guardados en el cierre
+        const ventasPropias = (c as any).totalVentasPropias || 0;
+        const ventasConsignacion = (c as any).totalVentasConsignacion || 0;
+        const gananciasPropias = (c as any).totalGananciasPropias || 0;
+        const gananciasConsignacion = (c as any).totalGananciasConsignacion || 0;
+
+        // Prorrateo de descuentos por tipo en función del bruto
+        let descuentoPropias = 0;
+        let descuentoConsignacion = 0;
+        if (totalVentasBrutas > 0 && totalDescuentos > 0) {
+          const ratioPropias = Math.max(0, Math.min(1, ventasPropias / totalVentasBrutas));
+          const ratioConsig = Math.max(0, Math.min(1, ventasConsignacion / totalVentasBrutas));
+          descuentoPropias = totalDescuentos * ratioPropias;
+          descuentoConsignacion = totalDescuentos * ratioConsig;
+        }
+
+        // Ganancias netas por tipo (no negativas)
+        const totalGananciasPropiasNet = Math.max(0, (gananciasPropias || 0) - (descuentoPropias || 0));
+        const totalGananciasConsignacionNet = Math.max(0, (gananciasConsignacion || 0) - (descuentoConsignacion || 0));
+        const totalGananciaNeta = Math.max(0, totalGananciasPropiasNet + totalGananciasConsignacionNet);
+
+        return {
+          ...c,
+          // @ts-ignore: campos adicionales para el resumen
+          totalVentasBrutas,
+          // @ts-ignore
+          totalDescuentos,
+          // Sobrescribir ganancias con valores NETOS (coherente con vista de cierre individual)
+          totalGanancia: totalGananciaNeta,
+          totalGananciasPropias: totalGananciasPropiasNet,
+          totalGananciasConsignacion: totalGananciasConsignacionNet,
+        } as any;
+      });
     }
 
     // Calcular agregados globales de bruto y descuentos dentro del rango/tienda
@@ -146,17 +177,24 @@ Promise<NextResponse<ISummaryCierre | {error: string}>> {
     const sumTotalDescuentos = ventasParaTotales.reduce((acc, v) => acc + Number((v as any).discountTotal || 0), 0);
     const sumTotalVentasBrutas = ventasParaTotales.reduce((acc, v) => acc + (v.productos || []).reduce((a, p) => a + (Number(p.precio) || 0) * (Number(p.cantidad) || 0), 0), 0);
     
+    // Agregados de GANANCIAS NETAS: sumar desde los cierres ya ajustados
+    const sumTotalGananciasPropiasNet = cierresConMontos.reduce((acc, c: any) => acc + (c.totalGananciasPropias || 0), 0);
+    const sumTotalGananciasConsigNet = cierresConMontos.reduce((acc, c: any) => acc + (c.totalGananciasConsignacion || 0), 0);
+    const sumTotalGananciaNet = cierresConMontos.reduce((acc, c: any) => acc + (c.totalGanancia || 0), 0);
+    
     return NextResponse.json({
       cierres: cierresConMontos as any, 
-      sumTotalGanancia: totales._sum.totalGanancia,
+      // Ganancias NETAS del intervalo (ajustadas por descuentos)
+      sumTotalGanancia: sumTotalGananciaNet,
       sumTotalInversion: totales._sum.totalInversion,
       sumTotalVentas: totales._sum.totalVentas,
       sumTotalTransferencia: totales._sum.totalTransferencia,
       desgloseTransferencias: transferenciasConNombres,
       sumTotalVentasPropias: totales._sum.totalVentasPropias,
       sumTotalVentasConsignacion: totales._sum.totalVentasConsignacion,
-      sumTotalGananciasPropias: totales._sum.totalGananciasPropias,
-      sumTotalGananciasConsignacion: totales._sum.totalGananciasConsignacion,
+      // Totales de ganancias por tipo, NETOS tras prorratear descuentos
+      sumTotalGananciasPropias: sumTotalGananciasPropiasNet,
+      sumTotalGananciasConsignacion: sumTotalGananciasConsigNet,
       sumTotalVentasBrutas,
       sumTotalDescuentos,
       totalItems: totalCierres

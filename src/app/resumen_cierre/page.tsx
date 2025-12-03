@@ -278,6 +278,9 @@ export default function ResumenCierrePage() {
         productosVendidos: cierreData.productosVendidos,
         totalGanancia: itemCierre.totalGanancia,
         totalVentas: itemCierre.totalVentas,
+        // Incluir métricas ampliadas necesarias en el Drawer
+        totalVentasBrutas: cierreData.totalVentasBrutas ?? 0,
+        totalDescuentos: cierreData.totalDescuentos ?? 0,
         totalTransferencia: itemCierre.totalTransferencia,
         totalVentasPropias: itemCierre.totalVentasPropias,
         totalVentasConsignacion: itemCierre.totalVentasConsignacion,
@@ -683,7 +686,7 @@ export default function ResumenCierrePage() {
                                   )}
                                   <Grid item xs={6}>
                                     <Typography variant="caption" color="text.secondary">
-                                      Ganancia
+                                      Gananciaa
                                     </Typography>
                                     <Typography variant="body2" fontWeight="medium" color="info.main">
                                       {formatCurrency(row.totalGanancia)}
@@ -759,7 +762,7 @@ export default function ResumenCierrePage() {
                           <TableCell align="right">Bruto</TableCell>
                           <TableCell align="right">Descuentos</TableCell>
                           <TableCell align="right">Transf</TableCell>
-                          <TableCell align="right">Ganancia</TableCell>
+                          <TableCell align="right">Gananciaa</TableCell>
                           {/* NUEVAS COLUMNAS PARA CONSIGNACIÓN */}
                           <TableCell align="right">
                             <StoreIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
@@ -866,6 +869,17 @@ export default function ResumenCierrePage() {
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="success.main">
                               {formatCurrency(totales.venta)}
+                            </Typography>
+                          </TableCell>
+                          {/* Totales de Bruto y Descuentos para alinear con cabecera */}
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight="bold" color="text.secondary">
+                              {formatCurrency(data?.sumTotalVentasBrutas || 0)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight="bold" color="error.main">
+                              - {formatCurrency(data?.sumTotalDescuentos || 0)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
@@ -995,6 +1009,25 @@ export default function ResumenCierrePage() {
                             value={formatCurrency(cierreProducData.ciereData.totalGanancia)}
                             label="Ganancia"
                             color="info.light"
+                        />
+                      </Grid>
+
+                      {/* Bruto y Descuentos del período dentro del detalle usando el mismo StatCard */}
+                      <Grid item xs={6} sm={6} md={3}>
+                        <StatCard
+                          icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
+                          value={formatCurrency((cierreProducData.ciereData.totalVentasBrutas ?? 0))}
+                          label="Total Ventas (Bruto)"
+                          color="success.light"
+                        />
+                      </Grid>
+
+                      <Grid item xs={6} sm={6} md={3}>
+                        <StatCard
+                          icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
+                          value={formatCurrency((cierreProducData.ciereData.totalDescuentos ?? 0))}
+                          label="Descuentos del Período"
+                          color="error.light"
                         />
                       </Grid>
 
