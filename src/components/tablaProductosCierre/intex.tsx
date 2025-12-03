@@ -278,6 +278,13 @@ export const TablaProductosCierre: FC<IProps> = ({
       }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
+    // Calcular proporción de descuentos para este conjunto cuando sea "Propios"
+    const brutoGlobal = (typeof totalVentasBrutas === 'number' ? totalVentasBrutas : productosVendidos.reduce((a, p) => a + (p.total || 0), 0)) || 0;
+    const descuentosGlobal = (typeof totalDescuentos === 'number' ? totalDescuentos : 0) || 0;
+    const brutoTabla = productos.reduce((acc, p) => acc + (p.total || 0), 0);
+    // Solo prorrateamos para tabla de Propios; para Consignación mantenemos como estaba (pedido del usuario)
+    const descuentosTabla = !isConsignacion && brutoGlobal > 0 ? (descuentosGlobal * (brutoTabla / brutoGlobal)) : 0;
+
     return (
       <TableContainer component={Paper} sx={{ mt: 2 }}>
         <Table size="small">
@@ -293,6 +300,9 @@ export const TablaProductosCierre: FC<IProps> = ({
               {!showOnlyCants && (
                 <>
                   <TableCell>Venta</TableCell>
+                  {/* Nueva columna: Descuento (solo para Propios) */}
+                  {!isConsignacion && <TableCell>Descuento</TableCell>}
+                  {/* Ganancia debe ser neta (descontando su parte de descuento) */}
                   {!showOnlyCants && <TableCell>Ganancia</TableCell>}
                   {!showOnlyCants && <TableCell>Costo</TableCell>}
                   {!showOnlyCants && <TableCell>Precio</TableCell>}
@@ -304,7 +314,7 @@ export const TablaProductosCierre: FC<IProps> = ({
           <TableBody>
             {gruposOrdenados.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isConsignacion ? 7 : 6} align="center">
+                <TableCell colSpan={isConsignacion ? 7 : 7} align="center">
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                     No hay productos {isConsignacion ? 'en consignación' : 'propios'} vendidos
                   </Typography>
@@ -346,7 +356,26 @@ export const TablaProductosCierre: FC<IProps> = ({
                     {!showOnlyCants && (
                       <>
                         <TableCell>{formatCurrency(producto.total || 0)}</TableCell>
-                        {!showOnlyCants && <TableCell>{formatCurrency(producto.ganancia || 0)}</TableCell>}
+                        {/* Descuento prorrateado por fila (solo Propios) */}
+                        {!isConsignacion && (
+                          <TableCell>
+                            -{formatCurrency(
+                              brutoTabla > 0 ? ((producto.total || 0) / brutoTabla) * descuentosTabla : 0
+                            )}
+                          </TableCell>
+                        )}
+                        {/* Ganancia neta = ganancia - descuento asignado (solo afecta a Propios en esta tabla) */}
+                        {!showOnlyCants && (
+                          <TableCell>
+                            {formatCurrency(
+                              (producto.ganancia || 0) - (
+                                !isConsignacion && brutoTabla > 0
+                                  ? ((producto.total || 0) / brutoTabla) * descuentosTabla
+                                  : 0
+                              )
+                            )}
+                          </TableCell>
+                        )}
                         {!showOnlyCants && (
                           <TableCell>
                             <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
@@ -775,6 +804,9 @@ export const TablaProductosCierre: FC<IProps> = ({
                 {!showOnlyCants && (
                   <>
                     <TableCell>Venta</TableCell>
+                    {/* Nueva columna: Descuento (global) */}
+                    <TableCell>Descuento</TableCell>
+                    {/* Ganancia neta considerando descuentos */}
                     {!showOnlyCants && <TableCell>Ganancia</TableCell>}
                     {!showOnlyCants && <TableCell>Costo</TableCell>}
                     {!showOnlyCants && <TableCell>Precio</TableCell>}
@@ -785,7 +817,7 @@ export const TablaProductosCierre: FC<IProps> = ({
             <TableBody>
               {productosVendidos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={showOnlyCants ? 2 : 6} align="center">
+                  <TableCell colSpan={showOnlyCants ? 2 : 7} align="center">
                     <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                       No hay productos vendidos en este período
                     </Typography>
@@ -812,6 +844,14 @@ export const TablaProductosCierre: FC<IProps> = ({
                     }))
                     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
+                  // Definir totales globales para prorrateo de descuentos en la tabla "Todos los Productos"
+                  const brutoGlobal = (
+                    typeof totalVentasBrutas === 'number'
+                      ? totalVentasBrutas
+                      : productosVendidos.reduce((acc, p) => acc + (p.total || 0), 0)
+                  ) || 0;
+                  const descuentosGlobal = (typeof totalDescuentos === 'number' ? totalDescuentos : 0) || 0;
+
                   return gruposOrdenados.map((grupo) =>
                     grupo.items.map((producto, index) => (
                       <TableRow key={`${grupo.productoId}-${index}`}>
@@ -834,12 +874,29 @@ export const TablaProductosCierre: FC<IProps> = ({
                           </TableCell>
                         )}
 
-                        {/* Celdas de datos específicos de cada variante */}
+                        {/* Celdas de datos específicos de cada variante */
+                        // Cálculo de descuento por fila en tabla global (Todos los Productos)
+                        }
                         <TableCell>{formatNumber(producto.cantidad || 0)}</TableCell>
                         {!showOnlyCants && (
                           <>
                             <TableCell>{formatCurrency(producto.total || 0)}</TableCell>
-                            {!showOnlyCants && <TableCell>{formatCurrency(producto.ganancia || 0)}</TableCell>}
+                            {/* Descuento prorrateado global */}
+                            <TableCell>
+                              -{formatCurrency(
+                                brutoGlobal > 0 ? (((producto.total || 0) / brutoGlobal) * descuentosGlobal) : 0
+                              )}
+                            </TableCell>
+                            {/* Ganancia neta */}
+                            {!showOnlyCants && (
+                              <TableCell>
+                                {formatCurrency(
+                                  (producto.ganancia || 0) - (
+                                    brutoGlobal > 0 ? ((producto.total || 0) / brutoGlobal) * descuentosGlobal : 0
+                                  )
+                                )}
+                              </TableCell>
+                            )}
                             {!showOnlyCants && (
                               <TableCell>
                                 <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
@@ -868,7 +925,10 @@ export const TablaProductosCierre: FC<IProps> = ({
                   {!showOnlyCants && (
                     <>
                       <TableCell>{formatCurrency(totales?.totalMonto || 0)}</TableCell>
-                      <TableCell>{formatCurrency(totales?.totalGanancia || 0)}</TableCell>
+                      {/* Total descuentos global */}
+                      <TableCell>- {formatCurrency(totalDescuentos || 0)}</TableCell>
+                      {/* Ganancia total neta (desde backend) */}
+                      <TableCell>{formatCurrency(totalGanancia || 0)}</TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
                     </>
