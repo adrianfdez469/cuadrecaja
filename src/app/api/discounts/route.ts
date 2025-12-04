@@ -98,10 +98,13 @@ export async function PATCH(req: NextRequest) {
     }
     const body: unknown = await req.json();
     const { id, ...patch } = (body as Record<string, unknown>) || {};
-    if (!id) return NextResponse.json({ error: "Falta id" }, { status: 400 });
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "Falta id válido" }, { status: 400 });
+    }
+    const idStr = id as string;
 
     // Verificar pertenencia al negocio
-    const exists = await prisma.discountRule.findFirst({ where: { id, negocioId: session.user.negocio.id } });
+    const exists = await prisma.discountRule.findFirst({ where: { id: idStr, negocioId: session.user.negocio.id } });
     if (!exists) return NextResponse.json({ error: "Regla no encontrada" }, { status: 404 });
 
     const data: Prisma.DiscountRuleUncheckedUpdateInput = {};
@@ -114,7 +117,7 @@ export async function PATCH(req: NextRequest) {
     if (Object.prototype.hasOwnProperty.call(patch, "startDate")) data.startDate = patch.startDate ? parseDateOnly(patch.startDate as string | Date) : null;
     if (Object.prototype.hasOwnProperty.call(patch, "endDate")) data.endDate = patch.endDate ? parseDateOnly(patch.endDate as string | Date) : null;
 
-    const updated = await prisma.discountRule.update({ where: { id }, data });
+    const updated = await prisma.discountRule.update({ where: { id: idStr }, data });
     return NextResponse.json(updated);
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Error al actualizar la regla";
