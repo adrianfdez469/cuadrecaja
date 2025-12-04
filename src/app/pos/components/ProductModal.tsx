@@ -45,6 +45,7 @@ export function ProductModal({
     return items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
   };
 
+
   return (
     <>
       {/* 📌 Modal de Productos */}
