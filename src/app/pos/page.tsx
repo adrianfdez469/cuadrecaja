@@ -97,7 +97,7 @@ export default function POSInterface() {
     setActiveCart,
     renameCart,
     removeActiveCart,
-    getCartQuantity,
+    items,
   } = useCartStore();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
@@ -243,21 +243,12 @@ export default function POSInterface() {
     }
   }
 
+  const getCartQuantity = (productoTiendaId: string) => {
+    return items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
+  }
+
   function getSecondaryTextForSearchedProducts (product: IProductoTiendaV2) {
-    // <Typography variant="subtitle1" color="text.secondary">
-    //                     {
-    //                       productoTienda.producto.unidadesPorFraccion &&
-    //                       (getCartQuantity(productoTienda.id) > 0 
-    //                         ? `Cant: ${productoTienda.producto.unidadesPorFraccion - getCartQuantity(productoTienda.id)}`
-    //                         : `Cant: ${productoTienda.producto.unidadesPorFraccion}`)
-    //                     }
-                        
-    //                     {!productoTienda.producto.unidadesPorFraccion && 
-    //                      (getCartQuantity(productoTienda.id) > 0 
-    //                       ? `Cant: ${productoTienda.existencia - getCartQuantity(productoTienda.id)}` 
-    //                       : `Cant: ${productoTienda.existencia}`)
-    //                     }
-    //                   </Typography>
+   
     if(product.producto.unidadesPorFraccion) {
       return (getCartQuantity(product.id) > 0 
         ? `Cant: ${product.producto.unidadesPorFraccion - getCartQuantity(product.id)}`

@@ -34,7 +34,6 @@ interface CartState {
   renameActiveCart: (name: string) => void;
   renameCart: (id: string, name: string) => void;
   removeActiveCart: () => void;
-  getCartQuantity: (productoTiendaId: string) => number;
 }
 
 // Helpers
@@ -69,11 +68,7 @@ export const useCartStore = create<CartState>()(
         });
       },
 
-      getCartQuantity: (productoTiendaId: string) => {
-        const state = get();
-        return state.items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
-      },
-
+      
       createCart: (name) => {
         const state = get();
         const nextIndex = state.carts.length ? Math.max(...state.carts.map(c => Number(c.id))) + 1 : 1;
