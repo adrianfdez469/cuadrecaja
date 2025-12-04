@@ -3,6 +3,28 @@ import {prisma} from "@/lib/prisma";
 import {IVenta} from "@/types/IVenta";
 import { applyDiscountsForSale } from "@/lib/discounts";
 
+// Tipos auxiliares estrictos para evitar usos de any
+interface IncomingProduct {
+  productoTiendaId: string;
+  cantidad: number;
+  name?: string;
+  price?: number;
+  precio?: number;
+  productId?: string;
+}
+
+interface ProductoExistenteSelect {
+  id: string;
+  productoId: string;
+  existencia: number;
+  costo: number;
+  precio: number;
+  proveedorId: string | null;
+  producto: { permiteDecimal: boolean };
+}
+
+type MergedProduct = ProductoExistenteSelect & IncomingProduct;
+
 // Crear una venta
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
   try {
@@ -171,8 +193,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       try {
         // Construir la lista de productos para el motor de descuentos con datos confiables
         // Preferimos los valores de la DB (productosMegrados.precio) y hacemos fallback al payload (price | precio)
-        const discountProducts = productosMegrados.map((p: any) => ({
-          productoTiendaId: p.productoTiendaId,
+        const discountProducts = (productosMegrados as MergedProduct[]).map((p) => ({
+          productoTiendaId: String(p.productoTiendaId),
           cantidad: Number(p.cantidad) || 0,
           precio: Number(p.precio ?? p.price) || 0,
         }));
@@ -184,8 +206,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         });
         discountTotalCalc = discountCalcResult.discountTotal;
         console.log('🧮 [POST /api/venta] Descuento calculado:', discountCalcResult);
-      } catch (e:any) {
-        console.error('❌ [POST /api/venta] Error calculando descuentos:', e?.message || e);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error('❌ [POST /api/venta] Error calculando descuentos:', msg);
         // En caso de error, continuar sin aplicar descuentos
         discountTotalCalc = 0;
         discountCalcResult = null;
@@ -240,8 +263,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
             });
           }
         }
-      } catch (e:any) {
-        console.error('❌ [POST /api/venta] Error guardando AppliedDiscount:', e?.message || e);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error('❌ [POST /api/venta] Error guardando AppliedDiscount:', msg);
       }
 
       // 3. Manejar productos fraccionables (si aplica) - PRIMERO
@@ -445,10 +469,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
     
     return NextResponse.json(result, { status: 201 });
 
-  } catch (error) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error al crear la venta';
     console.error('❌ [POST /api/venta] Error en transacción:', error);
     return NextResponse.json(
-      { error: error.message || "Error al crear la venta" },
+      { error: message },
       { status: 500 }
     );
   }
@@ -516,7 +541,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
       total: venta.total,
       totalcash: venta.totalcash,
       totaltransfer: venta.totaltransfer,
-      discountTotal: (venta as any).discountTotal ?? 0,
+      discountTotal: Number(venta.discountTotal ?? 0),
       tiendaId: venta.tiendaId,
       usuarioId: venta.usuarioId,
       cierrePeriodoId: venta.cierrePeriodoId,
@@ -534,12 +559,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         name: p.producto.proveedor ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}` : p.producto?.producto?.nombre ?? undefined,
         price: p.precio ?? undefined
       })),
-      appliedDiscounts: ((venta as any).appliedDiscounts || []).map((ad: any) => ({
+      appliedDiscounts: (venta.appliedDiscounts || []).map((ad) => ({
         id: ad.id,
         discountRuleId: ad.discountRuleId,
         ventaId: ad.ventaId,
         amount: ad.amount,
-        productsAffected: ad.productsAffected ?? undefined,
+        // Prisma almacena JSON, lo convertimos al tipo esperado de la UI (si es posible)
+        productsAffected: ad.productsAffected as unknown as { productoTiendaId: string; cantidad: number }[] | undefined,
         createdAt: ad.createdAt,
         ruleName: ad.discountRule?.name
       })),

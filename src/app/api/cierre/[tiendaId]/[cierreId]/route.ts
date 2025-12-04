@@ -4,8 +4,23 @@ import { ICierreData } from "@/types/ICierre";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
+type Params = { cierreId: string };
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ cierreId }> }): Promise<NextResponse<ICierreData|{error: string}>> {
+type ProductoVentaAcumulado = {
+  nombre: string;
+  costo: number;
+  precio: number;
+  cantidad: number;
+  total: number;
+  ganancia: number;
+  id: string;
+  productoId: string;
+  proveedor?: { id: string; nombre: string };
+  enConsignacion?: boolean;
+};
+
+
+export async function GET(req: NextRequest, { params }: { params: Promise<Params> }): Promise<NextResponse<ICierreData | { error: string }>> {
   try {
     
     const { cierreId } = await params;
@@ -63,7 +78,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
   
     // Calcular totales
     let totalVentas = 0; // Neto (venta.total)
-    let totalGanancia = 0;
     let totalTransferencia = 0;
     let totalVentasBrutas = 0; // Suma de precio * cantidad
     let totalDescuentos = 0;   // Suma de venta.discountTotal
@@ -82,15 +96,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       total: number;
     }[] = [];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const productosVendidos: Record<string, any> = {};
+    const productosVendidos: Record<string, ProductoVentaAcumulado> = {};
   
     cierre.ventas.forEach((venta) => {
       totalVentas += venta.total;
       totalTransferencia += venta.totaltransfer;
       // Acumular descuentos del período
-      // @ts-ignore: campo agregado en Prisma (discountTotal)
-      totalDescuentos += Number((venta as any).discountTotal || 0);
+      totalDescuentos += Number(venta.discountTotal ?? 0);
 
       if(venta.transferDestination) {
         const { id, nombre } = venta.transferDestination;
@@ -149,8 +161,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
         productosVendidos[productoKey].cantidad += cantidad;
         productosVendidos[productoKey].total += totalProducto;
         productosVendidos[productoKey].ganancia += gananciaProducto;
-  
-        totalGanancia += gananciaProducto;
       });
     });
   
@@ -193,7 +203,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cier
       productosVendidos: Object.values(productosVendidos).sort((a, b) => a.nombre.localeCompare(b.nombre)),
     };
     return NextResponse.json(cierreData);
-  } catch (error) {
+  } catch (error: unknown) {
+    // eslint-disable-next-line no-console
     console.log(error);
     return NextResponse.json({ error: "Error al obtener los datos del cierre" }, { status: 500 });
   }

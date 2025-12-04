@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { DiscountRule as DiscountRuleModel, Prisma } from "@prisma/client";
 
 // Tipos mínimos para el motor de descuentos (MVP)
 export interface DiscountApplicationInputProduct {
@@ -10,7 +11,7 @@ export interface DiscountApplicationInputProduct {
 export interface DiscountApplicationResultItem {
   discountRuleId: string;
   amount: number;
-  productsAffected?: any;
+  productsAffected?: { productoTiendaId: string; cantidad: number }[];
   ruleName?: string;
 }
 
@@ -27,16 +28,36 @@ function isWithin(date: Date, start?: Date | null, end?: Date | null) {
   return true;
 }
 
+// Condiciones soportadas por el MVP
+type DiscountConditions = {
+  code?: string;
+  minTotal?: number;
+  productIds?: string[];
+  categoryIds?: string[];
+  customerIds?: string[];
+};
+
+function parseConditions(json: Prisma.JsonValue | null | undefined): DiscountConditions {
+  const c = (json ?? {}) as Prisma.JsonObject;
+  const out: DiscountConditions = {};
+  if (typeof c.code === "string") out.code = c.code;
+  if (typeof c.minTotal === "number") out.minTotal = c.minTotal;
+  if (Array.isArray(c.productIds)) out.productIds = (c.productIds as unknown[]).map(String);
+  if (Array.isArray(c.categoryIds)) out.categoryIds = (c.categoryIds as unknown[]).map(String);
+  if (Array.isArray(c.customerIds)) out.customerIds = (c.customerIds as unknown[]).map(String);
+  return out;
+}
+
 // Regresa las reglas activas del negocio, separando con/sin código
 async function fetchActiveRules(codes: string[] | undefined, negocioId?: string | null) {
   const now = new Date();
-  const where: any = { isActive: true };
-  if (negocioId) where.negocioId = negocioId;
+  const where: Prisma.DiscountRuleWhereInput = { isActive: true, ...(negocioId ? { negocioId } : {}) };
   // Traer todas y filtrar por vigencia en memoria
   const rules = await prisma.discountRule.findMany({ where });
-  return rules.filter((r) => isWithin(now, r.startDate ?? undefined, r.endDate ?? undefined))
+  return rules
+    .filter((r) => isWithin(now, r.startDate ?? undefined, r.endDate ?? undefined))
     .filter((r) => {
-      const c: any = (r.conditions as any) || {};
+      const c = parseConditions(r.conditions);
       if (c.code) {
         // Si la regla exige código, solo aplica si el código está en la lista
         return Array.isArray(codes) && codes.some(code => String(code).toLowerCase() === String(c.code).toLowerCase());
@@ -79,8 +100,8 @@ export async function applyDiscountsForSale(params: {
   }
 
   // Helpers de subtotal por ámbito
-  const computeSubtotal = (rule: any) => {
-    const conditions: any = (rule.conditions as any) || {};
+  const computeSubtotal = (rule: DiscountRuleModel) => {
+    const conditions = parseConditions(rule.conditions);
     if (rule.appliesTo === 'TICKET') {
       return {
         subtotal: baseTotal,
@@ -116,7 +137,7 @@ export async function applyDiscountsForSale(params: {
     if (!rule.isActive) continue;
     if (!isWithin(now, rule.startDate ?? undefined, rule.endDate ?? undefined)) continue;
 
-    const conditions: any = (rule.conditions as any) || {};
+    const conditions = parseConditions(rule.conditions);
     // mínimo aplicado sobre el ámbito correspondiente
     const { subtotal, affectedItems } = computeSubtotal(rule);
     if (typeof conditions.minTotal === 'number' && subtotal < conditions.minTotal) {

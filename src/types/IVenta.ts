@@ -34,7 +34,8 @@ export interface AppliedDiscount {
   discountRuleId: string;
   ventaId: string;
   amount: number;
-  productsAffected?: any;
+  // Lista de productos impactados por la regla (cuando aplica por PRODUCT o CATEGORY)
+  productsAffected?: { productoTiendaId: string; cantidad: number }[];
   createdAt: Date;
   // Nombre de la regla (solo para visualización)
   ruleName?: string;

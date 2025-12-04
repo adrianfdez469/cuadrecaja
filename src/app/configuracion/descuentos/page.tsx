@@ -21,7 +21,6 @@ import {
   Switch,
   TextField,
   Typography,
-  Divider,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
@@ -34,13 +33,22 @@ import dayjs from "dayjs";
 type DiscountType = "PERCENTAGE" | "FIXED" | "PROMO_CODE";
 type DiscountAppliesTo = "TICKET" | "PRODUCT" | "CATEGORY" | "CUSTOMER";
 
+// Tipos estrictos para las condiciones soportadas
+interface DiscountConditions {
+  code?: string;
+  minTotal?: number;
+  productIds?: string[];
+  categoryIds?: string[];
+  customerIds?: string[];
+}
+
 interface DiscountRule {
   id: string;
   name: string;
   type: DiscountType;
   value: number;
   appliesTo: DiscountAppliesTo;
-  conditions?: any;
+  conditions?: DiscountConditions;
   startDate?: string | null;
   endDate?: string | null;
   isActive: boolean;
@@ -142,7 +150,11 @@ export default function DiscountsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: Partial<DiscountRule> & {
+        conditions: DiscountConditions;
+        startDate?: string;
+        endDate?: string;
+      } = {
         name: form.name,
         type: form.type,
         value: Number(form.value),
@@ -165,9 +177,14 @@ export default function DiscountsPage() {
       setOpenDialog(false);
       resetForm();
       await load();
-    } catch (e) {
-      console.error(e);
-      alert((e as any)?.message || "Error creando regla");
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        console.error(e);
+        alert(e.message || "Error creando regla");
+      } else {
+        console.error(e);
+        alert("Error creando regla");
+      }
     } finally {
       setSaving(false);
     }
@@ -228,7 +245,7 @@ export default function DiscountsPage() {
           ) : (
             <Grid container spacing={2}>
               {rules.map((r) => {
-                const conditions = r.conditions || {};
+                const conditions: DiscountConditions = (r.conditions as DiscountConditions) || {};
                 return (
                   <Grid item xs={12} md={6} lg={4} key={r.id}>
                     <Card variant="outlined">
@@ -243,7 +260,7 @@ export default function DiscountsPage() {
                               onClick={async () => {
                                 // Preparar edición
                                 setEditingId(r.id);
-                                const cond: any = r.conditions || {};
+                                const cond: DiscountConditions = (r.conditions as DiscountConditions) || {};
                                 setForm({
                                   name: r.name,
                                   type: r.type,
@@ -377,13 +394,20 @@ export default function DiscountsPage() {
                     value={form.productIds}
                     label="Productos"
                     onChange={(e) => setForm((f) => ({ ...f, productIds: (e.target.value as string[]) }))}
+                    disabled={loadingOptions}
                     renderValue={(selected) => (selected as string[]).map(id => options.products.find(p => p.id === id)?.nombre || id).join(', ')}
                   >
+                    {loadingOptions && (
+                      <MenuItem disabled value="__loading__">Cargando opciones…</MenuItem>
+                    )}
                     {options.products.map((p) => (
                       <MenuItem key={p.id} value={p.id}>{p.nombre}</MenuItem>
                     ))}
                   </Select>
                 </FormControl>
+                {loadingOptions && (
+                  <Typography variant="caption" color="text.secondary">Cargando opciones de productos…</Typography>
+                )}
               </Grid>
             )}
             {form.appliesTo === 'CATEGORY' && (
@@ -396,13 +420,20 @@ export default function DiscountsPage() {
                     value={form.categoryIds}
                     label="Categorías"
                     onChange={(e) => setForm((f) => ({ ...f, categoryIds: (e.target.value as string[]) }))}
+                    disabled={loadingOptions}
                     renderValue={(selected) => (selected as string[]).map(id => options.categories.find(c => c.id === id)?.nombre || id).join(', ')}
                   >
+                    {loadingOptions && (
+                      <MenuItem disabled value="__loading__">Cargando opciones…</MenuItem>
+                    )}
                     {options.categories.map((c) => (
                       <MenuItem key={c.id} value={c.id}>{c.nombre}</MenuItem>
                     ))}
                   </Select>
                 </FormControl>
+                {loadingOptions && (
+                  <Typography variant="caption" color="text.secondary">Cargando opciones de categorías…</Typography>
+                )}
               </Grid>
             )}
 
@@ -457,7 +488,15 @@ export default function DiscountsPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
-          <Button onClick={handleSave} variant="contained" disabled={saving || !form.name}>
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            disabled={
+              saving ||
+              !form.name ||
+              (loadingOptions && (form.appliesTo === 'PRODUCT' || form.appliesTo === 'CATEGORY'))
+            }
+          >
             {editingId ? "Actualizar" : "Guardar"}
           </Button>
         </DialogActions>

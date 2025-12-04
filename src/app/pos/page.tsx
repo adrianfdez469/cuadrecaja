@@ -292,7 +292,8 @@ export default function POSInterface() {
           sale.transferDestinationId,
           sale.createdAt, // 🆕 Usar timestamp de la venta
           sale.wasOffline, // 🆕 Usar estado offline de la venta
-          sale.syncAttempts // 🆕 Enviar intentos de sincronización
+          sale.syncAttempts, // 🆕 Enviar intentos de sincronización
+          sale.discountCodes // 🆕 Reenviar códigos de descuento si existen
         );
         markSynced(sale.identifier, ventaDb.id);
         syncedCount++;
@@ -498,8 +499,8 @@ export default function POSInterface() {
           wasOffline: !isOnline, // Si se creó sin conexión
           syncAttempts: 0, // Inicializar contador
           ...(totalTransfer > 0 && { transferDestinationId }),
-          // Guardar los códigos para sincronización
-          ...(discountCodes && discountCodes.length > 0 ? { discountCodes } as any : {})
+          // Guardar los códigos para sincronización (tipado correcto)
+          ...(discountCodes && discountCodes.length > 0 ? { discountCodes } : {})
         });
 
         // 3. Actualizar inventario local

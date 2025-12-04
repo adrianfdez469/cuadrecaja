@@ -6,6 +6,7 @@ import { moneyRegex } from '../../../utils/regex'
 import { useMessageContext } from "@/context/MessageContext";
 import { formatCurrency } from "@/utils/formatters";
 import { ITransferDestination } from "@/types/ITransferDestination";
+import type { DiscountApplicationResult, DiscountApplicationResultItem } from "@/lib/discounts";
 
 interface IProps {
   open: boolean;
@@ -23,7 +24,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   const [cashReceived, setCashReceived] = useState(0);
   const [transferReceived, setTransferReceived] = useState(0);
   const { showMessage } = useMessageContext();
-  const [tasnferDestinationId, setTasnferDestinationId] = useState(
+  const [transferDestinationId, setTransferDestinationId] = useState(
     transferDestinations.length === 0 ? "" :
     transferDestinations.length === 1 ? transferDestinations[0].id :
     transferDestinations.find(destination => destination.default)?.id || transferDestinations[0].id
@@ -31,7 +32,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   // Descuentos
   const [promoCode, setPromoCode] = useState("");
   const [discountTotal, setDiscountTotal] = useState(0);
-  const [applied, setApplied] = useState<{ discountRuleId: string; amount: number; ruleName?: string }[]>([]);
+  const [applied, setApplied] = useState<DiscountApplicationResultItem[]>([]);
   const finalTotal = useMemo(() => Math.max(0, total - discountTotal), [total, discountTotal]);
 
   const handlePayment = async () => {
@@ -41,7 +42,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
       
       // Ejecutar el pago de forma asíncrona
       // No mostramos notificaciones aquí porque handleMakePay se encarga de eso
-      makePay(finalTotal, cashReceived, transferReceived, tasnferDestinationId, promoCode ? [promoCode] : [])
+      makePay(finalTotal, cashReceived, transferReceived, transferDestinationId, promoCode ? [promoCode] : [])
         .then(() => {
           console.log("✅ Pago procesado exitosamente");
         })
@@ -91,7 +92,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     }
   }, [open, total, finalTotal])
 
-  const previewDiscount = async (codes?: string[]) => {
+  const previewDiscount = async (codes?: string[]): Promise<void> => {
     try {
       // Permitir previsualización incluso sin código para aplicar reglas automáticas
       const res = await fetch('/api/discounts/preview', {
@@ -104,11 +105,15 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
         })
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Error previsualizando descuento');
-      const data = await res.json();
+      const data = (await res.json()) as DiscountApplicationResult;
       setDiscountTotal(Number(data.discountTotal) || 0);
       setApplied(Array.isArray(data.applied) ? data.applied : []);
-    } catch (e:any) {
-      console.error('Error preview descuento', e);
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        console.error('Error preview descuento', e.message);
+      } else {
+        console.error('Error preview descuento', e);
+      }
       setDiscountTotal(0);
       setApplied([]);
       showMessage('No se pudo aplicar el código de descuento', 'warning');
@@ -170,8 +175,8 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
           <FormControl fullWidth margin="normal">
           <InputLabel>Local</InputLabel>
           <Select
-            value={tasnferDestinationId}
-            onChange={(e) => setTasnferDestinationId(e.target.value as string)}
+            value={transferDestinationId}
+            onChange={(e) => setTransferDestinationId(e.target.value as string)}
           >
             {transferDestinations.map((destination) => (
               <MenuItem key={destination.id} value={destination.id}>

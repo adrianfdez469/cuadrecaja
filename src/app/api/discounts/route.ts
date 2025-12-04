@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/utils/authOptions";
+import type { Prisma, DiscountType, DiscountAppliesTo } from "@prisma/client";
 
 // Parseador seguro para fechas tipo "YYYY-MM-DD" evitando desfases por zona horaria.
 // new Date('YYYY-MM-DD') interpreta en UTC y puede restar un día al mostrarse en local.
 // Construimos una fecha local a las 12:00 para esquivar cambios por DST.
-function parseDateOnly(value?: string | null): Date | null {
+function parseDateOnly(value?: string | Date | null): Date | null {
   if (!value) return null;
   // Aceptar también Date y otros formatos, pero priorizar cadena YYYY-MM-DD
-  if (value instanceof Date as any) {
-    return value as unknown as Date;
-  }
+  if (value instanceof Date) return value;
   const m = String(value).match(/^\s*(\d{4})-(\d{2})-(\d{2})\s*$/);
   if (m) {
     const y = Number(m[1]);
@@ -36,8 +35,9 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(rules);
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Error al listar descuentos" }, { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Error al listar descuentos";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id || !session?.user?.negocio?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
-    const body = await req.json();
+    const body: unknown = await req.json();
     const {
       name,
       type,
@@ -58,31 +58,34 @@ export async function POST(req: NextRequest) {
       startDate,
       endDate,
       isActive = true,
-    } = body || {};
+    } = (body as Record<string, unknown>) || {};
 
     if (!name || typeof value !== "number" || !type) {
       return NextResponse.json({ error: "Datos insuficientes para crear la regla" }, { status: 400 });
     }
 
-    const data: any = {
-      name,
-      type,
-      value,
-      appliesTo,
-      isActive: !!isActive,
-      // contexto de negocio y auditoría
+    const data: Omit<Prisma.DiscountRuleUncheckedCreateInput, "id" | "createdAt" | "updatedAt"> = {
+      name: String(name),
+      type: String(type) as DiscountType,
+      value: Number(value),
+      appliesTo: String(appliesTo) as DiscountAppliesTo,
+      isActive: Boolean(isActive),
       negocioId: session.user.negocio.id,
       createdBy: session.user.id,
+      conditions: undefined,
+      startDate: null,
+      endDate: null,
     };
 
-    if (conditions && typeof conditions === "object") data.conditions = conditions;
-    if (startDate !== undefined) data.startDate = parseDateOnly(startDate);
-    if (endDate !== undefined) data.endDate = parseDateOnly(endDate);
+    if (conditions && typeof conditions === "object") data.conditions = conditions as Prisma.InputJsonValue;
+    if (startDate !== undefined) data.startDate = parseDateOnly(startDate as string | Date);
+    if (endDate !== undefined) data.endDate = parseDateOnly(endDate as string | Date);
 
     const created = await prisma.discountRule.create({ data });
     return NextResponse.json(created, { status: 201 });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Error al crear la regla" }, { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Error al crear la regla";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -93,28 +96,29 @@ export async function PATCH(req: NextRequest) {
     if (!session?.user?.negocio?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
-    const body = await req.json();
-    const { id, ...patch } = body || {};
+    const body: unknown = await req.json();
+    const { id, ...patch } = (body as Record<string, unknown>) || {};
     if (!id) return NextResponse.json({ error: "Falta id" }, { status: 400 });
 
     // Verificar pertenencia al negocio
     const exists = await prisma.discountRule.findFirst({ where: { id, negocioId: session.user.negocio.id } });
     if (!exists) return NextResponse.json({ error: "Regla no encontrada" }, { status: 404 });
 
-    const data: any = {};
-    if (patch.name !== undefined) data.name = patch.name;
-    if (patch.type !== undefined) data.type = patch.type;
-    if (patch.value !== undefined) data.value = Number(patch.value);
-    if (patch.appliesTo !== undefined) data.appliesTo = patch.appliesTo;
-    if (patch.isActive !== undefined) data.isActive = !!patch.isActive;
-    if (patch.conditions !== undefined) data.conditions = patch.conditions;
-    if (patch.startDate !== undefined) data.startDate = patch.startDate ? parseDateOnly(patch.startDate) : null;
-    if (patch.endDate !== undefined) data.endDate = patch.endDate ? parseDateOnly(patch.endDate) : null;
+    const data: Prisma.DiscountRuleUncheckedUpdateInput = {};
+    if (Object.prototype.hasOwnProperty.call(patch, "name")) data.name = patch.name as string;
+    if (Object.prototype.hasOwnProperty.call(patch, "type")) data.type = patch.type as DiscountType;
+    if (Object.prototype.hasOwnProperty.call(patch, "value")) data.value = Number(patch.value as number);
+    if (Object.prototype.hasOwnProperty.call(patch, "appliesTo")) data.appliesTo = patch.appliesTo as DiscountAppliesTo;
+    if (Object.prototype.hasOwnProperty.call(patch, "isActive")) data.isActive = Boolean(patch.isActive);
+    if (Object.prototype.hasOwnProperty.call(patch, "conditions")) data.conditions = patch.conditions as Prisma.InputJsonValue;
+    if (Object.prototype.hasOwnProperty.call(patch, "startDate")) data.startDate = patch.startDate ? parseDateOnly(patch.startDate as string | Date) : null;
+    if (Object.prototype.hasOwnProperty.call(patch, "endDate")) data.endDate = patch.endDate ? parseDateOnly(patch.endDate as string | Date) : null;
 
     const updated = await prisma.discountRule.update({ where: { id }, data });
     return NextResponse.json(updated);
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Error al actualizar la regla" }, { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Error al actualizar la regla";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -130,8 +134,8 @@ export async function DELETE(req: NextRequest) {
     let id = idFromQuery;
     if (!id) {
       try {
-        const body = await req.json();
-        id = body?.id;
+        const body: unknown = await req.json();
+        id = (body as { id?: string })?.id;
       } catch {}
     }
     if (!id) return NextResponse.json({ error: "Falta id" }, { status: 400 });
@@ -146,7 +150,8 @@ export async function DELETE(req: NextRequest) {
       prisma.discountRule.delete({ where: { id } })
     ]);
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Error al eliminar la regla" }, { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Error al eliminar la regla";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

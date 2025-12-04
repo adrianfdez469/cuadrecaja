@@ -15,7 +15,8 @@ export async function GET() {
       prisma.categoria.findMany({ where: { negocioId }, select: { id: true, nombre: true } }),
     ]);
     return NextResponse.json({ products, categories });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Error cargando opciones' }, { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Error cargando opciones';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
