@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   Grid,
   IconButton,
   InputLabel,
@@ -20,6 +21,7 @@ import {
   Switch,
   TextField,
   Typography,
+  Divider,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/DeleteOutline";
@@ -304,139 +306,154 @@ export default function DiscountsPage() {
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
         <DialogTitle>{editingId ? "Editar Regla de Descuento" : "Nueva Regla de Descuento"}</DialogTitle>
         <DialogContent>
-          <Stack mt={1} spacing={2}>
-            <TextField
-              label="Nombre"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              fullWidth
-            />
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Tipo</InputLabel>
+          <Grid container mt={1} spacing={3}>
+
+            <Grid item xs={12}>
+              <TextField
+                label="Nombre"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Tipo</InputLabel>
+                <Select
+                  label="Tipo"
+                  value={form.type}
+                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as DiscountType }))}
+                >
+                  <MenuItem value="PERCENTAGE">Porcentaje</MenuItem>
+                  <MenuItem value="FIXED">Monto fijo</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label={form.type === "PERCENTAGE" ? "Porcentaje (%)" : "Monto"}
+                type="number"
+                value={form.value}
+                onChange={(e) => setForm((f) => ({ ...f, value: Number(e.target.value) }))}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Ámbito</InputLabel>
+                <Select
+                  label="Ámbito"
+                  value={form.appliesTo}
+                  onChange={(e) => setForm((f) => ({ ...f, appliesTo: e.target.value as DiscountAppliesTo }))}
+                >
+                  <MenuItem value="TICKET">Ticket</MenuItem>
+                  <MenuItem value="PRODUCT">Producto</MenuItem>
+                  <MenuItem value="CATEGORY">Categoría</MenuItem>
+                  <MenuItem value="CUSTOMER">Cliente</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Código promocional (opcional)"
+                value={form.code}
+                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+
+            {/* Selección de Productos/Categorías según ámbito */}
+            {form.appliesTo === 'PRODUCT' && (
+              <Grid item xs={12}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="product-select-label">Productos</InputLabel>
                   <Select
-                    label="Tipo"
-                    value={form.type}
-                    onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as DiscountType }))}
+                    labelId="product-select-label"
+                    multiple
+                    value={form.productIds}
+                    label="Productos"
+                    onChange={(e) => setForm((f) => ({ ...f, productIds: (e.target.value as string[]) }))}
+                    renderValue={(selected) => (selected as string[]).map(id => options.products.find(p => p.id === id)?.nombre || id).join(', ')}
                   >
-                    <MenuItem value="PERCENTAGE">Porcentaje</MenuItem>
-                    <MenuItem value="FIXED">Monto fijo</MenuItem>
+                    {options.products.map((p) => (
+                      <MenuItem key={p.id} value={p.id}>{p.nombre}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label={form.type === "PERCENTAGE" ? "Porcentaje (%)" : "Monto"}
-                  type="number"
-                  value={form.value}
-                  onChange={(e) => setForm((f) => ({ ...f, value: Number(e.target.value) }))}
-                  fullWidth
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Ámbito</InputLabel>
+            )}
+            {form.appliesTo === 'CATEGORY' && (
+              <Grid item xs={12}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="category-select-label">Categorías</InputLabel>
                   <Select
-                    label="Ámbito"
-                    value={form.appliesTo}
-                    onChange={(e) => setForm((f) => ({ ...f, appliesTo: e.target.value as DiscountAppliesTo }))}
+                    labelId="category-select-label"
+                    multiple
+                    value={form.categoryIds}
+                    label="Categorías"
+                    onChange={(e) => setForm((f) => ({ ...f, categoryIds: (e.target.value as string[]) }))}
+                    renderValue={(selected) => (selected as string[]).map(id => options.categories.find(c => c.id === id)?.nombre || id).join(', ')}
                   >
-                    <MenuItem value="TICKET">Ticket</MenuItem>
-                    <MenuItem value="PRODUCT">Producto</MenuItem>
-                    <MenuItem value="CATEGORY">Categoría</MenuItem>
-                    <MenuItem value="CUSTOMER">Cliente</MenuItem>
+                    {options.categories.map((c) => (
+                      <MenuItem key={c.id} value={c.id}>{c.nombre}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Typography>Inactivo</Typography>
-                  <Switch
-                    checked={form.isActive}
-                    onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-                  />
-                  <Typography>Activo</Typography>
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Código promocional (opcional)"
-                  value={form.code}
-                  onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
-                  fullWidth
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
+            )}
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Inicio"
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                fullWidth
+                size="small"
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Fin"
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                fullWidth
+                size="small"
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
                   label="Monto mínimo (opcional)"
                   type="number"
                   value={form.minTotal}
                   onChange={(e) => setForm((f) => ({ ...f, minTotal: e.target.value }))}
                   fullWidth
-                />
-              </Grid>
-              {/* Selección de Productos/Categorías según ámbito */}
-              {form.appliesTo === 'PRODUCT' && (
-                <Grid item xs={12}>
-                  <FormControl fullWidth>
-                    <InputLabel id="product-select-label">Productos</InputLabel>
-                    <Select
-                      labelId="product-select-label"
-                      multiple
-                      value={form.productIds}
-                      label="Productos"
-                      onChange={(e) => setForm((f) => ({ ...f, productIds: (e.target.value as string[]) }))}
-                      renderValue={(selected) => (selected as string[]).map(id => options.products.find(p => p.id === id)?.nombre || id).join(', ')}
-                    >
-                      {options.products.map((p) => (
-                        <MenuItem key={p.id} value={p.id}>{p.nombre}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-              )}
-              {form.appliesTo === 'CATEGORY' && (
-                <Grid item xs={12}>
-                  <FormControl fullWidth>
-                    <InputLabel id="category-select-label">Categorías</InputLabel>
-                    <Select
-                      labelId="category-select-label"
-                      multiple
-                      value={form.categoryIds}
-                      label="Categorías"
-                      onChange={(e) => setForm((f) => ({ ...f, categoryIds: (e.target.value as string[]) }))}
-                      renderValue={(selected) => (selected as string[]).map(id => options.categories.find(c => c.id === id)?.nombre || id).join(', ')}
-                    >
-                      {options.categories.map((c) => (
-                        <MenuItem key={c.id} value={c.id}>{c.nombre}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-              )}
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Inicio"
-                  type="date"
-                  value={form.startDate}
-                  onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  label="Fin"
-                  type="date"
-                  value={form.endDate}
-                  onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
+                  size="small"
+              />
             </Grid>
-          </Stack>
+
+
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.isActive}
+                    onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                    color="primary"
+                  />
+                }
+                label={form.isActive ? 'Activo' : 'Inactivo'}
+              />
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
