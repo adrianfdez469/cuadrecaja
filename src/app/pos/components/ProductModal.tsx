@@ -23,7 +23,7 @@ export function ProductModal({
   openCart,
 }) {
   const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
-  const { items } = useCartStore();
+  const { getCartQuantity } = useCartStore();
 
 
 
@@ -41,9 +41,6 @@ export function ProductModal({
     closeModal();
   };
 
-  const getCartQuantity = (productoTiendaId: string) => {
-    return items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
-  };
 
   return (
     <>

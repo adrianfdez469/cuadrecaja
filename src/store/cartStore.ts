@@ -34,6 +34,7 @@ interface CartState {
   renameActiveCart: (name: string) => void;
   renameCart: (id: string, name: string) => void;
   removeActiveCart: () => void;
+  getCartQuantity: (productoTiendaId: string) => number;
 }
 
 // Helpers
@@ -66,6 +67,11 @@ export const useCartStore = create<CartState>()(
           items: cart.items,
           total: cart.total,
         });
+      },
+
+      getCartQuantity: (productoTiendaId: string) => {
+        const state = get();
+        return state.items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
       },
 
       createCart: (name) => {
