@@ -3,6 +3,27 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/utils/authOptions";
 
+// Parseador seguro para fechas tipo "YYYY-MM-DD" evitando desfases por zona horaria.
+// new Date('YYYY-MM-DD') interpreta en UTC y puede restar un día al mostrarse en local.
+// Construimos una fecha local a las 12:00 para esquivar cambios por DST.
+function parseDateOnly(value?: string | null): Date | null {
+  if (!value) return null;
+  // Aceptar también Date y otros formatos, pero priorizar cadena YYYY-MM-DD
+  if (value instanceof Date as any) {
+    return value as unknown as Date;
+  }
+  const m = String(value).match(/^\s*(\d{4})-(\d{2})-(\d{2})\s*$/);
+  if (m) {
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    const d = Number(m[3]);
+    return new Date(y, mo, d, 12, 0, 0, 0); // mediodía local
+  }
+  // Fallback: intentar parseo estándar
+  const dt = new Date(value);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
 // Listar reglas de descuento
 export async function GET() {
   try {
@@ -55,8 +76,8 @@ export async function POST(req: NextRequest) {
     };
 
     if (conditions && typeof conditions === "object") data.conditions = conditions;
-    if (startDate) data.startDate = new Date(startDate);
-    if (endDate) data.endDate = new Date(endDate);
+    if (startDate !== undefined) data.startDate = parseDateOnly(startDate);
+    if (endDate !== undefined) data.endDate = parseDateOnly(endDate);
 
     const created = await prisma.discountRule.create({ data });
     return NextResponse.json(created, { status: 201 });
@@ -87,8 +108,8 @@ export async function PATCH(req: NextRequest) {
     if (patch.appliesTo !== undefined) data.appliesTo = patch.appliesTo;
     if (patch.isActive !== undefined) data.isActive = !!patch.isActive;
     if (patch.conditions !== undefined) data.conditions = patch.conditions;
-    if (patch.startDate !== undefined) data.startDate = patch.startDate ? new Date(patch.startDate) : null;
-    if (patch.endDate !== undefined) data.endDate = patch.endDate ? new Date(patch.endDate) : null;
+    if (patch.startDate !== undefined) data.startDate = patch.startDate ? parseDateOnly(patch.startDate) : null;
+    if (patch.endDate !== undefined) data.endDate = patch.endDate ? parseDateOnly(patch.endDate) : null;
 
     const updated = await prisma.discountRule.update({ where: { id }, data });
     return NextResponse.json(updated);
