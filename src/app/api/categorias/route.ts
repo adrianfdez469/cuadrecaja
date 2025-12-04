@@ -1,12 +1,27 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from "@/utils/auth";
+import { getSessionFromRequest } from "@/utils/authFromRequest";
 import { verificarPermisoUsuario } from '@/utils/permisos_back';
 
 // Obtener todas las categorías
-export async function GET() {
-  try {
-    const session = await getSession();
+export async function GET(request: NextRequest) {
+  try {console.log('request', request);
+    // Intentar obtener sesión desde cookies (web) o headers (Flutter)
+    let session = await getSession();
+    
+    // Si no hay sesión por cookies, intentar desde headers (para Flutter)
+    if (!session) {
+      session = await getSessionFromRequest(request);
+    }
+    console.log(session);
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: 'No autenticado. Debes iniciar sesión.' },
+        { status: 401 }
+      );
+    }
+    
     const user = session.user;
 
     const categorias = await prisma.categoria.findMany({
@@ -25,10 +40,23 @@ export async function GET() {
 }
 
 // Crear una nueva categoría
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-
-    const session = await getSession();
+    // Intentar obtener sesión desde cookies (web) o headers (Flutter)
+    let session = await getSession();
+    
+    // Si no hay sesión por cookies, intentar desde headers (para Flutter)
+    if (!session) {
+      session = await getSessionFromRequest(request);
+    }
+    
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: 'No autenticado. Debes iniciar sesión.' },
+        { status: 401 }
+      );
+    }
+    
     const user = session.user;
 
     if (!verificarPermisoUsuario(user.permisos, "configuracion.categorias.acceder", user.rol)) {

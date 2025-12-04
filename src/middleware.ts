@@ -2,10 +2,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { subscriptionMiddleware } from './middleware/subscriptionCheck'
+import { handleCorsMiddleware, addCorsHeaders } from './middleware/cors'
 
 export async function middleware(req: NextRequest) {
   try {
     const { pathname } = req.nextUrl;
+    const origin = req.headers.get('origin');
+    
+    // 🌐 CORS: Manejar preflight requests (OPTIONS)
+    const corsResponse = handleCorsMiddleware(req);
+    if (corsResponse) return corsResponse;
     
     // Primero verificar autenticación y agregar headers de usuario
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
@@ -39,28 +45,35 @@ export async function middleware(req: NextRequest) {
 
       // Ahora verificar el estado de suscripción para rutas de páginas (no APIs)
       if (!pathname.startsWith('/api/')) {
-        return await subscriptionMiddleware(requestWithHeaders);
+        const response = await subscriptionMiddleware(requestWithHeaders);
+        return addCorsHeaders(response, origin);
       }
 
-      // Para APIs, solo pasar los headers
-      return NextResponse.next({
+      // Para APIs, solo pasar los headers + CORS
+      const response = NextResponse.next({
         request: {
           headers: requestHeaders,
         },
       });
+      return addCorsHeaders(response, origin);
     }
 
     // Si no hay token, verificar si es una ruta que requiere verificación de suscripción
     if (!pathname.startsWith('/api/')) {
-      return await subscriptionMiddleware(req);
+      const response = await subscriptionMiddleware(req);
+      return addCorsHeaders(response, origin);
     }
 
-    return NextResponse.next()
+    // Para cualquier otra ruta, agregar CORS
+    const response = NextResponse.next();
+    return addCorsHeaders(response, origin);
     
   } catch (error) {
     console.error('❌ [MIDDLEWARE] Error crítico en middleware:', error);
     // En caso de error crítico, permitir que la petición continúe sin headers de usuario
-    return NextResponse.next();
+    const response = NextResponse.next();
+    const origin = req.headers.get('origin');
+    return addCorsHeaders(response, origin);
   }
 }
 

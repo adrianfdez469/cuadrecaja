@@ -502,18 +502,18 @@ export default function LoginPage() {
                         </Box>
                       </Alert>
                     ) : (
-                      <Alert 
-                        severity="error" 
-                        sx={{ 
-                          mb: 3,
-                          borderRadius: 2,
-                          "& .MuiAlert-message": {
-                            fontSize: "0.875rem",
-                          }
-                        }}
-                      >
-                        {error}
-                      </Alert>
+                  <Alert 
+                    severity="error" 
+                    sx={{ 
+                      mb: 3,
+                      borderRadius: 2,
+                      "& .MuiAlert-message": {
+                        fontSize: "0.875rem",
+                      }
+                    }}
+                  >
+                    {error}
+                  </Alert>
                     )}
                   </>
                 )}
