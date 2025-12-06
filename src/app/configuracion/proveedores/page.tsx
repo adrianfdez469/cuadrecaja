@@ -196,7 +196,7 @@ export default function Proveedores() {
   const proveedoresConUsuario = proveedores.filter(p => p.usuarioId).length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Configuración', href: '/configuracion' },
     { label: 'Proveedores' }
   ];

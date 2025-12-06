@@ -85,7 +85,8 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
           syncObj.transferDestinationId,
           syncObj.createdAt, // 🆕 Usar timestamp de la venta
           syncObj.wasOffline, // 🆕 Usar estado offline de la venta
-          syncObj.syncAttempts // 🆕 Enviar intentos de sincronización
+          syncObj.syncAttempts, // 🆕 Enviar intentos de sincronización
+          syncObj.discountCodes // 🆕 Reenviar códigos de descuento si existen
         );
         markSynced(syncObj.identifier, ventaDb.id);
         setOffline(false);
@@ -134,7 +135,8 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
         syncObj.transferDestinationId,
         syncObj.createdAt, // 🆕 Usar timestamp de la venta
         syncObj.wasOffline, // 🆕 Usar estado offline de la venta
-        syncObj.syncAttempts // 🆕 Enviar intentos de sincronización
+        syncObj.syncAttempts, // 🆕 Enviar intentos de sincronización
+        syncObj.discountCodes // 🆕 Reenviar códigos de descuento si existen
       );
       markSynced(syncObj.identifier, ventaDb.id);
       setOffline(false);

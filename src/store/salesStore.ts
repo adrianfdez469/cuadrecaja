@@ -22,6 +22,8 @@ export interface Sale {
   createdAt: number; // Timestamp exacto de creación de la venta
   wasOffline: boolean; // Si la venta se creó sin conexión
   syncAttempts: number; // Contador de intentos de sincronización
+  // 🆕 Códigos de descuento aplicados en la venta (para sincronización)
+  discountCodes?: string[];
 }
 
 export interface Products {

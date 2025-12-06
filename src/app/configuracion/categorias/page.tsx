@@ -143,7 +143,7 @@ export default function CategoriasPage() {
   const categoriasVisibles = filteredCategories.length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Configuración', href: '/configuracion' },
     { label: 'Categorías' }
   ];

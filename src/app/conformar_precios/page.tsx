@@ -264,7 +264,7 @@ const PreciosCantidades = () => {
       <PageContainer
         title="Costos y Precios"
         breadcrumbs={[
-          { label: 'Inicio', href: '/' },
+          { label: 'Inicio', href: '/home' },
           { label: 'Costos y Precios' }
         ]}
       >
@@ -281,7 +281,7 @@ const PreciosCantidades = () => {
   }
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Conformar Precios' }
   ];
 

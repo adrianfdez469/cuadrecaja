@@ -236,7 +236,7 @@ export default function Locales() {
   const localesSinUsuarios = locales.filter(t => t.usuarios.length === 0).length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Configuración', href: '/configuracion' },
     { label: 'Locales' }
   ];

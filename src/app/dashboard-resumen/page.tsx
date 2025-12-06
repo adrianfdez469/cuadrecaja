@@ -163,7 +163,7 @@ export default function DashboardResumenPage() {
     return (
       <PageContainer
         title="Resumen del Negocio"
-        breadcrumbs={[{ label: 'Inicio', href: '/' }, { label: 'Resumen del Negocio' }]}
+        breadcrumbs={[{ label: 'Inicio', href: '/home' }, { label: 'Resumen del Negocio' }]}
       >
         <Alert severity="warning">
           Selecciona una tienda para ver las métricas del dashboard
@@ -173,7 +173,7 @@ export default function DashboardResumenPage() {
   }
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Resumen del Negocio' }
   ];
 

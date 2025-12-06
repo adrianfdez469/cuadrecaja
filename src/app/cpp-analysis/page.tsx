@@ -190,7 +190,7 @@ export default function CPPAnalysisPage() {
       <PageContainer
         title="Análisis de Costo Promedio Ponderado"
         breadcrumbs={[
-          { label: 'Inicio', href: '/' },
+          { label: 'Inicio', href: '/home' },
           { label: 'Análisis CPP' }
         ]}
       >
@@ -209,7 +209,7 @@ export default function CPPAnalysisPage() {
       <PageContainer
         title="Análisis de Costo Promedio Ponderado"
         breadcrumbs={[
-          { label: 'Inicio', href: '/' },
+          { label: 'Inicio', href: '/home' },
           { label: 'Análisis CPP' }
         ]}
       >
@@ -238,7 +238,7 @@ export default function CPPAnalysisPage() {
     <PageContainer
       title="Análisis de Costo Promedio Ponderado"
       breadcrumbs={[
-        { label: 'Inicio', href: '/' },
+        { label: 'Inicio', href: '/home' },
         { label: 'Análisis CPP' }
       ]}
     >

@@ -278,6 +278,9 @@ export default function ResumenCierrePage() {
         productosVendidos: cierreData.productosVendidos,
         totalGanancia: itemCierre.totalGanancia,
         totalVentas: itemCierre.totalVentas,
+        // Incluir métricas ampliadas necesarias en el Drawer
+        totalVentasBrutas: cierreData.totalVentasBrutas ?? 0,
+        totalDescuentos: cierreData.totalDescuentos ?? 0,
         totalTransferencia: itemCierre.totalTransferencia,
         totalVentasPropias: itemCierre.totalVentasPropias,
         totalVentasConsignacion: itemCierre.totalVentasConsignacion,
@@ -345,7 +348,7 @@ export default function ResumenCierrePage() {
   );
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Resumen de Cierres' }
   ];
 
@@ -404,7 +407,7 @@ export default function ResumenCierrePage() {
             </Button>
             <Button
               variant="outlined"
-              onClick={() => gotToPath("/")}
+              onClick={() => gotToPath("/home")}
             >
               Volver al Inicio
             </Button>
@@ -499,6 +502,30 @@ export default function ResumenCierrePage() {
                         color="warning.light"
                     />
                 </Grid>
+
+                {/* Ventas Brutas acumuladas (suma de precio*cantidad) */}
+                {typeof data.sumTotalVentasBrutas === 'number' && (
+                  <Grid item xs={12} sm={6} md={4}>
+                    <StatCard
+                      icon={<AttachMoney fontSize={"medium"} />}
+                      value={formatCurrency(data.sumTotalVentasBrutas || 0)}
+                      label="Total Ventas (Bruto)"
+                      color="success.light"
+                    />
+                  </Grid>
+                )}
+
+                {/* Total de Descuentos del intervalo */}
+                {typeof data.sumTotalDescuentos === 'number' && (data.sumTotalDescuentos || 0) > 0 && (
+                  <Grid item xs={12} sm={6} md={4}>
+                    <StatCard
+                      icon={<TrendingUp fontSize={"medium"} />}
+                      value={formatCurrency(data.sumTotalDescuentos || 0)}
+                      label="Descuentos (intervalo)"
+                      color="error.light"
+                    />
+                  </Grid>
+                )}
 
                 <Grid item xs={12} sm={6} md={4}>
                     <Card sx={{ height: '100%' }}>
@@ -636,9 +663,30 @@ export default function ResumenCierrePage() {
                                       {formatCurrency(row.totalVentas)}
                                     </Typography>
                                   </Grid>
+                                  {/* Bruto y Descuentos por cierre (si están disponibles) */}
+                                  {typeof row.totalVentasBrutas === 'number' && (
+                                    <Grid item xs={6}>
+                                      <Typography variant="caption" color="text.secondary">
+                                        Bruto
+                                      </Typography>
+                                      <Typography variant="body2" fontWeight="medium" color="success.main">
+                                        {formatCurrency(row.totalVentasBrutas || 0)}
+                                      </Typography>
+                                    </Grid>
+                                  )}
+                                  {typeof row.totalDescuentos === 'number' && (
+                                    <Grid item xs={6}>
+                                      <Typography variant="caption" color="text.secondary">
+                                        Descuentos
+                                      </Typography>
+                                      <Typography variant="body2" fontWeight="medium" color="error.main">
+                                        - {formatCurrency(row.totalDescuentos || 0)}
+                                      </Typography>
+                                    </Grid>
+                                  )}
                                   <Grid item xs={6}>
                                     <Typography variant="caption" color="text.secondary">
-                                      Ganancia
+                                      Gananciaa
                                     </Typography>
                                     <Typography variant="body2" fontWeight="medium" color="info.main">
                                       {formatCurrency(row.totalGanancia)}
@@ -710,8 +758,11 @@ export default function ResumenCierrePage() {
                           <TableCell>Fin</TableCell>
                           <TableCell align="right">Inversión</TableCell>
                           <TableCell align="right">Venta</TableCell>
+                          {/* Nuevas columnas: Bruto y Descuentos */}
+                          <TableCell align="right">Bruto</TableCell>
+                          <TableCell align="right">Descuentos</TableCell>
                           <TableCell align="right">Transf</TableCell>
-                          <TableCell align="right">Ganancia</TableCell>
+                          <TableCell align="right">Gananciaa</TableCell>
                           {/* NUEVAS COLUMNAS PARA CONSIGNACIÓN */}
                           <TableCell align="right">
                             <StoreIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
@@ -755,6 +806,17 @@ export default function ResumenCierrePage() {
                               <TableCell align="right">
                                 <Typography variant="body2" fontWeight="medium" color="success.main">
                                   {formatCurrency(row.totalVentas)}
+                                </Typography>
+                              </TableCell>
+                              {/* Celdas para Bruto y Descuentos con fallbacks */}
+                              <TableCell align="right">
+                                <Typography variant="body2" color="text.secondary">
+                                  {typeof row.totalVentasBrutas === 'number' ? formatCurrency(row.totalVentasBrutas || 0) : '—'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography variant="body2" color="error.main">
+                                  {typeof row.totalDescuentos === 'number' ? `- ${formatCurrency(row.totalDescuentos || 0)}` : '—'}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right">
@@ -807,6 +869,17 @@ export default function ResumenCierrePage() {
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="success.main">
                               {formatCurrency(totales.venta)}
+                            </Typography>
+                          </TableCell>
+                          {/* Totales de Bruto y Descuentos para alinear con cabecera */}
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight="bold" color="text.secondary">
+                              {formatCurrency(data?.sumTotalVentasBrutas || 0)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight="bold" color="error.main">
+                              - {formatCurrency(data?.sumTotalDescuentos || 0)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
@@ -936,6 +1009,25 @@ export default function ResumenCierrePage() {
                             value={formatCurrency(cierreProducData.ciereData.totalGanancia)}
                             label="Ganancia"
                             color="info.light"
+                        />
+                      </Grid>
+
+                      {/* Bruto y Descuentos del período dentro del detalle usando el mismo StatCard */}
+                      <Grid item xs={6} sm={6} md={3}>
+                        <StatCard
+                          icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
+                          value={formatCurrency((cierreProducData.ciereData.totalVentasBrutas ?? 0))}
+                          label="Total Ventas (Bruto)"
+                          color="success.light"
+                        />
+                      </Grid>
+
+                      <Grid item xs={6} sm={6} md={3}>
+                        <StatCard
+                          icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
+                          value={formatCurrency((cierreProducData.ciereData.totalDescuentos ?? 0))}
+                          label="Descuentos del Período"
+                          color="error.light"
                         />
                       </Grid>
 

@@ -306,7 +306,7 @@ export default function DashboardPage() {
     return (
       <PageContainer
         title="Dashboard Ejecutivo"
-        breadcrumbs={[{ label: 'Inicio', href: '/' }, { label: 'Dashboard' }]}
+        breadcrumbs={[{ label: 'Inicio', href: '/home' }, { label: 'Dashboard' }]}
       >
         <Alert severity="warning">
           Selecciona una tienda para ver las métricas del dashboard
@@ -316,7 +316,7 @@ export default function DashboardPage() {
   }
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Dashboard Ejecutivo' }
   ];
 

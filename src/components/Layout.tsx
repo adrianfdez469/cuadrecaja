@@ -78,6 +78,7 @@ import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
 import { Avatar } from "@mui/material";
+import LocalOffer from "@mui/icons-material/LocalOffer";
 
 const CONFIGURATION_MENU_ITEMS = [
   {
@@ -121,6 +122,12 @@ const CONFIGURATION_MENU_ITEMS = [
     path: "/configuracion/proveedores",
     icon: LocalShipping,
     permission: 'configuracion.proveedores.acceder'
+  },
+  {
+    label: "Descuentos",
+    path: "/configuracion/descuentos",
+    icon: LocalOffer,
+    permission: '*'
   },
   {
     label: "Destinos de Transferencia",
