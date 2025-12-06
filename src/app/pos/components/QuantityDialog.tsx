@@ -232,7 +232,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
             Precio: ${productoTienda.precio}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Disponiblessss: {productoTienda.producto.unidadesPorFraccion || productoTienda.existencia}
+            Disponibles: {productoTienda.producto.unidadesPorFraccion || productoTienda.existencia}
           </Typography>
 
 
