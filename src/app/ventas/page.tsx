@@ -184,7 +184,7 @@ const Ventas = () => {
       <PageContainer
         title="Ventas"
         breadcrumbs={[
-          { label: 'Inicio', href: '/' },
+          { label: 'Inicio', href: '/home' },
           { label: 'Ventas' }
         ]}
       >
@@ -213,14 +213,16 @@ const Ventas = () => {
     );
   }
 
+  const breadcrumbs = [
+    { label: 'Inicio', href: '/home' },
+    { label: 'Ventas' }
+  ];
+
   if (noPeriodFound) {
     return (
       <PageContainer
         title="Ventas"
-        breadcrumbs={[
-          { label: 'Inicio', href: '/' },
-          { label: 'Ventas' }
-        ]}
+        breadcrumbs={breadcrumbs}
       >
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="h6" gutterBottom>
@@ -247,10 +249,7 @@ const Ventas = () => {
     );
   }
 
-  const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
-    { label: 'Ventas' }
-  ];
+  
 
   const headerActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">

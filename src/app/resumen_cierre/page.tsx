@@ -348,7 +348,7 @@ export default function ResumenCierrePage() {
   );
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Resumen de Cierres' }
   ];
 
@@ -407,7 +407,7 @@ export default function ResumenCierrePage() {
             </Button>
             <Button
               variant="outlined"
-              onClick={() => gotToPath("/")}
+              onClick={() => gotToPath("/home")}
             >
               Volver al Inicio
             </Button>

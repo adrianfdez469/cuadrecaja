@@ -171,7 +171,7 @@ export default function PlanesPage() {
   const currentPlan = getCurrentPlan();
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Configuración', href: '/configuracion' },
     { label: 'Planes y Suscripción' }
   ];

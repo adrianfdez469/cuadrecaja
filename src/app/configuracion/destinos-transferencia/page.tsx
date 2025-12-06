@@ -154,7 +154,7 @@ export default function DestinosTransferenciaPage() {
   const destinationsVisible = filteredDestinations.length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Configuración', href: '/configuracion' },
     { label: 'Destinos de Transferencia' }
   ];

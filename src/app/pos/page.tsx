@@ -731,7 +731,7 @@ export default function POSInterface() {
                   "No puede comenzar a vender si no tiene un período abierto",
                   "warning"
                 );
-                gotToPath("/");
+                gotToPath("/home");
               }
             );
           } else {

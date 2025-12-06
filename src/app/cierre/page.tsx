@@ -197,7 +197,7 @@ const CierreCajaPage = () => {
   );
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Cierre de Caja' }
   ];
 
@@ -256,7 +256,7 @@ const CierreCajaPage = () => {
             </Button>
             <Button
               variant="outlined"
-              onClick={() => gotToPath("/")}
+              onClick={() => gotToPath("/home")}
             >
               Volver al Inicio
             </Button>

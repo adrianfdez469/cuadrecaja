@@ -282,7 +282,7 @@ export default function MovimientosPage() {
       <PageContainer
         title="Movimientos de Stock"
         breadcrumbs={[
-          { label: 'Inicio', href: '/' },
+          { label: 'Inicio', href: '/home' },
           { label: 'Movimientos' }
         ]}
       >
@@ -312,7 +312,7 @@ export default function MovimientosPage() {
   }
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Movimientos' }
   ];
 
