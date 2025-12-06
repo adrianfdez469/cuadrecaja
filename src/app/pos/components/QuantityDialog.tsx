@@ -23,7 +23,8 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
   }, [productoTienda]);
 
   // Incremento para productos que permiten decimales
-  const increaseDecimal = () => {
+  const increaseWithPrecision = (hundredths: boolean = false) => {
+    const increment = hundredths ? 0.01 : 0.1;
     if (productoTienda) {
       let maxQuantity = 0;
       const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
@@ -31,26 +32,27 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
       if (cartQuantity > 0) {
         maxQuantity = (
           productoTienda.producto.unidadesPorFraccion > 0
-            ? productoTienda.producto.unidadesPorFraccion - 0.1
+            ? productoTienda.producto.unidadesPorFraccion - increment
             : productoTienda.existencia) - cartQuantity;
       } else {
         maxQuantity = productoTienda.producto.unidadesPorFraccion
-          ? productoTienda.producto.unidadesPorFraccion - 0.1
+          ? productoTienda.producto.unidadesPorFraccion - increment
           : productoTienda.existencia;
       }
 
       if (quantity < maxQuantity) {
         setDirection('up');
-        setQuantity(Math.round((quantity + 0.1) * 10) / 10); // Redondear a 1 decimal
+        setQuantity(Math.round((quantity + increment) * 100) / 100); // Redondear a 2 decimales
       }
     }
   };
 
   // Decremento para productos que permiten decimales
-  const decreaseDecimal = () => {
-    if (quantity > 0.1) {
+  const decreaseWithPrecision = (hundredths: boolean = false) => {
+    const decrease = hundredths ? 0.01 : 0.1;
+    if (quantity > decrease) {
       setDirection('down');
-      setQuantity(Math.round((quantity - 0.1) * 10) / 10); // Redondear a 1 decimal
+      setQuantity(Math.round((quantity - decrease) * 100) / 100); // Redondear a 1 decimal
     }
   };
 
@@ -358,7 +360,39 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
               <>
                 <Button
                     variant="contained"
-                    onClick={decreaseDecimal}
+                    onClick={()=> decreaseWithPrecision(true)}
+                    disabled={quantity <= 0.01}
+                    sx={{
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        transform: 'scale(1.1)',
+                      },
+                      '&:active': {
+                        transform: 'scale(0.95)',
+                      },
+                    }}
+                >
+                  -0.01
+                </Button>
+                <Button
+                    variant="contained"
+                    onClick={()=> increaseWithPrecision(true)}
+                    disabled={quantity >= (productoTienda?.producto.unidadesPorFraccion || productoTienda?.existencia)}
+                    sx={{
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        transform: 'scale(1.1)',
+                      },
+                      '&:active': {
+                        transform: 'scale(0.95)',
+                      },
+                    }}
+                >
+                  +0.01
+                </Button>
+                <Button
+                    variant="contained"
+                    onClick={()=> decreaseWithPrecision()}
                     disabled={quantity <= 0.1}
                     sx={{
                       transition: 'all 0.2s ease-in-out',
@@ -374,7 +408,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                 </Button>
                 <Button
                     variant="contained"
-                    onClick={increaseDecimal}
+                    onClick={()=> increaseWithPrecision()}
                     disabled={quantity >= (productoTienda?.producto.unidadesPorFraccion || productoTienda?.existencia)}
                     sx={{
                       transition: 'all 0.2s ease-in-out',
