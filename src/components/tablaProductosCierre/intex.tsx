@@ -51,6 +51,8 @@ interface ProductoVendido {
   cantidad: number;
   total: number;
   ganancia: number;
+  // Descuento aplicado específicamente a este producto en el período
+  descuento?: number;
   productoId: string;
   proveedor?: {
     id: string;
@@ -278,12 +280,7 @@ export const TablaProductosCierre: FC<IProps> = ({
       }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-    // Calcular proporción de descuentos para este conjunto cuando sea "Propios"
-    const brutoGlobal = (typeof totalVentasBrutas === 'number' ? totalVentasBrutas : productosVendidos.reduce((a, p) => a + (p.total || 0), 0)) || 0;
-    const descuentosGlobal = (typeof totalDescuentos === 'number' ? totalDescuentos : 0) || 0;
-    const brutoTabla = productos.reduce((acc, p) => acc + (p.total || 0), 0);
-    // Solo prorrateamos para tabla de Propios; para Consignación mantenemos como estaba (pedido del usuario)
-    const descuentosTabla = !isConsignacion && brutoGlobal > 0 ? (descuentosGlobal * (brutoTabla / brutoGlobal)) : 0;
+    // Ya no se prorratea: se muestra el descuento real por producto recibido del backend
 
     return (
       <TableContainer component={Paper} sx={{ mt: 2 }}>
@@ -300,9 +297,9 @@ export const TablaProductosCierre: FC<IProps> = ({
               {!showOnlyCants && (
                 <>
                   <TableCell>Venta</TableCell>
-                  {/* Nueva columna: Descuento (solo para Propios) */}
-                  {!isConsignacion && <TableCell>Descuento</TableCell>}
-                  {/* Ganancia debe ser neta (descontando su parte de descuento) */}
+                  {/* Columna: Descuento real por producto (propios y consignación) */}
+                  <TableCell>Descuento</TableCell>
+                  {/* Ganancia debe ser neta (descontando el descuento real del producto) */}
                   {!showOnlyCants && <TableCell>Ganancia</TableCell>}
                   {!showOnlyCants && <TableCell>Costo</TableCell>}
                   {!showOnlyCants && <TableCell>Precio</TableCell>}
@@ -356,24 +353,14 @@ export const TablaProductosCierre: FC<IProps> = ({
                     {!showOnlyCants && (
                       <>
                         <TableCell>{formatCurrency(producto.total || 0)}</TableCell>
-                        {/* Descuento prorrateado por fila (solo Propios) */}
-                        {!isConsignacion && (
-                          <TableCell>
-                            -{formatCurrency(
-                              brutoTabla > 0 ? ((producto.total || 0) / brutoTabla) * descuentosTabla : 0
-                            )}
-                          </TableCell>
-                        )}
-                        {/* Ganancia neta = ganancia - descuento asignado (solo afecta a Propios en esta tabla) */}
+                        {/* Descuento real del producto */}
+                        <TableCell>
+                          -{formatCurrency(producto.descuento || 0)}
+                        </TableCell>
+                        {/* Ganancia neta = ganancia - descuento real del producto */}
                         {!showOnlyCants && (
                           <TableCell>
-                            {formatCurrency(
-                              (producto.ganancia || 0) - (
-                                !isConsignacion && brutoTabla > 0
-                                  ? ((producto.total || 0) / brutoTabla) * descuentosTabla
-                                  : 0
-                              )
-                            )}
+                            {formatCurrency((producto.ganancia || 0) - (producto.descuento || 0))}
                           </TableCell>
                         )}
                         {!showOnlyCants && (
@@ -844,14 +831,6 @@ export const TablaProductosCierre: FC<IProps> = ({
                     }))
                     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-                  // Definir totales globales para prorrateo de descuentos en la tabla "Todos los Productos"
-                  const brutoGlobal = (
-                    typeof totalVentasBrutas === 'number'
-                      ? totalVentasBrutas
-                      : productosVendidos.reduce((acc, p) => acc + (p.total || 0), 0)
-                  ) || 0;
-                  const descuentosGlobal = (typeof totalDescuentos === 'number' ? totalDescuentos : 0) || 0;
-
                   return gruposOrdenados.map((grupo) =>
                     grupo.items.map((producto, index) => (
                       <TableRow key={`${grupo.productoId}-${index}`}>
@@ -881,20 +860,12 @@ export const TablaProductosCierre: FC<IProps> = ({
                         {!showOnlyCants && (
                           <>
                             <TableCell>{formatCurrency(producto.total || 0)}</TableCell>
-                            {/* Descuento prorrateado global */}
-                            <TableCell>
-                              -{formatCurrency(
-                                brutoGlobal > 0 ? (((producto.total || 0) / brutoGlobal) * descuentosGlobal) : 0
-                              )}
-                            </TableCell>
-                            {/* Ganancia neta */}
+                            {/* Descuento real por producto */}
+                            <TableCell>-{formatCurrency(producto.descuento || 0)}</TableCell>
+                            {/* Ganancia neta usando descuento real */}
                             {!showOnlyCants && (
                               <TableCell>
-                                {formatCurrency(
-                                  (producto.ganancia || 0) - (
-                                    brutoGlobal > 0 ? ((producto.total || 0) / brutoGlobal) * descuentosGlobal : 0
-                                  )
-                                )}
+                                {formatCurrency((producto.ganancia || 0) - (producto.descuento || 0))}
                               </TableCell>
                             )}
                             {!showOnlyCants && (

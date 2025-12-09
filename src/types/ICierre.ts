@@ -24,6 +24,8 @@ interface ICierreProductoVendidos {
   cantidad: number;
   total: number;
   ganancia: number;
+  // Descuento acumulado aplicado específicamente a este producto en el período
+  descuento?: number;
   proveedor?: {
     id: string;
     nombre: string;
