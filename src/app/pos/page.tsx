@@ -1505,8 +1505,8 @@ export default function POSInterface() {
                     >
                       <ListItemText
                         primary={product.producto.nombre}
-                        // secondary={`$${product.precio} - ${product.existencia} disponibles`}
-                        secondary={getSecondaryTextForSearchedProducts(product)}
+                        secondary={`$${product.precio} - ${getSecondaryTextForSearchedProducts(product)} disponibles`}
+                        // secondary={getSecondaryTextForSearchedProducts(product)}
                         primaryTypographyProps={{
                           sx: {
                             fontWeight: product.producto.nombre.toLowerCase().startsWith(searchQuery.toLowerCase())
