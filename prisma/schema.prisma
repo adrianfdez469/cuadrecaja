@@ -225,7 +225,7 @@ model Venta {
 // Tabla intermedia para manejar la relación muchos a muchos entre Venta y ProductoTienda.
 model VentaProducto {
   id               String         @id @default(uuid())
-  venta            Venta          @relation(fields: [ventaId], references: [id]) // Venta asociada
+  venta            Venta          @relation(fields: [ventaId], references: [id], onDelete: Cascade) // Venta asociada
   ventaId          String
   producto         ProductoTienda @relation(fields: [productoTiendaId], references: [id]) // Producto vendido
   productoTiendaId String
@@ -347,7 +347,7 @@ model AppliedDiscount {
   id               String       @id @default(uuid())
   discountRule     DiscountRule @relation(fields: [discountRuleId], references: [id])
   discountRuleId   String
-  venta            Venta        @relation(fields: [ventaId], references: [id])
+  venta            Venta        @relation(fields: [ventaId], references: [id], onDelete: Cascade)
   ventaId          String
   amount           Float // Monto real descontado
   productsAffected Json? // Lista de productos afectados si aplica
