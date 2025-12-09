@@ -199,14 +199,28 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
         }
 
         <Stack spacing={1} mb={2} sx={{ marginTop: 2 }}>
-          <TextField
-            label="Código de descuento"
-            value={promoCode}
-            onChange={(e) => setPromoCode(e.target.value.trim())}
-            onBlur={() => previewDiscount(promoCode ? [promoCode] : undefined)}
-            size="small"
-            fullWidth
-          />
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              label="Código de descuento"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value.trim())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  previewDiscount(promoCode ? [promoCode] : undefined);
+                }
+              }}
+              size="small"
+              fullWidth
+            />
+            <Button
+              variant="contained"
+              onClick={() => previewDiscount(promoCode ? [promoCode] : undefined)}
+              sx={{ minWidth: '100px' }}
+              size="small"
+            >
+              Aplicar
+            </Button>
+          </Box>
           {/* Listado de descuentos aplicados, uno debajo del otro */}
           {applied.length > 0 && (
             <Box>
