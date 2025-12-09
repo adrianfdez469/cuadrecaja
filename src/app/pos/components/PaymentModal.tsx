@@ -26,8 +26,8 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   const { showMessage } = useMessageContext();
   const [transferDestinationId, setTransferDestinationId] = useState(
     transferDestinations.length === 0 ? "" :
-    transferDestinations.length === 1 ? transferDestinations[0].id :
-    transferDestinations.find(destination => destination.default)?.id || transferDestinations[0].id
+      transferDestinations.length === 1 ? transferDestinations[0].id :
+        transferDestinations.find(destination => destination.default)?.id || transferDestinations[0].id
   );
   // Descuentos
   const [promoCode, setPromoCode] = useState("");
@@ -39,7 +39,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     try {
       // Cerrar el modal inmediatamente
       handleClose();
-      
+
       // Ejecutar el pago de forma asíncrona
       // No mostramos notificaciones aquí porque handleMakePay se encarga de eso
       makePay(finalTotal, cashReceived, transferReceived, transferDestinationId, promoCode ? [promoCode] : [])
@@ -50,7 +50,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
           console.error("❌ Error procesando pago:", error);
           // handleMakePay ya maneja las notificaciones de error
         });
-      
+
     } catch (error) {
       console.error("Error en handlePayment:", error);
       showMessage("❌ Error inesperado al iniciar el pago", "error");
@@ -69,25 +69,25 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   }
 
   const handleCashReceived = (cash: string) => {
-    if(validateMoneyInput(cash)){
+    if (validateMoneyInput(cash)) {
       setCashReceived(Number.parseInt(cash));
-    } else if(cash === "") {
+    } else if (cash === "") {
       setCashReceived(0);
     }
   }
-  
+
   const handleTransferReceived = (trasnfer: string) => {
-    if(validateMoneyInput(trasnfer)){
+    if (validateMoneyInput(trasnfer)) {
       setTransferReceived(Number.parseInt(trasnfer));
       setCashReceived(finalTotal - Number.parseInt(trasnfer));
-    } else if(trasnfer === "") {
+    } else if (trasnfer === "") {
       setTransferReceived(0);
       setCashReceived(finalTotal);
     }
   }
 
   useEffect(() => {
-    if(open === true){
+    if (open === true) {
       setCashReceived(finalTotal);
     }
   }, [open, total, finalTotal])
@@ -145,85 +145,109 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
         }}
       >
         <Typography variant="h5" fontWeight="bold" mb={2}>
-          Cobrar: {formatCurrency(finalTotal)}
+          Cobrar:
+          {discountTotal > 0 && (
+            <>
+              <span style={{ textDecoration: 'line-through', color: '#999', marginLeft: '8px' }}>
+                {formatCurrency(total)}
+              </span>
+              {' '}
+            </>
+          )}
+          <span style={{ color: discountTotal > 0 ? '#2e7d32' : 'inherit' }}>
+            {formatCurrency(finalTotal)}
+          </span>
         </Typography>
 
-          
+
         <FormControl fullWidth>
           <InputLabel htmlFor="outlined-adornment-amount">Efectivo</InputLabel>
           <OutlinedInput
             id="outlined-adornment-cash"
-            startAdornment={<InputAdornment position="start"><AttachMoneyIcon/></InputAdornment>}
+            startAdornment={<InputAdornment position="start"><AttachMoneyIcon /></InputAdornment>}
             label="Efectivo"
             value={cashReceived}
             onChange={(e) => handleCashReceived(e.target.value)}
           />
         </FormControl>
 
-        <FormControl fullWidth sx={{marginTop: 2}}>
+        <FormControl fullWidth sx={{ marginTop: 2 }}>
           <InputLabel htmlFor="outlined-adornment-amount">Transferencia</InputLabel>
           <OutlinedInput
             id="outlined-adornment-transfer"
-            startAdornment={<InputAdornment position="start"><CreditCardIcon/></InputAdornment>}
+            startAdornment={<InputAdornment position="start"><CreditCardIcon /></InputAdornment>}
             label="Transferencia"
             value={transferReceived}
             onChange={(e) => handleTransferReceived(e.target.value)}
           />
         </FormControl>
 
-        {transferReceived > 0 && transferDestinations.length > 0 && 
+        {transferReceived > 0 && transferDestinations.length > 0 &&
           <FormControl fullWidth margin="normal">
-          <InputLabel>Local</InputLabel>
-          <Select
-            value={transferDestinationId}
-            onChange={(e) => setTransferDestinationId(e.target.value as string)}
-          >
-            {transferDestinations.map((destination) => (
-              <MenuItem key={destination.id} value={destination.id}>
-                {destination.nombre}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            <InputLabel>Local</InputLabel>
+            <Select
+              value={transferDestinationId}
+              onChange={(e) => setTransferDestinationId(e.target.value as string)}
+            >
+              {transferDestinations.map((destination) => (
+                <MenuItem key={destination.id} value={destination.id}>
+                  {destination.nombre}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         }
 
-        <Stack spacing={1} mb={2} sx={{ marginTop: 2}}>
+        <Stack spacing={1} mb={2} sx={{ marginTop: 2 }}>
           <TextField
-              label="Código de descuento"
-              value={promoCode}
-              onChange={(e) => setPromoCode(e.target.value.trim())}
-              onBlur={() => previewDiscount(promoCode ? [promoCode] : undefined)}
-              size="small"
-              fullWidth
+            label="Código de descuento"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value.trim())}
+            onBlur={() => previewDiscount(promoCode ? [promoCode] : undefined)}
+            size="small"
+            fullWidth
           />
           {/* Listado de descuentos aplicados, uno debajo del otro */}
           {applied.length > 0 && (
-              <Box>
-                {applied.map((d) => (
-                    <Typography key={d.discountRuleId} variant="body2" color="success.main">
-                      {d.ruleName || 'Descuento'}: -{formatCurrency(d.amount)}
-                    </Typography>
-                ))}
-                <Typography variant="body2" fontWeight={600} mt={0.5}>
-                  Total descuentos: -({formatCurrency(discountTotal)})
+            <Box>
+              {applied.map((d) => (
+                <Typography key={d.discountRuleId} variant="body2" color="success.main">
+                  {d.ruleName || 'Descuento'}: -{formatCurrency(d.amount)}
                 </Typography>
-              </Box>
+              ))}
+              <Typography variant="body2" fontWeight={600} mt={0.5}>
+                Total descuentos: -({formatCurrency(discountTotal)})
+              </Typography>
+            </Box>
           )}
-          <Typography variant="h6" mt={2}>Total: {formatCurrency(finalTotal)}</Typography>
+          <Typography variant="h6" mt={2}>
+            Total:
+            {discountTotal > 0 && (
+              <>
+                <span style={{ textDecoration: 'line-through', color: '#999', marginLeft: '8px' }}>
+                  {formatCurrency(total)}
+                </span>
+                {' '}
+              </>
+            )}
+            <span style={{ color: discountTotal > 0 ? '#2e7d32' : 'inherit', fontWeight: discountTotal > 0 ? 600 : 'inherit' }}>
+              {formatCurrency(finalTotal)}
+            </span>
+          </Typography>
           <Typography variant="h6" color="green" mt={1}>
-            Cambio: {formatCurrency(cashReceived+transferReceived - finalTotal)}
+            Cambio: {formatCurrency(cashReceived + transferReceived - finalTotal)}
           </Typography>
         </Stack>
 
 
-        
+
         <Button
           variant="contained"
           color="primary"
           fullWidth
           sx={{ mt: 2 }}
           onClick={handlePayment}
-          disabled={cashReceived+transferReceived < finalTotal}
+          disabled={cashReceived + transferReceived < finalTotal}
         >
           🚀 Confirmar Pago
         </Button>
