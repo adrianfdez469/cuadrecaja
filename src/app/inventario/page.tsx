@@ -170,7 +170,7 @@ export default function InventarioPage() {
   };
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Inventario' }
   ];
 

@@ -24,6 +24,8 @@ interface ICierreProductoVendidos {
   cantidad: number;
   total: number;
   ganancia: number;
+  // Descuento acumulado aplicado específicamente a este producto en el período
+  descuento?: number;
   proveedor?: {
     id: string;
     nombre: string;
@@ -34,6 +36,10 @@ interface ICierreProductoVendidos {
 export interface ICierreData {
   productosVendidos: ICierreProductoVendidos[],
   totalVentas: number;
+  // Suma bruta (precio * cantidad) de todo el período
+  totalVentasBrutas?: number;
+  // Total de descuentos aplicados en el período (suma de Venta.discountTotal)
+  totalDescuentos?: number;
   totalGanancia: number;
   totalTransferencia: number;
   totalVentasPropias?: number;
@@ -53,7 +59,11 @@ export interface ICierreData {
 }
 
 export interface ISummaryCierre {
-  cierres: Omit<ICierrePeriodo, "tienda">[];
+  // Cada cierre puede incluir métricas adicionales calculadas en el backend
+  cierres: Array<Omit<ICierrePeriodo, "tienda"> & {
+    totalVentasBrutas?: number;
+    totalDescuentos?: number;
+  }>;
   sumTotalGanancia: number;
   sumTotalInversion: number;
   sumTotalVentas: number;
@@ -69,6 +79,9 @@ export interface ISummaryCierre {
         transferDestinationId: string,
         _sum: {totaltransfer: number}
       }[];
+  // Totales ampliados
+  sumTotalVentasBrutas?: number;
+  sumTotalDescuentos?: number;
 }
 
 

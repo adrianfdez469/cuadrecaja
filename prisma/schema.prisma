@@ -25,8 +25,11 @@ model Negocio {
   productos   Producto[]
   proveedores Proveedor[]
   roles       Rol[]
-  suspended   Boolean  @default(false)
+  suspended   Boolean     @default(false)
   suspendedAt DateTime?
+
+  // Relación inversa para reglas de descuento
+  discountRules DiscountRule[]
 }
 
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
@@ -69,10 +72,10 @@ model Usuario {
   MovimientoStock MovimientoStock[]
 
   // 🆕 Relación con proveedores asociados
-  proveedores     Proveedor[]       @relation("ProveedorUsuario")
+  proveedores Proveedor[] @relation("ProveedorUsuario")
 
-  negocio         Negocio           @relation(fields: [negocioId], references: [id])
-  negocioId       String            @default("")
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+  negocioId String  @default("")
 
   //tiendaActual    Tienda?            @relation(fields: [tiendaActualId], references: [id])
   //tiendaActualId     String?
@@ -80,7 +83,7 @@ model Usuario {
   localActual   Tienda? @relation(fields: [localActualId], references: [id])
   localActualId String?
 
-  isActive Boolean  @default(true)
+  isActive Boolean @default(true)
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.
@@ -196,6 +199,8 @@ model Venta {
   total         Float // Monto total de la venta
   totalcash     Float // Monto total en efectivo
   totaltransfer Float // Monto en transferencia
+  // 🆕 Total de descuento aplicado (no negativo). Se mantiene separado para trazabilidad
+  discountTotal Float           @default(0)
   tienda        Tienda          @relation(fields: [tiendaId], references: [id]) // Tienda donde se realizó la venta
   tiendaId      String
   usuario       Usuario         @relation(fields: [usuarioId], references: [id])
@@ -212,12 +217,15 @@ model Venta {
   frontendCreatedAt DateTime? // Timestamp exacto cuando se creó la venta en el frontend
   wasOffline        Boolean   @default(false) // Si la venta se creó sin conexión
   syncAttempts      Int       @default(0) // Contador de intentos de sincronización
+
+  // Relación con descuentos aplicados
+  appliedDiscounts AppliedDiscount[]
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Venta y ProductoTienda.
 model VentaProducto {
   id               String         @id @default(uuid())
-  venta            Venta          @relation(fields: [ventaId], references: [id]) // Venta asociada
+  venta            Venta          @relation(fields: [ventaId], references: [id], onDelete: Cascade) // Venta asociada
   ventaId          String
   producto         ProductoTienda @relation(fields: [productoTiendaId], references: [id]) // Producto vendido
   productoTiendaId String
@@ -294,6 +302,61 @@ model MovimientoStock {
   @@index([fecha])
 }
 
+// =====================
+// 🧱 DESCUENTOS (MVP)
+// =====================
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+  PROMO_CODE
+}
+
+enum DiscountAppliesTo {
+  TICKET
+  PRODUCT
+  CATEGORY
+  CUSTOMER
+}
+
+model DiscountRule {
+  id         String            @id @default(uuid())
+  name       String
+  type       DiscountType
+  value      Float // Porcentaje (0-100) o monto fijo, según type
+  appliesTo  DiscountAppliesTo // Ámbito de aplicación
+  conditions Json? // JSON con condiciones: { minTotal, productIds, categoryIds, customerIds, code }
+  startDate  DateTime?
+  endDate    DateTime?
+  isActive   Boolean           @default(true)
+
+  // Contexto de negocio y auditoría
+  createdAt DateTime @default(now())
+  createdBy String?
+  negocio   Negocio? @relation(fields: [negocioId], references: [id])
+  negocioId String?
+
+  applied AppliedDiscount[]
+
+  @@index([isActive])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model AppliedDiscount {
+  id               String       @id @default(uuid())
+  discountRule     DiscountRule @relation(fields: [discountRuleId], references: [id])
+  discountRuleId   String
+  venta            Venta        @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  ventaId          String
+  amount           Float // Monto real descontado
+  productsAffected Json? // Lista de productos afectados si aplica
+  createdAt        DateTime     @default(now())
+
+  @@index([ventaId])
+  @@index([discountRuleId])
+}
+
 // Representa un proveedor del negocio
 model Proveedor {
   id          String   @id @default(uuid())
@@ -308,8 +371,8 @@ model Proveedor {
   negocioId String
 
   // 🆕 Relación opcional con Usuario
-  usuario     Usuario? @relation("ProveedorUsuario", fields: [usuarioId], references: [id])
-  usuarioId   String?
+  usuario   Usuario? @relation("ProveedorUsuario", fields: [usuarioId], references: [id])
+  usuarioId String?
 
   // Relación con movimientos de consignación
   movimientos MovimientoStock[]
@@ -379,18 +442,18 @@ enum MovimientoTipo {
 
 // Modelo para las notificaciones del sistema
 model Notificacion {
-  id                String   @id @default(uuid())
-  titulo            String
-  descripcion       String
-  fechaInicio       DateTime
-  fechaFin          DateTime
-  nivelImportancia  NivelImportancia @default(MEDIA)
-  tipo              TipoNotificacion
-  leidoPor          String   @default("") // Array de userIds separados por coma
-  negociosDestino   String   @default("") // Array de negocioIds separados por coma (vacío = todos)
-  usuariosDestino   String   @default("") // Array de userIds separados por coma (vacío = todos)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String           @id @default(uuid())
+  titulo           String
+  descripcion      String
+  fechaInicio      DateTime
+  fechaFin         DateTime
+  nivelImportancia NivelImportancia @default(MEDIA)
+  tipo             TipoNotificacion
+  leidoPor         String           @default("") // Array de userIds separados por coma
+  negociosDestino  String           @default("") // Array de negocioIds separados por coma (vacío = todos)
+  usuariosDestino  String           @default("") // Array de userIds separados por coma (vacío = todos)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([fechaInicio])
   @@index([fechaFin])

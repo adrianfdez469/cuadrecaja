@@ -51,6 +51,8 @@ interface ProductoVendido {
   cantidad: number;
   total: number;
   ganancia: number;
+  // Descuento aplicado específicamente a este producto en el período
+  descuento?: number;
   productoId: string;
   proveedor?: {
     id: string;
@@ -191,6 +193,9 @@ export const TablaProductosCierre: FC<IProps> = ({
     totalVentas,
     totalGanancia,
     totalTransferencia,
+    // Totales ampliados desde el backend
+    totalVentasBrutas,
+    totalDescuentos,
     totalVentasPropias,
     totalVentasConsignacion,
     totalGananciasPropias,
@@ -275,6 +280,8 @@ export const TablaProductosCierre: FC<IProps> = ({
       }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
+    // Ya no se prorratea: se muestra el descuento real por producto recibido del backend
+
     return (
       <TableContainer component={Paper} sx={{ mt: 2 }}>
         <Table size="small">
@@ -290,6 +297,9 @@ export const TablaProductosCierre: FC<IProps> = ({
               {!showOnlyCants && (
                 <>
                   <TableCell>Venta</TableCell>
+                  {/* Columna: Descuento real por producto (propios y consignación) */}
+                  <TableCell>Descuento</TableCell>
+                  {/* Ganancia debe ser neta (descontando el descuento real del producto) */}
                   {!showOnlyCants && <TableCell>Ganancia</TableCell>}
                   {!showOnlyCants && <TableCell>Costo</TableCell>}
                   {!showOnlyCants && <TableCell>Precio</TableCell>}
@@ -301,7 +311,7 @@ export const TablaProductosCierre: FC<IProps> = ({
           <TableBody>
             {gruposOrdenados.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isConsignacion ? 7 : 6} align="center">
+                <TableCell colSpan={isConsignacion ? 7 : 7} align="center">
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                     No hay productos {isConsignacion ? 'en consignación' : 'propios'} vendidos
                   </Typography>
@@ -343,7 +353,16 @@ export const TablaProductosCierre: FC<IProps> = ({
                     {!showOnlyCants && (
                       <>
                         <TableCell>{formatCurrency(producto.total || 0)}</TableCell>
-                        {!showOnlyCants && <TableCell>{formatCurrency(producto.ganancia || 0)}</TableCell>}
+                        {/* Descuento real del producto */}
+                        <TableCell>
+                          -{formatCurrency(producto.descuento || 0)}
+                        </TableCell>
+                        {/* Ganancia neta = ganancia - descuento real del producto */}
+                        {!showOnlyCants && (
+                          <TableCell>
+                            {formatCurrency((producto.ganancia || 0) - (producto.descuento || 0))}
+                          </TableCell>
+                        )}
                         {!showOnlyCants && (
                           <TableCell>
                             <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
@@ -772,6 +791,9 @@ export const TablaProductosCierre: FC<IProps> = ({
                 {!showOnlyCants && (
                   <>
                     <TableCell>Venta</TableCell>
+                    {/* Nueva columna: Descuento (global) */}
+                    <TableCell>Descuento</TableCell>
+                    {/* Ganancia neta considerando descuentos */}
                     {!showOnlyCants && <TableCell>Ganancia</TableCell>}
                     {!showOnlyCants && <TableCell>Costo</TableCell>}
                     {!showOnlyCants && <TableCell>Precio</TableCell>}
@@ -782,7 +804,7 @@ export const TablaProductosCierre: FC<IProps> = ({
             <TableBody>
               {productosVendidos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={showOnlyCants ? 2 : 6} align="center">
+                  <TableCell colSpan={showOnlyCants ? 2 : 7} align="center">
                     <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                       No hay productos vendidos en este período
                     </Typography>
@@ -831,12 +853,21 @@ export const TablaProductosCierre: FC<IProps> = ({
                           </TableCell>
                         )}
 
-                        {/* Celdas de datos específicos de cada variante */}
+                        {/* Celdas de datos específicos de cada variante */
+                        // Cálculo de descuento por fila en tabla global (Todos los Productos)
+                        }
                         <TableCell>{formatNumber(producto.cantidad || 0)}</TableCell>
                         {!showOnlyCants && (
                           <>
                             <TableCell>{formatCurrency(producto.total || 0)}</TableCell>
-                            {!showOnlyCants && <TableCell>{formatCurrency(producto.ganancia || 0)}</TableCell>}
+                            {/* Descuento real por producto */}
+                            <TableCell>-{formatCurrency(producto.descuento || 0)}</TableCell>
+                            {/* Ganancia neta usando descuento real */}
+                            {!showOnlyCants && (
+                              <TableCell>
+                                {formatCurrency((producto.ganancia || 0) - (producto.descuento || 0))}
+                              </TableCell>
+                            )}
                             {!showOnlyCants && (
                               <TableCell>
                                 <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
@@ -865,7 +896,10 @@ export const TablaProductosCierre: FC<IProps> = ({
                   {!showOnlyCants && (
                     <>
                       <TableCell>{formatCurrency(totales?.totalMonto || 0)}</TableCell>
-                      <TableCell>{formatCurrency(totales?.totalGanancia || 0)}</TableCell>
+                      {/* Total descuentos global */}
+                      <TableCell>- {formatCurrency(totalDescuentos || 0)}</TableCell>
+                      {/* Ganancia total neta (desde backend) */}
+                      <TableCell>{formatCurrency(totalGanancia || 0)}</TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
                     </>
@@ -876,6 +910,45 @@ export const TablaProductosCierre: FC<IProps> = ({
           </Table>
         </TableContainer>
       </Box>
+
+      {/* Resumen final con descuentos (Bruto -> Descuentos -> Neto) */}
+      <Paper sx={{ p: 2, mt: 2 }}>
+        {(() => {
+          // Usar totales del backend con fallbacks seguros
+          const bruto = typeof totalVentasBrutas === 'number' ? totalVentasBrutas : (totales?.totalMonto || 0);
+          const descuentos = typeof totalDescuentos === 'number' ? totalDescuentos : 0;
+          const neto = typeof totalVentas === 'number' ? totalVentas : Math.max(0, bruto - descuentos);
+
+          return (
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <Box textAlign="center">
+                  <Typography variant="body2" color="text.secondary">Total Ventas (Bruto)</Typography>
+                  <Typography variant="h6" fontWeight="bold" color="success.main">
+                    {formatCurrency(bruto)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Box textAlign="center">
+                  <Typography variant="body2" color="text.secondary">Descuentos aplicados</Typography>
+                  <Typography variant="h6" fontWeight="bold" color="error.main">
+                    - {formatCurrency(descuentos)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Box textAlign="center">
+                  <Typography variant="body2" color="text.secondary">Total Ventas (Neto)</Typography>
+                  <Typography variant="h6" fontWeight="bold" color="primary.main">
+                    {formatCurrency(neto)}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          );
+        })()}
+      </Paper>
     </>
   );
 };

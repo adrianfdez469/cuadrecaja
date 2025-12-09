@@ -53,7 +53,8 @@ export const createSell = async (
   transferDestinationId?: string,
   createdAt?: number, // 🆕 Nuevo parámetro
   wasOffline?: boolean, // 🆕 Nuevo parámetro
-  syncAttempts?: number // 🆕 Nuevo parámetro
+  syncAttempts?: number, // 🆕 Nuevo parámetro
+  discountCodes?: string[] // 🆕 Códigos de descuento opcionales
 ): Promise<IVenta> => {
   
   console.log('🔍 [createSell] Iniciando petición al backend:', {
@@ -68,7 +69,8 @@ export const createSell = async (
       createdAt, // 🆕 Incluir timestamp de creación
       wasOffline, // 🆕 Incluir estado offline
       syncAttempts, // 🆕 Incluir intentos de sincronización
-      ...(totaltransfer > 0 && { transferDestinationId })
+      ...(totaltransfer > 0 && { transferDestinationId }),
+      ...(discountCodes && discountCodes.length > 0 ? { discountCodes } : {})
     }
   });
 
@@ -83,7 +85,8 @@ export const createSell = async (
       createdAt, // 🆕 Enviar timestamp de creación
       wasOffline, // 🆕 Enviar estado offline
       syncAttempts, // 🆕 Enviar intentos de sincronización
-      transferDestinationId
+      transferDestinationId,
+      ...(discountCodes && discountCodes.length > 0 ? { discountCodes } : {})
     }, {
       _retryCount: 0 // Inicializar contador de reintentos
     } as RetryConfig);

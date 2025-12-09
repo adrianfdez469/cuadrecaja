@@ -351,7 +351,7 @@ console.log('liquidacionesData',liquidacionesData);
   );
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Proveedores', href: '/proveedores' },
     { label: proveedor?.nombre || 'Cargando...' }
   ];

@@ -119,10 +119,8 @@ const CierreCajaPage = () => {
           (acc, p) => acc + p.cantidad,
           0
         ),
-        totalGanancia: data.productosVendidos.reduce(
-          (acc, p) => acc + p.ganancia,
-          0
-        ),
+        // Usar la ganancia total provista por el backend (ya ajustada por descuentos)
+        totalGanancia: data.totalGanancia || 0,
         totalMonto: data.productosVendidos.reduce(
           (acc, p) => acc + p.total,
           0
@@ -199,7 +197,7 @@ const CierreCajaPage = () => {
   );
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Cierre de Caja' }
   ];
 
@@ -258,7 +256,7 @@ const CierreCajaPage = () => {
             </Button>
             <Button
               variant="outlined"
-              onClick={() => gotToPath("/")}
+              onClick={() => gotToPath("/home")}
             >
               Volver al Inicio
             </Button>
@@ -333,11 +331,23 @@ const CierreCajaPage = () => {
           <Grid item xs={12} sm={6} md={4}>
             <StatCard
               icon={<AttachMoneyIcon fontSize={"medium"} />}
-              value={formatCurrency(totales.totalMonto)}
-              label="Total Ventas"
+              value={formatCurrency((cierreData.totalVentasBrutas ?? totales.totalMonto) || 0)}
+              label="Total Ventas (Bruto)"
               color="success.light"
             />
           </Grid>
+
+          {/* Mostrar descuentos totales del período si existen */}
+          {typeof cierreData.totalDescuentos === 'number' && (cierreData.totalDescuentos || 0) > 0 && (
+            <Grid item xs={12} sm={6} md={4}>
+              <StatCard
+                icon={<TrendingUpIcon fontSize={"medium"} />}
+                value={formatCurrency(cierreData.totalDescuentos || 0)}
+                label="Descuentos del Período"
+                color="error.light"
+              />
+            </Grid>
+          )}
 
           {verificarPermiso("operaciones.cierre.gananciascostos") && (
             <Grid item xs={12} sm={6} md={4}>
@@ -355,7 +365,7 @@ const CierreCajaPage = () => {
             <StatCard
               icon={<StoreIcon fontSize={"medium"} />}
               value={formatCurrency(cierreData.totalVentasPropias || 0)}
-              label="Ventas Propias"
+              label="Ventas Propias (Bruto)"
               color="success.dark"
             />
           </Grid>

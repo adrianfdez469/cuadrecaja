@@ -161,7 +161,7 @@ export default function ProveedoresPage() {
   );
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Proveedores' }
   ];
 

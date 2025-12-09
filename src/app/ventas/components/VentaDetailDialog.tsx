@@ -52,6 +52,11 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
 
   if (!venta) return null;
 
+  // Calcular subtotal de productos y totales de descuento
+  const productosSubtotal = (venta.productos || []).reduce((acc, p) => acc + (p.price || 0) * (p.cantidad || 0), 0);
+  const totalDescuentos = Number(venta.discountTotal || 0);
+  const appliedDiscounts = venta.appliedDiscounts || [];
+
   const InfoCard = ({ icon, title, value, color = 'primary' }: {
     icon: React.ReactNode;
     title: string;
@@ -287,11 +292,28 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                         </TableCell>
                       </TableRow>
                     ))}
+                    {/* Desglose de totales */}
+                    <TableRow>
+                      <TableCell colSpan={3} align="right">
+                        <Typography variant="body2" color="text.secondary">Subtotal</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" color="text.secondary">{formatCurrency(productosSubtotal)}</Typography>
+                      </TableCell>
+                    </TableRow>
+                    {totalDescuentos > 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} align="right">
+                          <Typography variant="body2" color="error.main">Total descuentos</Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" color="error.main">- {formatCurrency(totalDescuentos)}</Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
                     <TableRow>
                       <TableCell colSpan={3}>
-                        <Typography variant="h6" fontWeight="bold">
-                          Total
-                        </Typography>
+                        <Typography variant="h6" fontWeight="bold">Total a pagar</Typography>
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="h6" fontWeight="bold" color="primary.main">
@@ -305,6 +327,36 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             )}
           </CardContent>
         </Card>
+
+        {/* Descuentos aplicados: listado detallado */}
+        {totalDescuentos > 0 && (
+          <Card sx={{ mt: 2 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Descuentos aplicados
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              {appliedDiscounts.length > 0 ? (
+                <Stack spacing={0.5}>
+                  {appliedDiscounts.map((d) => (
+                    <Typography key={d.id} variant="body2" color="success.main">
+                      {(d.ruleName || 'Descuento')}: -{formatCurrency(d.amount)}
+                    </Typography>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  -{formatCurrency(totalDescuentos)}
+                </Typography>
+              )}
+
+              <Typography variant="body2" fontWeight={600} mt={1}>
+                Total descuentos: -{formatCurrency(totalDescuentos)}
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ p: 2 }}>

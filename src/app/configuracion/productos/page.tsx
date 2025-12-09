@@ -163,7 +163,7 @@ export default function ProductList() {
   const productosConFraccion = products.filter(p => p.fraccionDe && p.unidadesPorFraccion).length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/' },
+    { label: 'Inicio', href: '/home' },
     { label: 'Configuración', href: '/configuracion' },
     { label: 'Productos' }
   ];
