@@ -258,9 +258,6 @@ export default function POSInterface() {
         ? `Cant: ${product.existencia - getCartQuantity(product.id)}` 
         : `Cant: ${product.existencia}`);
     }
-
-
-    return "";
   }
 
   function handleProductScan(code: string) {
@@ -1513,7 +1510,6 @@ export default function POSInterface() {
                       <ListItemText
                         primary={product.producto.nombre}
                         secondary={`$${product.precio} - ${getSecondaryTextForSearchedProducts(product)} disponibles`}
-                        // secondary={getSecondaryTextForSearchedProducts(product)}
                         primaryTypographyProps={{
                           sx: {
                             fontWeight: product.producto.nombre.toLowerCase().startsWith(searchQuery.toLowerCase())
