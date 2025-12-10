@@ -6,6 +6,7 @@ export const permisosTemplates = {
         "operaciones.cierre.cerrar",
         "operaciones.movimientos.acceder",
         "operaciones.movimientos.crear.recepcion",
+        "configuracion.descuentos.preview",
     ],
     "almacenero": [
         "configuracion.categorias.acceder",
@@ -20,7 +21,7 @@ export const permisosTemplates = {
         "operaciones.movimientos.crear.transferencia",
         "operaciones.movimientos.crear.recepcion",
         "operaciones.movimientos.crear.consignacion_entrada",
-        "operaciones.movimientos.crear.consignacion_devolucion",        
+        "operaciones.movimientos.crear.consignacion_devolucion",
     ],
     "administrador": [
         "configuracion.usuarios.acceder",
@@ -29,6 +30,8 @@ export const permisosTemplates = {
         "configuracion.categorias.acceder",
         "configuracion.productos.acceder",
         "configuracion.proveedores.acceder",
+        "configuracion.descuentos.acceder",
+        "configuracion.descuentos.preview",
         "configuracion.destinostransferencia.acceder",
         "configuracion.roles.acceder",
         "configuracion.roles.escribir",

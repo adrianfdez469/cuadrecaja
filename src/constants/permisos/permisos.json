@@ -26,6 +26,12 @@
   "configuracion.proveedores.liquidar": {
     "descripcion": "Permite registrar liquidaciones a proveedores"
   },
+  "configuracion.descuentos.acceder": {
+    "descripcion": "Permite realizar configuraciones de descuentos"
+  },
+  "configuracion.descuentos.preview": {
+    "descripcion": "Permite cunsultar los descuentos disponibles"
+  },
   "configuracion.destinostransferencia.acceder": {
     "descripcion": "Permite realizar configuraciones de destinos de transferencia"
   },
@@ -77,7 +83,6 @@
   "operaciones.movimientos.acceder": {
     "descripcion": "Permite acceder a la interfaz de movimientos de stock"
   },
-  
   "operaciones.movimientos.crear.compra": {
     "descripcion": "Permite crear movimientos de compra de productos"
   },

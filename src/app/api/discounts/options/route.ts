@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/utils/authOptions";
+import { verificarPermisoUsuario } from "@/utils/permisos_back"
 
 export async function GET() {
   try {
@@ -9,6 +10,16 @@ export async function GET() {
     if (!session?.user?.negocio?.id) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.descuentos.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
+
     const negocioId = session.user.negocio.id;
     const [products, categories] = await Promise.all([
       prisma.producto.findMany({ where: { negocioId }, select: { id: true, nombre: true } }),

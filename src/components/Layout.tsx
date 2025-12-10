@@ -127,7 +127,7 @@ const CONFIGURATION_MENU_ITEMS = [
     label: "Descuentos",
     path: "/configuracion/descuentos",
     icon: LocalOffer,
-    permission: '*'
+    permission: 'configuracion.descuentos.acceder'
   },
   {
     label: "Destinos de Transferencia",
@@ -285,7 +285,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       });
       showMessage("El local fue actualizada satisfactoriamente", "success");
       handleCloseCambiarLocal();
-      
+
       // Redirigir a /home para forzar re-render con el nuevo local
       router.push('/home');
     } else {
@@ -427,7 +427,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       ...prev,
       [field]: value
     }));
-    
+
     // Limpiar errores cuando el usuario empiece a escribir
     if (passwordErrors.length > 0) {
       setPasswordErrors([]);
@@ -436,36 +436,36 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
   const handleSubmitPasswordChange = async () => {
     const errors: string[] = [];
-    
+
     // Validaciones
     if (!passwordData.currentPassword) {
       errors.push('La contraseña actual es requerida');
     }
-    
+
     if (!passwordData.newPassword) {
       errors.push('La nueva contraseña es requerida');
     } else {
       const passwordValidationErrors = validatePassword(passwordData.newPassword);
       errors.push(...passwordValidationErrors);
     }
-    
+
     if (!passwordData.confirmPassword) {
       errors.push('Confirmar la nueva contraseña es requerido');
     } else if (passwordData.newPassword !== passwordData.confirmPassword) {
       errors.push('Las nuevas contraseñas no coinciden');
     }
-    
+
     if (passwordData.currentPassword === passwordData.newPassword) {
       errors.push('La nueva contraseña debe ser diferente a la actual');
     }
-    
+
     if (errors.length > 0) {
       setPasswordErrors(errors);
       return;
     }
-    
+
     setLoadingPasswordChange(true);
-    
+
     try {
       const response = await fetch('/api/auth/cambiar-password', {
         method: 'POST',
@@ -477,9 +477,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           newPassword: passwordData.newPassword
         })
       });
-      
+
       const result = await response.json();
-      
+
       if (response.ok) {
         showMessage('Contraseña cambiada exitosamente', 'success');
         handleCloseChangePassword();
@@ -571,8 +571,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               color="inherit"
               aria-label="menu"
               onClick={() => setOpen(true)}
-              sx={{ 
-                mr: {xs: 0, sm: 2},
+              sx={{
+                mr: { xs: 0, sm: 2 },
                 '&:hover': {
                   backgroundColor: 'rgba(25, 118, 210, 0.08)',
                 }
@@ -592,34 +592,34 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             // gap: {xs: 0, sm: 2}
           }}>
             <Typography
-                variant="h6"
-                component="h1"
-                sx={{
-                  fontWeight: 700,
-                  background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  fontSize: {xs: '1.1rem', sm: '1.25rem'}
+              variant="h6"
+              component="h1"
+              sx={{
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontSize: { xs: '1.1rem', sm: '1.25rem' }
 
-                }}
+              }}
             >
               Cuadre de Caja
             </Typography>
 
             {user?.negocio?.nombre && (
 
-                <Chip
-                    label={user?.negocio?.nombre}
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      borderColor: 'primary.main',
-                      color: 'primary.main',
-                      fontWeight: 500,
-                      display: 'flex'
-                    }}
-                />
+              <Chip
+                label={user?.negocio?.nombre}
+                size="small"
+                variant="outlined"
+                sx={{
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  fontWeight: 500,
+                  display: 'flex'
+                }}
+              />
             )}
           </Box>
 
@@ -630,8 +630,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 display="flex"
                 flexDirection="column"
                 alignItems="end"
-                sx={{ 
-                  mr: {xs: 0, sm: 0},
+                sx={{
+                  mr: { xs: 0, sm: 0 },
                   display: 'flex'
                 }}
               >
@@ -720,7 +720,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     </Box>
                   </Box>
                 </Box>
-                
+
                 <Divider sx={{ mx: 2, my: 1 }} />
 
                 {/* Opción de cambiar contraseña */}
@@ -855,7 +855,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 </Accordion>
               }
 
-              { user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).length > 0 &&
+              {user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).length > 0 &&
                 <Accordion expanded={menuState.resumenes} onChange={() => handleMenuAccordion('resumenes')}>
                   <AccordionSummary expandIcon={<ExpandMore />}>
                     <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
@@ -1151,7 +1151,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               </Box>
             </Alert>
           )}
-          
+
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
               label="Contraseña Actual"
@@ -1214,8 +1214,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button 
-            onClick={handleCloseChangePassword} 
+          <Button
+            onClick={handleCloseChangePassword}
             variant="outlined"
             disabled={loadingPasswordChange}
           >
