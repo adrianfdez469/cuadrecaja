@@ -68,6 +68,7 @@ export const useCartStore = create<CartState>()(
         });
       },
 
+      
       createCart: (name) => {
         const state = get();
         const nextIndex = state.carts.length ? Math.max(...state.carts.map(c => Number(c.id))) + 1 : 1;

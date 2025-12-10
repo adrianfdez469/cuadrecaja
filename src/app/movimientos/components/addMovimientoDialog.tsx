@@ -51,6 +51,7 @@ import { usePermisos } from "@/utils/permisos_front";
 
 interface IProductoMovimiento {
   nombre: string;
+  permiteDecimal: boolean;
   productoId: string;
   cantidad: number;
   costoUnitario?: number;
@@ -144,6 +145,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
         productosSeleccionados.map((p) => {
           return {
             nombre: p.nombre,
+            permiteDecimal: p.permiteDecimal,
             cantidad: p.cantidad || 0,
             costo: p.costo || 0,
             costoTotal: p.costo && p.cantidad ? p.costo * p.cantidad : 0,
@@ -322,9 +324,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
               prods.push({
                 productoId: p.id,
                 nombre: p.nombre,
+                permiteDecimal:p.permiteDecimal,
                 categoriaId: p.categoriaId,
                 categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
-
                 productoTiendaId: pt.id,
                 precio: pt.precio,
                 costo: pt.costo,
@@ -337,12 +339,11 @@ export const AddMovimientoDialog: FC<IProps> = ({
             });
           } else {
             prods.push({
-
               productoId: p.id,
               nombre: p.nombre,
+              permiteDecimal: p.permiteDecimal,
               categoriaId: p.categoriaId,
               categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
-
               productoTiendaId: null,
               precio: null,
               costo: null,
@@ -366,9 +367,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
             prods.push({
               productoId: p.id,
               nombre: p.nombre,
+              permiteDecimal:p.permiteDecimal,
               categoriaId: p.categoriaId,
               categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
-
               productoTiendaId: pt.id,
               precio: pt.precio,
               costo: pt.costo,

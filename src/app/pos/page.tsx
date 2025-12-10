@@ -97,6 +97,7 @@ export default function POSInterface() {
     setActiveCart,
     renameCart,
     removeActiveCart,
+    items,
   } = useCartStore();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
@@ -239,6 +240,23 @@ export default function POSInterface() {
       return products[0];
     } else {
       return null;
+    }
+  }
+
+  const getCartQuantity = (productoTiendaId: string) => {
+    return items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
+  }
+
+  function getSecondaryTextForSearchedProducts (product: IProductoTiendaV2) {
+   
+    if(product.producto.unidadesPorFraccion) {
+      return (getCartQuantity(product.id) > 0 
+        ? `Cant: ${product.producto.unidadesPorFraccion - getCartQuantity(product.id)}`
+        : `Cant: ${product.producto.unidadesPorFraccion}`);
+    } else {
+      return (getCartQuantity(product.id) > 0 
+        ? `Cant: ${product.existencia - getCartQuantity(product.id)}` 
+        : `Cant: ${product.existencia}`);
     }
   }
 
@@ -1491,7 +1509,7 @@ export default function POSInterface() {
                     >
                       <ListItemText
                         primary={product.producto.nombre}
-                        secondary={`$${product.precio} - ${product.existencia} disponibles`}
+                        secondary={`$${product.precio} - ${getSecondaryTextForSearchedProducts(product)} disponibles`}
                         primaryTypographyProps={{
                           sx: {
                             fontWeight: product.producto.nombre.toLowerCase().startsWith(searchQuery.toLowerCase())
