@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/utils/authOptions";
+import { verificarPermisoUsuario } from "@/utils/permisos_back"
 import type { Prisma, DiscountType, DiscountAppliesTo } from "@prisma/client";
 
 // Parseador seguro para fechas tipo "YYYY-MM-DD" evitando desfases por zona horaria.
@@ -30,6 +31,16 @@ export async function GET() {
     if (!session?.user?.negocio?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.descuentos.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
+
     const rules = await prisma.discountRule.findMany({
       where: { negocioId: session.user.negocio.id },
       orderBy: { createdAt: "desc" },
@@ -48,6 +59,16 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id || !session?.user?.negocio?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.descuentos.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
+
     const body: unknown = await req.json();
     const {
       name,
@@ -96,6 +117,16 @@ export async function PATCH(req: NextRequest) {
     if (!session?.user?.negocio?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.descuentos.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
+
     const body: unknown = await req.json();
     const { id, ...patch } = (body as Record<string, unknown>) || {};
     if (!id || typeof id !== "string") {
@@ -132,6 +163,16 @@ export async function DELETE(req: NextRequest) {
     if (!session?.user?.negocio?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "configuracion.descuentos.acceder", user.rol)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const idFromQuery = searchParams.get("id");
     let id = idFromQuery;
@@ -139,7 +180,7 @@ export async function DELETE(req: NextRequest) {
       try {
         const body: unknown = await req.json();
         id = (body as { id?: string })?.id;
-      } catch {}
+      } catch { }
     }
     if (!id) return NextResponse.json({ error: "Falta id" }, { status: 400 });
 
