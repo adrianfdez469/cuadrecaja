@@ -8,6 +8,27 @@ import {
 } from 'html5-qrcode';
 
 /**
+ * Extended interfaces for experimental camera features (Torch, Focus)
+ */
+interface MediaTrackCapabilitiesWithTorch extends MediaTrackCapabilities {
+  torch?: boolean;
+  focusMode?: string[];
+  focusDistance?: { min: number; max: number; step: number };
+}
+
+interface MediaTrackSettingsWithTorch extends MediaTrackSettings {
+  torch?: boolean;
+  focusMode?: string;
+  focusDistance?: number;
+}
+
+interface MediaTrackConstraintSetWithTorch extends MediaTrackConstraintSet {
+  torch?: boolean;
+  focusMode?: string;
+  focusDistance?: number;
+}
+
+/**
  * Performance preset options
  */
 export type PerformancePreset = 'high-quality' | 'balanced' | 'performance';
@@ -60,7 +81,7 @@ const PERFORMANCE_PRESETS = {
   }
 };
 
-let html5QrCodeInstance: Html5Qrcode;
+let html5QrCodeInstance: Html5Qrcode | null = null;
 let currentVideoTrack: MediaStreamTrack | null = null;
 let torchEnabled = false;
 
@@ -150,7 +171,6 @@ export async function init(containerId: string, verbose: boolean = false) {
     }
 
     // Nullify to ensure fresh start
-    // @ts-ignore
     html5QrCodeInstance = null;
   }
 
@@ -181,15 +201,17 @@ export async function start(
       throw new Error("Scanner not initialized. Call init() first.");
     }
 
+    const instance = html5QrCodeInstance;
+
     // Safety check: if already scanning, stop first
-    if (html5QrCodeInstance.getState() === Html5QrcodeScannerState.SCANNING) {
+    if (instance.getState() === Html5QrcodeScannerState.SCANNING) {
       await stop();
     }
 
     const cameraConfig = options.cameraId ? options.cameraId : getCameraConfig(options);
     const config = createConfig(options);
 
-    const result = await html5QrCodeInstance.start(
+    const result = await instance.start(
       cameraConfig,
       config,
       qrCodeSuccessCallback,
@@ -233,9 +255,10 @@ export async function isTorchSupported(): Promise<boolean> {
   }
 
   try {
-    const capabilities = currentVideoTrack.getCapabilities() as any;
+    const capabilities = currentVideoTrack.getCapabilities() as MediaTrackCapabilitiesWithTorch;
     return capabilities.torch === true;
   } catch (err) {
+    console.error('Could not access video track:', err);
     return false;
   }
 }
@@ -251,17 +274,20 @@ export async function toggleTorch(): Promise<boolean> {
   }
 
   try {
-    const capabilities = currentVideoTrack.getCapabilities() as any;
+    const capabilities = currentVideoTrack.getCapabilities() as MediaTrackCapabilitiesWithTorch;
     if (!capabilities.torch) {
       console.warn('Torch not supported on this device');
       return false;
     }
 
     torchEnabled = !torchEnabled;
-    await currentVideoTrack.applyConstraints({
-      // @ts-ignore - torch is not in standard types yet
-      advanced: [{ torch: torchEnabled }]
-    });
+
+    // Create constraints with proper type - advanced is an array of constraint sets
+    const constraints = {
+      advanced: [{ torch: torchEnabled } as MediaTrackConstraintSetWithTorch]
+    };
+
+    await currentVideoTrack.applyConstraints(constraints);
 
     console.log(`🔦 Torch ${torchEnabled ? 'enabled' : 'disabled'}`);
     return true;
@@ -290,20 +316,20 @@ export async function refocus(): Promise<boolean> {
   }
 
   try {
-    const capabilities = currentVideoTrack.getCapabilities() as any;
+    const capabilities = currentVideoTrack.getCapabilities() as MediaTrackCapabilitiesWithTorch;
 
     // Try to trigger autofocus by toggling focus mode
     if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
       await currentVideoTrack.applyConstraints({
-        advanced: [{ focusMode: 'manual' }]
-      } as any);
+        advanced: [{ focusMode: 'manual' } as MediaTrackConstraintSetWithTorch]
+      });
 
       // Wait a bit then switch back to continuous
       await new Promise(resolve => setTimeout(resolve, 100));
 
       await currentVideoTrack.applyConstraints({
-        advanced: [{ focusMode: 'continuous' }]
-      } as any);
+        advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSetWithTorch]
+      });
 
       console.log('📷 Camera refocused');
       return true;
@@ -311,19 +337,19 @@ export async function refocus(): Promise<boolean> {
 
     // Alternative: try adjusting focus distance
     if (capabilities.focusDistance) {
-      const currentSettings = currentVideoTrack.getSettings() as any;
+      const currentSettings = currentVideoTrack.getSettings() as MediaTrackSettingsWithTorch;
       const currentDistance = currentSettings.focusDistance || 0.15;
 
       // Slightly adjust focus distance to trigger refocus
       await currentVideoTrack.applyConstraints({
-        advanced: [{ focusDistance: currentDistance + 0.01 }]
-      } as any);
+        advanced: [{ focusDistance: currentDistance + 0.01 } as MediaTrackConstraintSetWithTorch]
+      });
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
       await currentVideoTrack.applyConstraints({
-        advanced: [{ focusDistance: 0.15 }] // Back to optimal 15cm
-      } as any);
+        advanced: [{ focusDistance: 0.15 } as MediaTrackConstraintSetWithTorch] // Back to optimal 15cm
+      });
 
       console.log('📷 Camera refocused via distance adjustment');
       return true;
@@ -346,14 +372,17 @@ export async function stop() {
     return;
   }
 
+  const instance = html5QrCodeInstance;
+
   // Check if we are actually scanning or paused
   try {
-    const state = html5QrCodeInstance.getState();
+    const state = instance.getState();
     if (state !== Html5QrcodeScannerState.SCANNING && state !== Html5QrcodeScannerState.PAUSED) {
       console.log('Scanner not running, skipping stop()');
       return;
     }
-  } catch (e) {
+  } catch (_e) {
+    console.error(_e)
     // If getState fails, just try to stop
   }
 
@@ -363,12 +392,12 @@ export async function stop() {
       await toggleTorch();
     }
 
-    await html5QrCodeInstance.stop();
+    await instance.stop();
     // Also clear the canvas to remove the video element
     try {
-      html5QrCodeInstance.clear();
-    } catch (e) {
-      // ignore
+      instance.clear();
+    } catch (_e) {
+      console.error(_e)
     }
 
     currentVideoTrack = null;
