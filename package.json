@@ -21,6 +21,7 @@
     "@prisma/client": "^6.5.0",
     "@tanstack/react-virtual": "^3.13.12",
     "@types/bwip-js": "^3.2.3",
+    "@zxing/library": "^0.21.3",
     "axios": "^1.8.4",
     "bcrypt": "^5.1.1",
     "bwip-js": "^4.7.0",
