@@ -106,7 +106,7 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
       } finally {
         setLoading(false);
       }
-    }, [cameraId, preset, qrCodeSuccessCallback, qrCodeErrorCallback, cameras.length]);
+    }, [cameraId, preset, qrCodeSuccessCallback, qrCodeErrorCallback, cameras.length, handleSuccess]);
 
     // Restart scanner when settings change (if already open and not loading)
     useEffect(() => {

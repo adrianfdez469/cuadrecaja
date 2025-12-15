@@ -6,8 +6,32 @@ import {
 } from '@zxing/library';
 
 // --- Types ---
-export type QrcodeSuccessCallback = (decodedText: string, result: any) => void;
-export type QrcodeErrorCallback = (errorMessage: string, result: any) => void;
+
+// Standard MediaStream types do not yet fully support 'torch' and 'focusMode'
+// We define extended interfaces to support them safely.
+
+interface ExtendedMediaTrackCapabilities extends MediaTrackCapabilities {
+  torch?: boolean;
+  focusMode?: string[];
+}
+
+interface ExtendedMediaTrackSettings extends MediaTrackSettings {
+  torch?: boolean;
+  focusMode?: string;
+}
+
+interface ExtendedMediaTrackConstraintSet extends MediaTrackConstraintSet {
+  torch?: boolean;
+  focusMode?: string;
+}
+
+export interface ScanResult {
+  format: string;
+  raw: Result;
+}
+
+export type QrcodeSuccessCallback = (decodedText: string, result: ScanResult) => void;
+export type QrcodeErrorCallback = (errorMessage: string, result: Error | unknown) => void;
 
 export type PerformancePreset = 'high-quality' | 'balanced' | 'performance';
 
@@ -127,7 +151,7 @@ export async function start(
     // Start Continuous Decode
     codeReader.decodeFromVideoElementContinuously(
       activeVideoElement,
-      (result: Result, err: any) => {
+      (result: Result, err: unknown) => {
         if (result) {
           // Determine format name from enum
           const formatName = BarcodeFormat[result.getBarcodeFormat()];
@@ -196,20 +220,28 @@ export async function getCameras() {
   }
 }
 
+/**
+ * Get current device id
+ */
+export function getActiveDeviceId() {
+  return currentDeviceId;
+}
+
 // --- Utilities ---
 
 export async function toggleTorch(): Promise<boolean> {
   const track = activeStream?.getVideoTracks()[0];
   if (!track) return false;
 
-  const caps = track.getCapabilities() as any;
+  const caps = track.getCapabilities() as ExtendedMediaTrackCapabilities;
   if (!caps.torch) return false;
 
-  const current = track.getSettings() as any;
+  const current = track.getSettings() as ExtendedMediaTrackSettings;
   const nextState = !current.torch;
 
   try {
-    await track.applyConstraints({ advanced: [{ torch: nextState }] } as any);
+    const constraints: ExtendedMediaTrackConstraintSet = { torch: nextState };
+    await track.applyConstraints({ advanced: [constraints] } as MediaTrackConstraints);
     return nextState;
   } catch (e) {
     console.error("Torch toggle failed", e);
@@ -220,7 +252,7 @@ export async function toggleTorch(): Promise<boolean> {
 export function isTorchSupported(): boolean {
   const track = activeStream?.getVideoTracks()[0];
   if (!track) return false;
-  const caps = track.getCapabilities() as any;
+  const caps = track.getCapabilities() as ExtendedMediaTrackCapabilities;
   return !!caps.torch;
 }
 
@@ -228,8 +260,8 @@ async function applyAdvancedConstraints(stream: MediaStream) {
   const track = stream.getVideoTracks()[0];
   if (!track) return;
 
-  const capabilities = track.getCapabilities() as any;
-  const constraints: any = { advanced: [] };
+  const capabilities = track.getCapabilities() as ExtendedMediaTrackCapabilities;
+  const constraints: { advanced: ExtendedMediaTrackConstraintSet[] } = { advanced: [] };
 
   if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
     constraints.advanced.push({ focusMode: 'continuous' });
@@ -237,8 +269,11 @@ async function applyAdvancedConstraints(stream: MediaStream) {
 
   if (constraints.advanced.length > 0) {
     try {
-      await track.applyConstraints(constraints);
-    } catch (e) { }
+      // Cast to MediaTrackConstraints to avoid 'any' but satisfy the interface
+      await track.applyConstraints(constraints as MediaTrackConstraints);
+    } catch {
+      // Ignore
+    }
   }
 }
 
