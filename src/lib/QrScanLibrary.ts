@@ -1,14 +1,44 @@
 import {
-  BarcodeDetector,
-  BarcodeDetectorOptions
+  BarcodeDetector
 } from '@sec-ant/barcode-detector/pure';
 
 // @sec-ant/barcode-detector uses ZXing WASM by default, which is highly performant.
 // We do not need to register an engine.
 
 // --- Compatible Types ---
-export type QrcodeSuccessCallback = (decodedText: string, result: any) => void;
-export type QrcodeErrorCallback = (errorMessage: string, result: any) => void;
+
+// Standard MediaStream types do not yet fully support 'torch' and 'focusMode'
+// We define extended interfaces to support them safely.
+
+interface ExtendedMediaTrackCapabilities extends MediaTrackCapabilities {
+  torch?: boolean;
+  focusMode?: string[];
+}
+
+interface ExtendedMediaTrackSettings extends MediaTrackSettings {
+  torch?: boolean;
+  focusMode?: string;
+}
+
+interface ExtendedMediaTrackConstraintSet extends MediaTrackConstraintSet {
+  torch?: boolean;
+  focusMode?: string;
+}
+
+export interface DetectedBarcode {
+  boundingBox: DOMRectReadOnly;
+  cornerPoints: { x: number; y: number }[];
+  format: string;
+  rawValue: string;
+}
+
+export interface ScanResult {
+  rawValue: string;
+  result: DetectedBarcode;
+}
+
+export type QrcodeSuccessCallback = (decodedText: string, result: ScanResult) => void;
+export type QrcodeErrorCallback = (errorMessage: string, result: Error | unknown) => void;
 
 export type PerformancePreset = 'high-quality' | 'balanced' | 'performance';
 
@@ -120,7 +150,8 @@ export async function start(
     scanController = new AbortController();
 
     // 3. Start Loop
-    startScanLoop(successCallback, errorCallback, options.fps || 15, scanController.signal);
+    // 3. Start Loop
+    startScanLoop(successCallback, errorCallback, options.fps || 15, scanController!.signal);
 
     return "started";
 
@@ -135,8 +166,8 @@ async function applyAdvancedConstraints(stream: MediaStream) {
   const track = stream.getVideoTracks()[0];
   if (!track) return;
 
-  const capabilities = track.getCapabilities() as any;
-  const constraints: any = { advanced: [] };
+  const capabilities = track.getCapabilities() as ExtendedMediaTrackCapabilities;
+  const constraints: { advanced: ExtendedMediaTrackConstraintSet[] } = { advanced: [] };
 
   if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
     constraints.advanced.push({ focusMode: 'continuous' });
@@ -144,8 +175,11 @@ async function applyAdvancedConstraints(stream: MediaStream) {
 
   if (constraints.advanced.length > 0) {
     try {
-      await track.applyConstraints(constraints);
-    } catch (e) { console.warn("Could not apply advanced constraints", e); }
+      // Cast to MediaTrackConstraints to avoid 'any' but satisfy the interface
+      await track.applyConstraints(constraints as MediaTrackConstraints);
+    } catch {
+      // Ignore
+    }
   }
 }
 
@@ -175,9 +209,9 @@ async function startScanLoop(
       if (barcodes.length > 0) {
         // Return the first one
         const code = barcodes[0];
-        successCb(code.rawValue, { result: code });
+        successCb(code.rawValue, { rawValue: code.rawValue, result: code });
       }
-    } catch (err) {
+    } catch {
       // errorCb("Scan detection error", err); 
       // Don't spam error callback for every frame failure, detection failures are normal
     }
@@ -246,15 +280,16 @@ export async function toggleTorch(): Promise<boolean> {
   if (!track) return false;
 
   // Check support
-  const caps = track.getCapabilities() as any;
+  const caps = track.getCapabilities() as ExtendedMediaTrackCapabilities;
   if (!caps.torch) return false;
 
   // Toggle
-  const current = track.getSettings() as any;
+  const current = track.getSettings() as ExtendedMediaTrackSettings;
   const nextState = !current.torch;
 
   try {
-    await track.applyConstraints({ advanced: [{ torch: nextState }] } as any);
+    const constraints: ExtendedMediaTrackConstraintSet = { torch: nextState };
+    await track.applyConstraints({ advanced: [constraints] } as MediaTrackConstraints);
     return nextState;
   } catch (e) {
     console.error("Torch toggle failed", e);
@@ -265,14 +300,14 @@ export async function toggleTorch(): Promise<boolean> {
 export function isTorchSupported(): boolean {
   const track = getVideoTrack();
   if (!track) return false;
-  const caps = track.getCapabilities() as any;
+  const caps = track.getCapabilities() as ExtendedMediaTrackCapabilities;
   return !!caps.torch;
 }
 
 export function isTorchEnabled(): boolean {
   const track = getVideoTrack();
   if (!track) return false;
-  const settings = track.getSettings() as any;
+  const settings = track.getSettings() as ExtendedMediaTrackSettings;
   return !!settings.torch;
 }
 
@@ -280,18 +315,21 @@ export async function refocus(): Promise<boolean> {
   const track = getVideoTrack();
   if (!track) return false;
 
-  const caps = track.getCapabilities() as any;
+  const caps = track.getCapabilities() as ExtendedMediaTrackCapabilities;
   if (!caps.focusMode || !caps.focusMode.includes('manual')) return false;
 
   try {
     // Manual focus cycle
-    await track.applyConstraints({ advanced: [{ focusMode: 'manual' }] } as any);
+    const constraintsManual: ExtendedMediaTrackConstraintSet = { focusMode: 'manual' };
+    const constraintsContinuous: ExtendedMediaTrackConstraintSet = { focusMode: 'continuous' };
+
+    await track.applyConstraints({ advanced: [constraintsManual] } as MediaTrackConstraints);
 
     await new Promise(r => setTimeout(r, 200));
 
-    await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] } as any);
+    await track.applyConstraints({ advanced: [constraintsContinuous] } as MediaTrackConstraints);
     return true;
-  } catch (e) { return false; }
+  } catch { return false; }
 }
 
 export function getRecommendedPreset(): PerformancePreset {

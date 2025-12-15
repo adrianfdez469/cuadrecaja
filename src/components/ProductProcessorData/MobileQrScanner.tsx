@@ -63,11 +63,19 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
       setIsOpen(true);
     }
 
-    const handleSuccess: QrcodeSuccessCallback = (qrText, result) => {
+    const handleStop = useCallback(() => {
+      setIsOpen(false);
+      setError(false);
+      stop().then(() => {
+        setTorchOn(false);
+      });
+    }, []);
+
+    const handleSuccess: QrcodeSuccessCallback = useCallback((qrText, result) => {
       audioService.playSuccessSound();
       qrCodeSuccessCallback(qrText, result);
       handleStop();
-    };
+    }, [qrCodeSuccessCallback, handleStop]);
 
     const handleStartScanner = useCallback(async () => {
       try {
@@ -106,7 +114,7 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
       } finally {
         setLoading(false);
       }
-    }, [cameraId, preset, qrCodeSuccessCallback, qrCodeErrorCallback, cameras.length]);
+    }, [cameraId, preset, qrCodeSuccessCallback, qrCodeErrorCallback, cameras.length, handleSuccess]);
 
     // Restart scanner when settings change (if already open and not loading)
     useEffect(() => {
@@ -118,13 +126,7 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cameraId, preset]);
 
-    function handleStop() {
-      setIsOpen(false);
-      setError(false);
-      stop().then(() => {
-        setTorchOn(false);
-      });
-    }
+    // handleStop is now defined above
 
     const onToggleTorch = async () => {
       const newState = await toggleTorch();
