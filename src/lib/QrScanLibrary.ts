@@ -1,41 +1,47 @@
 import {
-  Html5Qrcode,
-  Html5QrcodeCameraScanConfig,
-  Html5QrcodeSupportedFormats,
-  QrcodeErrorCallback,
-  QrcodeSuccessCallback,
-  Html5QrcodeScannerState
-} from 'html5-qrcode';
+  BarcodeDetector
+} from '@sec-ant/barcode-detector/pure';
 
-/**
- * Extended interfaces for experimental camera features (Torch, Focus)
- */
-interface MediaTrackCapabilitiesWithTorch extends MediaTrackCapabilities {
+// @sec-ant/barcode-detector uses ZXing WASM by default, which is highly performant.
+// We do not need to register an engine.
+
+// --- Compatible Types ---
+
+// Standard MediaStream types do not yet fully support 'torch' and 'focusMode'
+// We define extended interfaces to support them safely.
+
+interface ExtendedMediaTrackCapabilities extends MediaTrackCapabilities {
   torch?: boolean;
   focusMode?: string[];
-  focusDistance?: { min: number; max: number; step: number };
 }
 
-interface MediaTrackSettingsWithTorch extends MediaTrackSettings {
+interface ExtendedMediaTrackSettings extends MediaTrackSettings {
   torch?: boolean;
   focusMode?: string;
-  focusDistance?: number;
 }
 
-interface MediaTrackConstraintSetWithTorch extends MediaTrackConstraintSet {
+interface ExtendedMediaTrackConstraintSet extends MediaTrackConstraintSet {
   torch?: boolean;
   focusMode?: string;
-  focusDistance?: number;
 }
 
-/**
- * Performance preset options
- */
+export interface DetectedBarcode {
+  boundingBox: DOMRectReadOnly;
+  cornerPoints: { x: number; y: number }[];
+  format: string;
+  rawValue: string;
+}
+
+export interface ScanResult {
+  rawValue: string;
+  result: DetectedBarcode;
+}
+
+export type QrcodeSuccessCallback = (decodedText: string, result: ScanResult) => void;
+export type QrcodeErrorCallback = (errorMessage: string, result: Error | unknown) => void;
+
 export type PerformancePreset = 'high-quality' | 'balanced' | 'performance';
 
-/**
- * Scanner configuration options
- */
 export interface ScannerOptions {
   fps?: number;
   resolution?: { width: number; height: number };
@@ -43,410 +49,291 @@ export interface ScannerOptions {
   cameraId?: string;
 }
 
-/**
- * All supported barcode formats for maximum compatibility
- */
-const supportedFormats = [
-  Html5QrcodeSupportedFormats.QR_CODE,
-  Html5QrcodeSupportedFormats.AZTEC,
-  Html5QrcodeSupportedFormats.CODABAR,
-  Html5QrcodeSupportedFormats.CODE_39,
-  Html5QrcodeSupportedFormats.CODE_93,
-  Html5QrcodeSupportedFormats.CODE_128,
-  Html5QrcodeSupportedFormats.ITF,
-  Html5QrcodeSupportedFormats.EAN_13,
-  Html5QrcodeSupportedFormats.EAN_8,
-  Html5QrcodeSupportedFormats.RSS_14,
-  Html5QrcodeSupportedFormats.RSS_EXPANDED,
-  Html5QrcodeSupportedFormats.UPC_A,
-  Html5QrcodeSupportedFormats.UPC_E,
-  Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION
-];
+// --- Configuration ---
+const PRESETS = {
+  'high-quality': { width: 1080, height: 1080 },
+  'balanced': { width: 720, height: 720 },
+  'performance': { width: 480, height: 480 }
+};
+
+// --- Internal State ---
+let activeStream: MediaStream | null = null;
+let activeVideoElement: HTMLVideoElement | null = null;
+let barcodeDetector: BarcodeDetector | null = null;
+let scanController: AbortController | null = null;
+let isScanning = false;
 
 /**
- * Performance presets
+ * Initialize the scanner environment
+ * (Compatible signature, but mostly just prepares the container)
  */
-const PERFORMANCE_PRESETS = {
-  'high-quality': {
-    fps: 15,
-    resolution: { width: 1080, height: 1080 }
-  },
-  'balanced': {
-    fps: 10,
-    resolution: { width: 720, height: 720 }
-  },
-  'performance': {
-    fps: 5,
-    resolution: { width: 480, height: 480 }
+export async function init(containerId: string) {
+  const container = document.getElementById(containerId);
+  if (!container) throw new Error(`Container '${containerId}' not found`);
+
+  // Ensure container is clean
+  container.innerHTML = '';
+
+  // Create video element
+  const video = document.createElement('video');
+  video.style.width = '100%';
+  video.style.height = '100%';
+  video.style.objectFit = 'cover';
+  video.style.borderRadius = '8px';
+  video.id = 'scanner-video';
+  video.playsInline = true;
+  video.muted = true;
+  video.setAttribute('playsinline', 'true'); // For iOS
+
+  container.appendChild(video);
+  activeVideoElement = video;
+
+  // Initialize detector
+  try {
+    barcodeDetector = new BarcodeDetector({
+      formats: ['qr_code', 'ean_13', 'code_128', 'code_39', 'upc_a', 'upc_e']
+    });
+    console.log('✅ ZXing Detector initialized');
+  } catch (e) {
+    console.error('Failed to init ZXing detector', e);
   }
-};
-
-let html5QrCodeInstance: Html5Qrcode | null = null;
-let currentVideoTrack: MediaStreamTrack | null = null;
-let torchEnabled = false;
-
-/**
- * Get optimized camera configuration with enhanced autofocus
- */
-const getCameraConfig = (options: ScannerOptions = {}) => {
-  const preset = options.performancePreset || 'balanced';
-  const resolution = options.resolution || PERFORMANCE_PRESETS[preset].resolution;
-
-  // Advanced constraints for better autofocus and small barcode reading
-  return {
-    facingMode: { ideal: 'environment' },
-    width: { ideal: resolution.width },
-    height: { ideal: resolution.height },
-    // Advanced focus settings for better small barcode reading
-    focusMode: { ideal: 'continuous' }, // Continuous autofocus
-    focusDistance: { ideal: 0.15 }, // Optimal focus distance ~15cm
-    // Additional constraints for better quality
-    aspectRatio: { ideal: 1.0 },
-    frameRate: { ideal: PERFORMANCE_PRESETS[preset].fps },
-    // Request better image quality
-    exposureMode: { ideal: 'continuous' },
-    whiteBalanceMode: { ideal: 'continuous' }
-  } as MediaTrackConstraints;
-};
-
-/**
- * Create scanning configuration based on options
- */
-const createConfig = (options: ScannerOptions = {}): Html5QrcodeCameraScanConfig => {
-  const preset = options.performancePreset || 'balanced';
-  const fps = options.fps || PERFORMANCE_PRESETS[preset].fps;
-  const resolution = options.resolution || PERFORMANCE_PRESETS[preset].resolution;
-
-  return {
-    fps,
-    qrbox: function (viewfinderWidth, viewfinderHeight) {
-      // Improved dynamic qrbox for better small barcode reading
-      // Use larger percentage for high-quality preset
-      const isHighQuality = preset === 'high-quality';
-      const minEdgePercentage = isHighQuality ? 0.8 : 0.7;
-
-      const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-      const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
-
-      // For small barcodes, ensure minimum readable size
-      const minWidth = 250; // Minimum width for barcode readability
-      const minHeight = 120; // Minimum height for barcode readability
-
-      // Return wider box for better barcode scanning
-      return {
-        width: Math.max(minWidth, Math.min(qrboxSize * 1.2, viewfinderWidth * 0.9)),
-        height: Math.max(minHeight, Math.min(qrboxSize * 0.6, viewfinderHeight * 0.5))
-      };
-    },
-    aspectRatio: 1.0, // 1:1 ratio (Square)
-    disableFlip: false,
-    videoConstraints: {
-      width: { ideal: resolution.width },
-      height: { ideal: resolution.height },
-      facingMode: { ideal: 'environment' },
-      aspectRatio: { ideal: 1.0 }
-    }
-  };
-};
-
-/**
- * Initialize the QR/Barcode scanner
- * @param containerId - The ID of the HTML element to render the scanner
- * @param verbose - Enable verbose logging for debugging (default: false)
- */
-export async function init(containerId: string, verbose: boolean = false) {
-  // Logic to handle cleanup of previous instance if it exists
-  if (html5QrCodeInstance) {
-    try {
-      // If scanning, stop first
-      if (html5QrCodeInstance.getState() === Html5QrcodeScannerState.SCANNING ||
-        html5QrCodeInstance.getState() === Html5QrcodeScannerState.PAUSED) {
-        await stop();
-      }
-
-      // Clear the instance to unmount from DOM
-      html5QrCodeInstance.clear();
-    } catch (e) {
-      console.warn('Cleanup error in init:', e);
-    }
-
-    // Nullify to ensure fresh start
-    html5QrCodeInstance = null;
-  }
-
-  html5QrCodeInstance = new Html5Qrcode(containerId, {
-    formatsToSupport: supportedFormats,
-    verbose: verbose
-  });
-  return html5QrCodeInstance;
 }
 
 /**
- * Get list of available cameras
- */
-export async function getCameras() {
-  return await Html5Qrcode.getCameras();
-}
-
-/**
- * Start scanning with optimized configuration
+ * Start Scanning
  */
 export async function start(
-  qrCodeSuccessCallback: QrcodeSuccessCallback,
-  qrCodeErrorCallback: QrcodeErrorCallback,
+  successCallback: QrcodeSuccessCallback,
+  errorCallback: QrcodeErrorCallback,
   options: ScannerOptions = {}
 ) {
+  if (isScanning) await stop();
+
   try {
-    if (!html5QrCodeInstance) {
+    if (!activeVideoElement) {
       throw new Error("Scanner not initialized. Call init() first.");
     }
 
-    const instance = html5QrCodeInstance;
+    const preset = options.performancePreset || 'balanced';
+    const resolution = options.resolution || PRESETS[preset];
 
-    // Safety check: if already scanning, stop first
-    if (instance.getState() === Html5QrcodeScannerState.SCANNING) {
-      await stop();
-    }
+    // 1. Get Camera Stream
+    const constraints: MediaStreamConstraints = {
+      audio: false,
+      video: {
+        deviceId: options.cameraId ? { exact: options.cameraId } : undefined,
+        facingMode: options.cameraId ? undefined : { ideal: 'environment' },
+        width: { ideal: resolution.width },
+        height: { ideal: resolution.height },
+        aspectRatio: { ideal: 1.0 }
+        // Note: focusMode is handled via applyConstraints after opening
+      }
+    };
 
-    const cameraConfig = options.cameraId ? options.cameraId : getCameraConfig(options);
-    const config = createConfig(options);
+    activeStream = await navigator.mediaDevices.getUserMedia(constraints);
 
-    const result = await instance.start(
-      cameraConfig,
-      config,
-      qrCodeSuccessCallback,
-      qrCodeErrorCallback
-    );
+    // Apply advanced constraints if possible (Focus, etc)
+    await applyAdvancedConstraints(activeStream);
 
-    // Store video track for torch control
-    await storeVideoTrack();
+    // 2. Attach to Video
+    activeVideoElement.srcObject = activeStream;
 
-    return result;
+    // Wait for video to be ready
+    await new Promise<void>((resolve) => {
+      if (!activeVideoElement) return resolve();
+      activeVideoElement.onloadedmetadata = () => {
+        activeVideoElement?.play().then(resolve).catch(resolve);
+      };
+    });
+
+    isScanning = true;
+    scanController = new AbortController();
+
+    // 3. Start Loop
+    // 3. Start Loop
+    startScanLoop(successCallback, errorCallback, options.fps || 15, scanController!.signal);
+
+    return "started";
+
   } catch (err) {
-    console.error('Error starting QR/Barcode scanning:', err);
+    console.error("❌ Failed to start scanner:", err);
+    errorCallback("Failed to start scanner", err);
     throw err;
   }
 }
 
-/**
- * Store the current video track for torch/flashlight control
- */
-async function storeVideoTrack() {
-  try {
-    const videoElement = document.querySelector('#qrTest video') as HTMLVideoElement;
-    if (videoElement && videoElement.srcObject) {
-      const stream = videoElement.srcObject as MediaStream;
-      const tracks = stream.getVideoTracks();
-      if (tracks.length > 0) {
-        currentVideoTrack = tracks[0];
-      }
+async function applyAdvancedConstraints(stream: MediaStream) {
+  const track = stream.getVideoTracks()[0];
+  if (!track) return;
+
+  const capabilities = track.getCapabilities() as ExtendedMediaTrackCapabilities;
+  const constraints: { advanced: ExtendedMediaTrackConstraintSet[] } = { advanced: [] };
+
+  if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+    constraints.advanced.push({ focusMode: 'continuous' });
+  }
+
+  if (constraints.advanced.length > 0) {
+    try {
+      // Cast to MediaTrackConstraints to avoid 'any' but satisfy the interface
+      await track.applyConstraints(constraints as MediaTrackConstraints);
+    } catch {
+      // Ignore
     }
-  } catch (err) {
-    console.warn('Could not access video track:', err);
   }
 }
 
-/**
- * Check if torch/flashlight is supported
- */
-export async function isTorchSupported(): Promise<boolean> {
-  if (!currentVideoTrack) {
-    return false;
-  }
+async function startScanLoop(
+  successCb: QrcodeSuccessCallback,
+  errorCb: QrcodeErrorCallback,
+  fps: number,
+  signal: AbortSignal
+) {
+  if (!barcodeDetector || !activeVideoElement) return;
 
-  try {
-    const capabilities = currentVideoTrack.getCapabilities() as MediaTrackCapabilitiesWithTorch;
-    return capabilities.torch === true;
-  } catch (err) {
-    console.error('Could not access video track:', err);
-    return false;
-  }
-}
+  const intervalMs = 1000 / fps;
 
-/**
- * Toggle torch/flashlight on or off
- * @returns true if torch was toggled successfully
- */
-export async function toggleTorch(): Promise<boolean> {
-  if (!currentVideoTrack) {
-    console.warn('No video track available');
-    return false;
-  }
-
-  try {
-    const capabilities = currentVideoTrack.getCapabilities() as MediaTrackCapabilitiesWithTorch;
-    if (!capabilities.torch) {
-      console.warn('Torch not supported on this device');
-      return false;
-    }
-
-    torchEnabled = !torchEnabled;
-
-    // Create constraints with proper type - advanced is an array of constraint sets
-    const constraints = {
-      advanced: [{ torch: torchEnabled } as MediaTrackConstraintSetWithTorch]
-    };
-
-    await currentVideoTrack.applyConstraints(constraints);
-
-    console.log(`🔦 Torch ${torchEnabled ? 'enabled' : 'disabled'}`);
-    return true;
-  } catch (err) {
-    console.error('Error toggling torch:', err);
-    return false;
-  }
-}
-
-/**
- * Get current torch state
- */
-export function isTorchEnabled(): boolean {
-  return torchEnabled;
-}
-
-/**
- * Force camera to refocus
- * Useful when focus is lost while scanning small barcodes
- * @returns true if refocus was successful
- */
-export async function refocus(): Promise<boolean> {
-  if (!currentVideoTrack) {
-    console.warn('No video track available for refocus');
-    return false;
-  }
-
-  try {
-    const capabilities = currentVideoTrack.getCapabilities() as MediaTrackCapabilitiesWithTorch;
-
-    // Try to trigger autofocus by toggling focus mode
-    if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-      await currentVideoTrack.applyConstraints({
-        advanced: [{ focusMode: 'manual' } as MediaTrackConstraintSetWithTorch]
-      });
-
-      // Wait a bit then switch back to continuous
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      await currentVideoTrack.applyConstraints({
-        advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSetWithTorch]
-      });
-
-      console.log('📷 Camera refocused');
-      return true;
-    }
-
-    // Alternative: try adjusting focus distance
-    if (capabilities.focusDistance) {
-      const currentSettings = currentVideoTrack.getSettings() as MediaTrackSettingsWithTorch;
-      const currentDistance = currentSettings.focusDistance || 0.15;
-
-      // Slightly adjust focus distance to trigger refocus
-      await currentVideoTrack.applyConstraints({
-        advanced: [{ focusDistance: currentDistance + 0.01 } as MediaTrackConstraintSetWithTorch]
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      await currentVideoTrack.applyConstraints({
-        advanced: [{ focusDistance: 0.15 } as MediaTrackConstraintSetWithTorch] // Back to optimal 15cm
-      });
-
-      console.log('📷 Camera refocused via distance adjustment');
-      return true;
-    }
-
-    console.warn('Refocus not supported on this device');
-    return false;
-  } catch (err) {
-    console.error('Error refocusing camera:', err);
-    return false;
-  }
-}
-
-/**
- * Stop the scanner and release camera
- */
-export async function stop() {
-  if (!html5QrCodeInstance) {
-    console.warn('Scanner not initialized');
-    return;
-  }
-
-  const instance = html5QrCodeInstance;
-
-  // Check if we are actually scanning or paused
-  try {
-    const state = instance.getState();
-    if (state !== Html5QrcodeScannerState.SCANNING && state !== Html5QrcodeScannerState.PAUSED) {
-      console.log('Scanner not running, skipping stop()');
+  const loop = async () => {
+    if (signal.aborted) return;
+    if (!activeVideoElement || activeVideoElement.paused || activeVideoElement.ended) {
+      // Wait and retry if paused but not aborted
+      if (!signal.aborted) setTimeout(loop, 100);
       return;
     }
-  } catch (_e) {
-    console.error(_e)
-    // If getState fails, just try to stop
+
+    const start = performance.now();
+
+    try {
+      const barcodes = await barcodeDetector.detect(activeVideoElement);
+
+      if (barcodes.length > 0) {
+        // Return the first one
+        const code = barcodes[0];
+        successCb(code.rawValue, { rawValue: code.rawValue, result: code });
+      }
+    } catch {
+      // errorCb("Scan detection error", err); 
+      // Don't spam error callback for every frame failure, detection failures are normal
+    }
+
+    const duration = performance.now() - start;
+    const delay = Math.max(0, intervalMs - duration);
+
+    setTimeout(loop, delay);
+  };
+
+  loop();
+}
+
+/**
+ * Stop Scanning
+ */
+export async function stop() {
+  isScanning = false;
+  if (scanController) {
+    scanController.abort();
+    scanController = null;
   }
+
+  // Stop Stream
+  if (activeStream) {
+    activeStream.getTracks().forEach(track => {
+      track.stop();
+      // Turn off torch if manual control used
+    });
+    activeStream = null;
+  }
+
+  if (activeVideoElement) {
+    activeVideoElement.srcObject = null;
+  }
+
+  console.log("✅ Scanner stopped");
+}
+
+/**
+ * Get available cameras
+ */
+export async function getCameras() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+    return [];
+  }
+
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices
+    .filter(d => d.kind === 'videoinput')
+    .map(d => ({
+      id: d.deviceId,
+      label: d.label || `Camera ${d.deviceId.substr(0, 5)}`
+    }));
+}
+
+/**
+ * Utilities for Torch and Focus
+ */
+function getVideoTrack(): MediaStreamTrack | null {
+  return activeStream ? activeStream.getVideoTracks()[0] : null;
+}
+
+export async function toggleTorch(): Promise<boolean> {
+  const track = getVideoTrack();
+  if (!track) return false;
+
+  // Check support
+  const caps = track.getCapabilities() as ExtendedMediaTrackCapabilities;
+  if (!caps.torch) return false;
+
+  // Toggle
+  const current = track.getSettings() as ExtendedMediaTrackSettings;
+  const nextState = !current.torch;
 
   try {
-    // Turn off torch before stopping
-    if (torchEnabled && currentVideoTrack) {
-      await toggleTorch();
-    }
-
-    await instance.stop();
-    // Also clear the canvas to remove the video element
-    try {
-      instance.clear();
-    } catch (_e) {
-      console.error(_e)
-    }
-
-    currentVideoTrack = null;
-    torchEnabled = false;
-    console.log('✅ Scanner stopped successfully');
-  } catch (err) {
-    console.error('❌ Error stopping scanner:', err);
-    // Don't throw here to avoid unhandled rejections in cleanup effects
+    const constraints: ExtendedMediaTrackConstraintSet = { torch: nextState };
+    await track.applyConstraints({ advanced: [constraints] } as MediaTrackConstraints);
+    return nextState;
+  } catch (e) {
+    console.error("Torch toggle failed", e);
+    return false;
   }
 }
 
-/**
- * Get the current scanner state
- */
-export function getState() {
-  return html5QrCodeInstance?.getState();
+export function isTorchSupported(): boolean {
+  const track = getVideoTrack();
+  if (!track) return false;
+  const caps = track.getCapabilities() as ExtendedMediaTrackCapabilities;
+  return !!caps.torch;
 }
 
-/**
- * Pause scanning (keeps camera active but stops processing)
- */
-export async function pause() {
-  if (html5QrCodeInstance) {
-    await html5QrCodeInstance.pause();
-  }
+export function isTorchEnabled(): boolean {
+  const track = getVideoTrack();
+  if (!track) return false;
+  const settings = track.getSettings() as ExtendedMediaTrackSettings;
+  return !!settings.torch;
 }
 
-/**
- * Resume scanning after pause
- */
-export async function resume() {
-  if (html5QrCodeInstance) {
-    await html5QrCodeInstance.resume();
-  }
+export async function refocus(): Promise<boolean> {
+  const track = getVideoTrack();
+  if (!track) return false;
+
+  const caps = track.getCapabilities() as ExtendedMediaTrackCapabilities;
+  if (!caps.focusMode || !caps.focusMode.includes('manual')) return false;
+
+  try {
+    // Manual focus cycle
+    const constraintsManual: ExtendedMediaTrackConstraintSet = { focusMode: 'manual' };
+    const constraintsContinuous: ExtendedMediaTrackConstraintSet = { focusMode: 'continuous' };
+
+    await track.applyConstraints({ advanced: [constraintsManual] } as MediaTrackConstraints);
+
+    await new Promise(r => setTimeout(r, 200));
+
+    await track.applyConstraints({ advanced: [constraintsContinuous] } as MediaTrackConstraints);
+    return true;
+  } catch { return false; }
 }
 
-/**
- * Get recommended performance preset based on device
- */
 export function getRecommendedPreset(): PerformancePreset {
-  // Check if device is low-end
+  // ZBar is fast, default to balanced or high
   const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-  if (isLowEnd) {
-    return 'performance';
-  } else if (isMobile) {
-    return 'balanced';
-  } else {
-    return 'high-quality';
-  }
+  return isLowEnd ? 'balanced' : 'high-quality';
 }
