@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useState, useCallback} from "react";
 import {Box, Button, Dialog, Grow, Typography,} from "@mui/material";
 import {IProductoTiendaV2} from "@/types/IProducto";
 import {useCartStore} from "@/store/cartStore";
@@ -8,41 +8,105 @@ interface QuantityDialogProps {
   onClose: () => void;
   onConfirm: () => void;
   onAddToCart?: () => void; // Nueva prop para callback después de agregar al carrito
+  maxDisponibleOverride?: number; // Máximo disponible calculado externamente (considera stock del padre para fracciones)
 }
 
-export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart }: QuantityDialogProps) => {
+export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart, maxDisponibleOverride }: QuantityDialogProps) => {
   const [quantity, setQuantity] = useState(1);
   const [direction, setDirection] = useState<'up' | 'down'>('up');
   const { addToCart, items } = useCartStore();
   const [isDecimalInput, setIsDecimalInput] = useState(false);
 
+  // Calcular máximo disponible para inicialización
+  const getInitialMaxQuantity = useCallback((): number => {
+    if (!productoTienda) return 0;
+    
+    const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
+    
+    if (typeof maxDisponibleOverride === 'number' && maxDisponibleOverride >= 0) {
+      return Math.max(0, maxDisponibleOverride - cartQuantity);
+    }
+    
+    const unidadesPorFraccion = productoTienda.producto?.unidadesPorFraccion;
+    const existencia = productoTienda.existencia || 0;
+    
+    if (unidadesPorFraccion && unidadesPorFraccion > 0) {
+      return Math.max(0, unidadesPorFraccion - 1 - cartQuantity);
+    } else {
+      return Math.max(0, existencia - cartQuantity);
+    }
+  }, [productoTienda, items, maxDisponibleOverride]);
+
   useEffect(() => {
-    setQuantity(1);
     // Verificar si el producto permite decimales
     setIsDecimalInput(productoTienda?.producto?.permiteDecimal || false);
-  }, [productoTienda]);
+    
+    // Establecer cantidad inicial basada en disponibilidad
+    // Si hay al menos 1 disponible, iniciar en 1; sino, iniciar en 0
+    const maxDisponible = getInitialMaxQuantity();
+    const minValue = productoTienda?.producto?.permiteDecimal ? 0.1 : 1;
+    setQuantity(maxDisponible >= minValue ? minValue : 0);
+  }, [productoTienda, getInitialMaxQuantity]);
+
+  /**
+   * Obtiene el máximo de cantidad permitida para este producto.
+   * Si se proporciona maxDisponibleOverride, lo usa (ya considera el stock del padre para fracciones).
+   * Sino, calcula internamente basado en existencia o unidadesPorFraccion.
+   */
+  const getMaxQuantity = useCallback((decrementForPrecision: number = 0): number => {
+    if (!productoTienda) return 0;
+    
+    const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
+    
+    // Si tenemos un override, usarlo (ya está calculado considerando el padre)
+    if (typeof maxDisponibleOverride === 'number' && maxDisponibleOverride >= 0) {
+      return Math.max(0, maxDisponibleOverride - cartQuantity - decrementForPrecision);
+    }
+    
+    // Fallback: calcular internamente (sin considerar stock del padre)
+    const unidadesPorFraccion = productoTienda.producto?.unidadesPorFraccion;
+    const existencia = productoTienda.existencia || 0;
+    
+    if (unidadesPorFraccion && unidadesPorFraccion > 0) {
+      // Es producto fracción
+      return Math.max(0, unidadesPorFraccion - 1 - cartQuantity - decrementForPrecision);
+    } else {
+      // Producto normal
+      return Math.max(0, existencia - cartQuantity - decrementForPrecision);
+    }
+  }, [productoTienda, items, maxDisponibleOverride]);
+
+  /**
+   * Obtiene el máximo para mostrar en la UI (sin considerar lo que ya está en el carrito del diálogo actual)
+   */
+  const getMaxForDisplay = useCallback((): number => {
+    if (!productoTienda) return 0;
+    
+    const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
+    
+    if (typeof maxDisponibleOverride === 'number' && maxDisponibleOverride >= 0) {
+      return Math.max(0, maxDisponibleOverride - cartQuantity);
+    }
+    
+    const unidadesPorFraccion = productoTienda.producto?.unidadesPorFraccion;
+    const existencia = productoTienda.existencia || 0;
+    
+    if (unidadesPorFraccion && unidadesPorFraccion > 0) {
+      return Math.max(0, unidadesPorFraccion - 1 - cartQuantity);
+    } else {
+      return Math.max(0, existencia - cartQuantity);
+    }
+  }, [productoTienda, items, maxDisponibleOverride]);
 
   // Incremento para productos que permiten decimales
   const increaseWithPrecision = (hundredths: boolean = false) => {
     const increment = hundredths ? 0.01 : 0.1;
     if (productoTienda) {
-      let maxQuantity = 0;
-      const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
-
-      if (cartQuantity > 0) {
-        maxQuantity = (
-          productoTienda.producto.unidadesPorFraccion > 0
-            ? productoTienda.producto.unidadesPorFraccion - increment
-            : productoTienda.existencia) - cartQuantity;
-      } else {
-        maxQuantity = productoTienda.producto.unidadesPorFraccion
-          ? productoTienda.producto.unidadesPorFraccion - increment
-          : productoTienda.existencia;
-      }
+      const maxQuantity = getMaxQuantity(increment);
 
       if (quantity < maxQuantity) {
         setDirection('up');
-        setQuantity(Math.round((quantity + increment) * 100) / 100); // Redondear a 2 decimales
+        setQuantity(Math.round((quantity + increment) * 100) / 100);
       }
     }
   };
@@ -52,31 +116,14 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
     const decrease = hundredths ? 0.01 : 0.1;
     if (quantity > decrease) {
       setDirection('down');
-      setQuantity(Math.round((quantity - decrease) * 100) / 100); // Redondear a 1 decimal
+      setQuantity(Math.round((quantity - decrease) * 100) / 100);
     }
   };
 
   // Incremento para productos normales (enteros)
   const increase = () => {
     if (productoTienda) {
-      // Si el producto tiene unidades por fracción, se usa ese valor.
-      // Si si no son productos con fracción se debe verificar que ese producto no esté ya en el carrito,
-      // si no está en el carrito la cantidad maxima seria igual a la existencia del producto.
-      // si está en el carrito la cantidad maxima seria igual a la existencia del producto menos la cantidad de productos en el carrito.
-
-      let maxQuantity = 0;
-
-      const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
-      if (cartQuantity > 0) {
-        maxQuantity = (
-          productoTienda.producto.unidadesPorFraccion > 0
-            ? productoTienda.producto.unidadesPorFraccion - 1
-            : productoTienda.existencia) - cartQuantity;
-      } else {
-        maxQuantity = productoTienda.producto.unidadesPorFraccion
-          ? productoTienda.producto.unidadesPorFraccion - 1
-          : productoTienda.existencia;
-      }
+      const maxQuantity = getMaxQuantity();
 
       if (quantity < maxQuantity) {
         setDirection('up');
@@ -94,19 +141,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
 
   const increaseByAmount = (amount: number) => {
     if (productoTienda) {
-      const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
-      let maxQuantity = 0;
-
-      if (cartQuantity > 0) {
-        maxQuantity = (
-          productoTienda.producto.unidadesPorFraccion > 0
-            ? productoTienda.producto.unidadesPorFraccion - 1
-            : productoTienda.existencia) - cartQuantity;
-      } else {
-        maxQuantity = productoTienda.producto.unidadesPorFraccion
-          ? productoTienda.producto.unidadesPorFraccion - 1
-          : productoTienda.existencia;
-      }
+      const maxQuantity = getMaxQuantity();
 
       const newQuantity = quantity + amount;
       if (newQuantity <= maxQuantity) {
@@ -128,19 +163,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
   // Incremento decimal por cantidad mayor (0.5, 1.0)
   const increaseDecimalByAmount = (amount: number) => {
     if (productoTienda) {
-      const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
-      let maxQuantity = 0;
-
-      if (cartQuantity > 0) {
-        maxQuantity = (
-          productoTienda.producto.unidadesPorFraccion > 0
-            ? productoTienda.producto.unidadesPorFraccion
-            : productoTienda.existencia) - cartQuantity;
-      } else {
-        maxQuantity = productoTienda.producto.unidadesPorFraccion
-          ? productoTienda.producto.unidadesPorFraccion
-          : productoTienda.existencia;
-      }
+      const maxQuantity = getMaxQuantity();
 
       const newQuantity = quantity + amount;
       if (newQuantity <= maxQuantity) {
@@ -162,21 +185,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
 
   const canIncreaseByAmount = (amount: number): boolean => {
     if (!productoTienda) return false;
-
-    const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
-    let maxQuantity = 0;
-
-    if (cartQuantity > 0) {
-      maxQuantity = (
-        productoTienda.producto.unidadesPorFraccion > 0
-          ? productoTienda.producto.unidadesPorFraccion - 1
-          : productoTienda.existencia) - cartQuantity;
-    } else {
-      maxQuantity = productoTienda.producto.unidadesPorFraccion
-        ? productoTienda.producto.unidadesPorFraccion - 1
-        : productoTienda.existencia;
-    }
-
+    const maxQuantity = getMaxQuantity();
     return quantity + amount <= maxQuantity;
   };
 
@@ -185,34 +194,42 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
   };
 
   const handleConfirmQuantity = () => {
-    if (productoTienda) {
-      addToCart({
-        id: productoTienda.id,
-        name: productoTienda.producto.nombre,
-        price: productoTienda.precio,
-        productoTiendaId: productoTienda.id
-      }, quantity);
-      onClose();
-      // Ejecutar callback después de agregar al carrito
-      if (onAddToCart) {
-        onAddToCart();
-      }
+    // Validación de seguridad: no agregar si no hay stock o cantidad inválida
+    const maxDisponible = getMaxForDisplay();
+    if (!productoTienda || quantity <= 0 || quantity > maxDisponible || maxDisponible <= 0) {
+      return;
+    }
+    
+    addToCart({
+      id: productoTienda.id,
+      name: productoTienda.producto.nombre,
+      price: productoTienda.precio,
+      productoTiendaId: productoTienda.id
+    }, quantity);
+    onClose();
+    // Ejecutar callback después de agregar al carrito
+    if (onAddToCart) {
+      onAddToCart();
     }
   };
 
   const handlePayAll = () => {
-    if (productoTienda) {
-      addToCart({
-        id: productoTienda.id,
-        name: productoTienda.producto.nombre,
-        price: productoTienda.precio,
-        productoTiendaId: productoTienda.id,
-      }, quantity);
-      onConfirm();
-      // Ejecutar callback después de agregar al carrito
-      if (onAddToCart) {
-        onAddToCart();
-      }
+    // Validación de seguridad: no agregar si no hay stock o cantidad inválida
+    const maxDisponible = getMaxForDisplay();
+    if (!productoTienda || quantity <= 0 || quantity > maxDisponible || maxDisponible <= 0) {
+      return;
+    }
+    
+    addToCart({
+      id: productoTienda.id,
+      name: productoTienda.producto.nombre,
+      price: productoTienda.precio,
+      productoTiendaId: productoTienda.id,
+    }, quantity);
+    onConfirm();
+    // Ejecutar callback después de agregar al carrito
+    if (onAddToCart) {
+      onAddToCart();
     }
   };
 
@@ -234,7 +251,10 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
             Precio: ${productoTienda.precio}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Disponibles: {productoTienda.producto.unidadesPorFraccion || productoTienda.existencia}
+            {productoTienda.producto.unidadesPorFraccion 
+              ? `Stock: ${Math.max(0, productoTienda.existencia || 0)} | Máx. por venta: ${getMaxForDisplay()}`
+              : `Disponibles: ${getMaxForDisplay()}`
+            }
           </Typography>
 
 
@@ -329,7 +349,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
               <Button
                 variant="contained"
                 onClick={increase}
-                disabled={quantity >= (productoTienda?.producto.unidadesPorFraccion || productoTienda?.existencia)}
+                disabled={quantity >= getMaxQuantity()}
                 sx={{
                   transition: 'all 0.2s ease-in-out',
                   '&:hover': {
@@ -377,7 +397,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                 <Button
                     variant="contained"
                     onClick={()=> increaseWithPrecision(true)}
-                    disabled={quantity >= (productoTienda?.producto.unidadesPorFraccion || productoTienda?.existencia)}
+                    disabled={quantity >= getMaxQuantity(0.01)}
                     sx={{
                       transition: 'all 0.2s ease-in-out',
                       '&:hover': {
@@ -409,7 +429,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                 <Button
                     variant="contained"
                     onClick={()=> increaseWithPrecision()}
-                    disabled={quantity >= (productoTienda?.producto.unidadesPorFraccion || productoTienda?.existencia)}
+                    disabled={quantity >= getMaxQuantity(0.1)}
                     sx={{
                       transition: 'all 0.2s ease-in-out',
                       '&:hover': {
@@ -636,6 +656,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
             variant="contained"
             fullWidth
             onClick={handleConfirmQuantity}
+            disabled={quantity <= 0 || quantity > getMaxQuantity() || getMaxForDisplay() <= 0}
             sx={{
               transition: 'all 0.2s ease-in-out',
               '&:hover': {
@@ -660,7 +681,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
             color="success"
             fullWidth
             onClick={handlePayAll}
-            disabled={!productoTienda?.existencia && productoTienda?.producto?.unidadesPorFraccion === 0}
+            disabled={quantity <= 0 || quantity > getMaxQuantity() || getMaxForDisplay() <= 0}
           >
             Venta Rápida
           </Button>

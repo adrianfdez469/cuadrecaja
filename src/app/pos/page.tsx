@@ -247,16 +247,86 @@ export default function POSInterface() {
     return items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
   }
 
+  /**
+   * Calcula la disponibilidad real de un producto, considerando desagregación para productos fracción.
+   * Es resiliente a fallos y maneja casos borde.
+   * 
+   * @param producto - El producto para calcular disponibilidad
+   * @param allProductos - Lista completa de productos para buscar el padre (si es fracción)
+   * @returns Objeto con disponibilidadReal y maxPorTransaccion
+   */
+  function calcularDisponibilidadReal(
+    producto: IProductoTiendaV2 | null | undefined,
+    allProductos: IProductoTiendaV2[]
+  ): { disponibilidadReal: number; maxPorTransaccion: number; esFraccion: boolean } {
+    // Caso borde: producto null o undefined
+    if (!producto) {
+      return { disponibilidadReal: 0, maxPorTransaccion: 0, esFraccion: false };
+    }
+
+    // Caso borde: producto.producto es null o undefined
+    if (!producto.producto) {
+      return { disponibilidadReal: Math.max(0, producto.existencia || 0), maxPorTransaccion: Math.max(0, producto.existencia || 0), esFraccion: false };
+    }
+
+    const existenciaProducto = Math.max(0, producto.existencia || 0);
+    const fraccionDeId = producto.producto.fraccionDeId;
+    const unidadesPorFraccion = producto.producto.unidadesPorFraccion;
+
+    // Si NO es producto fracción, retornar existencia normal
+    if (!fraccionDeId || !unidadesPorFraccion || unidadesPorFraccion <= 0) {
+      return { 
+        disponibilidadReal: existenciaProducto, 
+        maxPorTransaccion: existenciaProducto,
+        esFraccion: false 
+      };
+    }
+
+    // Es producto fracción - buscar el padre
+    // Validar que allProductos sea un array válido
+    if (!Array.isArray(allProductos) || allProductos.length === 0) {
+      // Sin lista de productos, usar solo la existencia actual con el límite de fracción
+      const maxFraccion = Math.max(0, unidadesPorFraccion - 1);
+      return { 
+        disponibilidadReal: Math.min(existenciaProducto, maxFraccion), 
+        maxPorTransaccion: Math.min(existenciaProducto, maxFraccion),
+        esFraccion: true 
+      };
+    }
+
+    // Buscar producto padre
+    const productoPadre = allProductos.find(
+      p => p && p.productoId === fraccionDeId
+    );
+
+    const existenciaPadre = productoPadre ? Math.max(0, productoPadre.existencia || 0) : 0;
+
+    // Disponibilidad total = existencia actual de fracción + (cajas del padre * unidades por caja)
+    const disponibilidadTotal = existenciaProducto + (existenciaPadre * unidadesPorFraccion);
+
+    // El máximo por transacción es el mínimo entre la disponibilidad total y (unidadesPorFraccion - 1)
+    const maxFraccion = Math.max(0, unidadesPorFraccion - 1);
+    const maxPorTransaccion = Math.min(disponibilidadTotal, maxFraccion);
+
+    return { 
+      disponibilidadReal: disponibilidadTotal, 
+      maxPorTransaccion: Math.max(0, maxPorTransaccion),
+      esFraccion: true 
+    };
+  }
+
   function getSecondaryTextForSearchedProducts (product: IProductoTiendaV2) {
-   
-    if(product.producto.unidadesPorFraccion) {
-      return (getCartQuantity(product.id) > 0 
-        ? `Cant: ${product.producto.unidadesPorFraccion - getCartQuantity(product.id)}`
-        : `Cant: ${product.producto.unidadesPorFraccion}`);
+    const cartQty = getCartQuantity(product.id);
+    const { maxPorTransaccion, esFraccion } = calcularDisponibilidadReal(product, productosTienda);
+    
+    const disponible = maxPorTransaccion - cartQty;
+    
+    if (esFraccion) {
+      // Para productos fracción: mostrar existencia real + máximo por venta
+      const existenciaReal = Math.max(0, product.existencia || 0);
+      return `Stock: ${existenciaReal} | Máx: ${disponible > 0 ? disponible : 0}`;
     } else {
-      return (getCartQuantity(product.id) > 0 
-        ? `Cant: ${product.existencia - getCartQuantity(product.id)}` 
-        : `Cant: ${product.existencia}`);
+      return `Cant: ${disponible > 0 ? disponible : 0}`;
     }
   }
 
@@ -521,14 +591,51 @@ export default function POSInterface() {
           ...(discountCodes && discountCodes.length > 0 ? { discountCodes } : {})
         });
 
-        // 3. Actualizar inventario local
+        // 3. Actualizar inventario local (incluyendo desagregaciones)
+        // Primero, identificar qué productos necesitan desagregación
+        const desagregaciones: { padreProductoId: string; cantidad: number; hijoId: string; unidadesPorFraccion: number }[] = [];
+        
+        cart.forEach((cartProd) => {
+          const productoEnTienda = productosTienda.find(p => p.id === cartProd.productoTiendaId);
+          if (productoEnTienda && productoEnTienda.producto.fraccionDeId) {
+            // Es un producto fracción
+            if (productoEnTienda.existencia < cartProd.quantity) {
+              // Necesita desagregación
+              desagregaciones.push({
+                padreProductoId: productoEnTienda.producto.fraccionDeId,
+                cantidad: 1, // Siempre desagrega 1 unidad del padre
+                hijoId: productoEnTienda.id,
+                unidadesPorFraccion: productoEnTienda.producto.unidadesPorFraccion || 0
+              });
+            }
+          }
+        });
+
         const newProds = productosTienda.map((p) => {
+          let nuevaExistencia = p.existencia;
+          
+          // Verificar si este producto es padre de alguna desagregación
+          const desagregacionPadre = desagregaciones.find(d => d.padreProductoId === p.productoId);
+          if (desagregacionPadre) {
+            // Restar 1 del producto padre
+            nuevaExistencia -= desagregacionPadre.cantidad;
+          }
+          
+          // Verificar si este producto es hijo de alguna desagregación
+          const desagregacionHijo = desagregaciones.find(d => d.hijoId === p.id);
+          if (desagregacionHijo) {
+            // Sumar las unidades por fracción
+            nuevaExistencia += desagregacionHijo.unidadesPorFraccion;
+          }
+          
+          // Verificar si este producto está en el carrito (venta)
           const cartProd = cart.find((cartItem) => cartItem.productoTiendaId === p.id);
           if (cartProd) {
-            return { ...p, existencia: p.existencia - cartProd.quantity }
-          } else {
-            return p;
+            // Restar la cantidad vendida
+            nuevaExistencia -= cartProd.quantity;
           }
+          
+          return { ...p, existencia: nuevaExistencia };
         });
         setProductosTienda(newProds);
 
@@ -601,20 +708,18 @@ export default function POSInterface() {
     const oldQuantity = cart.find(item => item.productoTiendaId === id)?.quantity || 0;
     if (oldQuantity < quantity) {
       const productoTienda = productosTienda.find(p => p.id === id);
+      if (!productoTienda) return;
+      
       // Si el producto tiene unidades por fracción, se usa ese valor.
-      // Si si no son productos con fracción se debe verificar que ese producto no esté ya en el carrito,
+      // Si no son productos con fracción se debe verificar que ese producto no esté ya en el carrito,
       // si no está en el carrito la cantidad maxima seria igual a la existencia del producto.
       // si está en el carrito la cantidad maxima seria igual a la existencia del producto menos la cantidad de productos en el carrito.
 
-      let maxQuantity = 0;
+      // Calcular el máximo permitido para este producto
+      const maxQuantity = productoTienda.producto.unidadesPorFraccion
+        ? productoTienda.producto.unidadesPorFraccion - 1
+        : productoTienda.existencia;
 
-      const cartQuantity = cart.find(item => item.productoTiendaId === productoTienda.id)?.quantity || 0;
-
-      if (cartQuantity > 0) {
-        maxQuantity = productoTienda.producto.unidadesPorFraccion
-          ? productoTienda.producto.unidadesPorFraccion - 1
-          : productoTienda.existencia;
-      }
       if (quantity > maxQuantity) {
         return;
       }
@@ -650,6 +755,16 @@ export default function POSInterface() {
     setSearchResults(filtered.slice(0, 10)); // Limitar a 10 resultados
     setShowSearchResults(true);
   };
+
+  // Actualizar resultados de búsqueda cuando productosTienda cambie (después de una venta)
+  useEffect(() => {
+    if (searchQuery.trim() !== "" && showSearchResults) {
+      const filtered = productosTienda.filter((product) =>
+        product.producto.nombre.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setSearchResults(filtered.slice(0, 10));
+    }
+  }, [productosTienda, searchQuery, showSearchResults]);
 
   const handleProductSelect = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
@@ -1173,6 +1288,7 @@ export default function POSInterface() {
             productosTienda={productosTienda.filter(
               (p) => p.producto.categoria.id === selectedCategory.id
             )}
+            allProductosTienda={productosTienda}
             category={selectedCategory}
             closeModal={() => setShowProducts(false)}
             openCart={() => setOpenCart(true)}
@@ -1509,7 +1625,7 @@ export default function POSInterface() {
                     >
                       <ListItemText
                         primary={product.producto.nombre}
-                        secondary={`$${product.precio} - ${getSecondaryTextForSearchedProducts(product)} disponibles`}
+                        secondary={`$${product.precio} - ${getSecondaryTextForSearchedProducts(product)}`}
                         primaryTypographyProps={{
                           sx: {
                             fontWeight: product.producto.nombre.toLowerCase().startsWith(searchQuery.toLowerCase())
@@ -1532,6 +1648,7 @@ export default function POSInterface() {
           onClose={handleResetProductQuantity}
           onConfirm={handleConfirmQuantity}
           onAddToCart={reopenScannerIfNeeded}
+          maxDisponibleOverride={selectedProduct ? calcularDisponibilidadReal(selectedProduct, productosTienda).maxPorTransaccion : undefined}
         />
         {ConfirmDialogComponent}
       </Box>

@@ -15,17 +15,65 @@ import { IProductoTiendaV2 } from "@/types/IProducto";
 import { QuantityDialog } from "./QuantityDialog";
 import { useCartStore } from "@/store/cartStore";
 
+interface ProductModalProps {
+  open: boolean;
+  closeModal: () => void;
+  productosTienda: IProductoTiendaV2[];
+  allProductosTienda?: IProductoTiendaV2[]; // Lista completa para calcular disponibilidad de fracciones
+  category: { id: string; nombre: string; color: string } | null;
+  openCart: () => void;
+}
+
+/**
+ * Calcula la disponibilidad real de un producto, considerando desagregación para productos fracción.
+ */
+function calcularDisponibilidadReal(
+  producto: IProductoTiendaV2 | null | undefined,
+  allProductos: IProductoTiendaV2[]
+): { disponibilidadReal: number; maxPorTransaccion: number; esFraccion: boolean } {
+  if (!producto) {
+    return { disponibilidadReal: 0, maxPorTransaccion: 0, esFraccion: false };
+  }
+
+  if (!producto.producto) {
+    return { disponibilidadReal: Math.max(0, producto.existencia || 0), maxPorTransaccion: Math.max(0, producto.existencia || 0), esFraccion: false };
+  }
+
+  const existenciaProducto = Math.max(0, producto.existencia || 0);
+  const fraccionDeId = producto.producto.fraccionDeId;
+  const unidadesPorFraccion = producto.producto.unidadesPorFraccion;
+
+  if (!fraccionDeId || !unidadesPorFraccion || unidadesPorFraccion <= 0) {
+    return { disponibilidadReal: existenciaProducto, maxPorTransaccion: existenciaProducto, esFraccion: false };
+  }
+
+  if (!Array.isArray(allProductos) || allProductos.length === 0) {
+    const maxFraccion = Math.max(0, unidadesPorFraccion - 1);
+    return { disponibilidadReal: Math.min(existenciaProducto, maxFraccion), maxPorTransaccion: Math.min(existenciaProducto, maxFraccion), esFraccion: true };
+  }
+
+  const productoPadre = allProductos.find(p => p && p.productoId === fraccionDeId);
+  const existenciaPadre = productoPadre ? Math.max(0, productoPadre.existencia || 0) : 0;
+  const disponibilidadTotal = existenciaProducto + (existenciaPadre * unidadesPorFraccion);
+  const maxFraccion = Math.max(0, unidadesPorFraccion - 1);
+  const maxPorTransaccion = Math.min(disponibilidadTotal, maxFraccion);
+
+  return { disponibilidadReal: disponibilidadTotal, maxPorTransaccion: Math.max(0, maxPorTransaccion), esFraccion: true };
+}
+
 export function ProductModal({
   open,
   closeModal,
   productosTienda,
+  allProductosTienda,
   category,
   openCart,
-}) {
+}: ProductModalProps) {
   const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
   const { items } = useCartStore();
 
-
+  // Usar allProductosTienda si está disponible, sino usar productosTienda
+  const allProducts = allProductosTienda || productosTienda;
 
   const handleProductClick = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
@@ -44,6 +92,11 @@ export function ProductModal({
   const getCartQuantity = (productoTiendaId: string) => {
     return items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
   };
+
+  // Calcular el máximo disponible para el producto seleccionado
+  const selectedProductMaxDisponible = selectedProduct 
+    ? calcularDisponibilidadReal(selectedProduct, allProducts).maxPorTransaccion 
+    : 0;
 
 
   return (
@@ -111,18 +164,16 @@ export function ProductModal({
 
                     <Box display={'flex'} flexDirection={'row'} justifyContent={'space-between'} alignContent={'space-between'}>
                       <Typography variant="subtitle1" color="text.secondary">
-                        {
-                          productoTienda.producto.unidadesPorFraccion &&
-                          (getCartQuantity(productoTienda.id) > 0 
-                            ? `Cant: ${productoTienda.producto.unidadesPorFraccion - getCartQuantity(productoTienda.id)}`
-                            : `Cant: ${productoTienda.producto.unidadesPorFraccion}`)
-                        }
-                        
-                        {!productoTienda.producto.unidadesPorFraccion && 
-                         (getCartQuantity(productoTienda.id) > 0 
-                          ? `Cant: ${productoTienda.existencia - getCartQuantity(productoTienda.id)}` 
-                          : `Cant: ${productoTienda.existencia}`)
-                        }
+                        {(() => {
+                          const { maxPorTransaccion, esFraccion } = calcularDisponibilidadReal(productoTienda, allProducts);
+                          const cartQty = getCartQuantity(productoTienda.id);
+                          const disponible = maxPorTransaccion - cartQty;
+                          if (esFraccion) {
+                            const existenciaReal = Math.max(0, productoTienda.existencia || 0);
+                            return `Stock: ${existenciaReal} | Máx: ${disponible > 0 ? disponible : 0}`;
+                          }
+                          return `Cant: ${disponible > 0 ? disponible : 0}`;
+                        })()}
                       </Typography>
                       <Typography variant="subtitle1" color="textPrimary">
                         ${productoTienda.precio}
@@ -140,6 +191,7 @@ export function ProductModal({
         productoTienda={selectedProduct}
         onClose={handleResetProductQuantity}
         onConfirm={handleConfirmQuantity}
+        maxDisponibleOverride={selectedProductMaxDisponible}
       />
     </>
   );
