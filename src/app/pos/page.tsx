@@ -322,7 +322,9 @@ export default function POSInterface() {
     const disponible = maxPorTransaccion - cartQty;
     
     if (esFraccion) {
-      return `Máx: ${disponible > 0 ? disponible : 0}`;
+      // Para productos fracción: mostrar existencia real + máximo por venta
+      const existenciaReal = Math.max(0, product.existencia || 0);
+      return `Stock: ${existenciaReal} | Máx: ${disponible > 0 ? disponible : 0}`;
     } else {
       return `Cant: ${disponible > 0 ? disponible : 0}`;
     }
@@ -753,6 +755,16 @@ export default function POSInterface() {
     setSearchResults(filtered.slice(0, 10)); // Limitar a 10 resultados
     setShowSearchResults(true);
   };
+
+  // Actualizar resultados de búsqueda cuando productosTienda cambie (después de una venta)
+  useEffect(() => {
+    if (searchQuery.trim() !== "" && showSearchResults) {
+      const filtered = productosTienda.filter((product) =>
+        product.producto.nombre.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setSearchResults(filtered.slice(0, 10));
+    }
+  }, [productosTienda, searchQuery, showSearchResults]);
 
   const handleProductSelect = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);

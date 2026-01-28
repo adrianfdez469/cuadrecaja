@@ -252,7 +252,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {productoTienda.producto.unidadesPorFraccion 
-              ? `Máx. por venta: ${getMaxForDisplay()}`
+              ? `Stock: ${Math.max(0, productoTienda.existencia || 0)} | Máx. por venta: ${getMaxForDisplay()}`
               : `Disponibles: ${getMaxForDisplay()}`
             }
           </Typography>

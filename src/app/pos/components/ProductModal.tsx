@@ -168,9 +168,11 @@ export function ProductModal({
                           const { maxPorTransaccion, esFraccion } = calcularDisponibilidadReal(productoTienda, allProducts);
                           const cartQty = getCartQuantity(productoTienda.id);
                           const disponible = maxPorTransaccion - cartQty;
-                          return esFraccion 
-                            ? `Máx: ${disponible > 0 ? disponible : 0}`
-                            : `Cant: ${disponible > 0 ? disponible : 0}`;
+                          if (esFraccion) {
+                            const existenciaReal = Math.max(0, productoTienda.existencia || 0);
+                            return `Stock: ${existenciaReal} | Máx: ${disponible > 0 ? disponible : 0}`;
+                          }
+                          return `Cant: ${disponible > 0 ? disponible : 0}`;
                         })()}
                       </Typography>
                       <Typography variant="subtitle1" color="textPrimary">
