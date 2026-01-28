@@ -36,7 +36,7 @@ export const authOptions: NextAuthOptions = {
             }
           },
         });
-
+        
         if (!user) throw new Error("Usuario no encontrado");
 
         const passwordMatch = await bcrypt.compare(credentials.password, user.password);
