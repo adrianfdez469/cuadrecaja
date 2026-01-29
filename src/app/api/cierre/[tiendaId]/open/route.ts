@@ -17,30 +17,46 @@ export async function PUT(
       );
     }
 
-    // Buscar el último período
-    const ultimoPeriodo = await prisma.cierrePeriodo.findFirst({
-      where: { tiendaId },
-      orderBy: { fechaInicio: "desc" },
-    });
+    // Usar transacción con lock para prevenir race conditions
+    const nuevoPeriodo = await prisma.$transaction(async (tx) => {
+      // Buscar el último período con lock FOR UPDATE para prevenir duplicados
+      const ultimoPeriodos = await tx.$queryRaw<Array<{ id: string; fechaFin: Date | null }>>`
+        SELECT "id", "fechaFin" FROM "CierrePeriodo" 
+        WHERE "tiendaId" = ${tiendaId} 
+        ORDER BY "fechaInicio" DESC 
+        LIMIT 1 
+        FOR UPDATE
+      `;
 
+      const ultimoPeriodo = ultimoPeriodos.length > 0 ? ultimoPeriodos[0] : null;
 
-    if (ultimoPeriodo && !ultimoPeriodo.fechaFin) {
-      return NextResponse.json(
-        { error: "Ultimo período continua abierto" },
-        { status: 400 }
-      );
-    } else {
-      // Crear un nuevo periodo
-      const nuevoPeriodo = await prisma.cierrePeriodo.create({
+      // Verificar si ya existe un período abierto
+      if (ultimoPeriodo && !ultimoPeriodo.fechaFin) {
+        throw new Error("PERIODO_ABIERTO");
+      }
+
+      // Crear el nuevo período dentro de la transacción
+      return tx.cierrePeriodo.create({
         data: {
           fechaInicio: new Date(),
           tiendaId,
         },
       });
-      return NextResponse.json(nuevoPeriodo, { status: 201 });
-    }
+    });
+
+    return NextResponse.json(nuevoPeriodo, { status: 201 });
+
   } catch (error) {
     console.log(error);
+    
+    // Manejar el error específico de período ya abierto
+    if (error instanceof Error && error.message === "PERIODO_ABIERTO") {
+      return NextResponse.json(
+        { error: "Último período continúa abierto" },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
       { error: "Error al abrir el período" },
       { status: 500 }

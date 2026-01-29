@@ -49,6 +49,7 @@ const CierreCajaPage = () => {
   });
   const [noPeriodFound, setNoPeriodFound] = useState(false);
   const [noLocalActual, setNoLocalActual] = useState(false);
+  const [isProcessingCierre, setIsProcessingCierre] = useState(false);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { clearSales, sales } = useSalesStore();
   const theme = useTheme();
@@ -56,20 +57,26 @@ const CierreCajaPage = () => {
   const { verificarPermiso } = usePermisos()
 
   const handleCerrarCaja = async () => {
+    // Evitar múltiples clics mientras se procesa
+    if (isProcessingCierre) return;
+    
     if(sales.filter(sale => !sale.synced).length > 0) {
       showMessage("Debe sincronizar las ventas en la interfaz del pos de ventas", "warning");
     } else {
       confirmDialog("¿Estás seguro de desea realizar el cierre de caja?", async () => {
         // Se debe crear un nuevo cierre
         const localId = user.localActual.id;
+        setIsProcessingCierre(true);
         try {
           await closePeriod(localId, currentPeriod.id);
           clearSales();
-          await openPeriod(localId);        
+          await openPeriod(localId);
+          showMessage('Cierre de caja realizado exitosamente', 'success');
         } catch (error) {
           console.log(error);
-          showMessage('Ah ocurrido un error', 'error');
+          showMessage('Ha ocurrido un error al realizar el cierre', 'error');
         } finally {
+          setIsProcessingCierre(false);
           await getInitData();    
         }
       });
@@ -77,6 +84,10 @@ const CierreCajaPage = () => {
   };
 
   const handleCreateFirstPeriod = async () => {
+    // Evitar múltiples clics mientras se procesa
+    if (isProcessingCierre) return;
+    
+    setIsProcessingCierre(true);
     try {
       setIsDataLoading(true);
       const localId = user.localActual.id;
@@ -86,6 +97,8 @@ const CierreCajaPage = () => {
     } catch (error) {
       console.log(error);
       showMessage("Error al crear el primer período", "error");
+    } finally {
+      setIsProcessingCierre(false);
     }
   };
 
@@ -290,9 +303,9 @@ const CierreCajaPage = () => {
           color="primary"
           size="large"
           onClick={handleCreateFirstPeriod}
-          disabled={isDataLoading}
+          disabled={isDataLoading || isProcessingCierre}
         >
-          Crear Primer Período
+          {isProcessingCierre ? "Creando período..." : "Crear Primer Período"}
         </Button>
       </PageContainer>
     );
@@ -392,6 +405,7 @@ const CierreCajaPage = () => {
             totales={totales}
             handleCerrarCaja={!verificarPermiso("operaciones.cierre.cerrar") ? undefined : handleCerrarCaja}
             showOnlyCants={!verificarPermiso("operaciones.cierre.gananciascostos")}
+            isProcessing={isProcessingCierre}
           />
         </ContentCard>
         
