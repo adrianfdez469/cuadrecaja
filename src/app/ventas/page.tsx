@@ -62,11 +62,16 @@ const Ventas = () => {
   const [noPeriodFound, setNoPeriodFound] = useState(false);
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [statsExpanded, setStatsExpanded] = useState(false);
+  const [isProcessingPeriod, setIsProcessingPeriod] = useState(false);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedVenta, setSelectedVenta] = useState<IVenta | null>(null);
 
   const handleCreateFirstPeriod = async () => {
+    // Evitar múltiples clics mientras se procesa
+    if (isProcessingPeriod) return;
+    
+    setIsProcessingPeriod(true);
     try {
       setIsDataLoading(true);
       const tiendaId = user.localActual.id;
@@ -76,6 +81,8 @@ const Ventas = () => {
     } catch (error) {
       console.log(error);
       showMessage("Error al crear el primer período", "error");
+    } finally {
+      setIsProcessingPeriod(false);
     }
   };
 
@@ -241,9 +248,9 @@ const Ventas = () => {
           color="primary"
           size="large"
           onClick={handleCreateFirstPeriod}
-          disabled={isDataLoading}
+          disabled={isDataLoading || isProcessingPeriod}
         >
-          Crear Primer Período
+          {isProcessingPeriod ? "Creando período..." : "Crear Primer Período"}
         </Button>
       </PageContainer>
     );

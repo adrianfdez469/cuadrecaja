@@ -79,6 +79,7 @@ interface IProps {
   handleCerrarCaja?: () => Promise<void>;
   hideTotales?: boolean;
   showOnlyCants?: boolean;
+  isProcessing?: boolean;
 }
 
 export const TablaProductosCierre: FC<IProps> = ({
@@ -87,6 +88,7 @@ export const TablaProductosCierre: FC<IProps> = ({
   handleCerrarCaja,
   hideTotales,
   showOnlyCants,
+  isProcessing = false,
 }) => {
   const { user } = useAppContext();
   const { showMessage } = useMessageContext();
@@ -482,14 +484,14 @@ export const TablaProductosCierre: FC<IProps> = ({
               <Button
                 variant="contained"
                 onClick={handleCierre}
-                disabled={disableCierreBtn}
+                disabled={disableCierreBtn || isProcessing}
                 size="large"
                 sx={{
                   minWidth: '140px',
                   height: '48px'
                 }}
               >
-                Cerrar caja
+                {isProcessing ? "Procesando..." : "Cerrar caja"}
               </Button>
             </Box>
           )}
