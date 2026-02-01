@@ -226,7 +226,7 @@ export default function DashboardResumenPage() {
           <CalendarMonth sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
           Mes
         </ToggleButton>
-        <ToggleButton value="anio" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
+        <ToggleButton value="anio">
           <CalendarMonth sx={{ mr: 1, fontSize: 18 }} />
           Año
         </ToggleButton>
