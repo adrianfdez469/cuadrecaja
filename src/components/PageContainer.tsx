@@ -1,9 +1,9 @@
 import React, { ReactNode } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Breadcrumbs, 
-  Link, 
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link,
   Container,
   Fade,
   Stack,
@@ -42,9 +42,9 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   };
 
   return (
-    <Container 
-      maxWidth={maxWidth} 
-      sx={{ 
+    <Container
+      maxWidth={maxWidth}
+      sx={{
         py: isMobile ? 1.5 : 3,
         px: isMobile ? 1 : 3
       }}
@@ -54,9 +54,9 @@ export const PageContainer: React.FC<PageContainerProps> = ({
           {/* Header */}
           <Box sx={{ mb: isMobile ? 2 : 4 }}>
             {breadcrumbs && breadcrumbs.length > 0 && (
-              <Breadcrumbs 
+              <Breadcrumbs
                 separator={<NavigateNextIcon fontSize="small" />}
-                sx={{ 
+                sx={{
                   mb: isMobile ? 0.75 : 2,
                   py: isMobile ? 0.25 : 0.5,
                   '& .MuiBreadcrumbs-li': {
@@ -74,7 +74,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                         e.preventDefault();
                         handleBreadcrumbClick(crumb.href!);
                       }}
-                      sx={{ 
+                      sx={{
                         textDecoration: 'none',
                         '&:hover': { textDecoration: 'underline' },
                         cursor: 'pointer',
@@ -84,8 +84,8 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                       {crumb.label}
                     </Link>
                   ) : (
-                    <Typography 
-                      key={index} 
+                    <Typography
+                      key={index}
                       color="text.primary"
                       sx={{ fontSize: isMobile ? '0.8125rem' : '1rem' }}
                     >
@@ -95,48 +95,49 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                 ))}
               </Breadcrumbs>
             )}
-            
-            <Stack 
-              direction="row"
-              justifyContent="space-between" 
-              alignItems="flex-start"
-              spacing={1}
+
+            <Stack
+              direction={isMobile ? "column" : "row"}
+              justifyContent="space-between"
+              alignItems={isMobile ? "stretch" : "flex-start"}
+              spacing={isMobile ? 2 : 1}
             >
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography 
-                  variant={isMobile ? "h6" : "h4"} 
-                  component="h1" 
+                <Typography
+                  variant={isMobile ? "h5" : "h4"}
+                  component="h1"
                   gutterBottom={!isMobile}
                   sx={{
-                    fontSize: isMobile ? '1.25rem' : '2.125rem',
+                    fontSize: isMobile ? '1.5rem' : '2.125rem',
                     fontWeight: 600,
-                    lineHeight: isMobile ? 1.3 : 1.2,
-                    mb: isMobile ? (subtitle ? 0.5 : 0) : undefined
+                    lineHeight: isMobile ? 1.2 : 1.2,
+                    mb: isMobile ? (subtitle ? 0.5 : 1) : undefined
                   }}
                 >
                   {title}
                 </Typography>
                 {subtitle && (
-                  <Typography 
-                    variant="body2" 
+                  <Typography
+                    variant="body2"
                     color="text.secondary"
                     sx={{
-                      fontSize: isMobile ? '0.8125rem' : '1rem',
+                      fontSize: isMobile ? '0.875rem' : '1rem',
                       lineHeight: 1.4,
-                      mb: isMobile ? 1 : 0
+                      mb: isMobile ? 0 : 0
                     }}
                   >
                     {subtitle}
                   </Typography>
                 )}
               </Box>
-              
+
               {headerActions && (
-                <Box 
-                  sx={{ 
+                <Box
+                  sx={{
                     flexShrink: 0,
                     display: 'flex',
-                    alignItems: 'flex-start'
+                    alignItems: isMobile ? 'stretch' : 'flex-start',
+                    width: isMobile ? '100%' : 'auto'
                   }}
                 >
                   {headerActions}
