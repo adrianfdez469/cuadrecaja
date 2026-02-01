@@ -29,6 +29,8 @@ import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
 import axios from "axios";
+import {DatePicker} from "@mui/x-date-pickers/DatePicker";
+import dayjs, {Dayjs} from "dayjs";
 
 // Interfaces para los datos del dashboard
 interface DashboardResumenMetrics {
@@ -58,8 +60,8 @@ interface DashboardResumenMetrics {
 
 interface FilterOptions {
   periodo: 'dia' | 'semana' | 'mes' | 'anio' | 'personalizado';
-  fechaInicio?: string;
-  fechaFin?: string;
+  fechaInicio?: Dayjs | null;
+  fechaFin?: Dayjs | null;
 }
 
 export default function DashboardResumenPage() {
@@ -71,6 +73,8 @@ export default function DashboardResumenPage() {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterOptions>({
     periodo: 'mes',
+    fechaInicio: null,
+    fechaFin: null
   });
 
   const { user, loadingContext } = useAppContext();
@@ -116,8 +120,8 @@ export default function DashboardResumenPage() {
       // Si cambia a personalizado y no hay fechas, poner hoy por defecto
       if (key === 'periodo' && value === 'personalizado' && !prev.fechaInicio) {
         const today = new Date().toISOString().split('T')[0];
-        newFilters.fechaInicio = today;
-        newFilters.fechaFin = today;
+        newFilters.fechaInicio = dayjs(today);
+        newFilters.fechaFin = dayjs(today);
       }
 
       return newFilters;
@@ -238,39 +242,17 @@ export default function DashboardResumenPage() {
 
       {filters.periodo === 'personalizado' && (
         <Stack direction="row" spacing={1} alignItems="center">
-          <TextField
-            size="small"
-            type="date"
-            label="Desde"
-            value={filters.fechaInicio || ''}
-            onChange={(e) => handleFilterChange('fechaInicio', e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            inputProps={{
-              onClick: (e: any) => e.target.showPicker?.()
-            }}
-            sx={{
-              flex: 1,
-              minWidth: { xs: 120, sm: 140 },
-              '& .MuiInputBase-root': { bgcolor: 'background.paper' },
-              '& input': { cursor: 'pointer', fontSize: '0.875rem' }
-            }}
+          <DatePicker
+              label="Desde"
+              value={filters.fechaInicio}
+              onChange={(d) => setFilters( prev => ({ ...prev, fechaInicio: d }) )}
+              slotProps={{ textField: { fullWidth: true, size: "small" } }}
           />
-          <TextField
-            size="small"
-            type="date"
-            label="Hasta"
-            value={filters.fechaFin || ''}
-            onChange={(e) => handleFilterChange('fechaFin', e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            inputProps={{
-              onClick: (e: any) => e.target.showPicker?.()
-            }}
-            sx={{
-              flex: 1,
-              minWidth: { xs: 120, sm: 140 },
-              '& .MuiInputBase-root': { bgcolor: 'background.paper' },
-              '& input': { cursor: 'pointer', fontSize: '0.875rem' }
-            }}
+          <DatePicker
+              label="Hasta"
+              value={filters.fechaFin}
+              onChange={(d) => setFilters( prev => ({ ...prev, fechaFin: d }) )}
+              slotProps={{ textField: { fullWidth: true, size: "small" } }}
           />
         </Stack>
       )}
