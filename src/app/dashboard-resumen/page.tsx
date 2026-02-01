@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  Grid,
   IconButton,
   Stack,
   Table,
@@ -23,13 +22,14 @@ import {
 import { CalendarMonth, Refresh, Today, DateRange, ShowChart } from "@mui/icons-material";
 import { BarChart } from '@mui/x-charts/BarChart';
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
+import Grid from "@mui/material/Grid2";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
 import axios from "axios";
-import {DatePicker} from "@mui/x-date-pickers/DatePicker";
-import dayjs, {Dayjs} from "dayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs, { Dayjs } from "dayjs";
 
 // Interfaces para los datos del dashboard
 interface DashboardResumenMetrics {
@@ -242,16 +242,16 @@ export default function DashboardResumenPage() {
       {filters.periodo === 'personalizado' && (
         <Stack direction="row" spacing={1} alignItems="center">
           <DatePicker
-              label="Desde"
-              value={filters.fechaInicio}
-              onChange={(d) => setFilters( prev => ({ ...prev, fechaInicio: d }) )}
-              slotProps={{ textField: { fullWidth: true, size: "small" } }}
+            label="Desde"
+            value={filters.fechaInicio}
+            onChange={(d) => setFilters(prev => ({ ...prev, fechaInicio: d }))}
+            slotProps={{ textField: { fullWidth: true, size: "small" } }}
           />
           <DatePicker
-              label="Hasta"
-              value={filters.fechaFin}
-              onChange={(d) => setFilters( prev => ({ ...prev, fechaFin: d }) )}
-              slotProps={{ textField: { fullWidth: true, size: "small" } }}
+            label="Hasta"
+            value={filters.fechaFin}
+            onChange={(d) => setFilters(prev => ({ ...prev, fechaFin: d }))}
+            slotProps={{ textField: { fullWidth: true, size: "small" } }}
           />
         </Stack>
       )}
@@ -304,31 +304,31 @@ export default function DashboardResumenPage() {
           </Typography>
         </Box>
       ) : metrics ? (
-        <Stack spacing={{md: 4}}>
+        <Stack spacing={{ md: 4 }}>
           {/* Métricas principales */}
           <Grid container columnSpacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <MetricCard
                 title={filters.periodo === 'dia' ? "Ventas de hoy" : filters.periodo === 'mes' ? "Ventas del mes" : "Ventas del período"}
                 value={formatCurrency(metrics.ventas.totalPeriodo)}
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <MetricCard
                 title="Unidades vendidas"
                 value={formatNumber(metrics.ventas.unidadesVendidas)}
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <MetricCard
                 title="Ganancia estimada"
                 value={formatCurrency(metrics.ventas.gananciaTotal)}
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <MetricCard
                 title="Productos c/ stock"
                 value={formatNumber(metrics.ventas.productosActivos)}
@@ -339,7 +339,7 @@ export default function DashboardResumenPage() {
           {/* Gráficos y tablas */}
           <Grid container spacing={3}>
             {/* Top 10 productos más vendidos */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -371,7 +371,7 @@ export default function DashboardResumenPage() {
             </Grid>
 
             {/* Top 10 por ganancia generada */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -403,7 +403,7 @@ export default function DashboardResumenPage() {
             </Grid>
 
             {/* Productos menos vendidos */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -432,7 +432,7 @@ export default function DashboardResumenPage() {
             </Grid>
 
             {/* Productos menos rentables */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
