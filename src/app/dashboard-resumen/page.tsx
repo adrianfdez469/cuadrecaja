@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -26,12 +26,13 @@ import {
   useMediaQuery,
   useTheme
 } from "@mui/material";
-import {Refresh} from "@mui/icons-material";
-import {BarChart} from '@mui/x-charts/BarChart';
-import {useAppContext} from "@/context/AppContext";
-import {useMessageContext} from "@/context/MessageContext";
-import {PageContainer} from "@/components/PageContainer";
-import {formatCurrency, formatNumber} from "@/utils/formatters";
+import { CalendarMonth, Refresh, Today, DateRange, ShowChart } from "@mui/icons-material";
+import { BarChart } from '@mui/x-charts/BarChart';
+import { ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { useAppContext } from "@/context/AppContext";
+import { useMessageContext } from "@/context/MessageContext";
+import { PageContainer } from "@/components/PageContainer";
+import { formatCurrency, formatNumber } from "@/utils/formatters";
 import axios from "axios";
 
 // Interfaces para los datos del dashboard
@@ -108,13 +109,24 @@ export default function DashboardResumenPage() {
     if (!loadingContext && user?.localActual) {
       fetchDashboardMetrics();
     }
-  }, [loadingContext, user, filters]);
+  }, [loadingContext, user?.localActual?.id]); // Solo se dispara al cambiar de tienda o cargar inicialmente
 
   const handleFilterChange = (key: keyof FilterOptions, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    setFilters(prev => {
+      const newFilters = {
+        ...prev,
+        [key]: value
+      };
+
+      // Si cambia a personalizado y no hay fechas, poner hoy por defecto
+      if (key === 'periodo' && value === 'personalizado' && !prev.fechaInicio) {
+        const today = new Date().toISOString().split('T')[0];
+        newFilters.fechaInicio = today;
+        newFilters.fechaFin = today;
+      }
+
+      return newFilters;
+    });
   };
 
   const handleRefresh = () => {
@@ -178,25 +190,59 @@ export default function DashboardResumenPage() {
   ];
 
   const headerActions = (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      <FormControl size="small" sx={{ minWidth: 120 }}>
-        <InputLabel>Período</InputLabel>
-        <Select
-          value={filters.periodo}
-          label="Período"
-          onChange={(e) => handleFilterChange('periodo', e.target.value)}
-          size="small"
-        >
-          <MenuItem value="dia">Día</MenuItem>
-          <MenuItem value="semana">Semana</MenuItem>
-          <MenuItem value="mes">Mes</MenuItem>
-          <MenuItem value="anio">Año</MenuItem>
-          {/*<MenuItem value="personalizado">Personalizado</MenuItem>*/}
-        </Select>
-      </FormControl>
+    <Stack
+      direction={{ xs: 'column', md: 'row' }}
+      spacing={1.5}
+      alignItems={{ xs: 'stretch', md: 'center' }}
+      sx={{
+        width: '100%',
+        justifyContent: 'flex-end',
+        mt: { xs: 1, sm: 0 } // Separación extra en móvil si es necesario
+      }}
+    >
+      <ToggleButtonGroup
+        value={filters.periodo}
+        exclusive
+        onChange={(_, value) => value && handleFilterChange('periodo', value)}
+        size="small"
+        color="primary"
+        sx={{
+          bgcolor: 'background.paper',
+          boxShadow: 1,
+          '& .MuiToggleButton-root': {
+            flex: 1, // En móvil se expanden equitativamente
+            px: { xs: 1, sm: 2 },
+            py: 0.75,
+            fontSize: { xs: '0.7rem', sm: '0.8125rem', md: '0.875rem' },
+            whiteSpace: 'nowrap'
+          }
+        }}
+      >
+        <ToggleButton value="dia">
+          <Today sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
+          Día
+        </ToggleButton>
+        <ToggleButton value="semana">
+          <ShowChart sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
+          {!isMobile && "Semana"}
+          {isMobile && "Sem."}
+        </ToggleButton>
+        <ToggleButton value="mes">
+          <CalendarMonth sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
+          Mes
+        </ToggleButton>
+        <ToggleButton value="anio" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
+          <CalendarMonth sx={{ mr: 1, fontSize: 18 }} />
+          Año
+        </ToggleButton>
+        <ToggleButton value="personalizado">
+          <DateRange sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
+          {isMobile ? "Pers." : "Personalizado"}
+        </ToggleButton>
+      </ToggleButtonGroup>
 
       {filters.periodo === 'personalizado' && (
-        <>
+        <Stack direction="row" spacing={1} alignItems="center">
           <TextField
             size="small"
             type="date"
@@ -204,6 +250,15 @@ export default function DashboardResumenPage() {
             value={filters.fechaInicio || ''}
             onChange={(e) => handleFilterChange('fechaInicio', e.target.value)}
             InputLabelProps={{ shrink: true }}
+            inputProps={{
+              onClick: (e: any) => e.target.showPicker?.()
+            }}
+            sx={{
+              flex: 1,
+              minWidth: { xs: 120, sm: 140 },
+              '& .MuiInputBase-root': { bgcolor: 'background.paper' },
+              '& input': { cursor: 'pointer', fontSize: '0.875rem' }
+            }}
           />
           <TextField
             size="small"
@@ -212,16 +267,43 @@ export default function DashboardResumenPage() {
             value={filters.fechaFin || ''}
             onChange={(e) => handleFilterChange('fechaFin', e.target.value)}
             InputLabelProps={{ shrink: true }}
+            inputProps={{
+              onClick: (e: any) => e.target.showPicker?.()
+            }}
+            sx={{
+              flex: 1,
+              minWidth: { xs: 120, sm: 140 },
+              '& .MuiInputBase-root': { bgcolor: 'background.paper' },
+              '& input': { cursor: 'pointer', fontSize: '0.875rem' }
+            }}
           />
-        </>
+        </Stack>
       )}
 
-      <Tooltip title="Actualizar métricas">
-        <IconButton onClick={handleRefresh} disabled={loading} size="small">
-          <Refresh />
-        </IconButton>
-      </Tooltip>
-    </Box>
+      <IconButton
+        onClick={handleRefresh}
+        disabled={loading || (filters.periodo === 'personalizado' && !filters.fechaInicio)}
+        color="primary"
+        sx={{
+          bgcolor: 'primary.main',
+          color: 'white',
+          borderRadius: 1,
+          '&:hover': { bgcolor: 'primary.dark' },
+          '&.Mui-disabled': { bgcolor: 'action.disabledBackground' },
+          height: 40,
+          px: { xs: 2, sm: 3 },
+          display: 'flex',
+          gap: 1,
+          width: { xs: '100%', md: 'auto' },
+          boxShadow: 2
+        }}
+      >
+        <Refresh sx={{ fontSize: 20 }} />
+        <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>
+          Aplicar
+        </Typography>
+      </IconButton>
+    </Stack>
   );
 
   return (
@@ -251,7 +333,7 @@ export default function DashboardResumenPage() {
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6} md={3}>
               <MetricCard
-                title="Ventas del mes"
+                title={filters.periodo === 'dia' ? "Ventas de hoy" : filters.periodo === 'mes' ? "Ventas del mes" : "Ventas del período"}
                 value={formatCurrency(metrics.ventas.totalPeriodo)}
               />
             </Grid>
@@ -265,14 +347,14 @@ export default function DashboardResumenPage() {
 
             <Grid item xs={12} sm={6} md={3}>
               <MetricCard
-                title="Ganancia total"
+                title="Ganancia estimada"
                 value={formatCurrency(metrics.ventas.gananciaTotal)}
               />
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
               <MetricCard
-                title="Productos activos"
+                title="Productos c/ stock"
                 value={formatNumber(metrics.ventas.productosActivos)}
               />
             </Grid>
