@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import {startOfNextDay} from "@/utils/date";
 
 export interface DashboardResumenMetrics {
   ventas: {
@@ -88,7 +89,7 @@ export async function GET(
         }
         fechaInicioFiltro = new Date(fechaInicio);
         if (fechaFin) {
-          fechaFinFiltro = new Date(fechaFin);
+          fechaFinFiltro = startOfNextDay(new Date(fechaFin));
         }
         break;
       default:

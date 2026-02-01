@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ISummaryCierre } from "@/types/ICierre";
+import {startOfNextDay} from "@/utils/date";
 
 type Params = { tiendaId: string };
 type MontosMap = Record<string, { bruto: number; descuentos: number }>;
@@ -28,10 +29,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
     const fechaInicio = searchParams.get("fechaInicio");
     const fechaFin =  searchParams.get("fechaFin");
 
+    const nextDayToEndDate = startOfNextDay(new Date(fechaFin));
+
     const filtros = {
       tiendaId: tiendaId,
       ...(fechaInicio && {fechaInicio: { gte: new Date(fechaInicio).toISOString() }}),
-      ...(fechaFin ? {fechaFin: {lte: new Date(fechaFin).toISOString()}} : {fechaFin: { not: null}})
+      ...(fechaFin ? {fechaFin: {lte: nextDayToEndDate.toISOString()}} : {fechaFin: { not: null}})
     }
 
     const flitrosVentas = {
@@ -42,7 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
       },
       createdAt: {
         ...(fechaInicio && {gte: new Date(fechaInicio).toISOString()}),
-        ...(fechaFin && {lte: new Date(fechaFin).toISOString()})
+        ...(fechaFin && {lte: nextDayToEndDate.toISOString()})
       }
     }
   
@@ -178,7 +181,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
         cierrePeriodo: { fechaFin: { not: null } },
         createdAt: {
           ...(fechaInicio && { gte: new Date(fechaInicio).toISOString() }),
-          ...(fechaFin && { lte: new Date(fechaFin).toISOString() })
+          ...(fechaFin && { lte: nextDayToEndDate.toISOString() })
         }
       },
       select: {
@@ -212,7 +215,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
       totalItems: totalCierres
     });
   } catch (error: unknown) {
-    // eslint-disable-next-line no-console
+     
     console.log(error);
     return NextResponse.json({ error: "Error al obtener los datos del cierre" }, { status: 500 });
   }
