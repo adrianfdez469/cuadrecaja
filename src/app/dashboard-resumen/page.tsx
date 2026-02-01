@@ -7,12 +7,8 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  FormControl,
   Grid,
   IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   Table,
   TableBody,
@@ -21,7 +17,6 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Tooltip,
   Typography,
   useMediaQuery,
   useTheme
@@ -328,9 +323,9 @@ export default function DashboardResumenPage() {
           </Typography>
         </Box>
       ) : metrics ? (
-        <Stack spacing={4}>
+        <Stack spacing={{md: 4}}>
           {/* Métricas principales */}
-          <Grid container spacing={3}>
+          <Grid container columnSpacing={3}>
             <Grid item xs={12} sm={6} md={3}>
               <MetricCard
                 title={filters.periodo === 'dia' ? "Ventas de hoy" : filters.periodo === 'mes' ? "Ventas del mes" : "Ventas del período"}
