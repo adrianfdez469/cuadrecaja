@@ -565,6 +565,23 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
+          {!isAuth && (
+              <Typography
+                  variant="h6"
+                  component="h1"
+                  sx={{
+                    fontWeight: 700,
+                    background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    fontSize: { xs: '1.1rem', sm: '1.25rem' }
+
+                  }}
+              >
+                Cuadre de Caja
+              </Typography>
+          )}
           {isAuth && (
             <IconButton
               edge="start"
@@ -591,27 +608,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             alignContent: 'center',
             // gap: {xs: 0, sm: 2}
           }}>
-            <Typography
-              variant="h6"
-              component="h1"
-              sx={{
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                fontSize: { xs: '1.1rem', sm: '1.25rem' }
-
-              }}
-            >
-              Cuadre de Caja
-            </Typography>
-
             {user?.negocio?.nombre && (
 
               <Chip
                 label={user?.negocio?.nombre}
-                size="small"
                 variant="outlined"
                 sx={{
                   borderColor: 'primary.main',
@@ -624,24 +624,13 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           </Box>
 
           {isAuth && user ? (
-            <Box display="flex" flexDirection={'row'} alignItems="flex-end" gap={0}>
+            <Box display="flex" flexDirection={'row'} alignItems="center" gap={0}>
               {/* Info del usuario mejorada */}
-              <Box
-                display="flex"
-                flexDirection="column"
-                alignItems="end"
-                sx={{
-                  mr: { xs: 0, sm: 0 },
-                  display: 'flex'
-                }}
-              >
-                <Typography variant="body2" fontWeight={600} color="text.primary">
-                  {user?.nombre || user?.usuario}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {user?.localActual?.nombre}
-                </Typography>
-              </Box>
+              <StoreIcon />
+              <Typography variant="body2" fontWeight={700} color="text.green">
+                {user?.localActual?.nombre}
+              </Typography>
+
 
               <IconButton
                 // size="large"
