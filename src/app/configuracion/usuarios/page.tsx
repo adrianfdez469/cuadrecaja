@@ -87,7 +87,6 @@ export default function UsuariosPage() {
     setSelectedUsuario(user);
     setNombre(user?.nombre || "");
     setUsuario(user?.usuario || "");
-    setPassword(user?.password || "");
     setOpen(true);
   };
 
@@ -116,8 +115,9 @@ export default function UsuariosPage() {
     const data = {
       nombre: nombre,
       usuario: usuario,
-      password: password,
     };
+
+    if(password !== "") data["password"] = password;
 
     setSaving(true);
     try {
