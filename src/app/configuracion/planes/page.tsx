@@ -385,8 +385,8 @@ export default function PlanesPage() {
                     icon={<Star />}
                     sx={{
                       position: 'absolute',
-                      top: -10,
-                      left: 16,
+                      top: 0,
+                      right: 0,
                       zIndex: 1
                     }}
                   />
@@ -398,8 +398,8 @@ export default function PlanesPage() {
                     size="small"
                     sx={{
                       position: 'absolute',
-                      top: -10,
-                      right: 16,
+                      top: 0,
+                      right: 0,
                       zIndex: 1
                     }}
                   />
@@ -487,9 +487,8 @@ export default function PlanesPage() {
                       icon={<Star />}
                       sx={{
                         position: 'absolute',
-                        top: -10,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
+                        top: 0,
+                        right: 0,
                         zIndex: 1
                       }}
                     />
@@ -501,8 +500,8 @@ export default function PlanesPage() {
                       size="small"
                       sx={{
                         position: 'absolute',
-                        top: -10,
-                        right: 16,
+                        top: 0,
+                        right: 0,
                         zIndex: 1
                       }}
                     />
