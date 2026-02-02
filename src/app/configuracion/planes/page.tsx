@@ -28,6 +28,7 @@ import {
   Radio,
   LinearProgress,
   CircularProgress,
+  ToggleButtonGroup, ToggleButton,
 } from '@mui/material';
 import {
   CheckCircle,
@@ -47,11 +48,11 @@ import { planesNegocio } from '@/utils/planesNegocio';
 import { PageContainer } from '@/components/PageContainer';
 import { useAppContext } from '@/context/AppContext';
 import { useMessageContext } from '@/context/MessageContext';
-import { 
-  formatDate, 
-  formatDaysRemaining, 
+import {
+  formatDate,
+  formatDaysRemaining,
   getDaysRemainingColor,
-  formatPercentage 
+  formatPercentage
 } from '@/utils/formatters';
 import axios from 'axios';
 import { subscriptionPlansForUi } from '@/constants/subscriptionsPlans';
@@ -105,6 +106,7 @@ export default function PlanesPage() {
   const [selectedSupport, setSelectedSupport] = useState<string>('');
   const [stats, setStats] = useState<NegocioStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   // Cargar estadísticas del negocio
   useEffect(() => {
@@ -151,7 +153,7 @@ export default function PlanesPage() {
   // Determinar el plan actual del usuario
   const getCurrentPlan = () => {
     if (!user?.negocio) return null;
-    
+
     const currentLimits = {
       tiendas: user.negocio.locallimit,
       usuarios: user.negocio.userlimit,
@@ -159,8 +161,8 @@ export default function PlanesPage() {
     };
 
     const planEntry = Object.entries(planesNegocio).find(
-      ([, plan]) => 
-        plan.limiteLocales === currentLimits.tiendas && 
+      ([, plan]) =>
+        plan.limiteLocales === currentLimits.tiendas &&
         plan.limiteUsuarios === currentLimits.usuarios &&
         plan.limiteProductos === currentLimits.productos
     );
@@ -241,8 +243,8 @@ export default function PlanesPage() {
     >
       {/* Información del plan actual con estadísticas */}
       {currentPlan && (
-        <Alert 
-          severity="info" 
+        <Alert
+          severity="info"
           sx={{ mb: 4 }}
           icon={<Business />}
         >
@@ -250,7 +252,7 @@ export default function PlanesPage() {
             <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
               Plan Actual: {currentPlan}
             </Typography>
-            
+
             {loadingStats ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
                 <CircularProgress size={20} />
@@ -263,7 +265,7 @@ export default function PlanesPage() {
                   <Typography variant="body2" sx={{ mb: 2 }}>
                     {user?.negocio?.nombre} está usando el plan {currentPlan.toLowerCase()} con el siguiente uso:
                   </Typography>
-                  
+
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={4}>
                       <UsageStatsCard
@@ -312,7 +314,7 @@ export default function PlanesPage() {
                             <Schedule color="success" sx={{ fontSize: 40 }} />
                           )}
                         </Box>
-                        
+
                         <Box sx={{ textAlign: 'center' }}>
                           <Typography variant="h6" fontWeight="bold">
                             {formatDaysRemaining(stats.diasRestantes)}
@@ -338,17 +340,49 @@ export default function PlanesPage() {
         </Alert>
       )}
 
-      {/* Alerta sobre validez mensual */}
+      {/* Alerta sobre validez mensual/anual */}
       <Alert severity="warning" sx={{ mb: 4 }} icon={<Schedule />}>
         <Typography variant="subtitle2" fontWeight="bold">
           ⏰ Importante: Validez de los Planes
         </Typography>
         <Typography variant="body2">
-          Todos los planes tienen una <strong>validez de 30 días(excepto el FREEMIUM)</strong> desde su activación.
-          Después de este período, será necesario renovar la suscripción mensual para continuar 
-          usando el servicio sin interrupciones.
+          {billingCycle === 'monthly' ? (
+            <>
+              Todos los planes tienen una <strong>validez de 30 días (excepto el FREEMIUM)</strong> desde su activación.
+              Después de este período, será necesario renovar la suscripción mensual para continuar
+              usando el servicio sin interrupciones.
+            </>
+          ) : (
+            <>
+              Todos los planes tienen una <strong>validez de 365 días (excepto el FREEMIUM)</strong> desde su activación.
+              Después de este período, será necesario renovar la suscripción anual para continuar
+              usando el servicio sin interrupciones.
+            </>
+          )}
         </Typography>
       </Alert>
+
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+          <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              justifyContent="center"
+              sx={{ mb: 4 }}
+          >
+            <ToggleButtonGroup
+                color="primary"
+                value={billingCycle}
+                exclusive
+                onChange={(e, value) => setBillingCycle(value)}
+                aria-label="Platform"
+            >
+              <ToggleButton value="monthly">Mensual</ToggleButton>
+              <ToggleButton value="yearly">Anual</ToggleButton>
+            </ToggleButtonGroup>
+          </Stack>
+
+      </Box>
 
       {/* Planes disponibles */}
       <Box sx={{ mb: 4 }}>
@@ -363,14 +397,14 @@ export default function PlanesPage() {
           // Vista móvil: Stack vertical con cards más compactas
           <Stack spacing={3}>
             {subscriptionPlansForUi.map((plan) => (
-              <Card 
+              <Card
                 key={plan.key}
                 variant="outlined"
-                sx={{ 
+                sx={{
                   position: 'relative',
                   border: plan.recommended ? 2 : 1,
                   borderColor: plan.recommended ? 'primary.main' : 'divider',
-                  '&:hover': { 
+                  '&:hover': {
                     boxShadow: plan.recommended ? 4 : 2,
                     transform: 'translateY(-2px)',
                     transition: 'all 0.2s'
@@ -385,8 +419,8 @@ export default function PlanesPage() {
                     icon={<Star />}
                     sx={{
                       position: 'absolute',
-                      top: -10,
-                      left: 16,
+                      top: 0,
+                      right: 0,
                       zIndex: 1
                     }}
                   />
@@ -398,8 +432,8 @@ export default function PlanesPage() {
                     size="small"
                     sx={{
                       position: 'absolute',
-                      top: -10,
-                      right: 16,
+                      top: 0,
+                      right: 0,
                       zIndex: 1
                     }}
                   />
@@ -415,27 +449,31 @@ export default function PlanesPage() {
                         {plan.description}
                       </Typography>
                       <Typography variant="caption" color="warning.main" sx={{ fontStyle: 'italic', display: 'block', mt: 0.5 }}>
-                        {plan.duration}
+                        {plan.key === 'FREEMIUM'
+                          ? plan.duration
+                          : billingCycle === 'monthly' ? '30 días de validez' : '365 días de validez'}
                       </Typography>
                       <Box sx={{ mt: 2, display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                        <Typography 
-                          variant="h4" 
-                          component="span" 
+                        <Typography
+                          variant="h4"
+                          component="span"
                           color="primary"
                           sx={{ fontSize: '2rem', fontWeight: 700 }}
                         >
-                          {plan.price}
+                          {plan.key === 'CUSTOM' || plan.key === 'FREEMIUM'
+                            ? plan.price
+                            : `$${billingCycle === 'monthly' ? (planesNegocio as object)[plan.key].precio : (planesNegocio as object)[plan.key].precio * 10}`}
                         </Typography>
-                        {plan.period && (
+                        {(plan.period || plan.key !== 'CUSTOM') && (
                           <Typography variant="body2" component="span" color="text.secondary">
-                            /{plan.period}
+                            /{plan.key === 'FREEMIUM' ? 'semana' : billingCycle === 'monthly' ? 'mes' : 'año'}
                           </Typography>
                         )}
                       </Box>
                     </Box>
-                    
+
                     <Divider />
-                    
+
                     {/* Features */}
                     <Box>
                       <Typography variant="subtitle2" sx={{ fontSize: '1rem', fontWeight: 600, mb: 2 }}>
@@ -445,8 +483,8 @@ export default function PlanesPage() {
                         {plan.features.map((feature, index) => (
                           <Stack key={index} direction="row" alignItems="center" spacing={1.5}>
                             <CheckCircle color="success" sx={{ fontSize: 20 }} />
-                            <Typography 
-                              variant="body2" 
+                            <Typography
+                              variant="body2"
                               sx={{ fontSize: '0.875rem', lineHeight: 1.4 }}
                             >
                               {feature}
@@ -465,14 +503,14 @@ export default function PlanesPage() {
           <Grid container spacing={isTablet ? 3 : 4}>
             {subscriptionPlansForUi.map((plan) => (
               <Grid item xs={12} sm={6} md={4} key={plan.key}>
-                <Card 
+                <Card
                   variant="outlined"
-                  sx={{ 
+                  sx={{
                     height: '100%',
                     position: 'relative',
                     border: plan.recommended ? 2 : 1,
                     borderColor: plan.recommended ? 'primary.main' : 'divider',
-                    '&:hover': { 
+                    '&:hover': {
                       boxShadow: plan.recommended ? 4 : 2,
                       transform: 'translateY(-4px)',
                       transition: 'all 0.3s'
@@ -487,9 +525,8 @@ export default function PlanesPage() {
                       icon={<Star />}
                       sx={{
                         position: 'absolute',
-                        top: -10,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
+                        top: 0,
+                        right: 0,
                         zIndex: 1
                       }}
                     />
@@ -501,8 +538,8 @@ export default function PlanesPage() {
                       size="small"
                       sx={{
                         position: 'absolute',
-                        top: -10,
-                        right: 16,
+                        top: 0,
+                        right: 0,
                         zIndex: 1
                       }}
                     />
@@ -516,36 +553,40 @@ export default function PlanesPage() {
                         {plan.description}
                       </Typography>
                       <Typography variant="caption" color="warning.main" sx={{ fontStyle: 'italic', display: 'block', mt: 0.5 }}>
-                        {plan.duration}
+                        {plan.key === 'FREEMIUM'
+                          ? plan.duration
+                          : billingCycle === 'monthly' ? '30 días de validez' : '365 días de validez'}
                       </Typography>
                       <Box sx={{ my: 3 }}>
-                        <Typography 
-                          variant="h3" 
-                          component="span" 
+                        <Typography
+                          variant="h3"
+                          component="span"
                           color="primary"
                           sx={{ fontSize: isTablet ? '2.5rem' : '3rem', fontWeight: 700 }}
                         >
-                          {plan.price}
+                          {plan.key === 'CUSTOM' || plan.key === 'FREEMIUM'
+                            ? plan.price
+                            : `$${billingCycle === 'monthly' ? (planesNegocio as object)[plan.key].precio : (planesNegocio as object)[plan.key].precio * 10}`}
                         </Typography>
-                        {plan.period && (
+                        {(plan.period || plan.key !== 'CUSTOM') && (
                           <Typography variant="h6" component="span" color="text.secondary">
-                            /{plan.period}
+                            /{plan.key === 'FREEMIUM' ? 'semana' : billingCycle === 'monthly' ? 'mes' : 'año'}
                           </Typography>
                         )}
                       </Box>
                     </Box>
-                    
+
                     <Divider sx={{ mb: 3 }} />
-                    
+
                     <List dense sx={{ flexGrow: 1 }}>
                       {plan.features.map((feature, index) => (
                         <ListItem key={index} sx={{ px: 0, py: 0.5 }}>
                           <ListItemIcon sx={{ minWidth: 36 }}>
                             <CheckCircle color="success" fontSize="small" />
                           </ListItemIcon>
-                          <ListItemText 
+                          <ListItemText
                             primary={feature}
-                            primaryTypographyProps={{ 
+                            primaryTypographyProps={{
                               fontSize: isTablet ? '0.875rem' : '1rem',
                               fontWeight: 500
                             }}
@@ -565,7 +606,7 @@ export default function PlanesPage() {
       <Box sx={{ mb: 4 }}>
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body2" sx={{ fontSize: isMobile ? '0.875rem' : '1rem' }}>
-            <strong>¿Necesitas ayuda para elegir?</strong> Nuestro equipo de soporte puede ayudarte a seleccionar 
+            <strong>¿Necesitas ayuda para elegir?</strong> Nuestro equipo de soporte puede ayudarte a seleccionar
             el plan que mejor se adapte a las necesidades específicas de tu negocio.
           </Typography>
         </Alert>
@@ -576,8 +617,8 @@ export default function PlanesPage() {
             size="large"
             startIcon={<ContactSupport />}
             onClick={handleContactSupport}
-            sx={{ 
-              py: 1.5, 
+            sx={{
+              py: 1.5,
               px: 4,
               fontSize: isMobile ? '1rem' : '1.125rem',
               fontWeight: 600
@@ -609,13 +650,13 @@ export default function PlanesPage() {
             </Typography>
           </Stack>
         </DialogTitle>
-        
+
         <DialogContent>
           <Stack spacing={3}>
             <Typography variant="body1">
               Selecciona con quién te gustaría hablar para obtener más información sobre nuestros planes:
             </Typography>
-            
+
             <RadioGroup
               value={selectedSupport}
               onChange={(e) => setSelectedSupport(e.target.value)}
@@ -644,7 +685,7 @@ export default function PlanesPage() {
                       </Box>
                     </Box>
                   }
-                  sx={{ 
+                  sx={{
                     m: 0,
                     p: 1,
                     borderRadius: 2,
@@ -657,16 +698,16 @@ export default function PlanesPage() {
             </RadioGroup>
           </Stack>
         </DialogContent>
-        
+
         <DialogActions sx={{ p: 3, gap: 1 }}>
-          <Button 
+          <Button
             onClick={handleCloseContactSupport}
             color="secondary"
             size="large"
           >
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={handleContactSelected}
             variant="contained"
             startIcon={<WhatsApp />}

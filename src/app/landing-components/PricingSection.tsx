@@ -5,7 +5,7 @@ import {
   Box,
   Container,
   Typography,
-  Grid,
+  Grid2 as Grid,
   Card,
   CardContent,
   Button,
@@ -14,7 +14,7 @@ import {
   List,
   ListItem,
   ListItemIcon,
-  ListItemText,
+  ListItemText, ToggleButtonGroup, ToggleButton,
 } from '@mui/material';
 import {
   CheckCircle,
@@ -22,78 +22,9 @@ import {
   Security,
   CloudSync,
   Support,
-  
 } from '@mui/icons-material';
+import { Stack } from '@mui/material';
 
-const plans = [
-  {
-    name: 'Freemium',
-    price: '$0',
-    period: '/semana',
-    expireDays: 7,
-    description: 'Plan gratuito por 7 días',
-    popular: false,
-    color: '#2196F3',
-    features: [
-      '2 locales máximo',
-      '1 usuario',
-      'Hasta 30 productos',
-      'Funcionalidades básicas',
-      'Soporte por email',
-      '7 días de validez'
-    ],
-    notIncluded: [
-      'Usuarios ilimitados',
-      'Productos ilimitados',
-      'Soporte prioritario',
-      'Capacitación incluida'
-    ]
-  },
-  {
-    name: 'Silver',
-    price: '$20',
-    period: '/mes',
-    expireDays: 30,
-    description: 'Recomendado para negocios en crecimiento',
-    popular: true,
-    color: '#4CAF50',
-    features: [
-      'Hasta 5 locales',
-      'Usuarios ilimitados',
-      'Hasta 500 productos',
-      'Capacitación inicial',
-      'Soporte prioritario',
-      'Acceso completo a funcionalidades',
-      'Soporte en línea y presencial',
-      '30 días de validez'
-    ],
-    notIncluded: [
-      'Productos ilimitados',
-      'Funcionalidades personalizadas'
-    ]
-  },
-  {
-    name: 'Premium',
-    price: '$30',
-    period: '/mes',
-    expireDays: 30,
-    description: 'Para empresas que necesitan todo',
-    popular: false,
-    color: '#9C27B0',
-    features: [
-      'Hasta 20 locales',
-      'Usuarios ilimitados',
-      'Productos ilimitados',
-      'Capacitación inicial',
-      'Soporte prioritario',
-      'Reportes personalizados',
-      'Desarrollo personalizado',
-      'Integración con impresoras',
-      '30 días de validez'
-    ],
-    notIncluded: []
-  }
-];
 
 const additionalServices = [
   {
@@ -118,6 +49,75 @@ const additionalServices = [
 
 export default function PricingSection() {
   const theme = useTheme();
+  const [billingCycle, setBillingCycle] = React.useState<'monthly' | 'yearly'>('monthly');
+
+  const plans = [
+    {
+      name: 'Freemium',
+      price: '$0',
+      period: '/semana',
+      expireDays: 7,
+      description: 'Plan gratuito por 7 días',
+      popular: false,
+      color: '#2196F3',
+      features: [
+        '2 locales máximo',
+        '1 usuario',
+        'Hasta 30 productos',
+        'Funcionalidades básicas',
+        'Soporte por email',
+        '7 días de validez'
+      ],
+      notIncluded: [
+        'Usuarios ilimitados',
+        'Productos ilimitados',
+        'Soporte prioritario',
+        'Capacitación incluida'
+      ]
+    },
+    {
+      name: 'Silver',
+      price: billingCycle === 'monthly' ? '$20' : '$200',
+      period: billingCycle === 'monthly' ? '/mes' : '/año',
+      expireDays: billingCycle === 'monthly' ? 30 : 365,
+      description: 'Recomendado para negocios en crecimiento',
+      popular: true,
+      color: '#4CAF50',
+      features: [
+        'Hasta 5 locales',
+        'Usuarios ilimitados',
+        'Hasta 500 productos',
+        'Capacitación inicial',
+        'Soporte prioritario',
+        'Acceso completo a funcionalidades',
+        'Soporte en línea y presencial',
+        billingCycle === 'monthly' ? '30 días de validez' : '365 días de validez'
+      ],
+      notIncluded: [
+        'Productos ilimitados'
+      ]
+    },
+    {
+      name: 'Premium',
+      price: billingCycle === 'monthly' ? '$30' : '$300',
+      period: billingCycle === 'monthly' ? '/mes' : '/año',
+      expireDays: billingCycle === 'monthly' ? 30 : 365,
+      description: 'Para empresas que necesitan todo',
+      popular: false,
+      color: '#9C27B0',
+      features: [
+        'Hasta 20 locales',
+        'Usuarios ilimitados',
+        'Productos ilimitados',
+        'Capacitación inicial',
+        'Soporte prioritario',
+        'Reportes personalizados',
+        'Integración con impresoras',
+        billingCycle === 'monthly' ? '30 días de validez' : '365 días de validez'
+      ],
+      notIncluded: []
+    }
+  ];
 
   const scrollToContact = () => {
     const contactSection = document.getElementById('contact-section');
@@ -139,31 +139,59 @@ export default function PricingSection() {
               px: 2,
             }}
           />
-          <Typography 
-            variant="h3" 
-            component="h2" 
+          <Typography
+            variant="h3"
+            component="h2"
             gutterBottom
             sx={{ fontWeight: 'bold', color: 'text.primary' }}
           >
             Elige el Plan Perfecto para tu Negocio
           </Typography>
-          <Typography 
-            variant="h6" 
-            sx={{ 
+          <Typography
+            variant="h6"
+            sx={{
               color: 'text.secondary',
               maxWidth: 600,
               mx: 'auto',
-              lineHeight: 1.6
+              lineHeight: 1.6,
+              mb: 4
             }}
           >
-            Planes flexibles con límites claros por suscripción. 
-            Comienza gratis por 30 días y escala según tu crecimiento.
+            Planes flexibles con límites claros por suscripción.
+            Comienza gratis por 7 días y escala según tu crecimiento.
           </Typography>
+
+
+          <Stack
+            direction="row"
+            spacing={2}
+            alignItems="center"
+            justifyContent="center"
+            sx={{ mb: 4 }}
+          >
+            <ToggleButtonGroup
+                color="primary"
+                value={billingCycle}
+                exclusive
+                onChange={(e, value) => setBillingCycle(value)}
+                aria-label="Platform"
+            >
+              <ToggleButton value="monthly">Mensual</ToggleButton>
+              <ToggleButton value="yearly">Anual</ToggleButton>
+            </ToggleButtonGroup>
+          </Stack>
+          {billingCycle === 'yearly' && (<Chip
+                  label="¡Ahorras 2 meses!"
+                  size="medium"
+                  color="success"
+                  sx={{ fontWeight: 'bold' }}
+              />
+          )}
         </Box>
 
         <Grid container spacing={4} sx={{ mb: 8 }}>
           {plans.map((plan, index) => (
-            <Grid item xs={12} md={4} key={index}>
+            <Grid size={{xs: 12, md: 4}} key={index}>
               <Card
                 sx={{
                   height: '100%',
@@ -202,8 +230,8 @@ export default function PricingSection() {
 
                 <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ textAlign: 'center', mb: 3 }}>
-                    <Typography 
-                      variant="h4" 
+                    <Typography
+                      variant="h4"
                       component="h3"
                       sx={{ fontWeight: 'bold', color: 'text.primary', mb: 1 }}
                     >
@@ -213,8 +241,8 @@ export default function PricingSection() {
                       {plan.description}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', mb: 2 }}>
-                      <Typography 
-                        variant="h3" 
+                      <Typography
+                        variant="h3"
                         component="span"
                         sx={{ fontWeight: 'bold', color: plan.color }}
                       >
@@ -235,7 +263,7 @@ export default function PricingSection() {
                         <ListItemIcon sx={{ minWidth: 32 }}>
                           <CheckCircle sx={{ fontSize: 20, color: plan.color }} />
                         </ListItemIcon>
-                        <ListItemText 
+                        <ListItemText
                           primary={feature}
                           primaryTypographyProps={{
                             variant: 'body2',
@@ -244,7 +272,7 @@ export default function PricingSection() {
                         />
                       </ListItem>
                     ))}
-                    
+
                     {plan.notIncluded.map((feature, featureIndex) => (
                       <ListItem key={`not-${featureIndex}`} sx={{ px: 0, py: 0.5, opacity: 0.5 }}>
                         <ListItemIcon sx={{ minWidth: 32 }}>
@@ -258,7 +286,7 @@ export default function PricingSection() {
                             }}
                           />
                         </ListItemIcon>
-                        <ListItemText 
+                        <ListItemText
                           primary={feature}
                           primaryTypographyProps={{
                             variant: 'body2',
@@ -296,17 +324,17 @@ export default function PricingSection() {
 
         {/* Additional Services */}
         <Box sx={{ textAlign: 'center', mb: 6 }}>
-          <Typography 
-            variant="h4" 
-            component="h3" 
+          <Typography
+            variant="h4"
+            component="h3"
             gutterBottom
             sx={{ fontWeight: 'bold', color: 'text.primary' }}
           >
             Servicios Adicionales
           </Typography>
-          <Typography 
-            variant="h6" 
-            sx={{ 
+          <Typography
+            variant="h6"
+            sx={{
               color: 'text.secondary',
               maxWidth: 600,
               mx: 'auto',
@@ -322,7 +350,7 @@ export default function PricingSection() {
           {additionalServices.map((service, index) => {
             const IconComponent = service.icon;
             return (
-              <Grid item xs={12} md={4} key={index}>
+              <Grid size={{xs: 12, md: 4}} key={index}>
                 <Card
                   sx={{
                     height: '100%',
