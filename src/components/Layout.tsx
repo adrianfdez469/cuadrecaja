@@ -848,7 +848,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 <Accordion expanded={menuState.resumenes} onChange={() => handleMenuAccordion('resumenes')}>
                   <AccordionSummary expandIcon={<ExpandMore />}>
                     <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                      Resumenes
+                      Resúmenes
                     </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
@@ -896,7 +896,11 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   return verificarPermiso(item.permission);
                 }).length > 0 &&
                 <Accordion expanded={menuState.configuracion} onChange={() => handleMenuAccordion('configuracion')}>
-                  <AccordionSummary expandIcon={<ExpandMore />}>Configuración</AccordionSummary>
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                          Configuración
+                      </Typography>
+                  </AccordionSummary>
                   <AccordionDetails>
                     <List sx={{ pt: 2 }}>
                       {CONFIGURATION_MENU_ITEMS
