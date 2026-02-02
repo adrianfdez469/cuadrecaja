@@ -72,9 +72,6 @@ export const subscriptionPlansForUi = [
       'Soporte en línea y presencial si es requerido',
       'Acceso a todas las funcionalidades',
       'Soporte prioritario',
-      'Reportes personalizados para el cliente',
-      'Desarrollo de funcionalidades personalizadas',
-      'Integración con impresoras',
       `Validez: ${planesNegocio.PREMIUM.duracion} días`
     ],
     recommended: false,

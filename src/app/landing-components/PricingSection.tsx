@@ -68,8 +68,7 @@ const plans = [
       '30 días de validez'
     ],
     notIncluded: [
-      'Productos ilimitados',
-      'Funcionalidades personalizadas'
+      'Productos ilimitados'
     ]
   },
   {
@@ -87,7 +86,6 @@ const plans = [
       'Capacitación inicial',
       'Soporte prioritario',
       'Reportes personalizados',
-      'Desarrollo personalizado',
       'Integración con impresoras',
       '30 días de validez'
     ],
