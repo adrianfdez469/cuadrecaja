@@ -63,6 +63,7 @@ import { fetchTransferDestinations } from "@/services/transferDestinationsServic
 import { CartContent } from "@/components/cartDrawer/components/cartContent";
 import { ProductProcessorDataRef } from "@/components/ProductProcessorData/ProductProcessorData";
 import audioService from "@/utils/audioService";
+import ShoppingCartComponent from "@/app/pos/components/ShoppingCartComponent";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -1380,19 +1381,7 @@ export default function POSInterface() {
           </SpeedDial>
         )}
 
-        {/* Botón de carrito */}
-        {cart.length > 0 && !openCart && (
-          <Fab
-            color="primary"
-            aria-label="cart"
-            sx={{ position: "fixed", bottom: 122, right: 16 }}
-            onClick={handleCartIcon}
-          >
-            <Badge badgeContent={cart.length} color="secondary">
-              <ShoppingCartIcon />
-            </Badge>
-          </Fab>
-        )}
+        <ShoppingCartComponent openCart={openCart} handleCartIcon={handleCartIcon} />
 
         <Box
             ref={searchAnchorRef}
