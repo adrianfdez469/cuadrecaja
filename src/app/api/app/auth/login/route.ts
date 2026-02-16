@@ -1,13 +1,26 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/prisma';
+import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { getPermisosUsuario } from '@/utils/getPermisosUsuario';
 import { getRolUsuario } from '@/utils/getRolUsuario';
 
+/**
+ * POST /api/app/auth/login
+ * 
+ * Login para la aplicación móvil Flutter.
+ * Retorna un token JWT que debe ser enviado en el header Authorization.
+ */
 export async function POST(request: Request) {
   try {
     const { usuario, password } = await request.json();
+
+    if (!usuario || !password) {
+      return NextResponse.json(
+        { error: 'Usuario y contraseña son requeridos' },
+        { status: 400 }
+      );
+    }
 
     // Buscar usuario en la base de datos
     const user = await prisma.usuario.findFirst({
@@ -21,14 +34,21 @@ export async function POST(request: Request) {
           }
         },
         negocio: {
-          select: { id: true, nombre: true, userlimit: true, limitTime: true, locallimit: true, productlimit: true }
+          select: { 
+            id: true, 
+            nombre: true, 
+            userlimit: true, 
+            limitTime: true, 
+            locallimit: true, 
+            productlimit: true 
+          }
         }
       }
     });
 
     if (!user) {
       return NextResponse.json(
-        { message: 'Usuario o contraseña incorrectos' },
+        { error: 'Usuario o contraseña incorrectos' },
         { status: 401 }
       );
     }
@@ -38,16 +58,10 @@ export async function POST(request: Request) {
 
     if (!isValidPassword) {
       return NextResponse.json(
-        { message: 'Usuario o contraseña incorrectos' },
+        { error: 'Usuario o contraseña incorrectos' },
         { status: 401 }
       );
     }
-
-
-    // TODO: Revisar si no está expirado el negocio
-
-
-
 
     // Para usuarios SUPER_ADMIN, obtener todas las tiendas del negocio
     // Para otros usuarios, solo las tiendas asociadas
@@ -72,38 +86,41 @@ export async function POST(request: Request) {
       }));
     }
 
-    // ⚠️ VALIDACIÓN: Usuario debe tener locales asignados (excepto SUPER_ADMIN)
+    // Validación: Usuario debe tener locales asignados (excepto SUPER_ADMIN)
     if (user.rol !== "SUPER_ADMIN") {
-      // Verificar si tiene locales asignados
       if (localesDisponibles.length === 0) {
-        throw new Error("USUARIO_SIN_CONFIGURAR: No tienes locales (tiendas o almacenes) asignados. Contacta al administrador para completar tu configuración.");
+        return NextResponse.json(
+          { error: 'No tienes locales asignados. Contacta al administrador.' },
+          { status: 403 }
+        );
       }
 
       // Verificar si tiene al menos un rol asignado en algún local
       const tieneRolAsignado = await prisma.usuarioTienda.findFirst({
         where: {
           usuarioId: user.id,
-          rolId: { not: null } // Tiene un rol asignado
+          rolId: { not: null }
         },
         select: { id: true }
       });
 
       if (!tieneRolAsignado) {
-        throw new Error("USUARIO_SIN_CONFIGURAR: No tienes un rol asignado en ningún local. Contacta al administrador para completar tu configuración.");
+        return NextResponse.json(
+          { error: 'No tienes un rol asignado. Contacta al administrador.' },
+          { status: 403 }
+        );
       }
     }
 
-     // Obtener permisos basados en la tienda actual
-     const permisos = await getPermisosUsuario(user.id, user.localActual?.id || null);
+    // Obtener permisos basados en la tienda actual
+    const permisos = await getPermisosUsuario(user.id, user.localActual?.id || null);
 
-     let rol = "";
-
-     if (user.rol === "SUPER_ADMIN") {
-       rol = "SUPER_ADMIN";
-     } else {
-       rol = await getRolUsuario(user.id, user.localActual?.id || null)
-     }
-
+    let rol = "";
+    if (user.rol === "SUPER_ADMIN") {
+      rol = "SUPER_ADMIN";
+    } else {
+      rol = await getRolUsuario(user.id, user.localActual?.id || null);
+    }
 
     // Generar token JWT
     const token = jwt.sign(
@@ -117,31 +134,30 @@ export async function POST(request: Request) {
         locales: user.locales,
         permisos: permisos
       },
-      process.env.NEXTAUTH_SECRET,
+      process.env.NEXTAUTH_SECRET!,
       { expiresIn: '7d' }
     );
 
-    // Retornar respuesta en el formato que espera la app
-    // Determinar localActual: usar el localActual del usuario o el primer local disponible
-    const localActualResponse = user.localActual || (localesDisponibles.length > 0 ? localesDisponibles[0] : null);
-    
+    // Retornar respuesta
     return NextResponse.json({
+      success: true,
       user: {
         id: user.id,
         nombre: user.nombre,
         usuario: user.usuario,
         rol: rol,
         negocio: user.negocio,
-        localActual: localActualResponse,
+        localActual: user.localActual || localesDisponibles[0] || null,
         locales: localesDisponibles,
         permisos: permisos
       },
       token: token
     });
+
   } catch (error) {
-    console.error('Error en login:', error);
+    console.error('❌ [APP/AUTH/LOGIN] Error:', error);
     return NextResponse.json(
-      { message: 'Error en el servidor' },
+      { error: 'Error en el servidor' },
       { status: 500 }
     );
   }
