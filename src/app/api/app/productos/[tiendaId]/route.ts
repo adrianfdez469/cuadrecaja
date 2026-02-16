@@ -102,7 +102,7 @@ export async function GET(
       codigos: pt.producto.codigosProducto.map(c => ({
         id: c.id,
         codigo: c.codigo,
-        tipo: c.tipo
+        productoId: c.productoId
       })),
       proveedor: pt.proveedor ? {
         id: pt.proveedor.id,
