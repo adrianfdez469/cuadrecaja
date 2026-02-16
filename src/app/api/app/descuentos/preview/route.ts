@@ -59,14 +59,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      originalTotal: result.originalTotal,
+      originalTotal: products.reduce((acc, p) => acc + p.precio * p.cantidad, 0),
       discountTotal: result.discountTotal,
       finalTotal: result.finalTotal,
       applied: result.applied.map((a) => ({
         discountRuleId: a.discountRuleId,
         ruleName: a.ruleName,
         amount: a.amount,
-        type: a.type,
+        // type: a.type,
         productsAffected: a.productsAffected
       }))
     });
