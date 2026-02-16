@@ -78,7 +78,7 @@ export async function DELETE(
     });
 
     // Generar operaciones de reversión
-    const operaciones = movimientos.reduce((acc: any[], mov) => {
+    const operaciones = movimientos.reduce((acc, mov) => {
       let tipoMov: MovimientoTipo;
       if (mov.tipo === 'VENTA' || mov.tipo === 'DESAGREGACION_BAJA') {
         tipoMov = MovimientoTipo.AJUSTE_ENTRADA;

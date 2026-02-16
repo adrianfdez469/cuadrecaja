@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { getServerSession, Session } from 'next-auth';
 import { authOptions } from './authOptions';
 import { jwtVerify } from 'jose';
+import { INegocio } from '@/types/INegocio';
+import { ILocal } from '@/types/ILocal';
 
 /**
  * Obtiene la sesión del usuario desde cookies (web) o desde headers (Flutter/mobile)
@@ -51,9 +53,9 @@ export async function getSessionFromRequest(request: NextRequest): Promise<Sessi
         usuario: payload.usuario as string,
         nombre: payload.nombre as string,
         rol: payload.rol as string,
-        negocio: payload.negocio as any,
-        localActual: payload.localActual as any,
-        locales: payload.locales as any[],
+        negocio: payload.negocio as INegocio,
+        localActual: payload.localActual as ILocal,
+        locales: payload.locales as ILocal[],
         permisos: typeof payload.permisos === 'string' ? payload.permisos : JSON.stringify(payload.permisos || []),
         expiresAt: payload.expCustom as string || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       },
