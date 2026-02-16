@@ -1,6 +1,6 @@
 "use client";
 
-import { PropsWithChildren, useEffect, useRef, useState } from "react";
+import { PropsWithChildren, useEffect, useRef, useState, Suspense } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -40,7 +40,7 @@ import StoreIcon from "@mui/icons-material/Store";
 import CategoryIcon from "@mui/icons-material/Category";
 import ChangeHistoryIcon from "@mui/icons-material/ChangeHistory";
 import { useAppContext } from "@/context/AppContext";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   AccountBalanceWallet,
   AccountCircle,
@@ -79,6 +79,7 @@ import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
 import { Avatar } from "@mui/material";
 import LocalOffer from "@mui/icons-material/LocalOffer";
+import Loading from "./Loading";
 
 const CONFIGURATION_MENU_ITEMS = [
   {
@@ -175,8 +176,9 @@ const RESUMEN_MENU_ITEMS = [
 
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [open, setOpen] = useState(false);
-  const { user, isAuth, handleLogout, goToLogin, gotToPath } = useAppContext();
+  const { user, isAuth, handleLogout, goToLogin, gotToPath, isNavigating } = useAppContext();
   const router = useRouter();
+  const pathname = usePathname();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openSelectLocal, setOpenSelectLocal] = useState(false);
   const [openSelectNegocio, setOpenSelectNegocio] = useState(false);
@@ -287,7 +289,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       handleCloseCambiarLocal();
 
       // Redirigir a /home para forzar re-render con el nuevo local
-      router.push('/home');
+      gotToPath('/home');
     } else {
       console.log(resp);
       showMessage("No se pudo actualizar el local", "error");
@@ -566,21 +568,21 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
           {!isAuth && (
-              <Typography
-                  variant="h6"
-                  component="h1"
-                  sx={{
-                    fontWeight: 700,
-                    background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
-                    backgroundClip: 'text',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    fontSize: { xs: '1.1rem', sm: '1.25rem' }
+            <Typography
+              variant="h6"
+              component="h1"
+              sx={{
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontSize: { xs: '1.1rem', sm: '1.25rem' }
 
-                  }}
-              >
-                Cuadre de Caja
-              </Typography>
+              }}
+            >
+              Cuadre de Caja
+            </Typography>
           )}
           {isAuth && (
             <IconButton
@@ -897,9 +899,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 }).length > 0 &&
                 <Accordion expanded={menuState.configuracion} onChange={() => handleMenuAccordion('configuracion')}>
                   <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                          Configuración
-                      </Typography>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      Configuración
+                    </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
                     <List sx={{ pt: 2 }}>
@@ -965,7 +967,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             px: { xs: 0.5, sm: 1, md: 1 }
           }}
         >
-          {children}
+          <Suspense>
+            {isNavigating ? <Loading /> : children}
+          </Suspense>
         </Container>
       </Box>
 

@@ -1164,7 +1164,7 @@ export default function POSInterface() {
                 p: 1,
                 width: "100%",
                 maxWidth: "1400px",
-                pb: {xs: "80px", sm: "120px"},
+                pb: "120px",
                 minHeight: "90vh",
                 position: "relative",
                 zIndex: 1,
