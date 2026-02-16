@@ -125,7 +125,7 @@ export async function POST(request: Request) {
       rol = await getRolUsuario(user.id, localActualResuelto?.id || null);
     }
 
-    // Generar token JWT con el mismo localActual que se envía en la respuesta
+    // Generar token JWT con la misma estructura que la respuesta (locales reducidos)
     const token = jwt.sign(
       {
         id: user.id,
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
         nombre: user.nombre,
         negocio: user.negocio,
         localActual: localActualResuelto,
-        locales: user.locales,
+        locales: localesDisponibles,
         permisos: permisos
       },
       process.env.NEXTAUTH_SECRET!,

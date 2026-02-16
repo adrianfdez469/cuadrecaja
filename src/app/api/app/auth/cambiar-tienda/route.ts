@@ -109,23 +109,7 @@ export async function POST(request: NextRequest) {
       rol = await getRolUsuario(user.id, tiendaId);
     }
 
-    // Generar nuevo token con el local actualizado
-    const token = jwt.sign(
-      {
-        id: user.id,
-        rol: user.rol,
-        usuario: user.usuario,
-        nombre: user.nombre,
-        negocio: user.negocio,
-        localActual: tiendaSeleccionada,
-        locales: user.locales,
-        permisos: permisos
-      },
-      process.env.NEXTAUTH_SECRET!,
-      { expiresIn: '7d' }
-    );
-
-    // Obtener locales disponibles
+    // Obtener locales disponibles (misma estructura que en login/refresh)
     let localesDisponibles;
     if (user.rol === "SUPER_ADMIN") {
       const todasLasTiendas = await prisma.tienda.findMany({
@@ -147,6 +131,30 @@ export async function POST(request: NextRequest) {
       }));
     }
 
+    // Normalizar tienda para JWT y respuesta (solo id, nombre, negocioId, tipo)
+    const localActualParaToken = {
+      id: tiendaSeleccionada.id,
+      nombre: tiendaSeleccionada.nombre,
+      negocioId: tiendaSeleccionada.negocioId,
+      tipo: tiendaSeleccionada.tipo
+    };
+
+    // Generar nuevo token con la misma estructura que la respuesta (locales reducidos)
+    const token = jwt.sign(
+      {
+        id: user.id,
+        rol: rol,
+        usuario: user.usuario,
+        nombre: user.nombre,
+        negocio: user.negocio,
+        localActual: localActualParaToken,
+        locales: localesDisponibles,
+        permisos: permisos
+      },
+      process.env.NEXTAUTH_SECRET!,
+      { expiresIn: '7d' }
+    );
+
     return NextResponse.json({
       success: true,
       user: {
@@ -155,7 +163,7 @@ export async function POST(request: NextRequest) {
         usuario: user.usuario,
         rol: rol,
         negocio: user.negocio,
-        localActual: tiendaSeleccionada,
+        localActual: localActualParaToken,
         locales: localesDisponibles,
         permisos: permisos
       },
