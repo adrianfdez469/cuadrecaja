@@ -354,44 +354,44 @@ const HomePage = () => {
           </Box>
 
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, width: { xs: '100%', md: 'auto' } }}>
-            <Paper
-              elevation={0}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              bgcolor: 'primary.main',
+              color: 'white',
+              borderRadius: 2,
+              minWidth: { xs: '100%', md: 200 },
+              boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
+            }}
+          >
+            <Typography
+              variant="h6"
               sx={{
-                p: 2,
-                bgcolor: 'primary.main',
-                color: 'white',
-                borderRadius: 2,
-                minWidth: { xs: '100%', md: 200 },
-                boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
+                color: 'rgba(255, 255, 255, 0.95)',
+                fontWeight: 600,
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                display: 'flex',
+                flexDirection: 'row',
+                alignContent: 'center',
+                justifyItems: 'center',
+                alignItems: 'center'
               }}
             >
-              <Typography
-                variant="h6"
-                sx={{
-                  color: 'rgba(255, 255, 255, 0.95)',
-                  fontWeight: 600,
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-                  display: 'flex',
-                  flexDirection: 'row',
-                  alignContent: 'center',
-                  justifyItems: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                {`${getTipoLocalText(user.localActual.tipo)}: ${user.localActual.nombre}`}
+              {`${getTipoLocalText(user.localActual.tipo)}: ${user.localActual.nombre}`}
 
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: 'rgba(255, 255, 255, 0.92)',
-                  fontWeight: 400,
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                }}
-              >
-                {user.negocio?.nombre}
-              </Typography>
-            </Paper>
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'rgba(255, 255, 255, 0.92)',
+                fontWeight: 400,
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+              }}
+            >
+              {user.negocio?.nombre}
+            </Typography>
+          </Paper>
 
             {/* Botón de Backup - Solo SUPER_ADMIN */}
             {user.rol === 'SUPER_ADMIN' && (
