@@ -80,6 +80,7 @@ import { usePermisos } from "@/utils/permisos_front";
 import { Avatar } from "@mui/material";
 import LocalOffer from "@mui/icons-material/LocalOffer";
 import Loading from "./Loading";
+import Logo from "./Logo";
 
 const CONFIGURATION_MENU_ITEMS = [
   {
@@ -568,21 +569,24 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
           {!isAuth && (
-            <Typography
-              variant="h6"
-              component="h1"
-              sx={{
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                fontSize: { xs: '1.1rem', sm: '1.25rem' }
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Logo size={32} sx={{ mr: 1.5 }} />
+              <Typography
+                variant="h6"
+                component="h1"
+                sx={{
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  fontSize: { xs: '1.1rem', sm: '1.25rem' }
 
-              }}
-            >
-              Cuadre de Caja
-            </Typography>
+                }}
+              >
+                Cuadre de Caja
+              </Typography>
+            </Box>
           )}
           {isAuth && (
             <IconButton
