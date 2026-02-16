@@ -112,25 +112,28 @@ export async function POST(request: Request) {
       }
     }
 
-    // Obtener permisos basados en la tienda actual
-    const permisos = await getPermisosUsuario(user.id, user.localActual?.id || null);
+    // Resolver localActual con fallback al primer local disponible
+    const localActualResuelto = user.localActual || localesDisponibles[0] || null;
+
+    // Obtener permisos basados en la tienda resuelta
+    const permisos = await getPermisosUsuario(user.id, localActualResuelto?.id || null);
 
     let rol = "";
     if (user.rol === "SUPER_ADMIN") {
       rol = "SUPER_ADMIN";
     } else {
-      rol = await getRolUsuario(user.id, user.localActual?.id || null);
+      rol = await getRolUsuario(user.id, localActualResuelto?.id || null);
     }
 
-    // Generar token JWT
+    // Generar token JWT con el mismo localActual que se envía en la respuesta
     const token = jwt.sign(
       {
         id: user.id,
-        rol: user.rol,
+        rol: rol,
         usuario: user.usuario,
         nombre: user.nombre,
         negocio: user.negocio,
-        localActual: user.localActual,
+        localActual: localActualResuelto,
         locales: user.locales,
         permisos: permisos
       },
@@ -147,7 +150,7 @@ export async function POST(request: Request) {
         usuario: user.usuario,
         rol: rol,
         negocio: user.negocio,
-        localActual: user.localActual || localesDisponibles[0] || null,
+        localActual: localActualResuelto,
         locales: localesDisponibles,
         permisos: permisos
       },
