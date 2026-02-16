@@ -4,6 +4,15 @@ import jwt from 'jsonwebtoken';
 import { getSessionFromRequest } from '@/utils/authFromRequest';
 import { getPermisosUsuario } from '@/utils/getPermisosUsuario';
 import { getRolUsuario } from '@/utils/getRolUsuario';
+import { corsHeaders } from '@/middleware/cors';
+
+/**
+ * OPTIONS: preflight CORS.
+ */
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  return new NextResponse(null, { status: 204, headers: corsHeaders(origin) });
+}
 
 /**
  * POST /api/app/auth/cambiar-tienda
