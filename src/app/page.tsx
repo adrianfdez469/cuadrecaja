@@ -15,7 +15,6 @@ import {
   Phone,
   Email,
   Login as LoginIcon,
-  Store,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import HeroSection from './landing-components/HeroSection';
@@ -24,6 +23,7 @@ import BenefitsSection from './landing-components/BenefitsSection';
 import PricingSection from './landing-components/PricingSection';
 import ContactSection from './landing-components/ContactSection';
 import ChatbotWidget from './landing-components/ChatbotWidget';
+import Logo from '@/components/Logo';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -33,14 +33,14 @@ export default function LandingPage() {
   };
 
   return (
-    <Box sx={{ 
+    <Box sx={{
       minHeight: '100vh',
       bgcolor: 'background.default',
       overflow: 'hidden'
     }}>
       {/* Navigation Bar */}
-      <AppBar 
-        position="sticky" 
+      <AppBar
+        position="sticky"
         elevation={0}
         sx={{
           bgcolor: 'rgba(255, 255, 255, 0.95)',
@@ -50,7 +50,7 @@ export default function LandingPage() {
       >
         <Toolbar>
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-            <Store sx={{ color: 'primary.main', fontSize: 32, mr: 1.5 }} />
+            <Logo size={40} sx={{ mr: 1.5 }} />
             <Typography
               variant="h6"
               sx={{
@@ -64,7 +64,7 @@ export default function LandingPage() {
               Cuadre de Caja
             </Typography>
           </Box>
-          
+
           <Button
             variant="contained"
             startIcon={<LoginIcon />}
@@ -108,9 +108,9 @@ export default function LandingPage() {
       <ContactSection />
 
       {/* Footer */}
-      <Box sx={{ 
-        bgcolor: 'primary.dark', 
-        color: 'white', 
+      <Box sx={{
+        bgcolor: 'primary.dark',
+        color: 'white',
         py: 4,
         mt: 8
       }}>
