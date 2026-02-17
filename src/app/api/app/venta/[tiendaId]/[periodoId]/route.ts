@@ -63,10 +63,19 @@ export async function POST(
 
     const usuarioId = session.user.id;
 
-    // Validaciones básicas
-    if (!tiendaId || !periodoId || !productos?.length || !syncId || !createdAt) {
+    // Validaciones básicas: detectar qué datos faltan
+    const faltantes: string[] = [];
+    if (!tiendaId) faltantes.push('tiendaId');
+    if (!periodoId) faltantes.push('periodoId');
+    if (!productos?.length) faltantes.push('productos (o lista vacía)');
+    if (!syncId) faltantes.push('syncId');
+    if (createdAt == null || createdAt === '') faltantes.push('createdAt');
+
+    if (faltantes.length > 0) {
       return NextResponse.json(
-        { error: 'Datos insuficientes para crear la venta' },
+        {
+          error: `Datos insuficientes para crear la venta: ${faltantes.join(', ')}`
+        },
         { status: 400 }
       );
     }
@@ -106,13 +115,13 @@ export async function POST(
 
       if (!periodoDeLaVenta) {
         return NextResponse.json(
-          { error: 'No existe un período con el id proporcionado' },
+          { error: `No existe un período con el id proporcionado. El ultimo periodo abierto es: ${ultimoPeriodo.fechaInicio.toLocaleString()}` },
           { status: 404 }
         );
       }
 
       return NextResponse.json({
-        error: 'La venta pertenece a un período cerrado o diferente al actual',
+        error: `La venta pertenece a un período cerrado o diferente al actual. El ultimo periodo abierto es: ${ultimoPeriodo.fechaInicio.toLocaleString()}`,
         periodoActualId: ultimoPeriodo.id
       }, { status: 400 });
     }
@@ -229,7 +238,7 @@ export async function POST(
         },
         include: {
           producto: {
-            select: { fraccionDeId: true, unidadesPorFraccion: true }
+            select: { fraccionDeId: true, unidadesPorFraccion: true, nombre: true }
           }
         }
       });
@@ -242,7 +251,7 @@ export async function POST(
             const prod = productos.find((p: IncomingProduct) => p.productoTiendaId === prodFracc.id);
             if (prod) {
               if (prodFracc.producto.unidadesPorFraccion && prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
-                throw new Error(`Vendes más unidades sueltas de las que lleva una caja en una misma venta`);
+                throw new Error(`Vendes más unidades sueltas de las que lleva una caja en una misma venta. Producto: ${prodFracc.producto.nombre}, Cantidad: ${prod.cantidad}, Unidades por fracción: ${prodFracc.producto.unidadesPorFraccion}`);
               }
               return prodFracc.existencia < prod.cantidad;
             }
@@ -270,14 +279,15 @@ export async function POST(
           if (!item.productoId) continue;
           
           const productoTiendaDesagregar = await tx.productoTienda.findFirst({
-            where: { tiendaId, productoId: item.productoId, proveedorId: null }
+            where: { tiendaId, productoId: item.productoId, proveedorId: null },
+            include: { producto: { select: { nombre: true } } }
           });
 
           if (productoTiendaDesagregar) {
             const existenciaAnterior = productoTiendaDesagregar.existencia;
 
             if (existenciaAnterior < item.cantidad) {
-              throw new Error(`Existencia insuficiente para desagregar`);
+              throw new Error(`Existencia insuficiente para desagregar. Producto: ${productoTiendaDesagregar.producto.nombre}, Cantidad: ${item.cantidad}, Existencia anterior: ${existenciaAnterior}`);
             }
 
             await tx.productoTienda.update({
