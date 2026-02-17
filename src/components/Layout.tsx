@@ -40,7 +40,6 @@ import StoreIcon from "@mui/icons-material/Store";
 import CategoryIcon from "@mui/icons-material/Category";
 import ChangeHistoryIcon from "@mui/icons-material/ChangeHistory";
 import { useAppContext } from "@/context/AppContext";
-import { useRouter, usePathname } from "next/navigation";
 import {
   AccountBalanceWallet,
   AccountCircle,
@@ -178,8 +177,6 @@ const RESUMEN_MENU_ITEMS = [
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [open, setOpen] = useState(false);
   const { user, isAuth, handleLogout, goToLogin, gotToPath, isNavigating } = useAppContext();
-  const router = useRouter();
-  const pathname = usePathname();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openSelectLocal, setOpenSelectLocal] = useState(false);
   const [openSelectNegocio, setOpenSelectNegocio] = useState(false);

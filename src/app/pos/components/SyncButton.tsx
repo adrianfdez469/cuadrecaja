@@ -1,9 +1,7 @@
 import React from 'react';
 import {Badge, Button, Stack} from "@mui/material";
 import {useSalesStore} from "@/store/salesStore";
-import {Sync} from "@mui/icons-material";
 import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
-import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import SyncProblemIcon from '@mui/icons-material/SyncProblem';
 import SyncIcon from '@mui/icons-material/Sync';
 

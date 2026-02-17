@@ -84,7 +84,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 export const useAppContext = () => {
   const router = useRouter();
-  const pathname = usePathname();
   const {
     loadingContext: loading,
     isAuth,
