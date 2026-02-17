@@ -1297,7 +1297,7 @@ export default function POSInterface() {
                 </Box>
             ))}
           </Box>
-          {selectedCategory && (
+          {selectedCategory && !openCart && (
               <ProductModal
                   open={showProducts}
                   productosTienda={productosTienda.filter(
