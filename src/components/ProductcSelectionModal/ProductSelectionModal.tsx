@@ -26,7 +26,6 @@ import {
 import { ITipoMovimiento } from '@/types/IMovimiento';
 import TableProductosDisponibles from './tables/TableProductosDisponibles';
 import TableProductosSeleccionados from './tables/TableProductosSeleccionados';
-import { sanitizeNumber } from '@/utils/formatters';
 import { useMessageContext } from '@/context/MessageContext';
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
 
@@ -372,13 +371,13 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   const actualizarCantidad = useCallback((productoId: string, nuevaCantidad: number, proveedorId?: string) => {
 
-    const nuevaCantidadNumber = sanitizeNumber(Number(nuevaCantidad));
+
     setProductosSeleccionados(prev => prev.map(p => {
 
       if (p.productoId === productoId && p.proveedorId === proveedorId) {
         const cantidad = operacion === 'SALIDA'
-          ? Math.min(nuevaCantidadNumber, p.existencia)
-          : nuevaCantidadNumber;
+          ? Math.min(nuevaCantidad, p.existencia)
+          : nuevaCantidad;
 
         const fixedAmount = p.permiteDecimal ? cantidad: Math.trunc(cantidad)
 
