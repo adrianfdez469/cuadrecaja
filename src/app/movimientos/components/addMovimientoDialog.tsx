@@ -298,6 +298,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
   };
 
   const isFormValid = () => {
+    const emptyItems = !itemsProductos || itemsProductos.length === 0;
     const hasInvalidProducts = itemsProductos.some(item =>
       !item.productoId ||
       item.cantidad <= 0 ||
@@ -305,9 +306,14 @@ export const AddMovimientoDialog: FC<IProps> = ({
     );
 
     const needsProveedor = (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && !proveedor;
+
     const needsDestination = tipo === "TRASPASO_SALIDA" && !destinationId;
 
-    return hasInvalidProducts || needsProveedor || needsDestination;
+    if(emptyItems || hasInvalidProducts || needsProveedor || needsDestination) {
+      return false;
+    }
+
+    return true;
   };
 
   const loadProductos = async (operacion: OperacionTipo, take = 50, skip = 0, filter?: { categoriaId?: string, text?: string }): Promise<IProductoDisponible[]> => {
@@ -755,7 +761,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
             fullWidth
             onClick={() => openModal(getOperacion(tipo))}
             startIcon={<Add />}
-            disabled={isFormValid()}
           >
             Adicionar Productos
           </Button>
@@ -793,7 +798,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
             Cancelar
           </Button>
           <Button
-            disabled={isFormValid() || saving}
+            disabled={!isFormValid() || saving}
             startIcon={!isMobile ? <SaveIcon /> : undefined}
             variant="contained"
             onClick={handleGuardar}
