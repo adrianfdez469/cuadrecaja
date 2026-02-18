@@ -555,13 +555,16 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       {/* Barra superior mejorada */}
       <AppBar
-        position="static"
+        component="header"
+        position="sticky"
         elevation={0}
         sx={{
+          top: 0,
           backgroundColor: '#ffffff',
           color: '#1a202c',
           borderBottom: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+          zIndex: (theme) => theme.zIndex.drawer + 1
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
@@ -775,8 +778,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
       {isAuth && (
         <>
-          {/* Banner de estado offline */}
-          <OfflineBanner />
+          {/* Banner de estado offline moved inside main to follow flow */}
 
           {/* Menú lateral mejorado */}
           <Drawer
@@ -957,10 +959,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         sx={{
           flexGrow: 1,
           backgroundColor: '#f8fafc',
-          minHeight: 'calc(100vh - 64px)',
           p: { xs: 0, sm: 0.5, md: 0.5 },
         }}
       >
+        {isAuth && <OfflineBanner />}
         <Container
           maxWidth="xl"
           sx={{
