@@ -139,21 +139,24 @@ export const UserSalesDrawer: React.FC<IProps> = ({
         sx={{
           width: "100vw",
           p: 2,
+          pt: "calc(16px + env(safe-area-inset-top))",
+          pb: "calc(16px + env(safe-area-inset-bottom))",
           display: "flex",
           flexDirection: "column",
-          height: "100vh",
+          height: "100dvh",
           bgcolor: "background.default",
+          position: 'relative',
         }}
       >
-        {/* Botón de cerrar fijo */}
-        <IconButton 
-          onClick={() => setShowUserSales(false)} 
+        {/* Botón de cerrar fijo (Relativo al contenedor principal) */}
+        <IconButton
+          onClick={() => setShowUserSales(false)}
           color="default"
           sx={{
-            position: 'fixed',
-            top: 16,
+            position: 'absolute',
+            top: "calc(16px + env(safe-area-inset-top))",
             right: 16,
-            zIndex: 1000,
+            zIndex: 10,
             bgcolor: 'background.paper',
             boxShadow: 2,
             '&:hover': {
@@ -164,273 +167,283 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           <Close />
         </IconButton>
 
-        {/* Header */}
+        {/* Barra Superior Fija */}
         <Box
           display="flex"
           flexDirection="row"
           justifyContent="flex-start"
           alignItems="center"
-          mb={2}
+          sx={{
+            pb: 2,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            mb: 2
+          }}
         >
           <Typography variant="h5" fontWeight="bold" color="primary">
             Mis Ventas
           </Typography>
         </Box>
 
-        {/* Totales generales */}
-        <Grid container spacing={2} mb={3}>
-          <Grid item xs={12} sm={4}>
-            <Card elevation={2}>
-              <CardContent sx={{ textAlign: "center", py: 1.5 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Total General
-                </Typography>
-                <Typography variant="h6" fontWeight="bold" color="primary">
-                  ${salesData.totalGeneral.toFixed(2)}
-                </Typography>
-              </CardContent>
-            </Card>
+        {/* Contenido Scrollable */}
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 0.5 }}>
+          {/* Totales generales */}
+          <Grid container spacing={2} mb={3}>
+            <Grid item xs={12} sm={4}>
+              <Card elevation={2}>
+                <CardContent sx={{ textAlign: "center", py: 1.5 }}>
+                  <Typography variant="body2" color="textSecondary">
+                    Total General
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold" color="primary">
+                    ${salesData.totalGeneral.toFixed(2)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Card elevation={2}>
+                <CardContent sx={{ textAlign: "center", py: 1.5 }}>
+                  <Typography variant="body2" color="textSecondary">
+                    Total Consignación
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold" color="warning.main">
+                    ${salesData.totalConsignacion.toFixed(2)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Card elevation={2}>
+                <CardContent sx={{ textAlign: "center", py: 1.5 }}>
+                  <Typography variant="body2" color="textSecondary">
+                    Total Propios
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold" color="success.main">
+                    ${salesData.totalPropios.toFixed(2)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
-          <Grid item xs={12} sm={4}>
-            <Card elevation={2}>
-              <CardContent sx={{ textAlign: "center", py: 1.5 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Total Consignación
-                </Typography>
-                <Typography variant="h6" fontWeight="bold" color="warning.main">
-                  ${salesData.totalConsignacion.toFixed(2)}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Card elevation={2}>
-              <CardContent sx={{ textAlign: "center", py: 1.5 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Total Propios
-                </Typography>
-                <Typography variant="h6" fontWeight="bold" color="success.main">
-                  ${salesData.totalPropios.toFixed(2)}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
 
-        {/* Toggle de vista y filtro de usuario */}
-        <Box display="flex" justifyContent="center" alignItems="center" mb={3} gap={2}>
-          {/* Toggle para filtrar ventas del usuario o todas */}
-          <ButtonGroup variant="outlined" size="small">
-            <Button
-              variant={onlyOwnSales ? 'contained' : 'outlined'}
-              color="primary"
-              onClick={() => setOnlyOwnSales(true)}
-            >
-              Mis ventas
-            </Button>
-            <Button
-              variant={!onlyOwnSales ? 'contained' : 'outlined'}
-              color="primary"
-              onClick={() => setOnlyOwnSales(false)}
-            >
-              Todas
-            </Button>
-          </ButtonGroup>
-          {/* Toggle de vista */}
-          <ButtonGroup variant="outlined" size="small">
-            <Button
-              startIcon={<GroupWork />}
-              variant={viewMode === 'grouped' ? 'contained' : 'outlined'}
-              onClick={() => setViewMode('grouped')}
-            >
-              Vista Agrupada
-            </Button>
-            <Button
-              startIcon={<History />}
-              variant={viewMode === 'historical' ? 'contained' : 'outlined'}
-              onClick={() => setViewMode('historical')}
-            >
-              Vista Histórica
-            </Button>
-          </ButtonGroup>
-        </Box>
+          {/* Toggle de vista y filtro de usuario */}
+          <Box display="flex" justifyContent="center" alignItems="center" mb={3} gap={2} flexWrap="wrap">
+            {/* Toggle para filtrar ventas del usuario o todas */}
+            <ButtonGroup variant="outlined" size="small">
+              <Button
+                variant={onlyOwnSales ? 'contained' : 'outlined'}
+                color="primary"
+                onClick={() => setOnlyOwnSales(true)}
+              >
+                Mis ventas
+              </Button>
+              <Button
+                variant={!onlyOwnSales ? 'contained' : 'outlined'}
+                color="primary"
+                onClick={() => setOnlyOwnSales(false)}
+              >
+                Todas
+              </Button>
+            </ButtonGroup>
+            {/* Toggle de vista */}
+            <ButtonGroup variant="outlined" size="small">
+              <Button
+                startIcon={<GroupWork />}
+                variant={viewMode === 'grouped' ? 'contained' : 'outlined'}
+                onClick={() => setViewMode('grouped')}
+              >
+                Vista Agrupada
+              </Button>
+              <Button
+                startIcon={<History />}
+                variant={viewMode === 'historical' ? 'contained' : 'outlined'}
+                onClick={() => setViewMode('historical')}
+              >
+                Vista Histórica
+              </Button>
+            </ButtonGroup>
+          </Box>
 
-        <Box display="flex" alignItems="center" gap={2} mb={2}>
-          <Typography variant="body2" color="textSecondary">
-            {salesData.cantidadVentas} ventas realizadas
-          </Typography>
-        </Box>
+          <Box display="flex" alignItems="center" gap={2} mb={2}>
+            <Typography variant="body2" color="textSecondary">
+              {salesData.cantidadVentas} ventas realizadas
+            </Typography>
+          </Box>
 
-        {/* Productos en Consignación */}
-        {salesData.productosConsignacion.length > 0 && (
-          <Box mb={3}>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
-              <Typography variant="h6" fontWeight="bold">
-                Productos en Consignación
-              </Typography>
-              <Chip 
-                label={`${salesData.productosConsignacion.length} productos`} 
-                size="small" 
-                color="warning" 
-                variant="outlined" 
-              />
-            </Box>
-            <TableContainer component={Paper} elevation={1}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "warning.light" }}>
-                    <TableCell><strong>Producto</strong></TableCell>
-                    <TableCell align="center"><strong>Cantidad</strong></TableCell>
-                    <TableCell align="right"><strong>Precio Unit.</strong></TableCell>
-                    <TableCell align="right"><strong>Total</strong></TableCell>
-                    {viewMode === 'historical' && (
-                      <>
-                        <TableCell align="center"><strong>Fecha</strong></TableCell>
-                        <TableCell align="center"><strong>Estado</strong></TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {salesData.productosConsignacion.map((producto, index) => (
-                    <TableRow key={index} hover>
-                      <TableCell>{producto.nombre}</TableCell>
-                      <TableCell align="center">{producto.cantidad}</TableCell>
-                      <TableCell align="right">${producto?.precio?.toFixed(2)}</TableCell>
-                      <TableCell align="right">
-                        <Typography fontWeight="bold">
-                          ${producto.total.toFixed(2)}
-                        </Typography>
-                      </TableCell>
+          {/* Productos en Consignación */}
+          {salesData.productosConsignacion.length > 0 && (
+            <Box mb={3}>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <Typography variant="h6" fontWeight="bold">
+                  Productos en Consignación
+                </Typography>
+                <Chip
+                  label={`${salesData.productosConsignacion.length} productos`}
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                />
+              </Box>
+              <TableContainer component={Paper} elevation={1}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "warning.light" }}>
+                      <TableCell><strong>Producto</strong></TableCell>
+                      <TableCell align="center"><strong>Cantidad</strong></TableCell>
+                      <TableCell align="right"><strong>Precio Unit.</strong></TableCell>
+                      <TableCell align="right"><strong>Total</strong></TableCell>
                       {viewMode === 'historical' && (
                         <>
-                          <TableCell align="center">{producto.fecha}</TableCell>
-                          <TableCell align="center">
-                            <Chip
-                              label={producto.estado}
-                              size="small"
-                              color={
-                                producto.estado === "Sincronizada" ? "success" :
-                                producto.estado === "Sincronizando" ? "info" : "warning"
-                              }
-                              variant="outlined"
-                            />
-                          </TableCell>
+                          <TableCell align="center"><strong>Fecha</strong></TableCell>
+                          <TableCell align="center"><strong>Estado</strong></TableCell>
                         </>
                       )}
                     </TableRow>
-                  ))}
-                  <TableRow sx={{ bgcolor: "warning.light" }}>
-                    <TableCell colSpan={viewMode === 'grouped' ? 3 : 3}>
-                      <Typography fontWeight="bold">Subtotal Consignación:</Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography fontWeight="bold">
-                        ${salesData.totalConsignacion.toFixed(2)}
-                      </Typography>
-                    </TableCell>
-                    {viewMode === 'historical' && <TableCell colSpan={2}></TableCell>}
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
-        )}
-
-        {/* Productos Propios */}
-        {salesData.productosPropios.length > 0 && (
-          <Box mb={3}>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
-              <Typography variant="h6" fontWeight="bold">
-                Productos Propios
-              </Typography>
-              <Chip 
-                label={`${salesData.productosPropios.length} productos`} 
-                size="small" 
-                color="success" 
-                variant="outlined" 
-              />
-            </Box>
-            <TableContainer component={Paper} elevation={1}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "success.light" }}>
-                    <TableCell><strong>Producto</strong></TableCell>
-                    <TableCell align="center"><strong>Cantidad</strong></TableCell>
-                    <TableCell align="right"><strong>Precio Unit.</strong></TableCell>
-                    <TableCell align="right"><strong>Total</strong></TableCell>
-                    {viewMode === 'historical' && (
-                      <>
-                        <TableCell align="center"><strong>Fecha</strong></TableCell>
-                        <TableCell align="center"><strong>Estado</strong></TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {salesData.productosPropios.map((producto, index) => (
-                    <TableRow key={index} hover>
-                      <TableCell>{producto.nombre}</TableCell>
-                      <TableCell align="center">{producto.cantidad}</TableCell>
-                      <TableCell align="right">${producto.precio?.toFixed(2)}</TableCell>
+                  </TableHead>
+                  <TableBody>
+                    {salesData.productosConsignacion.map((producto, index) => (
+                      <TableRow key={index} hover>
+                        <TableCell>{producto.nombre}</TableCell>
+                        <TableCell align="center">{producto.cantidad}</TableCell>
+                        <TableCell align="right">${producto?.precio?.toFixed(2)}</TableCell>
+                        <TableCell align="right">
+                          <Typography fontWeight="bold">
+                            ${producto.total.toFixed(2)}
+                          </Typography>
+                        </TableCell>
+                        {viewMode === 'historical' && (
+                          <>
+                            <TableCell align="center">{producto.fecha}</TableCell>
+                            <TableCell align="center">
+                              <Chip
+                                label={producto.estado}
+                                size="small"
+                                color={
+                                  producto.estado === "Sincronizada" ? "success" :
+                                    producto.estado === "Sincronizando" ? "info" : "warning"
+                                }
+                                variant="outlined"
+                              />
+                            </TableCell>
+                          </>
+                        )}
+                      </TableRow>
+                    ))}
+                    <TableRow sx={{ bgcolor: "warning.light" }}>
+                      <TableCell colSpan={viewMode === 'grouped' ? 3 : 3}>
+                        <Typography fontWeight="bold">Subtotal Consignación:</Typography>
+                      </TableCell>
                       <TableCell align="right">
                         <Typography fontWeight="bold">
-                          ${producto.total.toFixed(2)}
+                          ${salesData.totalConsignacion.toFixed(2)}
                         </Typography>
                       </TableCell>
+                      {viewMode === 'historical' && <TableCell colSpan={2}></TableCell>}
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+
+          {/* Productos Propios */}
+          {salesData.productosPropios.length > 0 && (
+            <Box mb={3}>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <Typography variant="h6" fontWeight="bold">
+                  Productos Propios
+                </Typography>
+                <Chip
+                  label={`${salesData.productosPropios.length} productos`}
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                />
+              </Box>
+              <TableContainer component={Paper} elevation={1}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "success.light" }}>
+                      <TableCell><strong>Producto</strong></TableCell>
+                      <TableCell align="center"><strong>Cantidad</strong></TableCell>
+                      <TableCell align="right"><strong>Precio Unit.</strong></TableCell>
+                      <TableCell align="right"><strong>Total</strong></TableCell>
                       {viewMode === 'historical' && (
                         <>
-                          <TableCell align="center">{producto.fecha}</TableCell>
-                          <TableCell align="center">
-                            <Chip
-                              label={producto.estado}
-                              size="small"
-                              color={
-                                producto.estado === "Sincronizada" ? "success" :
-                                producto.estado === "Sincronizando" ? "info" : "warning"
-                              }
-                              variant="outlined"
-                            />
-                          </TableCell>
+                          <TableCell align="center"><strong>Fecha</strong></TableCell>
+                          <TableCell align="center"><strong>Estado</strong></TableCell>
                         </>
                       )}
                     </TableRow>
-                  ))}
-                  <TableRow sx={{ bgcolor: "success.light" }}>
-                    <TableCell colSpan={viewMode === 'grouped' ? 3 : 3}>
-                      <Typography fontWeight="bold">Subtotal Propios:</Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography fontWeight="bold">
-                        ${salesData.totalPropios.toFixed(2)}
-                      </Typography>
-                    </TableCell>
-                    {viewMode === 'historical' && <TableCell colSpan={2}></TableCell>}
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
-        )}
+                  </TableHead>
+                  <TableBody>
+                    {salesData.productosPropios.map((producto, index) => (
+                      <TableRow key={index} hover>
+                        <TableCell>{producto.nombre}</TableCell>
+                        <TableCell align="center">{producto.cantidad}</TableCell>
+                        <TableCell align="right">${producto.precio?.toFixed(2)}</TableCell>
+                        <TableCell align="right">
+                          <Typography fontWeight="bold">
+                            ${producto.total.toFixed(2)}
+                          </Typography>
+                        </TableCell>
+                        {viewMode === 'historical' && (
+                          <>
+                            <TableCell align="center">{producto.fecha}</TableCell>
+                            <TableCell align="center">
+                              <Chip
+                                label={producto.estado}
+                                size="small"
+                                color={
+                                  producto.estado === "Sincronizada" ? "success" :
+                                    producto.estado === "Sincronizando" ? "info" : "warning"
+                                }
+                                variant="outlined"
+                              />
+                            </TableCell>
+                          </>
+                        )}
+                      </TableRow>
+                    ))}
+                    <TableRow sx={{ bgcolor: "success.light" }}>
+                      <TableCell colSpan={viewMode === 'grouped' ? 3 : 3}>
+                        <Typography fontWeight="bold">Subtotal Propios:</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography fontWeight="bold">
+                          ${salesData.totalPropios.toFixed(2)}
+                        </Typography>
+                      </TableCell>
+                      {viewMode === 'historical' && <TableCell colSpan={2}></TableCell>}
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
 
-        {/* Mensaje cuando no hay ventas */}
-        {userSales.length === 0 && (
-          <Box 
-            display="flex" 
-            flexDirection="column" 
-            alignItems="center" 
-            justifyContent="center" 
-            minHeight="300px"
-          >
-            <Typography variant="h6" color="textSecondary" gutterBottom>
-              No tienes ventas registradas
-            </Typography>
-            <Typography variant="body2" color="textSecondary" textAlign="center">
-              Cuando realices ventas, aparecerán aquí organizadas por tipo de producto.
-            </Typography>
-          </Box>
-        )}
+          {/* Mensaje cuando no hay ventas */}
+          {userSales.length === 0 && (
+            <Box
+              display="flex"
+              flexDirection="column"
+              alignItems="center"
+              justifyContent="center"
+              minHeight="300px"
+            >
+              <Typography variant="h6" color="textSecondary" gutterBottom>
+                No tienes ventas registradas
+              </Typography>
+              <Typography variant="body2" color="textSecondary" textAlign="center">
+                Cuando realices ventas, aparecerán aquí organizadas por tipo de producto.
+              </Typography>
+            </Box>
+          )}
+        </Box>
       </Box>
     </Drawer>
   );
 };
+
+export default UserSalesDrawer;

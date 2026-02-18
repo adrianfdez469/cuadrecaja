@@ -24,7 +24,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useState, Fragment } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { ProducsSalesDrawer } from "./ProductsSalesDrawer";
@@ -282,16 +282,20 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
           sx={{
             width: "100vw",
             p: 2,
+            pt: "calc(8px + env(safe-area-inset-top))",
+            pb: "calc(8px + env(safe-area-inset-bottom))",
             display: "flex",
             flexDirection: "column",
-            height: "100vh",
+            height: "100dvh",
           }}
         >
+          {/* Header Fijo */}
           <Box
             display={"flex"}
             flexDirection={"row"}
             justifyContent={"space-between"}
             alignItems={"center"}
+            sx={{ mb: 1 }}
           >
             {sales.length > 0 ? (
               <Chip
@@ -311,149 +315,127 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
             </IconButton>
           </Box>
 
-          {sales.filter((s) => !s.synced).length > 0 && (
-            <Box
-              sx={{ mt: 2 }}
-              display={"flex"}
-              flexDirection={"row"}
-              justifyContent={"space-around"}
-              gap={2}
-            >
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleSyncAll}
-                disabled={disableAll}
-                startIcon={<CloudUpload />}
+          {/* Contenido Scrollable */}
+          <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+            {sales.filter((s) => !s.synced).length > 0 && (
+              <Box
+                sx={{ mt: 2, mb: 1 }}
+                display={"flex"}
+                flexDirection={"row"}
+                justifyContent={"space-around"}
+                gap={2}
               >
-                Sincronizar todos
-              </Button>
-            </Box>
-          )}
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSyncAll}
+                  disabled={disableAll}
+                  startIcon={<CloudUpload />}
+                >
+                  Sincronizar todos
+                </Button>
+              </Box>
+            )}
 
-          <TableContainer component={Paper} sx={{ mt: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell><b>Estado</b></TableCell>
-                  <TableCell><b>Fecha</b></TableCell>
-                  <TableCell align="right">
-                    <b>Efectivo</b>
-                  </TableCell>
-                  <TableCell align="right">
-                    <b>Transf</b>
-                  </TableCell>
-                  <TableCell align="right">
-                    <b>Total</b>
-                  </TableCell>
-                  <TableCell><b>Acciones</b></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {sales
-                  // .filter((s) => !s.synced)
-                  .sort((a, b) => {
-                    if (!a.synced && b.synced) {
-                      return -1;
-                    }
-                    if (a.synced && !b.synced) {
-                      return 1;
-                    }
-                    return b.createdAt - a.createdAt; // Ordenar por fecha de creación (más reciente primero)
-                  })
-                  .map((s) => {
-                    const saleInfo = formatSaleInfo(s);
-                    return (
-                      <>
-                        <TableRow sx={{ borderColor: "Highlight" }}>
-                          <TableCell>
-                            <Box
-                              display={"flex"}
-                              flexDirection={"column"}
-                              gap={0.5}
-                            >
-                              <Box display="flex" alignItems="center" gap={1}>
-                                {s.synced ? (
-                                  <Sync fontSize="small" color="success" />
-                                ) : (
-                                  <SyncDisabled
-                                    fontSize="small"
-                                    color="warning"
-                                  />
-                                )}
+            <TableContainer component={Paper} sx={{ mt: 1 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell><b>Estado</b></TableCell>
+                    <TableCell><b>Fecha</b></TableCell>
+                    <TableCell align="right">
+                      <b>Efectivo</b>
+                    </TableCell>
+                    <TableCell align="right">
+                      <b>Transf</b>
+                    </TableCell>
+                    <TableCell align="right">
+                      <b>Total</b>
+                    </TableCell>
+                    <TableCell><b>Acciones</b></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sales
+                    .sort((a, b) => {
+                      if (!a.synced && b.synced) return -1;
+                      if (a.synced && !b.synced) return 1;
+                      return b.createdAt - a.createdAt;
+                    })
+                    .map((s) => {
+                      const saleInfo = formatSaleInfo(s);
+                      return (
+                        <Fragment key={s.identifier}>
+                          <TableRow sx={{ borderColor: "Highlight" }}>
+                            <TableCell>
+                              <Box display={"flex"} flexDirection={"column"} gap={0.5}>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  {s.synced ? (
+                                    <Sync fontSize="small" color="success" />
+                                  ) : (
+                                    <SyncDisabled fontSize="small" color="warning" />
+                                  )}
+                                  <Typography variant="caption" color="text.secondary">
+                                    {saleInfo.status}
+                                  </Typography>
+                                </Box>
                                 <Typography variant="caption" color="text.secondary">
-                                  {saleInfo.status}
+                                  {saleInfo.products} productos
                                 </Typography>
                               </Box>
-                              <Typography variant="caption" color="text.secondary">
-                                {saleInfo.products} productos
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              {saleInfo.date}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">${s.totalcash}</TableCell>
-                          <TableCell align="right">
-                            ${s.totaltransfer}
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="h6">${s.total}</Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Box
-                              width={"100%"}
-                              display={"flex"}
-                              flexDirection={"row"}
-                              justifyContent={"space-around"}
-                              alignItems={"center"}
-                            >
-                              <IconButton
-                                aria-label="view"
-                                color="default"
-                                onClick={() => handleSelectViewSale(s)}
-                                disabled={disableAll}
-                              >
-                                <VisibilityIcon />
-                              </IconButton>
-
-                              {s.syncState === "syncing" ? (
-                                <CircularProgress size="24px" />
-                              ) : (
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2">{saleInfo.date}</Typography>
+                            </TableCell>
+                            <TableCell align="right">${s.totalcash}</TableCell>
+                            <TableCell align="right">${s.totaltransfer}</TableCell>
+                            <TableCell align="right">
+                              <Typography variant="h6">${s.total}</Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Box width={"100%"} display={"flex"} flexDirection={"row"} justifyContent={"space-around"} alignItems={"center"}>
                                 <IconButton
-                                  aria-label="sync"
-                                  color="primary"
-                                  onClick={() => handleSyncOne(s)}
-                                  disabled={disableAll || s.synced}
+                                  aria-label="view"
+                                  color="default"
+                                  onClick={() => handleSelectViewSale(s)}
+                                  disabled={disableAll}
                                 >
-                                  {s.synced ? <Done /> : <Sync />}
+                                  <VisibilityIcon />
                                 </IconButton>
-                              )}
 
-                              {verificarPermiso("operaciones.pos-venta.cancelarventa") &&
-                                <IconButton
-                                  aria-label="delete"
-                                  color="error"
-                                  onClick={() => handleDeleteOne(s)}
-                                  disabled={disableAll || (offline && s.synced)}
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
-                              }
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                        <TableRow sx={{ backgroundColor: "ButtonFace" }}>
-                          <TableCell colSpan={6}></TableCell>
-                        </TableRow>
-                      </>
-                    );
-                  })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                                {s.syncState === "syncing" ? (
+                                  <CircularProgress size="24px" />
+                                ) : (
+                                  <IconButton
+                                    aria-label="sync"
+                                    color="primary"
+                                    onClick={() => handleSyncOne(s)}
+                                    disabled={disableAll || s.synced}
+                                  >
+                                    {s.synced ? <Done /> : <Sync />}
+                                  </IconButton>
+                                )}
+
+                                {verificarPermiso("operaciones.pos-venta.cancelarventa") && (
+                                  <IconButton
+                                    aria-label="delete"
+                                    color="error"
+                                    onClick={() => handleDeleteOne(s)}
+                                    disabled={disableAll || (offline && s.synced)}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        </Fragment>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
         </Box>
       </Drawer>
 

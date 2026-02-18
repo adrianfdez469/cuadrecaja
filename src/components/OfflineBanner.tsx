@@ -20,14 +20,14 @@ export const OfflineBanner: React.FC = () => {
     // Solo proceder si hay un cambio real en el estado de conexión
     if (lastStatusChange && lastStatusChange !== lastStatusChangeRef.current) {
       lastStatusChangeRef.current = lastStatusChange;
-      
+
       // Resetear el estado de cierre manual cuando hay un cambio de estado de red
       setIsClosedManually(false);
-      
+
       // Mostrar banner cuando cambia el estado de conexión
       if (!isOnline || (isOnline && wasOffline)) {
         setShowBanner(true);
-        
+
         // Auto-ocultar después de 3 segundos
         autoHideTimeoutRef.current = setTimeout(() => {
           setShowBanner(false);
@@ -70,17 +70,15 @@ export const OfflineBanner: React.FC = () => {
   return (
     <Box
       sx={{
-        position: 'fixed',
-        top: 64, // Debajo del AppBar
-        left: 8,
-        right: 8,
+        width: '100%',
         zIndex: 1400,
+        my: 1, // Margen vertical para separar del contenido
         mx: 'auto',
         maxWidth: 600, // Limitar ancho máximo
       }}
     >
       <Collapse in={showBanner}>
-        <Alert 
+        <Alert
           severity={isOnline ? "success" : "warning"}
           sx={{
             borderRadius: 2,
@@ -102,7 +100,7 @@ export const OfflineBanner: React.FC = () => {
           }
         >
           <Typography variant="body2" fontWeight="bold">
-            {isOnline 
+            {isOnline
               ? "🟢 Conexión restaurada - Los datos se sincronizarán automáticamente"
               : "🔴 Modo Offline - Los datos se guardan localmente y se sincronizarán cuando haya conexión"
             }

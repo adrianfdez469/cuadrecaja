@@ -1,4 +1,4 @@
-import { formatCurrency, sanitizeNumber } from "@/utils/formatters";
+import { formatCurrency } from "@/utils/formatters";
 import { Delete } from "@mui/icons-material";
 import { Alert, Box, TableHead, Table, Paper, TableContainer, TableRow, TableCell, TableBody, Typography, IconButton, Tooltip, Card, CardContent, Grid, TextField } from "@mui/material";
 import React from "react";
@@ -108,11 +108,11 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
         <Table size={isMobile ? "small" : "medium"}>
           <TableHead>
             <TableRow>
+              <TableCell align="center"></TableCell>
               <TableCell>Producto</TableCell>
               <TableCell align="center">Cantidad</TableCell>
               <TableCell align="center">Costo Unit.</TableCell>
               <TableCell align="right">Costo Total</TableCell>
-              <TableCell align="center">Acción</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -122,6 +122,16 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
               
               return (
                 <TableRow key={producto.productoId+index}>
+                  <TableCell align="center">
+                    <Tooltip title="Eliminar producto">
+                      <IconButton
+                          color="error"
+                          onClick={() => eliminarProducto(producto.productoId)}
+                      >
+                        <Delete />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
                   <TableCell>
                     <Box>
                       <Typography variant="body2" fontWeight="medium">
@@ -138,16 +148,18 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                     <TextField
                       type="number"
                       size="small"
-                      value={sanitizeNumber(producto.cantidad)}
-                      onChange={(e) => actualizarCantidad(producto.productoId, sanitizeNumber(Number(e.target.value)), producto.proveedorId)}
-                      inputProps={{ 
-                        min: 1, 
-                        max: esSalida ? producto.existencia : undefined 
+                      value={producto.cantidad.toString()}
+                      onChange={(e) => actualizarCantidad(producto.productoId, Number(e.target.value), producto.proveedorId)}
+                      slotProps={{
+                        htmlInput: {
+                          min: 1,
+                          max: esSalida ? producto.existencia : undefined
+                        }
                       }}
                       disabled={tipoMovimiento === 'TRASPASO_ENTRADA'}
                       error={cantidadExcede}
                       helperText={cantidadExcede ? `Máx: ${producto.existencia}` : ''}
-                      sx={{ width: 80 }}
+                      sx={{ width: 60 }}
                     />
                   </TableCell>
                   <TableCell align="center">
@@ -155,11 +167,11 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                     <TextField
                       type="number"
                       size="small"
-                      value={sanitizeNumber(producto.costo)}
-                      onChange={(e) => actualizarCosto(producto.productoId, sanitizeNumber(Number(e.target.value)))}
+                      value={producto.costo?.toString()}
+                      onChange={(e) => actualizarCosto(producto.productoId, Number(e.target.value))}
                       disabled={esSalida || tipoMovimiento === 'TRASPASO_ENTRADA'}
                       inputProps={{ min: 0, step: 0.01 }}
-                      sx={{ width: 100 }}
+                      sx={{ width: 80 }}
                     />
                   </TableCell>
                   <TableCell align="right">
@@ -167,17 +179,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                       {formatCurrency(producto.costoTotal)}
                     </Typography>
                   </TableCell>
-                  <TableCell align="center">
-                    <Tooltip title="Eliminar producto">
-                      <IconButton 
-                        size="small" 
-                        color="error"
-                        onClick={() => eliminarProducto(producto.productoId)}
-                      >
-                        <Delete />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
+
                 </TableRow>
               );
             })}

@@ -1,6 +1,29 @@
 import { formatCurrency, formatNumber } from "@/utils/formatters";
-import { Add, Search, FilterAlt } from "@mui/icons-material";
-import { Alert, Box, TableHead, Table, Paper, TableContainer, CircularProgress, TableRow, TableCell, TableBody, Typography, IconButton, Tooltip, Chip, Card, CardContent, Grid, TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem, Button } from "@mui/material";
+import { Search, FilterAlt } from "@mui/icons-material";
+import {
+  Alert,
+  Box,
+  TableHead,
+  Table,
+  Paper,
+  TableContainer,
+  CircularProgress,
+  TableRow,
+  TableCell,
+  TableBody,
+  Typography,
+  Chip,
+  Card,
+  CardContent,
+  Grid2 as Grid,
+  TextField,
+  InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Button
+} from "@mui/material";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { IProductoDisponible, OperacionTipo } from "../ProductSelectionModal";
 import { ICategory } from "@/types/ICategoria";
@@ -22,8 +45,6 @@ interface IProps {
   isFiltering: boolean;
   currentPage: number;
 }
-
-const ROW_HEIGHT = 56; // Altura estimada de cada fila
 
 const TableProductosDisponibles: React.FC<IProps> = ({
   operacion,
@@ -53,8 +74,8 @@ const TableProductosDisponibles: React.FC<IProps> = ({
   const rowVirtualizer = useVirtualizer({
     count: productosDisponibles.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 8,
+    estimateSize: () => isMobile ? 48 : 56,
+    overscan: 10,
   });
 
   // Ref para evitar múltiples llamadas simultáneas
@@ -111,11 +132,12 @@ const TableProductosDisponibles: React.FC<IProps> = ({
       }
     };
   }, [
-    productosDisponibles.length, 
-    loading, 
-    isFiltering, 
-    productos.length, 
-    hasMore, 
+    rowVirtualizer.getVirtualItems(),
+    productosDisponibles.length,
+    loading,
+    isFiltering,
+    productos.length,
+    hasMore,
     loadMoreProductos,
     isLoadingMore,
     show,
@@ -193,67 +215,69 @@ const TableProductosDisponibles: React.FC<IProps> = ({
         <Card variant="outlined" sx={{ mb: 2 }}>
           <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
             <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Buscar por nombre o proveedor..."
-                    inputRef={filterTextRef}
-                    InputProps={{
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Buscar por nombre o proveedor..."
+                  inputRef={filterTextRef}
+                  slotProps={{
+                    input: {
                       startAdornment: (
                         <InputAdornment position="start">
                           <Search />
                         </InputAdornment>
-                      ),
-                    }}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        handleApplyFilters();
-                      }
-                    }}
-                  />
-                </Grid>
-                {!isMobile &&
-                  <Grid item xs={12} sm={4}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Categoría</InputLabel>
-                      <Select
-                        ref={filterCategoryRef}
-                        label="Categoría"
-                        defaultValue=""
-                      >
-                        <MenuItem value="">Todas las categorías</MenuItem>
-                        {categorias.map(categoria => (
-                          <MenuItem key={categoria.id} value={categoria.id}>
-                            {categoria.nombre}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                }
-                <Grid item xs={12} sm={4}>
-                  <Box display="flex" gap={1}>
-                    <Button
-                      variant="contained"
-                      size="small"
-                      startIcon={<FilterAlt />}
-                      onClick={handleApplyFilters}
-                      fullWidth
-                    >
-                      Filtrar
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={handleClearFilters}
-                      fullWidth
-                    >
-                      Limpiar
-                    </Button>
-                  </Box>
-                </Grid>
+                      )
+                    }
+                  }}
+                  onKeyUp={(e) => {
+                    if (e.key === 'Enter') {
+                      handleApplyFilters();
+                    }
+                  }}
+                />
               </Grid>
+              {!isMobile &&
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Categoría</InputLabel>
+                    <Select
+                      ref={filterCategoryRef}
+                      label="Categoría"
+                      defaultValue=""
+                    >
+                      <MenuItem value="">Todas las categorías</MenuItem>
+                      {categorias.map(categoria => (
+                        <MenuItem key={categoria.id} value={categoria.id}>
+                          {categoria.nombre}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              }
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <Box display="flex" gap={1}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<FilterAlt />}
+                    onClick={handleApplyFilters}
+                    fullWidth
+                  >
+                    Filtrar
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={handleClearFilters}
+                    fullWidth
+                  >
+                    Limpiar
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
           </CardContent>
         </Card>
         <TableContainer
@@ -262,205 +286,156 @@ const TableProductosDisponibles: React.FC<IProps> = ({
           ref={tableContainerRef}
           style={{
             height: isMobile ? 400 : 500,
-            overflow: 'auto'
-          }}
-          onScroll={() => {
-            // if (blockInfiniteScroll) setBlockInfiniteScroll(false);
+            overflow: 'auto',
           }}
         >
           <Table
-            size={isMobile ? "small" : "medium"}
             style={{
               tableLayout: 'fixed',
-              minWidth: isMobile ? 600 : 'auto'
             }}
           >
             <TableHead>
               <TableRow>
                 <TableCell
-                  align="center"
                   style={{
-                    width: isMobile ? 20 : 80,
-                    minWidth: isMobile ? '60px' : '80px'
-                  }}
-                >
-                  {isMobile ? '' : 'Acción'}
-                </TableCell>
-                <TableCell
-                  style={{
-                    width: isMobile ? '30%' : '35%',
-                    minWidth: isMobile ? 50 : 200
+                    width: '50%',
                   }}
                 >
                   Producto
                 </TableCell>
                 <TableCell
-                  align="center"
                   style={{
-                    width: isMobile ? 80 : 80,
-                    minWidth: isMobile ? 80 : 80
+                    width: '20%',
                   }}
                 >
                   {isMobile ? 'Cant' : 'Existencia'}
                 </TableCell>
-                <TableCell
-                  align="right"
-                  style={{
-                    width: isMobile ? 60 : 100,
-                    minWidth: isMobile ? 60 : 100
-                  }}
-                >
+                <TableCell>
                   Costo
                 </TableCell>
-                <TableCell
-                  align="right"
-                  style={{
-                    width: isMobile ? 100 : 100,
-                    minWidth: isMobile ? 100 : 100
-                  }}
-                >
+                <TableCell>
                   Precio
                 </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {productosDisponibles.length > 0 ? (
-                <TableRow style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
-                  {rowVirtualizer.getVirtualItems().map(virtualRow => {
-                    const producto = productosDisponibles[virtualRow.index];
-                    const isLast = virtualRow.index === productosDisponibles.length - 1;
+                <>
+                  {(() => {
+                    const virtualItems = rowVirtualizer.getVirtualItems();
+                    const totalSize = rowVirtualizer.getTotalSize();
+                    const paddingTop = virtualItems.length > 0 ? virtualItems?.[0]?.start || 0 : 0;
+                    const paddingBottom = virtualItems.length > 0 ? totalSize - (virtualItems?.[virtualItems.length - 1]?.end || 0) : 0;
+
                     return (
-                      <TableRow
-                        key={`${producto.productoId}-${virtualRow.index}`}
-                        hover
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          transform: `translateY(${virtualRow.start}px)`,
-                          display: 'table',
-                          tableLayout: 'fixed'
-                        }}
-                        ref={isLast ? rowVirtualizer.measureElement : undefined}
-                      >
-                        <TableCell
-                          align="center"
-                          style={{
-                            width: isMobile ? 20 : 80,
-                            minWidth: isMobile ? '60px' : '80px'
-                          }}
-                        >
-                          <Tooltip title="Agregar producto">
-                            <IconButton
-                              size={isMobile ? "small" : "medium"}
-                              color="primary"
-                              onClick={() => agregarProducto(producto)}
-                              disabled={operacion === 'SALIDA' && producto.existencia <= 0}
-                            >
-                              <Add fontSize={isMobile ? "small" : "medium"} />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell
-                          style={{
-                            width: isMobile ? '30%' : '35%',
-                            minWidth: isMobile ? 50 : 200
-                          }}
-                        >
-                          <Box>
-                            <Typography
-                              variant={isMobile ? "caption" : "body2"}
-                              fontWeight="medium"
+                      <>
+                        {paddingTop > 0 && (
+                          <TableRow>
+                            <TableCell
+                              colSpan={4}
+                              style={{ height: `${paddingTop}px`, padding: 0, border: 0 }}
+                            />
+                          </TableRow>
+                        )}
+                        {virtualItems.map(virtualRow => {
+                          const producto = productosDisponibles[virtualRow.index];
+                          const isDisabled = operacion === 'SALIDA' && producto.existencia <= 0;
+                          return (
+                            <TableRow
+                              key={virtualRow.key}
+                              data-index={virtualRow.index}
+                              ref={rowVirtualizer.measureElement}
+                              hover={!isDisabled}
+                              onClick={() => !isDisabled && agregarProducto(producto)}
                               sx={{
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                display: 'block'
+                                cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                opacity: isDisabled ? 0.5 : 1
                               }}
                             >
-                              {producto.proveedor ? `${producto.nombre} - ${producto.proveedor.nombre}` : producto.nombre}
-                            </Typography>
-                            {producto.proveedor && (
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                  display: 'block'
-                                }}
-                              >
-                                {producto.proveedor.nombre}
-                              </Typography>
-                            )}
-                          </Box>
-                        </TableCell>
-                        <TableCell
-                          align="center"
-                          style={{
-                            width: isMobile ? 80 : 80,
-                            minWidth: isMobile ? 80 : 80
-                          }}
-                        >
-                          <Chip
-                            label={formatNumber(producto.existencia || 0)}
-                            size={isMobile ? "small" : "medium"}
-                            color={producto.existencia <= 0 ? 'error' : producto.existencia <= 5 ? 'warning' : 'success'}
-                            variant="filled"
-                            sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}
-                          />
-                        </TableCell>
-                        <TableCell
-                          align="right"
-                          style={{
-                            width: isMobile ? 100 : 100,
-                            minWidth: isMobile ? 100 : 100
-                          }}
-                        >
-                          <Typography
-                            variant={isMobile ? "caption" : "body2"}
-                            fontWeight="medium"
-                            sx={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {formatCurrency(producto.costo)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell
-                          align="right"
-                          style={{
-                            width: isMobile ? 100 : 100,
-                            minWidth: isMobile ? 100 : 100
-                          }}
-                        >
-                          <Typography
-                            variant={isMobile ? "caption" : "body2"}
-                            fontWeight="medium"
-                            sx={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {formatCurrency(producto.precio)}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
+                              <TableCell style={{ width: '50%' }}>
+                                <Typography
+                                  variant={isMobile ? "caption" : "body2"}
+                                  fontWeight="medium"
+                                  sx={{
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    display: 'block'
+                                  }}
+                                >
+                                  {producto.proveedor ? `${producto.nombre} - ${producto.proveedor.nombre}` : producto.nombre}
+                                </Typography>
+                                {producto.proveedor && (
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      display: 'block'
+                                    }}
+                                  >
+                                    {producto.proveedor.nombre}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={formatNumber(producto.existencia || 0)}
+                                  size={isMobile ? "small" : "medium"}
+                                  color={producto.existencia <= 0 ? 'error' : producto.existencia <= 5 ? 'warning' : 'success'}
+                                  sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography
+                                  variant={isMobile ? "caption" : "body2"}
+                                  fontWeight="medium"
+                                  sx={{
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  {formatCurrency(producto.costo)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography
+                                  variant={isMobile ? "caption" : "body2"}
+                                  fontWeight="medium"
+                                  sx={{
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  {formatCurrency(producto.precio)}
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {paddingBottom > 0 && (
+                          <TableRow>
+                            <TableCell
+                              colSpan={4}
+                              style={{ height: `${paddingBottom}px`, padding: 0, border: 0 }}
+                            />
+                          </TableRow>
+                        )}
+                      </>
                     );
-                  })}
-                </TableRow>
+                  })()}
+                </>
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
                     <Typography variant="body2" color="text.secondary">
-                      {loading ? 'Cargando productos...' : 
-                       isFiltering ? 'Buscando productos...' : 
-                       'No hay productos disponibles'}
+                      {loading ? 'Cargando productos...' :
+                        isFiltering ? 'Buscando productos...' :
+                          'No hay productos disponibles'}
                     </Typography>
                   </TableCell>
                 </TableRow>

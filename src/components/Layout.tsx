@@ -555,13 +555,16 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       {/* Barra superior mejorada */}
       <AppBar
-        position="static"
+        component="header"
+        position="sticky"
         elevation={0}
         sx={{
+          top: 0,
           backgroundColor: '#ffffff',
           color: '#1a202c',
           borderBottom: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+          zIndex: (theme) => theme.zIndex.drawer - 1
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
@@ -775,8 +778,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
       {isAuth && (
         <>
-          {/* Banner de estado offline */}
-          <OfflineBanner />
+          {/* Banner de estado offline moved inside main to follow flow */}
 
           {/* Menú lateral mejorado */}
           <Drawer
@@ -793,159 +795,173 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             }}
           >
             <Box
-              sx={{ width: 280 }}
+              sx={{
+                width: 280,
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                maxHeight: '100dvh'
+              }}
               role="presentation"
             >
-              {/* Header del menú */}
-              <Box sx={{ p: 2, borderBottom: '1px solid #e2e8f0' }}>
+              {/* Header del menú (Fijo) */}
+              <Box sx={{
+                p: 2,
+                pt: 'calc(16px + env(safe-area-inset-top))',
+                borderBottom: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                zIndex: 1
+              }}>
                 <Typography variant="h6" fontWeight={700} color="primary.main">
                   Menú
                 </Typography>
               </Box>
 
-              {user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'operaciones', user).length > 0 &&
-                <Accordion expanded={menuState.operaciones} onChange={() => handleMenuAccordion('operaciones')}>
-                  <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                      Operaciones
-                    </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    {user?.localActual && (
-                      <List sx={{ pt: 0 }}>
-                        {getMainMenuItemsByLocalType(user.localActual.tipo, 'operaciones', user).map((item) => (
-                          <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
-                            <ListItemButton
-                              onClick={() => {
-                                gotToPath(item.path);
-                                setOpen(false);
-                              }}
-                              sx={{
-                                borderRadius: 2,
-                                py: 1.5,
-                                '&:hover': {
-                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                                }
-                              }}
-                            >
-                              <ListItemIcon sx={{ minWidth: 40 }} color="primary">
-                                <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={item.label}
-                                primaryTypographyProps={{
-                                  fontWeight: 500,
-                                  fontSize: '0.875rem'
+              {/* Contenido (Scrollable) */}
+              <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                {user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'operaciones', user).length > 0 &&
+                  <Accordion expanded={menuState.operaciones} onChange={() => handleMenuAccordion('operaciones')}>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                        Operaciones
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {user?.localActual && (
+                        <List sx={{ pt: 0 }}>
+                          {getMainMenuItemsByLocalType(user.localActual.tipo, 'operaciones', user).map((item) => (
+                            <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                              <ListItemButton
+                                onClick={() => {
+                                  gotToPath(item.path);
+                                  setOpen(false);
                                 }}
-                              />
-                            </ListItemButton>
-                          </ListItem>
-                        ))}
+                                sx={{
+                                  borderRadius: 2,
+                                  py: 1.5,
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                  }
+                                }}
+                              >
+                                <ListItemIcon sx={{ minWidth: 40 }} color="primary">
+                                  <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                                </ListItemIcon>
+                                <ListItemText
+                                  primary={item.label}
+                                  primaryTypographyProps={{
+                                    fontWeight: 500,
+                                    fontSize: '0.875rem'
+                                  }}
+                                />
+                              </ListItemButton>
+                            </ListItem>
+                          ))}
+                        </List>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+                }
+
+                {user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).length > 0 &&
+                  <Accordion expanded={menuState.resumenes} onChange={() => handleMenuAccordion('resumenes')}>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                        Resúmenes
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {user?.localActual && (
+                        <List sx={{ pt: 0 }}>
+                          {getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).map((item) => (
+                            <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                              <ListItemButton
+                                onClick={() => {
+                                  gotToPath(item.path);
+                                  setOpen(false);
+                                }}
+                                sx={{
+                                  borderRadius: 2,
+                                  py: 1.5,
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                  }
+                                }}
+                              >
+                                <ListItemIcon sx={{ minWidth: 40 }} color="primary">
+                                  <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                                </ListItemIcon>
+                                <ListItemText
+                                  primary={item.label}
+                                  primaryTypographyProps={{
+                                    fontWeight: 500,
+                                    fontSize: '0.875rem'
+                                  }}
+                                />
+                              </ListItemButton>
+                            </ListItem>
+                          ))}
+                        </List>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+                }
+
+                {CONFIGURATION_MENU_ITEMS
+                  .filter((item) => {
+                    // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
+                    if (user.rol === 'SUPER_ADMIN') return true;
+                    // return user.permisos.includes(item.permission) || item.permission === '*';
+                    return verificarPermiso(item.permission);
+                  }).length > 0 &&
+                  <Accordion expanded={menuState.configuracion} onChange={() => handleMenuAccordion('configuracion')}>
+                    <AccordionSummary expandIcon={<ExpandMore />}>
+                      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                        Configuración
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <List sx={{ pt: 2 }}>
+                        {CONFIGURATION_MENU_ITEMS
+                          .filter((item) => {
+                            // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
+                            if (user.rol === 'SUPER_ADMIN') return true;
+                            // return user.permisos.includes(item.permission) || item.permission === '*';
+                            return verificarPermiso(item.permission);
+                          })
+                          .map((item) => (
+                            <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                              <ListItemButton
+                                onClick={() => {
+                                  gotToPath(item.path);
+                                  setOpen(false);
+                                }}
+                                sx={{
+                                  borderRadius: 2,
+                                  py: 1.5,
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                  }
+                                }}
+                              >
+                                <ListItemIcon sx={{ minWidth: 40 }}>
+                                  <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                                </ListItemIcon>
+                                <ListItemText
+                                  primary={item.label}
+                                  primaryTypographyProps={{
+                                    fontWeight: 500,
+                                    fontSize: '0.875rem'
+                                  }}
+                                />
+                              </ListItemButton>
+                            </ListItem>
+                          ))}
                       </List>
-                    )}
-                  </AccordionDetails>
-                </Accordion>
-              }
-
-              {user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).length > 0 &&
-                <Accordion expanded={menuState.resumenes} onChange={() => handleMenuAccordion('resumenes')}>
-                  <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                      Resúmenes
-                    </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    {user?.localActual && (
-                      <List sx={{ pt: 0 }}>
-                        {getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).map((item) => (
-                          <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
-                            <ListItemButton
-                              onClick={() => {
-                                gotToPath(item.path);
-                                setOpen(false);
-                              }}
-                              sx={{
-                                borderRadius: 2,
-                                py: 1.5,
-                                '&:hover': {
-                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                                }
-                              }}
-                            >
-                              <ListItemIcon sx={{ minWidth: 40 }} color="primary">
-                                <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={item.label}
-                                primaryTypographyProps={{
-                                  fontWeight: 500,
-                                  fontSize: '0.875rem'
-                                }}
-                              />
-                            </ListItemButton>
-                          </ListItem>
-                        ))}
-                      </List>
-                    )}
-                  </AccordionDetails>
-                </Accordion>
-              }
-
-              {CONFIGURATION_MENU_ITEMS
-                .filter((item) => {
-                  // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
-                  if (user.rol === 'SUPER_ADMIN') return true;
-                  // return user.permisos.includes(item.permission) || item.permission === '*';
-                  return verificarPermiso(item.permission);
-                }).length > 0 &&
-                <Accordion expanded={menuState.configuracion} onChange={() => handleMenuAccordion('configuracion')}>
-                  <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                      Configuración
-                    </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <List sx={{ pt: 2 }}>
-                      {CONFIGURATION_MENU_ITEMS
-                        .filter((item) => {
-                          // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
-                          if (user.rol === 'SUPER_ADMIN') return true;
-                          // return user.permisos.includes(item.permission) || item.permission === '*';
-                          return verificarPermiso(item.permission);
-                        })
-                        .map((item) => (
-                          <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
-                            <ListItemButton
-                              onClick={() => {
-                                gotToPath(item.path);
-                                setOpen(false);
-                              }}
-                              sx={{
-                                borderRadius: 2,
-                                py: 1.5,
-                                '&:hover': {
-                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                                }
-                              }}
-                            >
-                              <ListItemIcon sx={{ minWidth: 40 }}>
-                                <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={item.label}
-                                primaryTypographyProps={{
-                                  fontWeight: 500,
-                                  fontSize: '0.875rem'
-                                }}
-                              />
-                            </ListItemButton>
-                          </ListItem>
-                        ))}
-                    </List>
-                  </AccordionDetails>
-                </Accordion>
-              }
-
+                    </AccordionDetails>
+                  </Accordion>
+                }
+              </Box>
             </Box>
           </Drawer>
         </>
@@ -957,10 +973,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         sx={{
           flexGrow: 1,
           backgroundColor: '#f8fafc',
-          minHeight: 'calc(100vh - 64px)',
           p: { xs: 0, sm: 0.5, md: 0.5 },
         }}
       >
+        {isAuth && <OfflineBanner />}
         <Container
           maxWidth="xl"
           sx={{

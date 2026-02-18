@@ -26,7 +26,6 @@ import {
 import { ITipoMovimiento } from '@/types/IMovimiento';
 import TableProductosDisponibles from './tables/TableProductosDisponibles';
 import TableProductosSeleccionados from './tables/TableProductosSeleccionados';
-import { sanitizeNumber } from '@/utils/formatters';
 import { useMessageContext } from '@/context/MessageContext';
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
 
@@ -305,24 +304,24 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     // productosDisponibles
     // productosSeleccionados
     console.log(qrText);
-    
+
     console.log('productosDisponibles', productosDisponibles);
     console.log('productosSeleccionados', productosSeleccionados);
-    
+
     const producto = productosDisponibles.find(p => {
-      if(p.codigosProducto && p.codigosProducto.some(c => c.codigo === qrText)) return p;
+      if (p.codigosProducto && p.codigosProducto.some(c => c.codigo === qrText)) return p;
       return null;
     });
 
-    if(producto) {
+    if (producto) {
       agregarProducto(producto);
     } else {
       const prod = productosSeleccionados.find(p => {
-        if(p.codigosProducto && p.codigosProducto.some(c => c.codigo === qrText)) return p;
+        if (p.codigosProducto && p.codigosProducto.some(c => c.codigo === qrText)) return p;
         return null;
       });
 
-      if(prod) {
+      if (prod) {
         showMessage(`Producto ${prod.nombre} ya seleccionado`, 'warning');
       } else {
         showMessage(`Producto ${qrText} no encontrado`, 'error');
@@ -372,15 +371,15 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   const actualizarCantidad = useCallback((productoId: string, nuevaCantidad: number, proveedorId?: string) => {
 
-    const nuevaCantidadNumber = sanitizeNumber(Number(nuevaCantidad));
+
     setProductosSeleccionados(prev => prev.map(p => {
 
       if (p.productoId === productoId && p.proveedorId === proveedorId) {
         const cantidad = operacion === 'SALIDA'
-          ? Math.min(nuevaCantidadNumber, p.existencia)
-          : nuevaCantidadNumber;
+          ? Math.min(nuevaCantidad, p.existencia)
+          : nuevaCantidad;
 
-        const fixedAmount = p.permiteDecimal ? cantidad: Math.trunc(cantidad)
+        const fixedAmount = p.permiteDecimal ? cantidad : Math.trunc(cantidad)
 
         return {
           ...p,
@@ -477,14 +476,22 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       PaperProps={{
         sx: {
           borderRadius: isMobile ? 0 : 3,
-          height: isMobile ? '100vh' : '90vh',
-          maxHeight: isMobile ? '100vh' : '90vh',
-          m: isMobile ? 0 : 2
+          height: isMobile ? '100dvh' : '90vh',
+          maxHeight: isMobile ? '100dvh' : '90vh',
+          m: isMobile ? 0 : 2,
+          // Support for older browsers that don't support dvh
+          '@supports not (height: 100dvh)': {
+            height: isMobile ? '100vh' : '90vh',
+          }
         }
       }}
     >
       {/* Header */}
-      <DialogTitle sx={{ pb: 1 }}>
+      <DialogTitle sx={{
+        pb: 1,
+        pt: isMobile ? 'calc(8px + env(safe-area-inset-top))' : 2,
+        px: isMobile ? 2 : 3
+      }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Box>
             <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontSize: isMobile ? '1.1rem' : '1.5rem' }}>
@@ -543,43 +550,47 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
 
       {/* Footer */}
-      <DialogActions sx={{ p: isMobile ? 2 : 3, pt: 1 }}>
-        
-          <Stack direction="column" spacing={1} sx={{ width: '100%' }}>
-            <ProductProcessorData 
-              onProcessedData={(data: IProcessedData) => {
-                if (data?.code) handleProductScan(data.code);
-              }}
-              onHardwareScan={(data: IProcessedData) => {
-                if (data?.code) handleProductScan(data.code);
-              }}
-              keepFocus={false} // Evitar que robe el foco de otros campos
-            />
+      <DialogActions sx={{
+        p: isMobile ? 2 : 3,
+        pb: isMobile ? 'calc(8px + env(safe-area-inset-bottom))' : 3,
+        pt: 1
+      }}>
 
-            <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
-              <Button
-                onClick={onClose}
-                variant="outlined"
-                color="secondary"
-                fullWidth={isMobile}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleConfirm}
-                variant="contained"
-                color="primary"
-                disabled={hayErrores || (totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length === 0) || loading}
-                fullWidth={isMobile}
-                startIcon={operacion === 'ENTRADA' ? <TrendingUp /> : <TrendingDown />}
-              >
-                {loading ? 'Procesando...' : totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0 ? 'Terminar' : `Confirmar ${operacion}`}
-              </Button>
-            </Stack>
+        <Stack direction="column" spacing={1} sx={{ width: '100%' }}>
+          <ProductProcessorData
+            onProcessedData={(data: IProcessedData) => {
+              if (data?.code) handleProductScan(data.code);
+            }}
+            onHardwareScan={(data: IProcessedData) => {
+              if (data?.code) handleProductScan(data.code);
+            }}
+            keepFocus={false} // Evitar que robe el foco de otros campos
+          />
 
+          <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
+            <Button
+              onClick={onClose}
+              variant="outlined"
+              color="secondary"
+              fullWidth={isMobile}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              variant="contained"
+              color="primary"
+              disabled={hayErrores || (totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length === 0) || loading}
+              fullWidth={isMobile}
+              startIcon={operacion === 'ENTRADA' ? <TrendingUp /> : <TrendingDown />}
+            >
+              {loading ? 'Procesando...' : totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0 ? 'Terminar' : `Confirmar ${operacion}`}
+            </Button>
           </Stack>
 
-        
+        </Stack>
+
+
       </DialogActions>
     </Dialog>
   );
