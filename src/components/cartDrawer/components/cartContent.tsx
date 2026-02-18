@@ -1,5 +1,5 @@
 import { Close, Delete, Remove, Add } from "@mui/icons-material";
-import { Box, Typography,Button, IconButton, Paper, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Typography, Button, IconButton, Paper, useMediaQuery, useTheme } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import PushPinIcon from '@mui/icons-material/PushPin';
 
@@ -86,7 +86,7 @@ export const CartContent = ({
   };
 
   const handlePinCart = () => {
-    if(!isMobile) {
+    if (!isMobile) {
       setIsCartPinned(!isCartPinned);
     }
   }
@@ -105,16 +105,19 @@ export const CartContent = ({
       sx={{
         width: getContainerWidth(),
         p: 2,
+        pt: !isCartPinned ? "calc(16px + env(safe-area-inset-top))" : 2,
+        pb: !isCartPinned ? "calc(16px + env(safe-area-inset-bottom))" : 2,
         display: "flex",
         flexDirection: "column",
-        height: isCartPinned ? "calc(100vh - 120px)" : "auto",
+        height: isCartPinned ? "calc(100vh - 120px)" : "100dvh",
+        maxHeight: isCartPinned ? "calc(100vh - 120px)" : "100dvh",
+        boxSizing: "border-box",
         ...(isCartPinned && {
-          maxWidth: isMobile ? '100%' : isTablet ? '40vw' : '35vw', // Más flexible según la pantalla
+          maxWidth: isMobile ? '100%' : isTablet ? '40vw' : '35vw',
           minWidth: 360,
-          maxHeight: 'calc(100vh - 120px)', // Altura máxima para evitar que el buscador lo tape
           position: 'sticky',
           top: 0,
-          overflow: 'hidden' // Evitar desbordamiento del contenedor
+          overflow: 'hidden'
         })
       }}
     >
@@ -129,10 +132,10 @@ export const CartContent = ({
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
             <Typography variant="h6">Venta</Typography>
             {!isMobile && (
-              <IconButton 
+              <IconButton
                 onClick={() => handlePinCart()}
                 size="small"
-                sx={{ 
+                sx={{
                   color: isCartPinned ? 'primary.main' : 'secondary.main',
                   '&:hover': {
                     backgroundColor: isCartPinned ? 'primary.50' : 'grey.100'
@@ -144,7 +147,7 @@ export const CartContent = ({
             )}
           </Box>
           <Typography variant="body2" color="green">
-            Productos ({cart.length}) 
+            Productos ({cart.length})
           </Typography>
         </Box>
 
@@ -156,7 +159,7 @@ export const CartContent = ({
               onClick={handleClearCart}
               disabled={cart.length === 0}
               size={isCartPinned && !isTablet ? "medium" : "small"}
-              sx={{ 
+              sx={{
                 mr: 1,
                 ...(isCartPinned && !isTablet && {
                   minWidth: 'auto',
@@ -168,42 +171,39 @@ export const CartContent = ({
             </Button>
           )}
           <IconButton onClick={onClose} disabled={isCartPinned}>
-            <Close color={isCartPinned ? 'disabled' : 'error'}/>
+            <Close color={isCartPinned ? 'disabled' : 'error'} />
           </IconButton>
         </Box>
       </Box>
 
       {/* Productos */}
-      <Box 
-        flex={1} 
+      <Box
+        flex={1}
         overflow="auto"
         sx={{
-          ...(isCartPinned && {
-            maxHeight: 'calc(100vh - 280px)', // Restar espacio del header y footer
-            '&::-webkit-scrollbar': {
-              width: '6px',
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0,0,0,0.05)',
+            borderRadius: '3px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(0,0,0,0.2)',
+            borderRadius: '3px',
+            '&:hover': {
+              background: 'rgba(0,0,0,0.3)',
             },
-            '&::-webkit-scrollbar-track': {
-              background: 'rgba(0,0,0,0.05)',
-              borderRadius: '3px',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: 'rgba(0,0,0,0.2)',
-              borderRadius: '3px',
-              '&:hover': {
-                background: 'rgba(0,0,0,0.3)',
-              },
-            },
-          })
+          },
         }}
       >
         {cart.map((item) => (
           <Paper
             key={item.id}
-            sx={{ 
-              display: "flex", 
-              alignItems: "center", 
-              p: isCartPinned ? 1.5 : 1, 
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              p: isCartPinned ? 1.5 : 1,
               mb: 1,
               ...(isCartPinned && {
                 borderRadius: 2,
@@ -212,8 +212,8 @@ export const CartContent = ({
             }}
           >
             <Box flex={1}>
-              <Typography 
-                variant="body1" 
+              <Typography
+                variant="body1"
                 fontWeight="bold"
                 sx={{
                   fontSize: isCartPinned && !isTablet ? '1rem' : '0.875rem'
@@ -233,7 +233,7 @@ export const CartContent = ({
                   <Typography variant="body2" color="green" fontWeight="medium">
                     {formatCurrencyCUP(item.price)}
                   </Typography>
-                  
+
                   <Box
                     display={"flex"}
                     flexDirection={"row"}
@@ -260,10 +260,10 @@ export const CartContent = ({
                           <Remove />
                         </IconButton>
                       )}
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          minWidth: '20px', 
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          minWidth: '20px',
                           textAlign: 'center',
                           fontWeight: 'medium'
                         }}
@@ -279,12 +279,12 @@ export const CartContent = ({
                         </IconButton>
                       )}
                     </Box>
-                    
+
                     <Typography
                       variant="body2"
                       color="textSecondary"
                       fontWeight="medium"
-                      sx={{ 
+                      sx={{
                         paddingLeft: isCartPinned ? 1 : 2,
                         fontSize: isCartPinned ? '0.8rem' : '0.75rem'
                       }}
@@ -293,9 +293,9 @@ export const CartContent = ({
                     </Typography>
                   </Box>
                 </Box>
-                
+
                 {removeItem && (
-                  <IconButton 
+                  <IconButton
                     onClick={() => handleRemoveItem(item)}
                     size={isCartPinned ? "medium" : "small"}
                     sx={{
@@ -329,8 +329,8 @@ export const CartContent = ({
         }}
       >
         <Box>
-          <Typography 
-            variant="h6" 
+          <Typography
+            variant="h6"
             color="green"
             sx={{
               fontSize: isCartPinned && !isTablet ? '1.25rem' : '1.125rem',

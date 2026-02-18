@@ -7,7 +7,7 @@ interface IProps {
   open: boolean;
   cart: ICartItem[];
   onClose: () => void;
-  onOkButtonClick?: () => Promise<void>; 
+  onOkButtonClick?: () => Promise<void>;
   updateQuantity?: (id: string, quantity: number) => void;
   clear?: () => void;
   removeItem?: (id: string) => void;
@@ -28,7 +28,7 @@ const CartDrawer: FC<IProps> = ({
   isCartPinned,
   setIsCartPinned,
 }) => {
-  
+
 
   useEffect(() => {
     if (cart.length === 0) {
@@ -38,11 +38,21 @@ const CartDrawer: FC<IProps> = ({
 
   return (
     <>
-      <Drawer anchor="right" open={open} onClose={onClose}>
-        <CartContent 
-          cart={cart} 
-          total={total} 
-          clear={clear} 
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={onClose}
+        PaperProps={{
+          sx: {
+            height: '100dvh',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <CartContent
+          cart={cart}
+          total={total}
+          clear={clear}
           updateQuantity={updateQuantity}
           onClose={onClose}
           removeItem={removeItem}

@@ -94,8 +94,8 @@ export function ProductModal({
   };
 
   // Calcular el máximo disponible para el producto seleccionado
-  const selectedProductMaxDisponible = selectedProduct 
-    ? calcularDisponibilidadReal(selectedProduct, allProducts).maxPorTransaccion 
+  const selectedProductMaxDisponible = selectedProduct
+    ? calcularDisponibilidadReal(selectedProduct, allProducts).maxPorTransaccion
     : 0;
 
 
@@ -109,15 +109,17 @@ export function ProductModal({
       >
         <Box
           sx={{
-            width: "95vw",
-            height: "95vh",
+            width: { xs: "100vw", sm: "95vw" },
+            height: { xs: "100dvh", sm: "95vh" },
             bgcolor: "white",
-            p: 3,
-            borderRadius: 2,
+            p: { xs: 2, sm: 3 },
+            pt: { xs: "calc(16px + env(safe-area-inset-top))", sm: 3 },
+            pb: { xs: "calc(16px + env(safe-area-inset-bottom))", sm: 3 },
+            borderRadius: { xs: 0, sm: 2 },
             overflow: "auto",
+            position: "relative"
           }}
           flexDirection={"column"}
-          // justifyItems={"center"}
         >
           <Box
             display={"flex"}
@@ -128,7 +130,17 @@ export function ProductModal({
             <Typography variant="h4" mb={2} textAlign="left">
               {category ? category.nombre : ""}
             </Typography>
-            <Fab size="small" aria-label="close" onClick={closeModal} sx={{position: 'absolute', top: 20, right: 20}}>
+            <Fab
+              size="small"
+              aria-label="close"
+              onClick={closeModal}
+              sx={{
+                position: 'fixed',
+                top: { xs: "calc(16px + env(safe-area-inset-top))", sm: 20 },
+                right: { xs: "calc(16px + env(safe-area-inset-right))", sm: 20 },
+                zIndex: 10
+              }}
+            >
               <CloseIcon />
             </Fab>
           </Box>
