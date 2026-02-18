@@ -12,8 +12,7 @@ import {
   Tab,
   Badge,
   useTheme,
-  useMediaQuery,
-
+  useMediaQuery
 } from '@mui/material';
 
 import {
@@ -335,8 +334,6 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   // Funciones para manejar productos - MEMOIZADAS
   const agregarProducto = useCallback((producto: IProductoDisponible) => {
 
-    console.log('agregarProducto', producto);
-
     let cantidadInicial = 0;
     let costoInicial = 0;
     if (operacion === 'ENTRADA') {
@@ -538,9 +535,6 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
             />
           </Tabs>
         </Box>
-
-        {/* Contenido del tab activo */}
-        {/* {renderActiveTab()} */}
 
         <TableProductosDisponibles {...tableProductosDisponiblesProps} show={activeTab === 0} />
         <TableProductosSeleccionados {...tableProductosSeleccionadosProps} show={activeTab === 1} />
