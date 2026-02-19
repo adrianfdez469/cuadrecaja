@@ -18,6 +18,8 @@ export interface IVenta {
   wasOffline?: boolean;
   syncAttempts?: number;
   appliedDiscounts?: AppliedDiscount[];
+  transferDestinationId?: string;
+  transferDestination?: { id: string; nombre: string };
 }
 
 interface VentaProducto {

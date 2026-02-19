@@ -456,6 +456,9 @@ export async function GET(
               select: { name: true }
             }
           }
+        },
+        transferDestination: {
+          select: { id: true, nombre: true }
         }
       },
       where: {
@@ -502,7 +505,9 @@ export async function GET(
         createdAt: ad.createdAt,
         ruleName: ad.discountRule?.name
       })),
-      syncId: venta.syncId
+      syncId: venta.syncId,
+      transferDestinationId: venta.transferDestinationId ?? undefined,
+      transferDestination: venta.transferDestination ?? undefined
     }));
 
     return NextResponse.json({
