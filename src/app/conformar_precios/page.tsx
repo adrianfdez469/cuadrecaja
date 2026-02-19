@@ -11,7 +11,8 @@ import {
   InputAdornment,
   useTheme,
   useMediaQuery,
-  IconButton
+  IconButton,
+  Backdrop
 } from "@mui/material";
 import {
   DataGrid,
@@ -20,7 +21,7 @@ import {
   GridRenderCellParams,
   GridRenderEditCellParams
 } from "@mui/x-data-grid";
-import { Search, Save, Refresh, Print } from "@mui/icons-material";
+import { Search, Save, Refresh, Print, CheckCircle } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { fecthCostosPreciosProds } from "@/services/costoPrecioServices";
@@ -33,22 +34,50 @@ import { PrintLabelsModal } from './components/PrintLabelsModal';
 const PriceEditCell = (params: GridRenderEditCellParams) => {
   const { id, value, field } = params;
 
+  const handleConfirm = (e?: React.MouseEvent | React.KeyboardEvent) => {
+    if (e) e.stopPropagation();
+    params.api.stopCellEditMode({ id, field });
+  };
+
   return (
     <TextField
       fullWidth
+      autoFocus
       type="number"
-      value={value || ''}
+      value={value ?? ''}
       onChange={(e) => {
-        const newValue = parseFloat(e.target.value) || 0;
-        params.api.setEditCellValue({ id, field, value: newValue });
+        const newValue = parseFloat(e.target.value);
+        params.api.setEditCellValue({ id, field, value: isNaN(newValue) ? 0 : newValue });
       }}
-      InputProps={{
-        startAdornment: <InputAdornment position="start">$</InputAdornment>,
+      onFocus={(e) => {
+        e.target.select();
       }}
-      inputProps={{
-        min: 0,
-        step: 0.01,
-        style: { fontSize: '0.875rem' }
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          handleConfirm(e);
+        }
+      }}
+      slotProps={{
+        input: {
+          startAdornment: <InputAdornment position="start">$</InputAdornment>,
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                color="success"
+                onClick={handleConfirm}
+                sx={{ p: 0.5 }}
+              >
+                <CheckCircle fontSize="small" />
+              </IconButton>
+            </InputAdornment>
+          ),
+        },
+        htmlInput: {
+          min: 0,
+          step: 0.01,
+          inputMode: 'decimal',
+          style: { fontSize: '0.875rem' }
+        }
       }}
       size="small"
       variant="standard"
@@ -144,12 +173,50 @@ const PreciosCantidades = () => {
     // Actualizar el producto en el estado
     setProductos(prev => prev.map(p => p.id === newRow.id ? newRow : p));
 
+    // Si es móvil y hubo cambios reales, auto-salvar
+    if (isMobile) {
+      const oldRow = productos.find(p => p.id === newRow.id);
+      if (oldRow && (oldRow.precio !== newRow.precio || oldRow.costo !== newRow.costo)) {
+        autoSaveRow(newRow);
+      }
+    }
+
     return newRow;
   };
 
   const handleProcessRowUpdateError = (error: Error) => {
     console.error("Error al actualizar fila:", error);
     showMessage("Error al actualizar el producto", "error");
+  };
+
+  const autoSaveRow = async (row: GridRowModel) => {
+    try {
+      setSaving(true);
+      const response = await fetch(`/api/productos_tienda/${user.localActual.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productos: [{
+            id: row.id,
+            costo: Number(row.costo) || 0,
+            precio: Number(row.precio) || 0
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al actualizar producto");
+      }
+
+      // Quitar de dirty si se guardó correctamente
+      setIdDirtyProds(prev => prev.filter(id => id !== row.id));
+      showMessage("Cambio guardado automáticamente", "success");
+    } catch (error) {
+      console.error("Error en auto-save:", error);
+      showMessage("Error al guardar automáticamente", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const save = async () => {
@@ -204,29 +271,45 @@ const PreciosCantidades = () => {
       )
     },
     {
-      field: "costo",
-      headerName: "Costo",
-      flex: 1,
-      minWidth: 120,
-      renderCell: PriceDisplayCell,
-      // renderEditCell: PriceEditCell,
-      headerAlign: 'center',
-      align: 'center'
-    },
-
-    {
       field: "precio",
       headerName: "Precio",
       flex: 1,
       minWidth: 120,
       editable: true,
       type: "number",
-      renderCell: PriceDisplayCell,
+      renderCell: (params) => (
+        <Box
+          onClick={(e) => {
+            if (isMobile && params.api?.startCellEditMode) {
+              e.stopPropagation();
+              params.api.startCellEditMode({ id: params.id, field: params.field });
+            }
+          }}
+          sx={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: isMobile ? 'pointer' : 'inherit'
+          }}
+        >
+          <PriceDisplayCell {...params} />
+        </Box>
+      ),
       renderEditCell: PriceEditCell,
       headerAlign: 'center',
       align: 'center'
     },
-
+    {
+      field: "costo",
+      headerName: "Costo",
+      flex: 1,
+      minWidth: 120,
+      renderCell: PriceDisplayCell,
+      headerAlign: 'center',
+      align: 'center'
+    },
     {
       field: "porciento",
       headerName: "Rentabilidad",
@@ -402,7 +485,7 @@ const PreciosCantidades = () => {
               </Box>
             )}
 
-            <Box sx={{ height: 'calc(100vh - 300px)', minHeight: 400, width: '100%' }}>
+            <Box sx={{ height: 'calc(100vh - 300px)', minHeight: 400, width: '100%', position: 'relative' }}>
               <DataGrid
                 rows={filteredProductos}
                 columns={columns}
@@ -459,6 +542,24 @@ const PreciosCantidades = () => {
                   toolbarExportPrint: 'Imprimir',
                 }}
               />
+              <Backdrop
+                sx={{
+                  color: '#fff',
+                  zIndex: (theme) => theme.zIndex.modal + 1,
+                  position: 'absolute',
+                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  borderRadius: 2
+                }}
+                open={saving}
+              >
+                <CircularProgress color="inherit" />
+                <Typography variant="h6" sx={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                  Guardando cambios...
+                </Typography>
+              </Backdrop>
             </Box>
           </>
         )}
