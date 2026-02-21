@@ -273,15 +273,6 @@ export default function DownloadClient({ release }: DownloadClientProps) {
                                         <Typography variant="body2" color="text.secondary">No hay información detallada para esta versión.</Typography>
                                     )}
                                 </List>
-
-                                <Box sx={{ mt: 4, p: 2, bgcolor: 'rgba(0,0,0,0.02)', borderRadius: 2 }}>
-                                    <Typography variant="caption" color="text.secondary" display="block">
-                                        Versión anterior: v0.9.x
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary" display="block">
-                                        Publicado el: {new Date().toLocaleDateString()}
-                                    </Typography>
-                                </Box>
                             </Paper>
                         </Fade>
                     </Grid>
