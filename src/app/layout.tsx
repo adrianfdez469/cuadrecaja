@@ -45,12 +45,12 @@ export default function RootLayout({
 // Componente wrapper que decide qué layout usar
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  
-  // Si estamos en la landing page (raíz), no usar el Layout principal
-  if (pathname === '/') {
+
+  // Si estamos en la landing page o descarga, no usar el Layout principal
+  if (pathname === '/' || pathname === '/descargar') {
     return <>{children}</>;
   }
-  
+
   // Para todas las demás rutas, usar el Layout principal con autenticación
   return <Layout>{children}</Layout>;
 }

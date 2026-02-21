@@ -150,7 +150,19 @@ export default function LandingPage() {
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.9)' }}>• Gestión Multi-Tenant</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.9)' }}>• Sistema de Roles Granular</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.9)' }}>• Costo Promedio Ponderado</Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>• PWA Instalable</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.9)' }}>• PWA Instalable</Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: 'secondary.light',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  '&:hover': { textDecoration: 'underline' }
+                }}
+                onClick={() => router.push('/descargar')}
+              >
+                • Descargar App Android (APK)
+              </Typography>
             </Grid>
           </Grid>
           <Divider sx={{ my: 3, bgcolor: 'rgba(255,255,255,0.3)' }} />

@@ -58,7 +58,8 @@ import {
   Visibility,
   VisibilityOff,
   Notifications,
-  Block
+  Block,
+  Android
 } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
@@ -170,6 +171,10 @@ const RESUMEN_MENU_ITEMS = [
   { label: "Resumen Cierres", path: "/resumen_cierre", icon: Summarize, permission: 'recuperaciones.resumencierres.acceder' },
   { label: "Análisis de CPP", path: "/cpp-analysis", icon: Summarize, permission: 'recuperaciones.analisiscpp.acceder' },
   { label: "Proveedores Consignación", path: "/proveedores", icon: Handshake, permission: 'recuperaciones.proveedoresconsignación.acceder' },
+];
+
+const HELP_MENU_ITEMS = [
+  { label: "Descargar App", path: "/descargar", icon: Android, permission: '*' },
 ];
 
 
@@ -747,6 +752,14 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     <Divider key="divider-local" sx={{ mx: 2, my: 1 }} />
                   ]
                 )}
+
+                <MenuItem onClick={() => { handleClose(); gotToPath('/descargar'); }}>
+                  <Android sx={{ mr: 2, color: 'success.main' }} />
+                  <Typography variant="body2" fontWeight={500}>
+                    Descargar App (APK)
+                  </Typography>
+                </MenuItem>
+
                 <MenuItem onClick={handleLogout}>
                   <LogoutIcon sx={{ mr: 2, color: 'error.main' }} />
                   <Typography variant="body2" fontWeight={500} color="error.main">
@@ -961,6 +974,38 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     </AccordionDetails>
                   </Accordion>
                 }
+
+                <Divider sx={{ my: 1 }} />
+                <List sx={{ px: 2 }}>
+                  {HELP_MENU_ITEMS.map((item) => (
+                    <ListItem key={item.label} disablePadding sx={{ mb: 0.5 }}>
+                      <ListItemButton
+                        onClick={() => {
+                          gotToPath(item.path);
+                          setOpen(false);
+                        }}
+                        sx={{
+                          borderRadius: 2,
+                          py: 1.5,
+                          '&:hover': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                          }
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 40 }}>
+                          <item.icon sx={{ color: 'secondary.main', fontSize: 22 }} />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.label}
+                          primaryTypographyProps={{
+                            fontWeight: 600,
+                            fontSize: '0.875rem'
+                          }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                </List>
               </Box>
             </Box>
           </Drawer>
