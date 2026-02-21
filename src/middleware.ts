@@ -6,14 +6,14 @@ import { subscriptionMiddleware } from './middleware/subscriptionCheck'
 export async function middleware(req: NextRequest) {
   try {
     const { pathname } = req.nextUrl;
-    
+
     // Primero verificar autenticación y agregar headers de usuario
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
 
     if (token) {
       // Almacena la info del usuario en headers para que los endpoints la lean
       const requestHeaders = new Headers(req.headers)
-      
+
       // Codificar valores en Base64 para evitar problemas con caracteres no-ASCII
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const encodeForHeader = (value: any): string => {
@@ -21,7 +21,7 @@ export async function middleware(req: NextRequest) {
         const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
         return Buffer.from(stringValue, 'utf8').toString('base64');
       };
-      
+
       if (token.id) requestHeaders.set('x-user-id', encodeForHeader(token.id));
       if (token.rol) requestHeaders.set('x-user-rol', encodeForHeader(token.rol));
       if (token.nombre) requestHeaders.set('x-user-nombre', encodeForHeader(token.nombre));
@@ -56,7 +56,7 @@ export async function middleware(req: NextRequest) {
     }
 
     return NextResponse.next()
-    
+
   } catch (error) {
     console.error('❌ [MIDDLEWARE] Error crítico en middleware:', error);
     // En caso de error crítico, permitir que la petición continúe sin headers de usuario
@@ -68,6 +68,6 @@ export const config = {
   matcher: [
     '/api/:path*',
     // Incluir todas las rutas excepto: _next, static assets, login, subscription-expired
-    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|login|subscription-expired).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|login|subscription-expired|descargar).*)',
   ],
 }

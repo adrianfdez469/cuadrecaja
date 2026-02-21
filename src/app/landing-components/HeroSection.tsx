@@ -17,6 +17,7 @@ import {
     Store,
     Speed,
     Login as LoginIcon,
+    Android,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 
@@ -148,6 +149,29 @@ export default function HeroSection() {
                             <Button
                                 variant="outlined"
                                 size="large"
+                                startIcon={<Android />}
+                                onClick={() => router.push('/descargar')}
+                                sx={{
+                                    borderColor: 'rgba(255,255,255,0.7)',
+                                    color: 'white',
+                                    px: 4,
+                                    py: 1.5,
+                                    fontSize: '1.1rem',
+                                    fontWeight: 600,
+                                    '&:hover': {
+                                        borderColor: 'white',
+                                        bgcolor: 'rgba(255,255,255,0.15)',
+                                        transform: 'translateY(-2px)',
+                                    },
+                                    transition: 'all 0.3s ease',
+                                }}
+                            >
+                                Descargar APK
+                            </Button>
+
+                            <Button
+                                variant="outlined"
+                                size="large"
                                 startIcon={<LoginIcon />}
                                 onClick={handleGoToLogin}
                                 sx={{
@@ -232,7 +256,7 @@ export default function HeroSection() {
                                     </Box>
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                                         <Typography variant="body2" color='primary.contrastText'>Ganancia</Typography>
-                                        <Typography variant="body2" color='primary.contrastText'sx={{ fontWeight: 'bold', color: theme.palette.secondary.contrastText }}>
+                                        <Typography variant="body2" color='primary.contrastText' sx={{ fontWeight: 'bold', color: theme.palette.secondary.contrastText }}>
                                             $850,000
                                         </Typography>
                                     </Box>
