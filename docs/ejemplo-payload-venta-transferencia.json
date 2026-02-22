@@ -1,0 +1,18 @@
+{
+  "syncId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "createdAt": 1739966400000,
+  "productos": [
+    {
+      "productoTiendaId": "REEMPLAZAR_CON_PRODUCTO_TIENDA_ID",
+      "cantidad": 1,
+      "name": "Café pequeño",
+      "precio": 150
+    }
+  ],
+  "total": 150,
+  "totalcash": 0,
+  "totaltransfer": 150,
+  "transferDestinationId": "REEMPLAZAR_CON_DESTINO_TRANSFERENCIA_X_ID",
+  "wasOffline": false,
+  "syncAttempts": 0
+}

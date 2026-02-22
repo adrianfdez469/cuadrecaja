@@ -39,7 +39,7 @@ export default function HeroSection() {
 
     return (
         <Box sx={{
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+            background: 'linear-gradient(160deg, #1a1d29 0%, #252a3a 50%, #1e2433 100%)',
             color: 'white',
             pt: 8,
             pb: 12,
@@ -52,7 +52,18 @@ export default function HeroSection() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+                background: 'radial-gradient(ellipse 80% 50% at 70% 20%, rgba(78, 205, 196, 0.15) 0%, transparent 50%), radial-gradient(ellipse 60% 40% at 20% 80%, rgba(255, 107, 53, 0.08) 0%, transparent 50%)',
+                pointerEvents: 'none',
+            },
+            '&::after': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 1,
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)',
+                pointerEvents: 'none',
             },
         }}>
             <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
@@ -62,10 +73,10 @@ export default function HeroSection() {
                             <Chip
                                 label="🚀 Solución POS Completa"
                                 sx={{
-                                    bgcolor: 'rgba(255,255,255,0.2)',
-                                    color: 'white',
-                                    mb: 2,
-                                    backdropFilter: 'blur(10px)',
+                                    bgcolor: 'rgba(255,255,255,0.08)',
+                                    color: 'rgba(255,255,255,0.95)',
+                                    border: '1px solid rgba(255,255,255,0.12)',
+                                    fontWeight: 600,
                                 }}
                             />
                         </Box>
@@ -82,7 +93,7 @@ export default function HeroSection() {
                             }}
                         >
                             Revoluciona la Gestión de tu{' '}
-                            <Box component="span" sx={{ color: theme.palette.secondary.contrastText }}>
+                            <Box component="span" sx={{ color: '#6ee7de', fontWeight: 700 }}>
                                 Negocio
                             </Box>
                         </Typography>
@@ -101,27 +112,24 @@ export default function HeroSection() {
                             Funcionamiento offline, roles granulares y análisis de rentabilidad avanzado.
                         </Typography>
 
-                        <Stack direction="row" spacing={2} sx={{ mb: 4 }}>
+                        <Stack direction="row" spacing={2} sx={{ mb: 4 }} flexWrap="wrap" useFlexGap>
                             <Chip
                                 icon={<Store />}
                                 label="Multi-Tenant"
-                                variant="outlined"
-                                color="secondary"
-                                sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }}
+                                size="small"
+                                sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.12)' }}
                             />
                             <Chip
-                                color="secondary"
                                 icon={<Speed />}
                                 label="PWA Offline"
-                                variant="outlined"
-                                sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }}
+                                size="small"
+                                sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.12)' }}
                             />
                             <Chip
-                                color="secondary"
                                 icon={<TrendingUp />}
                                 label="CPP Automático"
-                                variant="outlined"
-                                sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }}
+                                size="small"
+                                sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.12)' }}
                             />
                         </Stack>
 
@@ -131,14 +139,17 @@ export default function HeroSection() {
                                 size="large"
                                 onClick={scrollToContact}
                                 sx={{
-                                    bgcolor: theme.palette.secondary.main,
-                                    color: 'white',
+                                    bgcolor: '#4ECDC4',
+                                    color: '#1a1d29',
                                     px: 4,
                                     py: 1.5,
                                     fontSize: '1.1rem',
+                                    fontWeight: 600,
+                                    boxShadow: '0 4px 20px rgba(78, 205, 196, 0.35)',
                                     '&:hover': {
-                                        bgcolor: theme.palette.secondary.dark,
+                                        bgcolor: '#45b8b0',
                                         transform: 'translateY(-2px)',
+                                        boxShadow: '0 6px 24px rgba(78, 205, 196, 0.4)',
                                     },
                                     transition: 'all 0.3s ease',
                                 }}
@@ -175,15 +186,15 @@ export default function HeroSection() {
                                 startIcon={<LoginIcon />}
                                 onClick={handleGoToLogin}
                                 sx={{
-                                    borderColor: 'rgba(255,255,255,0.7)',
-                                    color: 'white',
-                                    px: 4,
-                                    py: 1.5,
-                                    fontSize: '1.1rem',
+                                    borderColor: 'rgba(255,255,255,0.35)',
+                                    color: 'rgba(255,255,255,0.95)',
+                                    px: { xs: 2.5, sm: 4 },
+                                    py: { xs: 1, sm: 1.5 },
+                                    fontSize: { xs: '0.9rem', sm: '1.1rem' },
                                     fontWeight: 600,
                                     '&:hover': {
-                                        borderColor: 'white',
-                                        bgcolor: 'rgba(255,255,255,0.15)',
+                                        borderColor: 'rgba(255,255,255,0.6)',
+                                        bgcolor: 'rgba(255,255,255,0.06)',
                                         transform: 'translateY(-2px)',
                                     },
                                     transition: 'all 0.3s ease',
@@ -205,19 +216,10 @@ export default function HeroSection() {
                                     top: '50%',
                                     left: '50%',
                                     transform: 'translate(-50%, -50%)',
-                                    width: '300px',
-                                    height: '300px',
-                                    background: `radial-gradient(circle, ${theme.palette.secondary.main}20 0%, transparent 70%)`,
+                                    width: 320,
+                                    height: 320,
+                                    background: 'radial-gradient(circle, rgba(78, 205, 196, 0.12) 0%, transparent 65%)',
                                     borderRadius: '50%',
-                                    animation: 'pulse 4s ease-in-out infinite',
-                                },
-                                '@keyframes pulse': {
-                                    '0%, 100%': {
-                                        transform: 'translate(-50%, -50%) scale(1)',
-                                    },
-                                    '50%': {
-                                        transform: 'translate(-50%, -50%) scale(1.1)',
-                                    },
                                 },
                             }}
                         >
@@ -225,38 +227,40 @@ export default function HeroSection() {
                                 sx={{
                                     position: 'relative',
                                     zIndex: 2,
-                                    bgcolor: 'rgba(255,255,255,0.1)',
-                                    backdropFilter: 'blur(20px)',
-                                    borderRadius: 4,
+                                    bgcolor: 'rgba(255,255,255,0.04)',
+                                    backdropFilter: 'blur(16px)',
+                                    borderRadius: 3,
                                     p: 4,
-                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    border: '1px solid rgba(255,255,255,0.08)',
                                     maxWidth: 400,
                                     mx: 'auto',
+                                    boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
                                 }}
                             >
-                                <Typography variant="h4" sx={{ mb: 2, fontWeight: 'bold' }}>
+                                <Typography variant="h4" sx={{ mb: 2, fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
                                     📊 Dashboard
                                 </Typography>
-                                <Typography variant="body1" color='primary.contrastText' sx={{ mb: 3, opacity: 0.9 }}>
+                                <Typography variant="body1" sx={{ mb: 3, color: 'rgba(255,255,255,0.7)' }}>
                                     Métricas en tiempo real de tu negocio
                                 </Typography>
 
                                 <Box sx={{ textAlign: 'left' }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                        <Typography variant="body2" color='primary.contrastText'>Ventas Hoy</Typography>
-                                        <Typography variant="body2" color='primary.contrastText' sx={{ fontWeight: 'bold', color: theme.palette.secondary.contrastText }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Ventas Hoy</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#6ee7de' }}>
                                             $2,450,000
                                         </Typography>
                                     </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                        <Typography variant="body2" color='primary.contrastText'>Productos Vendidos</Typography>
-                                        <Typography variant="body2" color='primary.contrastText' sx={{ fontWeight: 'bold', color: theme.palette.secondary.contrastText }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Productos Vendidos</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#6ee7de' }}>
                                             127
                                         </Typography>
                                     </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                        <Typography variant="body2" color='primary.contrastText'>Ganancia</Typography>
-                                        <Typography variant="body2" color='primary.contrastText' sx={{ fontWeight: 'bold', color: theme.palette.secondary.contrastText }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Ganancia</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#6ee7de' }}>
+
                                             $850,000
                                         </Typography>
                                     </Box>

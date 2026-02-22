@@ -8,7 +8,6 @@ import {
   Grid,
   Card,
   CardContent,
-  useTheme,
   Avatar,
   Stack,
   Chip,
@@ -18,94 +17,112 @@ import {
   Inventory,
   Analytics,
   Security,
-  CloudSync,
   Store,
-  Speed,
-  MobileFriendly,
   OfflineBolt,
-  AutoAwesome,
+  Receipt,
+  LocalOffer,
+  NotificationsActive,
+  PhoneAndroid,
+  CardMembership,
 } from '@mui/icons-material';
 
 const features = [
   {
     icon: ShoppingCart,
     title: 'POS Offline-First',
-    description: 'Interfaz táctil optimizada con funcionamiento parcial sin conexión y sincronización automática.',
-    details: ['Búsqueda instantánea', 'Métodos de pago mixtos', 'Ventas pendientes offline'],
+    description: 'Interfaz táctil optimizada con funcionamiento parcial sin conexión y sincronización automática al recuperar la red.',
+    details: ['Búsqueda instantánea', 'Efectivo y transferencia', 'Ventas pendientes offline'],
     color: '#FF6B35',
   },
   {
     icon: Store,
     title: 'Arquitectura Multi-Tenant',
-    description: 'Aislamiento completo entre negocios con gestión de múltiples locales independientes.',
-    details: ['Traspasos entre locales', 'Tiendas y almacenes', 'Control centralizado'],
+    description: 'Aislamiento completo entre negocios con gestión de múltiples locales, tiendas y almacenes.',
+    details: ['Traspasos entre locales', 'Tiendas y almacenes', 'Cierre de caja por local'],
     color: '#4ECDC4',
+  },
+  {
+    icon: Receipt,
+    title: 'Cierre de Caja',
+    description: 'Apertura y cierre de período por tienda con totales de venta, efectivo, transferencia y ganancias propias y en consignación.',
+    details: ['Resumen por período', 'Totales y ganancias', 'Historial de cierres'],
+    color: '#5C6BC0',
   },
   {
     icon: Inventory,
     title: 'Inventario Avanzado',
-    description: 'Control de stock con Costo Promedio Ponderado automático y productos fraccionados.',
-    details: ['CPP automático', 'Productos fraccionados', 'Consignación de proveedores'],
+    description: 'Control de stock con Costo Promedio Ponderado automático, productos fraccionados y gestión de proveedores en consignación.',
+    details: ['CPP automático', 'Productos fraccionados', 'Liquidación a proveedores'],
     color: '#45B7D1',
   },
   {
+    icon: LocalOffer,
+    title: 'Descuentos y Promociones',
+    description: 'Reglas de descuento por porcentaje, monto fijo o código promocional. Aplicación por ticket, producto o categoría con vigencia.',
+    details: ['Porcentaje, fijo o código', 'Mínimo de compra', 'Vista previa en venta'],
+    color: '#26A69A',
+  },
+  {
     icon: Analytics,
-    title: 'Reportes Empresariales',
-    description: 'Dashboards en tiempo real con exportación a Word y análisis de rentabilidad.',
-    details: ['Métricas en tiempo real', 'Exportación a Word', 'Análisis por categoría'],
+    title: 'Reportes y Exportación',
+    description: 'Dashboards en tiempo real, análisis de rentabilidad y exportación de inventario y cierres a Word y Excel.',
+    details: ['Métricas en tiempo real', 'Exportación a Word y Excel', 'Análisis por categoría'],
     color: '#96CEB4',
   },
   {
     icon: Security,
-    title: 'Roles Granulares',
-    description: 'Sistema de permisos específicos por funcionalidad con auditoría completa.',
-    details: ['Permisos por módulo', 'Auditoría de cambios', 'NextAuth.js seguro'],
+    title: 'Roles y Permisos',
+    description: 'Sistema de permisos por funcionalidad y por tienda. Roles personalizables (vendedor, almacenero, administrador) con trazabilidad de operaciones.',
+    details: ['Permisos por módulo', 'Roles por tienda', 'Trazabilidad de operaciones'],
     color: '#FFEAA7',
   },
   {
     icon: OfflineBolt,
-    title: 'PWA Instalable',
-    description: 'Progressive Web App con Service Workers para experiencia nativa.',
-    details: ['Instalable como app', 'Cache inteligente', 'Detección de red'],
+    title: 'PWA y App Móvil',
+    description: 'Progressive Web App instalable y aplicación móvil para ventas desde celular o tablet con la misma lógica de cierre y permisos.',
+    details: ['Instalable como app', 'Ventas desde móvil', 'Sincronización automática'],
     color: '#DDA0DD',
   },
 ];
 
-export default function FeaturesSection() {
-  const theme = useTheme();
+const TEAL = '#4ECDC4';
+const TEAL_LIGHT = '#6ee7de';
 
+export default function FeaturesSection() {
   return (
-    <Box sx={{ py: 10, bgcolor: 'background.paper' }}>
+    <Box sx={{ py: 10, bgcolor: '#1e2433', position: 'relative' }}>
       <Container maxWidth="lg">
         <Box sx={{ textAlign: 'center', mb: 8 }}>
           <Chip
             label="✨ Funcionalidades"
             sx={{
-              bgcolor: theme.palette.primary.main,
-              color: 'white',
+              bgcolor: 'rgba(78, 205, 196, 0.15)',
+              color: TEAL_LIGHT,
+              border: '1px solid rgba(78, 205, 196, 0.35)',
               mb: 2,
               px: 2,
+              fontWeight: 600,
             }}
           />
           <Typography 
             variant="h3" 
             component="h2" 
             gutterBottom
-            sx={{ fontWeight: 'bold', color: 'text.primary' }}
+            sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}
           >
             Todo lo que tu Negocio Necesita
           </Typography>
           <Typography 
             variant="h6" 
             sx={{ 
-              color: 'text.secondary',
+              color: 'rgba(255,255,255,0.7)',
               maxWidth: 600,
               mx: 'auto',
               lineHeight: 1.6
             }}
           >
-            Sistema integral con Next.js 15, PostgreSQL y Prisma ORM. 
-            Arquitectura multi-tenant robusta y escalable para empresas modernas.
+            Sistema integral y escalable para tu empresa. 
+            Multi-tenant, múltiples locales y planes de suscripción adaptados a tu negocio.
           </Typography>
         </Box>
 
@@ -118,12 +135,13 @@ export default function FeaturesSection() {
                   sx={{
                     height: '100%',
                     transition: 'all 0.3s ease',
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
                     '&:hover': {
-                      transform: 'translateY(-8px)',
-                      boxShadow: theme.shadows[10],
+                      transform: 'translateY(-6px)',
+                      borderColor: 'rgba(78, 205, 196, 0.25)',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
                     },
-                    border: '1px solid',
-                    borderColor: 'divider',
                   }}
                 >
                   <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -141,7 +159,7 @@ export default function FeaturesSection() {
                       <Typography 
                         variant="h6" 
                         component="h3"
-                        sx={{ fontWeight: 'bold', color: 'text.primary' }}
+                        sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}
                       >
                         {feature.title}
                       </Typography>
@@ -151,7 +169,7 @@ export default function FeaturesSection() {
                       variant="body1" 
                       sx={{ 
                         mb: 3, 
-                        color: 'text.secondary',
+                        color: 'rgba(255,255,255,0.75)',
                         lineHeight: 1.6,
                         flexGrow: 1
                       }}
@@ -172,7 +190,7 @@ export default function FeaturesSection() {
                               flexShrink: 0,
                             }}
                           />
-                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
                             {detail}
                           </Typography>
                         </Box>
@@ -185,63 +203,63 @@ export default function FeaturesSection() {
           })}
         </Grid>
 
-        {/* Additional Features Grid */}
+        {/* Más valor para tu negocio */}
         <Box sx={{ mt: 8 }}>
           <Typography 
             variant="h4" 
             component="h3" 
             textAlign="center"
             gutterBottom
-            sx={{ fontWeight: 'bold', color: 'text.primary', mb: 6 }}
+            sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)', mb: 6 }}
           >
-            Características Técnicas Avanzadas
+            Más valor para tu negocio
           </Typography>
           
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6} md={3}>
               <Box sx={{ textAlign: 'center', p: 2 }}>
-                <MobileFriendly sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                  Next.js 15
+                <PhoneAndroid sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
+                  App móvil
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  App Router con TypeScript y React 19 para máximo rendimiento
-                </Typography>
-              </Box>
-            </Grid>
-            
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center', p: 2 }}>
-                <CloudSync sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                  PostgreSQL
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Base de datos robusta con Prisma ORM para escalabilidad
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  Registra ventas desde celular o tablet con la misma seguridad y cierre de caja
                 </Typography>
               </Box>
             </Grid>
             
             <Grid item xs={12} sm={6} md={3}>
               <Box sx={{ textAlign: 'center', p: 2 }}>
-                <AutoAwesome sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                  Material-UI v6
+                <NotificationsActive sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
+                  Notificaciones
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Interfaz moderna con componentes optimizados y temas personalizables
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  Alertas y avisos centralizados por negocio para tu equipo
                 </Typography>
               </Box>
             </Grid>
             
             <Grid item xs={12} sm={6} md={3}>
               <Box sx={{ textAlign: 'center', p: 2 }}>
-                <Speed sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                  Docker Ready
+                <CardMembership sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
+                  Planes por suscripción
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Deployment simplificado con Docker Compose y variables de entorno
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  Límites de locales, usuarios y productos según el plan que elijas
+                </Typography>
+              </Box>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Box sx={{ textAlign: 'center', p: 2 }}>
+                <Store sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
+                  Destinos de transferencia
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  Configura bancos o cuentas por tienda para cobros por transferencia
                 </Typography>
               </Box>
             </Grid>

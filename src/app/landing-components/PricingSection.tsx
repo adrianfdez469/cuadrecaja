@@ -9,7 +9,6 @@ import {
   Card,
   CardContent,
   Button,
-  useTheme,
   Chip,
   List,
   ListItem,
@@ -48,7 +47,6 @@ const additionalServices = [
 ];
 
 export default function PricingSection() {
-  const theme = useTheme();
   const [billingCycle, setBillingCycle] = React.useState<'monthly' | 'yearly'>('monthly');
 
   const plans = [
@@ -126,31 +124,35 @@ export default function PricingSection() {
     }
   };
 
+  const TEAL = '#4ECDC4';
+
   return (
-    <Box sx={{ py: 10, bgcolor: 'background.paper' }}>
+    <Box sx={{ py: 10, bgcolor: '#1e2433' }}>
       <Container maxWidth="lg">
         <Box sx={{ textAlign: 'center', mb: 8 }}>
           <Chip
             label="💰 Planes y Precios"
             sx={{
-              bgcolor: theme.palette.primary.main,
-              color: 'white',
+              bgcolor: 'rgba(78, 205, 196, 0.15)',
+              color: '#6ee7de',
+              border: '1px solid rgba(78, 205, 196, 0.35)',
               mb: 2,
               px: 2,
+              fontWeight: 600,
             }}
           />
           <Typography
             variant="h3"
             component="h2"
             gutterBottom
-            sx={{ fontWeight: 'bold', color: 'text.primary' }}
+            sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}
           >
             Elige el Plan Perfecto para tu Negocio
           </Typography>
           <Typography
             variant="h6"
             sx={{
-              color: 'text.secondary',
+              color: 'rgba(255,255,255,0.7)',
               maxWidth: 600,
               mx: 'auto',
               lineHeight: 1.6,
@@ -170,11 +172,17 @@ export default function PricingSection() {
             sx={{ mb: 4 }}
           >
             <ToggleButtonGroup
-                color="primary"
                 value={billingCycle}
                 exclusive
                 onChange={(e, value) => setBillingCycle(value)}
                 aria-label="Platform"
+                sx={{
+                  '& .MuiToggleButton-root': {
+                    color: 'rgba(255,255,255,0.8)',
+                    borderColor: 'rgba(255,255,255,0.2)',
+                    '&.Mui-selected': { bgcolor: 'rgba(78, 205, 196, 0.2)', color: '#6ee7de', borderColor: TEAL },
+                  },
+                }}
             >
               <ToggleButton value="monthly">Mensual</ToggleButton>
               <ToggleButton value="yearly">Anual</ToggleButton>
@@ -183,8 +191,7 @@ export default function PricingSection() {
           {billingCycle === 'yearly' && (<Chip
                   label="¡Ahorras 2 meses!"
                   size="medium"
-                  color="success"
-                  sx={{ fontWeight: 'bold' }}
+                  sx={{ fontWeight: 'bold', bgcolor: 'rgba(78, 205, 196, 0.2)', color: '#6ee7de', border: '1px solid rgba(78, 205, 196, 0.4)' }}
               />
           )}
         </Box>
@@ -197,11 +204,12 @@ export default function PricingSection() {
                   height: '100%',
                   position: 'relative',
                   transition: 'all 0.3s ease',
-                  border: plan.popular ? `3px solid ${plan.color}` : '1px solid',
-                  borderColor: plan.popular ? plan.color : 'divider',
+                  bgcolor: 'rgba(255,255,255,0.04)',
+                  border: plan.popular ? `2px solid ${TEAL}` : '1px solid rgba(255,255,255,0.08)',
                   '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: theme.shadows[12],
+                    transform: 'translateY(-6px)',
+                    boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+                    borderColor: plan.popular ? TEAL : 'rgba(78, 205, 196, 0.3)',
                   },
                 }}
               >
@@ -219,8 +227,8 @@ export default function PricingSection() {
                       icon={<Star />}
                       label="MÁS POPULAR"
                       sx={{
-                        bgcolor: plan.color,
-                        color: 'white',
+                        bgcolor: TEAL,
+                        color: '#1a1d29',
                         fontWeight: 'bold',
                         px: 2,
                       }}
@@ -233,26 +241,26 @@ export default function PricingSection() {
                     <Typography
                       variant="h4"
                       component="h3"
-                      sx={{ fontWeight: 'bold', color: 'text.primary', mb: 1 }}
+                      sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)', mb: 1 }}
                     >
                       {plan.name}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
                       {plan.description}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', mb: 2 }}>
                       <Typography
                         variant="h3"
                         component="span"
-                        sx={{ fontWeight: 'bold', color: plan.color }}
+                        sx={{ fontWeight: 'bold', color: plan.popular ? TEAL : plan.color }}
                       >
                         {plan.price}
                       </Typography>
-                      <Typography variant="h6" color="text.secondary">
+                      <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>
                         {plan.period}
                       </Typography>
                     </Box>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
                       USD • Validez {plan.expireDays} días
                     </Typography>
                   </Box>
@@ -261,20 +269,20 @@ export default function PricingSection() {
                     {plan.features.map((feature, featureIndex) => (
                       <ListItem key={featureIndex} sx={{ px: 0, py: 0.5 }}>
                         <ListItemIcon sx={{ minWidth: 32 }}>
-                          <CheckCircle sx={{ fontSize: 20, color: plan.color }} />
+                          <CheckCircle sx={{ fontSize: 20, color: plan.popular ? TEAL : plan.color }} />
                         </ListItemIcon>
                         <ListItemText
                           primary={feature}
                           primaryTypographyProps={{
                             variant: 'body2',
-                            color: 'text.primary'
+                            sx: { color: 'rgba(255,255,255,0.85)' }
                           }}
                         />
                       </ListItem>
                     ))}
 
                     {plan.notIncluded.map((feature, featureIndex) => (
-                      <ListItem key={`not-${featureIndex}`} sx={{ px: 0, py: 0.5, opacity: 0.5 }}>
+                      <ListItem key={`not-${featureIndex}`} sx={{ px: 0, py: 0.5, opacity: 0.6 }}>
                         <ListItemIcon sx={{ minWidth: 32 }}>
                           <Box
                             sx={{
@@ -282,7 +290,7 @@ export default function PricingSection() {
                               height: 20,
                               borderRadius: '50%',
                               border: '2px solid',
-                              borderColor: 'text.disabled',
+                              borderColor: 'rgba(255,255,255,0.25)',
                             }}
                           />
                         </ListItemIcon>
@@ -290,7 +298,7 @@ export default function PricingSection() {
                           primary={feature}
                           primaryTypographyProps={{
                             variant: 'body2',
-                            color: 'text.disabled'
+                            sx: { color: 'rgba(255,255,255,0.5)' }
                           }}
                         />
                       </ListItem>
@@ -305,12 +313,14 @@ export default function PricingSection() {
                     sx={{
                       py: 1.5,
                       fontSize: '1.1rem',
-                      bgcolor: plan.popular ? plan.color : 'transparent',
-                      borderColor: plan.color,
-                      color: plan.popular ? 'white' : plan.color,
+                      fontWeight: 600,
+                      bgcolor: plan.popular ? TEAL : 'transparent',
+                      borderColor: TEAL,
+                      color: plan.popular ? '#1a1d29' : '#6ee7de',
                       '&:hover': {
-                        bgcolor: plan.popular ? plan.color : `${plan.color}20`,
-                        borderColor: plan.color,
+                        bgcolor: plan.popular ? '#45b8b0' : 'rgba(78, 205, 196, 0.15)',
+                        borderColor: TEAL,
+                        color: plan.popular ? '#1a1d29' : '#6ee7de',
                       },
                     }}
                   >
@@ -328,14 +338,14 @@ export default function PricingSection() {
             variant="h4"
             component="h3"
             gutterBottom
-            sx={{ fontWeight: 'bold', color: 'text.primary' }}
+            sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}
           >
             Servicios Adicionales
           </Typography>
           <Typography
             variant="h6"
             sx={{
-              color: 'text.secondary',
+              color: 'rgba(255,255,255,0.7)',
               maxWidth: 600,
               mx: 'auto',
               lineHeight: 1.6,
@@ -356,25 +366,29 @@ export default function PricingSection() {
                     height: '100%',
                     p: 3,
                     textAlign: 'center',
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
                     transition: 'all 0.3s ease',
                     '&:hover': {
                       transform: 'translateY(-4px)',
-                      boxShadow: theme.shadows[8],
+                      borderColor: 'rgba(78, 205, 196, 0.25)',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
                     },
                   }}
                 >
-                  <IconComponent sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  <IconComponent sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
                     {service.title}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
                     {service.description}
                   </Typography>
                   <Chip
                     label={service.price}
                     sx={{
-                      bgcolor: theme.palette.primary.main,
-                      color: 'white',
+                      bgcolor: 'rgba(78, 205, 196, 0.2)',
+                      color: '#6ee7de',
+                      border: '1px solid rgba(78, 205, 196, 0.4)',
                       fontWeight: 'bold'
                     }}
                   />

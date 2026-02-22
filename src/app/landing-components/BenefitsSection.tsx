@@ -7,7 +7,6 @@ import {
   Typography,
   Grid,
   Card,
-  useTheme,
   Avatar,
   Chip,
   List,
@@ -43,14 +42,14 @@ const benefits = [
   {
     icon: AccessTime,
     title: 'Funcionamiento Offline',
-    description: 'Nunca pierdas una venta con nuestro sistema PWA que funciona sin conexión.',
+    description: 'Nunca pierdas una venta: el POS funciona sin conexión y sincroniza automáticamente al recuperar la red.',
     stats: 'Ventas sin interrupciones',
     color: '#2196F3',
     features: [
       'POS parcialmente offline',
-      'Sincronización automática',
-      'Service Workers inteligentes',
-      'Detección de estado de red'
+      'Sincronización automática al reconectar',
+      'Ventas pendientes en cola',
+      'Indicador de estado de conexión'
     ]
   },
   {
@@ -63,20 +62,20 @@ const benefits = [
       'Costo promedio ponderado',
       'Actualización en tiempo real',
       'Análisis de rentabilidad',
-      'Movimientos auditados'
+      'Trazabilidad de movimientos'
     ]
   },
   {
     icon: Insights,
-    title: 'Roles Granulares',
-    description: 'Sistema de permisos específicos por funcionalidad con auditoría completa.',
+    title: 'Roles y Permisos',
+    description: 'Permisos por funcionalidad y por tienda. Roles personalizables con trazabilidad de operaciones.',
     stats: 'Seguridad empresarial',
     color: '#9C27B0',
     features: [
       'Permisos por módulo',
-      'Roles personalizables',
-      'Auditoría de operaciones',
-      'NextAuth.js integrado'
+      'Roles por tienda (vendedor, almacenero, admin)',
+      'Trazabilidad de operaciones',
+      'Control de acceso por local'
     ]
   }
 ];
@@ -92,35 +91,37 @@ const problemsSolved = [
   'Sincronización deficiente de datos'
 ];
 
-export default function BenefitsSection() {
-  const theme = useTheme();
+const TEAL = '#4ECDC4';
 
+export default function BenefitsSection() {
   return (
-    <Box sx={{ py: 10, bgcolor: 'grey.50' }}>
+    <Box sx={{ py: 10, bgcolor: '#252a3a' }}>
       <Container maxWidth="lg">
         {/* Problems We Solve */}
         <Box sx={{ textAlign: 'center', mb: 8 }}>
           <Chip
             label="💡 Problemas que Resolvemos"
             sx={{
-              bgcolor: theme.palette.error.main,
-              color: 'white',
+              bgcolor: 'rgba(255, 107, 53, 0.2)',
+              color: '#ffab91',
+              border: '1px solid rgba(255, 107, 53, 0.4)',
               mb: 2,
               px: 2,
+              fontWeight: 600,
             }}
           />
           <Typography 
             variant="h3" 
             component="h2" 
             gutterBottom
-            sx={{ fontWeight: 'bold', color: 'text.primary' }}
+            sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}
           >
             ¿Te Identificas con Estos Problemas?
           </Typography>
           <Typography 
             variant="h6" 
             sx={{ 
-              color: 'text.secondary',
+              color: 'rgba(255,255,255,0.7)',
               maxWidth: 700,
               mx: 'auto',
               lineHeight: 1.6,
@@ -138,12 +139,11 @@ export default function BenefitsSection() {
                   sx={{ 
                     p: 2, 
                     height: '100%',
-                    bgcolor: 'white',
-                    border: '1px solid',
-                    borderColor: 'error.light',
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255, 107, 53, 0.25)',
                     '&:hover': {
-                      borderColor: 'error.main',
-                      boxShadow: theme.shadows[4],
+                      borderColor: 'rgba(255, 107, 53, 0.5)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
                     }
                   }}
                 >
@@ -153,13 +153,13 @@ export default function BenefitsSection() {
                         width: 8,
                         height: 8,
                         borderRadius: '50%',
-                        bgcolor: 'error.main',
+                        bgcolor: '#FF6B35',
                         mt: 1,
                         mr: 1.5,
                         flexShrink: 0,
                       }}
                     />
-                    <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500 }}>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
                       {problem}
                     </Typography>
                   </Box>
@@ -174,24 +174,26 @@ export default function BenefitsSection() {
           <Chip
             label="🎯 Beneficios Reales"
             sx={{
-              bgcolor: theme.palette.success.main,
-              color: 'white',
+              bgcolor: 'rgba(78, 205, 196, 0.15)',
+              color: '#6ee7de',
+              border: '1px solid rgba(78, 205, 196, 0.35)',
               mb: 2,
               px: 2,
+              fontWeight: 600,
             }}
           />
           <Typography 
             variant="h3" 
             component="h2" 
             gutterBottom
-            sx={{ fontWeight: 'bold', color: 'text.primary' }}
+            sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}
           >
             Transforma tu Negocio Hoy
           </Typography>
           <Typography 
             variant="h6" 
             sx={{ 
-              color: 'text.secondary',
+              color: 'rgba(255,255,255,0.7)',
               maxWidth: 600,
               mx: 'auto',
               lineHeight: 1.6
@@ -211,13 +213,13 @@ export default function BenefitsSection() {
                     height: '100%',
                     p: 3,
                     transition: 'all 0.3s ease',
+                    bgcolor: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
                     '&:hover': {
                       transform: 'translateY(-4px)',
-                      boxShadow: theme.shadows[8],
+                      borderColor: 'rgba(78, 205, 196, 0.25)',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
                     },
-                    bgcolor: 'white',
-                    border: '1px solid',
-                    borderColor: 'divider',
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
@@ -235,7 +237,7 @@ export default function BenefitsSection() {
                       <Typography 
                         variant="h5" 
                         component="h3"
-                        sx={{ fontWeight: 'bold', color: 'text.primary', mb: 1 }}
+                        sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)', mb: 1 }}
                       >
                         {benefit.title}
                       </Typography>
@@ -256,7 +258,7 @@ export default function BenefitsSection() {
                     variant="body1" 
                     sx={{ 
                       mb: 3, 
-                      color: 'text.secondary',
+                      color: 'rgba(255,255,255,0.75)',
                       lineHeight: 1.6
                     }}
                   >
@@ -273,7 +275,7 @@ export default function BenefitsSection() {
                           primary={feature}
                           primaryTypographyProps={{
                             variant: 'body2',
-                            color: 'text.secondary'
+                            sx: { color: 'rgba(255,255,255,0.7)' }
                           }}
                         />
                       </ListItem>
@@ -291,43 +293,43 @@ export default function BenefitsSection() {
             variant="h4" 
             component="h3" 
             gutterBottom
-            sx={{ fontWeight: 'bold', color: 'text.primary', mb: 4 }}
+            sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)', mb: 4 }}
           >
             Perfecto para tu Tipo de Negocio
           </Typography>
           
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6} md={4}>
-              <Card sx={{ p: 3, height: '100%', textAlign: 'center', bgcolor: 'white' }}>
-                <BusinessCenter sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+              <Card sx={{ p: 3, height: '100%', textAlign: 'center', bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <BusinessCenter sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
                   Tiendas de Barrio
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
                   Optimiza las ventas diarias, controla el inventario y mejora la atención al cliente
                 </Typography>
               </Card>
             </Grid>
             
             <Grid item xs={12} sm={6} md={4}>
-              <Card sx={{ p: 3, height: '100%', textAlign: 'center', bgcolor: 'white' }}>
-                <LocalOffer sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+              <Card sx={{ p: 3, height: '100%', textAlign: 'center', bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <LocalOffer sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
                   Supermercados
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
                   Gestiona múltiples categorías, proveedores y controla el stock en tiempo real
                 </Typography>
               </Card>
             </Grid>
             
             <Grid item xs={12} sm={6} md={4}>
-              <Card sx={{ p: 3, height: '100%', textAlign: 'center', bgcolor: 'white' }}>
-                <Group sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+              <Card sx={{ p: 3, height: '100%', textAlign: 'center', bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Group sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
                   Cadenas de Tiendas
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
                   Administra múltiples locales desde una plataforma centralizada
                 </Typography>
               </Card>

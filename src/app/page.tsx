@@ -35,7 +35,7 @@ export default function LandingPage() {
   return (
     <Box sx={{
       minHeight: '100vh',
-      bgcolor: 'background.default',
+      bgcolor: '#1a1d29',
       overflow: 'hidden'
     }}>
       {/* Navigation Bar */}
@@ -43,25 +43,22 @@ export default function LandingPage() {
         position="sticky"
         elevation={0}
         sx={{
-          bgcolor: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          bgcolor: 'rgba(26, 29, 41, 0.92)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}
       >
         <Toolbar>
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-            <Logo size={40} sx={{ mr: 1.5 }} />
+            <Logo size={40} variant="light" sx={{ mr: 1.5 }} />
             <Typography
               variant="h6"
               sx={{
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                color: 'rgba(255,255,255,0.95)',
               }}
             >
-              Cuadre de Caja
+              Cuadre de <Box component="span" sx={{ color: '#6ee7de' }}>Caja</Box>
             </Typography>
           </Box>
 
@@ -70,18 +67,22 @@ export default function LandingPage() {
             startIcon={<LoginIcon />}
             onClick={handleGoToLogin}
             sx={{
-              background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
-              px: 3,
-              py: 1,
+              bgcolor: '#4ECDC4',
+              color: '#1a1d29',
+              px: { xs: 1.5, sm: 3 },
+              py: { xs: 0.6, sm: 1 },
+              fontSize: { xs: '0.8rem', sm: '0.9375rem' },
               fontWeight: 600,
               textTransform: 'none',
-              boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+              minWidth: { xs: 0, sm: 'auto' },
+              boxShadow: '0 4px 16px rgba(78, 205, 196, 0.3)',
               '&:hover': {
-                background: 'linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)',
+                bgcolor: '#45b8b0',
                 transform: 'translateY(-2px)',
-                boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
+                boxShadow: '0 6px 20px rgba(78, 205, 196, 0.4)',
               },
               transition: 'all 0.3s ease',
+              '& .MuiButton-startIcon': { mr: { xs: 0.5, sm: 1 } },
             }}
           >
             Iniciar Sesión
@@ -109,48 +110,52 @@ export default function LandingPage() {
 
       {/* Footer */}
       <Box sx={{
-        bgcolor: 'primary.dark',
+        bgcolor: '#1e2433',
         color: 'white',
         py: 4,
-        mt: 8
+        mt: 8,
+        borderTop: '1px solid rgba(255,255,255,0.06)',
       }}>
         <Container maxWidth="lg">
           <Grid container spacing={4}>
             <Grid item xs={12} md={4}>
-              <Typography variant="h6" gutterBottom sx={{ color: 'white', fontWeight: 'bold' }}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 'bold' }}>
                 Cuadre de Caja
               </Typography>
-              <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.9)' }}>
+              <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
                 Sistema integral de punto de venta y gestión empresarial con arquitectura multi-tenant.
                 Diseñado para pequeñas y medianas empresas que buscan control total y crecimiento sostenible.
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
-              <Typography variant="h6" gutterBottom sx={{ color: 'white', fontWeight: 'bold' }}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 'bold' }}>
                 Contacto
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Phone sx={{ mr: 1, fontSize: 20, color: 'white' }} />
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>+53 53334449</Typography>
+                <Phone sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>+53 53334449</Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Phone sx={{ mr: 1, fontSize: 20, color: 'white' }} />
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>+598 97728107</Typography>
+                <Phone sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>+598 97728107</Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Email sx={{ mr: 1, fontSize: 20, color: 'white' }} />
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>adrianfdez469@gmail.com</Typography>
+                <Email sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>adrianfdez469@gmail.com</Typography>
               </Box>
             </Grid>
             <Grid item xs={12} md={4}>
-              <Typography variant="h6" gutterBottom sx={{ color: 'white', fontWeight: 'bold' }}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 'bold' }}>
                 Funcionalidades
               </Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.9)' }}>• POS con Funcionamiento Offline</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.9)' }}>• Gestión Multi-Tenant</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.9)' }}>• Sistema de Roles Granular</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.9)' }}>• Costo Promedio Ponderado</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.9)' }}>• PWA Instalable</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• POS con funcionamiento offline</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Gestión multi-tenant y múltiples locales</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Cierre de caja y resumen por período</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Descuentos y promociones configurables</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Costo promedio ponderado (CPP)</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Reportes a Word y Excel</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Roles y permisos por tienda</Typography>
+              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>• PWA y app móvil</Typography>
               <Typography
                 variant="body2"
                 sx={{
@@ -165,8 +170,8 @@ export default function LandingPage() {
               </Typography>
             </Grid>
           </Grid>
-          <Divider sx={{ my: 3, bgcolor: 'rgba(255,255,255,0.3)' }} />
-          <Typography variant="body2" textAlign="center" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+          <Divider sx={{ my: 3, bgcolor: 'rgba(255,255,255,0.08)' }} />
+          <Typography variant="body2" textAlign="center" sx={{ color: 'rgba(255,255,255,0.6)' }}>
             © 2025 Cuadre de Caja. Todos los derechos reservados.
           </Typography>
         </Container>
