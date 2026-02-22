@@ -18,6 +18,7 @@ import {
     Speed,
     Login as LoginIcon,
     Android,
+    Email,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 
@@ -71,7 +72,7 @@ export default function HeroSection() {
                     <Grid item xs={12} md={6}>
                         <Box sx={{ mb: 3 }}>
                             <Chip
-                                label="🚀 Solución POS Completa"
+                                label="🚀 Sistema de ventas e inventario para tu negocio"
                                 sx={{
                                     bgcolor: 'rgba(255,255,255,0.08)',
                                     color: 'rgba(255,255,255,0.95)',
@@ -108,43 +109,44 @@ export default function HeroSection() {
                                 color: 'white'
                             }}
                         >
-                            Sistema integral de POS y gestión empresarial con arquitectura multi-tenant.
-                            Funcionamiento offline, roles granulares y análisis de rentabilidad avanzado.
+                            Lleva las ventas, el inventario y el cierre de caja de tu negocio en un solo lugar. Las ventas (el flujo crítico) pueden hacerse sin conexión y se sincronizan solas cuando vuelva el internet; el resto del sistema usa conexión. Te muestra al instante cuánto vendiste y cuánto ganaste.
                         </Typography>
 
                         <Stack direction="row" spacing={2} sx={{ mb: 4 }} flexWrap="wrap" useFlexGap>
                             <Chip
                                 icon={<Store />}
-                                label="Multi-Tenant"
+                                label="Varios locales en un solo sistema"
                                 size="small"
                                 sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.12)' }}
                             />
                             <Chip
                                 icon={<Speed />}
-                                label="PWA Offline"
+                                label="Usa la app en el celular o tablet"
                                 size="small"
                                 sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.12)' }}
                             />
                             <Chip
                                 icon={<TrendingUp />}
-                                label="CPP Automático"
+                                label="Saber si ganas o pierdes con cada producto"
                                 size="small"
                                 sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.12)' }}
                             />
                         </Stack>
 
-                        <Stack direction={isMobile ? "column" : "row"} spacing={2}>
+                        <Stack direction={isMobile ? "column" : "row"} spacing={2} alignItems="stretch">
                             <Button
                                 variant="contained"
                                 size="large"
+                                startIcon={<Email />}
                                 onClick={scrollToContact}
                                 sx={{
                                     bgcolor: '#4ECDC4',
                                     color: '#1a1d29',
-                                    px: 4,
-                                    py: 1.5,
-                                    fontSize: '1.1rem',
+                                    px: { xs: 2.5, sm: 3, md: 2.5 },
+                                    py: { xs: 1.25, sm: 1.5 },
+                                    fontSize: { xs: '0.95rem', sm: '1rem', md: '0.9rem' },
                                     fontWeight: 600,
+                                    minWidth: { md: 0 },
                                     boxShadow: '0 4px 20px rgba(78, 205, 196, 0.35)',
                                     '&:hover': {
                                         bgcolor: '#45b8b0',
@@ -154,7 +156,7 @@ export default function HeroSection() {
                                     transition: 'all 0.3s ease',
                                 }}
                             >
-                                Solicitar Demo Gratuita
+                                Solicitar Demo
                             </Button>
 
                             <Button
@@ -165,10 +167,11 @@ export default function HeroSection() {
                                 sx={{
                                     borderColor: 'rgba(255,255,255,0.7)',
                                     color: 'white',
-                                    px: 4,
-                                    py: 1.5,
-                                    fontSize: '1.1rem',
+                                    px: { xs: 2.5, sm: 3, md: 2.5 },
+                                    py: { xs: 1.25, sm: 1.5 },
+                                    fontSize: { xs: '0.95rem', sm: '1rem', md: '0.9rem' },
                                     fontWeight: 600,
+                                    minWidth: { md: 0 },
                                     '&:hover': {
                                         borderColor: 'white',
                                         bgcolor: 'rgba(255,255,255,0.15)',
@@ -177,7 +180,7 @@ export default function HeroSection() {
                                     transition: 'all 0.3s ease',
                                 }}
                             >
-                                Descargar APK
+                                Descargar App (Android)
                             </Button>
 
                             <Button
@@ -188,10 +191,11 @@ export default function HeroSection() {
                                 sx={{
                                     borderColor: 'rgba(255,255,255,0.35)',
                                     color: 'rgba(255,255,255,0.95)',
-                                    px: { xs: 2.5, sm: 4 },
-                                    py: { xs: 1, sm: 1.5 },
-                                    fontSize: { xs: '0.9rem', sm: '1.1rem' },
+                                    px: { xs: 2.5, sm: 3, md: 2.5 },
+                                    py: { xs: 1.25, sm: 1.5 },
+                                    fontSize: { xs: '0.95rem', sm: '1rem', md: '0.9rem' },
                                     fontWeight: 600,
+                                    minWidth: { md: 0 },
                                     '&:hover': {
                                         borderColor: 'rgba(255,255,255,0.6)',
                                         bgcolor: 'rgba(255,255,255,0.06)',

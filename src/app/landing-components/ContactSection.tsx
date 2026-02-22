@@ -500,7 +500,7 @@ export default function ContactSection() {
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <CheckCircle sx={{ mr: 1, fontSize: 20, color: TEAL }} />
                     <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                      30 días de prueba gratuita (Plan Freemium)
+                      7 días de prueba gratuita (Plan Freemium)
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>

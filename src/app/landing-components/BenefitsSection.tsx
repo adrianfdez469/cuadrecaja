@@ -23,72 +23,78 @@ import {
   BusinessCenter,
   Group,
   LocalOffer,
+  Store,
 } from '@mui/icons-material';
 
 const benefits = [
   {
     icon: TrendingUp,
-    title: 'Control Total Multi-Tenant',
-    description: 'Gestiona múltiples negocios con aislamiento completo y seguridad empresarial.',
-    stats: 'Aislamiento 100% seguro',
+    title: 'Varios negocios o locales en un solo sistema',
+    description: 'Lleva más de un local desde una sola cuenta. Los datos de cada uno están separados y seguros; tú eliges qué ver en cada momento.',
+    stats: 'Todo en un solo lugar',
     color: '#4CAF50',
     features: [
-      'Arquitectura multi-tenant robusta',
-      'Límites por plan de suscripción',
-      'Control de usuarios por negocio',
-      'Datos completamente aislados'
+      'Varios negocios o locales en una sola cuenta',
+      'Cada plan incluye un número de locales y usuarios',
+      'Usuarios asignados a cada tienda o almacén',
+      'Los datos de un negocio no se mezclan con los de otro'
     ]
   },
   {
     icon: AccessTime,
-    title: 'Funcionamiento Offline',
-    description: 'Nunca pierdas una venta: el POS funciona sin conexión y sincroniza automáticamente al recuperar la red.',
+    title: 'Ventas sin depender del internet',
+    description: 'Solo el flujo de ventas (lo más crítico) puede usarse sin conexión: cobras, se guarda la venta y cuando vuelva el internet se sincroniza sola. El resto del sistema (reportes, inventario, configuración) usa conexión.',
     stats: 'Ventas sin interrupciones',
     color: '#2196F3',
     features: [
-      'POS parcialmente offline',
-      'Sincronización automática al reconectar',
-      'Ventas pendientes en cola',
-      'Indicador de estado de conexión'
+      'Cobrar y registrar ventas sin conexión hasta que se sincronice',
+      'Se sincroniza solo al volver el internet',
+      'Las ventas hechas sin internet se envían después',
+      'Indicador de si estás conectado o no'
     ]
   },
   {
     icon: MonetizationOn,
-    title: 'CPP Automático',
-    description: 'Cálculo automático de Costo Promedio Ponderado para control preciso de rentabilidad.',
+    title: 'Saber si ganas o pierdes',
+    description: 'El sistema calcula solito el costo promedio de lo que vendes. Así ves si cada producto te deja ganancia y puedes tomar mejores decisiones. Vendes productos desagregados (por unidad, kilo o porción) y el sistema se encarga de mover las cantidades automáticamente.',
     stats: 'Cálculos automáticos',
     color: '#FF9800',
     features: [
-      'Costo promedio ponderado',
-      'Actualización en tiempo real',
-      'Análisis de rentabilidad',
-      'Trazabilidad de movimientos'
+      'Costo promedio calculado automático',
+      'Se actualiza al instante',
+      'Saber si ganas o pierdes con cada producto',
+      'Productos por unidad, kilo o porción: el sistema mueve las cantidades'
     ]
   },
   {
     icon: Insights,
-    title: 'Roles y Permisos',
-    description: 'Permisos por funcionalidad y por tienda. Roles personalizables con trazabilidad de operaciones.',
-    stats: 'Seguridad empresarial',
+    title: 'Control de quién hace qué',
+    description: 'Asigna permisos por persona y por local (vendedor, almacén, administrador). El sistema registra quién hizo cada venta o movimiento, para tener orden y confianza.',
+    stats: 'Seguridad y orden',
     color: '#9C27B0',
     features: [
-      'Permisos por módulo',
-      'Roles por tienda (vendedor, almacenero, admin)',
-      'Trazabilidad de operaciones',
-      'Control de acceso por local'
+      'Permisos por función (ventas, inventario, reportes)',
+      'Vendedor, encargado de almacén o administrador por tienda',
+      'Registro de quién hizo cada operación',
+      'Cada usuario puede ver solo los locales que tú elijas'
     ]
   }
 ];
 
 const problemsSolved = [
-  'Pérdida de ventas por falta de conexión',
-  'Cálculo manual de costos promedio',
-  'Falta de control multi-tenant',
-  'Reportes sin exportación profesional',
-  'Gestión compleja de productos fraccionados',
-  'Ausencia de roles granulares',
-  'Traspasos manuales entre locales',
-  'Sincronización deficiente de datos'
+  'Se cae el internet y no puedes usar tu sistema actual',
+  'Tienes que calcular a mano si ganas o pierdes con cada producto',
+  'Tienes varios locales y no los llevas ordenados en un solo sistema',
+  'No puedes sacar reportes claros para tu contador o para revisar',
+  'Vendes por unidad, por kilo o por porción y se complica llevar el control',
+  'No puedes limitar qué hace cada empleado en el sistema',
+  'Pasas productos de un local a otro anotando en papel o en otra planilla',
+  'Los datos de un local y otro no se actualizan bien entre sí',
+  'Dependes de anotar las ventas en papel',
+  'Haces conteos manuales con papel o planillas',
+  'Revisas o registras todo en Excel y se pierde el tiempo',
+  'No puedes acceder a la información desde tu casa cuando quieras, solo con tu teléfono',
+  'No puedes ver cómo van las ventas del día si estás de vacaciones con tu familia'
 ];
 
 const TEAL = '#4ECDC4';
@@ -128,13 +134,12 @@ export default function BenefitsSection() {
               mb: 4
             }}
           >
-            Conocemos los desafíos técnicos y operativos de los sistemas POS tradicionales. 
-            Cuadre de Caja resuelve estos problemas con tecnología moderna.
+            Sabemos lo que duele en el día a día: internet que falla, no saber si ganas o pierdes, inventario desordenado, anotar en papel o depender del Excel. Cuadre de Caja te ayuda a tener todo bajo control, sin necesidad de ser experto en sistemas.
           </Typography>
 
           <Grid container spacing={2} sx={{ mb: 6 }}>
             {problemsSolved.map((problem, index) => (
-              <Grid item xs={12} sm={6} md={3} key={index}>
+              <Grid item xs={12} sm={6} md={4} key={index}>
                 <Card 
                   sx={{ 
                     p: 2, 
@@ -299,42 +304,60 @@ export default function BenefitsSection() {
           </Typography>
           
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <Card sx={{ p: 3, height: '100%', textAlign: 'center', bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <BusinessCenter sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
                   Tiendas de Barrio
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Optimiza las ventas diarias, controla el inventario y mejora la atención al cliente
+                  Controla las ventas del día, el inventario y atiende mejor a tus clientes
                 </Typography>
               </Card>
             </Grid>
             
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <Card sx={{ p: 3, height: '100%', textAlign: 'center', bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <LocalOffer sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
+                  Cafeterías y Mercados
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  Lleva ventas, productos por unidad o porción y cierre de caja sin complicarte
+                </Typography>
+              </Card>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ p: 3, height: '100%', textAlign: 'center', bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Store sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
                   Supermercados
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Gestiona múltiples categorías, proveedores y controla el stock en tiempo real
+                  Varias categorías, varios proveedores y control de stock al instante
                 </Typography>
               </Card>
             </Grid>
             
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <Card sx={{ p: 3, height: '100%', textAlign: 'center', bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <Group sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
                   Cadenas de Tiendas
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Administra múltiples locales desde una plataforma centralizada
+                  Varios locales en un solo sistema; cada uno con su caja e inventario
                 </Typography>
               </Card>
             </Grid>
           </Grid>
+
+          <Box sx={{ mt: 5, p: 3, borderRadius: 2, bgcolor: 'rgba(78, 205, 196, 0.08)', border: '1px solid rgba(78, 205, 196, 0.25)' }}>
+            <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.9)', textAlign: 'center', lineHeight: 1.7, maxWidth: 720, mx: 'auto' }}>
+              El sistema es adaptable a cualquier tamaño de negocio: desde un negocio pequeño de una persona que lo hace todo, hasta una cadena de tiendas con almacenes, tiendas, administradores, vendedores, almaceneros y jefes de negocio.
+            </Typography>
+          </Box>
         </Box>
       </Container>
     </Box>

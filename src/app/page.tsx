@@ -123,8 +123,7 @@ export default function LandingPage() {
                 Cuadre de Caja
               </Typography>
               <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
-                Sistema integral de punto de venta y gestión empresarial con arquitectura multi-tenant.
-                Diseñado para pequeñas y medianas empresas que buscan control total y crecimiento sostenible.
+                Cuadre de Caja es un sistema para llevar las ventas, el inventario y el cierre de caja de tu negocio. Sirve para un solo local o para varios; las ventas pueden hacerse sin conexión y se sincronizan solas. Te ayuda a saber cuánto vendes y cuánto ganas. Pensado para pequeños y medianos negocios.
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -140,22 +139,34 @@ export default function LandingPage() {
                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>+598 97728107</Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Phone sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>+53 54319958</Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <Email sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>adrianfdez469@gmail.com</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Email sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>olimac9010@gmail.com</Typography>
               </Box>
             </Grid>
             <Grid item xs={12} md={4}>
               <Typography variant="h6" gutterBottom sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 'bold' }}>
                 Funcionalidades
               </Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• POS con funcionamiento offline</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Gestión multi-tenant y múltiples locales</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Cierre de caja y resumen por período</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Descuentos y promociones configurables</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Costo promedio ponderado (CPP)</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Reportes a Word y Excel</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Roles y permisos por tienda</Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>• PWA y app móvil</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Ventas sin conexión (se sincronizan al volver el internet)</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Varios locales o negocios en un solo sistema</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Cierre de caja y resumen por día o período</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Descuentos y promociones que tú configuras</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Cálculo automático de si ganas o pierdes por producto</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Productos en consignación y cuenta para el proveedor</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Análisis de variación de precios de compra</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Códigos por producto, etiquetas e impresión; escaneo con pistola o cámara</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Reportes que puedes sacar en Word o Excel</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Control de qué hace cada usuario por tienda</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• App para usar en celular o tablet</Typography>
               <Typography
                 variant="body2"
                 sx={{
@@ -166,7 +177,7 @@ export default function LandingPage() {
                 }}
                 onClick={() => router.push('/descargar')}
               >
-                • Descargar App Android (APK)
+                • Descargar app para Android
               </Typography>
             </Grid>
           </Grid>
@@ -178,7 +189,7 @@ export default function LandingPage() {
       </Box>
 
       {/* Chatbot Widget */}
-      <ChatbotWidget />
+      {/* <ChatbotWidget /> */}
     </Box>
   );
 }
