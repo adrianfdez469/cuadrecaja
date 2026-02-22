@@ -24,7 +24,7 @@ import {
   Send,
   Business,
   Person,
-  Store,
+  // Store,
   CheckCircle,
 } from '@mui/icons-material';
 

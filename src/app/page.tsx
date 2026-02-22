@@ -22,7 +22,7 @@ import FeaturesSection from './landing-components/FeaturesSection';
 import BenefitsSection from './landing-components/BenefitsSection';
 import PricingSection from './landing-components/PricingSection';
 import ContactSection from './landing-components/ContactSection';
-import ChatbotWidget from './landing-components/ChatbotWidget';
+// import ChatbotWidget from './landing-components/ChatbotWidget';
 import Logo from '@/components/Logo';
 
 export default function LandingPage() {
