@@ -27,8 +27,8 @@ import {
 import { FC, useEffect, useState, Fragment } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import { ProducsSalesDrawer } from "./ProductsSalesDrawer";
-import { createSell, getSells, removeSell } from "@/services/sellService";
+import { SaleProductsDetailDrawer } from "./SaleProductsDetailDrawer";
+import { createSell, getSells, removeSell, removeProductFromSale } from "@/services/sellService";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useAppContext } from "@/context/AppContext";
@@ -50,6 +50,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
     markSyncError,
     markSyncing,
     deleteSale,
+    removeProductFromSale: removeProductFromSaleStore,
     synchronizeSales,
   } = useSalesStore();
 
@@ -167,6 +168,52 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
     }
   };
 
+  const handleDeleteProductFromSale = async (product: Sale["productos"][0]) => {
+    if (!selectedSale) return;
+    await confirmDialog(
+      `¿Eliminar "${product.name}" (${product.cantidad} unidad/es) de la venta?`,
+      async () => {
+        try {
+          setDisableAll(true);
+          if (selectedSale.synced && selectedSale.dbId && product.ventaProductoId) {
+            const tiendaId = user.localActual?.id;
+            if (!tiendaId) throw new Error("No hay tienda seleccionada");
+            await removeProductFromSale(
+              tiendaId,
+              period.id,
+              selectedSale.dbId,
+              product.ventaProductoId
+            );
+          }
+          removeProductFromSaleStore(
+            selectedSale.identifier,
+            product.productoTiendaId,
+            product.productId,
+            product.cantidad,
+            product.ventaProductoId
+          );
+          incrementarCantidades(product.productoTiendaId, product.cantidad);
+          const updatedSale = useSalesStore.getState().sales.find(
+            (s) => s.identifier === selectedSale.identifier
+          );
+          if (updatedSale?.productos.length === 0) {
+            setShowProducts(false);
+            setSelectedSale(undefined);
+          } else if (updatedSale) {
+            setSelectedSale(updatedSale);
+          }
+          reloadProdsAndCategories();
+          showMessage("Producto eliminado de la venta", "success");
+        } catch (error) {
+          console.error(error);
+          showMessage("No se pudo eliminar el producto", "error", error);
+        } finally {
+          setDisableAll(false);
+        }
+      }
+    );
+  };
+
   const handleDeleteOne = async (sale: Sale) => {
     await confirmDialog(
       "Está seguro que desea elimnar las venta seleccionada?",
@@ -236,6 +283,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
               productId: p.id,
               productoTiendaId: p.productoTiendaId,
               price: p.price,
+              ventaProductoId: p.ventaProductoId,
             };
           }),
         };
@@ -440,14 +488,13 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
       </Drawer>
 
       {selectedSale && (
-        <ProducsSalesDrawer
-          setShowProducts={setShowProducts}
-          showProducts={showProducts}
-          productos={selectedSale.productos.map((p) => ({
-            id: p.productId,
-            nombre: p.name,
-            cantVendida: p.cantidad,
-          }))}
+        <SaleProductsDetailDrawer
+          open={showProducts}
+          onClose={() => { setShowProducts(false); setSelectedSale(undefined); }}
+          sale={selectedSale}
+          allowDelete={verificarPermiso("operaciones.pos-venta.cancelarventa")}
+          onDeleteProduct={handleDeleteProductFromSale}
+          disableAll={disableAll}
         />
       )}
 

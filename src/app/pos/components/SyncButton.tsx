@@ -3,7 +3,7 @@ import {Badge, Button, Stack} from "@mui/material";
 import {useSalesStore} from "@/store/salesStore";
 import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import SyncProblemIcon from '@mui/icons-material/SyncProblem';
-import SyncIcon from '@mui/icons-material/Sync';
+import SyncIcon from '@mui/icons-material/SyncAlt';
 
 interface SyncButtonComponentProps {
   handleShowSyncView: () => void;

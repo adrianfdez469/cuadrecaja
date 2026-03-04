@@ -1059,7 +1059,7 @@ export default function POSInterface() {
 
         {/* --- SCANNERS ABOVE CATEGORIES (ONE LINE, FULL WIDTH) --- */}
         <Grid p={1} container spacing={1}>
-          <Grid size={{ xs: 8, sm: 10 }}>
+          <Grid size={{ xs: 7, sm: 10 }}>
             <ProductProcessorData
               ref={scannerRef}
               onProcessedData={(data: IProcessedData) => {
@@ -1276,6 +1276,8 @@ export default function POSInterface() {
         <UserSalesDrawer
           showUserSales={showUserSales}
           setShowUserSales={setShowUserSales}
+          period={periodo}
+          incrementarCantidades={incrementarCantidades}
         />
 
         {/* Drawer de ventas y sincronización  */}
