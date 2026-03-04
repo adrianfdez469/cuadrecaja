@@ -10,6 +10,7 @@ import {
   Fade,
   Paper as MuiPaper,
   List,
+  ListItem,
   ListItemText,
   InputAdornment,
   IconButton,
@@ -44,6 +45,8 @@ import { SalesDrawer } from "./components/SalesDrawer";
 import { UserSalesDrawer } from "./components/UserSalesDrawer";
 
 import { QuantityDialog } from "./components/QuantityDialog";
+import { ProductQuickActions } from "./components/ProductQuickActions";
+import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
@@ -249,78 +252,6 @@ export default function POSInterface() {
 
   const getCartQuantity = (productoTiendaId: string) => {
     return items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
-  }
-
-  /**
-   * Calcula la disponibilidad real de un producto, considerando desagregación para productos fracción.
-   * Es resiliente a fallos y maneja casos borde.
-   *
-   * @param producto - El producto para calcular disponibilidad
-   * @param allProductos - Lista completa de productos para buscar el padre (si es fracción)
-   * @returns Objeto con disponibilidadReal y maxPorTransaccion
-   */
-  function calcularDisponibilidadReal(
-    producto: IProductoTiendaV2 | null | undefined,
-    allProductos: IProductoTiendaV2[]
-  ): { disponibilidadReal: number; maxPorTransaccion: number; esFraccion: boolean } {
-    // Caso borde: producto null o undefined
-    if (!producto) {
-      return { disponibilidadReal: 0, maxPorTransaccion: 0, esFraccion: false };
-    }
-
-    // Caso borde: producto.producto es null o undefined
-    if (!producto.producto) {
-      return {
-        disponibilidadReal: Math.max(0, producto.existencia || 0),
-        maxPorTransaccion: Math.max(0, producto.existencia || 0),
-        esFraccion: false
-      };
-    }
-
-    const existenciaProducto = Math.max(0, producto.existencia || 0);
-    const fraccionDeId = producto.producto.fraccionDeId;
-    const unidadesPorFraccion = producto.producto.unidadesPorFraccion;
-
-    // Si NO es producto fracción, retornar existencia normal
-    if (!fraccionDeId || !unidadesPorFraccion || unidadesPorFraccion <= 0) {
-      return {
-        disponibilidadReal: existenciaProducto,
-        maxPorTransaccion: existenciaProducto,
-        esFraccion: false
-      };
-    }
-
-    // Es producto fracción - buscar el padre
-    // Validar que allProductos sea un array válido
-    if (!Array.isArray(allProductos) || allProductos.length === 0) {
-      // Sin lista de productos, usar solo la existencia actual con el límite de fracción
-      const maxFraccion = Math.max(0, unidadesPorFraccion - 1);
-      return {
-        disponibilidadReal: Math.min(existenciaProducto, maxFraccion),
-        maxPorTransaccion: Math.min(existenciaProducto, maxFraccion),
-        esFraccion: true
-      };
-    }
-
-    // Buscar producto padre
-    const productoPadre = allProductos.find(
-      p => p && p.productoId === fraccionDeId
-    );
-
-    const existenciaPadre = productoPadre ? Math.max(0, productoPadre.existencia || 0) : 0;
-
-    // Disponibilidad total = existencia actual de fracción + (cajas del padre * unidades por caja)
-    const disponibilidadTotal = existenciaProducto + (existenciaPadre * unidadesPorFraccion);
-
-    // El máximo por transacción es el mínimo entre la disponibilidad total y (unidadesPorFraccion - 1)
-    const maxFraccion = Math.max(0, unidadesPorFraccion - 1);
-    const maxPorTransaccion = Math.min(disponibilidadTotal, maxFraccion);
-
-    return {
-      disponibilidadReal: disponibilidadTotal,
-      maxPorTransaccion: Math.max(0, maxPorTransaccion),
-      esFraccion: true
-    };
   }
 
   function getSecondaryTextForSearchedProducts(product: IProductoTiendaV2) {
@@ -1567,6 +1498,7 @@ export default function POSInterface() {
             <Fade {...TransitionProps} timeout={200}>
               <MuiPaper
                 elevation={3}
+                onMouseDown={(e) => e.preventDefault()}
                 sx={{
                   width: "100%",
                   maxHeight: "70vh",
@@ -1580,36 +1512,57 @@ export default function POSInterface() {
               >
                 <List sx={{ p: 0 }}>
                   {searchResults.map((product) => (
-                    <ListItemButton
+                    <ListItem
                       key={product.id}
-                      onMouseDown={(e) => {
-                        // Prevenir que el onBlur del input se ejecute antes del onClick
-                        e.preventDefault();
-                      }}
-                      onClick={() => {
-                        handleProductSelect(product);
-                        // Asegurar que el foco regrese al escáner después de seleccionar
-                        setIntentToSearch(false);
-                      }}
+                      disablePadding
                       sx={{
                         borderBottom: "1px solid rgba(0,0,0,0.05)",
-                        "&:hover": {
-                          bgcolor: "rgba(0,0,0,0.04)",
-                        },
+                        flexDirection: "row",
+                        alignItems: "center",
                       }}
                     >
-                      <ListItemText
-                        primary={product.producto.nombre}
-                        secondary={`$${product.precio} - ${getSecondaryTextForSearchedProducts(product)}`}
-                        primaryTypographyProps={{
-                          sx: {
-                            fontWeight: product.producto.nombre.toLowerCase().startsWith(searchQuery.toLowerCase())
-                              ? 600
-                              : 400,
+                      <Box
+                        sx={{
+                          flexShrink: 0,
+                          pr: 1,
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        <ProductQuickActions
+                          productoTienda={product}
+                          allProductosTienda={productosTienda}
+                        />
+                      </Box>
+                      <ListItemButton
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          handleProductSelect(product);
+                          setIntentToSearch(false);
+                        }}
+                        sx={{
+                          flex: 1,
+                          minWidth: 0,
+                          "&:hover": {
+                            bgcolor: "rgba(0,0,0,0.04)",
                           },
                         }}
-                      />
-                    </ListItemButton>
+                      >
+                        <ListItemText
+                          primary={product.producto.nombre}
+                          secondary={`$${product.precio} - ${getSecondaryTextForSearchedProducts(product)}`}
+                          primaryTypographyProps={{
+                            sx: {
+                              fontWeight: product.producto.nombre
+                                .toLowerCase()
+                                .startsWith(searchQuery.toLowerCase())
+                                ? 600
+                                : 400,
+                            },
+                          }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
                   ))}
                 </List>
               </MuiPaper>

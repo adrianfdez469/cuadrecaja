@@ -9,59 +9,21 @@ import {
   Typography,
   Modal,
   Fab,
-  IconButton,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
 import { IProductoTiendaV2 } from "@/types/IProducto";
 import { QuantityDialog } from "./QuantityDialog";
+import { ProductQuickActions } from "./ProductQuickActions";
 import { useCartStore } from "@/store/cartStore";
+import { calcularDisponibilidadReal } from "../utils/calcularDisponibilidadReal";
 
 interface ProductModalProps {
   open: boolean;
   closeModal: () => void;
   productosTienda: IProductoTiendaV2[];
-  allProductosTienda?: IProductoTiendaV2[]; // Lista completa para calcular disponibilidad de fracciones
+  allProductosTienda?: IProductoTiendaV2[];
   category: { id: string; nombre: string; color: string } | null;
   openCart: () => void;
-}
-
-/**
- * Calcula la disponibilidad real de un producto, considerando desagregación para productos fracción.
- */
-function calcularDisponibilidadReal(
-  producto: IProductoTiendaV2 | null | undefined,
-  allProductos: IProductoTiendaV2[]
-): { disponibilidadReal: number; maxPorTransaccion: number; esFraccion: boolean } {
-  if (!producto) {
-    return { disponibilidadReal: 0, maxPorTransaccion: 0, esFraccion: false };
-  }
-
-  if (!producto.producto) {
-    return { disponibilidadReal: Math.max(0, producto.existencia || 0), maxPorTransaccion: Math.max(0, producto.existencia || 0), esFraccion: false };
-  }
-
-  const existenciaProducto = Math.max(0, producto.existencia || 0);
-  const fraccionDeId = producto.producto.fraccionDeId;
-  const unidadesPorFraccion = producto.producto.unidadesPorFraccion;
-
-  if (!fraccionDeId || !unidadesPorFraccion || unidadesPorFraccion <= 0) {
-    return { disponibilidadReal: existenciaProducto, maxPorTransaccion: existenciaProducto, esFraccion: false };
-  }
-
-  if (!Array.isArray(allProductos) || allProductos.length === 0) {
-    const maxFraccion = Math.max(0, unidadesPorFraccion - 1);
-    return { disponibilidadReal: Math.min(existenciaProducto, maxFraccion), maxPorTransaccion: Math.min(existenciaProducto, maxFraccion), esFraccion: true };
-  }
-
-  const productoPadre = allProductos.find(p => p && p.productoId === fraccionDeId);
-  const existenciaPadre = productoPadre ? Math.max(0, productoPadre.existencia || 0) : 0;
-  const disponibilidadTotal = existenciaProducto + (existenciaPadre * unidadesPorFraccion);
-  const maxFraccion = Math.max(0, unidadesPorFraccion - 1);
-  const maxPorTransaccion = Math.min(disponibilidadTotal, maxFraccion);
-
-  return { disponibilidadReal: disponibilidadTotal, maxPorTransaccion: Math.max(0, maxPorTransaccion), esFraccion: true };
 }
 
 export function ProductModal({
@@ -73,44 +35,9 @@ export function ProductModal({
   openCart,
 }: ProductModalProps) {
   const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
-  const { items, addToCart, updateQuantity, removeFromCart } = useCartStore();
+  const { items } = useCartStore();
 
-  // Usar allProductosTienda si está disponible, sino usar productosTienda
   const allProducts = allProductosTienda || productosTienda;
-
-  const handleQuickAdd = (e: React.MouseEvent, productoTienda: IProductoTiendaV2) => {
-    e.stopPropagation();
-    const { maxPorTransaccion } = calcularDisponibilidadReal(productoTienda, allProducts);
-    const cartQty = items.find((item) => item.id === productoTienda.id)?.quantity || 0;
-    const disponible = maxPorTransaccion - cartQty;
-    const permiteDecimal = productoTienda.producto?.permiteDecimal;
-    const incremento = permiteDecimal ? 0.1 : 1;
-    if (disponible >= incremento) {
-      addToCart(
-        {
-          id: productoTienda.id,
-          name: productoTienda.producto.nombre,
-          price: productoTienda.precio,
-          productoTiendaId: productoTienda.id,
-        },
-        incremento
-      );
-    }
-  };
-
-  const handleQuickDecrement = (e: React.MouseEvent, productoTienda: IProductoTiendaV2) => {
-    e.stopPropagation();
-    const item = items.find((i) => i.id === productoTienda.id);
-    if (!item) return;
-    const permiteDecimal = productoTienda.producto?.permiteDecimal;
-    const decremento = permiteDecimal ? 0.1 : 1;
-    const nuevaCantidad = Math.round((item.quantity - decremento) * 100) / 100;
-    if (nuevaCantidad <= 0) {
-      removeFromCart(productoTienda.id);
-    } else {
-      updateQuantity(productoTienda.id, nuevaCantidad);
-    }
-  };
 
   const handleProductClick = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
@@ -127,24 +54,15 @@ export function ProductModal({
   };
 
   const getCartQuantity = (productoTiendaId: string) => {
-    return items.find((item) => item.id === productoTiendaId)?.quantity || 0;
+    return items.find((item) => item.productoTiendaId === productoTiendaId)?.quantity || 0;
   };
 
-  const getMaxDisponible = (productoTienda: IProductoTiendaV2) => {
-    const { maxPorTransaccion } = calcularDisponibilidadReal(productoTienda, allProducts);
-    const cartQty = getCartQuantity(productoTienda.id);
-    return Math.max(0, maxPorTransaccion - cartQty);
-  };
-
-  // Calcular el máximo disponible para el producto seleccionado
   const selectedProductMaxDisponible = selectedProduct
     ? calcularDisponibilidadReal(selectedProduct, allProducts).maxPorTransaccion
     : 0;
 
-
   return (
     <>
-      {/* 📌 Modal de Productos */}
       <Modal
         open={open}
         onClose={closeModal}
@@ -160,7 +78,7 @@ export function ProductModal({
             pb: { xs: "calc(16px + env(safe-area-inset-bottom))", sm: 3 },
             borderRadius: { xs: 0, sm: 2 },
             overflow: "auto",
-            position: "relative"
+            position: "relative",
           }}
           flexDirection={"column"}
         >
@@ -175,13 +93,13 @@ export function ProductModal({
             </Typography>
             <Fab
               size="small"
-              aria-label="close"
+              aria-label="Cerrar"
               onClick={closeModal}
               sx={{
-                position: 'fixed',
+                position: "fixed",
                 top: { xs: "calc(16px + env(safe-area-inset-top))", sm: 20 },
                 right: { xs: "calc(16px + env(safe-area-inset-right))", sm: 20 },
-                zIndex: 10
+                zIndex: 10,
               }}
             >
               <CloseIcon />
@@ -217,90 +135,51 @@ export function ProductModal({
                       </Typography>
                     )}
 
-                    <Box display={'flex'} flexDirection={'row'} justifyContent={'space-between'} alignItems={'center'} flexWrap="wrap" gap={0.5}>
-                      <Typography variant="subtitle1" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                    <Box
+                      display="flex"
+                      flexDirection="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      flexWrap="wrap"
+                      gap={0.5}
+                    >
+                      <Typography
+                        variant="subtitle1"
+                        color="text.secondary"
+                        sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                      >
                         {(() => {
-                          const { maxPorTransaccion, esFraccion } = calcularDisponibilidadReal(productoTienda, allProducts);
+                          const { maxPorTransaccion, esFraccion } = calcularDisponibilidadReal(
+                            productoTienda,
+                            allProducts
+                          );
                           const cartQty = getCartQuantity(productoTienda.id);
                           const disponible = maxPorTransaccion - cartQty;
                           if (esFraccion) {
-                            const existenciaReal = Math.max(0, productoTienda.existencia || 0);
+                            const existenciaReal = Math.max(
+                              0,
+                              productoTienda.existencia || 0
+                            );
                             return `Stock: ${existenciaReal} | Máx: ${disponible > 0 ? disponible : 0}`;
                           }
                           return `Cant: ${disponible > 0 ? disponible : 0}`;
                         })()}
                       </Typography>
-                      <Typography variant="subtitle1" color="textPrimary" fontWeight="medium" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                      <Typography
+                        variant="subtitle1"
+                        color="textPrimary"
+                        fontWeight="medium"
+                        sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                      >
                         ${productoTienda.precio}
                       </Typography>
                     </Box>
 
-                    {/* Controles rápidos de cantidad: +/- */}
-                    <Box
-                      role="group"
-                      aria-label={`Cantidad de ${productoTienda.producto.nombre} en carrito`}
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="flex-end"
-                      gap={0.25}
-                      mt={1}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {getCartQuantity(productoTienda.id) > 0 ? (
-                        <>
-                          <IconButton
-                            size="small"
-                            onClick={(e) => handleQuickDecrement(e, productoTienda)}
-                            aria-label={`Quitar uno de ${productoTienda.producto.nombre}`}
-                            sx={{
-                              minWidth: { xs: 44, sm: 36 },
-                              minHeight: { xs: 44, sm: 36 },
-                              bgcolor: 'action.hover',
-                              '&:hover': { bgcolor: 'action.selected' },
-                              '&:disabled': { opacity: 0.5 },
-                            }}
-                          >
-                            <RemoveIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
-                          </IconButton>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              minWidth: 24,
-                              textAlign: 'center',
-                              fontWeight: 600,
-                              fontSize: { xs: '0.875rem', sm: '1rem' },
-                            }}
-                            aria-live="polite"
-                            aria-atomic="true"
-                          >
-                            {productoTienda.producto?.permiteDecimal
-                              ? getCartQuantity(productoTienda.id).toFixed(1)
-                              : getCartQuantity(productoTienda.id)}
-                          </Typography>
-                        </>
-                      ) : null}
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleQuickAdd(e, productoTienda)}
-                        disabled={getMaxDisponible(productoTienda) < (productoTienda.producto?.permiteDecimal ? 0.1 : 1)}
-                        aria-label={`Agregar uno de ${productoTienda.producto.nombre} al carrito`}
-                        sx={{
-                          minWidth: { xs: 44, sm: 36 },
-                          minHeight: { xs: 44, sm: 36 },
-                          bgcolor: 'primary.main',
-                          color: 'primary.contrastText',
-                          '&:hover': {
-                            bgcolor: 'primary.dark',
-                            color: 'primary.contrastText',
-                          },
-                          '&:disabled': {
-                            bgcolor: 'action.disabledBackground',
-                            color: 'action.disabled',
-                          },
-                        }}
-                      >
-                        <AddIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
-                      </IconButton>
+                    <Box mt={1}>
+                      <ProductQuickActions
+                        productoTienda={productoTienda}
+                        allProductosTienda={allProducts}
+                      />
                     </Box>
                   </CardContent>
                 </Card>
