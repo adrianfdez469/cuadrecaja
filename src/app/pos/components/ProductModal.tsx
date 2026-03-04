@@ -9,8 +9,11 @@ import {
   Typography,
   Modal,
   Fab,
+  IconButton,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import { IProductoTiendaV2 } from "@/types/IProducto";
 import { QuantityDialog } from "./QuantityDialog";
 import { useCartStore } from "@/store/cartStore";
@@ -70,10 +73,44 @@ export function ProductModal({
   openCart,
 }: ProductModalProps) {
   const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
-  const { items } = useCartStore();
+  const { items, addToCart, updateQuantity, removeFromCart } = useCartStore();
 
   // Usar allProductosTienda si está disponible, sino usar productosTienda
   const allProducts = allProductosTienda || productosTienda;
+
+  const handleQuickAdd = (e: React.MouseEvent, productoTienda: IProductoTiendaV2) => {
+    e.stopPropagation();
+    const { maxPorTransaccion } = calcularDisponibilidadReal(productoTienda, allProducts);
+    const cartQty = items.find((item) => item.id === productoTienda.id)?.quantity || 0;
+    const disponible = maxPorTransaccion - cartQty;
+    const permiteDecimal = productoTienda.producto?.permiteDecimal;
+    const incremento = permiteDecimal ? 0.1 : 1;
+    if (disponible >= incremento) {
+      addToCart(
+        {
+          id: productoTienda.id,
+          name: productoTienda.producto.nombre,
+          price: productoTienda.precio,
+          productoTiendaId: productoTienda.id,
+        },
+        incremento
+      );
+    }
+  };
+
+  const handleQuickDecrement = (e: React.MouseEvent, productoTienda: IProductoTiendaV2) => {
+    e.stopPropagation();
+    const item = items.find((i) => i.id === productoTienda.id);
+    if (!item) return;
+    const permiteDecimal = productoTienda.producto?.permiteDecimal;
+    const decremento = permiteDecimal ? 0.1 : 1;
+    const nuevaCantidad = Math.round((item.quantity - decremento) * 100) / 100;
+    if (nuevaCantidad <= 0) {
+      removeFromCart(productoTienda.id);
+    } else {
+      updateQuantity(productoTienda.id, nuevaCantidad);
+    }
+  };
 
   const handleProductClick = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
@@ -90,7 +127,13 @@ export function ProductModal({
   };
 
   const getCartQuantity = (productoTiendaId: string) => {
-    return items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
+    return items.find((item) => item.id === productoTiendaId)?.quantity || 0;
+  };
+
+  const getMaxDisponible = (productoTienda: IProductoTiendaV2) => {
+    const { maxPorTransaccion } = calcularDisponibilidadReal(productoTienda, allProducts);
+    const cartQty = getCartQuantity(productoTienda.id);
+    return Math.max(0, maxPorTransaccion - cartQty);
   };
 
   // Calcular el máximo disponible para el producto seleccionado
@@ -174,8 +217,8 @@ export function ProductModal({
                       </Typography>
                     )}
 
-                    <Box display={'flex'} flexDirection={'row'} justifyContent={'space-between'} alignContent={'space-between'}>
-                      <Typography variant="subtitle1" color="text.secondary">
+                    <Box display={'flex'} flexDirection={'row'} justifyContent={'space-between'} alignItems={'center'} flexWrap="wrap" gap={0.5}>
+                      <Typography variant="subtitle1" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                         {(() => {
                           const { maxPorTransaccion, esFraccion } = calcularDisponibilidadReal(productoTienda, allProducts);
                           const cartQty = getCartQuantity(productoTienda.id);
@@ -187,9 +230,77 @@ export function ProductModal({
                           return `Cant: ${disponible > 0 ? disponible : 0}`;
                         })()}
                       </Typography>
-                      <Typography variant="subtitle1" color="textPrimary">
+                      <Typography variant="subtitle1" color="textPrimary" fontWeight="medium" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
                         ${productoTienda.precio}
                       </Typography>
+                    </Box>
+
+                    {/* Controles rápidos de cantidad: +/- */}
+                    <Box
+                      role="group"
+                      aria-label={`Cantidad de ${productoTienda.producto.nombre} en carrito`}
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="flex-end"
+                      gap={0.25}
+                      mt={1}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {getCartQuantity(productoTienda.id) > 0 ? (
+                        <>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleQuickDecrement(e, productoTienda)}
+                            aria-label={`Quitar uno de ${productoTienda.producto.nombre}`}
+                            sx={{
+                              minWidth: { xs: 44, sm: 36 },
+                              minHeight: { xs: 44, sm: 36 },
+                              bgcolor: 'action.hover',
+                              '&:hover': { bgcolor: 'action.selected' },
+                              '&:disabled': { opacity: 0.5 },
+                            }}
+                          >
+                            <RemoveIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                          </IconButton>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              minWidth: 24,
+                              textAlign: 'center',
+                              fontWeight: 600,
+                              fontSize: { xs: '0.875rem', sm: '1rem' },
+                            }}
+                            aria-live="polite"
+                            aria-atomic="true"
+                          >
+                            {productoTienda.producto?.permiteDecimal
+                              ? getCartQuantity(productoTienda.id).toFixed(1)
+                              : getCartQuantity(productoTienda.id)}
+                          </Typography>
+                        </>
+                      ) : null}
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleQuickAdd(e, productoTienda)}
+                        disabled={getMaxDisponible(productoTienda) < (productoTienda.producto?.permiteDecimal ? 0.1 : 1)}
+                        aria-label={`Agregar uno de ${productoTienda.producto.nombre} al carrito`}
+                        sx={{
+                          minWidth: { xs: 44, sm: 36 },
+                          minHeight: { xs: 44, sm: 36 },
+                          bgcolor: 'primary.main',
+                          color: 'primary.contrastText',
+                          '&:hover': {
+                            bgcolor: 'primary.dark',
+                            color: 'primary.contrastText',
+                          },
+                          '&:disabled': {
+                            bgcolor: 'action.disabledBackground',
+                            color: 'action.disabled',
+                          },
+                        }}
+                      >
+                        <AddIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                      </IconButton>
                     </Box>
                   </CardContent>
                 </Card>
