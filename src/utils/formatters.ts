@@ -10,7 +10,7 @@ const SECONDARY_CURRENCY = 'CUP';
 /**
  * Formatea una fecha en formato corto (dd/mm/aaaa)
  */
-export const formatDate = (date: string | Date): string => {
+export const formatDate = (date: number | Date): string => {
   return new Date(date).toLocaleDateString(LOCALE, {
     day: '2-digit',
     month: '2-digit',
@@ -33,7 +33,7 @@ export const formatDateLong = (date: string | Date): string => {
 /**
  * Formatea una hora en formato completo (HH:mm:ss)
  */
-export const formatTime = (date: string | Date): string => {
+export const formatTime = (date: number | Date): string => {
   return new Date(date).toLocaleTimeString(LOCALE, {
     hour: '2-digit',
     minute: '2-digit',
@@ -44,7 +44,7 @@ export const formatTime = (date: string | Date): string => {
 /**
  * Formatea una hora en formato corto (HH:mm)
  */
-export const formatTimeShort = (date: string | Date): string => {
+export const formatTimeShort = (date: number | Date): string => {
   return new Date(date).toLocaleTimeString(LOCALE, {
     hour: '2-digit',
     minute: '2-digit'
@@ -54,9 +54,9 @@ export const formatTimeShort = (date: string | Date): string => {
 /**
  * Formatea fecha y hora juntas (dd/mm/aaaa • HH:mm)
  */
-export const formatDateTime = (date: string | Date): string => {
+export const formatDateTime = (date: number | Date): string => {
   const dateStr = formatDate(date);
-  const timeStr = formatTimeShort(date);
+  const timeStr = formatTime(date);
   return `${dateStr} • ${timeStr}`;
 };
 
@@ -72,7 +72,7 @@ export const isToday = (date: string | Date): boolean => {
 /**
  * Obtiene una fecha relativa (ayer, hoy, mañana, etc.)
  */
-export const getRelativeDate = (date: string | Date): string => {
+export const getRelativeDate = (date: number | Date): string => {
   const today = new Date();
   const checkDate = new Date(date);
   const diffTime = checkDate.getTime() - today.getTime();

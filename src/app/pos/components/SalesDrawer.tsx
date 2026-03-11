@@ -34,6 +34,8 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { useAppContext } from "@/context/AppContext";
 import { ICierrePeriodo } from "@/types/ICierre";
 import { usePermisos } from "@/utils/permisos_front";
+import {formatDate} from "date-fns";
+import {formatDateTime} from "@/utils/formatters";
 
 interface IProps {
   showSales: boolean;
@@ -304,7 +306,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
   };
 
   const formatSaleInfo = (sale: Sale) => {
-    const createdDate = new Date(sale.createdAt);
+    const createdDate = formatDateTime(sale.createdAt);
     // 🆕 Mostrar intentos solo si la venta no está sincronizada o si tiene intentos
     const syncAttemptsText = sale.syncAttempts > 0 ? ` (${sale.syncAttempts} intentos)` : '';
     const offlineText = sale.wasOffline ? ' - Creada offline' : ' - Creada online';

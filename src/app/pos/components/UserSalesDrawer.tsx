@@ -27,6 +27,7 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { removeProductFromSale } from "@/services/sellService";
 import { ICierrePeriodo } from "@/types/ICierre";
+import {formatDateTime} from "@/utils/formatters";
 
 interface IProps {
   showUserSales: boolean;
@@ -131,15 +132,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           cantidad: producto.cantidad,
           precio: producto.price,
           total: totalProducto,
-          fecha: new Date(sale.createdAt).toLocaleString('es-ES', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          }),
+          fecha: formatDateTime(sale.createdAt),
           estado: sale.syncState === "synced" ? "Sincronizada" : sale.syncState === "syncing" ? "Sincronizando" : "Pendiente",
           sale,
           product: producto,
