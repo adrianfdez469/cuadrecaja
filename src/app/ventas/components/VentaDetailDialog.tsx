@@ -20,6 +20,7 @@ import {
   CardContent,
   Stack,
   IconButton,
+  CircularProgress,
   useTheme,
   useMediaQuery
 } from '@mui/material';
@@ -31,7 +32,8 @@ import {
   AttachMoney,
   CreditCard,
   AccountBalance,
-  ShoppingCart
+  ShoppingCart,
+  Delete
 } from '@mui/icons-material';
 import { IVenta } from '@/types/IVenta';
 import { formatCurrency, formatDate, formatTimeShort } from '@/utils/formatters';
@@ -40,12 +42,18 @@ interface VentaDetailDialogProps {
   open: boolean;
   onClose: () => void;
   venta: IVenta | null;
+  canDeleteProducts?: boolean;
+  deletingVentaProductoId?: string | null;
+  onDeleteProduct?: (venta: IVenta, ventaProductoId: string) => void;
 }
 
 const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   open,
   onClose,
-  venta
+  venta,
+  canDeleteProducts = false,
+  deletingVentaProductoId = null,
+  onDeleteProduct,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -220,7 +228,13 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             ) : isMobile ? (
               // Vista móvil - Cards
               <Stack spacing={2}>
-                {venta.productos.map((producto, index) => (
+                {venta.productos.map((producto, index) => {
+                  const canDeleteThis =
+                    canDeleteProducts &&
+                    !!producto.ventaProductoId &&
+                    (venta.productos?.length || 0) > 1;
+                  const isDeleting = deletingVentaProductoId === producto.ventaProductoId;
+                  return (
                   <Card key={producto.id || index} variant="outlined">
                     <CardContent sx={{ p: 2 }}>
                       <Stack spacing={1}>
@@ -228,12 +242,25 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                           <Typography variant="subtitle2" fontWeight="medium" sx={{ flex: 1, pr: 1 }}>
                             {producto.name || `Producto ${index + 1}`}
                           </Typography>
-                          <Chip
-                            label={`${producto.cantidad} unid.`}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Chip
+                              label={`${producto.cantidad} unid.`}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                            {canDeleteThis && (
+                              <IconButton
+                                size="small"
+                                color="error"
+                                disabled={isDeleting}
+                                onClick={() => onDeleteProduct?.(venta, producto.ventaProductoId!)}
+                                aria-label="Eliminar producto"
+                              >
+                                {isDeleting ? <CircularProgress size={18} /> : <Delete fontSize="small" />}
+                              </IconButton>
+                            )}
+                          </Box>
                         </Box>
                         
                         <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -247,7 +274,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                       </Stack>
                     </CardContent>
                   </Card>
-                ))}
+                );})}
               </Stack>
             ) : (
               // Vista desktop - Tabla
@@ -259,10 +286,17 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                       <TableCell align="center">Cantidad</TableCell>
                       <TableCell align="right">Precio Unitario</TableCell>
                       <TableCell align="right">Subtotal</TableCell>
+                      {canDeleteProducts && <TableCell align="center">Acciones</TableCell>}
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {venta.productos.map((producto, index) => (
+                    {venta.productos.map((producto, index) => {
+                      const canDeleteThis =
+                        canDeleteProducts &&
+                        !!producto.ventaProductoId &&
+                        (venta.productos?.length || 0) > 1;
+                      const isDeleting = deletingVentaProductoId === producto.ventaProductoId;
+                      return (
                       <TableRow key={producto.id || index}>
                         <TableCell>
                           <Typography variant="body2" fontWeight="medium">
@@ -290,29 +324,46 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                             {formatCurrency((producto.price || 0) * producto.cantidad)}
                           </Typography>
                         </TableCell>
+                        {canDeleteProducts && (
+                          <TableCell align="center">
+                            {canDeleteThis && (
+                              <IconButton
+                                size="small"
+                                color="error"
+                                disabled={isDeleting}
+                                onClick={() => onDeleteProduct?.(venta, producto.ventaProductoId!)}
+                                aria-label="Eliminar producto"
+                              >
+                                {isDeleting ? <CircularProgress size={18} /> : <Delete fontSize="small" />}
+                              </IconButton>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
-                    ))}
+                    );})}
                     {/* Desglose de totales */}
                     <TableRow>
-                      <TableCell colSpan={3} align="right">
+                      <TableCell colSpan={canDeleteProducts ? 4 : 3} align="right">
                         <Typography variant="body2" color="text.secondary">Subtotal</Typography>
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2" color="text.secondary">{formatCurrency(productosSubtotal)}</Typography>
                       </TableCell>
+                      {canDeleteProducts && <TableCell />}
                     </TableRow>
                     {totalDescuentos > 0 && (
                       <TableRow>
-                        <TableCell colSpan={3} align="right">
+                        <TableCell colSpan={canDeleteProducts ? 4 : 3} align="right">
                           <Typography variant="body2" color="error.main">Total descuentos</Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2" color="error.main">- {formatCurrency(totalDescuentos)}</Typography>
                         </TableCell>
+                        {canDeleteProducts && <TableCell />}
                       </TableRow>
                     )}
                     <TableRow>
-                      <TableCell colSpan={3}>
+                      <TableCell colSpan={canDeleteProducts ? 4 : 3}>
                         <Typography variant="h6" fontWeight="bold">Total a pagar</Typography>
                       </TableCell>
                       <TableCell align="right">
@@ -320,6 +371,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                           {formatCurrency(venta.total)}
                         </Typography>
                       </TableCell>
+                      {canDeleteProducts && <TableCell />}
                     </TableRow>
                   </TableBody>
                 </Table>

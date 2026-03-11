@@ -2,6 +2,11 @@ import { IProductoVenta } from "@/types/IProducto";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export interface SaleProduct extends IProductoVenta {
+  name: string;
+  ventaProductoId?: string; // Para ventas sincronizadas: ID en DB para eliminar producto
+}
+
 export interface Sale {
   dbId?: string;
   identifier: string;
@@ -11,7 +16,7 @@ export interface Sale {
   total: number;
   totalcash: number;
   totaltransfer: number;
-  productos: (IProductoVenta & { name: string })[];
+  productos: SaleProduct[];
 
   synced: boolean;
   syncState: "synced" | "syncing" | "not_synced" | "sync_err";
@@ -40,9 +45,17 @@ interface SalesState {
   markSyncError: (id: string) => void;
   markSyncing: (id: string) => void;
   deleteSale: (id: string) => void;
+  removeProductFromSale: (
+    saleIdentifier: string,
+    productoTiendaId: string,
+    productId: string,
+    cantidad: number,
+    ventaProductoId?: string,
+    productIndex?: number
+  ) => void;
   clearSales: () => void;
   synchronizeSales: (sales: Sale[]) => void;
-  checkSyncTimeouts: () => void; // Nueva función para verificar timeouts
+  checkSyncTimeouts: () => void;
 }
 
 export const useSalesStore = create<SalesState>()(
@@ -143,7 +156,7 @@ export const useSalesStore = create<SalesState>()(
 
           const prods = state.productos
             .map((prod) => {
-              const removePr = saleToRemove.productos.find(
+              const removePr = saleToRemove?.productos.find(
                 (removePr) => removePr.productId === prod.id
               );
               if (removePr) {
@@ -160,6 +173,53 @@ export const useSalesStore = create<SalesState>()(
             productos: prods,
             sales: sales,
           };
+        }),
+      removeProductFromSale: (
+        saleIdentifier: string,
+        productoTiendaId: string,
+        productId: string,
+        cantidad: number,
+        ventaProductoId?: string,
+        productIndexParam?: number
+      ) =>
+        set((state) => {
+          const sale = state.sales.find((s) => s.identifier === saleIdentifier);
+          if (!sale) return state;
+
+          let productIndex: number;
+          if (ventaProductoId) {
+            productIndex = sale.productos.findIndex((p) => p.ventaProductoId === ventaProductoId);
+          } else if (typeof productIndexParam === "number") {
+            productIndex = productIndexParam;
+          } else {
+            productIndex = sale.productos.findIndex(
+              (p) => p.productoTiendaId === productoTiendaId && p.productId === productId
+            );
+          }
+          if (productIndex === -1) return state;
+
+          const productToRemove = sale.productos[productIndex];
+          const newProductos = sale.productos.filter((_, i) => i !== productIndex);
+          const montoProducto = productToRemove.price * productToRemove.cantidad;
+
+          const newSales = state.sales.map((s) => {
+            if (s.identifier !== saleIdentifier) return s;
+            const updated: Sale = {
+              ...s,
+              productos: newProductos,
+              total: s.total - montoProducto,
+            };
+            return updated;
+          });
+
+          const prods = state.productos.map((prod) => {
+            if (prod.id === productId) {
+              return { ...prod, cantVendida: prod.cantVendida - productToRemove.cantidad };
+            }
+            return prod;
+          }).filter((p) => p.cantVendida > 0);
+
+          return { ...state, sales: newSales, productos: prods };
         }),
       synchronizeSales: (sales: Sale[]) =>
         set((state) => {

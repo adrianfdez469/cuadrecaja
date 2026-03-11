@@ -1,5 +1,5 @@
 import {formatCurrency, formatNumber} from "@/utils/formatters";
-import {Search, FilterAlt} from "@mui/icons-material";
+import {Search, DoDisturbOn} from "@mui/icons-material";
 import {
   Alert,
   Box,
@@ -21,8 +21,7 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
-  Button
+  MenuItem, Tooltip, IconButton
 } from "@mui/material";
 import React, {useCallback, useEffect, useRef, useState} from "react";
 import {IProductoDisponible, OperacionTipo} from "../ProductSelectionModal";
@@ -44,6 +43,7 @@ interface IProps {
   show: boolean;
   isFiltering: boolean;
   currentPage: number;
+  onReject?: (producto: IProductoDisponible) => void;
 }
 
 const TableProductosDisponibles: React.FC<IProps> = ({
@@ -60,13 +60,14 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                                        show,
                                                        isFiltering,
                                                        currentPage,
+                                                       onReject
                                                      }) => {
 
   const [categorias, setCategorias] = useState<ICategory[]>([]);
+  const [filterText, setFilterText] = useState('');
+  const [filterCategoryId, setFilterCategoryId] = useState('');
 
   // Refs para los inputs no controlados
-  const filterTextRef = useRef<HTMLInputElement>(null);
-  const filterCategoryRef = useRef<HTMLDivElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
 
@@ -175,32 +176,21 @@ const TableProductosDisponibles: React.FC<IProps> = ({
   // Función para aplicar filtros
   const handleApplyFilters = useCallback(() => {
     if (onFilterChange) {
-      const text = filterTextRef.current?.value || '';
-      const categoriaId = (filterCategoryRef.current?.querySelector('input') as HTMLInputElement)?.value || '';
-
       onFilterChange({
-        text: text.trim() || undefined,
-        categoriaId: categoriaId || undefined
+        text: filterText.trim() || undefined,
+        categoriaId: filterCategoryId || undefined
       });
     }
-  }, [onFilterChange]);
+  }, [onFilterChange, filterText, filterCategoryId]);
 
-  // Función para limpiar filtros
-  const handleClearFilters = useCallback(() => {
-    if (filterTextRef.current) {
-      filterTextRef.current.value = '';
-    }
-    if (filterCategoryRef.current) {
-      const select = filterCategoryRef.current.querySelector('input') as HTMLInputElement;
-      if (select) {
-        select.value = '';
-      }
-    }
+  // Debounce para aplicar filtros automáticamente
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleApplyFilters();
+    }, 500);
 
-    if (onFilterChange) {
-      onFilterChange({});
-    }
-  }, [onFilterChange]);
+    return () => clearTimeout(timer);
+  }, [filterText, filterCategoryId, handleApplyFilters]);
 
   return (
       <div style={{display: show ? 'block' : 'none'}}>
@@ -210,9 +200,11 @@ const TableProductosDisponibles: React.FC<IProps> = ({
               <Grid size={{xs: 12, sm: 4}}>
                 <TextField
                     fullWidth
+                    type="search"
                     size="small"
                     placeholder="Buscar por nombre o proveedor..."
-                    inputRef={filterTextRef}
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
                     slotProps={{
                       input: {
                         startAdornment: (
@@ -222,53 +214,27 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                         )
                       }
                     }}
-                    onKeyUp={(e) => {
-                      if (e.key === 'Enter') {
-                        handleApplyFilters();
-                      }
-                    }}
                 />
               </Grid>
-              {!isMobile &&
-                  <Grid size={{xs: 12, sm: 4}}>
-                      <FormControl fullWidth size="small">
-                          <InputLabel>Categoría</InputLabel>
-                          <Select
-                              ref={filterCategoryRef}
-                              label="Categoría"
-                              defaultValue=""
-                          >
-                              <MenuItem value="">Todas las categorías</MenuItem>
-                            {categorias.map(categoria => (
-                                <MenuItem key={categoria.id} value={categoria.id}>
-                                  {categoria.nombre}
-                                </MenuItem>
-                            ))}
-                          </Select>
-                      </FormControl>
-                  </Grid>
-              }
+
               <Grid size={{xs: 12, sm: 4}}>
-                <Box display="flex" gap={1}>
-                  <Button
-                      variant="contained"
-                      size="small"
-                      startIcon={<FilterAlt/>}
-                      onClick={handleApplyFilters}
-                      fullWidth
-                  >
-                    Filtrar
-                  </Button>
-                  <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={handleClearFilters}
-                      fullWidth
-                  >
-                    Limpiar
-                  </Button>
-                </Box>
+                  <FormControl fullWidth size="small">
+                      <InputLabel>Categoría</InputLabel>
+                      <Select
+                          label="Categoría"
+                          value={filterCategoryId}
+                          onChange={(e) => setFilterCategoryId(e.target.value as string)}
+                      >
+                          <MenuItem value="">Todas las categorías</MenuItem>
+                        {categorias.map(categoria => (
+                            <MenuItem key={categoria.id} value={categoria.id}>
+                              {categoria.nombre}
+                            </MenuItem>
+                        ))}
+                      </Select>
+                  </FormControl>
               </Grid>
+
             </Grid>
           </CardContent>
         </Card>
@@ -319,6 +285,11 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                     <TableCell>
                       Precio
                     </TableCell>
+                    {onReject && (
+                      <TableCell style={{ width: '60px' }}>
+                        Acciones
+                      </TableCell>
+                    )}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -334,10 +305,10 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                               <>
                                 {paddingTop > 0 && (
                                     <TableRow>
-                                      <TableCell
-                                          colSpan={4}
-                                          style={{height: `${paddingTop}px`, padding: 0, border: 0}}
-                                      />
+                                          <TableCell
+                                              colSpan={onReject ? 5 : 4}
+                                              style={{height: `${paddingTop}px`, padding: 0, border: 0}}
+                                          />
                                     </TableRow>
                                 )}
                                 {virtualItems.map(virtualRow => {
@@ -417,13 +388,28 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                             {formatCurrency(producto.precio)}
                                           </Typography>
                                         </TableCell>
+                                        {onReject && (
+                                          <TableCell onClick={(e) => e.stopPropagation()}>
+                                            {producto.movimientoOrigenId && (
+                                              <Tooltip title="Rechazar Entrada">
+                                                <IconButton
+                                                  size="small"
+                                                  color="error"
+                                                  onClick={() => onReject(producto)}
+                                                >
+                                                  <DoDisturbOn />
+                                                </IconButton>
+                                              </Tooltip>
+                                            )}
+                                          </TableCell>
+                                        )}
                                       </TableRow>
                                   );
                                 })}
                                 {paddingBottom > 0 && (
                                     <TableRow>
                                       <TableCell
-                                          colSpan={4}
+                                          colSpan={onReject ? 5 : 4}
                                           style={{height: `${paddingBottom}px`, padding: 0, border: 0}}
                                       />
                                     </TableRow>
@@ -434,7 +420,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                       </>
                   ) : (
                       <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{py: 4}}>
+                        <TableCell colSpan={onReject ? 5 : 4} align="center" sx={{py: 4}}>
                           <Typography variant="body2" color="text.secondary">
                             {loading ? 'Cargando productos...' : 'No se encontraron productos con los filtros aplicados'}
                           </Typography>

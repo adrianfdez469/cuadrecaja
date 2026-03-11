@@ -127,4 +127,16 @@ export const removeSell = async (tiendaId: string, cierreId: string, ventaId: st
     }
   });
   return removed.data;
-}
+};
+
+export const removeProductFromSale = async (
+  tiendaId: string,
+  cierreId: string,
+  ventaId: string,
+  ventaProductoId: string
+) => {
+  const response = await axiosInstance.delete(
+    `${API_URL(tiendaId, cierreId)}/${ventaId}/producto/${ventaProductoId}`
+  );
+  return response.data;
+};

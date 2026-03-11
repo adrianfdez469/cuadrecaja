@@ -24,6 +24,7 @@ export interface IVenta {
 
 interface VentaProducto {
   id: string;
+  ventaProductoId?: string; // ID de VentaProducto en DB (para eliminar producto de venta sincronizada)
   ventaId: string;
   productoTiendaId: string;
   cantidad: number;
