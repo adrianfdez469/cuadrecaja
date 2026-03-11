@@ -34,7 +34,6 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { useAppContext } from "@/context/AppContext";
 import { ICierrePeriodo } from "@/types/ICierre";
 import { usePermisos } from "@/utils/permisos_front";
-import {formatDate} from "date-fns";
 import {formatDateTime} from "@/utils/formatters";
 
 interface IProps {

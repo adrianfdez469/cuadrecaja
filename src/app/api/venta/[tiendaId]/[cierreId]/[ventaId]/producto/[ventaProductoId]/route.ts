@@ -26,7 +26,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
     }
 
-    const { tiendaId, cierreId, ventaId, ventaProductoId } = await params;
+    const { tiendaId, ventaId, ventaProductoId } = await params;
 
     const ventaProducto = await prisma.ventaProducto.findUnique({
       where: { id: ventaProductoId },
