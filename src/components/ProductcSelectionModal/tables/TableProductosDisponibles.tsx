@@ -1,5 +1,5 @@
 import {formatCurrency, formatNumber} from "@/utils/formatters";
-import {Search} from "@mui/icons-material";
+import {Search, DoDisturbOn} from "@mui/icons-material";
 import {
   Alert,
   Box,
@@ -21,7 +21,7 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem, Tooltip, IconButton
 } from "@mui/material";
 import React, {useCallback, useEffect, useRef, useState} from "react";
 import {IProductoDisponible, OperacionTipo} from "../ProductSelectionModal";
@@ -43,6 +43,7 @@ interface IProps {
   show: boolean;
   isFiltering: boolean;
   currentPage: number;
+  onReject?: (producto: IProductoDisponible) => void;
 }
 
 const TableProductosDisponibles: React.FC<IProps> = ({
@@ -59,6 +60,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                                        show,
                                                        isFiltering,
                                                        currentPage,
+                                                       onReject
                                                      }) => {
 
   const [categorias, setCategorias] = useState<ICategory[]>([]);
@@ -283,6 +285,11 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                     <TableCell>
                       Precio
                     </TableCell>
+                    {onReject && (
+                      <TableCell style={{ width: '60px' }}>
+                        Acciones
+                      </TableCell>
+                    )}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -298,10 +305,10 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                               <>
                                 {paddingTop > 0 && (
                                     <TableRow>
-                                      <TableCell
-                                          colSpan={4}
-                                          style={{height: `${paddingTop}px`, padding: 0, border: 0}}
-                                      />
+                                          <TableCell
+                                              colSpan={onReject ? 5 : 4}
+                                              style={{height: `${paddingTop}px`, padding: 0, border: 0}}
+                                          />
                                     </TableRow>
                                 )}
                                 {virtualItems.map(virtualRow => {
@@ -381,13 +388,28 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                             {formatCurrency(producto.precio)}
                                           </Typography>
                                         </TableCell>
+                                        {onReject && (
+                                          <TableCell onClick={(e) => e.stopPropagation()}>
+                                            {producto.movimientoOrigenId && (
+                                              <Tooltip title="Rechazar Entrada">
+                                                <IconButton
+                                                  size="small"
+                                                  color="error"
+                                                  onClick={() => onReject(producto)}
+                                                >
+                                                  <DoDisturbOn />
+                                                </IconButton>
+                                              </Tooltip>
+                                            )}
+                                          </TableCell>
+                                        )}
                                       </TableRow>
                                   );
                                 })}
                                 {paddingBottom > 0 && (
                                     <TableRow>
                                       <TableCell
-                                          colSpan={4}
+                                          colSpan={onReject ? 5 : 4}
                                           style={{height: `${paddingBottom}px`, padding: 0, border: 0}}
                                       />
                                     </TableRow>
@@ -398,7 +420,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                       </>
                   ) : (
                       <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{py: 4}}>
+                        <TableCell colSpan={onReject ? 5 : 4} align="center" sx={{py: 4}}>
                           <Typography variant="body2" color="text.secondary">
                             {loading ? 'Cargando productos...' : 'No se encontraron productos con los filtros aplicados'}
                           </Typography>

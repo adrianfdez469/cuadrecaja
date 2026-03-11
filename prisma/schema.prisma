@@ -66,7 +66,7 @@ model Usuario {
   password String
   rol      String? // Aqui solo se registrará si el usuario es superadministrador con el rol SUPER_ADMIN
 
-  //tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
+  // tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
   locales         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
   ventas          Venta[] // Un usuario puede realizar múltiples ventas
   MovimientoStock MovimientoStock[]
@@ -77,8 +77,8 @@ model Usuario {
   negocio   Negocio @relation(fields: [negocioId], references: [id])
   negocioId String  @default("")
 
-  //tiendaActual    Tienda?            @relation(fields: [tiendaActualId], references: [id])
-  //tiendaActualId     String?
+  // tiendaActual    Tienda?            @relation(fields: [tiendaActualId], references: [id])
+  // tiendaActualId     String?
 
   localActual   Tienda? @relation(fields: [localActualId], references: [id])
   localActualId String?
@@ -478,4 +478,5 @@ enum TipoNotificacion {
 enum MovimientoState {
   PENDIENTE
   APROBADO
+  RECHAZADO
 }

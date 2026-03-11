@@ -43,7 +43,7 @@ import {
 } from "@mui/icons-material";
 import { AddMovimientoDialog } from "./components/addMovimientoDialog";
 import { useAppContext } from "@/context/AppContext";
-import { cretateBatchMovimientos, findMovimientos, getMovimientosProductosEnviados } from "@/services/movimientoService";
+import { cretateBatchMovimientos, findMovimientos, getMovimientosProductosEnviados, rejectMovimiento } from "@/services/movimientoService";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { ITipoMovimiento } from "@/types/IMovimiento";
 import { PageContainer } from "@/components/PageContainer";
@@ -93,6 +93,21 @@ export default function MovimientosPage() {
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const [skip, setSkip] = useState(0);
+
+  const handleReject = async (producto: IProductoDisponible, motivo: string) => {
+    try {
+      if (!producto.movimientoOrigenId) return;
+      await rejectMovimiento(producto.movimientoOrigenId, motivo);
+      showMessage("Entrada rechazada correctamente", "success");
+      // Actualizar el contador de pendientes
+      const nuevosPendientes = await getMovimientosProductosEnviados(user.localActual.id);
+      setPendienteRecepcion(nuevosPendientes || []);
+    } catch (error) {
+      console.error("Error al rechazar producto:", error);
+      showMessage("Error al rechazar el producto", "error");
+      throw error;
+    }
+  };
 
   // 🆕 Función mejorada para cargar movimientos con filtrado en backend
   const fetchMovimientos = async (nuevoSkip = skip, searchFilter = searchTerm) => {
@@ -799,6 +814,7 @@ export default function MovimientosPage() {
           operacion={pendienteRecepcionOperacion}
           iTipoMovimiento={'TRASPASO_ENTRADA'}
           onConfirm={pendienteRecepcionHandleConfirm}
+          onReject={handleReject}
         />
       )}
     </PageContainer>
