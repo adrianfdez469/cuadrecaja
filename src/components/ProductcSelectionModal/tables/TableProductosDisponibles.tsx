@@ -265,18 +265,10 @@ const TableProductosDisponibles: React.FC<IProps> = ({
               >
                 <TableHead>
                   <TableRow>
-                    <TableCell
-                        style={{
-                          width: '50%',
-                        }}
-                    >
+                    <TableCell>
                       Producto
                     </TableCell>
-                    <TableCell
-                        style={{
-                          width: '20%',
-                        }}
-                    >
+                    <TableCell>
                       {isMobile ? 'Cant' : 'Existencia'}
                     </TableCell>
                     <TableCell>
@@ -286,7 +278,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                       Precio
                     </TableCell>
                     {onReject && (
-                      <TableCell style={{ width: '60px' }}>
+                      <TableCell>
                         Acciones
                       </TableCell>
                     )}
@@ -326,7 +318,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                             opacity: isDisabled ? 0.5 : 1
                                           }}
                                       >
-                                        <TableCell style={{width: '50%'}}>
+                                        <TableCell>
                                           <Typography
                                               variant={isMobile ? "caption" : "body2"}
                                               fontWeight="medium"
