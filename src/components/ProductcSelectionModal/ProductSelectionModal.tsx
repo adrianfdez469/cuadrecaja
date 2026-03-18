@@ -569,7 +569,9 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         </Box>
 
         <TableProductosDisponibles {...tableProductosDisponiblesProps} show={activeTab === 0} />
-        <TableProductosSeleccionados {...tableProductosSeleccionadosProps} show={activeTab === 1} />
+        <Box sx={{ mt: isMobile ? 1 : 0 }}>
+          <TableProductosSeleccionados {...tableProductosSeleccionadosProps} show={activeTab === 1} />
+        </Box>
         
         <RejectionModal
           open={!!rejectingProduct}
