@@ -582,9 +582,6 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         />
       </DialogContent>
 
-
-
-
       {/* Footer */}
       <DialogActions sx={{
         p: isMobile ? 2 : 3,

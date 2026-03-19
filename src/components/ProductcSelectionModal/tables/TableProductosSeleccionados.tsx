@@ -23,6 +23,7 @@ import React from "react";
 import {OperacionTipo, IProductoSeleccionado} from "../ProductSelectionModal";
 import {ITipoMovimiento} from "@/types/IMovimiento";
 import ProductCard from "@/components/ProductcSelectionModal/ProductCard";
+import ProductSelectedCard from "@/components/ProductcSelectionModal/ProductSelectedCard";
 
 interface IProps {
   operacion: OperacionTipo;
@@ -220,110 +221,28 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 2,
-                  maxHeight: 500,
-                  overflow: 'auto',
                   pb: 2
                 }}
             >
               {productosSeleccionados.map((producto, index) => {
                 const esSalida = operacion === 'SALIDA';
-                const cantidadExcede = esSalida && producto.cantidad > producto.existencia;
 
                 return (
-                    // <ProductCard
-                    //     key={producto.productoId}
-                    //     name={producto.nombre}
-                    //     cost={producto.costo}
-                    //     precio={producto.precio}
-                    //     stock={producto.costo}
-                    //     actions={
-                    //       <IconButton
-                    //           size="small"
-                    //           color="error"
-                    //           onClick={() => eliminarProducto(producto.productoId)}
-                    //       >
-                    //         <Delete fontSize="small"/>
-                    //       </IconButton>
-                    //     }
-                    // />
-                    <Card key={producto.productoId+index} variant="outlined" sx={{ mx: 0.5 }}>
-                      <CardContent sx={{ p: 2 }}>
-                        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                          <Box sx={{ flex: 1, mr: 1 }}>
-                            <Typography variant="subtitle2" fontWeight="bold">
-                              {producto.nombre}
-                            </Typography>
-                            {producto.proveedor && (
-                              <Typography variant="caption" color="text.secondary">
-                                {producto.proveedor.nombre}
-                              </Typography>
-                            )}
-                          </Box>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => eliminarProducto(producto.productoId)}
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
-                        </Box>
-
-                        <Grid container spacing={2} alignItems="center">
-                          <Grid item xs={6}>
-                            <Typography variant="caption" color="text.secondary" display="block">Existencia</Typography>
-                            <Chip
-                              label={producto.existencia}
-                              size="small"
-                              variant="outlined"
-                              color={cantidadExcede ? "error" : "default"}
-                            />
-                          </Grid>
-                          <Grid item xs={6}>
-                            <Typography variant="caption" color="text.secondary" display="block">Costo Total</Typography>
-                            <Typography variant="body2" fontWeight="bold">
-                              {formatCurrency(producto.costoTotal)}
-                            </Typography>
-                          </Grid>
-
-                          <Grid item xs={6}>
-                            <TextField
-                              fullWidth
-                              label="Cantidad"
-                              type="number"
-                              size="small"
-                              value={producto.cantidad.toString()}
-                              onChange={(e) => actualizarCantidad(producto.productoId, Number(e.target.value), producto.proveedorId)}
-                              disabled={tipoMovimiento === 'TRASPASO_ENTRADA'}
-                              error={cantidadExcede}
-                              helperText={cantidadExcede ? `Máx: ${producto.existencia}` : ''}
-                              slotProps={{
-                                htmlInput: {
-                                  min: 1,
-                                  max: esSalida ? producto.existencia : undefined
-                                }
-                              }}
-                            />
-                          </Grid>
-                          <Grid item xs={6}>
-                            <TextField
-                              fullWidth
-                              label="Costo Unit."
-                              type="number"
-                              size="small"
-                              value={producto.costo?.toString()}
-                              onChange={(e) => actualizarCosto(producto.productoId, Number(e.target.value))}
-                              disabled={esSalida || tipoMovimiento === 'TRASPASO_ENTRADA'}
-                              slotProps={{
-                                htmlInput: {
-                                  min: 0,
-                                  step: 0.01
-                                }
-                              }}
-                            />
-                          </Grid>
-                        </Grid>
-                      </CardContent>
-                    </Card>
+                    <ProductSelectedCard
+                        key={producto.productoId + index}
+                        name={producto.nombre}
+                        providerName={producto.proveedor?.nombre}
+                        existencia={producto.existencia}
+                        cantidad={producto.cantidad}
+                        costoUnitario={producto.costo}
+                        costoTotal={producto.costoTotal}
+                        esSalida={esSalida}
+                        disabledCantidad={tipoMovimiento === 'TRASPASO_ENTRADA'}
+                        disabledCosto={esSalida || tipoMovimiento === 'TRASPASO_ENTRADA'}
+                        onActualizarCantidad={(nuevaCantidad) => actualizarCantidad(producto.productoId, nuevaCantidad, producto.proveedorId)}
+                        onActualizarCosto={(nuevoCosto) => actualizarCosto(producto.productoId, nuevoCosto)}
+                        onEliminar={() => eliminarProducto(producto.productoId)}
+                    />
                 );
               })}
             </Box>
