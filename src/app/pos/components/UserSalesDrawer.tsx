@@ -17,24 +17,92 @@ import {
   Chip,
   Button,
   ButtonGroup,
+  CircularProgress,
 } from "@mui/material";
-import { Close, History, GroupWork } from "@mui/icons-material";
-import { useSalesStore } from "@/store/salesStore";
+import { Close, History, GroupWork, Delete } from "@mui/icons-material";
+import { Sale, useSalesStore } from "@/store/salesStore";
 import { useAppContext } from "@/context/AppContext";
+import { usePermisos } from "@/utils/permisos_front";
+import useConfirmDialog from "@/components/confirmDialog";
+import { useMessageContext } from "@/context/MessageContext";
+import { removeProductFromSale } from "@/services/sellService";
+import { ICierrePeriodo } from "@/types/ICierre";
+import {formatDateTime} from "@/utils/formatters";
 
 interface IProps {
   showUserSales: boolean;
   setShowUserSales: (show: boolean) => void;
+  period?: ICierrePeriodo;
+  incrementarCantidades?: (productoTiendaId: string, cantidad: number) => void;
+}
+
+interface ProductoDataHistorial {
+  nombre: string;
+  cantidad: number;
+  precio: number;
+  total: number;
+  fecha: string;
+  estado: string;
+  sale: Sale;
+  product: Sale["productos"][0];
+  productIndex: number;
 }
 
 export const UserSalesDrawer: React.FC<IProps> = ({
   showUserSales,
   setShowUserSales,
+  period,
+  incrementarCantidades,
 }) => {
-  const { sales } = useSalesStore();
+  const { sales, removeProductFromSale: removeProductFromSaleStore } = useSalesStore();
   const { user } = useAppContext();
+  const { verificarPermiso } = usePermisos();
+  const { showMessage } = useMessageContext();
+  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const [viewMode, setViewMode] = useState<'grouped' | 'historical'>('grouped');
   const [onlyOwnSales, setOnlyOwnSales] = useState(true);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+
+  const canDeleteProducts =
+    viewMode === "historical" &&
+    verificarPermiso("operaciones.pos-venta.cancelarventa") &&
+    (onlyOwnSales || user?.rol === "SUPER_ADMIN");
+
+  const handleDeleteProduct = (producto: ProductoDataHistorial) => {
+    const { sale, product } = producto;
+    confirmDialog(
+      `¿Eliminar "${product.name}" (${product.cantidad} unidad/es) de la venta?`,
+      async () => {
+        const key = product.ventaProductoId ?? `${sale.identifier}-${product.productoTiendaId}`;
+        setDeletingKey(key);
+        try {
+          if (sale.synced && sale.dbId && product.ventaProductoId && period && user?.localActual?.id) {
+            await removeProductFromSale(
+              user.localActual.id,
+              period.id,
+              sale.dbId,
+              product.ventaProductoId
+            );
+          }
+          removeProductFromSaleStore(
+            sale.identifier,
+            product.productoTiendaId,
+            product.productId,
+            product.cantidad,
+            product.ventaProductoId,
+            producto.productIndex
+          );
+          incrementarCantidades?.(product.productoTiendaId, product.cantidad);
+          showMessage("Producto eliminado de la venta", "success");
+        } catch (error) {
+          console.error(error);
+          showMessage("No se pudo eliminar el producto", "error", error);
+        } finally {
+          setDeletingKey(null);
+        }
+      }
+    );
+  };
 
   // Filtrar ventas del usuario actual
   const userSales = useMemo(() => {
@@ -56,24 +124,19 @@ export const UserSalesDrawer: React.FC<IProps> = ({
     userSales.forEach(sale => {
       totalGeneral += sale.total;
 
-      sale.productos.forEach(producto => {
+      sale.productos.forEach((producto, productIndex) => {
         const totalProducto = producto.price * producto.cantidad;
 
-        const productoData = {
+        const productoDataHistorial: ProductoDataHistorial = {
           nombre: producto.name,
           cantidad: producto.cantidad,
           precio: producto.price,
           total: totalProducto,
-          fecha: new Date(sale.createdAt).toLocaleString('es-ES', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          }),
+          fecha: formatDateTime(sale.createdAt),
           estado: sale.syncState === "synced" ? "Sincronizada" : sale.syncState === "syncing" ? "Sincronizando" : "Pendiente",
+          sale,
+          product: producto,
+          productIndex,
         };
 
         const isConsignacion = producto.name.includes(" - ");
@@ -97,11 +160,11 @@ export const UserSalesDrawer: React.FC<IProps> = ({
             });
           }
         } else {
-          // Vista histórica (comportamiento actual)
+          // Vista histórica
           if (isConsignacion) {
-            productosConsignacion.push(productoData);
+            productosConsignacion.push(productoDataHistorial);
           } else {
-            productosPropios.push(productoData);
+            productosPropios.push(productoDataHistorial);
           }
         }
 
@@ -297,12 +360,16 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                         <>
                           <TableCell align="center"><strong>Fecha</strong></TableCell>
                           <TableCell align="center"><strong>Estado</strong></TableCell>
+                          {canDeleteProducts && <TableCell align="center"><strong>Acciones</strong></TableCell>}
                         </>
                       )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {salesData.productosConsignacion.map((producto, index) => (
+                    {salesData.productosConsignacion.map((producto, index) => {
+                      const prodHist = producto as ProductoDataHistorial;
+                      const deleteKey = 'sale' in prodHist ? (prodHist.product.ventaProductoId ?? `${prodHist.sale.identifier}-${index}`) : null;
+                      return (
                       <TableRow key={index} hover>
                         <TableCell>{producto.nombre}</TableCell>
                         <TableCell align="center">{producto.cantidad}</TableCell>
@@ -326,12 +393,29 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                                 variant="outlined"
                               />
                             </TableCell>
+                            {canDeleteProducts && 'sale' in prodHist && (
+                              <TableCell align="center">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  disabled={deletingKey === deleteKey || prodHist.sale.productos.length <= 1}
+                                  onClick={() => handleDeleteProduct(prodHist)}
+                                  aria-label="Eliminar producto"
+                                >
+                                  {deletingKey === deleteKey ? (
+                                    <CircularProgress size={20} />
+                                  ) : (
+                                    <Delete fontSize="small" />
+                                  )}
+                                </IconButton>
+                              </TableCell>
+                            )}
                           </>
                         )}
                       </TableRow>
-                    ))}
+                    );})}
                     <TableRow sx={{ bgcolor: "warning.light" }}>
-                      <TableCell colSpan={viewMode === 'grouped' ? 3 : 3}>
+                      <TableCell colSpan={viewMode === 'grouped' ? 3 : canDeleteProducts ? 6 : 5}>
                         <Typography fontWeight="bold">Subtotal Consignación:</Typography>
                       </TableCell>
                       <TableCell align="right">
@@ -339,7 +423,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                           ${salesData.totalConsignacion.toFixed(2)}
                         </Typography>
                       </TableCell>
-                      {viewMode === 'historical' && <TableCell colSpan={2}></TableCell>}
+                      {viewMode === 'historical' && canDeleteProducts && <TableCell />}
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -373,12 +457,16 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                         <>
                           <TableCell align="center"><strong>Fecha</strong></TableCell>
                           <TableCell align="center"><strong>Estado</strong></TableCell>
+                          {canDeleteProducts && <TableCell align="center"><strong>Acciones</strong></TableCell>}
                         </>
                       )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {salesData.productosPropios.map((producto, index) => (
+                    {salesData.productosPropios.map((producto, index) => {
+                      const prodHist = producto as ProductoDataHistorial;
+                      const deleteKey = 'sale' in prodHist ? (prodHist.product.ventaProductoId ?? `${prodHist.sale.identifier}-${index}`) : null;
+                      return (
                       <TableRow key={index} hover>
                         <TableCell>{producto.nombre}</TableCell>
                         <TableCell align="center">{producto.cantidad}</TableCell>
@@ -402,12 +490,29 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                                 variant="outlined"
                               />
                             </TableCell>
+                            {canDeleteProducts && 'sale' in prodHist && (
+                              <TableCell align="center">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  disabled={deletingKey === deleteKey || prodHist.sale.productos.length <= 1}
+                                  onClick={() => handleDeleteProduct(prodHist)}
+                                  aria-label="Eliminar producto"
+                                >
+                                  {deletingKey === deleteKey ? (
+                                    <CircularProgress size={20} />
+                                  ) : (
+                                    <Delete fontSize="small" />
+                                  )}
+                                </IconButton>
+                              </TableCell>
+                            )}
                           </>
                         )}
                       </TableRow>
-                    ))}
+                    );})}
                     <TableRow sx={{ bgcolor: "success.light" }}>
-                      <TableCell colSpan={viewMode === 'grouped' ? 3 : 3}>
+                      <TableCell colSpan={viewMode === 'grouped' ? 3 : canDeleteProducts ? 6 : 5}>
                         <Typography fontWeight="bold">Subtotal Propios:</Typography>
                       </TableCell>
                       <TableCell align="right">
@@ -415,7 +520,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                           ${salesData.totalPropios.toFixed(2)}
                         </Typography>
                       </TableCell>
-                      {viewMode === 'historical' && <TableCell colSpan={2}></TableCell>}
+                      {viewMode === 'historical' && canDeleteProducts && <TableCell />}
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -442,6 +547,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           )}
         </Box>
       </Box>
+      {ConfirmDialogComponent}
     </Drawer>
   );
 };

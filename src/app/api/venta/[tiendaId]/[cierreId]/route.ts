@@ -553,6 +553,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
       },
       productos: venta.productos.map((p) => ({
         id: p.producto.producto.id,
+        ventaProductoId: p.id,
         ventaId: venta.id,
         productoTiendaId: p.productoTiendaId,
         cantidad: p.cantidad,

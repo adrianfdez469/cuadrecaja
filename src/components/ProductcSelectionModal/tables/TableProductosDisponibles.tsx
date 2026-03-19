@@ -1,12 +1,10 @@
 import {formatCurrency, formatNumber} from "@/utils/formatters";
-import {Search, FilterAlt} from "@mui/icons-material";
+import {Search, DoDisturbOn} from "@mui/icons-material";
 import {
   Alert,
   Box,
   TableHead,
   Table,
-  Paper,
-  TableContainer,
   CircularProgress,
   TableRow,
   TableCell,
@@ -21,14 +19,14 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
-  Button
+  MenuItem, Tooltip, IconButton, Button
 } from "@mui/material";
 import React, {useCallback, useEffect, useRef, useState} from "react";
 import {IProductoDisponible, OperacionTipo} from "../ProductSelectionModal";
 import {ICategory} from "@/types/ICategoria";
 import {fetchCategories} from "@/services/categoryService";
 import {useVirtualizer} from '@tanstack/react-virtual';
+import ProductCard from "@/components/ProductcSelectionModal/ProductCard";
 
 interface IProps {
   operacion: OperacionTipo;
@@ -44,6 +42,7 @@ interface IProps {
   show: boolean;
   isFiltering: boolean;
   currentPage: number;
+  onReject?: (producto: IProductoDisponible) => void;
 }
 
 const TableProductosDisponibles: React.FC<IProps> = ({
@@ -60,13 +59,14 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                                        show,
                                                        isFiltering,
                                                        currentPage,
+                                                       onReject
                                                      }) => {
 
   const [categorias, setCategorias] = useState<ICategory[]>([]);
+  const [filterText, setFilterText] = useState('');
+  const [filterCategoryId, setFilterCategoryId] = useState('');
 
   // Refs para los inputs no controlados
-  const filterTextRef = useRef<HTMLInputElement>(null);
-  const filterCategoryRef = useRef<HTMLDivElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
 
@@ -74,7 +74,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
   const rowVirtualizer = useVirtualizer({
     count: productosDisponibles.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => isMobile ? 48 : 56,
+    estimateSize: () => isMobile ? 120 : 56, // Ajustar el tamaño estimado para móviles ya que ahora usaremos cards
     overscan: 10,
   });
 
@@ -175,32 +175,21 @@ const TableProductosDisponibles: React.FC<IProps> = ({
   // Función para aplicar filtros
   const handleApplyFilters = useCallback(() => {
     if (onFilterChange) {
-      const text = filterTextRef.current?.value || '';
-      const categoriaId = (filterCategoryRef.current?.querySelector('input') as HTMLInputElement)?.value || '';
-
       onFilterChange({
-        text: text.trim() || undefined,
-        categoriaId: categoriaId || undefined
+        text: filterText.trim() || undefined,
+        categoriaId: filterCategoryId || undefined
       });
     }
-  }, [onFilterChange]);
+  }, [onFilterChange, filterText, filterCategoryId]);
 
-  // Función para limpiar filtros
-  const handleClearFilters = useCallback(() => {
-    if (filterTextRef.current) {
-      filterTextRef.current.value = '';
-    }
-    if (filterCategoryRef.current) {
-      const select = filterCategoryRef.current.querySelector('input') as HTMLInputElement;
-      if (select) {
-        select.value = '';
-      }
-    }
+  // Debounce para aplicar filtros automáticamente
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleApplyFilters();
+    }, 500);
 
-    if (onFilterChange) {
-      onFilterChange({});
-    }
-  }, [onFilterChange]);
+    return () => clearTimeout(timer);
+  }, [filterText, filterCategoryId, handleApplyFilters]);
 
   return (
       <div style={{display: show ? 'block' : 'none'}}>
@@ -210,9 +199,11 @@ const TableProductosDisponibles: React.FC<IProps> = ({
               <Grid size={{xs: 12, sm: 4}}>
                 <TextField
                     fullWidth
+                    type="search"
                     size="small"
                     placeholder="Buscar por nombre o proveedor..."
-                    inputRef={filterTextRef}
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
                     slotProps={{
                       input: {
                         startAdornment: (
@@ -222,53 +213,27 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                         )
                       }
                     }}
-                    onKeyUp={(e) => {
-                      if (e.key === 'Enter') {
-                        handleApplyFilters();
-                      }
-                    }}
                 />
               </Grid>
-              {!isMobile &&
-                  <Grid size={{xs: 12, sm: 4}}>
-                      <FormControl fullWidth size="small">
-                          <InputLabel>Categoría</InputLabel>
-                          <Select
-                              ref={filterCategoryRef}
-                              label="Categoría"
-                              defaultValue=""
-                          >
-                              <MenuItem value="">Todas las categorías</MenuItem>
-                            {categorias.map(categoria => (
-                                <MenuItem key={categoria.id} value={categoria.id}>
-                                  {categoria.nombre}
-                                </MenuItem>
-                            ))}
-                          </Select>
-                      </FormControl>
-                  </Grid>
-              }
+
               <Grid size={{xs: 12, sm: 4}}>
-                <Box display="flex" gap={1}>
-                  <Button
-                      variant="contained"
-                      size="small"
-                      startIcon={<FilterAlt/>}
-                      onClick={handleApplyFilters}
-                      fullWidth
-                  >
-                    Filtrar
-                  </Button>
-                  <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={handleClearFilters}
-                      fullWidth
-                  >
-                    Limpiar
-                  </Button>
-                </Box>
+                  <FormControl fullWidth size="small">
+                      <InputLabel>Categoría</InputLabel>
+                      <Select
+                          label="Categoría"
+                          value={filterCategoryId}
+                          onChange={(e) => setFilterCategoryId(e.target.value as string)}
+                      >
+                          <MenuItem value="">Todas las categorías</MenuItem>
+                        {categorias.map(categoria => (
+                            <MenuItem key={categoria.id} value={categoria.id}>
+                              {categoria.nombre}
+                            </MenuItem>
+                        ))}
+                      </Select>
+                  </FormControl>
               </Grid>
+
             </Grid>
           </CardContent>
         </Card>
@@ -283,95 +248,82 @@ const TableProductosDisponibles: React.FC<IProps> = ({
         }
 
         {productos.length > 0 && (
-            <TableContainer
-                component={Paper}
-                variant="outlined"
+            <Box
                 ref={tableContainerRef}
-                style={{
-                  height: isMobile ? 400 : 500,
+                sx={{
+                  height: isMobile ? 500 : 500,
                   overflow: 'auto',
+                  border: isMobile ? 'none' : '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  bgcolor: isMobile ? 'transparent' : 'background.paper'
                 }}
             >
-              <Table
-                  style={{
-                    tableLayout: 'fixed',
-                  }}
-              >
-                <TableHead>
-                  <TableRow>
-                    <TableCell
-                        style={{
-                          width: '50%',
-                        }}
-                    >
-                      Producto
-                    </TableCell>
-                    <TableCell
-                        style={{
-                          width: '20%',
-                        }}
-                    >
-                      {isMobile ? 'Cant' : 'Existencia'}
-                    </TableCell>
-                    <TableCell>
-                      Costo
-                    </TableCell>
-                    <TableCell>
-                      Precio
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {productosDisponibles.length > 0 ? (
-                      <>
-                        {(() => {
-                          const virtualItems = rowVirtualizer.getVirtualItems();
-                          const totalSize = rowVirtualizer.getTotalSize();
-                          const paddingTop = virtualItems.length > 0 ? virtualItems?.[0]?.start || 0 : 0;
-                          const paddingBottom = virtualItems.length > 0 ? totalSize - (virtualItems?.[virtualItems.length - 1]?.end || 0) : 0;
+                {!isMobile ? (
+                  <Table
+                      style={{
+                        tableLayout: 'fixed',
+                      }}
+                  >
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>
+                          Producto
+                        </TableCell>
+                        <TableCell>
+                          Existencia
+                        </TableCell>
+                        <TableCell>
+                          Costo
+                        </TableCell>
+                        <TableCell>
+                          Precio
+                        </TableCell>
+                        {onReject && (
+                          <TableCell>
+                            Acciones
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {productosDisponibles.length > 0 ? (
+                          <>
+                            {(() => {
+                              const virtualItems = rowVirtualizer.getVirtualItems();
+                              const totalSize = rowVirtualizer.getTotalSize();
+                              const paddingTop = virtualItems.length > 0 ? virtualItems?.[0]?.start || 0 : 0;
+                              const paddingBottom = virtualItems.length > 0 ? totalSize - (virtualItems?.[virtualItems.length - 1]?.end || 0) : 0;
 
-                          return (
-                              <>
-                                {paddingTop > 0 && (
-                                    <TableRow>
-                                      <TableCell
-                                          colSpan={4}
-                                          style={{height: `${paddingTop}px`, padding: 0, border: 0}}
-                                      />
-                                    </TableRow>
-                                )}
-                                {virtualItems.map(virtualRow => {
-                                  const producto = productosDisponibles[virtualRow.index];
-                                  const isDisabled = operacion === 'SALIDA' && producto.existencia <= 0;
-                                  return (
-                                      <TableRow
-                                          key={virtualRow.key}
-                                          data-index={virtualRow.index}
-                                          ref={rowVirtualizer.measureElement}
-                                          hover={!isDisabled}
-                                          onClick={() => !isDisabled && agregarProducto(producto)}
-                                          sx={{
-                                            cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                            opacity: isDisabled ? 0.5 : 1
-                                          }}
-                                      >
-                                        <TableCell style={{width: '50%'}}>
-                                          <Typography
-                                              variant={isMobile ? "caption" : "body2"}
-                                              fontWeight="medium"
+                              return (
+                                  <>
+                                    {paddingTop > 0 && (
+                                        <TableRow>
+                                              <TableCell
+                                                  colSpan={onReject ? 5 : 4}
+                                                  style={{height: `${paddingTop}px`, padding: 0, border: 0}}
+                                              />
+                                        </TableRow>
+                                    )}
+                                    {virtualItems.map(virtualRow => {
+                                      const producto = productosDisponibles[virtualRow.index];
+                                      const isDisabled = operacion === 'SALIDA' && producto.existencia <= 0;
+                                      return (
+                                          <TableRow
+                                              key={virtualRow.key}
+                                              data-index={virtualRow.index}
+                                              ref={rowVirtualizer.measureElement}
+                                              hover={!isDisabled}
+                                              onClick={() => !isDisabled && agregarProducto(producto)}
                                               sx={{
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap',
-                                                display: 'block'
+                                                cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                                opacity: isDisabled ? 0.5 : 1
                                               }}
                                           >
-                                            {producto.proveedor ? `${producto.nombre} - ${producto.proveedor.nombre}` : producto.nombre}
-                                          </Typography>
-                                          {producto.proveedor && (
+                                            <TableCell>
                                               <Typography
-                                                  variant="caption"
-                                                  color="text.secondary"
+                                                  variant="body2"
+                                                  fontWeight="medium"
                                                   sx={{
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
@@ -379,71 +331,143 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                                     display: 'block'
                                                   }}
                                               >
-                                                {producto.proveedor.nombre}
+                                                {producto.proveedor ? `${producto.nombre} - ${producto.proveedor.nombre}` : producto.nombre}
                                               </Typography>
-                                          )}
-                                        </TableCell>
-                                        <TableCell>
-                                          <Chip
-                                              label={formatNumber(producto.existencia || 0)}
-                                              size={isMobile ? "small" : "medium"}
-                                              color={producto.existencia <= 0 ? 'error' : producto.existencia <= 5 ? 'warning' : 'success'}
-                                              sx={{fontSize: isMobile ? '0.7rem' : '0.75rem'}}
+                                              {producto.proveedor && (
+                                                  <Typography
+                                                      variant="caption"
+                                                      color="text.secondary"
+                                                      sx={{
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                        display: 'block'
+                                                      }}
+                                                  >
+                                                    {producto.proveedor.nombre}
+                                                  </Typography>
+                                              )}
+                                            </TableCell>
+                                            <TableCell>
+                                              <Chip
+                                                  label={formatNumber(producto.existencia || 0)}
+                                                  size="medium"
+                                                  color={producto.existencia <= 0 ? 'error' : producto.existencia <= 5 ? 'warning' : 'success'}
+                                                  sx={{fontSize: '0.75rem'}}
+                                              />
+                                            </TableCell>
+                                            <TableCell>
+                                              <Typography
+                                                  variant="body2"
+                                                  fontWeight="medium"
+                                                  sx={{
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                  }}
+                                              >
+                                                {formatCurrency(producto.costo)}
+                                              </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                              <Typography
+                                                  variant="body2"
+                                                  fontWeight="medium"
+                                                  sx={{
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                  }}
+                                              >
+                                                {formatCurrency(producto.precio)}
+                                              </Typography>
+                                            </TableCell>
+                                            {onReject && (
+                                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                                {producto.movimientoOrigenId && (
+                                                  <Tooltip title="Rechazar Entrada">
+                                                    <IconButton
+                                                      size="small"
+                                                      color="error"
+                                                      onClick={() => onReject(producto)}
+                                                    >
+                                                      <DoDisturbOn />
+                                                    </IconButton>
+                                                  </Tooltip>
+                                                )}
+                                              </TableCell>
+                                            )}
+                                          </TableRow>
+                                      );
+                                    })}
+                                    {paddingBottom > 0 && (
+                                        <TableRow>
+                                          <TableCell
+                                              colSpan={onReject ? 5 : 4}
+                                              style={{height: `${paddingBottom}px`, padding: 0, border: 0}}
                                           />
-                                        </TableCell>
-                                        <TableCell>
-                                          <Typography
-                                              variant={isMobile ? "caption" : "body2"}
-                                              fontWeight="medium"
-                                              sx={{
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
-                                              }}
-                                          >
-                                            {formatCurrency(producto.costo)}
-                                          </Typography>
-                                        </TableCell>
-                                        <TableCell>
-                                          <Typography
-                                              variant={isMobile ? "caption" : "body2"}
-                                              fontWeight="medium"
-                                              sx={{
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
-                                              }}
-                                          >
-                                            {formatCurrency(producto.precio)}
-                                          </Typography>
-                                        </TableCell>
-                                      </TableRow>
-                                  );
-                                })}
-                                {paddingBottom > 0 && (
-                                    <TableRow>
-                                      <TableCell
-                                          colSpan={4}
-                                          style={{height: `${paddingBottom}px`, padding: 0, border: 0}}
-                                      />
-                                    </TableRow>
-                                )}
-                              </>
-                          );
-                        })()}
-                      </>
-                  ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{py: 4}}>
-                          <Typography variant="body2" color="text.secondary">
-                            {loading ? 'Cargando productos...' : 'No se encontraron productos con los filtros aplicados'}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                                        </TableRow>
+                                    )}
+                                  </>
+                              );
+                            })()}
+                          </>
+                      ) : (
+                          <TableRow>
+                            <TableCell colSpan={onReject ? 5 : 4} align="center" sx={{py: 4}}>
+                              <Typography variant="body2" color="text.secondary">
+                                {loading ? 'Cargando productos...' : 'No se encontraron productos con los filtros aplicados'}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                ) : (
+                    <Box sx={{ position: 'relative', height: `${rowVirtualizer.getTotalSize()}px`, width: '100%' }}>
+                      {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                        const producto = productosDisponibles[virtualRow.index];
+                        const isDisabled = operacion === 'SALIDA' && producto.existencia <= 0;
+                        return (
+                          <Box
+                            key={virtualRow.key}
+                            data-index={virtualRow.index}
+                            ref={rowVirtualizer.measureElement}
+                            sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              transform: `translateY(${virtualRow.start}px)`,
+                              p: 1
+                            }}
+                          >
+                            <ProductCard
+                                key={producto.productoId}
+                                name={producto.proveedor ? `${producto.nombre} - ${producto.proveedor.nombre}` : producto.nombre}
+                                cost={producto.costo}
+                                precio = {producto.precio}
+                                stock={producto.existencia}
+                                onClick={() => !isDisabled && agregarProducto(producto)}
+                                actions={
+                                    producto.movimientoOrigenId && (<Button
+                                        variant="contained"
+                                        color="error"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onReject(producto);
+                                        }}
+                                    >
+                                      Rechazar
+                                    </Button>)
+                                }
+                            />
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                )}
+            </Box>
         )}
 
         {

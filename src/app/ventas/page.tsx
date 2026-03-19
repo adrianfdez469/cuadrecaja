@@ -43,17 +43,19 @@ import { useMessageContext } from "@/context/MessageContext";
 import { ICierrePeriodo } from "@/types/ICierre";
 import { IVenta } from "@/types/IVenta";
 import useConfirmDialog from "@/components/confirmDialog";
-import { getSells, removeSell } from "@/services/sellService";
+import { getSells, removeProductFromSale, removeSell } from "@/services/sellService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import VentaDetailDialog from "./components/VentaDetailDialog";
 import { formatDate, formatDateTime, formatCurrency, isToday } from '@/utils/formatters';
+import { usePermisos } from "@/utils/permisos_front";
 
 const Ventas = () => {
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { verificarPermiso } = usePermisos();
   
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>();
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -66,6 +68,7 @@ const Ventas = () => {
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedVenta, setSelectedVenta] = useState<IVenta | null>(null);
+  const [deletingVentaProductoId, setDeletingVentaProductoId] = useState<string | null>(null);
 
   const handleCreateFirstPeriod = async () => {
     // Evitar múltiples clics mientras se procesa
@@ -86,7 +89,7 @@ const Ventas = () => {
     }
   };
 
-  const loadData = async () => {
+  const loadData = async (): Promise<IVenta[]> => {
     setIsDataLoading(true);
     setNoPeriodFound(false);
     setNoLocalActual(false);
@@ -94,7 +97,7 @@ const Ventas = () => {
     try {
       if (!user.localActual || !user.localActual.id) {
         setNoLocalActual(true);
-        return;
+        return [];
       }
 
       const tiendaId = user.localActual.id;
@@ -102,17 +105,19 @@ const Ventas = () => {
       
       if (!currentPeriod) {
         setNoPeriodFound(true);
-        return;
+        return [];
       }
       
       setCurrentPeriod(currentPeriod);
 
       const data = await getSells(tiendaId, currentPeriod.id);
       setVentas(data || []);
+      return data || [];
     } catch (error) {
       console.log(error);
       showMessage("Error: los datos de ventas no pudieron ser cargados", "error");
       setVentas([]);
+      return [];
     } finally {
       setIsDataLoading(false);
     }
@@ -140,8 +145,34 @@ const Ventas = () => {
           console.log(error);
           showMessage("La venta no pudo ser eliminada", 'error');
         } finally {
-          loadData();
+          await loadData();
           handleCloseDetail();
+        }
+      }
+    );
+  };
+
+  const handleDeleteProductoFromVenta = (venta: IVenta, ventaProductoId: string) => {
+    confirmDialog(
+      "¿Está seguro que desea eliminar este producto de la venta?",
+      async () => {
+        try {
+          setDeletingVentaProductoId(ventaProductoId);
+          const tiendaId = user.localActual.id;
+          await removeProductFromSale(tiendaId, currentPeriod.id, venta.id, ventaProductoId);
+          showMessage("Producto eliminado de la venta", "success");
+        } catch (error) {
+          console.log(error);
+          showMessage("No se pudo eliminar el producto de la venta", "error");
+        } finally {
+          setDeletingVentaProductoId(null);
+          const data = await loadData();
+          const updated = data.find(v => v.id === venta.id) || null;
+          if (updated) {
+            setSelectedVenta(updated);
+          } else {
+            handleCloseDetail();
+          }
         }
       }
     );
@@ -601,6 +632,14 @@ const Ventas = () => {
         open={detailDialogOpen}
         onClose={handleCloseDetail}
         venta={selectedVenta}
+        deletingVentaProductoId={deletingVentaProductoId}
+        canDeleteProducts={
+          !!selectedVenta &&
+          (selectedVenta.usuarioId === user.id || user.rol === "SUPER_ADMIN") &&
+          (verificarPermiso("operaciones.pos-venta.cancelarventa") ||
+            verificarPermiso("operaciones.ventas.eliminar"))
+        }
+        onDeleteProduct={handleDeleteProductoFromVenta}
       />
 
       {ConfirmDialogComponent}

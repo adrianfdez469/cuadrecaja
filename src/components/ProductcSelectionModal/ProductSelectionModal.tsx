@@ -25,6 +25,7 @@ import {
 import { ITipoMovimiento } from '@/types/IMovimiento';
 import TableProductosDisponibles from './tables/TableProductosDisponibles';
 import TableProductosSeleccionados from './tables/TableProductosSeleccionados';
+import { RejectionModal } from './RejectionModal';
 import { useMessageContext } from '@/context/MessageContext';
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
 
@@ -71,6 +72,7 @@ interface ProductSelectionModalProps {
   operacion: OperacionTipo;
   iTipoMovimiento: ITipoMovimiento;
   onConfirm: (productosSeleccionados: IProductoSeleccionado[]) => void;
+  onReject?: (producto: IProductoDisponible, motivo: string) => Promise<void>;
   loading?: boolean;
   productosSeleccionadosIniciales?: IProductoSeleccionado[];
 }
@@ -85,6 +87,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   loadProductos,
   operacion,
   onConfirm,
+  onReject,
   loading = false,
   iTipoMovimiento,
   productosSeleccionadosIniciales
@@ -106,6 +109,10 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   // Estados para filtros
   const [currentFilters, setCurrentFilters] = useState<{ text?: string, categoriaId?: string }>({});
   const [isFiltering, setIsFiltering] = useState(false);
+
+  // Estado para el rechazo de productos
+  const [rejectingProduct, setRejectingProduct] = useState<IProductoDisponible | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
 
   // Productos disponibles (excluyendo los ya seleccionados) - MEMOIZADO
   const productosDisponibles = useMemo(() => {
@@ -151,6 +158,28 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
     onConfirm(productosSeleccionados);
   }, [hayErrores, totalProductos, onConfirm, productosSeleccionados]);
+
+  // Manejar el rechazo de un producto
+  const handleRejectClick = useCallback((producto: IProductoDisponible) => {
+    setRejectingProduct(producto);
+  }, []);
+
+  const handleConfirmReject = useCallback(async (motivo: string) => {
+    if (!rejectingProduct || !onReject) return;
+    
+    setIsRejecting(true);
+    try {
+      await onReject(rejectingProduct, motivo);
+      // Eliminar el producto de la lista local para que ya no aparezca
+      setProductos(prev => prev.filter(p => p.movimientoOrigenId !== rejectingProduct.movimientoOrigenId));
+      setRejectingProduct(null);
+    } catch (error) {
+      console.error("Error al rechazar producto:", error);
+      showMessage("Error al rechazar el producto", "error");
+    } finally {
+      setIsRejecting(false);
+    }
+  }, [rejectingProduct, onReject, showMessage]);
 
   // Función para cargar más productos - MEMOIZADA
   const loadMoreProductos = useCallback(async () => {
@@ -426,7 +455,8 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     onFilterChange: handleFilterChange,
     show: activeTab === 0,
     isFiltering,
-    currentPage
+    currentPage,
+    onReject: onReject ? handleRejectClick : undefined
   }), [
     operacion,
     loading,
@@ -440,7 +470,9 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     handleFilterChange,
     activeTab,
     isFiltering,
-    currentPage
+    currentPage,
+    onReject,
+    handleRejectClick
   ]);
 
   const tableProductosSeleccionadosProps = useMemo(() => ({
@@ -537,11 +569,18 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         </Box>
 
         <TableProductosDisponibles {...tableProductosDisponiblesProps} show={activeTab === 0} />
-        <TableProductosSeleccionados {...tableProductosSeleccionadosProps} show={activeTab === 1} />
+        <Box sx={{ mt: isMobile ? 1 : 0 }}>
+          <TableProductosSeleccionados {...tableProductosSeleccionadosProps} show={activeTab === 1} />
+        </Box>
+        
+        <RejectionModal
+          open={!!rejectingProduct}
+          onClose={() => setRejectingProduct(null)}
+          onConfirm={handleConfirmReject}
+          producto={rejectingProduct}
+          loading={isRejecting}
+        />
       </DialogContent>
-
-
-
 
       {/* Footer */}
       <DialogActions sx={{

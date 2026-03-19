@@ -180,3 +180,10 @@ export const getMovimientosProductosEnviados = async (tiendaId: string): Promise
   return resp.data;
 }
 
+export const rejectMovimiento = async (movimientoId: string, motivo: string) => {
+  await axios.post(`${API_URL}/rechazo`, {
+    movimientoId,
+    motivo
+  });
+}
+
