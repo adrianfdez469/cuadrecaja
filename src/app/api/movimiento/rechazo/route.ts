@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error al rechazar movimiento:", error);
     return NextResponse.json(
       { error: "Error al procesar el rechazo", details: error.message },

@@ -4,7 +4,6 @@ import React from 'react';
 import {
   Box,
   Card,
-  CardActions,
   CardContent,
   IconButton,
   Stack,
@@ -12,8 +11,6 @@ import {
   TextField,
   Divider,
   styled,
-  ButtonGroup,
-  Button
 } from "@mui/material";
 import { Add, Remove, Delete } from "@mui/icons-material";
 import { formatCurrency } from "@/utils/formatters";

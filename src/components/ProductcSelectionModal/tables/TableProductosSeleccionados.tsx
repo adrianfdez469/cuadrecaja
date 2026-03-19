@@ -17,12 +17,10 @@ import {
   CardContent,
   Grid,
   TextField,
-  Chip
 } from "@mui/material";
 import React from "react";
 import {OperacionTipo, IProductoSeleccionado} from "../ProductSelectionModal";
 import {ITipoMovimiento} from "@/types/IMovimiento";
-import ProductCard from "@/components/ProductcSelectionModal/ProductCard";
 import ProductSelectedCard from "@/components/ProductcSelectionModal/ProductSelectedCard";
 
 interface IProps {

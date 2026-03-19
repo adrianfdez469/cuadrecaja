@@ -10,7 +10,7 @@ import {
   Box,
   Alert
 } from '@mui/material';
-import { IProductoDisponible } from '../ProductSelectionModal';
+import {IProductoDisponible} from "@/components/ProductcSelectionModal/ProductSelectionModal";
 
 interface RejectionModalProps {
   open: boolean;
