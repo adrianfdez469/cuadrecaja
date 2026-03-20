@@ -234,6 +234,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                         cantidad={producto.cantidad}
                         costoUnitario={producto.costo}
                         costoTotal={producto.costoTotal}
+                        permiteDecimal={producto.permiteDecimal}
                         esSalida={esSalida}
                         disabledCantidad={tipoMovimiento === 'TRASPASO_ENTRADA'}
                         disabledCosto={esSalida || tipoMovimiento === 'TRASPASO_ENTRADA'}

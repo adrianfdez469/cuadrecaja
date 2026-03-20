@@ -13,13 +13,14 @@ import {
   styled,
 } from "@mui/material";
 import { Add, Remove, Delete } from "@mui/icons-material";
-import { formatCurrency } from "@/utils/formatters";
+import {formatCurrency, sanitizeNumber} from "@/utils/formatters";
 
 interface ProductSelectedCardProps {
   name: string;
   providerName?: string;
   existencia: number;
   cantidad: number;
+  permiteDecimal: boolean;
   costoUnitario?: number;
   costoTotal: number;
   esSalida: boolean;
@@ -84,6 +85,7 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
   providerName,
   existencia,
   cantidad,
+  permiteDecimal,
   costoUnitario,
   costoTotal,
   esSalida,
@@ -105,8 +107,8 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = Number(e.target.value);
-    if (!isNaN(val)) {
+    const val = e.target.value;
+    if (/^\d*\.?\d*$/.test(val)) {
       onActualizarCantidad(val);
     }
   };
@@ -145,16 +147,19 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
                 <Remove fontSize="small" />
               </QuantityButton>
               <QuantityInput
+                type="text"
                 variant="outlined"
                 size="medium"
                 value={cantidad}
                 onChange={handleInputChange}
                 disabled={disabledCantidad}
-                inputProps={{
-                  inputMode: 'numeric',
-                  pattern: '[0-9]*',
-                  min: 1,
-                  max: esSalida ? existencia : undefined
+                slotProps={{
+                  htmlInput: {
+                    min: 1,
+                    max: esSalida ? existencia : undefined,
+                    step: permiteDecimal ? 0.01 : 1,
+                    style: { textAlign: 'center' }
+                  }
                 }}
               />
               <QuantityButton
