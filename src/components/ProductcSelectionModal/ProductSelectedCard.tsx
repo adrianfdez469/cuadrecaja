@@ -106,12 +106,19 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
     onActualizarCantidad(cantidad + 1);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(',', '.');
     if (/^\d*\.?\d*$/.test(val)) {
       onActualizarCantidad(val);
     }
   };
+
+  const handleCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value.replace(',', '.');
+      if (/^\d*\.?\d*$/.test(val)) {
+        onActualizarCosto(val);
+      }
+  }
 
   return (
     <StyledCard variant="outlined">
@@ -151,14 +158,15 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
                 variant="outlined"
                 size="medium"
                 value={cantidad}
-                onChange={handleInputChange}
+                onChange={handleQuantityChange}
                 disabled={disabledCantidad}
                 slotProps={{
                   htmlInput: {
                     min: 1,
                     max: esSalida ? existencia : undefined,
                     step: permiteDecimal ? 0.01 : 1,
-                    style: { textAlign: 'center' }
+                    style: { textAlign: 'center' },
+                    inputMode: 'decimal' as const
                   }
                 }}
               />
@@ -181,10 +189,10 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
             </Typography>
             {!disabledCosto && (
               <TextField
-                type="number"
+                type="text"
                 size="small"
                 value={costoUnitario ? costoUnitario.toString() : 0}
-                onChange={(e) => onActualizarCosto(Number(e.target.value))}
+                onChange={handleCostChange}
                 slotProps={{
                   input: {
                     startAdornment: <Typography variant="body2" sx={{ mr: 0.5 }}>$</Typography>,
@@ -192,7 +200,8 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
                   htmlInput: {
                     min: 0,
                     step: 0.01,
-                    style: { textAlign: 'right' }
+                    style: { textAlign: 'right' },
+                    inputMode: 'decimal' as const
                   }
                 }}
                 sx={{ width: '120px' }}
