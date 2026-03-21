@@ -1,5 +1,4 @@
 "use client";
-
 import React from 'react';
 import {
   Box,
@@ -8,18 +7,21 @@ import {
   IconButton,
   Stack,
   Typography,
-  TextField,
   Divider,
   styled,
 } from "@mui/material";
-import { Add, Remove, Delete } from "@mui/icons-material";
-import { formatCurrency } from "@/utils/formatters";
+import { Delete } from "@mui/icons-material";
+import {formatCurrency} from "@/utils/formatters";
+import NumberSpinner from "@/components/NumberSpinner";
+import NumberField from "@/components/NumberField";
+import StockBadge from './StockBadge';
 
 interface ProductSelectedCardProps {
   name: string;
   providerName?: string;
   existencia: number;
   cantidad: number;
+  permiteDecimal: boolean;
   costoUnitario?: number;
   costoTotal: number;
   esSalida: boolean;
@@ -37,53 +39,12 @@ const StyledCard = styled(Card)(({ theme }) => ({
   border: `1px solid ${theme.palette.divider}`,
 }));
 
-const QuantitySelector = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: '8px',
-  width: 'fit-content',
-  backgroundColor: theme.palette.background.paper,
-}));
-
-const QuantityButton = styled(IconButton)(({ theme }) => ({
-  padding: theme.spacing(1),
-  borderRadius: 0,
-  backgroundColor: theme.palette.action.hover,
-  '&:hover': {
-    backgroundColor: theme.palette.action.selected,
-  },
-  '&.Mui-disabled': {
-    backgroundColor: theme.palette.action.disabledBackground,
-  }
-}));
-
-const QuantityInput = styled(TextField)(({ theme }) => ({
-  '& .MuiOutlinedInput-root': {
-    borderRadius: 0,
-    '& fieldset': {
-      border: 'none',
-      borderLeft: `1px solid ${theme.palette.divider}`,
-      borderRight: `1px solid ${theme.palette.divider}`,
-    },
-    '& input': {
-      textAlign: 'center',
-      padding: '8px 4px',
-      // width: '50px',
-      MozAppearance: 'textfield',
-      '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': {
-        WebkitAppearance: 'none',
-        margin: 0,
-      },
-    },
-  },
-}));
-
 const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
   name,
   providerName,
   existencia,
   cantidad,
+  permiteDecimal,
   costoUnitario,
   costoTotal,
   esSalida,
@@ -93,32 +54,28 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
   onActualizarCosto,
   onEliminar,
 }) => {
-  const handleDecrement = () => {
-    if (cantidad > 1) {
-      onActualizarCantidad(cantidad - 1);
-    }
+
+  const handleQuantityChange = ( value) => {
+    onActualizarCantidad(value);
   };
 
-  const handleIncrement = () => {
-    if (esSalida && cantidad >= existencia) return;
-    onActualizarCantidad(cantidad + 1);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = Number(e.target.value);
-    if (!isNaN(val)) {
-      onActualizarCantidad(val);
-    }
-  };
+  const handleCostChange = (val) => {
+    onActualizarCosto(val);
+  }
 
   return (
     <StyledCard variant="outlined">
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Stack spacing={2}>
           {/* 1. Top: Product Name and Existence */}
-          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+          <Box display="flex" justifyContent="space-between" gap={1} alignItems="center">
             <Box>
-              <Typography variant="subtitle1"  sx={{ lineHeight: 1.2 }}>
+              <Typography variant="subtitle1" sx={{
+                fontWeight: 700,
+                color: 'text.primary',
+                lineHeight: 1.2,
+                flex: 1
+              }}>
                 {name}
               </Typography>
               {providerName && (
@@ -127,44 +84,21 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
                 </Typography>
               )}
             </Box>
-            <Typography variant="h3" fontWeight="bold">
-              {existencia}
-            </Typography>
+            <StockBadge stock={existencia} />
           </Box>
 
           <Divider />
 
-          {/* 2. Middle: Quantity Selector */}
           <Box display="flex" justifyContent="center">
-            <QuantitySelector>
-              <QuantityButton
-                size="small"
-                onClick={handleDecrement}
-                disabled={disabledCantidad || cantidad <= 1}
-              >
-                <Remove fontSize="small" />
-              </QuantityButton>
-              <QuantityInput
-                variant="outlined"
+            <NumberSpinner
                 size="medium"
-                value={cantidad}
-                onChange={handleInputChange}
+                value={Number(cantidad)}
+                onValueChange={handleQuantityChange}
                 disabled={disabledCantidad}
-                inputProps={{
-                  inputMode: 'numeric',
-                  pattern: '[0-9]*',
-                  min: 1,
-                  max: esSalida ? existencia : undefined
-                }}
-              />
-              <QuantityButton
-                size="small"
-                onClick={handleIncrement}
-                disabled={disabledCantidad || (esSalida && cantidad >= existencia)}
-              >
-                <Add fontSize="small" />
-              </QuantityButton>
-            </QuantitySelector>
+                step={permiteDecimal ? 0.01 : 1}
+                min={1}
+                max={esSalida ? existencia : undefined}
+            />
           </Box>
 
           <Divider />
@@ -174,25 +108,17 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
             <Typography variant="body2" fontWeight="medium" color="text.secondary">
               Costo:
             </Typography>
-            {!disabledCosto && (
-              <TextField
-                type="number"
+
+            <NumberField
+                value={costoUnitario}
+                readOnly={disabledCosto}
+                disabled={disabledCosto}
+                onValueChange={handleCostChange}
+                min={0}
+                defaultValue={0}
+                step={0.01}
                 size="small"
-                value={costoUnitario ? costoUnitario.toString() : 0}
-                onChange={(e) => onActualizarCosto(Number(e.target.value))}
-                slotProps={{
-                  input: {
-                    startAdornment: <Typography variant="body2" sx={{ mr: 0.5 }}>$</Typography>,
-                  },
-                  htmlInput: {
-                    min: 0,
-                    step: 0.01,
-                    style: { textAlign: 'right' }
-                  }
-                }}
-                sx={{ width: '120px' }}
-              />
-            )}
+            />
           </Box>
 
           <Divider />

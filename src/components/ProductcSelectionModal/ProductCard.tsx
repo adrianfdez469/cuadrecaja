@@ -11,6 +11,7 @@ import {
   styled
 } from "@mui/material";
 import {formatCurrency} from "@/utils/formatters";
+import StockBadge from './StockBadge';
 
 interface ProductCardProps {
   name: string;
@@ -32,47 +33,8 @@ const StyledCard = styled(Card)(({ theme }) => ({
   },
 }));
 
-const StockBadge = styled(Box, {
-  shouldForwardProp: (prop) => prop !== 'stockStatus',
-})<{ stockStatus: 'high' | 'low' | 'none' }>(({ theme, stockStatus }) => {
-  const colors = {
-    high: theme.palette.success,
-    low: theme.palette.warning,
-    none: theme.palette.error,
-  };
-
-  const statusColor = colors[stockStatus];
-
-  return {
-    backgroundColor: statusColor.main,
-    color: statusColor.contrastText,
-    padding: '8px 16px',
-    borderRadius: '12px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: '80px',
-    lineHeight: 1,
-  };
-});
-
 function ProductCard({name, cost, precio, stock, onClick, actions}: ProductCardProps ) {
   const total = cost * stock;
-
-  const getStockStatus = () => {
-    if (stock <= 0) return 'none';
-    if (stock < 5) return 'low';
-    return 'high';
-  };
-
-  const getStockLabel = () => {
-    if (stock <= 0) return 'sin stock';
-    if (stock < 5) return 'bajo en stock';
-    return 'en stock';
-  };
-
-  const status = getStockStatus();
 
   return (
     <StyledCard variant="outlined">
@@ -95,29 +57,7 @@ function ProductCard({name, cost, precio, stock, onClick, actions}: ProductCardP
             >
               {name}
             </Typography>
-            <StockBadge stockStatus={status}>
-              <Typography
-                variant="h5"
-                sx={{
-                  fontWeight: 800,
-                  lineHeight: 1,
-                  mb: 0.5
-                }}
-              >
-                {stock || 0}
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  fontSize: '0.65rem',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {getStockLabel()}
-              </Typography>
-            </StockBadge>
+            <StockBadge stock={stock} />
           </Stack>
         </Box>
 
