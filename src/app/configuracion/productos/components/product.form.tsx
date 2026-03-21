@@ -90,7 +90,7 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
   };
 
   const handleSaveProduct = () => {
-    if(selectedFraccionProduct) {
+    if(selectedFraccionProduct && esFraccion) {
       handleSave(
         nombre, 
         descripcion, 
@@ -103,8 +103,8 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
       handleSave(
         nombre, 
         descripcion, 
-        categoria, 
-        undefined, 
+        categoria,
+        {fraccionDeId: null, unidadesPorFraccion: null},
         codigosProducto.filter(Boolean),
         permiteDecimal
       );
@@ -189,61 +189,6 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
           value={descripcion}
           onChange={(e) => setDescripcion(e.target.value)}
         />
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={esFraccion}
-                onChange={(e) => setEsFraccion(e.target.checked)}
-              />
-            }
-            label="¿Es fracción de otro producto?"
-          />
-          <Tooltip 
-            title="Los productos fracción permiten vender un producto existente en unidades más pequeñas. Por ejemplo, si tienes un paquete de 12 unidades, puedes crear una fracción para vender de 1 en 1."
-            arrow
-            placement={isMobile ? "top" : "left"}
-            open={fraccionTooltipOpen}
-            disableHoverListener
-            disableFocusListener
-            disableTouchListener
-            PopperProps={{
-              modifiers: [
-                {
-                  name: 'preventOverflow',
-                  enabled: true,
-                  options: {
-                    altAxis: true,
-                    altBoundary: true,
-                    tether: true,
-                    rootBoundary: 'document',
-                    padding: 8,
-                  },
-                },
-                {
-                  name: 'flip',
-                  enabled: true,
-                  options: {
-                    altBoundary: true,
-                    rootBoundary: 'document',
-                    padding: 8,
-                  },
-                },
-              ],
-            }}
-          >
-            <IconButton 
-              size="small" 
-              onClick={handleFraccionTooltipToggle}
-              sx={{ 
-                color: fraccionTooltipOpen ? 'primary.main' : 'info.main',
-                '&:hover': { color: 'primary.main' }
-              }}
-            >
-              <Info fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
           <FormControlLabel
@@ -300,33 +245,89 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
             </IconButton>
           </Tooltip>
         </Box>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <FormControlLabel
+              control={
+                <Checkbox
+                    checked={esFraccion}
+                    onChange={(e) => setEsFraccion(e.target.checked)}
+                />
+              }
+              label="¿Es fracción de otro producto?"
+          />
+          <Tooltip
+              title="Los productos fracción permiten vender un producto existente en unidades más pequeñas. Por ejemplo, si tienes un paquete de 12 unidades, puedes crear una fracción para vender de 1 en 1."
+              arrow
+              placement={isMobile ? "top" : "left"}
+              open={fraccionTooltipOpen}
+              disableHoverListener
+              disableFocusListener
+              disableTouchListener
+              PopperProps={{
+                modifiers: [
+                  {
+                    name: 'preventOverflow',
+                    enabled: true,
+                    options: {
+                      altAxis: true,
+                      altBoundary: true,
+                      tether: true,
+                      rootBoundary: 'document',
+                      padding: 8,
+                    },
+                  },
+                  {
+                    name: 'flip',
+                    enabled: true,
+                    options: {
+                      altBoundary: true,
+                      rootBoundary: 'document',
+                      padding: 8,
+                    },
+                  },
+                ],
+              }}
+          >
+            <IconButton
+                size="small"
+                onClick={handleFraccionTooltipToggle}
+                sx={{
+                  color: fraccionTooltipOpen ? 'primary.main' : 'info.main',
+                  '&:hover': { color: 'primary.main' }
+                }}
+            >
+              <Info fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
         
         {esFraccion && (
-          <Box display={'flex'} flexDirection={'row'} sx={{paddingTop: 2, paddingBottom: 2, gap: 2}} >
-          <FormControl fullWidth sx={{flex: 0.7}}>
-            <InputLabel id="prod-select-label">Producto</InputLabel>
-            <Select
-              labelId="prod-select-label"
-              id="prod-select"
-              value={selectedFraccionProduct?.id || ''}
-              label="Producto"
-              onChange={(e) => {
-                const selectedProduct = productos.find(p => p.id === e.target.value);
-                if (selectedProduct) {
-                  hendleSelectProduct(selectedProduct);
-                }
-              }}
-            >
-              {productos.map((p) => {
-                return (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.nombre}
-                  </MenuItem>
-                );
-              })}
-            </Select>
-          </FormControl>
-          <TextField sx={{flex: 0.3}} label="Fraccionable en" value={fraccionValue} onChange={(e) => handleFraccionValueChange(e.target.value)}/>
+          <Box display={'flex'} flexDirection={{xs: 'column', sm: 'row'}} sx={{paddingTop: 2, paddingBottom: 2, gap: 2}} >
+            <FormControl fullWidth sx={{flex: 1}}>
+              <InputLabel id="prod-select-label">Producto</InputLabel>
+              <Select
+                labelId="prod-select-label"
+                id="prod-select"
+                value={selectedFraccionProduct?.id || ''}
+                label="Producto"
+                onChange={(e) => {
+                  const selectedProduct = productos.find(p => p.id === e.target.value);
+                  if (selectedProduct) {
+                    hendleSelectProduct(selectedProduct);
+                  }
+                }}
+              >
+                {productos.map((p) => {
+                  return (
+                    <MenuItem key={p.id} value={p.id}>
+                      {p.nombre}
+                    </MenuItem>
+                  );
+                })}
+              </Select>
+            </FormControl>
+            <TextField sx={{flex: 1}} label="Fraccionable en" value={fraccionValue} onChange={(e) => handleFraccionValueChange(e.target.value)}/>
           </Box>
 
         )}
