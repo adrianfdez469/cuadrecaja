@@ -14,6 +14,7 @@ import { Delete } from "@mui/icons-material";
 import {formatCurrency} from "@/utils/formatters";
 import NumberSpinner from "@/components/NumberSpinner";
 import NumberField from "@/components/NumberField";
+import StockBadge from './StockBadge';
 
 interface ProductSelectedCardProps {
   name: string;
@@ -78,9 +79,7 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
                 </Typography>
               )}
             </Box>
-            <Typography variant="h3" fontWeight="bold">
-              {existencia}
-            </Typography>
+            <StockBadge stock={existencia} />
           </Box>
 
           <Divider />
