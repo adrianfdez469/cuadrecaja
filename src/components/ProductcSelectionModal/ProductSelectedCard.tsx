@@ -67,7 +67,7 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Stack spacing={2}>
           {/* 1. Top: Product Name and Existence */}
-          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+          <Box display="flex" justifyContent="space-between" gap={1} alignItems="center">
             <Box>
               <Typography variant="subtitle1"  sx={{ lineHeight: 1.2 }}>
                 {name}
