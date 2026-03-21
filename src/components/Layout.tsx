@@ -630,6 +630,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   fontWeight: 500,
                   display: 'flex'
                 }}
+                onClick={()=> gotToPath('/home')}
               />
             )}
           </Box>
