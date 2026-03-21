@@ -70,7 +70,12 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
           {/* 1. Top: Product Name and Existence */}
           <Box display="flex" justifyContent="space-between" gap={1} alignItems="center">
             <Box>
-              <Typography variant="subtitle1"  sx={{ lineHeight: 1.2 }}>
+              <Typography variant="subtitle1" sx={{
+                fontWeight: 700,
+                color: 'text.primary',
+                lineHeight: 1.2,
+                flex: 1
+              }}>
                 {name}
               </Typography>
               {providerName && (
@@ -103,16 +108,17 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
             <Typography variant="body2" fontWeight="medium" color="text.secondary">
               Costo:
             </Typography>
-            {!disabledCosto && (
-                <NumberField
-                    value={costoUnitario}
-                    onValueChange={handleCostChange}
-                    min={1}
-                    step={0.01}
-                    size="small"
-                />
 
-            )}
+            <NumberField
+                value={costoUnitario}
+                readOnly={disabledCosto}
+                disabled={disabledCosto}
+                onValueChange={handleCostChange}
+                min={0}
+                defaultValue={0}
+                step={0.01}
+                size="small"
+            />
           </Box>
 
           <Divider />
