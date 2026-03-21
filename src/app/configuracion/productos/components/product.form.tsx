@@ -303,31 +303,31 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
         </Box>
         
         {esFraccion && (
-          <Box display={'flex'} flexDirection={'row'} sx={{paddingTop: 2, paddingBottom: 2, gap: 2}} >
-          <FormControl fullWidth sx={{flex: 0.7}}>
-            <InputLabel id="prod-select-label">Producto</InputLabel>
-            <Select
-              labelId="prod-select-label"
-              id="prod-select"
-              value={selectedFraccionProduct?.id || ''}
-              label="Producto"
-              onChange={(e) => {
-                const selectedProduct = productos.find(p => p.id === e.target.value);
-                if (selectedProduct) {
-                  hendleSelectProduct(selectedProduct);
-                }
-              }}
-            >
-              {productos.map((p) => {
-                return (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.nombre}
-                  </MenuItem>
-                );
-              })}
-            </Select>
-          </FormControl>
-          <TextField sx={{flex: 0.3}} label="Fraccionable en" value={fraccionValue} onChange={(e) => handleFraccionValueChange(e.target.value)}/>
+          <Box display={'flex'} flexDirection={{xs: 'column', sm: 'row'}} sx={{paddingTop: 2, paddingBottom: 2, gap: 2}} >
+            <FormControl fullWidth sx={{flex: 1}}>
+              <InputLabel id="prod-select-label">Producto</InputLabel>
+              <Select
+                labelId="prod-select-label"
+                id="prod-select"
+                value={selectedFraccionProduct?.id || ''}
+                label="Producto"
+                onChange={(e) => {
+                  const selectedProduct = productos.find(p => p.id === e.target.value);
+                  if (selectedProduct) {
+                    hendleSelectProduct(selectedProduct);
+                  }
+                }}
+              >
+                {productos.map((p) => {
+                  return (
+                    <MenuItem key={p.id} value={p.id}>
+                      {p.nombre}
+                    </MenuItem>
+                  );
+                })}
+              </Select>
+            </FormControl>
+            <TextField sx={{flex: 1}} label="Fraccionable en" value={fraccionValue} onChange={(e) => handleFraccionValueChange(e.target.value)}/>
           </Box>
 
         )}
