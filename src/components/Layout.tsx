@@ -174,7 +174,7 @@ const RESUMEN_MENU_ITEMS = [
 ];
 
 const HELP_MENU_ITEMS = [
-  { label: "Descargar App", path: "/descargar", icon: Android, permission: '*' },
+  { label: "Descargar App", path: "/descargar", icon: <Android sx={{ mr: 2, color: 'success.main' }} />, permission: '*' },
 ];
 
 
@@ -756,7 +756,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 <MenuItem onClick={() => { handleClose(); gotToPath('/descargar'); }}>
                   <Android sx={{ mr: 2, color: 'success.main' }} />
                   <Typography variant="body2" fontWeight={500}>
-                    Descargar App (APK)
+                    Descargar App sas(APK)
                   </Typography>
                 </MenuItem>
 
@@ -833,7 +833,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               {/* Contenido (Scrollable) */}
               <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
                 {user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'operaciones', user).length > 0 &&
-                  <Accordion expanded={menuState.operaciones} onChange={() => handleMenuAccordion('operaciones')}>
+                  <Accordion style={{margin: 0}} expanded={menuState.operaciones} onChange={() => handleMenuAccordion('operaciones')}>
                     <AccordionSummary expandIcon={<ExpandMore />}>
                       <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
                         Operaciones
@@ -877,7 +877,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 }
 
                 {user.localActual?.tipo && getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).length > 0 &&
-                  <Accordion expanded={menuState.resumenes} onChange={() => handleMenuAccordion('resumenes')}>
+                  <Accordion style={{margin: 0}} expanded={menuState.resumenes} onChange={() => handleMenuAccordion('resumenes')}>
                     <AccordionSummary expandIcon={<ExpandMore />}>
                       <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
                         Resúmenes
@@ -885,7 +885,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     </AccordionSummary>
                     <AccordionDetails>
                       {user?.localActual && (
-                        <List sx={{ pt: 0 }}>
+                        <List sx={{ pt: 0}}>
                           {getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).map((item) => (
                             <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
                               <ListItemButton
@@ -975,7 +975,6 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   </Accordion>
                 }
 
-                <Divider sx={{ my: 1 }} />
                 <List sx={{ px: 2 }}>
                   {HELP_MENU_ITEMS.map((item) => (
                     <ListItem key={item.label} disablePadding sx={{ mb: 0.5 }}>
@@ -993,7 +992,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                         }}
                       >
                         <ListItemIcon sx={{ minWidth: 40 }}>
-                          <item.icon sx={{ color: 'secondary.main', fontSize: 22 }} />
+                          {item.icon}
                         </ListItemIcon>
                         <ListItemText
                           primary={item.label}
