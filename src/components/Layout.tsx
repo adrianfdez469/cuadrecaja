@@ -757,7 +757,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 <MenuItem onClick={() => { handleClose(); gotToPath('/descargar'); }}>
                   <Android sx={{ mr: 2, color: 'success.main' }} />
                   <Typography variant="body2" fontWeight={500}>
-                    Descargar App sas(APK)
+                    Descargar App(APK)
                   </Typography>
                 </MenuItem>
 
