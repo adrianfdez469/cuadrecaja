@@ -738,13 +738,13 @@ export default function POSInterface() {
     setIntentToSearch(true);
   };
 
-  const handleSearchBlur = () => {
-    // Delay para permitir que los clicks en los resultados funcionen
-    setTimeout(() => {
-      setIntentToSearch(false);
-      setShowSearchResults(false);
-    }, 150);
-  };
+  // const handleSearchBlur = () => {
+  //   // Delay para permitir que los clicks en los resultados funcionen
+  //   setTimeout(() => {
+  //     setIntentToSearch(false);
+  //     setShowSearchResults(false);
+  //   }, 150);
+  // };
 
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
