@@ -1441,7 +1441,7 @@ export default function POSInterface() {
             onChange={(e) => handleSearch(e.target.value)}
             // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
             onFocus={() => handleSearchFocus()}
-            onBlur={() => handleSearchBlur()}
+            // onBlur={() => handleSearchBlur()}
             onMouseDown={() => handleSearchMouseDown()}
             InputProps={{
               startAdornment: (
@@ -1456,7 +1456,10 @@ export default function POSInterface() {
                     onClick={() => {
                       setSearchQuery("");
                       setShowSearchResults(false);
-                      setIntentToSearch(false); // Permitir que el escáner recupere el foco
+                      // setIntentToSearch(false); // Permitir que el escáner recupere el foco
+                      setTimeout(() => {
+                        searchInputRef.current?.focus();
+                      }, 0);
                     }}
                   >
                     <CloseIcon />
@@ -1489,8 +1492,19 @@ export default function POSInterface() {
               options: {
                 altAxis: true,
                 altBoundary: true,
-                tether: true,
+                tether: false,
                 rootBoundary: "viewport",
+                padding: isMobile ? 8 : 0,
+              },
+            },
+            {
+              name: "flip",
+              enabled: false, // Desactivar flip para mantener siempre arriba
+            },
+            {
+              name: "offset",
+              options: {
+                offset: [0, isMobile ? -8 : -8], // Offset adicional en móviles
               },
             },
           ]}
@@ -1503,7 +1517,7 @@ export default function POSInterface() {
                 onMouseDown={(e) => e.preventDefault()}
                 sx={{
                   width: "100%",
-                  maxHeight: "70vh",
+                  maxHeight: isMobile ? "40vh" : "70vh", // Reducir altura máxima en móviles
                   overflow: "auto",
                   borderRadius: "12px 12px 0 0",
                   mt: -2,
