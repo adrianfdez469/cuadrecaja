@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMessageContext } from '@/context/MessageContext';
 
 /**
@@ -9,21 +9,30 @@ import { useMessageContext } from '@/context/MessageContext';
 export function useBlockBackNavigation() {
   const { showMessage } = useMessageContext();
 
+  // Ref para que el handler siempre tenga la versión actual de showMessage
+  // sin necesitar ser dependencia del efecto (evita desmontajes/remontajes)
+  const showMessageRef = useRef(showMessage);
   useEffect(() => {
-    // Solo aplicar en dispositivos móviles
+    showMessageRef.current = showMessage;
+  }, [showMessage]);
+
+  useEffect(() => {
     const isMobile = window.matchMedia('(max-width: 600px)').matches;
     if (!isMobile) return;
 
-    // Insertar estado ficticio para que haya algo que interceptar
+    // Insertar varios estados ficticios como "colchón" ante presses rápidos
+    history.pushState(null, '', window.location.href);
+    history.pushState(null, '', window.location.href);
     history.pushState(null, '', window.location.href);
 
     const handlePopState = () => {
-      // Volver a insertar el estado para neutralizar la navegación
+      // Re-insertar inmediatamente para neutralizar el movimiento
       history.pushState(null, '', window.location.href);
-      showMessage('Navegación atrás deshabilitada en esta pantalla', 'warning');
+      showMessageRef.current('Navegación atrás deshabilitada', 'warning');
     };
 
     window.addEventListener('popstate', handlePopState);
+    // El listener nunca se desmonta mientras el componente esté vivo
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showMessage]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }

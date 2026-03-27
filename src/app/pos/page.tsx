@@ -51,7 +51,6 @@ import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
 
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
-import { formatDate } from "@/utils/formatters";
 
 import { IProcessedData } from "@/types/IProcessedData";
 import { ITransferDestination } from "@/types/ITransferDestination";
@@ -61,7 +60,6 @@ import { ProductProcessorDataRef } from "@/components/ProductProcessorData/Produ
 import audioService from "@/utils/audioService";
 import ShoppingCartComponent from "@/app/pos/components/ShoppingCartComponent";
 import PosStatusToolBar from "@/app/pos/components/SyncButton";
-import SyncIndicator from "@/app/pos/components/SyncIndicator";
 import ConnectionStatus from "@/app/pos/components/ConnectionStatus";
 import PeriodoBadge from "@/app/pos/components/PeriodoBadge";
 import RefreshButton from "@/app/pos/components/RefreshButton";
