@@ -1,19 +1,13 @@
 "use client";
 import React from "react";
 import { Box } from "@mui/material";
-import { Sale } from "@/store/salesStore";
 
 interface Props {
-  sales: Sale[];
   isOnline: boolean;
 }
 
-export default function ConnectionStatus({ sales, isOnline }: Props) {
-  const hasPendingOrSyncing = sales.some(
-    (s) => s.syncState === "not_synced" || s.syncState === "syncing"
-  );
+export default function ConnectionStatus({  isOnline }: Props) {
 
-  if (hasPendingOrSyncing) return null;
 
   return (
     <Box

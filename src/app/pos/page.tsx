@@ -927,8 +927,7 @@ export default function POSInterface() {
 
           <Box display="flex" flexDirection="row"  justifyContent="center" alignItems="center" gap={2}>
             <PosStatusToolBar handleShowSyncView={handleShowSyncView} handleShowUserSales={handleShowUserSales} />
-            <SyncIndicator sales={sales} />
-            <ConnectionStatus sales={sales} isOnline={isOnline} />
+            <ConnectionStatus isOnline={isOnline} />
           </Box>
 
         </Box>
