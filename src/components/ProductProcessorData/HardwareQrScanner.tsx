@@ -8,14 +8,16 @@ type HardwareQrScannerProps = {
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   keepFocus?: boolean; // Nueva prop para controlar si mantener el foco
+  showInput?: boolean; // Cuando false (defecto), el campo es casi invisible pero funcional
 };
 
-function HardwareQrScanner({ 
-  qrCodeSuccessCallback, 
-  style, 
-  value, 
-  onChange, 
-  keepFocus = true // Por defecto mantiene el comportamiento original
+function HardwareQrScanner({
+  qrCodeSuccessCallback,
+  style,
+  value,
+  onChange,
+  keepFocus = true,
+  showInput = false
 }: HardwareQrScannerProps) {
   const [internalQrData, setInternalQrData] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -77,8 +79,11 @@ function HardwareQrScanner({
       onInput={handleInput}
       variant="outlined"
       size="small"
-      sx={style || { width: '100%' }}
-      fullWidth={!!style?.width || !style}
+      sx={showInput
+        ? (style || { width: '100%' })
+        : { width: '1px', minWidth: 0, opacity: 0, flexShrink: 0, overflow: 'hidden' }
+      }
+      fullWidth={showInput ? (!!style?.width || !style) : false}
       // Configuración para evitar teclado virtual pero permitir pistolas escáner
       inputMode="none" // Evita teclado virtual en móviles
       autoComplete="off"

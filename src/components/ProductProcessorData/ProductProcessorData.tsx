@@ -6,8 +6,9 @@ import { Box } from '@mui/material';
 
 type ClientProcessorDataProps = {
   onProcessedData: (processedData: IProcessedData) => void;
-  onHardwareScan?: (processedData: IProcessedData) => void; // Nueva prop para escaneo de hardware
-  keepFocus?: boolean; // Nueva prop para controlar el foco del hardware scanner
+  onHardwareScan?: (processedData: IProcessedData) => void;
+  keepFocus?: boolean;
+  showInput?: boolean;
 };
 
 export interface ProductProcessorDataRef {
@@ -15,7 +16,7 @@ export interface ProductProcessorDataRef {
 }
 
 const ProductProcessorData = forwardRef<ProductProcessorDataRef, ClientProcessorDataProps>(
-  ({ onProcessedData, onHardwareScan, keepFocus = true }, ref) => {
+  ({ onProcessedData, onHardwareScan, keepFocus = true, showInput = false }, ref) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const qrModuleRef = React.useRef<any>(null);
 
@@ -41,11 +42,12 @@ const ProductProcessorData = forwardRef<ProductProcessorDataRef, ClientProcessor
 
     return (
       <Box display="flex" justifyContent="left" alignItems="left" height="100%">
-        <QrModuleScanner 
-          ref={qrModuleRef} 
-          onScan={handleScan} 
+        <QrModuleScanner
+          ref={qrModuleRef}
+          onScan={handleScan}
           onHardwareScan={handleHardwareScan}
           keepFocus={keepFocus}
+          showInput={showInput}
         />
       </Box>
     );
