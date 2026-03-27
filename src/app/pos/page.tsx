@@ -59,7 +59,10 @@ import { CartContent } from "@/components/cartDrawer/components/cartContent";
 import { ProductProcessorDataRef } from "@/components/ProductProcessorData/ProductProcessorData";
 import audioService from "@/utils/audioService";
 import ShoppingCartComponent from "@/app/pos/components/ShoppingCartComponent";
-import SyncButtonComponent from "@/app/pos/components/SyncButton";
+import PosStatusToolBar from "@/app/pos/components/SyncButton";
+import SyncIndicator from "@/app/pos/components/SyncIndicator";
+import ConnectionStatus from "@/app/pos/components/ConnectionStatus";
+import PeriodoBadge from "@/app/pos/components/PeriodoBadge";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -919,145 +922,15 @@ export default function POSInterface() {
             mb: 1,
           }}
         >
-          {/* Información del lado izquierdo */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-            }}
-          >
-            {/* Información del corte */}
-            {periodo && periodo.fechaInicio && (
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  bgcolor: "primary.main",
-                  color: "white",
-                  px: 2,
-                  py: 0.5,
-                  borderRadius: "20px",
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    bgcolor: "rgba(255,255,255,0.8)",
-                  }}
-                />
-                Período: {formatDate(periodo.fechaInicio)}
-              </Box>
-            )}
 
-            <SyncButtonComponent handleShowSyncView={handleShowSyncView} handleShowUserSales={handleShowUserSales} />
+          <PeriodoBadge periodo={periodo} isMobile={isMobile} />
 
-
-            {/* Indicador unificado de ventas pendientes/sincronizando */}
-            {(sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length > 0) && (
-              <Box
-                sx={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.5,
-                  // Color de fondo dinámico según el estado
-                  bgcolor: sales.filter(sale => sale.syncState === "syncing").length > 0
-                    ? "primary.light" // Azul cuando está sincronizando
-                    : "rgba(255, 152, 0, 0.2)", // Warning claro cuando está offline/pendiente
-                  // Color del texto dinámico
-                  color: sales.filter(sale => sale.syncState === "syncing").length > 0
-                    ? "primary.contrastText"
-                    : "warning.main",
-                  // Borde solo cuando está pendiente (offline)
-                  border: sales.filter(sale => sale.syncState === "syncing").length > 0
-                    ? "none"
-                    : "1px solid",
-                  borderColor: "warning.main",
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: "16px",
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  overflow: "hidden",
-                  // Efecto visual solo cuando está sincronizando
-                  "&::before": sales.filter(sale => sale.syncState === "syncing").length > 0 ? {
-                    content: '""',
-                    position: "absolute",
-                    top: 0,
-                    left: "-100%",
-                    width: "100%",
-                    height: "100%",
-                    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
-                    animation: "syncProgress 2s infinite",
-                  } : {},
-                  "@keyframes syncProgress": {
-                    "0%": { left: "-100%" },
-                    "100%": { left: "100%" },
-                  },
-                }}
-              >
-                {/* Spinner solo cuando está sincronizando */}
-                {sales.filter(sale => sale.syncState === "syncing").length > 0 && (
-                  <CircularProgress
-                    size={12}
-                    sx={{
-                      color: "primary.contrastText",
-                      zIndex: 1 // Para que esté encima del gradiente
-                    }}
-                  />
-                )}
-
-                {/* Texto dinámico según el estado */}
-                <Box sx={{ zIndex: 1 }}>
-                  {sales.filter(sale => sale.syncState === "syncing").length > 0
-                    ? `${sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length} sincronizando`
-                    : `${sales.filter(sale => sale.syncState === "not_synced").length} pendientes`
-                  }
-                </Box>
-              </Box>
-            )}
+          <Box display="flex" flexDirection="row"  justifyContent="center" alignItems="center" gap={2}>
+            <PosStatusToolBar handleShowSyncView={handleShowSyncView} handleShowUserSales={handleShowUserSales} />
+            <SyncIndicator sales={sales} />
+            <ConnectionStatus sales={sales} isOnline={isOnline} />
           </Box>
 
-          {/* Estado de conexión del lado derecho - Solo se muestra si no hay ventas pendientes ni sincronizando */}
-          {sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length === 0 && (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 0.5,
-                bgcolor: isOnline ? "success.main" : "warning.main",
-                color: "white",
-                px: 1.5,
-                py: 0.5,
-                borderRadius: "16px",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                transition: "all 0.3s ease",
-              }}
-            >
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  bgcolor: "rgba(255,255,255,0.9)",
-                  animation: isOnline ? "none" : "pulse 2s infinite",
-                  "@keyframes pulse": {
-                    "0%": { opacity: 1 },
-                    "50%": { opacity: 0.5 },
-                    "100%": { opacity: 1 },
-                  },
-                }}
-              />
-              {isOnline ? "Conectado" : "Desconectado"}
-            </Box>
-          )}
         </Box>
         {/* Contenido principal */}
         <Box
