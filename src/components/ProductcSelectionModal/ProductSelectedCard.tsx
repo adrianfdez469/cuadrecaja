@@ -7,7 +7,6 @@ import {
   IconButton,
   Stack,
   Typography,
-  Divider,
   styled,
 } from "@mui/material";
 import { Delete } from "@mui/icons-material";

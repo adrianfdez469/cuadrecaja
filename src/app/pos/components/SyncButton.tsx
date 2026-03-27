@@ -1,5 +1,5 @@
 import React from 'react';
-import {Badge, Button, IconButton, Stack} from "@mui/material";
+import {Badge, IconButton, Stack} from "@mui/material";
 import {useSalesStore} from "@/store/salesStore";
 import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import SyncProblemIcon from '@mui/icons-material/SyncProblem';
