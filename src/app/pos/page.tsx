@@ -48,6 +48,7 @@ import { QuantityDialog } from "./components/QuantityDialog";
 import { ProductQuickActions } from "./components/ProductQuickActions";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
 
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
 import { formatDate } from "@/utils/formatters";
@@ -102,6 +103,7 @@ export default function POSInterface() {
   } = useCartStore();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
+  useBlockBackNavigation();
   const [transferDestinations, setTransferDestinations] = useState<ITransferDestination[]>([]);
   const [intentToSearch, setIntentToSearch] = useState(false);
   const [openSpeedDial, setOpenSpeedDial] = useState(false);
