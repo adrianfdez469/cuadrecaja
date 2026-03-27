@@ -139,8 +139,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
   useEffect(() => {
     setOnConfirm(async (productosSeleccionados) => {
       // Lógica para procesar la selección
-      console.log(productosSeleccionados);
-
       setItemsProductos(
         productosSeleccionados.map((p) => {
           return {
@@ -172,10 +170,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
   }, [])
 
   const tienePermisoAMovimiento = (tipoMov: ITipoMovimiento) => {
-
-    console.log(tipoMov);
-    console.log('verificarPermiso("operaciones.movimientos.crear.ajuste_entradas")', verificarPermiso("operaciones.movimientos.crear.ajuste_entradas"));
-    
 
     switch(tipoMov) {
       case "AJUSTE_ENTRADA":

@@ -115,7 +115,6 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   // Productos disponibles (excluyendo los ya seleccionados) - MEMOIZADO
   const productosDisponibles = useMemo(() => {
-    console.log('productosDisponibles', productos, productosSeleccionados);
 
     const buildId = (p) => {
       const prodId = p.productoId;
@@ -290,7 +289,6 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         setIsLoadingMore(true);
 
         try {
-          console.log('cargarProductosIniciales');
           const productosIniciales = await loadProductos(
             operacion,
             ITEMS_PER_PAGE,

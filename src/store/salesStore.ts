@@ -224,9 +224,6 @@ export const useSalesStore = create<SalesState>()(
       synchronizeSales: (sales: Sale[]) =>
         set((state) => {
 
-          console.log(sales);
-          
-
           const salesToKeep = state.sales
             .filter((s) => !sales.find((s2) => s2.identifier === s.identifier))
             .filter((s) => !s.synced);

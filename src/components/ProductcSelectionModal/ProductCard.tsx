@@ -35,32 +35,34 @@ function ProductCard({name, cost, precio, stock, onClick, actions}: ProductCardP
 
   return (
     <StyledCard variant="outlined">
-      <CardActionArea onClick={onClick}>
-        <Box sx={{ px: 1.5, py: 1 }}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography
-              variant="body2"
-              component="div"
-              sx={{
-                fontWeight: 700,
-                color: 'text.primary',
-                lineHeight: 1.3,
-                flex: 1,
-              }}
-            >
-              {name}
-            </Typography>
-            <StockBadge stock={stock} />
-            <IconButton
-              size="small"
-              onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
-              sx={{ p: 0.5, flexShrink: 0 }}
-            >
-              {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-            </IconButton>
-          </Stack>
-        </Box>
-      </CardActionArea>
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <CardActionArea onClick={onClick} sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ px: 1.5, py: 1 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography
+                variant="body2"
+                component="div"
+                sx={{
+                  fontWeight: 700,
+                  color: 'text.primary',
+                  lineHeight: 1.3,
+                  flex: 1,
+                }}
+              >
+                {name}
+              </Typography>
+              <StockBadge stock={stock} />
+            </Stack>
+          </Box>
+        </CardActionArea>
+        <IconButton
+          size="small"
+          onClick={() => setExpanded(v => !v)}
+          sx={{ p: 0.5, mx: 0.5, flexShrink: 0 }}
+        >
+          {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+        </IconButton>
+      </Box>
 
       <Collapse in={expanded} unmountOnExit>
         <Divider />
