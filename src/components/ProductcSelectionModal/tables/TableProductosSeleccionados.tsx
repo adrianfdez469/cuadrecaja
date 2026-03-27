@@ -76,7 +76,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
         <Card variant="outlined" sx={{mb: 2}}>
           <CardContent sx={{p: isMobile ? 1.5 : 2}}>
             <Grid container spacing={2}>
-              <Grid item xs={6} sm={3}>
+              <Grid item xs={3} sm={3}>
                 <Box textAlign="center">
                   <Typography variant={isMobile ? "subtitle1" : "h6"} color="primary" fontWeight="bold">
                     {totalProductos}
@@ -86,7 +86,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={6} sm={3}>
+              <Grid item xs={3} sm={3}>
                 <Box textAlign="center">
                   <Typography variant={isMobile ? "subtitle1" : "h6"} color="success.main" fontWeight="bold">
                     {totalCantidad}
@@ -96,7 +96,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={6} sm={3}>
+              <Grid item xs={3} sm={3}>
                 <Box textAlign="center">
                   <Typography variant={isMobile ? "subtitle1" : "h6"} color="warning.main" fontWeight="bold">
                     {formatCurrency(totalCosto)}
@@ -106,7 +106,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={6} sm={3}>
+              <Grid item xs={3} sm={3}>
                 <Box textAlign="center">
                   <Tooltip title="Limpiar selección">
                     <IconButton
