@@ -27,8 +27,6 @@ import TableProductosDisponibles from './tables/TableProductosDisponibles';
 import TableProductosSeleccionados from './tables/TableProductosSeleccionados';
 import { RejectionModal } from './RejectionModal';
 import { useMessageContext } from '@/context/MessageContext';
-import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
-
 import { IProcessedData } from '@/types/IProcessedData';
 
 // Tipos para el componente
@@ -98,6 +96,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
   // Estados principales
   const [activeTab, setActiveTab] = useState<number>(0);
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const [productosSeleccionados, setProductosSeleccionados] = useState<IProductoSeleccionado[]>(productosSeleccionadosIniciales || []);
   const [productos, setProductos] = useState<IProductoDisponible[]>([]);
 
@@ -453,6 +452,8 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     loadMoreProductos,
     agregarProducto,
     onFilterChange: handleFilterChange,
+    onSearchChange: setIsSearchActive,
+    onProductScan: (data: IProcessedData) => { if (data?.code) handleProductScan(data.code); },
     show: activeTab === 0,
     isFiltering,
     currentPage,
@@ -468,6 +469,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     loadMoreProductos,
     agregarProducto,
     handleFilterChange,
+    handleProductScan,
     activeTab,
     isFiltering,
     currentPage,
@@ -517,23 +519,17 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     >
       {/* Header */}
       <DialogTitle sx={{
-        pb: 1,
+        pb: isMobile && isSearchActive ? 0.5 : 1,
         pt: isMobile ? 'calc(8px + env(safe-area-inset-top))' : 2,
         px: isMobile ? 2 : 3
       }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box>
+          {!(isMobile && isSearchActive) && (
             <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontSize: isMobile ? '1.1rem' : '1.5rem' }}>
-              Selección de Productos - {operacion}
+              Selección de Productos
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {operacion === 'ENTRADA'
-                ? 'Agregar productos al inventario'
-                : 'Retirar productos del inventario'
-              }
-            </Typography>
-          </Box>
-          <Button onClick={onClose} variant="text" size="large">
+          )}
+          <Button onClick={onClose} variant="text" size="large" sx={{ ml: 'auto' }}>
             <Close />
           </Button>
         </Box>
@@ -551,7 +547,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
               label={
                 <Box display="flex" alignItems="center" gap={1}>
                   <Inventory />
-                  <span>Productos Disponibles</span>
+                  <span>Disponibles</span>
                   <Badge badgeContent={productosDisponibles.length} color="primary" />
                 </Box>
               }
@@ -560,7 +556,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
               label={
                 <Box display="flex" alignItems="center" gap={1}>
                   <ShoppingCart />
-                  <span>Productos Seleccionados</span>
+                  <span>Seleccionados</span>
                   <Badge badgeContent={totalProductos} color="secondary" />
                 </Box>
               }
@@ -589,38 +585,27 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         pt: 1
       }}>
 
-        <Stack direction="column" spacing={1} sx={{ width: '100%' }}>
-          <ProductProcessorData
-            onProcessedData={(data: IProcessedData) => {
-              if (data?.code) handleProductScan(data.code);
-            }}
-            onHardwareScan={(data: IProcessedData) => {
-              if (data?.code) handleProductScan(data.code);
-            }}
-            keepFocus={false} // Evitar que robe el foco de otros campos
-          />
-
-          <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
-            <Button
-              onClick={onClose}
-              variant="outlined"
-              color="secondary"
-              fullWidth={isMobile}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleConfirm}
-              variant="contained"
-              color="primary"
-              disabled={hayErrores || (totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length === 0) || loading}
-              fullWidth={isMobile}
-              startIcon={operacion === 'ENTRADA' ? <TrendingUp /> : <TrendingDown />}
-            >
-              {loading ? 'Procesando...' : totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0 ? 'Terminar' : `Confirmar ${operacion}`}
-            </Button>
-          </Stack>
-
+        <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
+          <Button
+            onClick={onClose}
+            variant="outlined"
+            color="secondary"
+            size="small"
+            sx={{ flex: 1 }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            variant="contained"
+            color="primary"
+            size="small"
+            disabled={hayErrores || (totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length === 0) || loading}
+            sx={{ flex: 1 }}
+            startIcon={operacion === 'ENTRADA' ? <TrendingUp /> : <TrendingDown />}
+          >
+            {loading ? 'Procesando...' : totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0 ? 'Terminar' : `${operacion}`}
+          </Button>
         </Stack>
 
 
