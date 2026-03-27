@@ -63,6 +63,7 @@ import PosStatusToolBar from "@/app/pos/components/SyncButton";
 import SyncIndicator from "@/app/pos/components/SyncIndicator";
 import ConnectionStatus from "@/app/pos/components/ConnectionStatus";
 import PeriodoBadge from "@/app/pos/components/PeriodoBadge";
+import RefreshButton from "@/app/pos/components/RefreshButton";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -373,6 +374,14 @@ export default function POSInterface() {
       }
     }
 
+  };
+
+  const handleRefresh = async () => {
+    await fetchProductosAndCategories(true);
+    const lastPeriod = await fetchLastPeriod(user.localActual.id);
+    if (lastPeriod && !lastPeriod.fechaFin) {
+      setPeriodo(lastPeriod);
+    }
   };
 
   const fetchProductosAndCategories = async (silent: boolean = false) => {
@@ -925,7 +934,8 @@ export default function POSInterface() {
 
           <PeriodoBadge periodo={periodo} isMobile={isMobile} />
 
-          <Box display="flex" flexDirection="row"  justifyContent="center" alignItems="center" gap={2}>
+          <Box display="flex" flexDirection="row" justifyContent="center" alignItems="center">
+            <RefreshButton onRefresh={handleRefresh} />
             <PosStatusToolBar handleShowSyncView={handleShowSyncView} handleShowUserSales={handleShowUserSales} />
             <ConnectionStatus isOnline={isOnline} />
           </Box>
