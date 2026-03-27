@@ -5,15 +5,15 @@ import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import SyncProblemIcon from '@mui/icons-material/SyncProblem';
 import SyncIcon from '@mui/icons-material/SyncAlt';
 
-interface SyncButtonComponentProps {
+interface PosStatusToolBarProps {
   handleShowSyncView: () => void;
   handleShowUserSales: () => void;
 }
 
-function SyncButtonComponent({
+function PosStatusToolBar({
                                handleShowSyncView,
                                handleShowUserSales
-                             }: SyncButtonComponentProps) {
+                             }: PosStatusToolBarProps) {
 
   const {sales} = useSalesStore();
 
@@ -35,4 +35,4 @@ function SyncButtonComponent({
   );
 }
 
-export default SyncButtonComponent;
+export default PosStatusToolBar;

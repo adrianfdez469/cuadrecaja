@@ -384,7 +384,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       proveedorId: producto.proveedorId,
       proveedor: producto.proveedor,
       cantidad: cantidadInicial,
-      costoTotal: cantidadInicial * costoInicial,
+      costoTotal: cantidadInicial * (producto.costo || costoInicial),
       movimientoOrigenId: producto.movimientoOrigenId,
       codigosProducto: producto.codigosProducto
     };
