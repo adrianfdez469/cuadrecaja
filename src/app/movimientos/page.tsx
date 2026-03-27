@@ -163,8 +163,7 @@ export default function MovimientosPage() {
 
   const fecthPendientesRecep = async () => {
     const result = await getMovimientosProductosEnviados(user.localActual.id);
-    console.log('fecthPendientesRecep',result);
-    
+
     setPendienteRecepcion(result || []);
 
     if(result.length > 0){

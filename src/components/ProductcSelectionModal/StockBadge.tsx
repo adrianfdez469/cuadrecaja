@@ -27,7 +27,7 @@ const StyledStockBadge = styled(Box, {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: '80px',
+    width: '60px',
     lineHeight: 1,
   };
 });
@@ -38,19 +38,13 @@ const getStockStatus = (stock: number): StockStatus => {
   return 'high';
 };
 
-const getStockLabel = (stock: number): string => {
-  if (stock <= 0) return 'sin stock';
-  if (stock < 5) return 'bajo en stock';
-  return 'en stock';
-};
-
 const StockBadge: React.FC<StockBadgeProps> = ({ stock }) => {
   const status = getStockStatus(stock);
 
   return (
     <StyledStockBadge stockStatus={status}>
       <Typography
-        variant="h5"
+        variant="body1"
         sx={{
           fontWeight: 800,
           lineHeight: 1,
@@ -58,17 +52,6 @@ const StockBadge: React.FC<StockBadgeProps> = ({ stock }) => {
         }}
       >
         {stock || 0}
-      </Typography>
-      <Typography
-        variant="caption"
-        sx={{
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          fontSize: '0.65rem',
-          whiteSpace: 'nowrap'
-        }}
-      >
-        {getStockLabel(stock)}
       </Typography>
     </StyledStockBadge>
   );

@@ -11,8 +11,6 @@ import {
   TableBody,
   Typography,
   Chip,
-  Card,
-  CardContent,
   Grid2 as Grid,
   TextField,
   InputAdornment,
@@ -27,6 +25,8 @@ import {ICategory} from "@/types/ICategoria";
 import {fetchCategories} from "@/services/categoryService";
 import {useVirtualizer} from '@tanstack/react-virtual';
 import ProductCard from "@/components/ProductcSelectionModal/ProductCard";
+import ProductProcessorData from "@/components/ProductProcessorData/ProductProcessorData";
+import {IProcessedData} from "@/types/IProcessedData";
 
 interface IProps {
   operacion: OperacionTipo;
@@ -39,6 +39,8 @@ interface IProps {
   loadMoreProductos: () => Promise<void>
   agregarProducto: (producto: IProductoDisponible) => void
   onFilterChange?: (filters: { text?: string, categoriaId?: string }) => void
+  onSearchChange?: (isActive: boolean) => void;
+  onProductScan?: (data: IProcessedData) => void;
   show: boolean;
   isFiltering: boolean;
   currentPage: number;
@@ -56,6 +58,8 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                                        loadMoreProductos,
                                                        agregarProducto,
                                                        onFilterChange,
+                                                       onSearchChange,
+                                                       onProductScan,
                                                        show,
                                                        isFiltering,
                                                        currentPage,
@@ -70,11 +74,24 @@ const TableProductosDisponibles: React.FC<IProps> = ({
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
 
+  // Clear category filter when switching to mobile
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (isMobile && filterCategoryId) {
+      setFilterCategoryId('');
+    }
+  }, [isMobile]); // Intencional: solo ejecutar cuando cambia isMobile
+
+  // Notify parent when search/filter is active
+  useEffect(() => {
+    onSearchChange?.(filterText.trim().length > 0 || filterCategoryId.length > 0);
+  }, [filterText, filterCategoryId, onSearchChange]);
+
   // Virtualización de filas
   const rowVirtualizer = useVirtualizer({
     count: productosDisponibles.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => isMobile ? 120 : 56, // Ajustar el tamaño estimado para móviles ya que ahora usaremos cards
+    estimateSize: () => isMobile ? 52 : 56, // Compact collapsed card height on mobile
     overscan: 10,
   });
 
@@ -193,10 +210,10 @@ const TableProductosDisponibles: React.FC<IProps> = ({
 
   return (
       <div style={{display: show ? 'block' : 'none'}}>
-        <Card variant="outlined" sx={{mb: 2}}>
-          <CardContent sx={{p: isMobile ? 1.5 : 2}}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid size={{xs: 12, sm: 4}}>
+        <Box sx={{ mb: 1.5 }}>
+          <Grid container spacing={1} alignItems="center">
+            <Grid size={{xs: 12, sm: 4}}>
+              <Box display="flex" alignItems="center" gap={1}>
                 <TextField
                     fullWidth
                     type="search"
@@ -214,8 +231,18 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                       }
                     }}
                 />
-              </Grid>
+                {onProductScan && (
+                  <ProductProcessorData
+                    onProcessedData={(data: IProcessedData) => { if (data?.code) onProductScan(data); }}
+                    onHardwareScan={(data: IProcessedData) => { if (data?.code) onProductScan(data); }}
+                    keepFocus={false}
+                    showInput={false}
+                  />
+                )}
+              </Box>
+            </Grid>
 
+            {!isMobile && (
               <Grid size={{xs: 12, sm: 4}}>
                   <FormControl fullWidth size="small">
                       <InputLabel>Categoría</InputLabel>
@@ -233,10 +260,10 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                       </Select>
                   </FormControl>
               </Grid>
+            )}
 
-            </Grid>
-          </CardContent>
-        </Card>
+          </Grid>
+        </Box>
         {(loading && productos.length === 0 && show) && (
             <Box sx={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8}}>
               <CircularProgress size={40} thickness={4} sx={{color: '#1976d2'}}/>

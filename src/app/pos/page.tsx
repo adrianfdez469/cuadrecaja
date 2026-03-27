@@ -955,6 +955,9 @@ export default function POSInterface() {
               </Box>
             )}
 
+            <SyncButtonComponent handleShowSyncView={handleShowSyncView} handleShowUserSales={handleShowUserSales} />
+
+
             {/* Indicador unificado de ventas pendientes/sincronizando */}
             {(sales.filter(sale => sale.syncState === "not_synced" || sale.syncState === "syncing").length > 0) && (
               <Box
@@ -1056,26 +1059,6 @@ export default function POSInterface() {
             </Box>
           )}
         </Box>
-
-        {/* --- SCANNERS ABOVE CATEGORIES (ONE LINE, FULL WIDTH) --- */}
-        <Grid p={1} container spacing={1}>
-          <Grid size={{ xs: 7, sm: 10 }}>
-            <ProductProcessorData
-              ref={scannerRef}
-              onProcessedData={(data: IProcessedData) => {
-                if (data?.code) handleProductScan(data.code);
-              }}
-              onHardwareScan={handleHardwareScan}
-              keepFocus={editingCartId ? false : !(intentToSearch || paymentDialog || showSyncView || openSpeedDial)}
-            />
-            {scannerError && (
-              <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
-            )}
-          </Grid>
-          <Grid size={{ xs: 3, sm: 2 }}>
-            <SyncButtonComponent handleShowSyncView={handleShowSyncView} handleShowUserSales={handleShowUserSales} />
-          </Grid>
-        </Grid>
         {/* Contenido principal */}
         <Box
           sx={{
@@ -1431,50 +1414,64 @@ export default function POSInterface() {
             backdropFilter: "blur(10px)",
           }}
         >
-
-          <TextField
-            inputRef={searchInputRef}
-            fullWidth
-            variant="outlined"
-            placeholder="Buscar productos..."
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-            // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
-            onFocus={() => handleSearchFocus()}
-            // onBlur={() => handleSearchBlur()}
-            onMouseDown={() => handleSearchMouseDown()}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-              endAdornment: searchQuery && (
-                <InputAdornment position="end">
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setShowSearchResults(false);
-                      // setIntentToSearch(false); // Permitir que el escáner recupere el foco
-                      setTimeout(() => {
-                        searchInputRef.current?.focus();
-                      }, 0);
-                    }}
-                  >
-                    <CloseIcon />
-                  </IconButton>
-                </InputAdornment>
-              ),
-              sx: {
-                bgcolor: "white",
-                borderRadius: "12px",
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                },
-              },
-            }}
-          />
+          <Stack direction="row" spacing={1}>
+            <TextField
+                inputRef={searchInputRef}
+                fullWidth
+                variant="outlined"
+                placeholder="Buscar productos..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
+                onFocus={() => handleSearchFocus()}
+                // onBlur={() => handleSearchBlur()}
+                onMouseDown={() => handleSearchMouseDown()}
+                InputProps={{
+                  startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                  ),
+                  endAdornment: searchQuery && (
+                      <InputAdornment position="end">
+                        <IconButton
+                            size="small"
+                            onClick={() => {
+                              setSearchQuery("");
+                              setShowSearchResults(false);
+                              // setIntentToSearch(false); // Permitir que el escáner recupere el foco
+                              setTimeout(() => {
+                                searchInputRef.current?.focus();
+                              }, 0);
+                            }}
+                        >
+                          <CloseIcon />
+                        </IconButton>
+                      </InputAdornment>
+                  ),
+                  sx: {
+                    bgcolor: "white",
+                    borderRadius: "12px",
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "12px",
+                    },
+                  },
+                }}
+            />
+            <Grid size={{ xs: 7, sm: 10 }}>
+              <ProductProcessorData
+                  ref={scannerRef}
+                  onProcessedData={(data: IProcessedData) => {
+                    if (data?.code) handleProductScan(data.code);
+                  }}
+                  onHardwareScan={handleHardwareScan}
+                  keepFocus={editingCartId ? false : !(intentToSearch || paymentDialog || showSyncView || openSpeedDial)}
+              />
+              {scannerError && (
+                  <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
+              )}
+            </Grid>
+          </Stack>
         </Box>
 
         {/* Popper para resultados de búsqueda */

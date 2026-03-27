@@ -7,7 +7,6 @@ import {
   IconButton,
   Stack,
   Typography,
-  Divider,
   styled,
 } from "@mui/material";
 import { Delete } from "@mui/icons-material";
@@ -33,10 +32,10 @@ interface ProductSelectedCardProps {
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
-  marginBottom: theme.spacing(2),
-  borderRadius: '12px',
+  marginBottom: theme.spacing(1),
+  borderRadius: '8px',
   boxShadow: 'none',
-  border: `1px solid ${theme.palette.divider}`,
+  border: `3px solid ${theme.palette.divider}`,
 }));
 
 const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
@@ -54,32 +53,19 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
   onActualizarCosto,
   onEliminar,
 }) => {
-
-  const handleQuantityChange = ( value) => {
-    onActualizarCantidad(value);
-  };
-
-  const handleCostChange = (val) => {
-    onActualizarCosto(val);
-  }
-
   return (
     <StyledCard variant="outlined">
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Stack spacing={2}>
-          {/* 1. Top: Product Name and Existence */}
-          <Box display="flex" justifyContent="space-between" gap={1} alignItems="center">
-            <Box>
-              <Typography variant="subtitle1" sx={{
-                fontWeight: 700,
-                color: 'text.primary',
-                lineHeight: 1.2,
-                flex: 1
-              }}>
+      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+        <Stack spacing={1}>
+
+          {/* Fila 1: nombre + stock + eliminar */}
+          <Box display="flex" alignItems="center" gap={1}>
+            <Box flex={1} minWidth={0}>
+              <Typography variant="body2" fontWeight={700} noWrap>
                 {name}
               </Typography>
               {providerName && (
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" noWrap display="block">
                   {providerName}
                 </Typography>
               )}
@@ -87,56 +73,46 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
             <StockBadge stock={existencia} />
           </Box>
 
-          <Divider />
+          {/*<Divider />*/}
 
-          <Box display="flex" justifyContent="center">
+          {/* Fila 2: spinner + costo + total */}
+          <Stack direction="row" alignItems="center" gap={2} justifyContent="space-between">
             <NumberSpinner
-                size="medium"
+                size="small"
                 value={Number(cantidad)}
-                onValueChange={handleQuantityChange}
+                onValueChange={onActualizarCantidad}
                 disabled={disabledCantidad}
                 step={permiteDecimal ? 0.01 : 1}
                 min={1}
                 max={esSalida ? existencia : undefined}
             />
-          </Box>
-
-          <Divider />
-
-          {/* 3. Cost Section */}
-          <Box display="flex" alignItems="center" justifyContent="space-between" gap={2}>
-            <Typography variant="body2" fontWeight="medium" color="text.secondary">
-              Costo:
-            </Typography>
 
             <NumberField
+                sx={{ width: 150 }}
+                size="small"
+                label="Costo"
                 value={costoUnitario}
                 readOnly={disabledCosto}
                 disabled={disabledCosto}
-                onValueChange={handleCostChange}
+                onValueChange={onActualizarCosto}
                 min={0}
                 defaultValue={0}
                 step={0.01}
-                size="small"
             />
-          </Box>
-
-          <Divider />
-
-          {/* 4. Footer: Total and Delete */}
+          </Stack>
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Typography variant="subtitle1" fontWeight="bold">
-              Total
+              Total:
             </Typography>
             <Box display="flex" alignItems="center" gap={2}>
               <Typography variant="h6" fontWeight="bold">
                 {formatCurrency(costoTotal)}
               </Typography>
               <IconButton
-                size="small"
-                color="error"
-                onClick={onEliminar}
-                sx={{ p: 0.5 }}
+                  size="small"
+                  color="error"
+                  onClick={onEliminar}
+                  sx={{ p: 0.5 }}
               >
                 <Delete fontSize="small" />
               </IconButton>

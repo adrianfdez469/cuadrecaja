@@ -122,7 +122,6 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
 
   // Previsualizar automáticamente al abrir el modal o si cambian los productos
   useEffect(() => {
-    console.log('llama')
     if (open) {
       previewDiscount(promoCode ? [promoCode] : undefined);
     }
