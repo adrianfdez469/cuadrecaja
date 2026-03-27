@@ -160,8 +160,8 @@ const CONFIGURATION_MENU_ITEMS = [
 const MAIN_MENU_ITEMS = [
   { label: "POS", path: "/pos", icon: PointOfSale, permission: 'operaciones.pos-venta.acceder' },
   { label: "Ventas", path: "/ventas", icon: Receipt, permission: 'operaciones.ventas.acceder' },
-  { label: "Conformar Precios", path: "/conformar_precios", icon: GridView, permission: 'operaciones.conformarprecios.acceder' },
   { label: "Movimientos", path: "/movimientos", icon: SwapVert, permission: 'operaciones.movimientos.acceder' },
+  { label: "Conformar Precios", path: "/conformar_precios", icon: GridView, permission: 'operaciones.conformarprecios.acceder' },
   { label: "Cierre", path: "/cierre", icon: AccountBalanceWallet, permission: 'operaciones.cierre.acceder' },
 ];
 
