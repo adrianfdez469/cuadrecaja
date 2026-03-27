@@ -1,5 +1,5 @@
 import React from 'react';
-import {Badge, Button, Stack} from "@mui/material";
+import {Badge, Button, IconButton, Stack} from "@mui/material";
 import {useSalesStore} from "@/store/salesStore";
 import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import SyncProblemIcon from '@mui/icons-material/SyncProblem';
@@ -19,7 +19,7 @@ function SyncButtonComponent({
 
   return (
       <Stack direction="row" spacing={0.1}>
-        <Button variant="contained" onClick={handleShowSyncView}>
+        <IconButton onClick={handleShowSyncView}>
           {sales.filter((s) => !s.synced).length > 0 ? (
               <Badge badgeContent={sales.filter((s) => !s.synced).length} color="secondary">
                 <SyncProblemIcon/>
@@ -27,10 +27,10 @@ function SyncButtonComponent({
           ) : (
               <SyncIcon/>
           )}
-        </Button>
-        <Button variant="contained" onClick={handleShowUserSales}>
+        </IconButton>
+        <IconButton onClick={handleShowUserSales}>
           <PointOfSaleIcon/>
-        </Button>
+        </IconButton>
       </Stack>
   );
 }
