@@ -1,15 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
   CardActionArea,
   CardActions,
+  Collapse,
   Divider,
+  IconButton,
   Stack,
   Typography,
   CardContent,
   styled
 } from "@mui/material";
+import { ExpandMore, ExpandLess } from "@mui/icons-material";
 import {formatCurrency} from "@/utils/formatters";
 import StockBadge from './StockBadge';
 
@@ -22,76 +25,67 @@ interface ProductCardProps {
   onClick?: () => void;
 }
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  height: '100%',
+const StyledCard = styled(Card)(() => ({
   display: 'flex',
   flexDirection: 'column',
-  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-  '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: theme.shadows[4],
-  },
 }));
 
 function ProductCard({name, cost, precio, stock, onClick, actions}: ProductCardProps ) {
-  const total = cost * stock;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <StyledCard variant="outlined">
-      <CardActionArea onClick={onClick} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-        <Box sx={{ p: 2 }}>
-          <Stack
-            direction="row"
-            spacing={2}
-            sx={{ justifyContent: 'space-between', alignItems: 'center' }}
-          >
+      <CardActionArea onClick={onClick}>
+        <Box sx={{ px: 1.5, py: 1 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
             <Typography
-              variant="subtitle1"
+              variant="body2"
               component="div"
               sx={{
                 fontWeight: 700,
                 color: 'text.primary',
-                lineHeight: 1.2,
-                flex: 1
+                lineHeight: 1.3,
+                flex: 1,
               }}
             >
               {name}
             </Typography>
             <StockBadge stock={stock} />
-          </Stack>
-        </Box>
-
-        <Divider />
-
-        <CardContent sx={{ py: 1.5, flexGrow: 1 }}>
-          <Stack spacing={1}>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">Precio:</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatCurrency(precio)}</Typography>
-            </Stack>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">Costo:</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatCurrency(cost)}</Typography>
-            </Stack>
-          </Stack>
-        </CardContent>
-
-        <Divider />
-
-        <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Costo total:</Typography>
-            <Typography variant="h6" color="primary" sx={{ fontWeight: 800 }}>
-              {formatCurrency(total)}
-            </Typography>
+            <IconButton
+              size="small"
+              onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+              sx={{ p: 0.5, flexShrink: 0 }}
+            >
+              {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+            </IconButton>
           </Stack>
         </Box>
       </CardActionArea>
 
+      <Collapse in={expanded} unmountOnExit>
+        <Divider />
+        <CardContent sx={{ py: 1, px: 1.5, '&:last-child': { pb: 1 } }}>
+          <Stack spacing={0.5}>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography variant="caption" color="text.secondary">Precio:</Typography>
+              <Typography variant="caption" fontWeight={600}>{formatCurrency(precio)}</Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography variant="caption" color="text.secondary">Costo:</Typography>
+              <Typography variant="caption" fontWeight={600}>{formatCurrency(cost)}</Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography variant="caption" color="text.secondary">Costo total:</Typography>
+              <Typography variant="caption" fontWeight={700} color="primary">{formatCurrency(cost * stock)}</Typography>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Collapse>
+
       {actions && (
         <>
           <Divider />
-          <CardActions sx={{ justifyContent: 'flex-end', p: 1.5 }}>
+          <CardActions sx={{ justifyContent: 'flex-end', p: 1 }}>
             {actions}
           </CardActions>
         </>
