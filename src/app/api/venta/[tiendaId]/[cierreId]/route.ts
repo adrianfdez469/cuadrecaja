@@ -1,5 +1,6 @@
 import {NextRequest, NextResponse} from "next/server";
 import {prisma} from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import {IVenta} from "@/types/IVenta";
 import { applyDiscountsForSale } from "@/lib/discounts";
 
@@ -27,6 +28,8 @@ type MergedProduct = ProductoExistenteSelect & IncomingProduct;
 
 // Crear una venta
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
+  let syncId: string | undefined;
+
   try {
     const { cierreId, tiendaId } = await params;
 
@@ -43,12 +46,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       totaltransfer,
       transferDestinationId,
 
-      syncId, // Id unico de transación y sincronización
+      syncId: syncIdBody, // Id unico de transación y sincronización
       createdAt, // Fecha y hora real de la creación la venta en el frontend
       wasOffline, // El intento de venta fue realizado sin conexión?
       syncAttempts, // Cantidad de reintentos alcanzados 
       discountCodes // 🆕 Lista opcional de códigos de descuento a aplicar
     } = await req.json();
+
+    syncId = syncIdBody;
 
     console.log('🔍 [POST /api/venta] Datos de la venta:', {
       usuarioId,
@@ -470,6 +475,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
     return NextResponse.json(result, { status: 201 });
 
   } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const ventaExistente = await prisma.venta.findFirst({
+        where: { syncId },
+        include: { productos: true }
+      });
+      if (ventaExistente) {
+        return NextResponse.json(ventaExistente, { status: 200 });
+      }
+    }
+
     const message = error instanceof Error ? error.message : 'Error al crear la venta';
     console.error('❌ [POST /api/venta] Error en transacción:', error);
     return NextResponse.json(
