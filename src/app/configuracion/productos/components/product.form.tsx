@@ -371,6 +371,7 @@ export const ProductoForm:FC<IProps> = ({ open, handleClose, handleSave, editing
             <Box key={idx} display="flex" alignItems="center" mb={1}>
               <HardwareQrScanner
                 qrCodeSuccessCallback={(qrText) => handleCodigoChange(idx, qrText)}
+                showInput
                 style={{ width: '100%' }}
                 value={codigo}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleCodigoChange(idx, e.target.value)}
