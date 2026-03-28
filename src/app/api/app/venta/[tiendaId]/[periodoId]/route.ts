@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { getSessionFromRequest } from '@/utils/authFromRequest';
 import { applyDiscountsForSale } from '@/lib/discounts';
 import { IVenta } from '@/types/IVenta';
@@ -36,6 +37,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ tiendaId: string; periodoId: string }> }
 ) {
+  let syncId: string | undefined;
+
   try {
     const session = await getSessionFromRequest(request);
 
@@ -54,12 +57,14 @@ export async function POST(
       totalcash,
       totaltransfer,
       transferDestinationId,
-      syncId,
+      syncId: syncIdBody,
       createdAt,
       wasOffline,
       syncAttempts,
       discountCodes
     } = await request.json();
+
+    syncId = syncIdBody;
 
     const usuarioId = session.user.id;
 
@@ -388,6 +393,20 @@ export async function POST(
     }, { status: 201 });
 
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const ventaExistente = await prisma.venta.findFirst({
+        where: { syncId },
+        include: { productos: true }
+      });
+      if (ventaExistente) {
+        return NextResponse.json({
+          success: true,
+          venta: ventaExistente,
+          duplicado: true
+        });
+      }
+    }
+
     console.error('❌ [APP/VENTA/POST] Error:', error);
     const message = error instanceof Error ? error.message : 'Error al crear la venta';
     return NextResponse.json(

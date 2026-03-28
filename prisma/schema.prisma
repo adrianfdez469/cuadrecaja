@@ -205,7 +205,7 @@ model Venta {
   tiendaId      String
   usuario       Usuario         @relation(fields: [usuarioId], references: [id])
   usuarioId     String
-  syncId        String?         @default(uuid()) // Id generado en el front para evitar repetir ventas por fallos de sincronización          
+  syncId        String?         @unique // Id generado en el front para evitar repetir ventas por fallos de sincronización
 
   cierrePeriodo   CierrePeriodo? @relation(fields: [cierrePeriodoId], references: [id])
   cierrePeriodoId String?
