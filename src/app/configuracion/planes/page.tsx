@@ -56,6 +56,7 @@ import {
 import type { IPlan } from '@/schemas/plan';
 import { getPlanes } from '@/services/planService';
 import { getNegocioStats } from '@/services/negocioServce';
+import { buildPlanFeatures } from '@/utils/planUtils';
 
 interface SupportUser {
   name: string;
@@ -184,26 +185,6 @@ export default function PlanesPage() {
   const currentPlan = getCurrentPlan();
 
   const formatLimite = (val: number) => (val === -1 ? '∞' : String(val));
-
-  const buildPlanFeatures = (plan: IPlan): string[] => {
-    const features: string[] = [];
-    features.push(`${formatLimite(plan.limiteLocales)} locales (tiendas/almacenes)`);
-    features.push(plan.limiteUsuarios === -1 ? 'Usuarios ilimitados' : `${plan.limiteUsuarios} usuario${plan.limiteUsuarios !== 1 ? 's' : ''}`);
-    features.push(plan.limiteProductos === -1 ? 'Productos ilimitados' : `Hasta ${plan.limiteProductos} productos`);
-    if (plan.precio === 0) {
-      features.push('Funcionalidades básicas', 'Soporte por email');
-    } else if (plan.precio === -1) {
-      features.push('Funcionalidades personalizadas', 'Soporte dedicado 24/7', 'Integración completa', 'Capacitación incluida');
-    } else {
-      features.push('Capacitación inicial', 'Acceso a todas las funcionalidades', 'Soporte en línea');
-    }
-    if (plan.duracion === -1) {
-      features.push('Duración personalizada');
-    } else {
-      features.push(`Validez: ${plan.duracion} días`);
-    }
-    return features;
-  };
 
   const displayPlans = planes.map(plan => ({
     plan,
