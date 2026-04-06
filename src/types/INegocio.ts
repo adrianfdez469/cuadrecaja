@@ -2,7 +2,8 @@ export interface INegocio {
   id: string;
   nombre: string;
   limitTime: Date;
-  locallimit: number; 
+  locallimit: number;
   userlimit: number;
   productlimit: number;
+  planId?: string | null;
 }

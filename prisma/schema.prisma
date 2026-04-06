@@ -8,6 +8,25 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Plan {
+  id              String    @id @default(uuid())
+  nombre          String    @unique
+  descripcion     String?
+  limiteLocales   Int
+  limiteUsuarios  Int
+  limiteProductos Int
+  precio          Float
+  moneda          String    @default("USD")
+  duracion        Int       // días; -1 = negociable
+  recomendado     Boolean   @default(false)
+  color           String    // string de color MUI: "info", "primary", etc.
+  activo          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  negocios        Negocio[]
+}
+
 model Negocio {
   id          String   @id @default(uuid())
   nombre      String   @unique
@@ -18,6 +37,9 @@ model Negocio {
   userlimit    Int
   locallimit   Int
   productlimit Int      @default(0) // Límite de productos por plan
+
+  plan    Plan?   @relation(fields: [planId], references: [id])
+  planId  String?
 
   usuarios    Usuario[]
   tiendas     Tienda[]

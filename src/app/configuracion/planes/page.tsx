@@ -44,7 +44,6 @@ import {
   Warning,
   Error as ErrorIcon,
 } from '@mui/icons-material';
-import { planesNegocio } from '@/utils/planesNegocio';
 import { PageContainer } from '@/components/PageContainer';
 import { useAppContext } from '@/context/AppContext';
 import { useMessageContext } from '@/context/MessageContext';
@@ -55,7 +54,7 @@ import {
   formatPercentage
 } from '@/utils/formatters';
 import axios from 'axios';
-import { subscriptionPlansForUi } from '@/constants/subscriptionsPlans';
+import type { IPlan } from '@/schemas/plan';
 
 interface SupportUser {
   name: string;
@@ -107,8 +106,10 @@ export default function PlanesPage() {
   const [stats, setStats] = useState<NegocioStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [planes, setPlanes] = useState<IPlan[]>([]);
+  const [loadingPlanes, setLoadingPlanes] = useState(true);
 
-  // Cargar estadísticas del negocio
+  // Cargar planes y estadísticas
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -123,9 +124,23 @@ export default function PlanesPage() {
       }
     };
 
+    const fetchPlanes = async () => {
+      try {
+        setLoadingPlanes(true);
+        const response = await axios.get<IPlan[]>('/api/planes');
+        setPlanes(response.data);
+      } catch (error) {
+        console.error('Error al cargar planes:', error);
+        showMessage('Error al cargar planes de suscripción', 'error');
+      } finally {
+        setLoadingPlanes(false);
+      }
+    };
+
     if (user?.negocio) {
       fetchStats();
     }
+    fetchPlanes();
   }, [user?.negocio, showMessage]);
 
   const handleContactSupport = () => {
@@ -151,26 +166,52 @@ export default function PlanesPage() {
   };
 
   // Determinar el plan actual del usuario
-  const getCurrentPlan = () => {
-    if (!user?.negocio) return null;
+  const getCurrentPlan = (): IPlan | null => {
+    if (!user?.negocio || planes.length === 0) return null;
 
-    const currentLimits = {
-      tiendas: user.negocio.locallimit,
-      usuarios: user.negocio.userlimit,
-      productos: user.negocio.productlimit
-    };
+    if (user.negocio.planId) {
+      return planes.find(p => p.id === user.negocio.planId) ?? null;
+    }
 
-    const planEntry = Object.entries(planesNegocio).find(
-      ([, plan]) =>
-        plan.limiteLocales === currentLimits.tiendas &&
-        plan.limiteUsuarios === currentLimits.usuarios &&
-        plan.limiteProductos === currentLimits.productos
-    );
-
-    return planEntry ? planEntry[0] : 'CUSTOM';
+    return planes.find(p =>
+      p.limiteLocales === user.negocio.locallimit &&
+      p.limiteUsuarios === user.negocio.userlimit &&
+      p.limiteProductos === user.negocio.productlimit
+    ) ?? null;
   };
 
   const currentPlan = getCurrentPlan();
+
+  const formatLimite = (val: number) => (val === -1 ? '∞' : String(val));
+
+  const buildPlanFeatures = (plan: IPlan): string[] => {
+    const features: string[] = [];
+    features.push(`${formatLimite(plan.limiteLocales)} locales (tiendas/almacenes)`);
+    features.push(plan.limiteUsuarios === -1 ? 'Usuarios ilimitados' : `${plan.limiteUsuarios} usuario${plan.limiteUsuarios !== 1 ? 's' : ''}`);
+    features.push(plan.limiteProductos === -1 ? 'Productos ilimitados' : `Hasta ${plan.limiteProductos} productos`);
+    if (plan.precio === 0) {
+      features.push('Funcionalidades básicas', 'Soporte por email');
+    } else if (plan.precio === -1) {
+      features.push('Funcionalidades personalizadas', 'Soporte dedicado 24/7', 'Integración completa', 'Capacitación incluida');
+    } else {
+      features.push('Capacitación inicial', 'Acceso a todas las funcionalidades', 'Soporte en línea');
+    }
+    if (plan.duracion === -1) {
+      features.push('Duración personalizada');
+    } else {
+      features.push(`Validez: ${plan.duracion} días`);
+    }
+    return features;
+  };
+
+  const displayPlans = planes.map(plan => ({
+    plan,
+    price: plan.precio === -1 ? 'Cotización' : plan.precio === 0 ? '$0' : `$${plan.precio}`,
+    period: plan.precio === 0 || plan.precio === -1 ? '' : 'mes',
+    duration: plan.duracion === -1 ? 'Duración negociable' : `${plan.duracion} días de validez`,
+    features: buildPlanFeatures(plan),
+    isCurrent: currentPlan?.id === plan.id,
+  }));
 
   const breadcrumbs = [
     { label: 'Inicio', href: '/home' },
@@ -250,7 +291,7 @@ export default function PlanesPage() {
         >
           <Box>
             <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
-              Plan Actual: {currentPlan}
+              Plan Actual: {currentPlan?.nombre ?? 'CUSTOM'}
             </Typography>
 
             {loadingStats ? (
@@ -263,7 +304,7 @@ export default function PlanesPage() {
                 {/* Estadísticas de uso */}
                 <Grid item xs={12} md={8}>
                   <Typography variant="body2" sx={{ mb: 2 }}>
-                    {user?.negocio?.nombre} está usando el plan {currentPlan.toLowerCase()} con el siguiente uso:
+                    {user?.negocio?.nombre} está usando el plan {(currentPlan?.nombre ?? 'CUSTOM').toLowerCase()} con el siguiente uso:
                   </Typography>
 
                   <Grid container spacing={2}>
@@ -393,80 +434,66 @@ export default function PlanesPage() {
           Compara las características de cada plan y elige el que mejor se adapte a tu negocio.
         </Typography>
 
-        {isMobile ? (
+        {loadingPlanes ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : isMobile ? (
           // Vista móvil: Stack vertical con cards más compactas
           <Stack spacing={3}>
-            {subscriptionPlansForUi.map((plan) => (
+            {displayPlans.map(({ plan, price, period, duration, features, isCurrent }) => (
               <Card
-                key={plan.key}
+                key={plan.id}
                 variant="outlined"
                 sx={{
                   position: 'relative',
-                  border: plan.recommended ? 2 : 1,
-                  borderColor: plan.recommended ? 'primary.main' : 'divider',
+                  border: plan.recomendado ? 2 : 1,
+                  borderColor: plan.recomendado ? 'primary.main' : 'divider',
                   '&:hover': {
-                    boxShadow: plan.recommended ? 4 : 2,
+                    boxShadow: plan.recomendado ? 4 : 2,
                     transform: 'translateY(-2px)',
                     transition: 'all 0.2s'
                   }
                 }}
               >
-                {plan.recommended && (
+                {plan.recomendado && !isCurrent && (
                   <Chip
                     label="Recomendado"
                     color="primary"
                     size="small"
                     icon={<Star />}
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      right: 0,
-                      zIndex: 1
-                    }}
+                    sx={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}
                   />
                 )}
-                {currentPlan === plan.key && (
+                {isCurrent && (
                   <Chip
                     label="Plan Actual"
                     color="success"
                     size="small"
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      right: 0,
-                      zIndex: 1
-                    }}
+                    sx={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}
                   />
                 )}
                 <CardContent sx={{ p: 3 }}>
                   <Stack spacing={2}>
-                    {/* Header del plan */}
                     <Box>
                       <Typography variant="h6" component="h3" sx={{ fontSize: '1.25rem', fontWeight: 600 }}>
-                        {plan.name}
+                        {plan.nombre}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-                        {plan.description}
+                        {plan.descripcion}
                       </Typography>
                       <Typography variant="caption" color="warning.main" sx={{ fontStyle: 'italic', display: 'block', mt: 0.5 }}>
-                        {plan.key === 'FREEMIUM'
-                          ? plan.duration
-                          : billingCycle === 'monthly' ? '30 días de validez' : '365 días de validez'}
+                        {plan.duracion === -1 ? duration : billingCycle === 'monthly' ? `${plan.duracion} días de validez` : '365 días de validez'}
                       </Typography>
                       <Box sx={{ mt: 2, display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                        <Typography
-                          variant="h4"
-                          component="span"
-                          color="primary"
-                          sx={{ fontSize: '2rem', fontWeight: 700 }}
-                        >
-                          {plan.key === 'CUSTOM' || plan.key === 'FREEMIUM'
-                            ? plan.price
-                            : `$${billingCycle === 'monthly' ? (planesNegocio as object)[plan.key].precio : (planesNegocio as object)[plan.key].precio * 10}`}
+                        <Typography variant="h4" component="span" color="primary" sx={{ fontSize: '2rem', fontWeight: 700 }}>
+                          {plan.precio === -1 || plan.precio === 0
+                            ? price
+                            : `$${billingCycle === 'monthly' ? plan.precio : plan.precio * 10}`}
                         </Typography>
-                        {(plan.period || plan.key !== 'CUSTOM') && (
+                        {period && (
                           <Typography variant="body2" component="span" color="text.secondary">
-                            /{plan.key === 'FREEMIUM' ? 'semana' : billingCycle === 'monthly' ? 'mes' : 'año'}
+                            /{billingCycle === 'monthly' ? 'mes' : 'año'}
                           </Typography>
                         )}
                       </Box>
@@ -474,19 +501,15 @@ export default function PlanesPage() {
 
                     <Divider />
 
-                    {/* Features */}
                     <Box>
                       <Typography variant="subtitle2" sx={{ fontSize: '1rem', fontWeight: 600, mb: 2 }}>
                         Características incluidas:
                       </Typography>
                       <Stack spacing={1}>
-                        {plan.features.map((feature, index) => (
+                        {features.map((feature, index) => (
                           <Stack key={index} direction="row" alignItems="center" spacing={1.5}>
                             <CheckCircle color="success" sx={{ fontSize: 20 }} />
-                            <Typography
-                              variant="body2"
-                              sx={{ fontSize: '0.875rem', lineHeight: 1.4 }}
-                            >
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem', lineHeight: 1.4 }}>
                               {feature}
                             </Typography>
                           </Stack>
@@ -501,76 +524,59 @@ export default function PlanesPage() {
         ) : (
           // Vista desktop/tablet: Grid
           <Grid container spacing={isTablet ? 3 : 4}>
-            {subscriptionPlansForUi.map((plan) => (
-              <Grid item xs={12} sm={6} md={4} key={plan.key}>
+            {displayPlans.map(({ plan, price, period, duration, features, isCurrent }) => (
+              <Grid item xs={12} sm={6} md={4} key={plan.id}>
                 <Card
                   variant="outlined"
                   sx={{
                     height: '100%',
                     position: 'relative',
-                    border: plan.recommended ? 2 : 1,
-                    borderColor: plan.recommended ? 'primary.main' : 'divider',
+                    border: plan.recomendado ? 2 : 1,
+                    borderColor: plan.recomendado ? 'primary.main' : 'divider',
                     '&:hover': {
-                      boxShadow: plan.recommended ? 4 : 2,
+                      boxShadow: plan.recomendado ? 4 : 2,
                       transform: 'translateY(-4px)',
                       transition: 'all 0.3s'
                     }
                   }}
                 >
-                  {plan.recommended && (
+                  {plan.recomendado && !isCurrent && (
                     <Chip
                       label="Recomendado"
                       color="primary"
                       size="small"
                       icon={<Star />}
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        right: 0,
-                        zIndex: 1
-                      }}
+                      sx={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}
                     />
                   )}
-                  {currentPlan === plan.key && (
+                  {isCurrent && (
                     <Chip
                       label="Plan Actual"
                       color="success"
                       size="small"
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        right: 0,
-                        zIndex: 1
-                      }}
+                      sx={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}
                     />
                   )}
                   <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <Box sx={{ textAlign: 'center', mb: 3 }}>
                       <Typography variant="h5" component="h3" sx={{ fontSize: isTablet ? '1.5rem' : '1.75rem', fontWeight: 600 }}>
-                        {plan.name}
+                        {plan.nombre}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ fontSize: isTablet ? '0.875rem' : '1rem', mt: 1 }}>
-                        {plan.description}
+                        {plan.descripcion}
                       </Typography>
                       <Typography variant="caption" color="warning.main" sx={{ fontStyle: 'italic', display: 'block', mt: 0.5 }}>
-                        {plan.key === 'FREEMIUM'
-                          ? plan.duration
-                          : billingCycle === 'monthly' ? '30 días de validez' : '365 días de validez'}
+                        {plan.duracion === -1 ? duration : billingCycle === 'monthly' ? `${plan.duracion} días de validez` : '365 días de validez'}
                       </Typography>
                       <Box sx={{ my: 3 }}>
-                        <Typography
-                          variant="h3"
-                          component="span"
-                          color="primary"
-                          sx={{ fontSize: isTablet ? '2.5rem' : '3rem', fontWeight: 700 }}
-                        >
-                          {plan.key === 'CUSTOM' || plan.key === 'FREEMIUM'
-                            ? plan.price
-                            : `$${billingCycle === 'monthly' ? (planesNegocio as object)[plan.key].precio : (planesNegocio as object)[plan.key].precio * 10}`}
+                        <Typography variant="h3" component="span" color="primary" sx={{ fontSize: isTablet ? '2.5rem' : '3rem', fontWeight: 700 }}>
+                          {plan.precio === -1 || plan.precio === 0
+                            ? price
+                            : `$${billingCycle === 'monthly' ? plan.precio : plan.precio * 10}`}
                         </Typography>
-                        {(plan.period || plan.key !== 'CUSTOM') && (
+                        {period && (
                           <Typography variant="h6" component="span" color="text.secondary">
-                            /{plan.key === 'FREEMIUM' ? 'semana' : billingCycle === 'monthly' ? 'mes' : 'año'}
+                            /{billingCycle === 'monthly' ? 'mes' : 'año'}
                           </Typography>
                         )}
                       </Box>
@@ -579,7 +585,7 @@ export default function PlanesPage() {
                     <Divider sx={{ mb: 3 }} />
 
                     <List dense sx={{ flexGrow: 1 }}>
-                      {plan.features.map((feature, index) => (
+                      {features.map((feature, index) => (
                         <ListItem key={index} sx={{ px: 0, py: 0.5 }}>
                           <ListItemIcon sx={{ minWidth: 36 }}>
                             <CheckCircle color="success" fontSize="small" />

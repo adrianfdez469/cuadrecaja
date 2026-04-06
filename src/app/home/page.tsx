@@ -31,7 +31,8 @@ import {
   Summarize,
   Security,
   CalendarMonth,
-  Backup
+  Backup,
+  WorkspacePremium
 } from "@mui/icons-material";
 import { useMessageContext } from "@/context/MessageContext";
 import { useRouter } from "next/navigation";
@@ -288,6 +289,12 @@ const HomePage = () => {
       icon: <Security />,
       path: "/configuracion/roles",
       permission: 'configuracion.roles.acceder'
+    },
+    {
+      title: "Planes",
+      icon: <WorkspacePremium />,
+      path: "/configuracion/planes-admin",
+      permission: 'SUPER_ADMIN_ONLY'
     }
   ];
 
@@ -307,7 +314,8 @@ const HomePage = () => {
 
   const getConfigOptions = () => {
     return configOptions.filter(item => {
-      if (//user.permisos.includes(item.permission) 
+      if (item.permission === 'SUPER_ADMIN_ONLY') return user.rol === 'SUPER_ADMIN';
+      if (//user.permisos.includes(item.permission)
         verificarPermiso(item.permission)
         || user.rol === 'SUPER_ADMIN') {
         return true;

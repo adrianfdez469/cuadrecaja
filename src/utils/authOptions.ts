@@ -32,7 +32,7 @@ export const authOptions: NextAuthOptions = {
             // tiendaActual: true,
             localActual: true,
             negocio: {
-              select: { id: true, nombre: true, userlimit: true, limitTime: true, locallimit: true, productlimit: true }
+              select: { id: true, nombre: true, userlimit: true, limitTime: true, locallimit: true, productlimit: true, planId: true }
             }
           },
         });
