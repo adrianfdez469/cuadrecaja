@@ -750,13 +750,13 @@ export default function POSInterface() {
     setIntentToSearch(true);
   };
 
-  // const handleSearchBlur = () => {
-  //   // Delay para permitir que los clicks en los resultados funcionen
-  //   setTimeout(() => {
-  //     setIntentToSearch(false);
-  //     setShowSearchResults(false);
-  //   }, 150);
-  // };
+  const handleSearchBlur = () => {
+    // Delay para permitir que los clicks en los resultados funcionen
+    setTimeout(() => {
+      setIntentToSearch(false);
+      setShowSearchResults(false);
+    }, 150);
+  };
 
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
@@ -1306,7 +1306,7 @@ export default function POSInterface() {
                 onChange={(e) => handleSearch(e.target.value)}
                 // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
                 onFocus={() => handleSearchFocus()}
-                // onBlur={() => handleSearchBlur()}
+                onBlur={() => handleSearchBlur()}
                 onMouseDown={() => handleSearchMouseDown()}
                 InputProps={{
                   startAdornment: (
@@ -1320,11 +1320,6 @@ export default function POSInterface() {
                             size="small"
                             onClick={() => {
                               setSearchQuery("");
-                              setShowSearchResults(false);
-                              // setIntentToSearch(false); // Permitir que el escáner recupere el foco
-                              setTimeout(() => {
-                                searchInputRef.current?.focus();
-                              }, 0);
                             }}
                         >
                           <CloseIcon />
