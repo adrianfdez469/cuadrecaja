@@ -184,8 +184,6 @@ export default function PlanesPage() {
 
   const currentPlan = getCurrentPlan();
 
-  const formatLimite = (val: number) => (val === -1 ? '∞' : String(val));
-
   const displayPlans = planes.map(plan => ({
     plan,
     price: plan.precio === -1 ? 'Cotización' : plan.precio === 0 ? '$0' : `$${plan.precio}`,
