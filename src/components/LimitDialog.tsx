@@ -39,8 +39,8 @@ import {
   Star,
   CheckCircle
 } from '@mui/icons-material';
-import axios from 'axios';
 import type { IPlan } from '@/schemas/plan';
+import { getPlanes } from '@/services/planService';
 
 export type LimitType = 'locales' | 'usuarios' | 'productos';
 
@@ -101,7 +101,7 @@ const LimitDialog: React.FC<LimitDialogProps> = ({
 
   useEffect(() => {
     if (open) {
-      axios.get<IPlan[]>('/api/planes').then(res => setPlanes(res.data)).catch(() => {});
+      getPlanes().then(data => setPlanes(data)).catch(() => {});
     }
   }, [open]);
 

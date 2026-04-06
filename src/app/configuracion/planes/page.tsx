@@ -53,8 +53,9 @@ import {
   getDaysRemainingColor,
   formatPercentage
 } from '@/utils/formatters';
-import axios from 'axios';
 import type { IPlan } from '@/schemas/plan';
+import { getPlanes } from '@/services/planService';
+import { getNegocioStats } from '@/services/negocioServce';
 
 interface SupportUser {
   name: string;
@@ -114,8 +115,8 @@ export default function PlanesPage() {
     const fetchStats = async () => {
       try {
         setLoadingStats(true);
-        const response = await axios.get('/api/negocio/stats');
-        setStats(response.data);
+        const data = await getNegocioStats();
+        setStats(data);
       } catch (error) {
         console.error('Error al cargar estadísticas:', error);
         showMessage('Error al cargar estadísticas del negocio', 'error');
@@ -127,8 +128,8 @@ export default function PlanesPage() {
     const fetchPlanes = async () => {
       try {
         setLoadingPlanes(true);
-        const response = await axios.get<IPlan[]>('/api/planes');
-        setPlanes(response.data);
+        const data = await getPlanes();
+        setPlanes(data);
       } catch (error) {
         console.error('Error al cargar planes:', error);
         showMessage('Error al cargar planes de suscripción', 'error');

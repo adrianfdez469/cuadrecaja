@@ -26,8 +26,8 @@ import {
   Support,
 } from '@mui/icons-material';
 import { Stack } from '@mui/material';
-import axios from 'axios';
 import type { IPlan } from '@/schemas/plan';
+import { getPlanes } from '@/services/planService';
 
 const COLOR_MAP: Record<string, string> = {
   info: '#2196F3',
@@ -87,8 +87,8 @@ export default function PricingSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get<IPlan[]>('/api/planes')
-      .then(res => setPlanes(res.data.filter(p => p.activo)))
+    getPlanes()
+      .then(data => setPlanes(data.filter(p => p.activo)))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
