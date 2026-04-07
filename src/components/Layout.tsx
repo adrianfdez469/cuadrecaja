@@ -74,6 +74,7 @@ import NextWeekIcon from '@mui/icons-material/NextWeekOutlined';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
+import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import { TipoLocal } from "@/types/ILocal";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
@@ -87,6 +88,12 @@ const CONFIGURATION_MENU_ITEMS = [
     label: "Negocios",
     path: "/configuracion/negocios",
     icon: BusinessCenterIcon,
+    permission: '-'
+  },
+  {
+    label: "Planes de Negocio",
+    path: "/configuracion/planes-admin",
+    icon: WorkspacePremiumIcon,
     permission: '-'
   },
   {

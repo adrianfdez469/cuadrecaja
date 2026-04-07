@@ -51,8 +51,9 @@ import {
   Info,
   Refresh
 } from "@mui/icons-material";
-import { planesNegocio } from "@/utils/planesNegocio";
 import { createNegocio, getNegocios, updateNegocio, deleteNegocio } from "@/services/negocioServce";
+import { getPlanes } from "@/services/planService";
+import type { IPlan } from "@/schemas/plan";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
 import { INegocio } from "@/types/INegocio";
@@ -66,8 +67,6 @@ import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useRouter } from "next/navigation";
 import axios from 'axios';
-
-const planesNegocioArr = Object.entries(planesNegocio);
 
 interface NegocioStats {
   tiendas: {
@@ -106,14 +105,8 @@ export default function Negocios() {
   const { user, loadingContext } = useAppContext();
 
   const [nombre, setNombre] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState<{
-    limiteLocales: number;
-    limiteUsuarios: number;
-    limiteProductos: number;
-    duracion: number;
-    precio: number;
-    descripcion: string;
-  }>();
+  const [selectedPlan, setSelectedPlan] = useState<IPlan | undefined>();
+  const [planes, setPlanes] = useState<IPlan[]>([]);
 
   const router = useRouter();
 
@@ -145,6 +138,7 @@ export default function Negocios() {
   useEffect(() => {
     if (user && user.rol === "SUPER_ADMIN") {
       fetchNegocios();
+      getPlanes().then(setPlanes).catch(() => showMessage('Error al cargar los planes', 'error'));
     }
   }, [user]);
 
@@ -180,19 +174,21 @@ export default function Negocios() {
       if (selectedNegocio) {
         await updateNegocio(
           selectedNegocio.id,
-          nombre, 
-          selectedPlan.limiteLocales, 
+          nombre,
+          selectedPlan.limiteLocales,
           selectedPlan.limiteUsuarios,
-          selectedPlan.limiteProductos
+          selectedPlan.limiteProductos,
+          selectedPlan.id,
         );
         showMessage('Negocio actualizado satisfactoriamente', 'success');
       } else {
         await createNegocio(
-          nombre, 
-          selectedPlan.limiteLocales, 
+          nombre,
+          selectedPlan.limiteLocales,
           selectedPlan.limiteUsuarios,
           selectedPlan.limiteProductos,
-          selectedPlan.duracion
+          selectedPlan.duracion,
+          selectedPlan.id,
         );
         showMessage('Negocio creado satisfactoriamente', 'success');
       }
@@ -229,23 +225,21 @@ export default function Negocios() {
   const handleEdit = (negocio: INegocio) => {
     setSelectedNegocio(negocio);
     setNombre(negocio.nombre);
-    
-    const planKey = Object.keys(planesNegocio).find(key => {
-      const plan = planesNegocio[key as keyof typeof planesNegocio];
-      return plan.limiteLocales === negocio.locallimit &&
-             plan.limiteUsuarios === negocio.userlimit &&
-             plan.limiteProductos === negocio.productlimit;
-    });
-    
-    if (planKey) {
-      setSelectedPlan(planesNegocio[planKey as keyof typeof planesNegocio]);
-    }
-    
+
+    const matched = negocio.planId
+      ? planes.find(p => p.id === negocio.planId)
+      : planes.find(p =>
+          p.limiteLocales === negocio.locallimit &&
+          p.limiteUsuarios === negocio.userlimit &&
+          p.limiteProductos === negocio.productlimit
+        );
+
+    if (matched) setSelectedPlan(matched);
     setOpen(true);
   };
 
-  const handleSetSelectedPlan = (planKey: string) => {
-    setSelectedPlan(planesNegocio[planKey as keyof typeof planesNegocio]);
+  const handleSetSelectedPlan = (planId: string) => {
+    setSelectedPlan(planes.find(p => p.id === planId));
   };
 
   const handleCloseDialog = () => {
@@ -255,14 +249,17 @@ export default function Negocios() {
     setOpen(false);
   };
 
-  const getPlanName = (locallimit: number, userlimit: number, productlimit: number): string => {
-    const planEntry = Object.entries(planesNegocio).find(
-      ([, plan]) => plan.limiteLocales === locallimit && 
-                   plan.limiteUsuarios === userlimit &&
-                   plan.limiteProductos === productlimit
+  const getPlanForNegocio = (negocio: INegocio): IPlan | undefined => {
+    if (negocio.planId) return planes.find(p => p.id === negocio.planId);
+    return planes.find(p =>
+      p.limiteLocales === negocio.locallimit &&
+      p.limiteUsuarios === negocio.userlimit &&
+      p.limiteProductos === negocio.productlimit
     );
-    return planEntry ? planEntry[0] : 'CUSTOM';
   };
+
+  const getPlanName = (negocio: INegocio): string =>
+    getPlanForNegocio(negocio)?.nombre ?? 'CUSTOM';
 
   const getDaysRemaining = (limitTime: Date): number => {
     const now = new Date();
@@ -272,21 +269,14 @@ export default function Negocios() {
     return diffDays;
   };
 
-  const getPlanColor = (planName: string): 'default' | 'primary' | 'secondary' | 'success' | 'warning' => {
-    const colors: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'warning'> = {
-      'FREEMIUM': 'default',
-      'BASICO': 'primary',
-      'SILVER': 'secondary',
-      'PREMIUM': 'success',
-      'CUSTOM': 'warning'
-    };
-    return colors[planName] || 'default';
+  const getPlanColor = (negocio: INegocio) => {
+    const color = getPlanForNegocio(negocio)?.color;
+    return (color as 'default' | 'primary' | 'secondary' | 'success' | 'warning') || 'default';
   };
 
   const filteredNegocios = negocios.filter((negocio) => {
     const searchLower = searchTerm.toLowerCase();
-    const planName = getPlanName(negocio.locallimit, negocio.userlimit, negocio.productlimit);
-    
+    const planName = getPlanName(negocio);
     return negocio.nombre.toLowerCase().includes(searchLower) ||
            planName.toLowerCase().includes(searchLower);
   });
@@ -460,8 +450,8 @@ export default function Negocios() {
   // Componente de tarjeta de negocio para móviles
   const NegocioCard = ({ negocio }: { negocio: INegocio }) => {
     const days = getDaysRemaining(negocio.limitTime);
-    const planName = getPlanName(negocio.locallimit, negocio.userlimit, negocio.productlimit);
-    const planData = planesNegocio[planName as keyof typeof planesNegocio];
+    const planName = getPlanName(negocio);
+    const planData = getPlanForNegocio(negocio);
     const stats = negocioStats[negocio.id];
     const isExpanded = expandedNegocio === negocio.id;
 
@@ -486,7 +476,7 @@ export default function Negocios() {
             <Chip
               label={planName}
               size="small"
-              color={getPlanColor(planName)}
+              color={getPlanColor(negocio)}
               variant="filled"
             />
             <Chip
@@ -841,8 +831,8 @@ export default function Negocios() {
               <TableBody>
                 {filteredNegocios.map((negocio) => {
                   const days = getDaysRemaining(negocio.limitTime);
-                  const planName = getPlanName(negocio.locallimit, negocio.userlimit, negocio.productlimit);
-                  const planData = planesNegocio[planName as keyof typeof planesNegocio];
+                  const planName = getPlanName(negocio);
+                  const planData = getPlanForNegocio(negocio);
                   const stats = negocioStats[negocio.id];
                   const isExpanded = expandedNegocio === negocio.id;
                   
@@ -867,7 +857,7 @@ export default function Negocios() {
                             <Chip
                               label={planName}
                               size="small"
-                              color={getPlanColor(planName)}
+                              color={getPlanColor(negocio)}
                               variant="filled"
                             />
                             {planData && planData.precio > 0 && (
@@ -1062,9 +1052,7 @@ export default function Negocios() {
               </Typography>
               <Select
                 fullWidth
-                value={selectedPlan ? Object.keys(planesNegocio).find(
-                  key => planesNegocio[key as keyof typeof planesNegocio] === selectedPlan
-                ) : ''}
+                value={selectedPlan?.id ?? ''}
                 onChange={(e) => handleSetSelectedPlan(e.target.value as string)}
                 displayEmpty
                 size={isMobile ? "small" : "medium"}
@@ -1072,12 +1060,12 @@ export default function Negocios() {
                 <MenuItem value="" disabled>
                   Selecciona un plan
                 </MenuItem>
-                {planesNegocioArr.map(([planKey, planData]) => (
-                  <MenuItem key={planKey} value={planKey}>
+                {planes.map((planData) => (
+                  <MenuItem key={planData.id} value={planData.id}>
                     <Box>
                       <Box display="flex" alignItems="center" gap={1} mb={0.5}>
                         <Typography variant="body2" fontWeight="medium">
-                          {planKey}
+                          {planData.nombre}
                         </Typography>
                         {planData.precio > 0 && (
                           <Chip
@@ -1120,9 +1108,7 @@ export default function Negocios() {
             {selectedPlan && (
               <Alert severity="info" icon={<Info />}>
                 <Typography variant="body2">
-                  <strong>Plan seleccionado:</strong> {Object.keys(planesNegocio).find(
-                    key => planesNegocio[key as keyof typeof planesNegocio] === selectedPlan
-                  )}
+                  <strong>Plan seleccionado:</strong> {selectedPlan.nombre}
                 </Typography>
                 <Typography variant="body2" sx={{ mt: 0.5 }}>
                   {selectedPlan.descripcion}
