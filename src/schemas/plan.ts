@@ -22,5 +22,5 @@ export const createPlanSchema = planSchema.omit({ id: true, createdAt: true, upd
 export const updatePlanSchema = createPlanSchema.partial();
 
 export type IPlan = z.infer<typeof planSchema>;
-export type ICreatePlan = z.infer<typeof createPlanSchema>;
-export type IUpdatePlan = z.infer<typeof updatePlanSchema>;
+export type ICreatePlan = z.input<typeof createPlanSchema>;
+export type IUpdatePlan = z.input<typeof updatePlanSchema>;
