@@ -40,13 +40,13 @@ import {
   ExpandMore,
   ExpandLess
 } from "@mui/icons-material";
-import axios from "axios";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import LimitDialog from "@/components/LimitDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { usePermisos } from "@/utils/permisos_front";
+import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from "@/services/usuarioService";
 
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState([]);
@@ -74,8 +74,8 @@ export default function UsuariosPage() {
   const fetchUsuarios = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/usuarios");
-      setUsuarios(response.data);
+      const data = await getUsuarios();
+      setUsuarios(data);
     } catch (error) {
       console.error("Error al obtener los usuarios", error);
     } finally {
@@ -98,7 +98,7 @@ export default function UsuariosPage() {
   const handleDelete = async (id) => {
     confirmDialog("¿Estás seguro de eliminar este usuario?", async () => {
       try {
-        await axios.delete(`/api/usuarios/${id}`);
+        await deleteUsuario(id);
         fetchUsuarios();
       } catch (error) {
         console.error("Error al eliminar el usuario", error);
@@ -122,10 +122,10 @@ export default function UsuariosPage() {
     setSaving(true);
     try {
       if (selectedUsuario) {
-        await axios.put(`/api/usuarios/${selectedUsuario.id}`, data);
+        await updateUsuario(selectedUsuario.id, data);
         showMessage("Usuario actualizado exitosamente", "success");
       } else {
-        await axios.post("/api/usuarios", data);
+        await createUsuario(data);
         showMessage("Usuario creado exitosamente", "success");
       }
       fetchUsuarios();

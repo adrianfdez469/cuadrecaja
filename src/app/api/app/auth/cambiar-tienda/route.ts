@@ -54,13 +54,12 @@ export async function POST(request: NextRequest) {
           }
         },
         negocio: {
-          select: { 
-            id: true, 
-            nombre: true, 
-            userlimit: true, 
-            limitTime: true, 
-            locallimit: true, 
-            productlimit: true 
+          select: {
+            id: true,
+            nombre: true,
+            limitTime: true,
+            planId: true,
+            plan: { select: { limiteLocales: true, limiteUsuarios: true, limiteProductos: true } }
           }
         }
       }
@@ -148,6 +147,16 @@ export async function POST(request: NextRequest) {
       tipo: tiendaSeleccionada.tipo
     };
 
+    const negocioParaToken = {
+      id: user.negocio.id,
+      nombre: user.negocio.nombre,
+      limitTime: user.negocio.limitTime,
+      planId: user.negocio.planId,
+      locallimit: user.negocio.plan?.limiteLocales ?? -1,
+      userlimit: user.negocio.plan?.limiteUsuarios ?? -1,
+      productlimit: user.negocio.plan?.limiteProductos ?? -1,
+    };
+
     // Generar nuevo token con la misma estructura que la respuesta (locales reducidos)
     const token = jwt.sign(
       {
@@ -155,7 +164,7 @@ export async function POST(request: NextRequest) {
         rol: rol,
         usuario: user.usuario,
         nombre: user.nombre,
-        negocio: user.negocio,
+        negocio: negocioParaToken,
         localActual: localActualParaToken,
         locales: localesDisponibles,
         permisos: permisos
@@ -171,7 +180,7 @@ export async function POST(request: NextRequest) {
         nombre: user.nombre,
         usuario: user.usuario,
         rol: rol,
-        negocio: user.negocio,
+        negocio: negocioParaToken,
         localActual: localActualParaToken,
         locales: localesDisponibles,
         permisos: permisos

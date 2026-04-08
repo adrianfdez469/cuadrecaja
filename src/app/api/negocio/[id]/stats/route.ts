@@ -36,7 +36,8 @@ export async function GET(
     
     // Verificar que el negocio existe
     const negocio = await prisma.negocio.findUnique({
-      where: { id }
+      where: { id },
+      include: { plan: { select: { limiteLocales: true, limiteUsuarios: true, limiteProductos: true } } }
     });
 
     if (!negocio) {
@@ -51,10 +52,14 @@ export async function GET(
       }),
       
       // Contar usuarios del negocio (excluyendo SUPER_ADMIN)
+      // rol es nullable: los usuarios regulares tienen rol=null, por eso se usa OR
       prisma.usuario.count({
         where: {
           negocioId: id,
-          rol: { not: "SUPER_ADMIN" }
+          OR: [
+            { rol: null },
+            { rol: { not: "SUPER_ADMIN" } }
+          ]
         }
       }),
       
@@ -76,21 +81,25 @@ export async function GET(
       return limite === 0 ? 100 : Math.round((actual / limite) * 100);
     };
 
+    const locallimit = negocio.plan?.limiteLocales ?? -1;
+    const userlimit = negocio.plan?.limiteUsuarios ?? -1;
+    const productlimit = negocio.plan?.limiteProductos ?? -1;
+
     const stats: NegocioStats = {
       tiendas: {
         actual: tiendasCount,
-        limite: negocio.locallimit,
-        porcentaje: calcularPorcentaje(tiendasCount, negocio.locallimit)
+        limite: locallimit,
+        porcentaje: calcularPorcentaje(tiendasCount, locallimit)
       },
       usuarios: {
         actual: usuariosCount,
-        limite: negocio.userlimit,
-        porcentaje: calcularPorcentaje(usuariosCount, negocio.userlimit)
+        limite: userlimit,
+        porcentaje: calcularPorcentaje(usuariosCount, userlimit)
       },
       productos: {
         actual: productosCount,
-        limite: negocio.productlimit,
-        porcentaje: calcularPorcentaje(productosCount, negocio.productlimit)
+        limite: productlimit,
+        porcentaje: calcularPorcentaje(productosCount, productlimit)
       },
       fechaVencimiento: limitTime,
       diasRestantes

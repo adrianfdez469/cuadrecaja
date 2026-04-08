@@ -170,16 +170,7 @@ export default function PlanesPage() {
   // Determinar el plan actual del usuario
   const getCurrentPlan = (): IPlan | null => {
     if (!user?.negocio || planes.length === 0) return null;
-
-    if (user.negocio.planId) {
-      return planes.find(p => p.id === user.negocio.planId) ?? null;
-    }
-
-    return planes.find(p =>
-      p.limiteLocales === user.negocio.locallimit &&
-      p.limiteUsuarios === user.negocio.userlimit &&
-      p.limiteProductos === user.negocio.productlimit
-    ) ?? null;
+    return planes.find(p => p.id === user.negocio.planId) ?? null;
   };
 
   const currentPlan = getCurrentPlan();

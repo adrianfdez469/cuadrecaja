@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    const { nombre, locallimit, userlimit, productlimit, duracion, planId } = await request.json();
+    const { nombre, duracion, planId } = await request.json();
 
     const futureDate = dayjs().add(duracion, 'days').set('hour', 23).set('minute', 59).set('second', 0).set('millisecond', 0);
 
@@ -29,9 +29,6 @@ export async function POST(request: Request) {
       data: {
         nombre: nombre.trim(),
         limitTime: futureDate.toISOString(),
-        locallimit,
-        userlimit,
-        productlimit: productlimit || 0, // Default a 0 si no se especifica
         ...(planId ? { planId } : {}),
       },
     });

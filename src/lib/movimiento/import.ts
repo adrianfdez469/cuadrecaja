@@ -351,7 +351,8 @@ interface IImportarItemsMov {
           id: data.negocioId
         },
         include: {
-          tiendas: true
+          tiendas: true,
+          plan: { select: { limiteProductos: true } }
         }
       })
     
@@ -375,8 +376,8 @@ interface IImportarItemsMov {
   
       console.log('✅ Validación de tienda completada');
   
-      const productLimit = negocio.productlimit;
-    
+      const productLimit = negocio.plan?.limiteProductos ?? -1;
+
       if (productLimit !== -1 && productLimit <= itemsSanitizados.length) {
         console.log('❌ Límite de productos excedido:', { limite: productLimit, cantidad: itemsSanitizados.length });
         throw new Error("LIMITE_DE_PRODUCTOS_EXCEDIDO", {cause: productLimit});

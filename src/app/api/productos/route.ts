@@ -56,14 +56,16 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
-    // Validar límite de productos
-    const productosCounter = await prisma.producto.count({
-      where: {
-        negocioId: user.negocio.id
-      }
-    });
+    const [productosCounter, negocio] = await Promise.all([
+      prisma.producto.count({ where: { negocioId: user.negocio.id } }),
+      prisma.negocio.findUnique({
+        where: { id: user.negocio.id },
+        include: { plan: { select: { limiteProductos: true } } }
+      })
+    ]);
 
-    if (user.negocio.productlimit !== -1 && user.negocio.productlimit <= productosCounter) {
+    const productlimit = negocio.plan?.limiteProductos ?? -1;
+    if (productlimit !== -1 && productlimit <= productosCounter) {
       return NextResponse.json(
         { error: "Límite de productos excedido" },
         { status: 400 }

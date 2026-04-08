@@ -66,15 +66,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const tiendasCounter = await prisma.tienda.count({
-      where: {
-        negocioId: user.negocio.id
-      }
-    })
+    const [tiendasCounter, negocio] = await Promise.all([
+      prisma.tienda.count({ where: { negocioId: user.negocio.id } }),
+      prisma.negocio.findUnique({
+        where: { id: user.negocio.id },
+        include: { plan: { select: { limiteLocales: true } } }
+      })
+    ]);
 
-    if (user.negocio.locallimit <= tiendasCounter) {
+    const locallimit = negocio.plan?.limiteLocales ?? -1;
+    if (locallimit !== -1 && locallimit <= tiendasCounter) {
       return NextResponse.json(
-        { error: "Limite de tiendas exedido" },
+        { error: "Limite de locales excedido" },
         { status: 400 }
       );
     }
