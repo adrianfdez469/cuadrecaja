@@ -52,10 +52,14 @@ export async function GET(
       }),
       
       // Contar usuarios del negocio (excluyendo SUPER_ADMIN)
+      // rol es nullable: los usuarios regulares tienen rol=null, por eso se usa OR
       prisma.usuario.count({
         where: {
           negocioId: id,
-          rol: { not: "SUPER_ADMIN" }
+          OR: [
+            { rol: null },
+            { rol: { not: "SUPER_ADMIN" } }
+          ]
         }
       }),
       

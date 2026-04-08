@@ -187,7 +187,19 @@ export default function Negocios() {
         showMessage('Negocio creado satisfactoriamente', 'success');
       }
       
+      const negocioId = selectedNegocio?.id;
       await fetchNegocios();
+      if (negocioId) {
+        if (expandedNegocio === negocioId) {
+          fetchNegocioStats(negocioId);
+        } else {
+          setNegocioStats(prev => {
+            const updated = { ...prev };
+            delete updated[negocioId];
+            return updated;
+          });
+        }
+      }
       handleCloseDialog();
     } catch (error) {
       console.log(error);
