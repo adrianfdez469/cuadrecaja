@@ -40,18 +40,19 @@ export async function POST(req: Request) {
       );    
     }
     
-    // Contar solo usuarios que no sean SUPER_ADMIN (usuarios del negocio)
-    const usersCounter = await prisma.usuario.count({
-      where: {
-        negocioId: user.negocio.id,
-        rol: {
-          not: "SUPER_ADMIN"
+    const [usersCounter, negocio] = await Promise.all([
+      prisma.usuario.count({
+        where: {
+          negocioId: user.negocio.id
         }
-      }
-    });
+      }),
+      prisma.negocio.findUnique({
+        where: { id: user.negocio.id },
+        select: { userlimit: true }
+      })
+    ]);
 
-    
-    if(user.negocio.userlimit <= usersCounter && user.negocio.userlimit > 0 ) {
+    if (negocio.userlimit !== -1 && negocio.userlimit <= usersCounter) {
       return NextResponse.json(
         { error: "Limite de usuarios exedido" },
         { status: 400 }
