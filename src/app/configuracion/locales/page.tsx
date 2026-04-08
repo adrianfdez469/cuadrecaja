@@ -52,7 +52,6 @@ import {
   PersonAdd,
   Close
 } from "@mui/icons-material";
-import axios from "axios";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useMessageContext } from "@/context/MessageContext";
@@ -60,8 +59,9 @@ import useConfirmDialog from "@/components/confirmDialog";
 import LimitDialog from "@/components/LimitDialog";
 import { ILocal, TipoLocal } from "@/types/ILocal";
 import { IRol } from "@/types/IRol";
-import { getLocales } from "@/services/localesService";
+import { getLocales, createLocal, updateLocal, deleteLocal } from "@/services/localesService";
 import { getRoles } from "@/services/rolService";
+import { getUsuarios } from "@/services/usuarioService";
 
 interface IUsuarioRol {
   usuarioId: string;
@@ -109,8 +109,8 @@ export default function Locales() {
 
   const fetchUsuarios = async () => {
     try {
-      const response = await axios.get("/api/usuarios");
-      setUsuarios(response.data);
+      const data = await getUsuarios();
+      setUsuarios(data);
     } catch (error) {
       console.error("Error al cargar usuarios:", error);
       showMessage("Error al cargar los usuarios", "error");
@@ -135,19 +135,12 @@ export default function Locales() {
 
     setSaving(true);
     try {
+      const payload = { nombre, tipo, usuariosRoles };
       if (selectedLocal) {
-        await axios.put(`/api/locales/${selectedLocal.id}`, {
-          nombre,
-          tipo,
-          usuariosRoles: usuariosRoles
-        });
+        await updateLocal(selectedLocal.id, payload);
         showMessage("Local actualizado exitosamente", "success");
       } else {
-        await axios.post("/api/locales", {
-          nombre,
-          tipo,
-          usuariosRoles: usuariosRoles
-        });
+        await createLocal(payload);
         showMessage("Local creado exitosamente", "success");
       }
       fetchLocales();
@@ -176,13 +169,13 @@ export default function Locales() {
       "¿Está seguro que desea eliminar este local?",
       async () => {
         try {
-          await axios.delete(`/api/locales/${id}`);
+          await deleteLocal(id);
           fetchLocales();
           showMessage("Local eliminado exitosamente", "success");
         } catch (error) {
           console.error("Error al eliminar local:", error);
           showMessage(
-            error.response?.data?.error || "Error al eliminar el local", 
+            error.response?.data?.error || "Error al eliminar el local",
             "error"
           );
         }
