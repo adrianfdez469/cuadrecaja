@@ -46,13 +46,12 @@ export async function POST(request: Request) {
           }
         },
         negocio: {
-          select: { 
-            id: true, 
-            nombre: true, 
-            userlimit: true, 
-            limitTime: true, 
-            locallimit: true, 
-            productlimit: true 
+          select: {
+            id: true,
+            nombre: true,
+            limitTime: true,
+            planId: true,
+            plan: { select: { limiteLocales: true, limiteUsuarios: true, limiteProductos: true } }
           }
         }
       }
@@ -137,6 +136,16 @@ export async function POST(request: Request) {
       rol = await getRolUsuario(user.id, localActualResuelto?.id || null);
     }
 
+    const negocioParaToken = {
+      id: user.negocio.id,
+      nombre: user.negocio.nombre,
+      limitTime: user.negocio.limitTime,
+      planId: user.negocio.planId,
+      locallimit: user.negocio.plan?.limiteLocales ?? -1,
+      userlimit: user.negocio.plan?.limiteUsuarios ?? -1,
+      productlimit: user.negocio.plan?.limiteProductos ?? -1,
+    };
+
     // Generar token JWT con la misma estructura que la respuesta (locales reducidos)
     const token = jwt.sign(
       {
@@ -144,7 +153,7 @@ export async function POST(request: Request) {
         rol: rol,
         usuario: user.usuario,
         nombre: user.nombre,
-        negocio: user.negocio,
+        negocio: negocioParaToken,
         localActual: localActualResuelto,
         locales: localesDisponibles,
         permisos: permisos
@@ -161,7 +170,7 @@ export async function POST(request: Request) {
         nombre: user.nombre,
         usuario: user.usuario,
         rol: rol,
-        negocio: user.negocio,
+        negocio: negocioParaToken,
         localActual: localActualResuelto,
         locales: localesDisponibles,
         permisos: permisos

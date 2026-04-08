@@ -48,11 +48,12 @@ export async function POST(req: Request) {
       }),
       prisma.negocio.findUnique({
         where: { id: user.negocio.id },
-        select: { userlimit: true }
+        include: { plan: { select: { limiteUsuarios: true } } }
       })
     ]);
 
-    if (negocio.userlimit !== -1 && negocio.userlimit <= usersCounter) {
+    const userlimit = negocio.plan?.limiteUsuarios ?? -1;
+    if (userlimit !== -1 && userlimit <= usersCounter) {
       return NextResponse.json(
         { error: "Limite de usuarios exedido" },
         { status: 400 }

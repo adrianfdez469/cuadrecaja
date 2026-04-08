@@ -34,9 +34,6 @@ model Negocio {
   createdAt   DateTime @default(now())
 
   limitTime    DateTime
-  userlimit    Int
-  locallimit   Int
-  productlimit Int      @default(0) // Límite de productos por plan
 
   plan    Plan?   @relation(fields: [planId], references: [id])
   planId  String?

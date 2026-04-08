@@ -70,13 +70,14 @@ export async function POST(request: Request) {
       prisma.tienda.count({ where: { negocioId: user.negocio.id } }),
       prisma.negocio.findUnique({
         where: { id: user.negocio.id },
-        select: { locallimit: true }
+        include: { plan: { select: { limiteLocales: true } } }
       })
     ]);
 
-    if (negocio.locallimit !== -1 && negocio.locallimit <= tiendasCounter) {
+    const locallimit = negocio.plan?.limiteLocales ?? -1;
+    if (locallimit !== -1 && locallimit <= tiendasCounter) {
       return NextResponse.json(
-        { error: "Limite de locales exedido" },
+        { error: "Limite de locales excedido" },
         { status: 400 }
       );
     }

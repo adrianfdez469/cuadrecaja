@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { Negocio, Prisma, Producto, Usuario } from "@prisma/client";
+import { Negocio, Plan, Prisma, Producto, Usuario } from "@prisma/client";
 
 export interface NotificationData {
   titulo: string;
@@ -208,7 +208,8 @@ export class NotificationService {
         // Procesar todos los negocios
         const negocios = await prisma.negocio.findMany({
           include: {
-            productos: true
+            productos: true,
+            plan: true
           }
         });
 
@@ -220,7 +221,8 @@ export class NotificationService {
         const negocio = await prisma.negocio.findUnique({
           where: { id: negocioId },
           include: {
-            productos: true
+            productos: true,
+            plan: true
           }
         });
 
@@ -238,9 +240,10 @@ export class NotificationService {
   /**
    * Procesar límites de productos para un negocio específico
    */
-  private static async processProductLimits(negocio: Negocio & { productos: Producto[] }) {
-    if (negocio.productlimit <= 0) {
-      // Si no hay límite, eliminar notificación si existe
+  private static async processProductLimits(negocio: Negocio & { productos: Producto[]; plan: Plan | null }) {
+    const productlimit = negocio.plan?.limiteProductos ?? -1;
+    if (productlimit === -1) {
+      // Sin límite, eliminar notificación si existe
       const titulo = `Límite de productos - ${negocio.nombre}`;
       const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
       if (notificacionExistente) {
@@ -250,9 +253,9 @@ export class NotificationService {
       return;
     }
 
-    const porcentajeUsado = Math.round((negocio.productos.length / negocio.productlimit) * 100);
+    const porcentajeUsado = Math.round((negocio.productos.length / productlimit) * 100);
     const titulo = `Límite de productos - ${negocio.nombre}`;
-    const descripcion = `El negocio "${negocio.nombre}" ha alcanzado el ${porcentajeUsado}% de su límite de productos (${negocio.productos.length}/${negocio.productlimit}). Considera actualizar tu plan para agregar más productos.`;
+    const descripcion = `El negocio "${negocio.nombre}" ha alcanzado el ${porcentajeUsado}% de su límite de productos (${negocio.productos.length}/${productlimit}). Considera actualizar tu plan para agregar más productos.`;
     const nivelImportancia = porcentajeUsado >= 95 ? 'ALTA' : 'MEDIA';
 
     // Verificar si la notificación es válida
@@ -305,7 +308,8 @@ export class NotificationService {
         // Procesar todos los negocios
         const negocios = await prisma.negocio.findMany({
           include: {
-            usuarios: true
+            usuarios: true,
+            plan: true
           }
         });
 
@@ -321,7 +325,8 @@ export class NotificationService {
               where: {
                 rol: null
               }
-            }
+            },
+            plan: true
           }
         });
 
@@ -339,9 +344,10 @@ export class NotificationService {
   /**
    * Procesar límites de usuarios para un negocio específico
    */
-  private static async processUserLimits(negocio: Negocio & { usuarios: Usuario[] }) {
-    if (negocio.userlimit <= 0) {
-      // Si no hay límite, eliminar notificación si existe
+  private static async processUserLimits(negocio: Negocio & { usuarios: Usuario[]; plan: Plan | null }) {
+    const userlimit = negocio.plan?.limiteUsuarios ?? -1;
+    if (userlimit === -1) {
+      // Sin límite, eliminar notificación si existe
       const titulo = `Límite de usuarios - ${negocio.nombre}`;
       const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
       if (notificacionExistente) {
@@ -350,11 +356,10 @@ export class NotificationService {
       }
       return;
     }
-console.log(negocio.usuarios);
 
-    const porcentajeUsado = Math.round((negocio.usuarios.length / negocio.userlimit) * 100);
+    const porcentajeUsado = Math.round((negocio.usuarios.length / userlimit) * 100);
     const titulo = `Límite de usuarios - ${negocio.nombre}`;
-    const descripcion = `El negocio "${negocio.nombre}" ha alcanzado el ${porcentajeUsado}% de su límite de usuarios (${negocio.usuarios.length}/${negocio.userlimit}). Considera actualizar tu plan para agregar más usuarios.`;
+    const descripcion = `El negocio "${negocio.nombre}" ha alcanzado el ${porcentajeUsado}% de su límite de usuarios (${negocio.usuarios.length}/${userlimit}). Considera actualizar tu plan para agregar más usuarios.`;
     const nivelImportancia = porcentajeUsado >= 95 ? 'ALTA' : 'MEDIA';
 
     // Verificar si la notificación es válida

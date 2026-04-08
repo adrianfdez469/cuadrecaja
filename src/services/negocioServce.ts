@@ -8,24 +8,18 @@ export const getNegocios = async () => {
   return response.data;
 }
 
-export const createNegocio = async (nombre: string, locallimit: number, userlimit: number, productlimit: number, duracion: number, planId?: string) => {
+export const createNegocio = async (nombre: string, duracion: number, planId?: string) => {
   const response = await axios.post(API_URL, {
     nombre,
-    locallimit,
-    userlimit,
-    productlimit,
     duracion,
     planId,
   });
   return response.data;
 }
 
-export const updateNegocio = async (id: string, nombre: string, locallimit: number, userlimit: number, productlimit: number, planId?: string) => {
+export const updateNegocio = async (id: string, nombre: string, planId?: string) => {
   const response = await axios.put(`${API_URL}/${id}`, {
     nombre,
-    locallimit,
-    userlimit,
-    productlimit,
     planId,
   });
   return response.data;

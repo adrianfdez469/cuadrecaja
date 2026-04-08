@@ -60,11 +60,12 @@ export async function POST(req: Request) {
       prisma.producto.count({ where: { negocioId: user.negocio.id } }),
       prisma.negocio.findUnique({
         where: { id: user.negocio.id },
-        select: { productlimit: true }
+        include: { plan: { select: { limiteProductos: true } } }
       })
     ]);
 
-    if (negocio.productlimit !== -1 && negocio.productlimit <= productosCounter) {
+    const productlimit = negocio.plan?.limiteProductos ?? -1;
+    if (productlimit !== -1 && productlimit <= productosCounter) {
       return NextResponse.json(
         { error: "Límite de productos excedido" },
         { status: 400 }

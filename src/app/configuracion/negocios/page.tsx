@@ -175,18 +175,12 @@ export default function Negocios() {
         await updateNegocio(
           selectedNegocio.id,
           nombre,
-          selectedPlan.limiteLocales,
-          selectedPlan.limiteUsuarios,
-          selectedPlan.limiteProductos,
           selectedPlan.id,
         );
         showMessage('Negocio actualizado satisfactoriamente', 'success');
       } else {
         await createNegocio(
           nombre,
-          selectedPlan.limiteLocales,
-          selectedPlan.limiteUsuarios,
-          selectedPlan.limiteProductos,
           selectedPlan.duracion,
           selectedPlan.id,
         );
@@ -226,14 +220,7 @@ export default function Negocios() {
     setSelectedNegocio(negocio);
     setNombre(negocio.nombre);
 
-    const matched = negocio.planId
-      ? planes.find(p => p.id === negocio.planId)
-      : planes.find(p =>
-          p.limiteLocales === negocio.locallimit &&
-          p.limiteUsuarios === negocio.userlimit &&
-          p.limiteProductos === negocio.productlimit
-        );
-
+    const matched = planes.find(p => p.id === negocio.planId);
     if (matched) setSelectedPlan(matched);
     setOpen(true);
   };
@@ -249,17 +236,11 @@ export default function Negocios() {
     setOpen(false);
   };
 
-  const getPlanForNegocio = (negocio: INegocio): IPlan | undefined => {
-    if (negocio.planId) return planes.find(p => p.id === negocio.planId);
-    return planes.find(p =>
-      p.limiteLocales === negocio.locallimit &&
-      p.limiteUsuarios === negocio.userlimit &&
-      p.limiteProductos === negocio.productlimit
-    );
-  };
+  const getPlanForNegocio = (negocio: INegocio): IPlan | undefined =>
+    planes.find(p => p.id === negocio.planId);
 
   const getPlanName = (negocio: INegocio): string =>
-    getPlanForNegocio(negocio)?.nombre ?? 'CUSTOM';
+    getPlanForNegocio(negocio)?.nombre ?? 'Sin plan';
 
   const getDaysRemaining = (limitTime: Date): number => {
     const now = new Date();

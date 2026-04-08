@@ -10,7 +10,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const { id } = await params;
-    const { nombre, locallimit, userlimit, productlimit, planId } = await req.json();
+    const { nombre, planId } = await req.json();
 
     // Verificar que el negocio existe
     const negocioExistente = await prisma.negocio.findUnique({
@@ -26,9 +26,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       where: { id },
       data: {
         nombre,
-        locallimit,
-        userlimit,
-        productlimit: productlimit || 0,
         planId: planId ?? null,
       },
     });

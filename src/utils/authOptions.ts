@@ -32,7 +32,13 @@ export const authOptions: NextAuthOptions = {
             // tiendaActual: true,
             localActual: true,
             negocio: {
-              select: { id: true, nombre: true, userlimit: true, limitTime: true, locallimit: true, productlimit: true, planId: true }
+              select: {
+                id: true,
+                nombre: true,
+                limitTime: true,
+                planId: true,
+                plan: { select: { limiteLocales: true, limiteUsuarios: true, limiteProductos: true } }
+              }
             }
           },
         });
@@ -121,11 +127,21 @@ export const authOptions: NextAuthOptions = {
           rol = await getRolUsuario(user.id, user.localActual?.id || null)
         }
 
+        const negocioParaToken = {
+          id: user.negocio.id,
+          nombre: user.negocio.nombre,
+          limitTime: user.negocio.limitTime,
+          planId: user.negocio.planId,
+          locallimit: user.negocio.plan?.limiteLocales ?? -1,
+          userlimit: user.negocio.plan?.limiteUsuarios ?? -1,
+          productlimit: user.negocio.plan?.limiteProductos ?? -1,
+        };
+
         return {
           id: user.id,
           usuario: user.usuario,
           nombre: user.nombre,
-          negocio: user.negocio,
+          negocio: negocioParaToken,
           rol: rol,
           // tiendas: tiendasDisponibles,
           locales: localesDisponibles,

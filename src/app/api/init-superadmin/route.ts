@@ -26,10 +26,7 @@ export async function GET(req: Request) {
       const adminFkBusiness = await prisma.negocio.create({
         data: {
           nombre: "Negocio para superadmin",
-          userlimit: 1,
           limitTime: fiveYearsFromNow,
-          locallimit: 1,
-          productlimit: 1
         },
       });
       await prisma.usuario.create({
