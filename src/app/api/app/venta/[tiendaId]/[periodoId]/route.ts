@@ -107,6 +107,7 @@ export async function POST(
     });
 
     if (!ultimoPeriodo) {
+      console.error('❌ [APP/VENTA/POST] No existe un período abierto en la tienda');
       return NextResponse.json(
         { error: 'No existe un período abierto en la tienda' },
         { status: 400 }
@@ -120,12 +121,14 @@ export async function POST(
       });
 
       if (!periodoDeLaVenta) {
+        console.error('❌ [APP/VENTA/POST] No existe un período con el id proporcionado');
         return NextResponse.json(
           { error: `No existe un período con el id proporcionado. El ultimo periodo abierto es: ${ultimoPeriodo.fechaInicio.toLocaleString()}` },
           { status: 404 }
         );
       }
 
+      console.error('❌ [APP/VENTA/POST] La venta pertenece a un período cerrado o diferente al actual');
       return NextResponse.json({
         error: `La venta pertenece a un período cerrado o diferente al actual. El ultimo periodo abierto es: ${ultimoPeriodo.fechaInicio.toLocaleString()}`,
         periodoActualId: ultimoPeriodo.id
