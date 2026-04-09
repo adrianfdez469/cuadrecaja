@@ -27,7 +27,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import { fecthCostosPreciosProds } from "@/services/costoPrecioServices";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
-import { formatCurrency } from '@/utils/formatters';
+import { formatCurrency, normalizeSearch } from '@/utils/formatters';
 import { PrintLabelsModal } from './components/PrintLabelsModal';
 
 // Componente personalizado para editar precios
@@ -152,7 +152,7 @@ const PreciosCantidades = () => {
       setFilteredProductos(mapProductos);
     } else {
       const filtered = mapProductos.filter(producto =>
-        producto.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
+        normalizeSearch(producto.nombre ?? '').includes(normalizeSearch(searchTerm))
       );
       setFilteredProductos(filtered);
     }

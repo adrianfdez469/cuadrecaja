@@ -179,6 +179,12 @@ export const formatPercentage = (value: number, decimals: number = 1): string =>
   })}%`;
 }; 
 
+/**
+ * Normaliza un texto para búsquedas: elimina tildes, convierte a minúsculas y colapsa espacios
+ */
+export const normalizeSearch = (str: string): string =>
+  str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
 export const sanitizeNumber = (number: number) => {
   // Eliminar 0 del inicio
   if(number) {

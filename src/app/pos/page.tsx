@@ -58,6 +58,7 @@ import { fetchTransferDestinations } from "@/services/transferDestinationsServic
 import { CartContent } from "@/components/cartDrawer/components/cartContent";
 import { ProductProcessorDataRef } from "@/components/ProductProcessorData/ProductProcessorData";
 import audioService from "@/utils/audioService";
+import { normalizeSearch } from "@/utils/formatters";
 import ShoppingCartComponent from "@/app/pos/components/ShoppingCartComponent";
 import PosStatusToolBar from "@/app/pos/components/SyncButton";
 import ConnectionStatus from "@/app/pos/components/ConnectionStatus";
@@ -80,7 +81,6 @@ export default function POSInterface() {
   const [showUserSales, setShowUserSales] = useState(false);
   const [showSyncView, setShowSyncView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<IProductoTiendaV2[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchAnchorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -697,28 +697,15 @@ export default function POSInterface() {
   };
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (query.trim() === "") {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-    const filtered = productosTienda.filter((product) =>
-      product.producto.nombre.toLowerCase().includes(query.toLowerCase())
-    );
-
-    setSearchResults(filtered.slice(0, 10)); // Limitar a 10 resultados
-    setShowSearchResults(true);
+    setShowSearchResults(query.trim() !== "");
   };
 
-  // Actualizar resultados de búsqueda cuando productosTienda cambie (después de una venta)
-  useEffect(() => {
-    if (searchQuery.trim() !== "" && showSearchResults) {
-      const filtered = productosTienda.filter((product) =>
-        product.producto.nombre.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setSearchResults(filtered.slice(0, 10));
-    }
-  }, [productosTienda, searchQuery, showSearchResults]);
+  const searchResults = useMemo(() => {
+    if (searchQuery.trim() === "") return [];
+    return productosTienda
+      .filter((p) => normalizeSearch(p.producto.nombre).includes(normalizeSearch(searchQuery)))
+      .slice(0, 10);
+  }, [productosTienda, searchQuery]);
 
   const handleProductSelect = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
@@ -1443,9 +1430,8 @@ export default function POSInterface() {
                           secondary={`$${product.precio} - ${getSecondaryTextForSearchedProducts(product)}`}
                           primaryTypographyProps={{
                             sx: {
-                              fontWeight: product.producto.nombre
-                                .toLowerCase()
-                                .startsWith(searchQuery.toLowerCase())
+                              fontWeight: normalizeSearch(product.producto.nombre)
+                                .startsWith(normalizeSearch(searchQuery))
                                 ? 600
                                 : 400,
                             },
