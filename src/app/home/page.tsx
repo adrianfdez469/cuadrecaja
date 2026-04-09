@@ -116,7 +116,7 @@ const HomePage = () => {
       setLoadingNegocioStats(false);
     }
     fetchNegocioStats();
-  }, []);
+  }, [user?.negocio?.id]);
 
   if (loadingContext) {
     return (
