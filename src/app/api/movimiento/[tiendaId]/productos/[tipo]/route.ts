@@ -18,10 +18,39 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
     
     const user = await getUserFromRequest(req);
     const negocioId = user?.negocio.id;
-    
+
+    // Búsqueda tolerante a tildes/mayúsculas/espacios usando unaccent
+    let textFilterIds: string[] | undefined;
+    if (text) {
+      const normalizedText = text.trim().replace(/\s+/g, ' ');
+      const pattern = `%${normalizedText}%`;
+
+      if (tipo.toUpperCase() === 'ENTRADA') {
+        const rows = await prisma.$queryRaw<{ id: string }[]>`
+          SELECT id FROM "Producto"
+          WHERE "negocioId" = ${negocioId}
+            AND unaccent(lower(nombre)) LIKE unaccent(lower(${pattern}))
+        `;
+        textFilterIds = rows.map(r => r.id);
+      } else {
+        const rows = await prisma.$queryRaw<{ id: string }[]>`
+          SELECT DISTINCT p.id
+          FROM "Producto" p
+          LEFT JOIN "ProductoTienda" pt ON pt."productoId" = p.id AND pt."tiendaId" = ${tiendaId}
+          LEFT JOIN "Proveedor" prov ON pt."proveedorId" = prov.id
+          WHERE p."negocioId" = ${negocioId}
+            AND (
+              unaccent(lower(p.nombre)) LIKE unaccent(lower(${pattern}))
+              OR unaccent(lower(COALESCE(prov.nombre, ''))) LIKE unaccent(lower(${pattern}))
+            )
+        `;
+        textFilterIds = rows.map(r => r.id);
+      }
+    }
+
     const whereProductoTienda = {
       tiendaId: tiendaId,
-      
+
       ...(tipoMovimiento === 'CONSIGNACION_ENTRADA' ? {proveedorId: proveedorId} : {proveedorId: null})
 
     }
@@ -30,8 +59,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
       const productos = await prisma.producto.findMany({
         where: {
           negocioId: negocioId,
-          ...(text && {nombre: { contains: text, mode: 'insensitive' }
-          }),
+          ...(textFilterIds && { id: { in: textFilterIds } }),
           ...(categoriaId && {
             categoriaId: categoriaId
           })
@@ -73,20 +101,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
         where: {
           negocioId: negocioId,
           fraccionDeId: null,
-          ...(text && {
-            OR: [
-              { nombre: { contains: text, mode: 'insensitive' } },
-              {
-                productosTienda: {
-                  some: {
-                    proveedor: {
-                      nombre: { contains: text, mode: 'insensitive' }
-                    }
-                  }
-                }
-              }
-            ]
-          }),
+          ...(textFilterIds && { id: { in: textFilterIds } }),
           ...(categoriaId && {
             categoriaId: categoriaId
           }),

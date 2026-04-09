@@ -1,4 +1,4 @@
-import {formatCurrency, formatNumber} from "@/utils/formatters";
+import {formatCurrency, formatNumber, normalizeSearch} from "@/utils/formatters";
 import {Search, DoDisturbOn} from "@mui/icons-material";
 import {
   Alert,
@@ -192,8 +192,9 @@ const TableProductosDisponibles: React.FC<IProps> = ({
   // Función para aplicar filtros
   const handleApplyFilters = useCallback(() => {
     if (onFilterChange) {
+      const normalizedText = normalizeSearch(filterText);
       onFilterChange({
-        text: filterText.trim() || undefined,
+        text: normalizedText || undefined,
         categoriaId: filterCategoryId || undefined
       });
     }
