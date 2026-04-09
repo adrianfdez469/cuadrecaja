@@ -30,7 +30,7 @@ export async function GET(req: Request): Promise<NextResponse<NegocioStats | { e
       return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
     }
 
-    // Obtener conteos actuales
+    // Obtener conteos actuales y límites del plan desde la BD
     const negocio = await prisma.negocio.findUnique({
       where: { id: user.negocio.id },
       select: {
@@ -38,15 +38,26 @@ export async function GET(req: Request): Promise<NextResponse<NegocioStats | { e
           select: {
             rol: true
           }
-        },          
+        },
         _count: {
           select: {
             tiendas: true,
             productos: true
           }
+        },
+        plan: {
+          select: {
+            limiteLocales: true,
+            limiteUsuarios: true,
+            limiteProductos: true
+          }
         }
       },
     });
+
+    const locallimit = negocio.plan?.limiteLocales ?? -1;
+    const userlimit = negocio.plan?.limiteUsuarios ?? -1;
+    const productlimit = negocio.plan?.limiteProductos ?? -1;
 
     // Calcular días restantes
     const now = new Date();
@@ -67,18 +78,18 @@ export async function GET(req: Request): Promise<NextResponse<NegocioStats | { e
     const stats: NegocioStats = {
       tiendas: {
         actual: tiendasCount,
-        limite: user.negocio.locallimit,
-        porcentaje: calcularPorcentaje(tiendasCount, user.negocio.locallimit)
+        limite: locallimit,
+        porcentaje: calcularPorcentaje(tiendasCount, locallimit)
       },
       usuarios: {
         actual: usuariosCount,
-        limite: user.negocio.userlimit,
-        porcentaje: calcularPorcentaje(usuariosCount, user.negocio.userlimit)
+        limite: userlimit,
+        porcentaje: calcularPorcentaje(usuariosCount, userlimit)
       },
       productos: {
         actual: productosCount,
-        limite: user.negocio.productlimit,
-        porcentaje: calcularPorcentaje(productosCount, user.negocio.productlimit)
+        limite: productlimit,
+        porcentaje: calcularPorcentaje(productosCount, productlimit)
       },
       fechaVencimiento: limitTime,
       diasRestantes
