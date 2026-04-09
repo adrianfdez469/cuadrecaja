@@ -77,6 +77,7 @@ export async function POST(
     if (createdAt == null || createdAt === '') faltantes.push('createdAt');
 
     if (faltantes.length > 0) {
+      console.error('❌ [APP/VENTA/POST] Datos insuficientes:', faltantes);
       return NextResponse.json(
         {
           error: `Datos insuficientes para crear la venta: ${faltantes.join(', ')}`
