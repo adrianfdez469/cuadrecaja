@@ -18,34 +18,36 @@ export async function GET(req: Request) {
     const referenciaId = searchParams.get("referenciaId");
     const search = searchParams.get("search");
 
+    // Obtener IDs coincidentes con búsqueda tolerante a tildes/mayúsculas usando unaccent
+    let searchIds: string[] | undefined;
+    if (search) {
+      const normalizedSearch = search.trim().replace(/\s+/g, ' ');
+      const pattern = `%${normalizedSearch}%`;
+      const rows = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT DISTINCT ms.id
+        FROM "MovimientoStock" ms
+        LEFT JOIN "ProductoTienda" pt ON ms."productoTiendaId" = pt.id
+        LEFT JOIN "Producto" p ON pt."productoId" = p.id
+        LEFT JOIN "Usuario" u ON ms."usuarioId" = u.id
+        LEFT JOIN "Proveedor" prov ON ms."proveedorId" = prov.id
+        WHERE ms."tiendaId" = ${tiendaId}
+          AND (
+            unaccent(lower(COALESCE(ms.motivo, '')))    LIKE unaccent(lower(${pattern}))
+            OR unaccent(lower(COALESCE(p.nombre, '')))    LIKE unaccent(lower(${pattern}))
+            OR unaccent(lower(COALESCE(u.nombre, '')))    LIKE unaccent(lower(${pattern}))
+            OR unaccent(lower(COALESCE(prov.nombre, ''))) LIKE unaccent(lower(${pattern}))
+          )
+      `;
+      searchIds = rows.map(r => r.id);
+    }
+
     const filtros = {
       ...(fechaInicio && {fecha: { gte: new Date(fechaInicio).toISOString() }}),
       ...(fechaFin && {fecha: {lte: new Date(fechaFin).toISOString()}}),
       ...(tipo && {tipo: tipo}),
       ...(productoTiendaId && {productoTiendaId: productoTiendaId}),
       ...(referenciaId && {referenciaId: referenciaId}),
-      ...(search && {
-        OR: [
-          { motivo: { contains: search, mode: 'insensitive' as const } },
-          {
-            productoTienda: {
-              producto: {
-                nombre: { contains: search, mode: 'insensitive' as const }
-              }
-            }
-          },
-          {
-            usuario: {
-              nombre: { contains: search, mode: 'insensitive' as const }
-            }
-          },
-          {
-            proveedor: {
-              nombre: { contains: search, mode: 'insensitive' as const }
-            }
-          }
-        ]
-      })
+      ...(searchIds && { id: { in: searchIds } }),
     }
 
     // 🆕 Obtener el total de registros para paginación
