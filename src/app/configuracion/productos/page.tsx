@@ -52,6 +52,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { normalizeSearch } from "@/utils/formatters";
 import LimitDialog from "@/components/LimitDialog";
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
@@ -150,10 +151,12 @@ export default function ProductList() {
     });
   };
 
+  const normalizedSearch = normalizeSearch(searchTerm);
+
   const filteredProducts = products.filter((product) =>
-    product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.categoria?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
+    normalizeSearch(product.nombre).includes(normalizedSearch) ||
+    normalizeSearch(product.descripcion ?? '').includes(normalizedSearch) ||
+    normalizeSearch(product.categoria?.nombre ?? '').includes(normalizedSearch)
   );
 
   // Cálculos para estadísticas
