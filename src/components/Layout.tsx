@@ -83,19 +83,14 @@ import LocalOffer from "@mui/icons-material/LocalOffer";
 import Loading from "./Loading";
 import Logo from "./Logo";
 
+const SUPER_ADMIN_MENU_ITEMS = [
+  { label: "Negocios", path: "/configuracion/negocios", icon: BusinessCenterIcon },
+  { label: "Planes de Negocio", path: "/configuracion/planes-admin", icon: WorkspacePremiumIcon },
+  { label: "Suspensiones", path: "/configuracion/suspensiones", icon: Block },
+  { label: "Notificaciones", path: "/configuracion/notificaciones", icon: Notifications },
+];
+
 const CONFIGURATION_MENU_ITEMS = [
-  {
-    label: "Negocios",
-    path: "/configuracion/negocios",
-    icon: BusinessCenterIcon,
-    permission: '-'
-  },
-  {
-    label: "Planes de Negocio",
-    path: "/configuracion/planes-admin",
-    icon: WorkspacePremiumIcon,
-    permission: '-'
-  },
   {
     label: "Usuarios",
     path: "/configuracion/usuarios",
@@ -150,18 +145,6 @@ const CONFIGURATION_MENU_ITEMS = [
     icon: UpgradeIcon,
     permission: '*'
   },
-  {
-    label: "Notificaciones",
-    path: "/configuracion/notificaciones",
-    icon: Notifications,
-    permission: '*'
-  },
-  {
-    label: "Suspensiones",
-    path: "/configuracion/suspensiones",
-    icon: Block,
-    permission: '*'
-  },
 ];
 
 const MAIN_MENU_ITEMS = [
@@ -203,9 +186,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [loadingLocales, setLoadingLocales] = useState(false);
   const [totalLocalesDisponibles, setTotalLocalesDisponibles] = useState(0);
   const { isOnline, wasOffline } = useNetworkStatus();
-  const [menuState, setMenuState] = useState<{ operaciones: boolean, resumenes: boolean, configuracion: boolean }>({
+  const [menuState, setMenuState] = useState<{ operaciones: boolean, resumenes: boolean, configuracion: boolean, administracion: boolean }>({
     operaciones: true,
     resumenes: false,
+    administracion: false,
     configuracion: false
   });
   const { verificarPermiso } = usePermisos()
@@ -387,6 +371,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         configuracion: false,
         operaciones: false,
         resumenes: false,
+        administracion: false,
         [type]: true
       });
     } else {
@@ -929,59 +914,95 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 }
 
                 {CONFIGURATION_MENU_ITEMS
-                  .filter((item) => {
-                    // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
-                    if (user.rol === 'SUPER_ADMIN') return true;
-                    // return user.permisos.includes(item.permission) || item.permission === '*';
-                    return verificarPermiso(item.permission);
-                  }).length > 0 &&
-                  <Accordion expanded={menuState.configuracion} onChange={() => handleMenuAccordion('configuracion')}>
+                        .filter((item) => {
+                          return verificarPermiso(item.permission);
+                        }).length > 0 &&
+                    <Accordion expanded={menuState.configuracion} onChange={() => handleMenuAccordion('configuracion')}>
+                        <AccordionSummary expandIcon={<ExpandMore />}>
+                            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                                Configuración
+                            </Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            <List sx={{ pt: 2 }}>
+                              {CONFIGURATION_MENU_ITEMS
+                                  .filter((item) => verificarPermiso(item.permission))
+                                  .map((item) => (
+                                      <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                                        <ListItemButton
+                                            onClick={() => {
+                                              gotToPath(item.path);
+                                              setOpen(false);
+                                            }}
+                                            sx={{
+                                              borderRadius: 2,
+                                              py: 1.5,
+                                              '&:hover': {
+                                                backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                              }
+                                            }}
+                                        >
+                                          <ListItemIcon sx={{ minWidth: 40 }}>
+                                            <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                                          </ListItemIcon>
+                                          <ListItemText
+                                              primary={item.label}
+                                              primaryTypographyProps={{
+                                                fontWeight: 500,
+                                                fontSize: '0.875rem'
+                                              }}
+                                          />
+                                        </ListItemButton>
+                                      </ListItem>
+                                  ))}
+                            </List>
+                        </AccordionDetails>
+                    </Accordion>
+                }
+
+                {user.rol === 'SUPER_ADMIN' &&
+                  <Accordion style={{margin: 0}} expanded={menuState.administracion} onChange={() => handleMenuAccordion('administracion')}>
                     <AccordionSummary expandIcon={<ExpandMore />}>
                       <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                        Configuración
+                        Administración
                       </Typography>
                     </AccordionSummary>
                     <AccordionDetails>
                       <List sx={{ pt: 2 }}>
-                        {CONFIGURATION_MENU_ITEMS
-                          .filter((item) => {
-                            // Solo mostrar "Negocios" a usuarios SUPER_ADMIN
-                            if (user.rol === 'SUPER_ADMIN') return true;
-                            // return user.permisos.includes(item.permission) || item.permission === '*';
-                            return verificarPermiso(item.permission);
-                          })
-                          .map((item) => (
-                            <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
-                              <ListItemButton
-                                onClick={() => {
-                                  gotToPath(item.path);
-                                  setOpen(false);
+                        {SUPER_ADMIN_MENU_ITEMS.map((item) => (
+                          <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
+                            <ListItemButton
+                              onClick={() => {
+                                gotToPath(item.path);
+                                setOpen(false);
+                              }}
+                              sx={{
+                                borderRadius: 2,
+                                py: 1.5,
+                                '&:hover': {
+                                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                }
+                              }}
+                            >
+                              <ListItemIcon sx={{ minWidth: 40 }}>
+                                <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={item.label}
+                                primaryTypographyProps={{
+                                  fontWeight: 500,
+                                  fontSize: '0.9rem'
                                 }}
-                                sx={{
-                                  borderRadius: 2,
-                                  py: 1.5,
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                                  }
-                                }}
-                              >
-                                <ListItemIcon sx={{ minWidth: 40 }}>
-                                  <item.icon sx={{ color: 'primary.main', fontSize: 22 }} />
-                                </ListItemIcon>
-                                <ListItemText
-                                  primary={item.label}
-                                  primaryTypographyProps={{
-                                    fontWeight: 500,
-                                    fontSize: '0.875rem'
-                                  }}
-                                />
-                              </ListItemButton>
-                            </ListItem>
-                          ))}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
                       </List>
                     </AccordionDetails>
                   </Accordion>
                 }
+
+
 
                 <List sx={{ px: 2 }}>
                   {HELP_MENU_ITEMS.map((item) => (
