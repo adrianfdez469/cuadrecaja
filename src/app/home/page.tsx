@@ -444,7 +444,7 @@ const HomePage = () => {
           alignItems={{ xs: "stretch", sm: "center" }}
         >
           <Chip
-            label={`Productos: ${negocioStats?.productos.actual} / ${ user.negocio?.productlimit === -1 ? '∞' : user.negocio?.productlimit} (${negocioStats?.productos.porcentaje}%)`}
+            label={`Productos: ${negocioStats?.productos.actual} / ${ negocioStats?.productos.limite === -1 ? '∞' : negocioStats?.productos.limite} (${negocioStats?.productos.porcentaje}%)`}
             icon={<ShoppingCart />}
             color={negocioStats?.productos.porcentaje <= 0 ? 'error' : negocioStats?.productos.porcentaje <= 10 ? 'warning' : 'success'}
             size="small"
@@ -458,7 +458,7 @@ const HomePage = () => {
             }}
           />
           <Chip
-            label={`Usuarios: ${negocioStats?.usuarios.actual} / ${ user.negocio?.userlimit === -1 ? '∞' : user.negocio?.userlimit} (${negocioStats?.usuarios.porcentaje}%)`}
+            label={`Usuarios: ${negocioStats?.usuarios.actual} / ${ negocioStats?.usuarios.limite === -1 ? '∞' : negocioStats?.usuarios.limite} (${negocioStats?.usuarios.porcentaje}%)`}
             icon={<Person />}
             color={negocioStats?.usuarios.porcentaje <= 0 ? 'error' : negocioStats?.usuarios.porcentaje <= 3 ? 'warning' : 'success'}
             size="small"
@@ -472,7 +472,7 @@ const HomePage = () => {
             }}
           />
           <Chip
-            label={`Tiendas: ${negocioStats?.tiendas.actual} / ${ user.negocio?.locallimit === -1 ? '∞' : user.negocio?.locallimit} (${negocioStats?.tiendas.porcentaje}%)`}
+            label={`Tiendas: ${negocioStats?.tiendas.actual} / ${ negocioStats?.tiendas.limite === -1 ? '∞' : negocioStats?.tiendas.limite} (${negocioStats?.tiendas.porcentaje}%)`}
             icon={<Store />}
             color={negocioStats?.tiendas.porcentaje <= 0 ? 'error' : negocioStats?.tiendas.porcentaje <= 30 ? 'warning' : 'success'}
             size="small"
