@@ -21,6 +21,7 @@ import {
   useMediaQuery,
   Chip,
   Stack, Grid2 as Grid,
+  Tooltip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
@@ -64,6 +65,8 @@ import PosStatusToolBar from "@/app/pos/components/SyncButton";
 import ConnectionStatus from "@/app/pos/components/ConnectionStatus";
 import PeriodoBadge from "@/app/pos/components/PeriodoBadge";
 import RefreshButton from "@/app/pos/components/RefreshButton";
+import ResumenDiaModal from "@/app/pos/components/ResumenDiaModal";
+import FlagIcon from "@mui/icons-material/Flag";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -105,6 +108,7 @@ export default function POSInterface() {
   const [transferDestinations, setTransferDestinations] = useState<ITransferDestination[]>([]);
   const [intentToSearch, setIntentToSearch] = useState(false);
   const [openSpeedDial, setOpenSpeedDial] = useState(false);
+  const [resumenDiaOpen, setResumenDiaOpen] = useState(false);
   // Edición de nombre de carrito (píldora)
   const [editingCartId, setEditingCartId] = useState<string | null>(null);
   const [editingCartName, setEditingCartName] = useState<string>("");
@@ -923,6 +927,11 @@ export default function POSInterface() {
 
           <Box display="flex" flexDirection="row" justifyContent="center" alignItems="center">
             <RefreshButton onRefresh={handleRefresh} />
+            <Tooltip title="Punto de partida">
+              <IconButton size="small" onClick={() => setResumenDiaOpen(true)}>
+                <FlagIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <PosStatusToolBar handleShowSyncView={handleShowSyncView} handleShowUserSales={handleShowUserSales} />
             <ConnectionStatus isOnline={isOnline} />
           </Box>
@@ -1122,6 +1131,14 @@ export default function POSInterface() {
             cantidad: prod.quantity,
             precio: prod.price
           }))}
+        />
+
+        {/* Modal de resumen del período */}
+        <ResumenDiaModal
+          open={resumenDiaOpen}
+          onClose={() => setResumenDiaOpen(false)}
+          tiendaId={user.localActual.id}
+          cierreId={periodo?.id ?? ""}
         />
 
         {/* Drawer de ventas del usuario */}
@@ -1329,7 +1346,7 @@ export default function POSInterface() {
                     if (data?.code) handleProductScan(data.code);
                   }}
                   onHardwareScan={handleHardwareScan}
-                  keepFocus={editingCartId ? false : !(intentToSearch || paymentDialog || showSyncView || openSpeedDial)}
+                  keepFocus={editingCartId ? false : !(intentToSearch || paymentDialog || showSyncView || openSpeedDial || resumenDiaOpen)}
               />
               {scannerError && (
                   <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
