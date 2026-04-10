@@ -27,6 +27,7 @@ export async function GET(
     const { tiendaId } = await params;
     const { searchParams } = new URL(req.url);
     const cierreId = searchParams.get("cierreId");
+    const soloConMovimientos = searchParams.get("soloConMovimientos") !== "false";
 
     if (!cierreId) {
       return NextResponse.json({ error: "cierreId es requerido" }, { status: 400 });
@@ -99,7 +100,7 @@ export async function GET(
 
     const totales = { ventas: 0, entradas: 0, salidas: 0 };
     const productos = productosTienda
-      .filter((pt) => pt.existencia > 0 || movsByPt.has(pt.id))
+      .filter((pt) => soloConMovimientos ? movsByPt.has(pt.id) : pt.existencia > 0 || movsByPt.has(pt.id))
       .map((pt) => {
         const agg = movsByPt.get(pt.id) ?? { ventas: 0, entradas: 0, salidas: 0, ultimaModificacion: null };
         const cantidadFinal = pt.existencia;

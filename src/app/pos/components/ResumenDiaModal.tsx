@@ -182,15 +182,17 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
   const [loading, setLoading] = useState(false);
   const [filterTerm, setFilterTerm] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [allLoaded, setAllLoaded] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const fetchData = async () => {
+  const fetchData = async (soloConMovimientos: boolean) => {
     if (!cierreId) return;
     setLoading(true);
     try {
-      const result = await getResumenDia(tiendaId, cierreId);
+      const result = await getResumenDia(tiendaId, cierreId, soloConMovimientos);
       setData(result);
+      setAllLoaded(!soloConMovimientos);
     } catch (error) {
       console.error("[ResumenDiaModal] Error al cargar resumen", error);
     } finally {
@@ -200,11 +202,27 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
 
   useEffect(() => {
     if (open) {
-      fetchData();
+      setShowAll(false);
+      setAllLoaded(false);
+      fetchData(true);
     }
-    // fetchData es estable en cada apertura del modal; open es la única dependencia relevante
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const handleToggleShowAll = () => {
+    const next = !showAll;
+    setShowAll(next);
+    // Si abrimos el ojo por primera vez y aún no tenemos todos los datos → fetch
+    if (next && !allLoaded) {
+      fetchData(false);
+    }
+    // Cerrar ojo o ya tener todos los datos → solo filtro en memoria
+  };
+
+  const handleRefresh = () => {
+    // Refresh respeta el estado actual del ojo
+    fetchData(!showAll);
+  };
 
   const gruposProductos = useMemo(() => {
     const productos = data?.productos ?? [];
@@ -255,7 +273,7 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
           Punto de partida y comportamiento
         </Typography>
         <Stack direction="row" spacing={0.5}>
-          <IconButton size="small" onClick={fetchData} disabled={loading} title="Actualizar">
+          <IconButton size="small" onClick={handleRefresh} disabled={loading} title="Actualizar">
             <RefreshIcon fontSize="small" />
           </IconButton>
           <IconButton size="small" onClick={onClose} title="Cerrar">
@@ -300,7 +318,7 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
           <Tooltip title={showAll ? "Mostrando todos los productos" : "Mostrando solo productos con movimientos"}>
             <IconButton
               size="small"
-              onClick={() => setShowAll((v) => !v)}
+              onClick={handleToggleShowAll}
               color={showAll ? "primary" : "default"}
               sx={{ flexShrink: 0 }}
             >
