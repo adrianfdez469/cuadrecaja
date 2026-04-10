@@ -27,6 +27,7 @@ export async function GET(
     const { tiendaId } = await params;
     const { searchParams } = new URL(req.url);
     const cierreId = searchParams.get("cierreId");
+    const soloConMovimientos = searchParams.get("soloConMovimientos") !== "false";
 
     if (!cierreId) {
       return NextResponse.json({ error: "cierreId es requerido" }, { status: 400 });
@@ -48,7 +49,14 @@ export async function GET(
       prisma.productoTienda.findMany({
         where: { tiendaId },
         include: {
-          producto: { select: { id: true, nombre: true } },
+          producto: {
+            select: {
+              id: true,
+              nombre: true,
+              permiteDecimal: true,
+              categoria: { select: { id: true, nombre: true, color: true } },
+            },
+          },
           proveedor: { select: { nombre: true } },
         },
       }),
@@ -61,6 +69,7 @@ export async function GET(
           productoTiendaId: true,
           tipo: true,
           cantidad: true,
+          fecha: true,
         },
       }),
     ]);
@@ -68,11 +77,11 @@ export async function GET(
     // Agrupar movimientos por productoTiendaId
     const movsByPt = new Map<
       string,
-      { ventas: number; entradas: number; salidas: number }
+      { ventas: number; entradas: number; salidas: number; ultimaModificacion: Date | null }
     >();
     for (const mov of movimientos) {
       if (!movsByPt.has(mov.productoTiendaId)) {
-        movsByPt.set(mov.productoTiendaId, { ventas: 0, entradas: 0, salidas: 0 });
+        movsByPt.set(mov.productoTiendaId, { ventas: 0, entradas: 0, salidas: 0, ultimaModificacion: null });
       }
       const agg = movsByPt.get(mov.productoTiendaId)!;
 
@@ -83,13 +92,17 @@ export async function GET(
       } else if ((TIPOS_SALIDAS as readonly string[]).includes(mov.tipo)) {
         agg.salidas += Math.abs(mov.cantidad);
       }
+
+      if (!agg.ultimaModificacion || mov.fecha > agg.ultimaModificacion) {
+        agg.ultimaModificacion = mov.fecha;
+      }
     }
 
     const totales = { ventas: 0, entradas: 0, salidas: 0 };
     const productos = productosTienda
-      .filter((pt) => pt.existencia > 0 || movsByPt.has(pt.id))
+      .filter((pt) => soloConMovimientos ? movsByPt.has(pt.id) : pt.existencia > 0 || movsByPt.has(pt.id))
       .map((pt) => {
-        const agg = movsByPt.get(pt.id) ?? { ventas: 0, entradas: 0, salidas: 0 };
+        const agg = movsByPt.get(pt.id) ?? { ventas: 0, entradas: 0, salidas: 0, ultimaModificacion: null };
         const cantidadFinal = pt.existencia;
         const cantidadInicial = cantidadFinal - agg.entradas + agg.ventas + agg.salidas;
 
@@ -104,6 +117,12 @@ export async function GET(
             ? `${pt.producto.nombre} - ${pt.proveedor.nombre}`
             : pt.producto.nombre,
           proveedorNombre: pt.proveedor?.nombre,
+          permiteDecimal: pt.producto.permiteDecimal,
+          categoriaId: pt.producto.categoria.id,
+          categoriaNombre: pt.producto.categoria.nombre,
+          categoriaColor: pt.producto.categoria.color,
+          tieneMovimientos: movsByPt.has(pt.id),
+          ultimaModificacion: agg.ultimaModificacion?.toISOString() ?? null,
           cantidadInicial,
           ventas: agg.ventas,
           entradas: agg.entradas,

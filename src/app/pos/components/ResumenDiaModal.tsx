@@ -23,6 +23,7 @@ import {
   useTheme,
   useMediaQuery,
   Grid2 as Grid,
+  Tooltip,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
@@ -31,6 +32,8 @@ import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { getResumenDia } from "@/services/resumenDiaService";
 import { IResumenDiaProducto, IResumenDiaResponse } from "@/schemas/resumenDia";
 import { formatDecimal, normalizeSearch } from "@/utils/formatters";
@@ -80,6 +83,7 @@ function TotalCard({
 }
 
 function ProductoCard({ p }: { p: IResumenDiaProducto }) {
+  const dec = p.permiteDecimal ? 2 : 0;
   return (
     <Card variant="outlined" sx={{ borderWidth: 2 }}>
       <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
@@ -100,7 +104,7 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
                 fontWeight={700}
                 color={p.cantidadInicial < 0 ? "error.main" : "text.primary"}
               >
-                {formatDecimal(p.cantidadInicial)}
+                {formatDecimal(p.cantidadInicial, dec)}
               </Typography>
             </Box>
           </Grid>
@@ -120,7 +124,7 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
                 Existencia actual
               </Typography>
               <Typography variant="h5" fontWeight={700} color={getExistenciaColor(p.cantidadFinal)}>
-                {formatDecimal(p.cantidadFinal)}
+                {formatDecimal(p.cantidadFinal, dec)}
               </Typography>
             </Box>
           </Grid>
@@ -143,7 +147,7 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
                 Ventas
               </Typography>
               <Typography variant="subtitle1" fontWeight={700} color="error.light">
-                {formatDecimal(p.ventas)}
+                {formatDecimal(p.ventas, dec)}
               </Typography>
             </Box>
           </Grid>
@@ -153,7 +157,7 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
                 Entradas
               </Typography>
               <Typography variant="subtitle1" fontWeight={700} color="success.main">
-                {formatDecimal(p.entradas)}
+                {formatDecimal(p.entradas, dec)}
               </Typography>
             </Box>
           </Grid>
@@ -163,7 +167,7 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
                 Salidas
               </Typography>
               <Typography variant="subtitle1" fontWeight={700} color="warning.main">
-                {formatDecimal(p.salidas)}
+                {formatDecimal(p.salidas, dec)}
               </Typography>
             </Box>
           </Grid>
@@ -177,15 +181,18 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
   const [data, setData] = useState<IResumenDiaResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [filterTerm, setFilterTerm] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const [allLoaded, setAllLoaded] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const fetchData = async () => {
+  const fetchData = async (soloConMovimientos: boolean) => {
     if (!cierreId) return;
     setLoading(true);
     try {
-      const result = await getResumenDia(tiendaId, cierreId);
+      const result = await getResumenDia(tiendaId, cierreId, soloConMovimientos);
       setData(result);
+      setAllLoaded(!soloConMovimientos);
     } catch (error) {
       console.error("[ResumenDiaModal] Error al cargar resumen", error);
     } finally {
@@ -195,19 +202,61 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
 
   useEffect(() => {
     if (open) {
-      fetchData();
+      setShowAll(false);
+      setAllLoaded(false);
+      fetchData(true);
     }
-    // fetchData es estable en cada apertura del modal; open es la única dependencia relevante
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const productosFiltrados = useMemo(
-    () =>
-      data?.productos.filter((p) =>
-        normalizeSearch(p.nombre).includes(filterTerm)
-      ) ?? [],
-    [data?.productos, filterTerm]
-  );
+  const handleToggleShowAll = () => {
+    const next = !showAll;
+    setShowAll(next);
+    // Si abrimos el ojo por primera vez y aún no tenemos todos los datos → fetch
+    if (next && !allLoaded) {
+      fetchData(false);
+    }
+    // Cerrar ojo o ya tener todos los datos → solo filtro en memoria
+  };
+
+  const handleRefresh = () => {
+    // Refresh respeta el estado actual del ojo
+    fetchData(!showAll);
+  };
+
+  const gruposProductos = useMemo(() => {
+    const productos = data?.productos ?? [];
+    const filtered = productos.filter((p) => {
+      const matchSearch = normalizeSearch(p.nombre).includes(filterTerm);
+      const matchToggle = showAll || p.tieneMovimientos;
+      return matchSearch && matchToggle;
+    });
+
+    const groupMap = new Map<string, { categoriaNombre: string; categoriaColor: string; productos: IResumenDiaProducto[] }>();
+    for (const p of filtered) {
+      if (!groupMap.has(p.categoriaId)) {
+        groupMap.set(p.categoriaId, { categoriaNombre: p.categoriaNombre, categoriaColor: p.categoriaColor, productos: [] });
+      }
+      groupMap.get(p.categoriaId)!.productos.push(p);
+    }
+
+    // Ordenar productos dentro de cada grupo por ultimaModificacion desc (null al final)
+    for (const group of groupMap.values()) {
+      group.productos.sort((a, b) => {
+        if (!a.ultimaModificacion && !b.ultimaModificacion) return 0;
+        if (!a.ultimaModificacion) return 1;
+        if (!b.ultimaModificacion) return -1;
+        return b.ultimaModificacion.localeCompare(a.ultimaModificacion);
+      });
+    }
+
+    // Ordenar grupos alfabéticamente
+    return Array.from(groupMap.values()).sort((a, b) =>
+      a.categoriaNombre.localeCompare(b.categoriaNombre)
+    );
+  }, [data?.productos, filterTerm, showAll]);
+
+  const totalProductos = gruposProductos.reduce((acc, g) => acc + g.productos.length, 0);
 
   return (
     <Dialog
@@ -224,7 +273,7 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
           Punto de partida y comportamiento
         </Typography>
         <Stack direction="row" spacing={0.5}>
-          <IconButton size="small" onClick={fetchData} disabled={loading} title="Actualizar">
+          <IconButton size="small" onClick={handleRefresh} disabled={loading} title="Actualizar">
             <RefreshIcon fontSize="small" />
           </IconButton>
           <IconButton size="small" onClick={onClose} title="Cerrar">
@@ -258,12 +307,25 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
           </Stack>
         )}
 
-        {/* Búsqueda */}
-        <SearchInput
-          onSearch={setFilterTerm}
-          placeholder="Buscar producto... (mín. 3 letras)"
-          sx={{ mb: 2 }}
-        />
+        {/* Búsqueda + toggle */}
+        <Stack direction="row" spacing={1} mb={2} alignItems="center">
+          <Box sx={{ flex: 1 }}>
+            <SearchInput
+              onSearch={setFilterTerm}
+              placeholder="Buscar producto... (mín. 3 letras)"
+            />
+          </Box>
+          <Tooltip title={showAll ? "Mostrando todos los productos" : "Mostrando solo productos con movimientos"}>
+            <IconButton
+              size="small"
+              onClick={handleToggleShowAll}
+              color={showAll ? "primary" : "default"}
+              sx={{ flexShrink: 0 }}
+            >
+              {showAll ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+        </Stack>
 
         {/* Área de productos con overlay de carga */}
         <Box sx={{ flex: 1, overflow: "auto", position: "relative" }}>
@@ -285,83 +347,91 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
           )}
 
           {/* Sin datos */}
-          {!loading && data && productosFiltrados.length === 0 && (
+          {!loading && data && totalProductos === 0 && (
             <Box display="flex" flexDirection="column" alignItems="center" py={6} color="text.secondary">
               <AssessmentIcon sx={{ fontSize: 48, mb: 1, opacity: 0.4 }} />
               <Typography variant="body2">No hay productos para mostrar</Typography>
             </Box>
           )}
 
-          {/* Vista móvil: Cards */}
-          {productosFiltrados.length > 0 && isMobile && (
-            <Stack spacing={1.5}>
-              {productosFiltrados.map((p) => (
-                <ProductoCard key={p.productoTiendaId} p={p} />
+          {/* Vista móvil: Cards agrupadas */}
+          {totalProductos > 0 && isMobile && (
+            <Stack spacing={2}>
+              {gruposProductos.map((group) => (
+                <Box key={group.categoriaNombre}>
+                  <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                    <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: group.categoriaColor, flexShrink: 0 }} />
+                    <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+                      {group.categoriaNombre}
+                    </Typography>
+                  </Stack>
+                  <Stack spacing={1.5}>
+                    {group.productos.map((p) => (
+                      <ProductoCard key={p.productoTiendaId} p={p} />
+                    ))}
+                  </Stack>
+                </Box>
               ))}
             </Stack>
           )}
 
-          {/* Vista escritorio: Tabla */}
-          {productosFiltrados.length > 0 && !isMobile && (
+          {/* Vista escritorio: Tabla agrupada */}
+          {totalProductos > 0 && !isMobile && (
             <TableContainer component={Paper} variant="outlined">
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
                     <TableCell>Producto</TableCell>
                     <TableCell align="right">Inicial</TableCell>
-                    <TableCell align="right" sx={{ color: "error.light" }}>
-                      Ventas
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: "success.main" }}>
-                      Entradas
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: "warning.main" }}>
-                      Salidas
-                    </TableCell>
+                    <TableCell align="right" sx={{ color: "error.light" }}>Ventas</TableCell>
+                    <TableCell align="right" sx={{ color: "success.main" }}>Entradas</TableCell>
+                    <TableCell align="right" sx={{ color: "warning.main" }}>Salidas</TableCell>
                     <TableCell align="right">Existencia</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {productosFiltrados.map((p) => (
-                    <TableRow key={p.productoTiendaId} hover>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={500}>
-                          {p.nombre}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography
-                          variant="body2"
-                          color={p.cantidadInicial < 0 ? "error.main" : "text.primary"}
-                        >
-                          {formatDecimal(p.cantidadInicial)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" color="error.light">
-                          {formatDecimal(p.ventas)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" color="success.main">
-                          {formatDecimal(p.entradas)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" color="warning.main">
-                          {formatDecimal(p.salidas)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography
-                          variant="body2"
-                          fontWeight={600}
-                          color={getExistenciaColor(p.cantidadFinal)}
-                        >
-                          {formatDecimal(p.cantidadFinal)}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
+                  {gruposProductos.map((group) => (
+                    <>
+                      <TableRow key={`cat-${group.categoriaNombre}`}>
+                        <TableCell colSpan={6} sx={{ py: 0.5, bgcolor: "action.hover" }}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: group.categoriaColor }} />
+                            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+                              {group.categoriaNombre}
+                            </Typography>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                      {group.productos.map((p) => {
+                        const dec = p.permiteDecimal ? 2 : 0;
+                        return (
+                          <TableRow key={p.productoTiendaId} hover>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={500}>{p.nombre}</Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" color={p.cantidadInicial < 0 ? "error.main" : "text.primary"}>
+                                {formatDecimal(p.cantidadInicial, dec)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" color="error.light">{formatDecimal(p.ventas, dec)}</Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" color="success.main">{formatDecimal(p.entradas, dec)}</Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" color="warning.main">{formatDecimal(p.salidas, dec)}</Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" fontWeight={600} color={getExistenciaColor(p.cantidadFinal)}>
+                                {formatDecimal(p.cantidadFinal, dec)}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </>
                   ))}
                 </TableBody>
               </Table>
