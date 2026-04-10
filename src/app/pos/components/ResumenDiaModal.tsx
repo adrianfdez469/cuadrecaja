@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Divider,
   IconButton,
   Typography,
   Box,
@@ -12,7 +13,6 @@ import {
   Stack,
   Card,
   CardContent,
-  Chip,
   Table,
   TableBody,
   TableCell,
@@ -46,19 +46,7 @@ interface IProps {
 function getExistenciaColor(valor: number): string {
   if (valor <= 0) return "error.main";
   if (valor <= 5) return "warning.main";
-  return "text.primary";
-}
-
-function ExistenciaChip({ valor }: { valor: number }) {
-  const color = valor <= 0 ? "error" : valor <= 5 ? "warning" : "default";
-  return (
-    <Chip
-      label={formatDecimal(valor)}
-      color={color as "error" | "warning" | "default"}
-      size="small"
-      variant={valor <= 0 ? "filled" : "outlined"}
-    />
-  );
+  return "success.main";
 }
 
 function TotalCard({
@@ -93,63 +81,91 @@ function TotalCard({
 
 function ProductoCard({ p }: { p: IResumenDiaProducto }) {
   return (
-    <Card variant="outlined">
+    <Card variant="outlined" sx={{ borderWidth: 2 }}>
       <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1}>
-          <Typography variant="body2" fontWeight={700} sx={{ flex: 1, mr: 1 }}>
-            {p.nombre}
-          </Typography>
-          <ExistenciaChip valor={p.cantidadFinal} />
-        </Stack>
+        {/* Nombre */}
+        <Typography variant="subtitle2" fontWeight={700} mb={1.5}>
+          {p.nombre}
+        </Typography>
 
-        <Grid container spacing={0.5}>
-          <Grid size={4}>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Inicial
-            </Typography>
-            <Typography
-              variant="body2"
-              fontWeight={500}
-              color={p.cantidadInicial < 0 ? "error.main" : "text.primary"}
-            >
-              {formatDecimal(p.cantidadInicial)}
-            </Typography>
-          </Grid>
-          <Grid size={4}>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Ventas
-            </Typography>
-            <Typography variant="body2" fontWeight={500} color="error.light">
-              {formatDecimal(p.ventas)}
-            </Typography>
-          </Grid>
-          <Grid size={4}>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Entradas
-            </Typography>
-            <Typography variant="body2" fontWeight={500} color="success.main">
-              {formatDecimal(p.entradas)}
-            </Typography>
+        {/* Bloque superior: Inicial + Existencia actual */}
+        <Grid container spacing={1} mb={1.5}>
+          <Grid size={6}>
+            <Box sx={{ bgcolor: "action.hover", borderRadius: 2, p: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                Inicial
+              </Typography>
+              <Typography
+                variant="h5"
+                fontWeight={700}
+                color={p.cantidadInicial < 0 ? "error.main" : "text.primary"}
+              >
+                {formatDecimal(p.cantidadInicial)}
+              </Typography>
+            </Box>
           </Grid>
           <Grid size={6}>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Salidas
-            </Typography>
-            <Typography variant="body2" fontWeight={500} color="warning.main">
-              {formatDecimal(p.salidas)}
-            </Typography>
-          </Grid>
-          <Grid size={6}>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Existencia
-            </Typography>
-            <Typography
-              variant="body2"
-              fontWeight={600}
-              color={getExistenciaColor(p.cantidadFinal)}
+            <Box
+              sx={{
+                bgcolor: (t) => {
+                  if (p.cantidadFinal <= 0) return alpha(t.palette.error.main, 0.18);
+                  if (p.cantidadFinal <= 5) return alpha(t.palette.warning.main, 0.18);
+                  return alpha(t.palette.success.main, 0.15);
+                },
+                borderRadius: 2,
+                p: 1.5,
+              }}
             >
-              {formatDecimal(p.cantidadFinal)}
-            </Typography>
+              <Typography variant="caption" color={getExistenciaColor(p.cantidadFinal)} display="block" mb={0.5}>
+                Existencia actual
+              </Typography>
+              <Typography variant="h5" fontWeight={700} color={getExistenciaColor(p.cantidadFinal)}>
+                {formatDecimal(p.cantidadFinal)}
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+
+        <Divider sx={{ mb: 1.5 }} />
+
+        {/* Movimientos */}
+        <Typography
+          variant="caption"
+          color="text.disabled"
+          sx={{ textTransform: "uppercase", letterSpacing: 0.8, display: "block", mb: 1 }}
+        >
+          Movimientos
+        </Typography>
+        <Grid container spacing={1}>
+          <Grid size={4}>
+            <Box sx={{ bgcolor: "action.hover", borderRadius: 2, p: 1, textAlign: "center" }}>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.25}>
+                Ventas
+              </Typography>
+              <Typography variant="subtitle1" fontWeight={700} color="error.light">
+                {formatDecimal(p.ventas)}
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid size={4}>
+            <Box sx={{ bgcolor: "action.hover", borderRadius: 2, p: 1, textAlign: "center" }}>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.25}>
+                Entradas
+              </Typography>
+              <Typography variant="subtitle1" fontWeight={700} color="success.main">
+                {formatDecimal(p.entradas)}
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid size={4}>
+            <Box sx={{ bgcolor: "action.hover", borderRadius: 2, p: 1, textAlign: "center" }}>
+              <Typography variant="caption" color="text.secondary" display="block" mb={0.25}>
+                Salidas
+              </Typography>
+              <Typography variant="subtitle1" fontWeight={700} color="warning.main">
+                {formatDecimal(p.salidas)}
+              </Typography>
+            </Box>
           </Grid>
         </Grid>
       </CardContent>
@@ -205,7 +221,7 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
       {/* Título */}
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", py: 1.5, px: 2 }}>
         <Typography variant="h6" fontWeight={700}>
-          Resumen del Período
+          Punto de partida y comportamiento
         </Typography>
         <Stack direction="row" spacing={0.5}>
           <IconButton size="small" onClick={fetchData} disabled={loading} title="Actualizar">

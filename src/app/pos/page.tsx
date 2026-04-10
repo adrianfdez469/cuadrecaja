@@ -67,6 +67,7 @@ import PeriodoBadge from "@/app/pos/components/PeriodoBadge";
 import RefreshButton from "@/app/pos/components/RefreshButton";
 import ResumenDiaModal from "@/app/pos/components/ResumenDiaModal";
 import TripOriginIcon from "@mui/icons-material/TripOrigin";
+import FlagIcon from "@mui/icons-material/Flag";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -926,12 +927,12 @@ export default function POSInterface() {
           <PeriodoBadge periodo={periodo} isMobile={isMobile} />
 
           <Box display="flex" flexDirection="row" justifyContent="center" alignItems="center">
-            <Tooltip title="Resumen del período">
+            <RefreshButton onRefresh={handleRefresh} />
+            <Tooltip title="Punto de partida">
               <IconButton size="small" onClick={() => setResumenDiaOpen(true)}>
-                <TripOriginIcon fontSize="small" />
+                <FlagIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <RefreshButton onRefresh={handleRefresh} />
             <PosStatusToolBar handleShowSyncView={handleShowSyncView} handleShowUserSales={handleShowUserSales} />
             <ConnectionStatus isOnline={isOnline} />
           </Box>
