@@ -75,7 +75,7 @@ async function main() {
   for (const plan of planes) {
     await prisma.plan.upsert({
       where: { nombre: plan.nombre },
-      update: plan,
+      update: {},
       create: plan,
     });
     console.log(`  ✓ ${plan.nombre}`);
