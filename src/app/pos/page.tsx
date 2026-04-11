@@ -67,6 +67,8 @@ import PeriodoBadge from "@/app/pos/components/PeriodoBadge";
 import RefreshButton from "@/app/pos/components/RefreshButton";
 import ResumenDiaModal from "@/app/pos/components/ResumenDiaModal";
 import FlagIcon from "@mui/icons-material/Flag";
+import { AsociarCodigoDialog } from "@/app/pos/components/AsociarCodigoDialog";
+import { usePermisos } from "@/utils/permisos_front";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -154,6 +156,12 @@ export default function POSInterface() {
 
   const [isCartPinned, setIsCartPinned] = useState(false);
 
+  const { verificarPermiso } = usePermisos();
+  const puedeAsociarCodigo = verificarPermiso("operaciones.pos-venta.asociar_codigo");
+
+  const [asociarCodigoOpen, setAsociarCodigoOpen] = useState(false);
+  const [codigoNoEncontrado, setCodigoNoEncontrado] = useState<string>("");
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -217,8 +225,14 @@ export default function POSInterface() {
         audioService.playSuccessSound();
         // NO reabrir escáner para escaneo de hardware
       } else {
-        setScannerError('Producto no encontrado para el código escaneado');
         audioService.playErrorSound();
+        if (puedeAsociarCodigo) {
+          setCodigoNoEncontrado(data.code);
+          setAsociarCodigoOpen(true);
+          setScannerError(null);
+        } else {
+          setScannerError('Producto no encontrado para el código escaneado');
+        }
       }
     }
   };
@@ -286,8 +300,14 @@ export default function POSInterface() {
       setScannerError(null);
       setProductOrigin('camera'); // Marcar como escaneo de cámara
     } else {
-      setScannerError('Producto no encontrado para el código escaneado');
       audioService.playErrorSound();
+      if (puedeAsociarCodigo) {
+        setCodigoNoEncontrado(code);
+        setAsociarCodigoOpen(true);
+        setScannerError(null);
+      } else {
+        setScannerError('Producto no encontrado para el código escaneado');
+      }
     }
   }
 
@@ -846,6 +866,31 @@ export default function POSInterface() {
     }
   }, [periodo]);
 
+
+  const handleCodigoAsociado = (producto: IProductoTiendaV2, codigoNuevo: string) => {
+    // Actualizar el estado local para que el nuevo código quede indexado
+    setProductosTienda(prev =>
+      prev.map(p =>
+        p.id === producto.id
+          ? {
+              ...p,
+              producto: {
+                ...p.producto,
+                codigosProducto: [
+                  ...(p.producto.codigosProducto || []),
+                  { id: codigoNuevo, codigo: codigoNuevo, productoId: p.productoId },
+                ],
+              },
+            }
+          : p
+      )
+    );
+    showMessage(`✅ Código asociado a "${producto.producto.nombre}"`, "success");
+    audioService.playSuccessSound();
+    // Seleccionar el producto para que el vendedor pueda agregarlo al carrito
+    setSelectedProduct(producto);
+    setProductOrigin('hardware');
+  };
 
   if (loadingContext || loading) {
     return (
@@ -1475,6 +1520,14 @@ export default function POSInterface() {
         {
           ConfirmDialogComponent
         }
+
+        <AsociarCodigoDialog
+          open={asociarCodigoOpen}
+          codigo={codigoNoEncontrado}
+          productosTienda={productosTienda}
+          onClose={() => setAsociarCodigoOpen(false)}
+          onAsociado={handleCodigoAsociado}
+        />
       </Box>
 
       {

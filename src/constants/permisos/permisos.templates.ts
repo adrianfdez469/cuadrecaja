@@ -43,6 +43,7 @@ export const permisosTemplates = {
         "operaciones.pos-venta.acceder",
         "operaciones.pos-venta.cancelarventa",
         "operaciones.pos-venta.gananciascostos",
+        "operaciones.pos-venta.asociar_codigo",
         "operaciones.ventas.acceder",
         "operaciones.ventas.eliminar",
         "operaciones.conformarprecios.acceder",

@@ -62,6 +62,9 @@
   "operaciones.pos-venta.gananciascostos": {
     "descripcion": "Permite ver las ganancias y costos en el resumen de ventas del POS"
   },
+  "operaciones.pos-venta.asociar_codigo": {
+    "descripcion": "Permite asociar un código de barras desconocido a un producto existente desde el POS"
+  },
   "operaciones.ventas.acceder": {
     "descripcion": "Permite acceder a la interfaz de ventas"
   },

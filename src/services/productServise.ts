@@ -55,3 +55,8 @@ export const generateProductsCode = async (prodsCodes: {productoId: string, code
     codes: prodsCodes
   })
 }
+
+export const asociarCodigoProducto = async (productoId: string, codigo: string) => {
+  const res = await axios.post(`${API_URL}/${productoId}/agregar-codigo`, { codigo });
+  return res.data;
+}
