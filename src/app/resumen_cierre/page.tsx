@@ -33,7 +33,7 @@ import { useAppContext } from "@/context/AppContext";
 import { ICierreData, ICierrePeriodo, ISummaryCierre } from "@/types/ICierre";
 import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
-import { Close, AttachMoney, TrendingUp, Assessment, Refresh, FilterList, ArrowForward, AccountBalance } from "@mui/icons-material";
+import { Close, AttachMoney, TrendingUp, TrendingDown, Assessment, Refresh, FilterList, ArrowForward, AccountBalance } from "@mui/icons-material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { fetchCierreData } from "@/services/cierrePeriodService";
 import { PageContainer } from "@/components/PageContainer";
@@ -62,7 +62,12 @@ export default function ResumenCierrePage() {
   const [expandedTransfer, setExpandedTransfer] = useState(false);
   const { user, loadingContext, gotToPath } = useAppContext();
   const [showProducts, setShowProducts] = useState(false);
-  const [cierreProducData, setCierreProductData] = useState<{ciereData: ICierreData, totales: ITotales}>();
+  const [cierreProducData, setCierreProductData] = useState<{
+    ciereData: ICierreData;
+    totales: ITotales;
+    totalGastos?: number;
+    totalGananciaFinal?: number;
+  }>();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -293,7 +298,9 @@ export default function ResumenCierrePage() {
         totalTransferenciasByDestination: cierreData.totalTransferenciasByDestination,
         totalVentasPorUsuario: cierreData.totalVentasPorUsuario
       },
-      totales: totales
+      totales: totales,
+      totalGastos: itemCierre.totalGastos,
+      totalGananciaFinal: itemCierre.totalGananciaFinal,
     });
     setShowProducts(true);
   };
@@ -502,7 +509,7 @@ export default function ResumenCierrePage() {
                 {(data.sumTotalGastos || 0) > 0 && (
                   <Grid item xs={12} sm={6} md={4}>
                     <StatCard
-                      icon={<TrendingUp fontSize={"medium"} />}
+                      icon={<TrendingDown fontSize={"medium"} />}
                       value={formatCurrency(data.sumTotalGastos || 0)}
                       label="Total Gastos"
                       color="error.light"
@@ -1047,13 +1054,15 @@ export default function ResumenCierrePage() {
                       <Grid item xs={6} sm={6} md={3}>
                         <StatCard
                             icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
-                            value={formatCurrency(cierreProducData.ciereData.totalGanancia)}
-                            label="Ganancia"
+                            value={formatCurrency(
+                              cierreProducData.totalGananciaFinal ?? cierreProducData.ciereData.totalGanancia
+                            )}
+                            label="Ganancia Final"
                             color="info.light"
                         />
                       </Grid>
 
-                      {/* Bruto y Descuentos del período dentro del detalle usando el mismo StatCard */}
+                      {/* Bruto y Descuentos del período */}
                       <Grid item xs={6} sm={6} md={3}>
                         <StatCard
                           icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
@@ -1063,14 +1072,27 @@ export default function ResumenCierrePage() {
                         />
                       </Grid>
 
-                      <Grid item xs={6} sm={6} md={3}>
-                        <StatCard
-                          icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
-                          value={formatCurrency((cierreProducData.ciereData.totalDescuentos ?? 0))}
-                          label="Descuentos del Período"
-                          color="error.light"
-                        />
-                      </Grid>
+                      {(cierreProducData.ciereData.totalDescuentos ?? 0) > 0 && (
+                        <Grid item xs={6} sm={6} md={3}>
+                          <StatCard
+                            icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
+                            value={formatCurrency((cierreProducData.ciereData.totalDescuentos ?? 0))}
+                            label="Descuentos del Período"
+                            color="error.light"
+                          />
+                        </Grid>
+                      )}
+
+                      {verificarPermiso("operaciones.cierre.gananciascostos") && (cierreProducData.totalGastos || 0) > 0 && (
+                        <Grid item xs={6} sm={6} md={3}>
+                          <StatCard
+                            icon={<TrendingDown fontSize={isMobile ? "medium" : "large"} />}
+                            value={formatCurrency(cierreProducData.totalGastos || 0)}
+                            label="Gastos del Período"
+                            color="error.light"
+                          />
+                        </Grid>
+                      )}
 
                       <Grid item xs={6} sm={6} md={3}>
                         <StatCard

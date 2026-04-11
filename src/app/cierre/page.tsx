@@ -39,7 +39,7 @@ import { usePermisos } from "@/utils/permisos_front";
 import GastosCierreReviewDialog from "@/app/gastos/components/GastosCierreReviewDialog";
 import GastoCierreList from "@/app/gastos/components/GastoCierreList";
 import GastoAdHocDialog from "@/app/gastos/components/GastoAdHocDialog";
-import { createGastoAdHoc } from "@/services/gastoService";
+import { createGastoAdHoc, getGastosTienda } from "@/services/gastoService";
 import { IGastoAdHocCreate } from "@/schemas/gastos";
 
 const CierreCajaPage = () => {
@@ -58,6 +58,7 @@ const CierreCajaPage = () => {
   const [isProcessingCierre, setIsProcessingCierre] = useState(false);
   const [gastosReviewOpen, setGastosReviewOpen] = useState(false);
   const [adHocOpen, setAdHocOpen] = useState(false);
+  const [categoriasGastos, setCategoriasGastos] = useState<string[]>([]);
   const { ConfirmDialogComponent } = useConfirmDialog();
   const { clearSales, sales } = useSalesStore();
   const theme = useTheme();
@@ -142,9 +143,13 @@ const CierreCajaPage = () => {
       }
       
       setCurrentPeriod(currentPeriod);
-      const data = await fetchCierreData(localId, currentPeriod.id);
+      const [data, gastosTienda] = await Promise.all([
+        fetchCierreData(localId, currentPeriod.id),
+        getGastosTienda(localId),
+      ]);
       console.log(data);
       setCierreData(data);
+      setCategoriasGastos([...new Set(gastosTienda.map((g) => g.categoria))]);
 
       setTotales({
         totalCantidad: data.productosVendidos.reduce(
@@ -448,6 +453,7 @@ const CierreCajaPage = () => {
             open={adHocOpen}
             totalVentas={cierreData.totalVentasBrutas ?? totales.totalMonto}
             totalGanancia={totales.totalGanancia}
+            categoriasExistentes={categoriasGastos}
             onClose={() => setAdHocOpen(false)}
             onSave={handleSaveAdHoc}
           />

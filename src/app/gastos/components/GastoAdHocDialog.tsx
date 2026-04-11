@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  Autocomplete,
   Box,
   Button,
   Dialog,
@@ -24,11 +25,12 @@ interface Props {
   open: boolean;
   totalVentas?: number;
   totalGanancia?: number;
+  categoriasExistentes?: string[];
   onClose: () => void;
   onSave: (data: IGastoAdHocCreate) => Promise<void>;
 }
 
-export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia = 0, onClose, onSave }: Props) {
+export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia = 0, categoriasExistentes = [], onClose, onSave }: Props) {
   const [nombre, setNombre] = useState("");
   const [categoria, setCategoria] = useState("");
   const [tipoCalculo, setTipoCalculo] = useState<IGastoAdHocCreate["tipoCalculo"]>("MONTO_FIJO");
@@ -102,14 +104,20 @@ export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia 
             fullWidth
           />
 
-          <TextField
-            label="Categoría"
-            value={categoria}
-            onChange={(e) => setCategoria(e.target.value)}
-            error={!!errors.categoria}
-            helperText={errors.categoria ?? "Ej: Reparación, Compra urgente"}
-            required
-            fullWidth
+          <Autocomplete
+            freeSolo
+            options={categoriasExistentes}
+            inputValue={categoria}
+            onInputChange={(_, value) => setCategoria(value)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Categoría"
+                error={!!errors.categoria}
+                helperText={errors.categoria ?? "Ej: Reparación, Compra urgente"}
+                required
+              />
+            )}
           />
 
           <FormControl fullWidth>

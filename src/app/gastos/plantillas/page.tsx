@@ -69,6 +69,8 @@ export default function PlantillasPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<IGastoPlantilla | null>(null);
 
+  const categoriasExistentes = [...new Set(plantillas.map((p) => p.categoria))];
+
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
 
   const load = useCallback(async () => {
@@ -277,6 +279,7 @@ export default function PlantillasPage() {
         open={formOpen}
         mode="plantilla"
         initial={editTarget}
+        categoriasExistentes={categoriasExistentes}
         onClose={() => { setFormOpen(false); setEditTarget(null); }}
         onSave={handleSave}
       />
