@@ -103,5 +103,14 @@
   },
   "operaciones.movimientos.crear.consignacion_devolucion": {
     "descripcion": "Permite crear devoluciones de productos en consignación"
+  },
+  "operaciones.gastos.ver": {
+    "descripcion": "Permite ver los gastos de la tienda y el historial de gastos por cierre"
+  },
+  "operaciones.gastos.gestionar": {
+    "descripcion": "Permite crear, editar, desactivar y eliminar gastos de la tienda, y registrar gastos ad-hoc en períodos abiertos"
+  },
+  "configuracion.gastos.plantillas.gestionar": {
+    "descripcion": "Permite crear, editar y eliminar plantillas de gastos a nivel de negocio, y asignarlas a tiendas"
   }
 }

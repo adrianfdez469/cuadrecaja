@@ -50,7 +50,9 @@ model Negocio {
   suspendedAt DateTime?
 
   // Relación inversa para reglas de descuento
-  discountRules DiscountRule[]
+  discountRules    DiscountRule[]
+  gastosPlantillas GastoPlantilla[]
+  gastosTienda     GastoTienda[]
 }
 
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
@@ -73,7 +75,8 @@ model Tienda {
   negocio   Negocio @relation(fields: [negocioId], references: [id])
   negocioId String  @default("")
 
-  usuario Usuario[]
+  usuario      Usuario[]
+  gastosTienda GastoTienda[]
 
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
@@ -278,6 +281,11 @@ model CierrePeriodo {
 
   prodProveedoresLiquidacion ProductoProveedorLiquidacion[]
 
+  // Gastos aplicados en este cierre
+  totalGastos        Float        @default(0)
+  totalGananciaFinal Float        @default(0)
+  gastosCierre       GastoCierre[]
+
   // Idices
   @@index([fechaInicio])
   @@index([fechaFin])
@@ -446,6 +454,89 @@ model ProductoProveedorLiquidacion {
   productoId String
 
   @@unique([cierreId, proveedorId, productoId])
+}
+
+// =====================
+// 💸 GASTOS
+// =====================
+
+enum TipoCalculo {
+  MONTO_FIJO
+  PORCENTAJE_VENTAS
+  PORCENTAJE_GANANCIAS
+}
+
+enum RecurrenciaGasto {
+  UNICO
+  DIARIO
+  MENSUAL
+  ANUAL
+}
+
+model GastoPlantilla {
+  id          String           @id @default(uuid())
+  negocioId   String
+  negocio     Negocio          @relation(fields: [negocioId], references: [id])
+  nombre      String
+  categoria   String
+  tipoCalculo TipoCalculo
+  recurrencia RecurrenciaGasto
+  diaMes      Int?             // 1-31, solo para MENSUAL
+  mesAnio     Int?             // 1-12, solo para ANUAL
+  diaAnio     Int?             // 1-31, solo para ANUAL
+  activo      Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  asignaciones GastoTienda[]
+
+  @@index([negocioId])
+}
+
+model GastoTienda {
+  id          String           @id @default(uuid())
+  tiendaId    String
+  tienda      Tienda           @relation(fields: [tiendaId], references: [id])
+  negocioId   String
+  negocio     Negocio          @relation(fields: [negocioId], references: [id])
+  plantillaId String?
+  plantilla   GastoPlantilla?  @relation(fields: [plantillaId], references: [id])
+  nombre      String
+  categoria   String
+  tipoCalculo TipoCalculo
+  monto       Float?           // cuando tipoCalculo = MONTO_FIJO
+  porcentaje  Float?           // 0-100, cuando tipoCalculo = PORCENTAJE_*
+  recurrencia RecurrenciaGasto
+  diaMes      Int?
+  mesAnio     Int?
+  diaAnio     Int?
+  activo      Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  gastosCierre GastoCierre[]
+
+  @@index([tiendaId])
+  @@index([negocioId])
+}
+
+model GastoCierre {
+  id             String        @id @default(uuid())
+  cierreId       String
+  cierre         CierrePeriodo @relation(fields: [cierreId], references: [id])
+  gastoTiendaId  String?
+  gastoTienda    GastoTienda?  @relation(fields: [gastoTiendaId], references: [id])
+  nombre         String
+  categoria      String
+  tipoCalculo    TipoCalculo
+  montoCalculado Float
+  monto          Float?        // snapshot del monto al momento del cierre
+  porcentaje     Float?        // snapshot del porcentaje al momento del cierre
+  esAdHoc        Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+
+  @@index([cierreId])
+  @@index([gastoTiendaId])
 }
 
 enum MovimientoTipo {

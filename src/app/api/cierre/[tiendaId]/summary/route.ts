@@ -12,6 +12,8 @@ type CierreResumenExt = {
   totalGananciasConsignacion?: number | null;
   totalVentasPropias?: number | null;
   totalVentasConsignacion?: number | null;
+  totalGastos?: number | null;
+  totalGananciaFinal?: number | null;
   // campos añadidos
   totalVentasBrutas?: number;
   totalDescuentos?: number;
@@ -162,6 +164,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
         const totalGananciasConsignacionNet = Math.max(0, (gananciasConsignacion || 0) - (descuentoConsignacion || 0));
         const totalGananciaNeta = Math.max(0, totalGananciasPropiasNet + totalGananciasConsignacionNet);
 
+        const totalGastos = Number((c as CierreResumenExt).totalGastos || 0);
+        const totalGananciaFinal = totalGananciaNeta - totalGastos;
+
         return {
           ...c,
           totalVentasBrutas,
@@ -170,6 +175,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
           totalGanancia: totalGananciaNeta,
           totalGananciasPropias: totalGananciasPropiasNet,
           totalGananciasConsignacion: totalGananciasConsignacionNet,
+          totalGastos,
+          totalGananciaFinal,
         } as CierreResumenExt;
       });
     }
@@ -196,6 +203,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
     const sumTotalGananciasPropiasNet = cierresConMontos.reduce((acc, c) => acc + Number(c.totalGananciasPropias || 0), 0);
     const sumTotalGananciasConsigNet = cierresConMontos.reduce((acc, c) => acc + Number(c.totalGananciasConsignacion || 0), 0);
     const sumTotalGananciaNet = cierresConMontos.reduce((acc, c) => acc + Number(c.totalGanancia || 0), 0);
+    const sumTotalGastos = cierresConMontos.reduce((acc, c) => acc + Number((c as CierreResumenExt).totalGastos || 0), 0);
+    const sumTotalGananciaFinal = cierresConMontos.reduce((acc, c) => acc + Number((c as CierreResumenExt).totalGananciaFinal ?? c.totalGanancia ?? 0), 0);
     
     return NextResponse.json({
       cierres: cierresConMontos as unknown as ISummaryCierre["cierres"],
@@ -212,6 +221,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
       sumTotalGananciasConsignacion: sumTotalGananciasConsigNet,
       sumTotalVentasBrutas,
       sumTotalDescuentos,
+      sumTotalGastos,
+      sumTotalGananciaFinal,
       totalItems: totalCierres
     });
   } catch (error: unknown) {

@@ -14,6 +14,8 @@ export interface ICierrePeriodo {
   totalVentasConsignacion?: number;
   totalGananciasPropias?: number;
   totalGananciasConsignacion?: number;
+  totalGastos?: number;
+  totalGananciaFinal?: number;
 }
 
 interface ICierreProductoVendidos {
@@ -82,6 +84,8 @@ export interface ISummaryCierre {
   // Totales ampliados
   sumTotalVentasBrutas?: number;
   sumTotalDescuentos?: number;
+  sumTotalGastos?: number;
+  sumTotalGananciaFinal?: number;
 }
 
 

@@ -145,6 +145,12 @@ const CONFIGURATION_MENU_ITEMS = [
     icon: UpgradeIcon,
     permission: '*'
   },
+  {
+    label: "Plantillas de Gastos",
+    path: "/gastos/plantillas",
+    icon: ChangeHistoryIcon,
+    permission: 'configuracion.gastos.plantillas.gestionar'
+  },
 ];
 
 const MAIN_MENU_ITEMS = [
@@ -153,6 +159,7 @@ const MAIN_MENU_ITEMS = [
   { label: "Movimientos", path: "/movimientos", icon: SwapVert, permission: 'operaciones.movimientos.acceder' },
   { label: "Conformar Precios", path: "/conformar_precios", icon: GridView, permission: 'operaciones.conformarprecios.acceder' },
   { label: "Cierre", path: "/cierre", icon: AccountBalanceWallet, permission: 'operaciones.cierre.acceder' },
+  { label: "Gastos", path: "/gastos", icon: NextWeekIcon, permission: 'operaciones.gastos.ver' },
 ];
 
 const RESUMEN_MENU_ITEMS = [
