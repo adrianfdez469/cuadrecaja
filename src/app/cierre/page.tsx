@@ -27,6 +27,7 @@ import { useSalesStore } from "@/store/salesStore";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
@@ -35,6 +36,11 @@ import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import { formatDate, formatCurrency, formatNumber } from '@/utils/formatters';
 import { usePermisos } from "@/utils/permisos_front";
+import GastosCierreReviewDialog from "@/app/gastos/components/GastosCierreReviewDialog";
+import GastoCierreList from "@/app/gastos/components/GastoCierreList";
+import GastoAdHocDialog from "@/app/gastos/components/GastoAdHocDialog";
+import { createGastoAdHoc, getGastosTienda } from "@/services/gastoService";
+import { IGastoAdHocCreate } from "@/schemas/gastos";
 
 const CierreCajaPage = () => {
   const { user, loadingContext, gotToPath } = useAppContext();
@@ -50,36 +56,50 @@ const CierreCajaPage = () => {
   const [noPeriodFound, setNoPeriodFound] = useState(false);
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [isProcessingCierre, setIsProcessingCierre] = useState(false);
-  const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
+  const [gastosReviewOpen, setGastosReviewOpen] = useState(false);
+  const [adHocOpen, setAdHocOpen] = useState(false);
+  const [categoriasGastos, setCategoriasGastos] = useState<string[]>([]);
+  const { ConfirmDialogComponent } = useConfirmDialog();
   const { clearSales, sales } = useSalesStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { verificarPermiso } = usePermisos()
+  const canManageGastos = verificarPermiso("operaciones.gastos.gestionar");
+
+  const handleSaveAdHoc = async (data: IGastoAdHocCreate) => {
+    if (!currentPeriod) return;
+    await createGastoAdHoc(currentPeriod.id, data);
+    await getInitData();
+  };
 
   const handleCerrarCaja = async () => {
-    // Evitar múltiples clics mientras se procesa
     if (isProcessingCierre) return;
-    
-    if(sales.filter(sale => !sale.synced).length > 0) {
+
+    if (sales.filter(sale => !sale.synced).length > 0) {
       showMessage("Debe sincronizar las ventas en la interfaz del pos de ventas", "warning");
     } else {
-      confirmDialog("¿Estás seguro de desea realizar el cierre de caja?", async () => {
-        // Se debe crear un nuevo cierre
-        const localId = user.localActual.id;
-        setIsProcessingCierre(true);
-        try {
-          await closePeriod(localId, currentPeriod.id);
-          clearSales();
-          await openPeriod(localId);
-          showMessage('Cierre de caja realizado exitosamente', 'success');
-        } catch (error) {
-          console.log(error);
-          showMessage('Ha ocurrido un error al realizar el cierre', 'error');
-        } finally {
-          setIsProcessingCierre(false);
-          await getInitData();    
-        }
-      });
+      // Abrir el dialog de revisión de gastos antes de confirmar el cierre
+      setGastosReviewOpen(true);
+    }
+  };
+
+  const handleConfirmarCierre = async () => {
+    // Los gastos ya fueron aplicados por el GastosCierreReviewDialog antes de llamar aquí
+    const localId = user.localActual.id;
+    setIsProcessingCierre(true);
+    try {
+      await closePeriod(localId, currentPeriod.id);
+      clearSales();
+      await openPeriod(localId);
+      showMessage('Cierre de caja realizado exitosamente', 'success');
+    } catch (error) {
+      console.log(error);
+      showMessage('Ha ocurrido un error al realizar el cierre', 'error');
+      throw error;
+    } finally {
+      setIsProcessingCierre(false);
+      setGastosReviewOpen(false);
+      await getInitData();
     }
   };
 
@@ -123,9 +143,13 @@ const CierreCajaPage = () => {
       }
       
       setCurrentPeriod(currentPeriod);
-      const data = await fetchCierreData(localId, currentPeriod.id);
+      const [data, gastosTienda] = await Promise.all([
+        fetchCierreData(localId, currentPeriod.id),
+        getGastosTienda(localId),
+      ]);
       console.log(data);
       setCierreData(data);
+      setCategoriasGastos([...new Set(gastosTienda.map((g) => g.categoria))]);
 
       setTotales({
         totalCantidad: data.productosVendidos.reduce(
@@ -216,6 +240,13 @@ const CierreCajaPage = () => {
 
   const headerActions = (
     <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
+      {canManageGastos && currentPeriod && !currentPeriod.fechaFin && (
+        <Tooltip title="Registrar gasto puntual del período">
+          <IconButton onClick={() => setAdHocOpen(true)} size={isMobile ? "small" : "medium"}>
+            <ReceiptLongIcon />
+          </IconButton>
+        </Tooltip>
+      )}
       <Tooltip title="Actualizar datos">
         <IconButton onClick={getInitData} disabled={isDataLoading} size={isMobile ? "small" : "medium"}>
           <RefreshIcon />
@@ -409,7 +440,33 @@ const CierreCajaPage = () => {
           />
         </ContentCard>
         
+        {verificarPermiso("operaciones.gastos.ver") && (
+          <Box mt={3}>
+            <GastoCierreList cierreId={currentPeriod.id} totalGanancia={totales.totalGanancia} />
+          </Box>
+        )}
+
         {ConfirmDialogComponent}
+
+        {canManageGastos && (
+          <GastoAdHocDialog
+            open={adHocOpen}
+            totalVentas={cierreData.totalVentasBrutas ?? totales.totalMonto}
+            totalGanancia={totales.totalGanancia}
+            categoriasExistentes={categoriasGastos}
+            onClose={() => setAdHocOpen(false)}
+            onSave={handleSaveAdHoc}
+          />
+        )}
+
+        {currentPeriod && (
+          <GastosCierreReviewDialog
+            open={gastosReviewOpen}
+            cierreId={currentPeriod.id}
+            onClose={() => setGastosReviewOpen(false)}
+            onConfirm={handleConfirmarCierre}
+          />
+        )}
       </PageContainer>
     );
   }

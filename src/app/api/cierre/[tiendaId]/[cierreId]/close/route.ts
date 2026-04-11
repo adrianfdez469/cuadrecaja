@@ -102,6 +102,13 @@ export async function PUT(
 
     const [periodoCerrado] = await prisma.$transaction(async (tx) => {
 
+      // Reconciliar gastos aplicados (pueden haber sido aplicados antes del close via /apply)
+      const gastosCierre = await tx.gastoCierre.findMany({
+        where: { cierreId: ultimoPeriodo.id },
+      });
+      const totalGastos = gastosCierre.reduce((sum, g) => sum + g.montoCalculado, 0);
+      const totalGananciaFinal = totalGanancia - totalGastos;
+
       // Cerrar el período con resumen
       const periodoCerrado = await tx.cierrePeriodo.update({
         where: { id: ultimoPeriodo.id },
@@ -115,6 +122,8 @@ export async function PUT(
           totalVentasConsignacion,
           totalGananciasPropias,
           totalGananciasConsignacion,
+          totalGastos,
+          totalGananciaFinal,
         },
       });
 

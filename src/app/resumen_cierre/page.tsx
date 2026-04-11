@@ -33,7 +33,7 @@ import { useAppContext } from "@/context/AppContext";
 import { ICierreData, ICierrePeriodo, ISummaryCierre } from "@/types/ICierre";
 import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
-import { Close, AttachMoney, TrendingUp, Assessment, Refresh, FilterList, ArrowForward, AccountBalance } from "@mui/icons-material";
+import { Close, AttachMoney, TrendingUp, TrendingDown, Assessment, Refresh, FilterList, ArrowForward, AccountBalance } from "@mui/icons-material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { fetchCierreData } from "@/services/cierrePeriodService";
 import { PageContainer } from "@/components/PageContainer";
@@ -56,11 +56,18 @@ export default function ResumenCierrePage() {
     venta: number;
     ganancia: number;
     transf: number;
-  }>({ inversion: 0, venta: 0, ganancia: 0, transf: 0 });
+    gastos: number;
+    gananciaFinal: number;
+  }>({ inversion: 0, venta: 0, ganancia: 0, transf: 0, gastos: 0, gananciaFinal: 0 });
   const [expandedTransfer, setExpandedTransfer] = useState(false);
   const { user, loadingContext, gotToPath } = useAppContext();
   const [showProducts, setShowProducts] = useState(false);
-  const [cierreProducData, setCierreProductData] = useState<{ciereData: ICierreData, totales: ITotales}>();
+  const [cierreProducData, setCierreProductData] = useState<{
+    ciereData: ICierreData;
+    totales: ITotales;
+    totalGastos?: number;
+    totalGananciaFinal?: number;
+  }>();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -97,10 +104,12 @@ export default function ResumenCierrePage() {
             acc.inversion += row.totalInversion;
             acc.venta += row.totalVentas;
             acc.ganancia += row.totalGanancia;
-            acc.transf += row.totalTransferencia
+            acc.transf += row.totalTransferencia;
+            acc.gastos += row.totalGastos || 0;
+            acc.gananciaFinal += row.totalGananciaFinal ?? row.totalGanancia;
             return acc;
           },
-          { inversion: 0, venta: 0, ganancia: 0, transf: 0 }
+          { inversion: 0, venta: 0, ganancia: 0, transf: 0, gastos: 0, gananciaFinal: 0 }
         )
       );
     } catch (error) {
@@ -289,7 +298,9 @@ export default function ResumenCierrePage() {
         totalTransferenciasByDestination: cierreData.totalTransferenciasByDestination,
         totalVentasPorUsuario: cierreData.totalVentasPorUsuario
       },
-      totales: totales
+      totales: totales,
+      totalGastos: itemCierre.totalGastos,
+      totalGananciaFinal: itemCierre.totalGananciaFinal,
     });
     setShowProducts(true);
   };
@@ -488,11 +499,23 @@ export default function ResumenCierrePage() {
                 <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                         icon={<TrendingUp fontSize={"medium"} />}
-                        value={formatCurrency(data.sumTotalGanancia)}
-                        label="Ganancia Total"
+                        value={formatCurrency(data.sumTotalGananciaFinal ?? data.sumTotalGanancia)}
+                        label="Ganancia Final"
                         color="info.light"
                     />
                 </Grid>
+
+                {/* Gastos totales del intervalo */}
+                {(data.sumTotalGastos || 0) > 0 && (
+                  <Grid item xs={12} sm={6} md={4}>
+                    <StatCard
+                      icon={<TrendingDown fontSize={"medium"} />}
+                      value={formatCurrency(data.sumTotalGastos || 0)}
+                      label="Total Gastos"
+                      color="error.light"
+                    />
+                  </Grid>
+                )}
 
                 <Grid item xs={12} sm={6} md={4}>
                     <StatCard
@@ -684,12 +707,22 @@ export default function ResumenCierrePage() {
                                       </Typography>
                                     </Grid>
                                   )}
+                                  {verificarPermiso("operaciones.cierre.gananciascostos") && (row.totalGastos || 0) > 0 && (
+                                    <Grid item xs={6}>
+                                      <Typography variant="caption" color="text.secondary">
+                                        Gastos
+                                      </Typography>
+                                      <Typography variant="body2" fontWeight="medium" color="error.main">
+                                        - {formatCurrency(row.totalGastos || 0)}
+                                      </Typography>
+                                    </Grid>
+                                  )}
                                   <Grid item xs={6}>
                                     <Typography variant="caption" color="text.secondary">
-                                      Gananciaa
+                                      Ganancia Final
                                     </Typography>
                                     <Typography variant="body2" fontWeight="medium" color="info.main">
-                                      {formatCurrency(row.totalGanancia)}
+                                      {formatCurrency(row.totalGananciaFinal ?? row.totalGanancia)}
                                     </Typography>
                                   </Grid>
                                   <Grid item xs={6}>
@@ -758,11 +791,13 @@ export default function ResumenCierrePage() {
                           <TableCell>Fin</TableCell>
                           <TableCell align="right">Inversión</TableCell>
                           <TableCell align="right">Venta</TableCell>
-                          {/* Nuevas columnas: Bruto y Descuentos */}
                           <TableCell align="right">Bruto</TableCell>
                           <TableCell align="right">Descuentos</TableCell>
+                          {verificarPermiso("operaciones.cierre.gananciascostos") && (
+                            <TableCell align="right">Gastos</TableCell>
+                          )}
                           <TableCell align="right">Transf</TableCell>
-                          <TableCell align="right">Gananciaa</TableCell>
+                          <TableCell align="right">Gan. Final</TableCell>
                           {/* NUEVAS COLUMNAS PARA CONSIGNACIÓN */}
                           <TableCell align="right">
                             <StoreIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
@@ -819,6 +854,13 @@ export default function ResumenCierrePage() {
                                   {typeof row.totalDescuentos === 'number' ? `- ${formatCurrency(row.totalDescuentos || 0)}` : '—'}
                                 </Typography>
                               </TableCell>
+                              {verificarPermiso("operaciones.cierre.gananciascostos") && (
+                                <TableCell align="right">
+                                  <Typography variant="body2" color="error.main">
+                                    {(row.totalGastos || 0) > 0 ? `- ${formatCurrency(row.totalGastos || 0)}` : '—'}
+                                  </Typography>
+                                </TableCell>
+                              )}
                               <TableCell align="right">
                                 <Typography variant="body2">
                                   {formatCurrency(row.totalTransferencia)}
@@ -826,7 +868,7 @@ export default function ResumenCierrePage() {
                               </TableCell>
                               <TableCell align="right">
                                 <Typography variant="body2" fontWeight="medium" color="info.main">
-                                  {formatCurrency(row.totalGanancia)}
+                                  {formatCurrency(row.totalGananciaFinal ?? row.totalGanancia)}
                                 </Typography>
                               </TableCell>
                               {/* NUEVAS COLUMNAS CON DATOS REALES */}
@@ -871,7 +913,6 @@ export default function ResumenCierrePage() {
                               {formatCurrency(totales.venta)}
                             </Typography>
                           </TableCell>
-                          {/* Totales de Bruto y Descuentos para alinear con cabecera */}
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="text.secondary">
                               {formatCurrency(data?.sumTotalVentasBrutas || 0)}
@@ -882,6 +923,13 @@ export default function ResumenCierrePage() {
                               - {formatCurrency(data?.sumTotalDescuentos || 0)}
                             </Typography>
                           </TableCell>
+                          {verificarPermiso("operaciones.cierre.gananciascostos") && (
+                            <TableCell align="right">
+                              <Typography variant="body2" fontWeight="bold" color="error.main">
+                                {totales.gastos > 0 ? `- ${formatCurrency(totales.gastos)}` : '—'}
+                              </Typography>
+                            </TableCell>
+                          )}
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold">
                               {formatCurrency(totales.transf)}
@@ -889,7 +937,7 @@ export default function ResumenCierrePage() {
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="info.main">
-                              {formatCurrency(totales.ganancia)}
+                              {formatCurrency(totales.gananciaFinal)}
                             </Typography>
                           </TableCell>
                           {/* NUEVOS TOTALES PARA CONSIGNACIÓN */}
@@ -1006,13 +1054,15 @@ export default function ResumenCierrePage() {
                       <Grid item xs={6} sm={6} md={3}>
                         <StatCard
                             icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
-                            value={formatCurrency(cierreProducData.ciereData.totalGanancia)}
-                            label="Ganancia"
+                            value={formatCurrency(
+                              cierreProducData.totalGananciaFinal ?? cierreProducData.ciereData.totalGanancia
+                            )}
+                            label="Ganancia Final"
                             color="info.light"
                         />
                       </Grid>
 
-                      {/* Bruto y Descuentos del período dentro del detalle usando el mismo StatCard */}
+                      {/* Bruto y Descuentos del período */}
                       <Grid item xs={6} sm={6} md={3}>
                         <StatCard
                           icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
@@ -1022,14 +1072,27 @@ export default function ResumenCierrePage() {
                         />
                       </Grid>
 
-                      <Grid item xs={6} sm={6} md={3}>
-                        <StatCard
-                          icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
-                          value={formatCurrency((cierreProducData.ciereData.totalDescuentos ?? 0))}
-                          label="Descuentos del Período"
-                          color="error.light"
-                        />
-                      </Grid>
+                      {(cierreProducData.ciereData.totalDescuentos ?? 0) > 0 && (
+                        <Grid item xs={6} sm={6} md={3}>
+                          <StatCard
+                            icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
+                            value={formatCurrency((cierreProducData.ciereData.totalDescuentos ?? 0))}
+                            label="Descuentos del Período"
+                            color="error.light"
+                          />
+                        </Grid>
+                      )}
+
+                      {verificarPermiso("operaciones.cierre.gananciascostos") && (cierreProducData.totalGastos || 0) > 0 && (
+                        <Grid item xs={6} sm={6} md={3}>
+                          <StatCard
+                            icon={<TrendingDown fontSize={isMobile ? "medium" : "large"} />}
+                            value={formatCurrency(cierreProducData.totalGastos || 0)}
+                            label="Gastos del Período"
+                            color="error.light"
+                          />
+                        </Grid>
+                      )}
 
                       <Grid item xs={6} sm={6} md={3}>
                         <StatCard

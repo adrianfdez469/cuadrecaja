@@ -59,7 +59,8 @@ import {
   VisibilityOff,
   Notifications,
   Block,
-  Android
+  Android,
+  TrendingDown,
 } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
@@ -122,16 +123,22 @@ const CONFIGURATION_MENU_ITEMS = [
     permission: 'configuracion.productos.acceder'
   },
   {
-    label: "Proveedores",
-    path: "/configuracion/proveedores",
-    icon: LocalShipping,
-    permission: 'configuracion.proveedores.acceder'
+    label: "Plantillas de Gastos",
+    path: "/gastos/plantillas",
+    icon: TrendingDown,
+    permission: 'configuracion.gastos.plantillas.gestionar'
   },
   {
     label: "Descuentos",
     path: "/configuracion/descuentos",
     icon: LocalOffer,
     permission: 'configuracion.descuentos.acceder'
+  },
+  {
+    label: "Proveedores",
+    path: "/configuracion/proveedores",
+    icon: LocalShipping,
+    permission: 'configuracion.proveedores.acceder'
   },
   {
     label: "Destinos de Transferencia",
@@ -144,7 +151,7 @@ const CONFIGURATION_MENU_ITEMS = [
     path: "/configuracion/planes",
     icon: UpgradeIcon,
     permission: '*'
-  },
+  }
 ];
 
 const MAIN_MENU_ITEMS = [
@@ -152,6 +159,7 @@ const MAIN_MENU_ITEMS = [
   { label: "Ventas", path: "/ventas", icon: Receipt, permission: 'operaciones.ventas.acceder' },
   { label: "Movimientos", path: "/movimientos", icon: SwapVert, permission: 'operaciones.movimientos.acceder' },
   { label: "Conformar Precios", path: "/conformar_precios", icon: GridView, permission: 'operaciones.conformarprecios.acceder' },
+  { label: "Gastos", path: "/gastos", icon: TrendingDown, permission: 'operaciones.gastos.ver' },
   { label: "Cierre", path: "/cierre", icon: AccountBalanceWallet, permission: 'operaciones.cierre.acceder' },
 ];
 
