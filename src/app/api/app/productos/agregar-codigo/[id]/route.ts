@@ -4,7 +4,7 @@ import { getSessionFromRequest } from '@/utils/authFromRequest';
 import { verificarPermisoUsuario } from '@/utils/permisos_back';
 
 /**
- * POST /api/app/productos/[id]/agregar-codigo
+ * POST /api/app/productos/agregar-codigo/[id]
  *
  * Asocia un código de barras desconocido a un producto existente.
  * Requiere el permiso `operaciones.pos-venta.asociar_codigo`.
@@ -79,7 +79,7 @@ export async function POST(
       data: { codigo: codigoNormalizado, productoId: id },
     });
 
-    console.log(`✅ [APP/PRODUCTOS/AGREGAR-CODIGO] Código "${codigoNormalizado}" asociado al producto ${id} por usuario ${user.id}`);
+    console.log(`✅ [APP/PRODUCTOS/AGREGAR-CODIGO] Código "${codigoNormalizado}" asociado al producto "${id}" por usuario "${user.id}"`);
 
     return NextResponse.json(
       {

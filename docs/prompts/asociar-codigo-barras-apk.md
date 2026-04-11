@@ -28,7 +28,7 @@ Para verificar si el usuario tiene un permiso, simplemente comprueba si el strin
 
 ## API Endpoint
 
-### `POST /api/app/productos/{productoId}/agregar-codigo`
+### `POST /api/app/productos/agregar-codigo/{productoId}`
 
 Asocia un código de barras a un producto existente.
 
