@@ -6,4 +6,6 @@ export interface INegocio {
   userlimit: number;
   productlimit: number;
   planId?: string | null;
+  /** Negocio creado al activar cuenta desde la landing */
+  creadoPorActivacionLanding?: boolean;
 }

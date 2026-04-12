@@ -33,7 +33,9 @@ import {
   CardContent,
   Collapse,
   Divider,
-  InputAdornment
+  InputAdornment,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import { 
   Delete, 
@@ -49,7 +51,7 @@ import {
   TrendingUp,
   Schedule,
   Info,
-  Refresh
+  Refresh,
 } from "@mui/icons-material";
 import { createNegocio, getNegocios, updateNegocio, deleteNegocio } from "@/services/negocioServce";
 import { getPlanes } from "@/services/planService";
@@ -98,6 +100,8 @@ export default function Negocios() {
   const [open, setOpen] = useState(false);
   const [selectedNegocio, setSelectedNegocio] = useState<INegocio | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  /** Solo negocios creados vía activación desde la landing */
+  const [soloActivacionLanding, setSoloActivacionLanding] = useState(false);
   const [expandedNegocio, setExpandedNegocio] = useState<string | null>(null);
   const [negocioStats, setNegocioStats] = useState<Record<string, NegocioStats>>({});
   const [statsExpanded, setStatsExpanded] = useState(false);
@@ -114,7 +118,7 @@ export default function Negocios() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getNegocios();
+      const data = await getNegocios({ soloActivacionLanding });
       setNegocios(data);
     } catch (error) {
       console.log(error);
@@ -140,7 +144,7 @@ export default function Negocios() {
       fetchNegocios();
       getPlanes().then(setPlanes).catch(() => showMessage('Error al cargar los planes', 'error'));
     }
-  }, [user]);
+  }, [user, soloActivacionLanding]);
 
   const fetchNegocioStats = async (negocioId: string) => {
     try {
@@ -270,8 +274,10 @@ export default function Negocios() {
   const filteredNegocios = negocios.filter((negocio) => {
     const searchLower = searchTerm.toLowerCase();
     const planName = getPlanName(negocio);
-    return negocio.nombre.toLowerCase().includes(searchLower) ||
-           planName.toLowerCase().includes(searchLower);
+    return (
+      negocio.nombre.toLowerCase().includes(searchLower) ||
+      planName.toLowerCase().includes(searchLower)
+    );
   });
 
   // Cálculos para estadísticas
@@ -458,9 +464,14 @@ export default function Negocios() {
               <Typography variant="h6" fontWeight="bold" noWrap>
                 {negocio.nombre}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                ID: {negocio.id.slice(0, 8)}...
-              </Typography>
+              <Stack direction="row" alignItems="center" gap={0.5} flexWrap="wrap" sx={{ mt: 0.25 }}>
+                <Typography variant="caption" color="text.secondary">
+                  ID: {negocio.id.slice(0, 8)}...
+                </Typography>
+                {negocio.creadoPorActivacionLanding ? (
+                  <Chip label="Activación landing" size="small" color="info" variant="outlined" />
+                ) : null}
+              </Stack>
             </Box>
           </Stack>
 
@@ -772,23 +783,37 @@ export default function Negocios() {
         title="Lista de Negocios"
         subtitle={`${filteredNegocios.length} negocio${filteredNegocios.length !== 1 ? 's' : ''} encontrado${filteredNegocios.length !== 1 ? 's' : ''}`}
         headerActions={
-          <TextField
-            size="small"
-            placeholder={isMobile ? "Buscar..." : "Buscar negocio..."}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ 
-              minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : 'none'
-            }}
-          />
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={soloActivacionLanding}
+                  onChange={(e) => setSoloActivacionLanding(e.target.checked)}
+                  color="primary"
+                  size="small"
+                />
+              }
+              label="Solo registro por landing"
+              sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.875rem', whiteSpace: 'nowrap' } }}
+            />
+            <TextField
+              size="small"
+              placeholder={isMobile ? "Buscar..." : "Buscar negocio..."}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                minWidth: isMobile ? 160 : 250,
+                maxWidth: isMobile ? 200 : 'none',
+              }}
+            />
+          </Stack>
         }
         noPadding={isMobile ? false : true}
         fullHeight
@@ -814,7 +839,7 @@ export default function Negocios() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Negocio</TableCell>
+                  <TableCell>Negocio / Origen</TableCell>
                   <TableCell align="center">Plan</TableCell>
                   <TableCell align="center">Estado</TableCell>
                   <TableCell align="center">Vencimiento</TableCell>
@@ -839,9 +864,14 @@ export default function Negocios() {
                               <Typography variant="body2" fontWeight="medium">
                                 {negocio.nombre}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                ID: {negocio.id.slice(0, 8)}...
-                              </Typography>
+                              <Stack direction="row" alignItems="center" gap={0.5} flexWrap="wrap" sx={{ mt: 0.25 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  ID: {negocio.id.slice(0, 8)}...
+                                </Typography>
+                                {negocio.creadoPorActivacionLanding ? (
+                                  <Chip label="Activación landing" size="small" color="info" variant="outlined" />
+                                ) : null}
+                              </Stack>
                             </Box>
                           </Box>
                         </TableCell>

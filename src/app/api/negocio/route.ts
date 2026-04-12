@@ -1,12 +1,25 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hasSuperAdminPrivileges } from "@/utils/auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dayjs from 'dayjs';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const negocios = await prisma.negocio.findMany();
-    
+    const soloActivacionLanding = request.nextUrl.searchParams.get('soloActivacionLanding');
+    const filtrarLanding =
+      soloActivacionLanding === '1' ||
+      soloActivacionLanding === 'true';
+
+    const where: Prisma.NegocioWhereInput | undefined = filtrarLanding
+      ? { creadoPorActivacionLanding: true }
+      : undefined;
+
+    const negocios = await prisma.negocio.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+
     return NextResponse.json(negocios);
   } catch (error) {
     console.log(error);

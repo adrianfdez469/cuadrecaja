@@ -1,31 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import jwt from 'jsonwebtoken';
+
+const MAX_LOCALES_CONTACT = 19;
 
 interface ContactFormData {
   nombre: string;
-  nombreNegocio?: string;
+  nombreNegocio: string;
   correo: string;
-  telefono: string;
-  tipoNegocio?: string;
-  numeroLocales?: string;
+  telefono?: string;
+  numeroLocales: number;
   mensaje?: string;
-}
-
-/** Normaliza el teléfono quitando espacios y valida: 7 dígitos o +53 seguido de 7 dígitos */
-function validarTelefono(valor: string): { valido: boolean; normalizado: string } {
-  const normalizado = valor.replace(/\s/g, '');
-  const cumple = /^(\+53)?\d{7}$/.test(normalizado);
-  return { valido: cumple, normalizado };
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: ContactFormData = await request.json();
 
-    const { nombre, nombreNegocio, correo, telefono, tipoNegocio, numeroLocales } = body;
+    const { nombre, nombreNegocio, correo, telefono, numeroLocales } = body;
 
-    if (!nombre?.trim() || !correo?.trim() || !telefono?.trim()) {
+    if (!nombre?.trim() || !nombreNegocio?.trim() || !correo?.trim()) {
       return NextResponse.json(
-        { error: 'Nombre, correo y teléfono son obligatorios' },
+        { error: 'Nombre, nombre del negocio y correo son obligatorios' },
         { status: 400 }
       );
     }
@@ -38,27 +33,63 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { valido: telefonoValido, normalizado: telefonoNormalizado } = validarTelefono(telefono);
-    if (!telefonoValido) {
+    const nLocales = Number(numeroLocales);
+    if (
+      !Number.isFinite(nLocales) ||
+      !Number.isInteger(nLocales) ||
+      nLocales < 1 ||
+      nLocales > MAX_LOCALES_CONTACT
+    ) {
       return NextResponse.json(
-        { error: 'El teléfono debe tener 7 dígitos, o +53 seguido de 7 dígitos' },
+        { error: `El número de locales debe ser un entero entre 1 y ${MAX_LOCALES_CONTACT}` },
         { status: 400 }
       );
     }
 
+    const telefonoNormalizado =
+      typeof telefono === 'string' && telefono.trim() ? telefono.replace(/\s/g, '') : '';
+
     const payload = {
       nombre: nombre.trim(),
-      nombreNegocio: nombreNegocio?.trim() ?? '',
+      nombreNegocio: nombreNegocio.trim(),
       correo: correo.trim(),
       telefono: telefonoNormalizado,
-      tipoNegocio: tipoNegocio ?? '',
-      numeroLocales: numeroLocales ?? '',
+      numeroLocales: nLocales,
       mensaje: body.mensaje ?? '',
       timestamp: new Date().toISOString(),
       source: 'landing-page',
     };
 
     console.log('📧 Nueva solicitud de demo recibida:', payload);
+
+    const activationSecret = process.env.ACTIVATION_JWT_SECRET;
+    let activationToken: string | null = null;
+    let activationUrl: string | null = null;
+
+    if (activationSecret) {
+      activationToken = jwt.sign(
+        {
+          nombre: payload.nombre,
+          nombreNegocio: payload.nombreNegocio,
+          correo: payload.correo,
+          telefono: payload.telefono,
+          numeroLocales: payload.numeroLocales,
+        },
+        activationSecret,
+        { expiresIn: '30m' }
+      );
+      const appUrl = [
+        request.nextUrl.origin,
+        process.env.NEXTAUTH_URL,
+      ]
+        .filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
+        .map((u) => u.replace(/\/$/, ''))[0] ?? 'http://localhost:3000';
+      activationUrl = `${appUrl}/activar?token=${activationToken}`;
+      console.log('🔗 URL de activación:', activationUrl);
+      
+    } else {
+      console.warn('⚠️ ACTIVATION_JWT_SECRET no configurado, no se generará token de activación');
+    }
 
     const webhookUrl = process.env.N8N_CONTACT_FORM_WEBHOOK;
     const apiKey = process.env.N8N_CONTACT_FORM_API_KEY;
@@ -72,7 +103,7 @@ export async function POST(request: NextRequest) {
         const webhookResponse = await fetch(webhookUrl + apiKey, {
           method: 'POST',
           headers,
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, token: activationToken, activationUrl }),
         });
 
         if (!webhookResponse.ok) {
