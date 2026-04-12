@@ -41,10 +41,6 @@ export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboa
     orderBy: { precio: 'asc' },
   });
 
-  const userlimit = freemiumPlan?.limiteUsuarios ?? -1;
-  const locallimit = freemiumPlan?.limiteLocales ?? -1;
-  const productlimit = freemiumPlan?.limiteProductos ?? 0;
-
   await prisma.$transaction(async (tx) => {
     const negocio = await tx.negocio.create({
       data: {
