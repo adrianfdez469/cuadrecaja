@@ -78,7 +78,12 @@ export async function POST(request: NextRequest) {
         activationSecret,
         { expiresIn: '30m' }
       );
-      const appUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000';
+      const appUrl = [
+        request.nextUrl.origin,
+        process.env.NEXTAUTH_URL,
+      ]
+        .filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
+        .map((u) => u.replace(/\/$/, ''))[0] ?? 'http://localhost:3000';
       activationUrl = `${appUrl}/activar?token=${activationToken}`;
       console.log('🔗 URL de activación:', activationUrl);
       
