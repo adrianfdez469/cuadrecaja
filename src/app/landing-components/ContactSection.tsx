@@ -28,13 +28,14 @@ import {
   CheckCircle,
 } from '@mui/icons-material';
 
+const MAX_LOCALES = 19;
+
 interface FormData {
   nombre: string;
   nombreNegocio: string;
   correo: string;
   telefono: string;
-  tipoNegocio: string;
-  numeroLocales: string;
+  numeroLocales: number;
   mensaje: string;
 }
 
@@ -43,30 +44,11 @@ const initialFormData: FormData = {
   nombreNegocio: '',
   correo: '',
   telefono: '',
-  tipoNegocio: '',
-  numeroLocales: '',
+  numeroLocales: 1,
   mensaje: '',
 };
 
-const tiposNegocio = [
-  'Tienda de Barrio',
-  'Supermercado',
-  'Minimercado',
-  'Farmacia',
-  'Ferretería',
-  'Restaurante',
-  'Panadería',
-  'Distribuidora',
-  'Otro'
-];
-
-const numeroLocalesOptions = [
-  '1 local',
-  '2-3 locales',
-  '4-5 locales',
-  '6-10 locales',
-  'Más de 10 locales'
-];
+const opcionesNumeroLocales = Array.from({ length: MAX_LOCALES }, (_, i) => i + 1);
 
 export default function ContactSection() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -87,14 +69,19 @@ export default function ContactSection() {
 
   const validateForm = (): boolean => {
     if (!formData.nombre.trim()) return false;
+    if (!formData.nombreNegocio.trim()) return false;
     if (!formData.correo.trim()) return false;
-    if (!formData.telefono.trim()) return false;
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.correo)) return false;
 
-    const telefonoNorm = normalizePhone(formData.telefono);
-    if (!/^(\+53)?\d{7}$/.test(telefonoNorm)) return false;
+    if (
+      !Number.isInteger(formData.numeroLocales) ||
+      formData.numeroLocales < 1 ||
+      formData.numeroLocales > MAX_LOCALES
+    ) {
+      return false;
+    }
 
     return true;
   };
@@ -104,7 +91,9 @@ export default function ContactSection() {
     
     if (!validateForm()) {
       setSubmitStatus('error');
-      setErrorMessage('Por favor, completa todos los campos correctamente.');
+      setErrorMessage(
+        'Por favor, completa nombre, nombre del negocio, correo y el número de locales (entre 1 y 19).'
+      );
       return;
     }
 
@@ -112,9 +101,14 @@ export default function ContactSection() {
     setSubmitStatus('idle');
     setErrorMessage('');
 
+    const telefonoTrim = formData.telefono.trim();
     const payload = {
-      ...formData,
-      telefono: normalizePhone(formData.telefono),
+      nombre: formData.nombre.trim(),
+      nombreNegocio: formData.nombreNegocio.trim(),
+      correo: formData.correo.trim(),
+      telefono: telefonoTrim ? normalizePhone(telefonoTrim) : '',
+      numeroLocales: formData.numeroLocales,
+      mensaje: formData.mensaje,
     };
 
     try {
@@ -230,7 +224,9 @@ export default function ContactSection() {
                   sx={{ mb: 3 }}
                   icon={<CheckCircle />}
                 >
-                  ¡Gracias por tu interés! Nos contactaremos contigo en las próximas 24 horas.
+                  ¡Listo! Revisa tu correo electrónico: te llegará un enlace de activación válido por 30 minutos
+                  desde <strong>adrianfdez469@gmail.com</strong> (correo personal del desarrollador).
+                  Si no lo ves, revisa la carpeta de spam.
                 </Alert>
               )}
 
@@ -258,9 +254,10 @@ export default function ContactSection() {
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="Nombre del Negocio (opcional)"
+                      label="Nombre del Negocio"
                       value={formData.nombreNegocio}
                       onChange={handleInputChange('nombreNegocio')}
+                      required
                       InputProps={{
                         startAdornment: <Business sx={{ mr: 1, color: 'rgba(255,255,255,0.7)' }} />,
                       }}
@@ -284,49 +281,33 @@ export default function ContactSection() {
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="Teléfono"
+                      label="Teléfono (opcional)"
                       value={formData.telefono}
                       onChange={handleInputChange('telefono')}
-                      required
-                      placeholder="7 dígitos o +53 y 7 dígitos"
+                      placeholder="Opcional"
                       InputProps={{
                         startAdornment: <Phone sx={{ mr: 1, color: 'rgba(255,255,255,0.7)' }} />,
                       }}
                     />
                   </Grid>
-                  
+
                   <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Tipo de Negocio (opcional)</InputLabel>
+                    <FormControl fullWidth required>
+                      <InputLabel id="numero-locales-label">Número de locales</InputLabel>
                       <Select
-                        value={formData.tipoNegocio}
-                        onChange={(e) => handleInputChange('tipoNegocio')(e as React.ChangeEvent<HTMLInputElement>)}
-                        label="Tipo de Negocio (opcional)"
-                        displayEmpty
-                      >
-                        <MenuItem value="">—</MenuItem>
-                        {tiposNegocio.map((tipo) => (
-                          <MenuItem key={tipo} value={tipo}>
-                            {tipo}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Número de Locales (opcional)</InputLabel>
-                      <Select
+                        labelId="numero-locales-label"
                         value={formData.numeroLocales}
-                        onChange={(e) => handleInputChange('numeroLocales')(e as React.ChangeEvent<HTMLInputElement>)}
-                        label="Número de Locales (opcional)"
-                        displayEmpty
+                        label="Número de locales"
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            numeroLocales: Number(e.target.value),
+                          }))
+                        }
                       >
-                        <MenuItem value="">—</MenuItem>
-                        {numeroLocalesOptions.map((opcion) => (
-                          <MenuItem key={opcion} value={opcion}>
-                            {opcion}
+                        {opcionesNumeroLocales.map((n) => (
+                          <MenuItem key={n} value={n}>
+                            {n}
                           </MenuItem>
                         ))}
                       </Select>

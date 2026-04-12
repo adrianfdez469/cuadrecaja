@@ -21,6 +21,7 @@ const PROTECTED_ROUTES = [
 const ALLOWED_ROUTES = [
   '/login',
   '/',
+  '/activar',
   '/subscription-expired',
   '/descargar',
   '/api/auth',

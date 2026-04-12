@@ -46,8 +46,8 @@ export default function RootLayout({
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Si estamos en la landing page o descarga, no usar el Layout principal
-  if (pathname === '/' || pathname === '/descargar') {
+  // Landing, descarga y activación de cuenta: sin Layout (no redirigen al login sin sesión)
+  if (pathname === '/' || pathname === '/descargar' || pathname === '/activar') {
     return <>{children}</>;
   }
 

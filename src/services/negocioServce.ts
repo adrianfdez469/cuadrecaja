@@ -3,8 +3,13 @@ import axios from "axios";
 
 const API_URL = "/api/negocio"; // Ruta base del backend
 
-export const getNegocios = async () => {
-  const response = await axios.get<INegocio[]>(API_URL);
+export const getNegocios = async (options?: { soloActivacionLanding?: boolean }) => {
+  const response = await axios.get<INegocio[]>(API_URL, {
+    params:
+      options?.soloActivacionLanding === true
+        ? { soloActivacionLanding: 'true' }
+        : undefined,
+  });
   return response.data;
 }
 

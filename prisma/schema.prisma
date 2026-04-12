@@ -49,6 +49,9 @@ model Negocio {
   suspended   Boolean     @default(false)
   suspendedAt DateTime?
 
+  /// true si el negocio se creó al activar cuenta desde el formulario de la landing
+  creadoPorActivacionLanding Boolean @default(false)
+
   // Relación inversa para reglas de descuento
   discountRules    DiscountRule[]
   gastosPlantillas GastoPlantilla[]
