@@ -1192,6 +1192,7 @@ export default function POSInterface() {
           setShowUserSales={setShowUserSales}
           period={periodo}
           incrementarCantidades={incrementarCantidades}
+          transferDestinations={transferDestinations}
         />
 
         {/* Drawer de ventas y sincronización  */}

@@ -2,7 +2,7 @@ import React, { FC, useEffect, useMemo, useState } from "react";
 import { Modal, Box, Typography, Button, FormControl, InputLabel, InputAdornment, OutlinedInput, Select, MenuItem, TextField, Stack } from "@mui/material";
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
-import { moneyRegex } from '../../../utils/regex'
+import { moneyRegex } from '@/utils/regex'
 import { useMessageContext } from "@/context/MessageContext";
 import { formatCurrency } from "@/utils/formatters";
 import { ITransferDestination } from "@/types/ITransferDestination";
@@ -91,6 +91,13 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
       setCashReceived(finalTotal);
     }
   }, [open, total, finalTotal])
+
+  // useEffect(() => {
+  //   if (transferDestinations.length > 0 && !transferDestinationId) {
+  //     const defaultDest = transferDestinations.find(d => d.default) ?? transferDestinations[0];
+  //     setTransferDestinationId(defaultDest.id);
+  //   }
+  // }, [transferDestinations])
 
   const previewDiscount = async (codes?: string[]): Promise<void> => {
     try {
