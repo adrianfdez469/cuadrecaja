@@ -168,7 +168,8 @@ const CierreCajaPage = () => {
       showMessage(
         error.message,
         "error",
-        true
+        true,
+          'permision-error'
       );
 
     } finally {

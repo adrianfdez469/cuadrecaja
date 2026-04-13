@@ -17,7 +17,7 @@ export default function RefreshButton({ onRefresh }: Props) {
   const handleClick = async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
-    showMessage("Sincronizando datos...", "info", undefined, true, MSG_ID);
+    showMessage("Sincronizando datos...", "info", true, MSG_ID);
     try {
       await onRefresh();
       removeMessage(MSG_ID);
