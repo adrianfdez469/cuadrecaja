@@ -414,18 +414,119 @@ export class NotificationService {
   }
 
   /**
+   * Verificar productos próximos a vencer o vencidos por tienda
+   */
+  static async checkProductExpiration(negocioId?: string) {
+    try {
+      const ahora = new Date();
+      const en30Dias = new Date(ahora.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      const whereNegocio = negocioId
+        ? { tienda: { negocioId } }
+        : {};
+
+      const productosTienda = await prisma.productoTienda.findMany({
+        where: {
+          ...whereNegocio,
+          fechaVencimiento: { not: null, lte: en30Dias }
+        },
+        include: {
+          producto: { select: { nombre: true } },
+          tienda: { select: { id: true, nombre: true, negocioId: true } }
+        }
+      });
+
+      // Agrupar por tienda
+      const porTienda = new Map<string, typeof productosTienda>();
+      for (const pt of productosTienda) {
+        const key = pt.tiendaId;
+        if (!porTienda.has(key)) porTienda.set(key, []);
+        porTienda.get(key).push(pt);
+      }
+
+      for (const [, items] of porTienda) {
+        const tienda = items[0].tienda;
+        const negId = tienda.negocioId;
+
+        const niveles: Array<{
+          nivel: 'CRITICA' | 'ALTA' | 'MEDIA' | 'BAJA';
+          label: string;
+        }> = [
+          { nivel: 'CRITICA', label: 'VENCIDOS' },
+          { nivel: 'ALTA',    label: 'vencen en ≤7 días' },
+          { nivel: 'MEDIA',   label: 'vencen en ≤15 días' },
+          { nivel: 'BAJA',    label: 'vencen en ≤30 días' },
+        ];
+
+        for (const { nivel, label } of niveles) {
+          const grupo = items.filter(pt => {
+            const dias = Math.ceil((pt.fechaVencimiento.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
+            if (nivel === 'CRITICA') return dias <= 0;
+            if (nivel === 'ALTA')   return dias > 0 && dias <= 7;
+            if (nivel === 'MEDIA')  return dias > 7 && dias <= 15;
+            return dias > 15 && dias <= 30;
+          });
+
+          const titulo = `Vencimiento de productos — ${tienda.nombre} (${label})`;
+
+          if (grupo.length === 0) {
+            const existente = await this.findExistingNotification(titulo, negId);
+            if (existente) await this.deleteNotification(existente.id);
+            continue;
+          }
+
+          const listaProductos = grupo
+            .map(pt => {
+              const dias = Math.ceil((pt.fechaVencimiento.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
+              const diasTexto = dias <= 0 ? `vencido hace ${Math.abs(dias)} día(s)` : `vence en ${dias} día(s)`;
+              return `• ${pt.producto.nombre} (${diasTexto})`;
+            })
+            .join('\n');
+
+          const descripcion = `${grupo.length} producto(s) ${label} en la tienda "${tienda.nombre}":\n${listaProductos}`;
+          const fechaFin = new Date(ahora.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+          const existente = await this.findExistingNotification(titulo, negId);
+
+          if (!existente) {
+            await this.createAutomaticNotification({
+              titulo,
+              descripcion,
+              fechaInicio: ahora,
+              fechaFin,
+              nivelImportancia: nivel,
+              tipo: 'ALERTA',
+              negociosDestino: negId
+            });
+          } else {
+            const contenidoCambiado =
+              existente.descripcion !== descripcion ||
+              existente.nivelImportancia !== nivel;
+            if (contenidoCambiado) {
+              await this.updateNotification(existente.id, { descripcion, nivelImportancia: nivel, fechaFin });
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error al verificar vencimiento de productos:', error);
+    }
+  }
+
+  /**
    * Ejecutar todas las verificaciones automáticas
    */
   static async runAutomaticChecks(negocioId?: string) {
     console.log('Iniciando verificaciones automáticas de notificaciones...');
-    
+
     await Promise.all([
       this.checkSubscriptionExpiration(negocioId),
       this.checkProductLimits(negocioId),
       this.checkUserLimits(negocioId),
+      this.checkProductExpiration(negocioId),
       this.deleteExpiredNotifications()
     ]);
-    
+
     console.log('Verificaciones automáticas completadas');
   }
 }

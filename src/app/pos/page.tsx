@@ -203,7 +203,8 @@ export default function POSInterface() {
           id: product.id,
           name: product.producto.nombre,
           price: product.precio,
-          productoTiendaId: product.id
+          productoTiendaId: product.id,
+          fechaVencimiento: product.fechaVencimiento ?? null,
         }, 1);
 
         // Actualizar inventario local

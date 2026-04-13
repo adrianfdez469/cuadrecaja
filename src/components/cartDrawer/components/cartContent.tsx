@@ -1,5 +1,5 @@
 import { Close, Delete, Remove, Add } from "@mui/icons-material";
-import { Box, Typography, Button, IconButton, Paper, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Typography, Button, Chip, IconButton, Paper, Tooltip, useMediaQuery, useTheme } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import PushPinIcon from '@mui/icons-material/PushPin';
 
@@ -212,15 +212,44 @@ export const CartContent = ({
             }}
           >
             <Box flex={1}>
-              <Typography
-                variant="body1"
-                fontWeight="bold"
-                sx={{
-                  fontSize: isCartPinned && !isTablet ? '1rem' : '0.875rem'
-                }}
-              >
-                {item.name}
-              </Typography>
+              <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap">
+                <Typography
+                  variant="body1"
+                  fontWeight="bold"
+                  sx={{
+                    fontSize: isCartPinned && !isTablet ? '1rem' : '0.875rem'
+                  }}
+                >
+                  {item.name}
+                </Typography>
+                {item.fechaVencimiento && (() => {
+                  const ahora = new Date();
+                  const fecha = new Date(item.fechaVencimiento);
+                  const dias = Math.ceil((fecha.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
+                  if (dias <= 0) {
+                    return (
+                      <Tooltip title="Este producto está vencido">
+                        <Chip label="Vencido" color="error" size="small" sx={{ height: 18, fontSize: '0.65rem' }} />
+                      </Tooltip>
+                    );
+                  }
+                  if (dias <= 7) {
+                    return (
+                      <Tooltip title={`Vence en ${dias} día(s)`}>
+                        <Chip label={`Vence en ${dias}d`} color="error" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                      </Tooltip>
+                    );
+                  }
+                  if (dias <= 30) {
+                    return (
+                      <Tooltip title={`Vence en ${dias} día(s)`}>
+                        <Chip label={`Vence en ${dias}d`} color="warning" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                      </Tooltip>
+                    );
+                  }
+                  return null;
+                })()}
+              </Box>
 
               <Box
                 display={"flex"}

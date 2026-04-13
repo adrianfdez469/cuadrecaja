@@ -48,8 +48,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         }
       }
     });
-    
-    return NextResponse.json(productosTienda);
+
+    const result = productosTienda.map(pt => ({
+      ...pt,
+      fechaVencimiento: pt.fechaVencimiento ? pt.fechaVencimiento.toISOString() : null
+    }));
+
+    return NextResponse.json(result);
   } catch (error) {
     console.log(error);
     return NextResponse.json(

@@ -7,6 +7,7 @@ export interface ICartItem {
   price: number;
   quantity: number;
   productoTiendaId: string;
+  fechaVencimiento?: string | null;
 }
 
 export interface ICart {

@@ -51,7 +51,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
       orderBy: orderByClause
     });
 
-    return NextResponse.json(productosTienda);
+    // Serializar fechaVencimiento a ISO string para el cliente
+    const result = productosTienda.map(pt => ({
+      ...pt,
+      fechaVencimiento: pt.fechaVencimiento ? pt.fechaVencimiento.toISOString() : null
+    }));
+
+    return NextResponse.json(result);
   } catch (error) {
     console.log(error);
     return NextResponse.json(
@@ -81,17 +87,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
     }
 
     await prisma.$transaction(
-      productos.map(producto => 
-        prisma.productoTienda.update({
-          where: {
-            id: producto.id
-          },
-          data: {
-            precio: producto.precio,
-            // costo: producto.costo
-          }
-        })
-      )
+      productos.map(producto => {
+        const data: { precio?: number; fechaVencimiento?: Date | null } = {};
+        if (producto.precio !== undefined) data.precio = producto.precio;
+        if ('fechaVencimiento' in producto) {
+          data.fechaVencimiento = producto.fechaVencimiento ? new Date(producto.fechaVencimiento) : null;
+        }
+        return prisma.productoTienda.update({
+          where: { id: producto.id },
+          data
+        });
+      })
     );
 
     return NextResponse.json({ success: true });

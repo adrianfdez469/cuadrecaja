@@ -40,6 +40,8 @@ import {
 } from "@/constants/movimientos";
 import { formatCurrency } from "@/utils/formatters";
 import { Add, Info } from "@mui/icons-material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs, { Dayjs } from "dayjs";
 import { getProveedores, createProveedor } from "@/services/proveedorService";
 import { IProveedor } from "@/types/IProveedor";
 import { requiereCPP } from "@/lib/cpp-calculator";
@@ -61,6 +63,7 @@ interface IProductoMovimiento {
     id: string;
     nombre: string;
   };
+  fechaVencimiento?: string | null;
 }
 
 
@@ -274,6 +277,10 @@ export const AddMovimientoDialog: FC<IProps> = ({
             }),
             ...(item.proveedor && tipo === "TRASPASO_SALIDA" && {
               proveedorId: item.proveedor.id
+            }),
+            // Fecha de vencimiento por producto (solo para entradas)
+            ...((tipo === "COMPRA" || tipo === "AJUSTE_ENTRADA") && item.fechaVencimiento && {
+              fechaVencimiento: item.fechaVencimiento
             })
           };
         })
@@ -289,6 +296,12 @@ export const AddMovimientoDialog: FC<IProps> = ({
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSetFechaVencimientoItem = (index: number, fecha: Dayjs | null) => {
+    setItemsProductos(prev => prev.map((item, i) =>
+      i === index ? { ...item, fechaVencimiento: fecha ? fecha.toISOString() : null } : item
+    ));
   };
 
   const isFormValid = () => {
@@ -589,6 +602,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
             />
           )}
 
+
           {/* Campo de proveedor para consignaciones */}
           {(tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && (
             <Box sx={{ mt: 2 }}>
@@ -762,7 +776,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
           {itemsProductos.length > 0
             && itemsProductos.map((p, index) => {
               return (
-                <Card key={index}>
+                <Card key={index} sx={{ mb: 1 }}>
                   <CardContent>
                     <Typography variant="body1" fontWeight={500}>
                       {p.proveedor ? `${p.nombre} - ${p.proveedor.nombre}` : p.nombre}
@@ -776,6 +790,23 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     <Typography variant="body2" color="text.secondary">
                       {`Costo total: ${formatCurrency(p.costoTotal || 0)}`}
                     </Typography>
+                    {(tipo === "COMPRA" || tipo === "AJUSTE_ENTRADA") && (
+                      <Box sx={{ mt: 1.5 }}>
+                        <DatePicker
+                          label="Fecha de vencimiento (opcional)"
+                          value={p.fechaVencimiento ? dayjs(p.fechaVencimiento) : null}
+                          onChange={(val) => handleSetFechaVencimientoItem(index, val)}
+                          disablePast
+                          slotProps={{
+                            textField: {
+                              size: "small",
+                              fullWidth: true,
+                              helperText: "Se guardará la fecha más próxima si ya tiene una asignada",
+                            }
+                          }}
+                        />
+                      </Box>
+                    )}
                   </CardContent>
                 </Card>
               )

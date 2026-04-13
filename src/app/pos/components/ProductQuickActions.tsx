@@ -49,6 +49,7 @@ export function ProductQuickActions({
           name: productoTienda.producto.nombre,
           price: productoTienda.precio,
           productoTiendaId: productoTienda.id,
+          fechaVencimiento: productoTienda.fechaVencimiento ?? null,
         },
         incremento
       );

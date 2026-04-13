@@ -42,6 +42,7 @@ import { usePermisos } from "@/utils/permisos_front";
 import NotificationsWidget from "@/components/NotificationsWidget";
 import SubscriptionWarning from "@/components/SubscriptionWarning";
 import SuspensionSummary from "@/components/SuspensionSummary";
+import ExpiringProductsAlert from "@/components/ExpiringProductsAlert";
 import { useEffect, useState } from "react";
 import { getNegocioStats } from "@/services/negocioServce";
 import { formatDate } from "@/utils/formatters";
@@ -507,6 +508,7 @@ const HomePage = () => {
       <Box sx={{ mb: 3 }}>
         <SuspensionSummary />
         <SubscriptionWarning />
+        <ExpiringProductsAlert tiendaId={user.localActual.id} />
         <NotificationsWidget maxNotifications={5} showBadge={true} />
       </Box>
 

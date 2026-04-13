@@ -12,7 +12,7 @@ export const CreateMoviento = async (data, items) => {
   await prisma.$transaction(async (tx) => {
 
     for (const movimiento of items) {
-      const { productoId, cantidad, costoUnitario, proveedorId: itemProveedorId, movimientoOrigenId } = movimiento;
+      const { productoId, cantidad, costoUnitario, proveedorId: itemProveedorId, movimientoOrigenId, fechaVencimiento } = movimiento;
       console.log('movimiento', movimiento);
       
 
@@ -53,6 +53,15 @@ export const CreateMoviento = async (data, items) => {
           }
         }
 
+        // Calcular la fecha de vencimiento mínima (si aplica entrada con fecha)
+        let minFechaVencimiento: Date | undefined = undefined;
+        if (!isMovimientoBaja(tipo) && fechaVencimiento) {
+          const nuevaFecha = new Date(fechaVencimiento);
+          minFechaVencimiento = productoTiendaExistente.fechaVencimiento
+            ? new Date(Math.min(productoTiendaExistente.fechaVencimiento.getTime(), nuevaFecha.getTime()))
+            : nuevaFecha;
+        }
+
         // 2. Update para obtener el productoTienda
         productoTienda = await tx.productoTienda.update({
           where: {
@@ -65,7 +74,9 @@ export const CreateMoviento = async (data, items) => {
             // 🆕 Actualizar con CPP calculado o costo directo
             ...(requiereCPP(tipo) && costoUnitario && {
               costo: nuevoCosto
-            })
+            }),
+            // 🆕 Actualizar fecha de vencimiento mínima
+            ...(minFechaVencimiento && { fechaVencimiento: minFechaVencimiento })
           },
         });
 
@@ -82,7 +93,8 @@ export const CreateMoviento = async (data, items) => {
             costo: costoUnitario || 0,
             precio: 0,
             existencia: cantidad,
-            proveedorId: itemProveedorId || proveedorId || null
+            proveedorId: itemProveedorId || proveedorId || null,
+            ...(!isMovimientoBaja(tipo) && fechaVencimiento && { fechaVencimiento: new Date(fechaVencimiento) })
           }
         });
 
