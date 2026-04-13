@@ -147,7 +147,7 @@ const CierreCajaPage = () => {
         fetchCierreData(localId, currentPeriod.id),
         getGastosTienda(localId),
       ]);
-      console.log(data);
+
       setCierreData(data);
       setCategoriasGastos([...new Set(gastosTienda.map((g) => g.categoria))]);
 
@@ -164,11 +164,14 @@ const CierreCajaPage = () => {
         ),
       });
     } catch (error) {
-      console.log(error);
+      console.error("Error al cargar los datos de cierre:", error);
       showMessage(
-        "Error: los datos de cierre no puediron ser cargados",
-        "error"
+        error.message,
+        "error",
+        true,
+          'permision-error'
       );
+
     } finally {
       setIsDataLoading(false);
     }

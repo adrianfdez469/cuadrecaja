@@ -12,7 +12,7 @@ interface PersistentMessage {
 }
 
 const MessageContext = createContext<{
-  showMessage: (text: string, severity: AlertColor, error?, persistent?: boolean, id?: string) => void,
+  showMessage: (text: string, severity: AlertColor, persistent?: boolean, id?: string) => void,
   updateMessage: (id: string, text: string, progress?: number) => void,
   removeMessage: (id: string) => void,
 }>(null);
@@ -24,9 +24,7 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
   const [severityInfo, setSeverityInfo] = useState<AlertColor>("success");
   const [persistentMessages, setPersistentMessages] = useState<PersistentMessage[]>([]);
 
-  const showMessage = (text: string, severity: AlertColor, error?, persistent: boolean = false, id?: string) => {
-    console.log("Error: ", error);
-    
+  const showMessage = (text: string, severity: AlertColor, persistent: boolean = false, id?: string) => {
     if (persistent && id) {
       // Mensaje persistente
       setPersistentMessages(prev => {
@@ -74,7 +72,7 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
       {children}
       
       {/* Mensajes temporales normales */}
-      <Snackbar open={showInfo} autoHideDuration={3000} anchorOrigin={{vertical: 'top', horizontal: 'right'}}>
+      <Snackbar open={showInfo} autoHideDuration={5000} anchorOrigin={{vertical: 'top', horizontal: 'right'}}>
         <Alert
           severity={severityInfo}
           variant="filled"
