@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import {
   Box,
+  Collapse,
   Drawer,
   IconButton,
   Typography,
@@ -13,13 +14,14 @@ import {
   TableRow,
   Card,
   CardContent,
+  CardActionArea,
   Grid,
   Chip,
   Button,
   ButtonGroup,
   CircularProgress,
 } from "@mui/material";
-import { Close, History, GroupWork, Delete } from "@mui/icons-material";
+import { Close, History, GroupWork, Delete, ExpandLess, ExpandMore } from "@mui/icons-material";
 import { Sale, useSalesStore } from "@/store/salesStore";
 import { useAppContext } from "@/context/AppContext";
 import { usePermisos } from "@/utils/permisos_front";
@@ -27,6 +29,7 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { removeProductFromSale } from "@/services/sellService";
 import { ICierrePeriodo } from "@/types/ICierre";
+import { ITransferDestination } from "@/types/ITransferDestination";
 import {formatDateTime} from "@/utils/formatters";
 
 interface IProps {
@@ -34,6 +37,7 @@ interface IProps {
   setShowUserSales: (show: boolean) => void;
   period?: ICierrePeriodo;
   incrementarCantidades?: (productoTiendaId: string, cantidad: number) => void;
+  transferDestinations?: ITransferDestination[];
 }
 
 interface ProductoDataHistorial {
@@ -53,6 +57,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
   setShowUserSales,
   period,
   incrementarCantidades,
+  transferDestinations,
 }) => {
   const { sales, removeProductFromSale: removeProductFromSaleStore } = useSalesStore();
   const { user } = useAppContext();
@@ -62,6 +67,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
   const [viewMode, setViewMode] = useState<'grouped' | 'historical'>('grouped');
   const [onlyOwnSales, setOnlyOwnSales] = useState(true);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [transferExpanded, setTransferExpanded] = useState(false);
 
   const canDeleteProducts =
     viewMode === "historical" &&
@@ -121,8 +127,22 @@ export const UserSalesDrawer: React.FC<IProps> = ({
     const groupedConsignacion = new Map();
     const groupedPropios = new Map();
 
+    // Desglose de transferencias por destino
+    const transfersByDestination = new Map<string, { nombre: string; total: number }>();
+
     userSales.forEach(sale => {
       totalGeneral += sale.total;
+
+      if (sale.totaltransfer > 0) {
+        const destId = sale.transferDestinationId || "__sin_destino__";
+        const nombre = transferDestinations?.find(d => d.id === destId)?.nombre ?? "Sin destino";
+        const existing = transfersByDestination.get(destId);
+        if (existing) {
+          existing.total += sale.totaltransfer;
+        } else {
+          transfersByDestination.set(destId, { nombre, total: sale.totaltransfer });
+        }
+      }
 
       sale.productos.forEach((producto, productIndex) => {
         const totalProducto = producto.price * producto.cantidad;
@@ -189,8 +209,9 @@ export const UserSalesDrawer: React.FC<IProps> = ({
       productosConsignacion,
       productosPropios,
       cantidadVentas: userSales.length,
+      transfersByDestination,
     };
-  }, [userSales, viewMode]);
+  }, [userSales, viewMode, transferDestinations]);
 
   return (
     <Drawer
@@ -289,6 +310,43 @@ export const UserSalesDrawer: React.FC<IProps> = ({
               </Card>
             </Grid>
           </Grid>
+
+          {/* Tarjeta de transferencias (colapsable por destino) */}
+          {salesData.transfersByDestination.size > 0 && (() => {
+            const totalTransferencias = Array.from(salesData.transfersByDestination.values())
+              .reduce((sum, d) => sum + d.total, 0);
+            return (
+              <Grid container spacing={2} mb={3}>
+                <Grid item xs={12} sm={4}>
+                  <Card elevation={2}>
+                    <CardActionArea onClick={() => setTransferExpanded(prev => !prev)}>
+                      <CardContent sx={{ textAlign: "center", py: 1.5 }}>
+                        <Box display="flex" justifyContent="center" alignItems="center" gap={0.5}>
+                          <Typography variant="body2" color="textSecondary">
+                            Total Transferencias
+                          </Typography>
+                          {transferExpanded ? <ExpandLess fontSize="small" color="action" /> : <ExpandMore fontSize="small" color="action" />}
+                        </Box>
+                        <Typography variant="h6" fontWeight="bold" color="info.main">
+                          ${totalTransferencias.toFixed(2)}
+                        </Typography>
+                        <Collapse in={transferExpanded}>
+                          <Box mt={1} textAlign="left">
+                            {Array.from(salesData.transfersByDestination.values()).map(dest => (
+                              <Box key={dest.nombre} display="flex" justifyContent="space-between" px={1} py={0.25}>
+                                <Typography variant="caption" color="textSecondary">{dest.nombre}</Typography>
+                                <Typography variant="caption" fontWeight="bold">${dest.total.toFixed(2)}</Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        </Collapse>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              </Grid>
+            );
+          })()}
 
           {/* Toggle de vista y filtro de usuario */}
           <Box display="flex" justifyContent="center" alignItems="center" mb={3} gap={2} flexWrap="wrap">

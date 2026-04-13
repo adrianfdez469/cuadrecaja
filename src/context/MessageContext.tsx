@@ -72,7 +72,7 @@ export function MessageProvider({ children }: { children: React.ReactNode }) {
       {children}
       
       {/* Mensajes temporales normales */}
-      <Snackbar open={showInfo} autoHideDuration={5000} anchorOrigin={{vertical: 'top', horizontal: 'right'}}>
+      <Snackbar open={showInfo} autoHideDuration={3000} anchorOrigin={{vertical: 'top', horizontal: 'right'}}>
         <Alert
           severity={severityInfo}
           variant="filled"

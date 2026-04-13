@@ -539,6 +539,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
               select: { name: true }
             }
           }
+        },
+        transferDestination: {
+          select: { id: true, nombre: true }
         }
       },
       where: {
@@ -585,6 +588,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         createdAt: ad.createdAt,
         ruleName: ad.discountRule?.name
       })),
+      transferDestinationId: venta.transferDestinationId ?? undefined,
+      transferDestination: venta.transferDestination ?? undefined,
       syncId: venta.syncId
     }));
 

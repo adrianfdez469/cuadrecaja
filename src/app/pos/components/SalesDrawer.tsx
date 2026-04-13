@@ -271,6 +271,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
           total: venta.total,
           totalcash: venta.totalcash,
           totaltransfer: venta.totaltransfer,
+          transferDestinationId: venta.transferDestinationId,
           usuarioId: venta.usuarioId,
           dbId: venta.id,
           // 🆕 USAR CAMPOS DE LA BASE DE DATOS
