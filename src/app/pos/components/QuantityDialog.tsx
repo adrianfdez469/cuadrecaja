@@ -204,7 +204,8 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
       id: productoTienda.id,
       name: productoTienda.producto.nombre,
       price: productoTienda.precio,
-      productoTiendaId: productoTienda.id
+      productoTiendaId: productoTienda.id,
+      fechaVencimiento: productoTienda.fechaVencimiento ?? null,
     }, quantity);
     onClose();
     // Ejecutar callback después de agregar al carrito
@@ -219,12 +220,13 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
     if (!productoTienda || quantity <= 0 || quantity > maxDisponible || maxDisponible <= 0) {
       return;
     }
-    
+
     addToCart({
       id: productoTienda.id,
       name: productoTienda.producto.nombre,
       price: productoTienda.precio,
       productoTiendaId: productoTienda.id,
+      fechaVencimiento: productoTienda.fechaVencimiento ?? null,
     }, quantity);
     onConfirm();
     // Ejecutar callback después de agregar al carrito

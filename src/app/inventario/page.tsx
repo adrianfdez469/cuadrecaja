@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Box,
   Typography,
@@ -23,6 +23,7 @@ import {
   useTheme,
   Card,
   CardContent,
+  Popover,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -32,6 +33,9 @@ import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import DescriptionIcon from "@mui/icons-material/Description";
 import TableViewIcon from "@mui/icons-material/TableView";
+import EditCalendarIcon from "@mui/icons-material/EditCalendar";
+import EventBusyIcon from "@mui/icons-material/EventBusy";
+import AlarmIcon from "@mui/icons-material/Alarm";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import axios from "axios";
@@ -42,6 +46,8 @@ import { ProductMovementsModal } from "./components/ProductMovementsModal";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency, formatNumber } from '@/utils/formatters';
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs, { Dayjs } from "dayjs";
 
 export default function InventarioPage() {
   const [productos, setProductos] = useState<IProductoTiendaV2[]>([]);
@@ -50,6 +56,13 @@ export default function InventarioPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
   const [movementsModalOpen, setMovementsModalOpen] = useState(false);
+  const [soloConVencimiento, setSoloConVencimiento] = useState(false);
+  // Edición inline de fecha de vencimiento
+  const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [editingProduct, setEditingProduct] = useState<IProductoTiendaV2 | null>(null);
+  const [editingFecha, setEditingFecha] = useState<Dayjs | null>(null);
+  const [savingFecha, setSavingFecha] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
   const theme = useTheme();
@@ -149,9 +162,15 @@ export default function InventarioPage() {
     setSelectedProduct(null);
   };
 
-  const filteredProductos = productos.filter((producto) =>
-    producto.producto.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProductos = productos.filter((producto) => {
+    const matchesSearch = producto.producto.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesVencimiento = !soloConVencimiento || (() => {
+      if (!producto.fechaVencimiento) return false;
+      const dias = Math.ceil((new Date(producto.fechaVencimiento).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+      return dias <= 30;
+    })();
+    return matchesSearch && matchesVencimiento;
+  });
 
   // Cálculos para estadísticas
   const totalProductos = productos.length;
@@ -166,6 +185,51 @@ export default function InventarioPage() {
       return <Chip label="Bajo Stock" color="warning" size="small" />;
     } else {
       return <Chip label="En Stock" color="success" size="small" />;
+    }
+  };
+
+  const getVencimientoInfo = (fechaVencimiento?: string | null): { label: string; color: "error" | "warning" | "default"; dias: number } | null => {
+    if (!fechaVencimiento) return null;
+    const ahora = new Date();
+    const fecha = new Date(fechaVencimiento);
+    const dias = Math.ceil((fecha.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
+    if (dias <= 0) return { label: `Vencido (${Math.abs(dias)}d)`, color: "error", dias };
+    if (dias <= 7) return { label: `Vence en ${dias}d`, color: "error", dias };
+    if (dias <= 15) return { label: `Vence en ${dias}d`, color: "warning", dias };
+    return { label: `Vence en ${dias}d`, color: "warning", dias };
+  };
+
+  const handleOpenFechaEditor = (e: React.MouseEvent<HTMLElement>, producto: IProductoTiendaV2) => {
+    e.stopPropagation();
+    setEditingProduct(producto);
+    setEditingFecha(producto.fechaVencimiento ? dayjs(producto.fechaVencimiento) : null);
+    setPopoverAnchor(e.currentTarget);
+  };
+
+  const handleCloseFechaEditor = () => {
+    setPopoverAnchor(null);
+    setEditingProduct(null);
+    setEditingFecha(null);
+  };
+
+  const handleSaveFecha = async (nuevaFecha: Dayjs | null) => {
+    if (!editingProduct) return;
+    try {
+      setSavingFecha(true);
+      await axios.put(`/api/productos_tienda/${user.localActual.id}`, {
+        productos: [{ id: editingProduct.id, fechaVencimiento: nuevaFecha ? nuevaFecha.toISOString() : null }]
+      });
+      setProductos(prev => prev.map(p =>
+        p.id === editingProduct.id
+          ? { ...p, fechaVencimiento: nuevaFecha ? nuevaFecha.toISOString() : null }
+          : p
+      ));
+      showMessage("Fecha de vencimiento actualizada", "success");
+      handleCloseFechaEditor();
+    } catch {
+      showMessage("Error al actualizar la fecha de vencimiento", "error");
+    } finally {
+      setSavingFecha(false);
     }
   };
 
@@ -304,23 +368,35 @@ export default function InventarioPage() {
         title="Lista de Productos"
         subtitle={!isMobile ? "Haz clic en cualquier producto para ver su historial de movimientos" : undefined}
         headerActions={
-          <TextField
-            size="small"
-            placeholder={isMobile ? "Buscar..." : "Buscar producto..."}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ 
-              minWidth: isMobile ? 200 : 250,
-              maxWidth: isMobile ? 250 : 'none'
-            }}
-          />
+          <Stack direction="row" spacing={1} alignItems="center">
+            <TextField
+              size="small"
+              placeholder={isMobile ? "Buscar..." : "Buscar producto..."}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                minWidth: isMobile ? 150 : 250,
+                maxWidth: isMobile ? 200 : 'none'
+              }}
+            />
+            <Tooltip title={soloConVencimiento ? "Mostrar todos los productos" : "Ver solo próximos a vencer"}>
+              <IconButton
+                size="small"
+                color={soloConVencimiento ? "warning" : "default"}
+                onClick={() => setSoloConVencimiento(v => !v)}
+                sx={soloConVencimiento ? { bgcolor: 'warning.50' } : {}}
+              >
+                <AlarmIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         }
         noPadding
         fullHeight
@@ -364,7 +440,26 @@ export default function InventarioPage() {
                           <Typography variant="subtitle1" fontWeight="medium" sx={{ flex: 1, pr: 1 }}>
                             {producto.producto.nombre}
                           </Typography>
-                          {getStockChip(producto.existencia)}
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            {getStockChip(producto.existencia)}
+                            {(() => {
+                              const info = getVencimientoInfo(producto.fechaVencimiento);
+                              return info ? <Chip label={info.label} color={info.color} size="small" /> : null;
+                            })()}
+                          </Stack>
+                        </Box>
+                        <Box onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="small"
+                            startIcon={<EditCalendarIcon fontSize="small" />}
+                            onClick={(e) => handleOpenFechaEditor(e, producto)}
+                            color={producto.fechaVencimiento ? "warning" : "inherit"}
+                            sx={{ mt: 0.5, textTransform: 'none', fontSize: '0.75rem' }}
+                          >
+                            {producto.fechaVencimiento
+                              ? `Vence: ${dayjs(producto.fechaVencimiento).format('DD/MM/YYYY')}`
+                              : 'Agregar vencimiento'}
+                          </Button>
                         </Box>
                         
                         <Grid container spacing={2}>
@@ -416,12 +511,13 @@ export default function InventarioPage() {
                   <TableCell align="right">Precio</TableCell>
                   {!isTablet && <TableCell align="right">Costo</TableCell>}
                   <TableCell align="right">Valor Stock</TableCell>
+                  <TableCell align="center">Vencimiento</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell align="center" colSpan={isTablet ? 5 : 6} sx={{ py: 8 }}>
+                    <TableCell align="center" colSpan={isTablet ? 6 : 7} sx={{ py: 8 }}>
                       <CircularProgress />
                       <Typography variant="body2" sx={{ mt: 2 }}>
                         Cargando inventario...
@@ -430,7 +526,7 @@ export default function InventarioPage() {
                   </TableRow>
                 ) : filteredProductos.length === 0 ? (
                   <TableRow>
-                    <TableCell align="center" colSpan={isTablet ? 5 : 6} sx={{ py: 8 }}>
+                    <TableCell align="center" colSpan={isTablet ? 6 : 7} sx={{ py: 8 }}>
                       <InventoryIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
                       <Typography variant="h6" color="text.secondary">
                         {searchTerm ? 'No se encontraron productos' : 'No hay productos en el inventario'}
@@ -489,6 +585,23 @@ export default function InventarioPage() {
                           {formatCurrency(producto.existencia * producto.costo)}
                         </Typography>
                       </TableCell>
+                      <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
+                          {(() => {
+                            const info = getVencimientoInfo(producto.fechaVencimiento);
+                            return info ? (
+                              <Chip label={info.label} color={info.color} size="small" />
+                            ) : (
+                              <Typography variant="caption" color="text.disabled">—</Typography>
+                            );
+                          })()}
+                          <Tooltip title={producto.fechaVencimiento ? "Editar fecha" : "Agregar fecha"}>
+                            <IconButton size="small" onClick={(e) => handleOpenFechaEditor(e, producto)}>
+                              <EditCalendarIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -497,6 +610,50 @@ export default function InventarioPage() {
           </TableContainer>
         )}
       </ContentCard>
+
+      {/* Popover edición de fecha de vencimiento */}
+      <Popover
+        open={Boolean(popoverAnchor)}
+        anchorEl={popoverAnchor}
+        onClose={handleCloseFechaEditor}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+        ref={popoverRef}
+      >
+        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 280 }}>
+          <Typography variant="subtitle2">Fecha de vencimiento</Typography>
+          <DatePicker
+            label="Fecha"
+            value={editingFecha}
+            onChange={(val) => setEditingFecha(val)}
+            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+          />
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
+            {editingProduct?.fechaVencimiento && (
+              <Button
+                size="small"
+                color="error"
+                startIcon={<EventBusyIcon />}
+                onClick={() => handleSaveFecha(null)}
+                disabled={savingFecha}
+              >
+                Quitar fecha
+              </Button>
+            )}
+            <Button size="small" onClick={handleCloseFechaEditor} disabled={savingFecha}>
+              Cancelar
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={() => handleSaveFecha(editingFecha)}
+              disabled={savingFecha}
+            >
+              {savingFecha ? <CircularProgress size={16} /> : 'Guardar'}
+            </Button>
+          </Stack>
+        </Box>
+      </Popover>
 
       {/* Modal de movimientos */}
       <ProductMovementsModal

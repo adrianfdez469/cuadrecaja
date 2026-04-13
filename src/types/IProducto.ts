@@ -34,6 +34,7 @@ export interface IProductoTienda {
 
   fraccionDeId?: string;
   unidadesPorFraccion?: number;
+  fechaVencimiento?: string | null;
 }
 
 export interface IProductoVenta {
@@ -53,4 +54,5 @@ export interface IProductoTiendaV2 {
   proveedorId: string;
   producto: IProducto;
   productoId: string;
+  fechaVencimiento?: string | null;
 }
