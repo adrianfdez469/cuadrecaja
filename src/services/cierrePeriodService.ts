@@ -1,6 +1,6 @@
 import { ICierreData } from "@/types/ICierre";
 import { ICierrePeriodo } from "@/types/ICierre";
-import axios from "axios";
+import axios from "@/lib/axiosClient";
 
 const API_URL = (tiendaId) => `/api/cierre/${tiendaId}`; // Ruta base del backend
 
