@@ -1,6 +1,1 @@
-export interface IUser {
-  id: string;
-  nombre: string;
-  usuario: string;
-  rol: string;
-}
+export type { IUser, IUsuarioBasico, IUsuarioPayload } from '@/schemas/usuario';

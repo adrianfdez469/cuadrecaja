@@ -1,7 +1,5 @@
-export interface ITransferDestination {
-    id: string;
-    nombre: string;
-    descripcion: string | null;
-    default: boolean;
-    tiendaId: string;
-}
+export type {
+  ITransferDestination,
+  ICreateTransferDestination,
+  IUpdateTransferDestination,
+} from '@/schemas/transferDestination';

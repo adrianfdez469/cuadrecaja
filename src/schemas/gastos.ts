@@ -128,6 +128,24 @@ export const gastoAdHocCreateSchema = z.object({
   porcentaje: z.number().min(0).max(100).nullable().optional(),
 });
 
+// ─── Respuestas de API ───────────────────────────────────────────────────────
+
+export const gastosCierreResponseSchema = z.object({
+  gastos: z.array(gastoCierreSchema),
+  totalGastos: z.number(),
+  agrupados: z.record(z.string(), z.array(gastoCierreSchema)),
+});
+
+export const gastosPreviewResponseSchema = z.object({
+  gastosRecurrentes: z.array(gastoPreviewSchema),
+  gastosNoAplican: z.array(gastoPreviewSchema),
+  gastosAdHoc: z.array(gastoCierreSchema),
+  totalGastos: z.number(),
+  totalVentas: z.number(),
+  totalGanancia: z.number(),
+  totalGananciaFinal: z.number(),
+});
+
 // ─── Tipos derivados (nunca interfaces manuales) ─────────────────────────────
 
 export type IGastoPlantilla = z.infer<typeof gastoPlantillaSchema>;
@@ -146,3 +164,5 @@ export type IGastoAdHocCreate = z.infer<typeof gastoAdHocCreateSchema>;
 
 export type ITipoCalculo = z.infer<typeof TipoCalculoEnum>;
 export type IRecurrenciaGasto = z.infer<typeof RecurrenciaGastoEnum>;
+export type IGastosCierreResponse = z.infer<typeof gastosCierreResponseSchema>;
+export type IGastosPreviewResponse = z.infer<typeof gastosPreviewResponseSchema>;

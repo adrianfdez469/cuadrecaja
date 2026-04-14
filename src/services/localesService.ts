@@ -1,13 +1,7 @@
 import axiosClient from "@/lib/axiosClient";
-import { ILocal } from "@/types/ILocal";
+import type { ILocal, ILocalPayload } from "@/schemas/tienda";
 
 const API_URL = '/api/locales';
-
-interface ILocalPayload {
-  nombre: string;
-  tipo: string;
-  usuariosRoles: { usuarioId: string; rolId?: string }[];
-}
 
 export const getLocales = async (): Promise<ILocal[]> => {
   const response = await axiosClient.get(API_URL);

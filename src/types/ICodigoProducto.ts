@@ -1,5 +1,1 @@
-export interface ICodigoProducto {
-  id: string;
-  codigo: string;
-  productoId: string;
-}
+export type { ICodigoProducto } from '@/schemas/codigoProducto';

@@ -1,5 +1,1 @@
-export interface ICategory {
-  id: string;
-  nombre: string;
-  color: string
-}
+export type { ICategory, ICreateCategoria, IUpdateCategoria } from '@/schemas/categoria';

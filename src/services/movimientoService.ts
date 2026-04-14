@@ -1,7 +1,12 @@
-import { ITipoMovimiento } from "@/types/IMovimiento";
-import { IProducto, IProductoTiendaV2 } from "@/types/IProducto";
-import { IProveedor } from "@/types/IProveedor";
 import axiosClient from "@/lib/axiosClient";
+import type {
+  ITipoMovimiento,
+  IImportData,
+  IImportarItemsMov,
+  IImportarResponse,
+  IMovimientoProductoEnviado,
+} from "@/schemas/movimiento";
+import type { IProdTiendaQueryParams, IProdTiendaResponse } from "@/schemas/producto";
 
 const API_URL = `/api/movimiento`;
 
@@ -35,30 +40,6 @@ export const findMovimientos = async (
   });
 
   return response.data;
-}
-
-// Interfaz para los datos de importación
-interface IImportData {
-  usuarioId: string;
-  negocioId: string;
-  localId: string;
-}
-
-interface IImportarItemsMov {
-  nombreProducto: string;
-  costo: number;
-  precio: number;
-  cantidad: number;
-  esConsignación?: boolean;
-  nombreProveedor?: string;
-}
-
-interface IImportarResponse {
-  success: boolean;
-  message: string;
-  errorCause?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data?: any[];
 }
 
 /**
@@ -97,16 +78,6 @@ export const importarMovimientosExcel = async (
 
 
 
-interface IProdTiendaQueryParams {
-  text?: string,
-  categoriaId?: string;
-  take: number;
-  skip: number;
-}
-interface IProdTiendaResponse extends IProducto {
-  productosTienda?: IProductoTiendaV2[]
-}
-
 export const getProductosTiendaParaEntrada = async (tiendaId: string, tipo: ITipoMovimiento, filter: IProdTiendaQueryParams, proveedorId?: string): Promise<IProdTiendaResponse[]> => {
   const resp = await axiosClient.get(`${API_URL}/${tiendaId}/productos/entrada`, {
     params: {
@@ -133,47 +104,6 @@ export const getProductosTiendaParaNoEntrada = async (tiendaId: string, tipo: IT
   return resp.data;
 }
 
-
-export interface IMovimientoProductoEnviado {
-  
-    id: string;
-    productoTiendaId: string;
-    tipo: string;
-    cantidad: number;
-    motivo: string | null;
-    referenciaId: string | null;
-    fecha: Date;
-    existenciaAnterior: number;
-    costoUnitario: number | null;
-    costoTotal: number | null;
-    costoAnterior: number | null;
-    costoNuevo: number | null;
-    usuarioId: string;
-    tiendaId: string;
-    proveedorId: string | null;
-    destinationId: string;
-    productoTienda: {
-      id: string;
-      tiendaId: string;
-      productoId: string;
-      costo: number;
-      precio: number;
-      existencia: number;
-      proveedorId: string | null;
-      producto: IProducto;
-      tienda: {
-        id: string;
-        nombre: string;
-        tipo: string;
-      };
-      proveedor: IProveedor | null
-    },
-    usuario: {
-      id: string;
-      nombre: string;
-    };
-  
-}
 
 export const getMovimientosProductosEnviados = async (tiendaId: string): Promise<IMovimientoProductoEnviado[]> => {
   const resp = await axiosClient.get(`${API_URL}/${tiendaId}/recepcion`);

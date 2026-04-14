@@ -1,17 +1,6 @@
 import axiosClient from "@/lib/axiosClient";
-
-export interface IUsuarioBasico {
-  id: string;
-  nombre: string;
-  usuario: string;
-  rol?: string;
-}
-
-interface IUsuarioPayload {
-  nombre: string;
-  usuario: string;
-  password?: string;
-}
+import type { IUsuarioBasico, IUsuarioPayload } from "@/schemas/usuario";
+export type { IUsuarioBasico } from "@/schemas/usuario";
 
 const API_URL = "/api/usuarios";
 

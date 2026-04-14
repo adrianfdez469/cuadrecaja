@@ -1,7 +1,1 @@
-export interface IProcessedData {
-  code?: string;
-  name?: string;
-  lastName?: string;
-  ci?: string;
-  type: 'credential' | 'identity';
-}
+export type { IProcessedData } from '@/schemas/processedData';
