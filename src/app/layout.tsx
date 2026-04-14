@@ -10,6 +10,7 @@ import { MessageProvider } from "@/context/MessageContext";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { usePathname } from "next/navigation";
+import { Analytics } from "@vercel/analytics/next"
 
 export default function RootLayout({
   children,
@@ -26,6 +27,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       <body>
+        <Analytics />
         <AppRouterCacheProvider>
         <SessionProvider>
           <AppProvider>
