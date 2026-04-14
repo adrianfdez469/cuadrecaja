@@ -508,8 +508,6 @@ export default function POSInterface() {
         const cierreId = periodo.id;
         const identifier = crypto.randomUUID();
 
-        });
-
         const data = cart.map((prod) => {
           const productoEnTienda = productosTienda.find(p => p.id === prod.productoTiendaId);
           if (!productoEnTienda) {
@@ -630,7 +628,7 @@ export default function POSInterface() {
             markSynced(identifier, ventaDb.id);
             showMessage("✅ Venta procesada y sincronizada exitosamente", "success");
           } catch (syncError) {
-            console.error(error);
+            console.error(syncError);
 
             // Manejo mejorado de errores de sincronización
             if (syncError.message?.includes('TIMEOUT_ERROR')) {
@@ -842,7 +840,7 @@ export default function POSInterface() {
 
   useEffect(() => {
     if (periodo) {
-      fetchProductosAndCategories().catch((error) => {
+      fetchProductosAndCategories().catch(() => {
         showMessage(
           "Ocurrió un error intentando cargar las categorías",
           "error"

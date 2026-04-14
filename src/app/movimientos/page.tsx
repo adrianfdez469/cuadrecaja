@@ -209,7 +209,7 @@ export default function MovimientosPage() {
     }
   }
 
-  const loadPendientesRecep = async (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string}): Promise<IProductoDisponible[]> => {
+  const loadPendientesRecep = async (_operacion: OperacionTipo, _take: number, _skip: number, _filter?: { categoriaId?: string, text?: string}): Promise<IProductoDisponible[]> => {
     
     return pendienteRecepcion.map((item) => {
       return {

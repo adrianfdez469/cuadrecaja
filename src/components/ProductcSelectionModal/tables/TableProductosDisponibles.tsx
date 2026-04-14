@@ -75,7 +75,6 @@ const TableProductosDisponibles: React.FC<IProps> = ({
 
 
   // Clear category filter when switching to mobile
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isMobile && filterCategoryId) {
       setFilterCategoryId('');

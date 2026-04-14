@@ -266,8 +266,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
         .sort((a, b) => a.nombre.localeCompare(b.nombre)),
     };
     return NextResponse.json(cierreData);
-  } catch (error: unknown) {
-    // eslint-disable-next-line no-console
+  } catch (_error: unknown) {
     return NextResponse.json({ error: "Error al obtener los datos del cierre" }, { status: 500 });
   }
 }

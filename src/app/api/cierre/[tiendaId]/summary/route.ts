@@ -225,8 +225,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
       sumTotalGananciaFinal,
       totalItems: totalCierres
     });
-  } catch (error: unknown) {
-     
+  } catch (_error: unknown) {
     return NextResponse.json({ error: "Error al obtener los datos del cierre" }, { status: 500 });
   }
 }

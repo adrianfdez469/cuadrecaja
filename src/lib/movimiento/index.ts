@@ -1,6 +1,6 @@
 import { prisma } from '../prisma';
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
-import { calcularCPP, requiereCPP, formatearCPPLog } from '../cpp-calculator';
+import { calcularCPP, requiereCPP } from '../cpp-calculator';
 
 export const CreateMoviento = async (data, items) => {
 

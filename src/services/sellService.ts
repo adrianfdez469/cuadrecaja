@@ -56,10 +56,6 @@ export const createSell = async (
   syncAttempts?: number, // 🆕 Nuevo parámetro
   discountCodes?: string[] // 🆕 Códigos de descuento opcionales
 ): Promise<IVenta> => {
-  
-    }
-  });
-
   try {
     const response = await axiosInstance.post(API_URL(tiendaId, cierreId), { 
       usuarioId,

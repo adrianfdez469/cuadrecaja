@@ -285,8 +285,7 @@ interface IImportarItemsMov {
   };
   
   export const ImportarExcelMovimiento = async (data: IImportData, items: IImportarItemsMov[]): Promise<IImportarResponse> => {
-    const startTime = Date.now();
-    
+
     try {
       // Validación de datos de entrada
       if (!data || !items || !Array.isArray(items) || items.length === 0) {
@@ -397,7 +396,7 @@ interface IImportarItemsMov {
         // Crear un mapa de proveedores para evitar duplicados
         const proveedoresMap = new Map();
     
-        const { resultados, errores } = await procesarLoteProductos(
+        const { errores } = await procesarLoteProductos(
           tx,
           itemsSanitizados,
           data,
@@ -414,16 +413,11 @@ interface IImportarItemsMov {
   
       });
   
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-  
       return {
         success: true,
         message: "Movimientos importados correctamente"
       }
     } catch (error) {
-      const endTime = Date.now();
-      const duration = endTime - startTime;
   
       // Manejo mejorado de errores específicos de Prisma
       if (error.code === 'P2002') {

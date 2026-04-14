@@ -34,5 +34,5 @@ export function useBlockBackNavigation() {
     window.addEventListener('popstate', handlePopState);
     // El listener nunca se desmonta mientras el componente esté vivo
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 }
