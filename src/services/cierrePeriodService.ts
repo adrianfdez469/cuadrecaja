@@ -11,7 +11,6 @@ export const fetchLastPeriod = async (tiendaId): Promise<ICierrePeriodo|undefine
 
 export const openPeriod = async (tiendaId): Promise<ICierrePeriodo|undefined> => {
   const response = await axios.put<ICierrePeriodo>(`${API_URL(tiendaId)}/open`);
-  console.log(response); 
   return response.data;
 }
 

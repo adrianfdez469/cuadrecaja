@@ -9,7 +9,6 @@ export async function GET() {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    console.log('Obteniendo estadísticas de suscripciones...');
     
     const stats = await SubscriptionLib.getSubscriptionStats();
     

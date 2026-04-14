@@ -57,20 +57,6 @@ export const createSell = async (
   discountCodes?: string[] // 🆕 Códigos de descuento opcionales
 ): Promise<IVenta> => {
   
-  console.log('🔍 [createSell] Iniciando petición al backend:', {
-    url: API_URL(tiendaId, cierreId),
-    payload: {
-      usuarioId,
-      total,
-      totalcash,
-      totaltransfer,
-      productos,
-      syncId,
-      createdAt, // 🆕 Incluir timestamp de creación
-      wasOffline, // 🆕 Incluir estado offline
-      syncAttempts, // 🆕 Incluir intentos de sincronización
-      ...(totaltransfer > 0 && { transferDestinationId }),
-      ...(discountCodes && discountCodes.length > 0 ? { discountCodes } : {})
     }
   });
 
@@ -91,7 +77,6 @@ export const createSell = async (
       _retryCount: 0 // Inicializar contador de reintentos
     } as RetryConfig);
 
-    console.log('🔍 [createSell] Respuesta del backend:', response.data);
 
     // Ya no necesitamos crear movimientos por separado 
     // porque ahora todo se maneja en una sola transacción atómica

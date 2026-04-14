@@ -69,7 +69,6 @@ export class SubscriptionLib {
       negociosDestino: negocioId
     });
 
-    console.log(`Negocio ${negocioActualizado.nombre} suspendido`);
   }
 
   static async reactivateBusiness(negocioId: string, newLimitTime: Date): Promise<void> {
@@ -93,7 +92,6 @@ export class SubscriptionLib {
       negociosDestino: negocioId
     });
 
-    console.log(`Negocio ${negocioActualizado.nombre} reactivado`);
   }
 
   static async checkAndProcessSuspensions(): Promise<void> {
@@ -105,7 +103,6 @@ export class SubscriptionLib {
       where: { limitTime: { lt: gracePeriodDate }, suspended: false }
     });
 
-    console.log(`Encontrados ${expiredBusinesses.length} negocios para suspender`);
     for (const negocio of expiredBusinesses) {
       await this.suspendBusiness(negocio.id);
     }
@@ -114,7 +111,6 @@ export class SubscriptionLib {
       where: { limitTime: { gte: gracePeriodDate, lt: now }, suspended: false }
     });
 
-    console.log(`Encontrados ${gracePeriodBusinesses.length} negocios en período de gracia`);
     for (const negocio of gracePeriodBusinesses) {
       await this.processGracePeriodNotification(negocio);
     }
@@ -186,7 +182,6 @@ export class SubscriptionLib {
       negociosDestino: negocioId
     });
 
-    console.log(`Negocio ${negocioActualizado.nombre} activado manualmente`);
   }
 
   static async setExpirationDate(negocioId: string, newExpirationDate: Date): Promise<void> {
@@ -213,7 +208,6 @@ export class SubscriptionLib {
       negociosDestino: negocioId
     });
 
-    console.log(`Fecha de expiración del negocio ${negocioActualizado.nombre} actualizada`);
   }
 
   static async extendSubscription(negocioId: string, daysToAdd: number): Promise<void> {

@@ -37,7 +37,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     return NextResponse.json({ message: "Producto eliminado correctamente" }, { status: 200 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: "Error al eliminar el producto" }, { status: 500 });
   }
 }
@@ -99,7 +99,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json(productoFinal);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     
     return NextResponse.json({ error: "Error al actualizar el producto" }, { status: 500 });
   }

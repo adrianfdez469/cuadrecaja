@@ -168,7 +168,6 @@ export default function MovimientosPage() {
 
     if(result.length > 0){
       pendienteRecepcionSetOnConfirm((prods) => {
-        console.log('prods',prods);
         // Crear documento de tipo TRASPASO_ENTRADA con los productos
         crearMovimientosRecepción(prods);
       })
@@ -203,7 +202,7 @@ export default function MovimientosPage() {
       fecthPendientesRecep();
 
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage("No se pudo crear los movimientos de entrada", "error");
     } finally {
       setLoadingData(false);
@@ -211,7 +210,6 @@ export default function MovimientosPage() {
   }
 
   const loadPendientesRecep = async (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string}): Promise<IProductoDisponible[]> => {
-    console.log(operacion, take, skip, filter);
     
     return pendienteRecepcion.map((item) => {
       return {

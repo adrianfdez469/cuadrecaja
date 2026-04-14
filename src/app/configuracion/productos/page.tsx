@@ -143,7 +143,7 @@ export default function ProductList() {
         await deleteProduct(id);
         showMessage('Producto eliminado', 'success');
       } catch (error) {
-        console.log(error);
+        console.error(error);
         showMessage('Error al intentar eliminar el producto. Es probable que esté en uso!', 'error');
       } finally {
         await loadProducts();

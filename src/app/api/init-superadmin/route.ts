@@ -11,7 +11,6 @@ export async function GET(req: Request) {
   }
 
   try {
-    console.log("⏳ Verificando usuario superadmin en la base de datos...");
 
     const superAdminPass = process.env.SUPER_ADMIN_PASS;
     if (!superAdminPass) throw new Error("⚠️ No se encontró SUPER_ADMIN_PASS en el .env");
@@ -21,7 +20,6 @@ export async function GET(req: Request) {
     });
 
     if (!existingSuperAdmin) {
-      console.log("🔹 Creando usuario superadmin...");
       const fiveYearsFromNow = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 5);
       const adminFkBusiness = await prisma.negocio.create({
         data: {
@@ -38,11 +36,9 @@ export async function GET(req: Request) {
           negocioId: adminFkBusiness.id
         },
       });
-      console.log("✅ Usuario superadmin creado.");
       return NextResponse.json({ message: "Superadmin creado correctamente." });
     }
 
-    console.log("⚠️ El usuario superadmin ya existe.");
     return NextResponse.json({ message: "Superadmin ya creado." });
 
   } catch (error) {

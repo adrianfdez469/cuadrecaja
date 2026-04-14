@@ -45,7 +45,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const gotToPath = (path: string) => {
     if (isAuth) {
-      console.log('path', path);
       if (pathname !== path) {
         startTransition(() => {
           router.push(path);
@@ -55,7 +54,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    console.log('session', session);
 
     if (status === 'authenticated') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

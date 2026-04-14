@@ -9,7 +9,6 @@ export async function POST() {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    console.log('Iniciando verificación de suspensiones automáticas...');
     
     await SubscriptionLib.checkAndProcessSuspensions();
 

@@ -129,7 +129,6 @@ interface IImportarItemsMov {
     items: IImportarItemsMov[],
     chunkSize: number = 50
   ): Promise<IImportarResponse> => {
-    console.log(`📦 Procesando ${items.length} items en chunks de ${chunkSize}`);
     
     const chunks = chunkArray(items, chunkSize);
     const resultadosTotales = [];
@@ -137,7 +136,6 @@ interface IImportarItemsMov {
   
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
-      console.log(`🔄 Procesando chunk ${i + 1}/${chunks.length} con ${chunk.length} items`);
       
       try {
         const resultado = await procesarChunk(data, chunk);
@@ -151,7 +149,7 @@ interface IImportarItemsMov {
           });
         }
       } catch (error) {
-        console.log(`💥 Error procesando chunk ${i + 1}:`, error);
+        console.error(error);
         erroresTotales.push({
           chunk: i + 1,
           error: error.message || 'Error desconocido',
@@ -288,12 +286,10 @@ interface IImportarItemsMov {
   
   export const ImportarExcelMovimiento = async (data: IImportData, items: IImportarItemsMov[]): Promise<IImportarResponse> => {
     const startTime = Date.now();
-    console.log(`🚀 Iniciando importación de ${items?.length || 0} productos para negocio ${data?.negocioId}`);
     
     try {
       // Validación de datos de entrada
       if (!data || !items || !Array.isArray(items) || items.length === 0) {
-        console.log('❌ Validación fallida: datos de entrada inválidos');
         return {
           success: false,
           message: "Datos de entrada inválidos",
@@ -303,7 +299,6 @@ interface IImportarItemsMov {
   
       // Validación de datos requeridos
       if (!data.negocioId || !data.localId || !data.usuarioId) {
-        console.log('❌ Validación fallida: datos requeridos faltantes', { data });
         return {
           success: false,
           message: "Datos requeridos faltantes",
@@ -311,7 +306,6 @@ interface IImportarItemsMov {
         };
       }
   
-      console.log('✅ Validaciones básicas pasadas');
   
       // Validación y sanitización de items individuales
       const itemsInvalidos = [];
@@ -333,7 +327,6 @@ interface IImportarItemsMov {
       }
   
       if (itemsInvalidos.length > 0) {
-        console.log('❌ Items con datos inválidos encontrados:', itemsInvalidos);
         return {
           success: false,
           message: "Items con datos inválidos encontrados",
@@ -343,9 +336,7 @@ interface IImportarItemsMov {
         };
       }
   
-      console.log('✅ Validación y sanitización de items completada');
   
-      console.log('🔍 Buscando negocio...');
       const negocio = await prisma.negocio.findUnique({
         where: {
           id: data.negocioId
@@ -357,16 +348,13 @@ interface IImportarItemsMov {
       })
     
       if (!negocio) {
-        console.log('❌ Negocio no encontrado:', data.negocioId);
         throw new Error("NEGOCIO_NO_ENCONTRADO", {cause: data.negocioId});
       }
   
-      console.log('✅ Negocio encontrado:', negocio.nombre);
   
       // Validar que la tienda pertenezca al negocio
       const tiendaPerteneceAlNegocio = negocio.tiendas.some(tienda => tienda.id === data.localId);
       if (!tiendaPerteneceAlNegocio) {
-        console.log('❌ Tienda no pertenece al negocio:', { tiendaId: data.localId, negocioId: data.negocioId });
         return {
           success: false,
           message: "Tienda no pertenece al negocio",
@@ -374,12 +362,10 @@ interface IImportarItemsMov {
         };
       }
   
-      console.log('✅ Validación de tienda completada');
   
       const productLimit = negocio.plan?.limiteProductos ?? -1;
 
       if (productLimit !== -1 && productLimit <= itemsSanitizados.length) {
-        console.log('❌ Límite de productos excedido:', { limite: productLimit, cantidad: itemsSanitizados.length });
         throw new Error("LIMITE_DE_PRODUCTOS_EXCEDIDO", {cause: productLimit});
       }
     
@@ -389,7 +375,6 @@ interface IImportarItemsMov {
       );
       const clavesDuplicadas = claves.filter((clave, idx) => claves.indexOf(clave) !== idx);
       if (clavesDuplicadas.length > 0) {
-        console.log('❌ Productos duplicados encontrados:', clavesDuplicadas);
         return {
           success: false,
           message: "Productos duplicados en el lote (producto + proveedor)",
@@ -397,20 +382,17 @@ interface IImportarItemsMov {
         };
       }
   
-      console.log('✅ Sanitización y validación de duplicados completada');
   
       // Decidir si usar procesamiento por chunks o transacción única
       const CHUNK_THRESHOLD = 100; // Umbral para usar chunks
       const CHUNK_SIZE = 50; // Tamaño de cada chunk
   
       if (itemsSanitizados.length > CHUNK_THRESHOLD) {
-        console.log(`📦 Lote grande detectado (${itemsSanitizados.length} items), usando procesamiento por chunks`);
         return await procesarLotesGrandes(data, itemsSanitizados, CHUNK_SIZE);
       }
   
       // Procesamiento normal para lotes pequeños
       await prisma.$transaction(async (tx) => {
-        console.log('🔄 Iniciando transacción de base de datos...');
     
         // Crear un mapa de proveedores para evitar duplicados
         const proveedoresMap = new Map();
@@ -423,7 +405,6 @@ interface IImportarItemsMov {
         );
   
         if (errores.length > 0) {
-          console.log('❌ Errores durante el procesamiento:', errores);
           throw new Error("ERRORES_EN_PROCESAMIENTO", { 
             cause: errores.map(err => 
               `Fila ${err.indice + 1} (${err.nombreProducto}): ${err.error} (${err.causa ? `Causa: ${err.causa}` : ''})`
@@ -431,12 +412,10 @@ interface IImportarItemsMov {
           });
         }
   
-        console.log(`✅ Procesamiento completado: ${resultados.length} productos importados exitosamente`);
       });
   
       const endTime = Date.now();
       const duration = endTime - startTime;
-      console.log(`🎉 Importación completada en ${duration}ms`);
   
       return {
         success: true,
@@ -445,7 +424,6 @@ interface IImportarItemsMov {
     } catch (error) {
       const endTime = Date.now();
       const duration = endTime - startTime;
-      console.log(`💥 Error en importación después de ${duration}ms:`, error);
   
       // Manejo mejorado de errores específicos de Prisma
       if (error.code === 'P2002') {
@@ -528,7 +506,6 @@ interface IImportarItemsMov {
     const resultados = [];
     const errores = [];
   
-    console.log('🔍 Procesando productos...');
   
     // 1. Crear o buscar todos los productos únicos por nombre
     const productosUnicos = Array.from(
@@ -567,8 +544,6 @@ interface IImportarItemsMov {
         // Proveedor
         let proveedorId = null;
   
-        console.log('🔍 Procesando producto:', item.nombreProducto);
-        console.log('🔍 Proveedor:', item.nombreProveedor);
   
         if (item.nombreProveedor) {
           const nombreProveedorFinal = item.nombreProveedor;
@@ -594,7 +569,6 @@ interface IImportarItemsMov {
           }
         }
   
-        console.log('🔍 Procesando productoProveedorID', proveedorId);
   
         // Verificar si ya existe productoTienda para ese producto, tienda y proveedor
         const existeProductoTienda = await tx.productoTienda.findFirst({
@@ -650,6 +624,7 @@ interface IImportarItemsMov {
         });
   
       } catch (error) {
+        console.error(error);
         errores.push({
           indice: i,
           nombreProducto: items[i]?.nombreProducto || 'N/A',

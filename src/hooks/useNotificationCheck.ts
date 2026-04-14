@@ -33,7 +33,6 @@ export const useNotificationCheck = ({
         try {
           await NotificationApiService.runAutomaticChecks(negocioId);
           localStorage.setItem(lastCheckKey, now.toString());
-          console.log(`Verificaciones automáticas ejecutadas para negocio: ${negocioId}`);
         } catch (error) {
           console.error('Error al ejecutar verificaciones automáticas:', error);
         }

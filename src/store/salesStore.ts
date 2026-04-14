@@ -65,12 +65,9 @@ export const useSalesStore = create<SalesState>()(
       productos: [],
       addSale: (sale) =>
         set((state) => {
-         console.log('entra a agregar sale');
          
           
           const stateProds = state.productos;
-          console.log(stateProds);
-          console.log('sale',sale);
           
           
           const prodsToAdd: Products[] = [];

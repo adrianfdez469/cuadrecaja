@@ -120,7 +120,6 @@ export default function SuspensionesPage() {
   // Protección: Solo SUPER_ADMIN puede acceder
   useEffect(() => {
     if (!loadingContext && user) {
-      console.log(user);
       //   if (user.rol !== "SUPER_ADMIN") {
       //     showMessage("No tienes permisos para acceder a la gestión de suspensiones", "error");
       //     router.push("/");

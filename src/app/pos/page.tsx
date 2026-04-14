@@ -313,7 +313,6 @@ export default function POSInterface() {
   }
 
   const syncPendingSales = async () => {
-    console.log('🔄 Sincronización automática');
 
     const salesNotSynced = sales.filter((sale) =>
       sale.syncState === "not_synced" && !syncingIdentifiers.has(sale.identifier)
@@ -321,7 +320,6 @@ export default function POSInterface() {
 
     if (salesNotSynced.length === 0) return;
 
-    console.log(`🔄 Sincronizando automáticamente ${salesNotSynced.length} ventas pendientes...`);
     showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
 
     // Marcar como "sincronizando" para evitar duplicados
@@ -334,7 +332,6 @@ export default function POSInterface() {
 
     for (const sale of salesNotSynced) {
       try {
-        console.log(`🔄 Sincronizando venta: ${sale.identifier}`);
         markSyncing(sale.identifier); // Marcar como sincronizando
         const ventaDb = await createSell(
           sale.tiendaId,
@@ -511,15 +508,6 @@ export default function POSInterface() {
         const cierreId = periodo.id;
         const identifier = crypto.randomUUID();
 
-        console.log('🔍 [handleMakePay] Preparando datos de venta:', {
-          tiendaId,
-          cierreId,
-          usuarioId: user.id,
-          total,
-          totalCash,
-          totalTransfer,
-          identifier,
-          ...(totalTransfer > 0 && { transferDestinationId })
         });
 
         const data = cart.map((prod) => {
@@ -536,7 +524,6 @@ export default function POSInterface() {
           };
         });
 
-        console.log('🔍 [handleMakePay] Productos en carrito:', data);
 
         const cash = total - totalTransfer;
 
@@ -624,7 +611,6 @@ export default function POSInterface() {
         // 5. Intentar sincronizar con el backend si estamos online
         if (isOnline) {
           try {
-            console.log('🔍 [handleMakePay] Enviando venta al backend...');
             markSyncing(identifier); // Marcar como sincronizando
             const ventaDb = await createSell(
               tiendaId,
@@ -641,11 +627,10 @@ export default function POSInterface() {
               1, // 🆕 Primer intento exitoso
               discountCodes
             );
-            console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
             markSynced(identifier, ventaDb.id);
             showMessage("✅ Venta procesada y sincronizada exitosamente", "success");
           } catch (syncError) {
-            console.log('🔍 [handleMakePay] Error de sincronización:', syncError);
+            console.error(error);
 
             // Manejo mejorado de errores de sincronización
             if (syncError.message?.includes('TIMEOUT_ERROR')) {
@@ -674,7 +659,7 @@ export default function POSInterface() {
         }
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage("❌ Error al procesar el pago", "error");
       // En caso de error, también limpiar el carrito para evitar estados inconsistentes
       clearCart();
@@ -838,7 +823,7 @@ export default function POSInterface() {
             setPeriodo(lastPeriod);
           }
         } catch (error) {
-          console.log(error);
+          console.error(error);
           showMessage(
             "Ocurrió un erro intentando cargar le período",
             "error"
@@ -858,7 +843,6 @@ export default function POSInterface() {
   useEffect(() => {
     if (periodo) {
       fetchProductosAndCategories().catch((error) => {
-        console.log(error);
         showMessage(
           "Ocurrió un error intentando cargar las categorías",
           "error"

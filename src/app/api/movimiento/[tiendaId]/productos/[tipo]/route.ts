@@ -142,7 +142,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
       return NextResponse.json({error: 'Tipo de movimiento no válido'}, {status: 400});
     }
   } catch (error) {
-    console.log(error);
+    console.error(error);
     
     return NextResponse.json(
       { error: "Error al cargar movimiento" },

@@ -227,7 +227,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
     });
   } catch (error: unknown) {
      
-    console.log(error);
     return NextResponse.json({ error: "Error al obtener los datos del cierre" }, { status: 500 });
   }
 }

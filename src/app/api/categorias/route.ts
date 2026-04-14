@@ -6,15 +6,13 @@ import { verificarPermisoUsuario } from '@/utils/permisos_back';
 
 // Obtener todas las categorías
 export async function GET(request: NextRequest) {
-  try {console.log('request', request);
-    // Intentar obtener sesión desde cookies (web) o headers (Flutter)
+  try {    // Intentar obtener sesión desde cookies (web) o headers (Flutter)
     let session = await getSession();
     
     // Si no hay sesión por cookies, intentar desde headers (para Flutter)
     if (!session) {
       session = await getSessionFromRequest(request);
     }
-    console.log(session);
     if (!session || !session.user) {
       return NextResponse.json(
         { error: 'No autenticado. Debes iniciar sesión.' },
@@ -34,7 +32,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(categorias);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al obtener categorías' }, { status: 500 });
   }
 }
@@ -72,7 +70,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(newCategory, { status: 201 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al crear categoría' }, { status: 500 });
   }
 }

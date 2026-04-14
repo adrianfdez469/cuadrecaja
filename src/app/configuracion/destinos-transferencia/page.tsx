@@ -134,7 +134,7 @@ export default function DestinosTransferenciaPage() {
         await deleteTransferDestination(id);
         showMessage('Destino de transferencia eliminado', 'success');
       } catch (error) {
-        console.log(error);
+        console.error(error);
         showMessage('Error al intentar eliminar el destino de transferencia. Es probable que esté en uso!', 'error');
       } finally {
         await loadDestinations();

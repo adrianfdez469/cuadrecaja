@@ -232,7 +232,6 @@ export default function ProveedorDetallePage() {
           }
         }
       }, {});
-console.log('liquidacionesData',liquidacionesData);
 
       const prodsConsignación = Object.values(prodsConsignaciónMap);
 

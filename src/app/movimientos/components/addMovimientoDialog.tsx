@@ -291,7 +291,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
       fetchMovimientos();
 
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage("No se pudo guardar el movimiento", "error");
     } finally {
       setSaving(false);
@@ -400,7 +400,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
 
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage("No se pudo cargar los productos", "error");
     } finally {
       setLoadingProductos(false);
@@ -708,7 +708,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                         await handleCrearProveedor(newInputValue);
                       } catch (error) {
                         // Error ya manejado en handleCrearProveedor
-                        console.log(error);
+                        console.error(error);
                         showMessage('Error al crear el proveedor', 'error');
                       }
                     }
@@ -722,8 +722,8 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     try {
                       await handleCrearProveedor(inputValue);
                     } catch (error) {
+                      console.error(error);
                       // Error ya manejado en handleCrearProveedor
-                      console.log(error);
                       showMessage('Error al crear el proveedor', 'error');
                     }
                   }

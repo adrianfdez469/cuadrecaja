@@ -236,7 +236,6 @@ export const TablaProductosCierre: FC<IProps> = ({
       return acc;
     }, {})
   )
-  console.log('totalVentasPorProveedor', totalVentasPorProveedor);
   
 
   // Función para renderizar tabla con agrupamiento

@@ -93,7 +93,7 @@ const CierreCajaPage = () => {
       await openPeriod(localId);
       showMessage('Cierre de caja realizado exitosamente', 'success');
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage('Ha ocurrido un error al realizar el cierre', 'error');
       throw error;
     } finally {
@@ -115,7 +115,7 @@ const CierreCajaPage = () => {
       await getInitData();
       showMessage("Primer período creado exitosamente", "success");
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage("Error al crear el primer período", "error");
     } finally {
       setIsProcessingCierre(false);

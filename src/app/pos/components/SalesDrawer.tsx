@@ -237,7 +237,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
           setOffline(false);
           showMessage("La venta fue eliminada satisfactoriamente", "success");
         } catch (error) {
-          console.log(error);
+          console.error(error);
 
           if (error && error.code && error.code === "ERR_NETWORK") {
             setOffline(true);
@@ -294,6 +294,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
       synchronizeSales(salesSust);
       setOffline(false);
     } catch (error) {
+      console.error(error);
       if (error && error.code && error.code === "ERR_NETWORK") {
         setOffline(true);
         showMessage("Ocurrió un error de red al sincronizar", "warning", error);

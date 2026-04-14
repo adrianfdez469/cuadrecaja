@@ -96,7 +96,6 @@ export default function ResumenCierrePage() {
           page * rowsPerPage
         );
       }
-      console.log("Resumen de cierres:", dataResp);
       setData(dataResp);
       setTotales(
         dataResp.cierres.reduce(

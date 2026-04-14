@@ -42,7 +42,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`📥 Endpoint de importación llamado con ${items.length} items`);
 
     // Llamar a la función de importación
     const resultado = await ImportarExcelMovimiento(data, items);

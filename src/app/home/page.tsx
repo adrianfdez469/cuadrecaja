@@ -112,7 +112,6 @@ const HomePage = () => {
     const fetchNegocioStats = async () => {
       setLoadingNegocioStats(true);
       const stats = await getNegocioStats();
-      console.log(stats);
       setNegocioStats(stats);
       setLoadingNegocioStats(false);
     }

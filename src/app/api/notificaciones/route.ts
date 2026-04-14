@@ -17,7 +17,7 @@ export async function GET() {
     
     return NextResponse.json(notificaciones);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al cargar las notificaciones' }, { status: 500 });
   }
 }
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(nuevaNotificacion, { status: 201 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al crear la notificación' }, { status: 500 });
   }
 }

@@ -253,6 +253,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       setOpenSelectLocal(true);
       selectorLocalAbiertoRef.current = true;
     } catch (error) {
+      console.error(error);
       showMessage("No se pueden cargar los locales disponibles", "error", error);
     } finally {
       setLoadingLocales(false);
@@ -266,6 +267,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       setNegocios(negocios);
       setOpenSelectNegocio(true);
     } catch (error) {
+      console.error(error);
       showMessage("No se puede cambiar de negocio", "error", error);
     } finally {
       setLoadingNegocios(false);
@@ -281,7 +283,6 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const handleSelectLocal = async (selectedLocal) => {
-    console.log(selectedLocal);
     const resp = await cambiarLocal(selectedLocal);
     if (resp.status === 201) {
       await update({
@@ -293,14 +294,12 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       // Redirigir a /home para forzar re-render con el nuevo local
       gotToPath('/home');
     } else {
-      console.log(resp);
       showMessage("No se pudo actualizar el local", "error");
       handleCloseCambiarLocal();
     }
   };
 
   const handleSelectNegocio = async (selectedNegocio) => {
-    console.log("🔄 Iniciando cambio de negocio");
     setCambiandoNegocio(true);
     setNegocioRecienCambiado(true);
     selectorLocalAbiertoRef.current = false; // Reset del ref
@@ -319,14 +318,11 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         setLocalesDisponibles(locales);
         setTotalLocalesDisponibles(locales.length);
 
-        console.log("🏪 Locales disponibles:", locales.length);
 
         // Solo abrir selector si hay locales disponibles
         if (locales.length > 0) {
-          console.log("⏰ Programando apertura del selector en 300ms");
           // Esperar un poco para asegurar que la sesión se actualice
           setTimeout(() => {
-            console.log("✅ Abriendo selector de local desde cambio de negocio");
             setOpenSelectLocal(true);
             selectorLocalAbiertoRef.current = true;
           }, 300);
@@ -339,16 +335,15 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         // Resetear el flag después de un tiempo más largo solo si hay locales
         if (locales.length > 0) {
           setTimeout(() => {
-            console.log("🔄 Reseteando negocioRecienCambiado");
             setNegocioRecienCambiado(false);
           }, 3000); // Aumentado a 3 segundos para mayor seguridad
         }
       } catch (error) {
+        console.error(error);
         showMessage("Error al cargar locales disponibles", "error", error);
         setNegocioRecienCambiado(false);
       }
     } else {
-      console.log(resp);
       showMessage("No se pudo actualizar el negocio", "error");
       setNegocioRecienCambiado(false);
     }
@@ -515,25 +510,14 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
   // Detectar si el usuario necesita seleccionar una local
   useEffect(() => {
-    console.log("🔍 useEffect selector local ejecutándose:", {
-      negocioRecienCambiado,
-      isAuth,
-      localActual: !!user?.localActual,
-      totalLocalesDisponibles: totalLocalesDisponibles,
-      openSelectLocal: openSelectLocal,
-      cambiandoNegocio,
-      selectorAbierto: selectorLocalAbiertoRef.current
-    });
 
     // SOLO ejecutar si NO acabamos de cambiar de negocio
     if (negocioRecienCambiado) {
-      console.log("⏹️ Saliendo temprano - negocio recién cambiado");
       return; // Salir temprano si acabamos de cambiar negocio
     }
 
     // No mostrar selector automáticamente si estamos cambiando de negocio, ya está abierto, ya se abrió antes
     if (isAuth && user && !user.localActual && totalLocalesDisponibles >= 1 && !openSelectLocal && !cambiandoNegocio && !selectorLocalAbiertoRef.current) {
-      console.log("🚀 Abriendo selector de local desde useEffect");
       // Mostrar automáticamente el selector de local si el usuario no tiene una asignada
       handleCambiarLocal();
     }

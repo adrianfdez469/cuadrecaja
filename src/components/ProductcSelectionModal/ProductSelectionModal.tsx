@@ -182,7 +182,6 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   // Función para cargar más productos - MEMOIZADA
   const loadMoreProductos = useCallback(async () => {
 
-    console.log('loadMoreProductos');
 
     // Validaciones más estrictas para evitar llamadas innecesarias
     if (isLoadingMore || !hasMore || productos.length === 0 || currentPage === 1) return;
@@ -324,14 +323,10 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   }, [open, operacion, loadProductos, currentFilters, productos.length, isLoadingMore, currentPage]);
 
   const handleProductScan = useCallback((qrText: string) => {
-    console.log('handleProductScan', qrText);
 
     // productosDisponibles
     // productosSeleccionados
-    console.log(qrText);
 
-    console.log('productosDisponibles', productosDisponibles);
-    console.log('productosSeleccionados', productosSeleccionados);
 
     const producto = productosDisponibles.find(p => {
       if (p.codigosProducto && p.codigosProducto.some(c => c.codigo === qrText)) return p;

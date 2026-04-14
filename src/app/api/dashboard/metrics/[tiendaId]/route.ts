@@ -61,7 +61,6 @@ export async function GET(
             }
           }
     });
-    console.log('tienda', tienda);
     
     if (!tienda) {
       return NextResponse.json({ error: "Tienda no encontrada o sin acceso" }, { status: 404 });
@@ -282,7 +281,7 @@ export async function GET(
     return NextResponse.json(metrics);
 
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json(
       { error: "Error al obtener métricas del dashboard" },
       { status: 500 }

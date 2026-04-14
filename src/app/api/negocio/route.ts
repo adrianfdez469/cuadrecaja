@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(negocios);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error cargar los negocios' }, { status: 500 });
   }
 }
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(newNegocio, { status: 201 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al crear el negocio' }, { status: 500 });
   }
 }

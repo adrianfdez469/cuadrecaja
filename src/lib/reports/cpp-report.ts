@@ -304,6 +304,7 @@ export async function migrarDatosHistoricosCPP(tiendaId: string, dryRun: boolean
       );
 
     } catch (error) {
+      console.error(error);
       reporte.errores++;
       reporte.detalles.push(
         `❌ ${movimiento.productoTienda.producto.nombre} - Error: ${error.message}`

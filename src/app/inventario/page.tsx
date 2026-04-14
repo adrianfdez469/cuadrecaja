@@ -75,7 +75,6 @@ export default function InventarioPage() {
       const response = await axios.get<IProductoTiendaV2[]>(
         `/api/productos_tienda/${user.localActual.id}/productos_venta`
       );
-      console.log('productos', response.data);
       
       setProductos(response.data.map(productoTienda => {
         return {

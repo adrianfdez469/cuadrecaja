@@ -67,7 +67,7 @@ export async function GET() {
 
     return NextResponse.json(notificacionesFinales);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al cargar las notificaciones activas' }, { status: 500 });
   }
 }

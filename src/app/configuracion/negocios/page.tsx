@@ -121,7 +121,7 @@ export default function Negocios() {
       const data = await getNegocios({ soloActivacionLanding });
       setNegocios(data);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       setError('Error al cargar los negocios');
     } finally {
       setLoading(false);
@@ -206,7 +206,7 @@ export default function Negocios() {
       }
       handleCloseDialog();
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage(`Ocurrió un error al ${selectedNegocio ? 'actualizar' : 'crear'} el negocio`, 'error');
     } finally {
       setLoading(false);
@@ -224,7 +224,7 @@ export default function Negocios() {
       showMessage('Negocio eliminado satisfactoriamente', 'success');
       await fetchNegocios();
     } catch (error) {
-      console.log(error);
+      console.error(error);
       const errorMessage = error.response?.data?.error || 'Ocurrió un error al eliminar el negocio';
       showMessage(errorMessage, 'error');
     } finally {

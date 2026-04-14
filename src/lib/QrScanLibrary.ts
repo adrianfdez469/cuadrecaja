@@ -93,7 +93,6 @@ export async function init(containerId: string) {
     barcodeDetector = new BarcodeDetector({
       formats: ['qr_code', 'ean_13', 'code_128', 'code_39', 'upc_a', 'upc_e']
     });
-    console.log('✅ ZXing Detector initialized');
   } catch (e) {
     console.error('Failed to init ZXing detector', e);
   }
@@ -248,7 +247,6 @@ export async function stop() {
     activeVideoElement.srcObject = null;
   }
 
-  console.log("✅ Scanner stopped");
 }
 
 /**

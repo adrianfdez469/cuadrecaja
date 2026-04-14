@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
       source: 'landing-page',
     };
 
-    console.log('📧 Nueva solicitud de demo recibida:', payload);
 
     const activationSecret = process.env.ACTIVATION_JWT_SECRET;
     let activationToken: string | null = null;
@@ -85,7 +84,6 @@ export async function POST(request: NextRequest) {
         .filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
         .map((u) => u.replace(/\/$/, ''))[0] ?? 'http://localhost:3000';
       activationUrl = `${appUrl}/activar?token=${activationToken}`;
-      console.log('🔗 URL de activación:', activationUrl);
       
     } else {
       console.warn('⚠️ ACTIVATION_JWT_SECRET no configurado, no se generará token de activación');

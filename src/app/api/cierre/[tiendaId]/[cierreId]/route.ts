@@ -268,7 +268,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
     return NextResponse.json(cierreData);
   } catch (error: unknown) {
     // eslint-disable-next-line no-console
-    console.log(error);
     return NextResponse.json({ error: "Error al obtener los datos del cierre" }, { status: 500 });
   }
 }

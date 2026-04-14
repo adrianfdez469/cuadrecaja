@@ -96,7 +96,7 @@ export async function GET(req: Request) {
       total: total
     }, {status: 200});
   } catch (error) {
-    console.log(error);
+    console.error(error);
     
     return NextResponse.json(
       { error: "Error al cargar movimiento" },
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
     return NextResponse.json({}, {status: 201});
 
   } catch (error) {
-    console.log(error);
+    console.error(error);
     
     return NextResponse.json(
       { error: "Error al crear movimiento" },

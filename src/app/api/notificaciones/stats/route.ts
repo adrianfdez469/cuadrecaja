@@ -85,7 +85,7 @@ export async function GET() {
 
     return NextResponse.json(estadisticas);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al cargar las estadísticas' }, { status: 500 });
   }
 }

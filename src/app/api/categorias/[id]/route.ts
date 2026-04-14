@@ -25,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     });
     return NextResponse.json(updatedCategory);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: "Error al actualizar categoría" }, { status: 500 });
   }
 }
@@ -63,7 +63,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     return NextResponse.json({ message: "Categoría eliminada correctamente" }, { status: 200 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: "Error al eliminar la categoría" }, { status: 500 });
   }
 }

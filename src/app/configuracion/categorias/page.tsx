@@ -125,7 +125,7 @@ export default function CategoriasPage() {
         await deleteCategory(id);
         showMessage('Categoría eliminada', 'success');
       } catch (error) {
-        console.log(error);
+        console.error(error);
         showMessage('Error al intentar eliminar la categoría. Es probable que esté en uso!', 'error');
       } finally {
         await loadCategories();

@@ -9,12 +9,10 @@ import { prisma } from "@/lib/prisma";
 export async function getRolUsuario(usuarioId: string, tiendaId: string | null): Promise<string> {
   try {
 
-    console.log('getRolUsuario');
     
 
     // Si no hay tienda actual, no hay permisos específicos
     if (!tiendaId) {
-      console.log('No hay tiendaId');
       return "";
     }
 

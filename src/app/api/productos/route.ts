@@ -36,7 +36,7 @@ export async function GET() {
     });
     return NextResponse.json(productos);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json(
       { error: "Error al obtener productos" },
       { status: 500 }
@@ -73,7 +73,6 @@ export async function POST(req: Request) {
     }
 
     const { nombre, descripcion, categoriaId, fraccion, codigosProducto, permiteDecimal } = await req.json();
-    console.log('insert product endpoint => fraccion', fraccion);
 
     const nuevoProducto = await prisma.producto.create({
       data: { 
@@ -94,7 +93,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(nuevoProducto, { status: 201 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     return NextResponse.json(
       { error: "Error al crear el producto" },
