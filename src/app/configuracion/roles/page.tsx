@@ -47,8 +47,7 @@ import {
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
 import { IRol, ICreateRol, IUpdateRol, IPermiso } from "@/types/IRol";
-import { getRoles, createRol, updateRol, deleteRol } from "@/services/rolService";
-import axiosClient from "@/lib/axiosClient";
+import { getRoles, createRol, updateRol, deleteRol, getPermisos, getPermisosTemplates } from "@/services/rolService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 
@@ -102,13 +101,13 @@ export default function RolesPage() {
   const fetchPermisos = async () => {
     setPermisosLoading(true);
     try {
-      const permisosResponse = await axiosClient.get('/api/permisos');
-      const permisosTemplates = await axiosClient.get('/api/permisos/templates');
+      const permisosResponse = await getPermisos();
+      const permisosTemplates = await getPermisosTemplates();
 
       
 
-      setPermisos(permisosResponse.data);
-      setTemplates(permisosTemplates.data);
+      setPermisos(permisosResponse);
+      setTemplates(permisosTemplates);
     } catch (error) {
       console.error("Error al cargar permisos:", error);
       showMessage('Error al cargar los permisos del sistema', 'error');

@@ -26,4 +26,14 @@ export const updateRol = async (id: string, rolData: IUpdateRol): Promise<IRol> 
 
 export const deleteRol = async (id: string): Promise<void> => {
   await axiosClient.delete(`${API_BASE}/${id}`);
-}; 
+};
+
+export const getPermisos = async () => {
+  const response = await axiosClient.get('/api/permisos');
+  return response.data;
+};
+
+export const getPermisosTemplates = async () => {
+  const response = await axiosClient.get('/api/permisos/templates');
+  return response.data;
+};

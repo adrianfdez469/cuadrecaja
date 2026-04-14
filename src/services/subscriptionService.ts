@@ -19,10 +19,8 @@ export class SubscriptionService {
     await axiosClient.post(`/api/subscription/suspend/${negocioId}`, { forceManual });
   }
 
-  static async reactivateBusiness(negocioId: string, newLimitTime: Date): Promise<void> {
-    await axiosClient.post(`/api/subscription/reactivate/${negocioId}`, {
-      specificDate: newLimitTime.toISOString()
-    });
+  static async reactivateBusiness(negocioId: string, payload: { specificDate?: string; daysToAdd?: number }): Promise<void> {
+    await axiosClient.post(`/api/subscription/reactivate/${negocioId}`, payload);
   }
 
   static async checkAndProcessSuspensions(): Promise<void> {

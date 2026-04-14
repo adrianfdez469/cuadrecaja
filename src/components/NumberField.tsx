@@ -12,7 +12,6 @@ import type { SxProps, Theme } from '@mui/material';
 /**
  * This component is a placeholder for FormControl to correctly set the shrink label state on SSR.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SSRInitialFilled(_: BaseNumberField.Root.Props) {
   return null;
 }

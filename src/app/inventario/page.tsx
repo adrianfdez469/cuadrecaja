@@ -38,7 +38,7 @@ import EventBusyIcon from "@mui/icons-material/EventBusy";
 import AlarmIcon from "@mui/icons-material/Alarm";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import axiosClient from "@/lib/axiosClient";
+import { getProductosVenta, updateProductosTienda } from "@/services/costoPrecioServices";
 import { IProductoTiendaV2 } from "@/types/IProducto";
 import { exportInventoryToWord } from "@/utils/wordExport";
 import { exportInventarioToExcel } from "@/utils/excelExport";
@@ -72,11 +72,8 @@ export default function InventarioPage() {
   const fetchProductos = async () => {
     try {
       setLoading(true);
-      const response = await axiosClient.get<IProductoTiendaV2[]>(
-        `/api/productos_tienda/${user.localActual.id}/productos_venta`
-      );
-      
-      setProductos(response.data.map(productoTienda => {
+      const data = await getProductosVenta(user.localActual.id);
+      setProductos(data.map(productoTienda => {
         return {
           ...productoTienda,
           producto: {
@@ -215,9 +212,7 @@ export default function InventarioPage() {
     if (!editingProduct) return;
     try {
       setSavingFecha(true);
-      await axiosClient.put(`/api/productos_tienda/${user.localActual.id}`, {
-        productos: [{ id: editingProduct.id, fechaVencimiento: nuevaFecha ? nuevaFecha.toISOString() : null }]
-      });
+      await updateProductosTienda(user.localActual.id, [{ id: editingProduct.id, fechaVencimiento: nuevaFecha ? nuevaFecha.toISOString() : null }]);
       setProductos(prev => prev.map(p =>
         p.id === editingProduct.id
           ? { ...p, fechaVencimiento: nuevaFecha ? nuevaFecha.toISOString() : null }

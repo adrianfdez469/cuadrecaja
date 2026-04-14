@@ -53,7 +53,7 @@ import {
   Info,
   Refresh,
 } from "@mui/icons-material";
-import { createNegocio, getNegocios, updateNegocio, deleteNegocio } from "@/services/negocioServce";
+import { createNegocio, getNegocios, updateNegocio, deleteNegocio, getNegocioStatsById } from "@/services/negocioServce";
 import { getPlanes } from "@/services/planService";
 import type { IPlan } from "@/schemas/plan";
 import { useMessageContext } from "@/context/MessageContext";
@@ -68,7 +68,6 @@ import {
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useRouter } from "next/navigation";
-import axiosClient from '@/lib/axiosClient';
 
 interface NegocioStats {
   tiendas: {
@@ -148,10 +147,10 @@ export default function Negocios() {
 
   const fetchNegocioStats = async (negocioId: string) => {
     try {
-      const response = await axiosClient.get(`/api/negocio/${negocioId}/stats`);
+      const data = await getNegocioStatsById(negocioId);
       setNegocioStats(prev => ({
         ...prev,
-        [negocioId]: response.data
+        [negocioId]: data
       }));
     } catch (error) {
       console.error('Error al cargar estadísticas del negocio:', error);

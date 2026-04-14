@@ -39,3 +39,8 @@ export const getNegocioStats = async () => {
   const response = await axiosClient.get(`${API_URL}/stats`);
   return response.data;
 }
+
+export const getNegocioStatsById = async (negocioId: string) => {
+  const response = await axiosClient.get(`${API_URL}/${negocioId}/stats`);
+  return response.data;
+}

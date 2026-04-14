@@ -28,7 +28,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 
 import { useCartStore } from "@/store/cartStore";
-import axiosClient from "@/lib/axiosClient";
+import { getProductosVenta } from "@/services/costoPrecioServices";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ProductModal } from "./components/ProductModal";
@@ -409,15 +409,8 @@ export default function POSInterface() {
   const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
       if (!silent) setLoading(true);
-      const response = await axiosClient.get<IProductoTiendaV2[]>(
-        `/api/productos_tienda/${user.localActual.id}/productos_venta`,
-        {
-          params: {
-            incluseCategories: true,
-          },
-        }
-      );
-      const prods = response.data
+      const rawProductos = await getProductosVenta(user.localActual.id, { incluseCategories: true });
+      const prods = rawProductos
         // Agregar el nombre del proveedor al producto
         .map(prod => ({
           ...prod,
@@ -433,7 +426,7 @@ export default function POSInterface() {
           if (p.existencia <= 0) {
             // Si el producto tiene unidades por fracción, se debe verificar que el producto padre tenga existencia
             if (p.producto.fraccionDeId !== null) {
-              const pPadre = response.data.find(
+              const pPadre = rawProductos.find(
                 (padre) => padre.productoId === p.producto.fraccionDeId
               );
               if (pPadre && pPadre.existencia > 0) {
