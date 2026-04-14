@@ -1084,10 +1084,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         }}
       >
         <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h6" fontWeight={600}>
+          <Typography variant="h6" fontWeight={600} component="span" display="block">
             {!user?.localActual ? 'Seleccionar local' : 'Cambiar local'}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" component="span" display="block">
             {!user?.localActual
               ? 'Necesitas seleccionar un local para comenzar a trabajar'
               : 'Selecciona el local donde deseas trabajar'
@@ -1166,12 +1166,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           }}
         >
           <DialogTitle sx={{ pb: 1 }}>
-            <Typography variant="h6" fontWeight={600}>
               Cambiar negocio
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Selecciona el negocio al que deseas cambiar
-            </Typography>
           </DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
             {loadingNegocios ? (
@@ -1227,10 +1222,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         }}
       >
         <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h6" fontWeight={600}>
+          <Typography variant="h6" fontWeight={600} component="span" display="block">
             Cambiar Contraseña
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" component="span" display="block">
             Ingresa tu contraseña actual y define una nueva contraseña segura.
           </Typography>
         </DialogTitle>
