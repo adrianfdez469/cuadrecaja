@@ -28,7 +28,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 
 import { useCartStore } from "@/store/cartStore";
-import axios from "axios";
+import axiosClient from "@/lib/axiosClient";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ProductModal } from "./components/ProductModal";
@@ -409,7 +409,7 @@ export default function POSInterface() {
   const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
       if (!silent) setLoading(true);
-      const response = await axios.get<IProductoTiendaV2[]>(
+      const response = await axiosClient.get<IProductoTiendaV2[]>(
         `/api/productos_tienda/${user.localActual.id}/productos_venta`,
         {
           params: {

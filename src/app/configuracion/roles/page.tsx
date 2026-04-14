@@ -48,7 +48,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
 import { IRol, ICreateRol, IUpdateRol, IPermiso } from "@/types/IRol";
 import { getRoles, createRol, updateRol, deleteRol } from "@/services/rolService";
-import axios from "axios";
+import axiosClient from "@/lib/axiosClient";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 
@@ -102,8 +102,8 @@ export default function RolesPage() {
   const fetchPermisos = async () => {
     setPermisosLoading(true);
     try {
-      const permisosResponse = await axios.get('/api/permisos');
-      const permisosTemplates = await axios.get('/api/permisos/templates');
+      const permisosResponse = await axiosClient.get('/api/permisos');
+      const permisosTemplates = await axiosClient.get('/api/permisos/templates');
 
       
 

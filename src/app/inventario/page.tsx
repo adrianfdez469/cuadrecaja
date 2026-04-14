@@ -38,7 +38,7 @@ import EventBusyIcon from "@mui/icons-material/EventBusy";
 import AlarmIcon from "@mui/icons-material/Alarm";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import axios from "axios";
+import axiosClient from "@/lib/axiosClient";
 import { IProductoTiendaV2 } from "@/types/IProducto";
 import { exportInventoryToWord } from "@/utils/wordExport";
 import { exportInventarioToExcel } from "@/utils/excelExport";
@@ -72,7 +72,7 @@ export default function InventarioPage() {
   const fetchProductos = async () => {
     try {
       setLoading(true);
-      const response = await axios.get<IProductoTiendaV2[]>(
+      const response = await axiosClient.get<IProductoTiendaV2[]>(
         `/api/productos_tienda/${user.localActual.id}/productos_venta`
       );
       
@@ -215,7 +215,7 @@ export default function InventarioPage() {
     if (!editingProduct) return;
     try {
       setSavingFecha(true);
-      await axios.put(`/api/productos_tienda/${user.localActual.id}`, {
+      await axiosClient.put(`/api/productos_tienda/${user.localActual.id}`, {
         productos: [{ id: editingProduct.id, fechaVencimiento: nuevaFecha ? nuevaFecha.toISOString() : null }]
       });
       setProductos(prev => prev.map(p =>

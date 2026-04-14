@@ -22,7 +22,7 @@ import {
 } from '@mui/icons-material';
 import { useAppContext } from '@/context/AppContext';
 import { useMessageContext } from '@/context/MessageContext';
-import axios from 'axios';
+import axiosClient from '@/lib/axiosClient';
 
 interface SuspensionStats {
   total: number;
@@ -42,7 +42,7 @@ export default function SuspensionSummary() {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get('/api/subscription/stats');
+      const response = await axiosClient.get('/api/subscription/stats');
       setStats(response.data.stats);
     } catch (error) {
       console.error('Error al obtener estadísticas:', error);
@@ -54,7 +54,7 @@ export default function SuspensionSummary() {
   const handleExecuteVerification = async () => {
     setExecuting(true);
     try {
-      await axios.post('/api/subscription/auto-suspend');
+      await axiosClient.post('/api/subscription/auto-suspend');
       showMessage('Verificación de suspensiones ejecutada', 'success');
       fetchStats(); // Recargar estadísticas
     } catch (error) {

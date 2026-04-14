@@ -1,12 +1,12 @@
 import { ITipoMovimiento } from "@/types/IMovimiento";
 import { IProducto, IProductoTiendaV2 } from "@/types/IProducto";
 import { IProveedor } from "@/types/IProveedor";
-import axios from "axios";
+import axiosClient from "@/lib/axiosClient";
 
 const API_URL = `/api/movimiento`;
 
 export const cretateBatchMovimientos = async (data, items) => {
-  await axios.post(API_URL, {
+  await axiosClient.post(API_URL, {
     data: data,
     items: items
   });
@@ -21,7 +21,7 @@ export const findMovimientos = async (
   intervalo?: {fechaInicio?: Date, fechaFin?: Date},
   searchTerm?: string
 ) => {
-  const response = await axios.get(API_URL, {
+  const response = await axiosClient.get(API_URL, {
     params: {
       tiendaId: tiendaId,
       take, 
@@ -72,7 +72,7 @@ export const importarMovimientosExcel = async (
   items: IImportarItemsMov[]
 ): Promise<IImportarResponse> => {
   try {
-    const response = await axios.post(`${API_URL}/import`, {
+    const response = await axiosClient.post(`${API_URL}/import`, {
       data,
       items
     });
@@ -108,7 +108,7 @@ interface IProdTiendaResponse extends IProducto {
 }
 
 export const getProductosTiendaParaEntrada = async (tiendaId: string, tipo: ITipoMovimiento, filter: IProdTiendaQueryParams, proveedorId?: string): Promise<IProdTiendaResponse[]> => {
-  const resp = await axios.get(`${API_URL}/${tiendaId}/productos/entrada`, {
+  const resp = await axiosClient.get(`${API_URL}/${tiendaId}/productos/entrada`, {
     params: {
       ...filter,
       take: filter?.take || 50,
@@ -121,7 +121,7 @@ export const getProductosTiendaParaEntrada = async (tiendaId: string, tipo: ITip
 }
 
 export const getProductosTiendaParaNoEntrada = async (tiendaId: string, tipo: ITipoMovimiento, filter: IProdTiendaQueryParams, proveedorId?: string): Promise<IProdTiendaResponse[]> => {
-  const resp = await axios.get(`${API_URL}/${tiendaId}/productos/salida`, {
+  const resp = await axiosClient.get(`${API_URL}/${tiendaId}/productos/salida`, {
     params: {
       ...filter,
       take: filter?.take || 50,
@@ -176,12 +176,12 @@ export interface IMovimientoProductoEnviado {
 }
 
 export const getMovimientosProductosEnviados = async (tiendaId: string): Promise<IMovimientoProductoEnviado[]> => {
-  const resp = await axios.get(`${API_URL}/${tiendaId}/recepcion`);
+  const resp = await axiosClient.get(`${API_URL}/${tiendaId}/recepcion`);
   return resp.data;
 }
 
 export const rejectMovimiento = async (movimientoId: string, motivo: string) => {
-  await axios.post(`${API_URL}/rechazo`, {
+  await axiosClient.post(`${API_URL}/rechazo`, {
     movimientoId,
     motivo
   });

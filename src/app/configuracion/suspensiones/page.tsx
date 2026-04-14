@@ -46,7 +46,7 @@ import { useAppContext } from '@/context/AppContext';
 import { useMessageContext } from '@/context/MessageContext';
 import { formatDate, formatDaysRemaining, getDaysRemainingColor } from '@/utils/formatters';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import axiosClient from '@/lib/axiosClient';
 import useConfirmDialog from '@/components/confirmDialog';
 import dayjs from 'dayjs';
 
@@ -134,18 +134,18 @@ export default function SuspensionesPage() {
     setLoading(true);
     try {
       // Obtener estadísticas generales
-      const statsResponse = await axios.get('/api/subscription/stats');
+      const statsResponse = await axiosClient.get('/api/subscription/stats');
       setStats(statsResponse.data.stats);
 
       // Obtener lista de negocios con estado de suscripción
-      const negociosResponse = await axios.get('/api/negocio');
+      const negociosResponse = await axiosClient.get('/api/negocio');
       const negociosData = negociosResponse.data;
 
       // Obtener estado de suscripción para cada negocio
       const negociosConEstado = await Promise.all(
         negociosData.map(async (negocio: NegocioSuspension) => {
           try {
-            const statusResponse = await axios.get(`/api/subscription/status/${negocio.id}`);
+            const statusResponse = await axiosClient.get(`/api/subscription/status/${negocio.id}`);
             return {
               ...negocio,
               ...statusResponse.data
@@ -193,7 +193,7 @@ export default function SuspensionesPage() {
   const handleActivar = async (negocio: NegocioSuspension) => {
     setActivating(negocio.id);
     try {
-      await axios.post(`/api/subscription/activate/${negocio.id}`);
+      await axiosClient.post(`/api/subscription/activate/${negocio.id}`);
       showMessage(`Negocio ${negocio.nombre} activado exitosamente`, 'success');
       fetchNegocios();
     } catch (error) {
@@ -227,7 +227,7 @@ export default function SuspensionesPage() {
         payload.daysToAdd = reactivateDialog.daysToAdd;
       }
 
-      await axios.post(`/api/subscription/reactivate/${reactivateDialog.negocio.id}`, payload);
+      await axiosClient.post(`/api/subscription/reactivate/${reactivateDialog.negocio.id}`, payload);
 
       showMessage(`Negocio ${reactivateDialog.negocio.nombre} reactivado exitosamente`, 'success');
       setReactivateDialog({ open: false, negocio: null, daysToAdd: 30, useSpecificDate: false, specificDate: '' });
@@ -247,12 +247,12 @@ export default function SuspensionesPage() {
     try {
       if (manageDaysDialog.useSpecificDate) {
         // Usar API de establecer fecha específica
-        await axios.post(`/api/subscription/set-expiration/${manageDaysDialog.negocio.id}`, {
+        await axiosClient.post(`/api/subscription/set-expiration/${manageDaysDialog.negocio.id}`, {
           expirationDate: manageDaysDialog.specificDate
         });
       } else {
         // Usar API de extender suscripción
-        await axios.post(`/api/subscription/extend/${manageDaysDialog.negocio.id}`, {
+        await axiosClient.post(`/api/subscription/extend/${manageDaysDialog.negocio.id}`, {
           daysToAdd: manageDaysDialog.daysToAdd
         });
       }
@@ -274,7 +274,7 @@ export default function SuspensionesPage() {
       `¿Estás seguro de que quieres suspender el negocio ${negocio.nombre}?`,
       async () => {
         try {
-          await axios.post(`/api/subscription/suspend/${negocio.id}`);
+          await axiosClient.post(`/api/subscription/suspend/${negocio.id}`);
           showMessage(`Negocio ${negocio.nombre} suspendido exitosamente`, 'success');
           fetchNegocios(); // Recargar datos  
         } catch (error) {
@@ -322,7 +322,7 @@ export default function SuspensionesPage() {
         variant="contained"
         startIcon={<PlayArrow />}
         onClick={() => {
-          axios.post('/api/subscription/auto-suspend').then(() => {
+          axiosClient.post('/api/subscription/auto-suspend').then(() => {
             showMessage('Verificación de suspensiones ejecutada', 'success');
             fetchNegocios();
           }).catch(() => {

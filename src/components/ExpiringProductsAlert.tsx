@@ -17,7 +17,7 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { useRouter } from "next/navigation";
-import axios from "axios";
+import axiosClient from "@/lib/axiosClient";
 import { IProductoTiendaV2 } from "@/types/IProducto";
 
 interface ExpiringProductsAlertProps {
@@ -41,7 +41,7 @@ export default function ExpiringProductsAlert({ tiendaId }: ExpiringProductsAler
 
   useEffect(() => {
     if (!tiendaId) return;
-    axios
+    axiosClient
       .get<{ vencidos: IProductoTiendaV2[]; porVencer: IProductoTiendaV2[] }>(
         `/api/productos_tienda/expirando?tiendaId=${tiendaId}`
       )

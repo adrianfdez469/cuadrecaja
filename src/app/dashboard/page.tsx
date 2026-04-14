@@ -47,7 +47,7 @@ import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
 import { formatCurrency, formatNumber, formatDate } from "@/utils/formatters";
-import axios from "axios";
+import axiosClient from "@/lib/axiosClient";
 
 // Interfaces para los datos del dashboard
 interface DashboardMetrics {
@@ -113,7 +113,7 @@ export default function DashboardPage() {
         throw new Error("No hay tienda seleccionada");
       }
 
-      const response = await axios.get(`/api/dashboard/metrics/${user.localActual.id}`, {
+      const response = await axiosClient.get(`/api/dashboard/metrics/${user.localActual.id}`, {
         params: filters
       });
       

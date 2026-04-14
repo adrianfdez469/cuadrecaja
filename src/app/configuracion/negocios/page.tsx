@@ -68,7 +68,7 @@ import {
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useRouter } from "next/navigation";
-import axios from 'axios';
+import axiosClient from '@/lib/axiosClient';
 
 interface NegocioStats {
   tiendas: {
@@ -148,7 +148,7 @@ export default function Negocios() {
 
   const fetchNegocioStats = async (negocioId: string) => {
     try {
-      const response = await axios.get(`/api/negocio/${negocioId}/stats`);
+      const response = await axiosClient.get(`/api/negocio/${negocioId}/stats`);
       setNegocioStats(prev => ({
         ...prev,
         [negocioId]: response.data
