@@ -51,7 +51,7 @@ const StockBadge: React.FC<StockBadgeProps> = ({ stock }) => {
           mb: 0.5
         }}
       >
-        {stock || 0}
+        {parseFloat(stock?.toFixed(2)) || 0}
       </Typography>
     </StyledStockBadge>
   );
