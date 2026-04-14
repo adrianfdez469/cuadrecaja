@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SubscriptionService } from '@/services/subscriptionService';
+import { SubscriptionLib } from '@/lib/subscriptionLib';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 
 export async function POST() {
@@ -11,9 +11,9 @@ export async function POST() {
 
     console.log('Iniciando verificación de suspensiones automáticas...');
     
-    await SubscriptionService.checkAndProcessSuspensions();
-    
-    const stats = await SubscriptionService.getSubscriptionStats();
+    await SubscriptionLib.checkAndProcessSuspensions();
+
+    const stats = await SubscriptionLib.getSubscriptionStats();
     
     return NextResponse.json({
       message: 'Verificación de suspensiones automáticas completada',

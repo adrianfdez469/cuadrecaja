@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SubscriptionService } from '@/services/subscriptionService';
+import { SubscriptionLib } from '@/lib/subscriptionLib';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 import dayjs from 'dayjs';
 import { prisma } from '@/lib/prisma';
@@ -43,7 +43,7 @@ export async function POST(
       newLimitTime = dayjs(negocio.limitTime).add(days, 'day').toDate();
     }
     
-    await SubscriptionService.reactivateBusiness(negocioId, newLimitTime);
+    await SubscriptionLib.reactivateBusiness(negocioId, newLimitTime);
     
     return NextResponse.json({
       message: `Negocio ${negocioId} reactivado exitosamente`,

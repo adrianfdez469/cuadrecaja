@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SubscriptionService } from '@/services/subscriptionService';
+import { SubscriptionLib } from '@/lib/subscriptionLib';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 import getUserFromRequest from '@/utils/getUserFromRequest';
 
@@ -24,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    const status = await SubscriptionService.getSubscriptionStatus(negocioId);
+    const status = await SubscriptionLib.getSubscriptionStatus(negocioId);
     
     return NextResponse.json(status);
   } catch (error) {

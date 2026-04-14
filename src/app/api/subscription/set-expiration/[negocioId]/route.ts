@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SubscriptionService } from '@/services/subscriptionService';
+import { SubscriptionLib } from '@/lib/subscriptionLib';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 import dayjs from 'dayjs';
 
@@ -33,7 +33,7 @@ export async function POST(
       );
     }
     
-    await SubscriptionService.setExpirationDate(negocioId, newExpirationDate);
+    await SubscriptionLib.setExpirationDate(negocioId, newExpirationDate);
     
     return NextResponse.json({
       message: `Fecha de expiración establecida exitosamente para el negocio ${negocioId}`,
