@@ -45,7 +45,7 @@ import { AddMovimientoDialog } from "./components/addMovimientoDialog";
 import { useAppContext } from "@/context/AppContext";
 import { cretateBatchMovimientos, findMovimientos, getMovimientosProductosEnviados, rejectMovimiento } from "@/services/movimientoService";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
-import { ITipoMovimiento } from "@/types/IMovimiento";
+import { ITipoMovimiento } from "@/schemas/movimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatNumber, formatDateTime } from '@/utils/formatters';

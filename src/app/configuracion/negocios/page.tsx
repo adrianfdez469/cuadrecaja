@@ -58,7 +58,7 @@ import { getPlanes } from "@/services/planService";
 import type { IPlan } from "@/schemas/plan";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
-import { INegocio } from "@/types/INegocio";
+import { INegocio } from "@/schemas/negocio";
 import { 
   formatDate, 
   formatDaysRemaining, 

@@ -1,4 +1,4 @@
-import { IProveedor, IProveedorCreate, IProveedorUpdate } from "@/types/IProveedor";
+import { IProveedor, IProveedorCreate, IProveedorUpdate } from "@/schemas/proveedor";
 import axiosClient from "@/lib/axiosClient";
 
 const API_URL = "/api/proveedores"; // Ruta base del backend

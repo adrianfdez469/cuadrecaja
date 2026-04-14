@@ -4,8 +4,8 @@ import { useSession } from "next-auth/react";
 import { createContext, useContext, useEffect, useState, useTransition } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
-import { ILocal } from "@/types/ILocal";
-import { INegocio } from "@/types/INegocio";
+import { ILocal } from "@/schemas/tienda";
+import { INegocio } from "@/schemas/negocio";
 
 interface ISessionUser {
   id: string;

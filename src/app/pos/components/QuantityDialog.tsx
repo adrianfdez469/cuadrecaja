@@ -1,6 +1,6 @@
 import {useEffect, useState, useCallback} from "react";
 import {Box, Button, Dialog, Grow, Typography,} from "@mui/material";
-import {IProductoTiendaV2} from "@/types/IProducto";
+import {IProductoTiendaV2} from "@/schemas/producto";
 import {useCartStore} from "@/store/cartStore";
 
 interface QuantityDialogProps {

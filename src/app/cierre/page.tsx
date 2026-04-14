@@ -20,7 +20,7 @@ import { closePeriod, fetchCierreData, openPeriod } from "@/services/cierrePerio
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import { ICierreData, ICierrePeriodo } from "@/types/ICierre";
+import { ICierreData, ICierrePeriodo } from "@/schemas/cierre";
 import useConfirmDialog from "@/components/confirmDialog";
 import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
 import { useSalesStore } from "@/store/salesStore";

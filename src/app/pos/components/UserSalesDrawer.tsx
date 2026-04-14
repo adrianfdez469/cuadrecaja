@@ -28,8 +28,8 @@ import { usePermisos } from "@/utils/permisos_front";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { removeProductFromSale } from "@/services/sellService";
-import { ICierrePeriodo } from "@/types/ICierre";
-import { ITransferDestination } from "@/types/ITransferDestination";
+import { ICierrePeriodo } from "@/schemas/cierre";
+import { ITransferDestination } from "@/schemas/transferDestination";
 import {formatDateTime} from "@/utils/formatters";
 
 interface IProps {

@@ -1,4 +1,4 @@
-import { IProveedorConsignacion } from "@/types/IProveedorConsignación";
+import { IProveedorConsignacion } from "@/schemas/proveedor";
 import axiosClient from "@/lib/axiosClient";
 
 

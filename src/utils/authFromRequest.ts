@@ -2,8 +2,8 @@ import { NextRequest } from 'next/server';
 import { getServerSession, Session } from 'next-auth';
 import { authOptions } from './authOptions';
 import { jwtVerify } from 'jose';
-import { INegocio } from '@/types/INegocio';
-import { ILocal } from '@/types/ILocal';
+import { INegocio } from '@/schemas/negocio';
+import { ILocal } from '@/schemas/tienda';
 
 /**
  * Obtiene la sesión del usuario desde cookies (web) o desde headers (Flutter/mobile)

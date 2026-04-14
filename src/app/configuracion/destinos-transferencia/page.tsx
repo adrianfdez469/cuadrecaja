@@ -49,7 +49,7 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useAppContext } from "@/context/AppContext";
-import { ITransferDestination } from "@/types/ITransferDestination";
+import { ITransferDestination } from "@/schemas/transferDestination";
 
 export default function DestinosTransferenciaPage() {
   const [destinations, setDestinations] = useState<ITransferDestination[]>([]);

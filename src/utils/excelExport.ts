@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
-import { ICierreData } from '@/types/ICierre';
+import { ICierreData } from '@/schemas/cierre';
 
 interface ExportProductosVendidosOptions {
     cierreData: ICierreData;

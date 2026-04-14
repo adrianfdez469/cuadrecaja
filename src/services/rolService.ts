@@ -1,5 +1,5 @@
 import axiosClient from '@/lib/axiosClient';
-import { IRol, ICreateRol, IUpdateRol } from '@/types/IRol';
+import { IRol, ICreateRol, IUpdateRol } from '@/schemas/rol';
 
 const API_BASE = '/api/roles';
 

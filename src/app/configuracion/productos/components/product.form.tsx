@@ -21,7 +21,7 @@ import {
 import {Info} from "@mui/icons-material";
 import {Categoria} from "../types/categorias";
 import {fetchProducts} from "@/services/productServise";
-import {IProducto} from "@/types/IProducto";
+import {IProducto} from "@/schemas/producto";
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import HardwareQrScanner from '@/components/ProductProcessorData/HardwareQrScanner';

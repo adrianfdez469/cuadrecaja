@@ -3,7 +3,7 @@
  * Implementa la fórmula: CPP = (Valor Inventario Anterior + Costo Nueva Compra) / (Existencia Anterior + Cantidad Nueva Compra)
  */
 
-import { ITipoMovimiento } from "@/types/IMovimiento";
+import { ITipoMovimiento } from "@/schemas/movimiento";
 
 export interface CPPCalculation {
   costoAnterior: number;

@@ -3,7 +3,7 @@
 import { Box, IconButton, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-import { IProductoTiendaV2 } from "@/types/IProducto";
+import { IProductoTiendaV2 } from "@/schemas/producto";
 import { useCartStore } from "@/store/cartStore";
 import { calcularDisponibilidadReal } from "../utils/calcularDisponibilidadReal";
 

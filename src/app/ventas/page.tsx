@@ -40,8 +40,8 @@ import {
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import { ICierrePeriodo } from "@/types/ICierre";
-import { IVenta } from "@/types/IVenta";
+import { ICierrePeriodo } from "@/schemas/cierre";
+import { IVenta } from "@/schemas/venta";
 import useConfirmDialog from "@/components/confirmDialog";
 import { getSells, removeProductFromSale, removeSell } from "@/services/sellService";
 import { PageContainer } from "@/components/PageContainer";

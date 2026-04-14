@@ -1,4 +1,4 @@
-import { IProducto } from "@/types/IProducto";
+import { IProducto } from "@/schemas/producto";
 import axiosClient from "@/lib/axiosClient";
 
 const API_URL = "/api/productos"; // Ruta base del backend

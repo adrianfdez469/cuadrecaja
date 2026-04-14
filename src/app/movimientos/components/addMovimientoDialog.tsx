@@ -30,7 +30,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMessageContext } from "@/context/MessageContext";
 import { cretateBatchMovimientos, getProductosTiendaParaEntrada, getProductosTiendaParaNoEntrada } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
-import { ITipoMovimiento } from "@/types/IMovimiento";
+import { ITipoMovimiento } from "@/schemas/movimiento";
 import {
   TIPOS_MOVIMIENTO_MANUAL,
   TIPO_MOVIMIENTO_LABELS,
@@ -43,11 +43,11 @@ import { Add, Info } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import { getProveedores, createProveedor } from "@/services/proveedorService";
-import { IProveedor } from "@/types/IProveedor";
+import { IProveedor } from "@/schemas/proveedor";
 import { requiereCPP } from "@/lib/cpp-calculator";
 import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
 import { IProductoDisponible, OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal";
-import { ILocal } from "@/types/ILocal";
+import { ILocal } from "@/schemas/tienda";
 import { getLocales } from "@/services/localesService";
 import { usePermisos } from "@/utils/permisos_front";
 

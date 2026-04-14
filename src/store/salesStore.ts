@@ -1,4 +1,4 @@
-import { IProductoVenta } from "@/types/IProducto";
+import { IProductoVenta } from "@/schemas/producto";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

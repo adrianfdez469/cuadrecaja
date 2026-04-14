@@ -68,7 +68,7 @@ import { cambiarLocal, cambiarNegocio, getLocalesDisponibles } from "@/services/
 import { signOut, useSession } from "next-auth/react";
 import { useMessageContext } from "@/context/MessageContext";
 import { getNegocios } from "@/services/negocioServce";
-import { INegocio } from "@/types/INegocio";
+import { INegocio } from "@/schemas/negocio";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChangeCircleIcon from '@mui/icons-material/ChangeCircleOutlined';
 import NextWeekIcon from '@mui/icons-material/NextWeekOutlined';
@@ -76,7 +76,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
-import { TipoLocal } from "@/types/ILocal";
+import { TipoLocal } from "@/schemas/tienda";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
 import { Avatar } from "@mui/material";

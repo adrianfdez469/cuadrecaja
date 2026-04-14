@@ -32,7 +32,7 @@ import { createSell, getSells, removeSell, removeProductFromSale } from "@/servi
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useAppContext } from "@/context/AppContext";
-import { ICierrePeriodo } from "@/types/ICierre";
+import { ICierrePeriodo } from "@/schemas/cierre";
 import { usePermisos } from "@/utils/permisos_front";
 import {formatDateTime} from "@/utils/formatters";
 

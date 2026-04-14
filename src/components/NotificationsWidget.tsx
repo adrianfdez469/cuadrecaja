@@ -32,7 +32,7 @@ import {
   Message,
 } from '@mui/icons-material';
 import { NotificationApiService } from '@/services/notificationApiService';
-import { INotificacionConEstado, NivelImportancia, TipoNotificacion } from '@/types/INotificacion';
+import { INotificacionConEstado, NivelImportancia, TipoNotificacion } from '@/schemas/notificacion';
 import { useMessageContext } from '@/context/MessageContext';
 import { useNotificationCheck } from '@/hooks/useNotificationCheck';
 import dayjs from 'dayjs';

@@ -5,7 +5,7 @@ import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { moneyRegex } from '@/utils/regex'
 import { useMessageContext } from "@/context/MessageContext";
 import { formatCurrency } from "@/utils/formatters";
-import { ITransferDestination } from "@/types/ITransferDestination";
+import { ITransferDestination } from "@/schemas/transferDestination";
 import type { DiscountApplicationResult, DiscountApplicationResultItem } from "@/lib/discounts";
 
 interface IProps {

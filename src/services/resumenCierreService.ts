@@ -1,4 +1,4 @@
-import { ISummaryCierre } from "@/types/ICierre";
+import { ISummaryCierre } from "@/schemas/cierre";
 import axiosClient from "@/lib/axiosClient";
 
 const API_URL = (tiendaId) => `/api/cierre/${tiendaId}/summary`; // Ruta base del backend

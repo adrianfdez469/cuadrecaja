@@ -32,12 +32,12 @@ import { getProductosVenta } from "@/services/costoPrecioServices";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ProductModal } from "./components/ProductModal";
-import { ICategory } from "@/types/ICategoria";
-import { IProductoTiendaV2 } from "@/types/IProducto";
+import { ICategory } from "@/schemas/categoria";
+import { IProductoTiendaV2 } from "@/schemas/producto";
 import CartDrawer from "@/components/cartDrawer/CartDrawer";
 import PaymentModal from "./components/PaymentModal";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
-import { ICierrePeriodo } from "@/types/ICierre";
+import { ICierrePeriodo } from "@/schemas/cierre";
 import useConfirmDialog from "@/components/confirmDialog";
 import { createSell } from "@/services/sellService";
 import { useSalesStore } from "@/store/salesStore";
@@ -53,8 +53,8 @@ import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
 
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
 
-import { IProcessedData } from "@/types/IProcessedData";
-import { ITransferDestination } from "@/types/ITransferDestination";
+import { IProcessedData } from "@/schemas/processedData";
+import { ITransferDestination } from "@/schemas/transferDestination";
 import { fetchTransferDestinations } from "@/services/transferDestinationsService";
 import { CartContent } from "@/components/cartDrawer/components/cartContent";
 import { ProductProcessorDataRef } from "@/components/ProductProcessorData/ProductProcessorData";

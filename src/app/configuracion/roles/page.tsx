@@ -46,7 +46,7 @@ import {
 } from "@mui/icons-material";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
-import { IRol, ICreateRol, IUpdateRol, IPermiso } from "@/types/IRol";
+import { IRol, ICreateRol, IUpdateRol, IPermiso } from "@/schemas/rol";
 import { getRoles, createRol, updateRol, deleteRol, getPermisos, getPermisosTemplates } from "@/services/rolService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";

@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Box } from "@mui/material";
-import { ICierrePeriodo } from "@/types/ICierre";
+import { ICierrePeriodo } from "@/schemas/cierre";
 import { formatDate } from "@/utils/formatters";
 
 interface Props {

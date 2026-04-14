@@ -31,7 +31,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import { ICierreData } from "@/types/ICierre";
+import { ICierreData } from "@/schemas/cierre";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import {

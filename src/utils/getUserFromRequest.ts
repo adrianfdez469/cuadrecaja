@@ -1,5 +1,5 @@
-import { ILocal } from "@/types/ILocal";
-import { INegocio } from "@/types/INegocio";
+import { ILocal } from "@/schemas/tienda";
+import { INegocio } from "@/schemas/negocio";
 
 export default async function(req: Request): Promise<{
   id: string,

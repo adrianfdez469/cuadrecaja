@@ -39,7 +39,7 @@ import AlarmIcon from "@mui/icons-material/Alarm";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { getProductosVenta, updateProductosTienda } from "@/services/costoPrecioServices";
-import { IProductoTiendaV2 } from "@/types/IProducto";
+import { IProductoTiendaV2 } from "@/schemas/producto";
 import { exportInventoryToWord } from "@/utils/wordExport";
 import { exportInventarioToExcel } from "@/utils/excelExport";
 import { ProductMovementsModal } from "./components/ProductMovementsModal";

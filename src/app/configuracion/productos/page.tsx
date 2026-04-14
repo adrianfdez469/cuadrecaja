@@ -47,7 +47,7 @@ import {
   editProduct,
   fetchProducts,
 } from "@/services/productServise";
-import { IProducto } from "@/types/IProducto";
+import { IProducto } from "@/schemas/producto";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";

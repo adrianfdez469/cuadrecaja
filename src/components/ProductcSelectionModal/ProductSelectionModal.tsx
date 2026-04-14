@@ -22,12 +22,12 @@ import {
   TrendingUp,
   TrendingDown
 } from '@mui/icons-material';
-import { ITipoMovimiento } from '@/types/IMovimiento';
+import { ITipoMovimiento } from '@/schemas/movimiento';
 import TableProductosDisponibles from './tables/TableProductosDisponibles';
 import TableProductosSeleccionados from './tables/TableProductosSeleccionados';
 import { RejectionModal } from './RejectionModal';
 import { useMessageContext } from '@/context/MessageContext';
-import { IProcessedData } from '@/types/IProcessedData';
+import { IProcessedData } from '@/schemas/processedData';
 
 // Tipos para el componente
 export type OperacionTipo = 'ENTRADA' | 'SALIDA';

@@ -1,7 +1,7 @@
 import {NextRequest, NextResponse} from "next/server";
 import {prisma} from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import {IVenta} from "@/types/IVenta";
+import {IVenta} from "@/schemas/venta";
 import { applyDiscountsForSale } from "@/lib/discounts";
 
 // Tipos auxiliares estrictos para evitar usos de any

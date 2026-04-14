@@ -30,7 +30,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import { getResumenCierres } from "@/services/resumenCierreService";
 import { useAppContext } from "@/context/AppContext";
-import { ICierreData, ICierrePeriodo, ISummaryCierre } from "@/types/ICierre";
+import { ICierreData, ICierrePeriodo, ISummaryCierre } from "@/schemas/cierre";
 import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import { Close, AttachMoney, TrendingUp, TrendingDown, Assessment, Refresh, FilterList, ArrowForward, AccountBalance } from "@mui/icons-material";

@@ -1,6 +1,6 @@
 import axiosClient, { RetryConfig } from "@/lib/axiosClient";
-import { IVenta } from "@/types/IVenta";
-import { IProductoVenta } from "@/types/IProducto";
+import { IVenta } from "@/schemas/venta";
+import { IProductoVenta } from "@/schemas/producto";
 
 const API_URL = (tiendaId: string, cierreId: string) => `/api/venta/${tiendaId}/${cierreId}`;
 

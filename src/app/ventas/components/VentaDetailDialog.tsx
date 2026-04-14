@@ -35,7 +35,7 @@ import {
   ShoppingCart,
   Delete
 } from '@mui/icons-material';
-import { IVenta } from '@/types/IVenta';
+import { IVenta } from '@/schemas/venta';
 import { formatCurrency, formatDate, formatTimeShort } from '@/utils/formatters';
 
 interface VentaDetailDialogProps {

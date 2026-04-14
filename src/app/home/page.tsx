@@ -36,7 +36,7 @@ import {
 } from "@mui/icons-material";
 import { useMessageContext } from "@/context/MessageContext";
 import { useRouter } from "next/navigation";
-import { TipoLocal } from "@/types/ILocal";
+import { TipoLocal } from "@/schemas/tienda";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
 import NotificationsWidget from "@/components/NotificationsWidget";

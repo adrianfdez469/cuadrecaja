@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { IProveedorCreate } from '@/types/IProveedor';
+import { IProveedorCreate } from '@/schemas/proveedor';
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from '@/utils/permisos_back';
 

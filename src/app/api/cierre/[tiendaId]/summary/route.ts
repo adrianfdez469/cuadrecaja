@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ISummaryCierre } from "@/types/ICierre";
+import { ISummaryCierre } from "@/schemas/cierre";
 import {startOfNextDay} from "@/utils/date";
 
 type Params = { tiendaId: string };
