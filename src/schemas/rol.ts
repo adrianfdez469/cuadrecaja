@@ -5,12 +5,13 @@ export const rolSchema = z.object({
   nombre: z.string().min(1, 'El nombre es requerido'),
   descripcion: z.string().nullable().optional(),
   permisos: z.string(),
-  negocioId: z.string().uuid(),
+  isGlobal: z.boolean().default(false),
+  negocioId: z.string().uuid().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
 
-export const createRolSchema = rolSchema.omit({ id: true, negocioId: true, createdAt: true, updatedAt: true });
+export const createRolSchema = rolSchema.omit({ id: true, negocioId: true, isGlobal: true, createdAt: true, updatedAt: true });
 export const updateRolSchema = createRolSchema.partial();
 
 export const permisoSchema = z.object({

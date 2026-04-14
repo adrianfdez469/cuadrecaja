@@ -134,18 +134,21 @@ model Rol {
   nombre      String // Nombre del rol (ej: "Vendedor", "Administrador")
   descripcion String? // Descripción opcional del rol
   permisos    String // String con permisos separados por "|" (ej: "pos.vender|pos.cancelarventa")
+  isGlobal    Boolean  @default(false) // Si true, el rol es global (disponible para todos los negocios)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  negocio   Negocio @relation(fields: [negocioId], references: [id])
-  negocioId String
+  negocio   Negocio? @relation(fields: [negocioId], references: [id])
+  negocioId String? // Null cuando isGlobal = true
 
   // Relación con las asignaciones usuario-tienda
   usuariosTiendas UsuarioTienda[]
 
-  // Índice de unicidad compuesto: nombre único por negocio
+  // Índice de unicidad compuesto: nombre único por negocio (para roles no globales)
+  // Los roles globales (negocioId = NULL) están protegidos por un partial unique index definido en la migración SQL
   @@unique([nombre, negocioId])
   @@index([negocioId])
+  @@index([isGlobal])
 }
 
 // Representa una categoría de productos (ej. Electrónica, Ropa, etc.)

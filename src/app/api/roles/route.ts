@@ -29,11 +29,15 @@ export async function GET(request: NextRequest) {
 
     const roles = await prisma.rol.findMany({
       where: {
-        negocioId: negocioId
+        OR: [
+          { isGlobal: true },
+          { negocioId: negocioId },
+        ]
       },
-      orderBy: {
-        nombre: 'asc'
-      }
+      orderBy: [
+        { isGlobal: 'desc' },
+        { nombre: 'asc' },
+      ]
     });
 
     return NextResponse.json(roles);
@@ -91,6 +95,7 @@ export async function POST(request: NextRequest) {
         nombre,
         descripcion,
         permisos,
+        isGlobal: false,
         negocioId: user.negocio.id
       }
     });
