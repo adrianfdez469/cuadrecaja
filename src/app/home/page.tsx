@@ -437,8 +437,8 @@ const HomePage = () => {
 
         <Divider sx={{ my: 1 }} />
         {loadingNegocioStats ? <CircularProgress size="20px" /> : (
-        <Box 
-          display="flex" 
+        <Box
+          display="flex"
           flexDirection={{ xs: "column", sm: "row" }}
           flexWrap="wrap"
           gap={{ xs: 1, sm: 1, md: 2 }}
@@ -506,7 +506,7 @@ const HomePage = () => {
 
       {/* Widget de Notificaciones */}
       <Box sx={{ mb: 3 }}>
-        <SuspensionSummary />
+        {user.rol === 'SUPER_ADMIN' && <SuspensionSummary />}
         <SubscriptionWarning />
         <ExpiringProductsAlert tiendaId={user.localActual.id} />
         <NotificationsWidget maxNotifications={5} showBadge={true} />
