@@ -144,7 +144,8 @@ export default function ProductList() {
         showMessage('Producto eliminado', 'success');
       } catch (error) {
         console.error(error);
-        showMessage('Error al intentar eliminar el producto. Es probable que esté en uso!', 'error');
+        const msg = error.response?.data?.error || 'Error al intentar eliminar el producto';
+        showMessage(msg, 'error');
       } finally {
         await loadProducts();
       }

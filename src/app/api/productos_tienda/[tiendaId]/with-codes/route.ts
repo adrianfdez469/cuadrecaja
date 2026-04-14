@@ -10,7 +10,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         tiendaId: tiendaId,
         precio: {
           gt: 0 // Solo productos con precio mayor a 0
-        }
+        },
+        producto: { deletedAt: null }
       },
       include: {
         producto: {

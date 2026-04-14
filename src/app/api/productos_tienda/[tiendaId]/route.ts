@@ -32,7 +32,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
 
     const productosTienda = await prisma.productoTienda.findMany({
       where: {
-        tiendaId: tiendaId
+        tiendaId: tiendaId,
+        producto: { deletedAt: null }
       },
       include: {
         producto: {

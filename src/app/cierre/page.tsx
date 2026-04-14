@@ -22,7 +22,7 @@ import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ICierreData, ICierrePeriodo } from "@/schemas/cierre";
 import useConfirmDialog from "@/components/confirmDialog";
-import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
+import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre";
 import { useSalesStore } from "@/store/salesStore";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";

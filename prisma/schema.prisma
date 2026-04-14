@@ -189,6 +189,8 @@ model Producto {
 
   codigosProducto CodigoProducto[]
 
+  deletedAt DateTime? // null = activo, fecha = soft delete
+
   // indice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
 }

@@ -31,7 +31,8 @@ export async function GET() {
         nombre: "asc",
       },
       where: {
-        negocioId: user.negocio.id
+        negocioId: user.negocio.id,
+        deletedAt: null
       }
     });
     return NextResponse.json(productos);
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
       );
     }
     const [productosCounter, negocio] = await Promise.all([
-      prisma.producto.count({ where: { negocioId: user.negocio.id } }),
+      prisma.producto.count({ where: { negocioId: user.negocio.id, deletedAt: null } }),
       prisma.negocio.findUnique({
         where: { id: user.negocio.id },
         include: { plan: { select: { limiteProductos: true } } }

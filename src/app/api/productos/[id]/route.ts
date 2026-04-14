@@ -24,15 +24,31 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     // Verificar si el producto existe antes de eliminarlo
     const producto = await prisma.producto.findUnique({
-      where: { id, negocioId: user.negocio.id },
+      where: { id, negocioId: user.negocio.id, deletedAt: null },
     });
 
     if (!producto) {
       return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
     }
 
-    await prisma.producto.delete({
+    // Verificar que no tenga stock en ninguna tienda
+    const conStock = await prisma.productoTienda.findFirst({
+      where: { productoId: id, existencia: { gt: 0 } }
+    });
+    if (conStock) {
+      return NextResponse.json(
+        { error: "El producto tiene existencias en una o más tiendas. Ajusta el stock a 0 antes de eliminar." },
+        { status: 400 }
+      );
+    }
+
+    // Soft delete: marcar como eliminado y liberar el nombre único
+    await prisma.producto.update({
       where: { id },
+      data: {
+        deletedAt: new Date(),
+        nombre: `${producto.nombre}_ELIMINADO_${Date.now()}`
+      }
     });
 
     return NextResponse.json({ message: "Producto eliminado correctamente" }, { status: 200 });

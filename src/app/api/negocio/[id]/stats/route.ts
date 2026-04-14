@@ -63,9 +63,9 @@ export async function GET(
         }
       }),
       
-      // Contar productos del negocio
+      // Contar productos del negocio (excluye soft-deleted)
       prisma.producto.count({
-        where: { negocioId: id }
+        where: { negocioId: id, deletedAt: null }
       })
     ]);
 
