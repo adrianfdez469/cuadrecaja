@@ -24,6 +24,7 @@ const ALLOWED_ROUTES = [
   '/activar',
   '/subscription-expired',
   '/descargar',
+  '/forbidden',
   '/api/auth',
   '/api/subscription/status',
   '/api/notificaciones/activas',
