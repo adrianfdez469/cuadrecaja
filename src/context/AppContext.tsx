@@ -65,7 +65,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         gotToPath('/home');
       }
     }
-  }, [status, pathname, isAuth]);
+  }, [status, pathname, isAuth, session]);
 
   return (
     <AppContext.Provider value={{

@@ -300,6 +300,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const handleSelectNegocio = async (selectedNegocio) => {
+    if (cambiandoNegocio) return;
+    handleCloseCambiarNegocio();
     setCambiandoNegocio(true);
     setNegocioRecienCambiado(true);
     selectorLocalAbiertoRef.current = false; // Reset del ref
@@ -347,7 +349,6 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       showMessage("No se pudo actualizar el negocio", "error");
       setNegocioRecienCambiado(false);
     }
-    handleCloseCambiarNegocio();
 
     // Usar setTimeout para asegurar que el estado se actualice después del render
     setTimeout(() => {
