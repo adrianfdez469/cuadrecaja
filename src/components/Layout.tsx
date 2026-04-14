@@ -186,7 +186,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [cambiandoNegocio, setCambiandoNegocio] = useState(false);
   const [negocioRecienCambiado, setNegocioRecienCambiado] = useState(false);
   const selectorLocalAbiertoRef = useRef(false);
-  const { update, data: session } = useSession();
+  const { update, data: session, status: sessionStatus } = useSession();
   const { showMessage } = useMessageContext();
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   const [loadingNegocios, setLoadingNegocios] = useState(false);
@@ -536,7 +536,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     // 1. No hay sesión
     // 2. Estamos online (para evitar problemas offline)
     // 3. No estuvimos offline recientemente (para evitar redirecciones después de reconectar)
-    if (!session && isOnline && !wasOffline) {
+    if (!session && sessionStatus !== 'loading' && isOnline && !wasOffline) {
       goToLogin();
     }
   }, [session, isOnline, wasOffline]);
