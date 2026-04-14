@@ -49,7 +49,7 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useAppContext } from "@/context/AppContext";
-import { ITransferDestination } from "@/types/ITransferDestination";
+import { ITransferDestination } from "@/schemas/transferDestination";
 
 export default function DestinosTransferenciaPage() {
   const [destinations, setDestinations] = useState<ITransferDestination[]>([]);
@@ -134,7 +134,7 @@ export default function DestinosTransferenciaPage() {
         await deleteTransferDestination(id);
         showMessage('Destino de transferencia eliminado', 'success');
       } catch (error) {
-        console.log(error);
+        console.error(error);
         showMessage('Error al intentar eliminar el destino de transferencia. Es probable que esté en uso!', 'error');
       } finally {
         await loadDestinations();

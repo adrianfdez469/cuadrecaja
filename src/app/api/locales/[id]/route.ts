@@ -69,7 +69,7 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json(
       { error: "Error al eliminar la tienda" },
       { status: 500 }
@@ -96,7 +96,6 @@ export async function PUT(
     }
 
     const { nombre, tipo, usuariosRoles } = await req.json();
-    console.log('Actualizando con usuariosRoles:', usuariosRoles);
 
     const updatedTienda = await prisma.tienda.update({
       where: { id },
@@ -145,7 +144,6 @@ export async function PUT(
           where: { id: usuarioTienda.usuario.id },
           data: { localActualId: id }
         });
-        console.log(`✅ LocalActual asignado automáticamente al usuario ${usuarioTienda.usuario.nombre} (ID: ${usuarioTienda.usuario.id})`);
       }
     }
 
@@ -158,7 +156,7 @@ export async function PUT(
     
     return NextResponse.json(tiendaFormateada, { status: 201 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     return NextResponse.json(
       { error: "Error al actualizar la tienda" },

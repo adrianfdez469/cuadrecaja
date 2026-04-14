@@ -1,5 +1,5 @@
-import { IProveedor, IProveedorCreate, IProveedorUpdate } from "@/types/IProveedor";
-import axios from "axios";
+import { IProveedor, IProveedorCreate, IProveedorUpdate } from "@/schemas/proveedor";
+import axiosClient from "@/lib/axiosClient";
 
 const API_URL = "/api/proveedores"; // Ruta base del backend
 
@@ -9,25 +9,25 @@ export const getProveedores = async (nombre?: string): Promise<IProveedor[]> => 
     params.append('nombre', nombre);
   }
   
-  const response = await axios.get<IProveedor[]>(`${API_URL}?${params.toString()}`);
+  const response = await axiosClient.get<IProveedor[]>(`${API_URL}?${params.toString()}`);
   return response.data;
 };
 
 export const getProveedorById = async (id: string): Promise<IProveedor> => {
-  const response = await axios.get<IProveedor>(`${API_URL}/${id}`);
+  const response = await axiosClient.get<IProveedor>(`${API_URL}/${id}`);
   return response.data;
 };
 
 export const createProveedor = async (proveedor: IProveedorCreate): Promise<IProveedor> => {
-  const response = await axios.post<IProveedor>(API_URL, proveedor);
+  const response = await axiosClient.post<IProveedor>(API_URL, proveedor);
   return response.data;
 };
 
 export const updateProveedor = async (id: string, proveedor: IProveedorUpdate): Promise<IProveedor> => {
-  const response = await axios.put<IProveedor>(`${API_URL}/${id}`, proveedor);
+  const response = await axiosClient.put<IProveedor>(`${API_URL}/${id}`, proveedor);
   return response.data;
 };
 
 export const deleteProveedor = async (id: string): Promise<void> => {
-  await axios.delete(`${API_URL}/${id}`);
+  await axiosClient.delete(`${API_URL}/${id}`);
 }; 

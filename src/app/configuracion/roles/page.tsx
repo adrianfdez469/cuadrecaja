@@ -43,12 +43,12 @@ import {
   Add,
   Security,
   InfoOutlined,
+  LockOutlined,
 } from "@mui/icons-material";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
-import { IRol, ICreateRol, IUpdateRol, IPermiso } from "@/types/IRol";
-import { getRoles, createRol, updateRol, deleteRol } from "@/services/rolService";
-import axios from "axios";
+import { IRol, ICreateRol, IUpdateRol, IPermiso } from "@/schemas/rol";
+import { getRoles, createRol, updateRol, deleteRol, getPermisos, getPermisosTemplates } from "@/services/rolService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 
@@ -102,13 +102,13 @@ export default function RolesPage() {
   const fetchPermisos = async () => {
     setPermisosLoading(true);
     try {
-      const permisosResponse = await axios.get('/api/permisos');
-      const permisosTemplates = await axios.get('/api/permisos/templates');
+      const permisosResponse = await getPermisos();
+      const permisosTemplates = await getPermisosTemplates();
 
       
 
-      setPermisos(permisosResponse.data);
-      setTemplates(permisosTemplates.data);
+      setPermisos(permisosResponse);
+      setTemplates(permisosTemplates);
     } catch (error) {
       console.error("Error al cargar permisos:", error);
       showMessage('Error al cargar los permisos del sistema', 'error');
@@ -309,7 +309,10 @@ export default function RolesPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  roles.map((rol) => (
+                  roles.map((rol) => {
+                    const esSuperAdmin = user?.rol === 'SUPER_ADMIN';
+                    const puedeEditar = !rol.isGlobal || esSuperAdmin;
+                    return (
                     <TableRow key={rol.id} hover>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1}>
@@ -317,6 +320,15 @@ export default function RolesPage() {
                           <Typography variant="body2" fontWeight="medium">
                             {rol.nombre}
                           </Typography>
+                          {rol.isGlobal && (
+                            <Chip
+                              icon={<LockOutlined sx={{ fontSize: '14px !important' }} />}
+                              label="Global"
+                              size="small"
+                              color="secondary"
+                              variant="outlined"
+                            />
+                          )}
                         </Box>
                       </TableCell>
                       <TableCell>
@@ -346,27 +358,34 @@ export default function RolesPage() {
                         </Box>
                       </TableCell>
                       <TableCell align="center">
-                        <Tooltip title="Editar">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenDialog(rol)}
-                            color="primary"
-                          >
-                            <Edit fontSize="small" />
-                          </IconButton>
+                        <Tooltip title={puedeEditar ? "Editar" : "Solo un superadmin puede modificar roles globales"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenDialog(rol)}
+                              color="primary"
+                              disabled={!puedeEditar}
+                            >
+                              <Edit fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
-                        <Tooltip title="Eliminar">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDelete(rol)}
-                            color="error"
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
+                        <Tooltip title={rol.isGlobal ? "Los roles globales no pueden ser eliminados" : "Eliminar"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDelete(rol)}
+                              color="error"
+                              disabled={rol.isGlobal}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

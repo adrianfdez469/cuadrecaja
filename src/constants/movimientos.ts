@@ -1,4 +1,4 @@
-import { ITipoMovimiento } from '@/types/IMovimiento';
+import { ITipoMovimiento } from '@/schemas/movimiento';
 
 // Todos los tipos de movimiento disponibles
 export const TIPOS_MOVIMIENTO: ITipoMovimiento[] = [

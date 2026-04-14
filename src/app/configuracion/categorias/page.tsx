@@ -28,11 +28,13 @@ import {
   DialogContent,
   DialogActions,
   Collapse,
-  Divider
+  Divider,
+  FormControlLabel,
+  Switch
 } from "@mui/material";
-import { 
-  Delete, 
-  Edit, 
+import {
+  Delete,
+  Edit,
   Add,
   Category,
   Palette,
@@ -41,19 +43,16 @@ import {
   Search,
   Refresh,
   ExpandLess,
-  ExpandMore
+  ExpandMore,
+  Public
 } from "@mui/icons-material";
 import { fetchCategories, createCategory, updateCategory, deleteCategory } from "@/services/categoryService";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
-
-interface ICategory {
-  id: string;
-  nombre: string;
-  color: string;
-}
+import { useSession } from "next-auth/react";
+import type { ICategory } from "@/schemas/categoria";
 
 export default function CategoriasPage() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -61,11 +60,15 @@ export default function CategoriasPage() {
   const [editingCategory, setEditingCategory] = useState<ICategory | null>(null);
   const [nombre, setNombre] = useState("");
   const [color, setColor] = useState("#1976d2");
+  const [createAsGlobal, setCreateAsGlobal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const { showMessage } = useMessageContext();
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
-  
+
+  const { data: session } = useSession();
+  const isSuperAdmin = session?.user?.rol === "SUPER_ADMIN";
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -89,9 +92,11 @@ export default function CategoriasPage() {
   };
 
   const handleOpen = (category: ICategory | null = null) => {
+    if (category?.esGlobal && !isSuperAdmin) return;
     setEditingCategory(category);
     setNombre(category ? category.nombre : "");
     setColor(category ? category.color : "#1976d2");
+    setCreateAsGlobal(false);
     setOpen(true);
   };
 
@@ -100,6 +105,7 @@ export default function CategoriasPage() {
     setEditingCategory(null);
     setNombre("");
     setColor("#1976d2");
+    setCreateAsGlobal(false);
   };
 
   const handleSave = async () => {
@@ -108,7 +114,7 @@ export default function CategoriasPage() {
         await updateCategory(editingCategory.id, nombre, color);
         showMessage('Categoría actualizada exitosamente', 'success');
       } else {
-        await createCategory(nombre, color);
+        await createCategory(nombre, color, isSuperAdmin && createAsGlobal);
         showMessage('Categoría creada exitosamente', 'success');
       }
       await loadCategories();
@@ -125,7 +131,7 @@ export default function CategoriasPage() {
         await deleteCategory(id);
         showMessage('Categoría eliminada', 'success');
       } catch (error) {
-        console.log(error);
+        console.error(error);
         showMessage('Error al intentar eliminar la categoría. Es probable que esté en uso!', 'error');
       } finally {
         await loadCategories();
@@ -191,18 +197,18 @@ export default function CategoriasPage() {
               minHeight: isMobile ? 32 : 48,
             }}
           >
-            {React.isValidElement(icon) 
-              ? React.cloneElement(icon, { 
-                  fontSize: isMobile ? "small" : "large" 
+            {React.isValidElement(icon)
+              ? React.cloneElement(icon, {
+                  fontSize: isMobile ? "small" : "large"
                 } as Record<string, unknown>)
               : icon
             }
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "subtitle1" : "h4"} 
+            <Typography
+              variant={isMobile ? "subtitle1" : "h4"}
               fontWeight="bold"
-              sx={{ 
+              sx={{
                 fontSize: isMobile ? '1rem' : '2rem',
                 lineHeight: 1.2,
                 wordBreak: 'break-all'
@@ -210,10 +216,10 @@ export default function CategoriasPage() {
             >
               {value}
             </Typography>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
+              sx={{
                 fontSize: isMobile ? '0.6875rem' : '0.875rem',
                 lineHeight: 1.2
               }}
@@ -308,9 +314,9 @@ export default function CategoriasPage() {
       )}
 
       {/* Lista de categorías */}
-      <ContentCard 
+      <ContentCard
         title="Lista de Categorías"
-        subtitle={!isMobile ? "Haz clic en cualquier categoría para editarla" : undefined}
+        subtitle={!isMobile ? "Las categorías globales son compartidas por todos los negocios" : undefined}
         headerActions={
           <TextField
             size="small"
@@ -324,7 +330,7 @@ export default function CategoriasPage() {
                 </InputAdornment>
               ),
             }}
-            sx={{ 
+            sx={{
               minWidth: isMobile ? 160 : 250,
               maxWidth: isMobile ? 200 : 'none'
             }}
@@ -349,54 +355,72 @@ export default function CategoriasPage() {
           // Vista móvil con cards más densos
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
-              {filteredCategories.map((categoria) => (
-                <Card 
-                  key={categoria.id}
-                  onClick={() => handleOpen(categoria)}
-                  sx={{
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                    <Stack spacing={1.5}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Box
-                            sx={{
-                              width: 20,
-                              height: 20,
-                              borderRadius: 1,
-                              bgcolor: categoria.color,
-                              border: '1px solid',
-                              borderColor: 'divider'
-                            }}
-                          />
-                          <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
-                            {categoria.nombre}
-                          </Typography>
+              {filteredCategories.map((categoria) => {
+                const isGlobalReadOnly = categoria.esGlobal && !isSuperAdmin;
+                return (
+                  <Card
+                    key={categoria.id}
+                    onClick={() => handleOpen(categoria)}
+                    sx={{
+                      cursor: isGlobalReadOnly ? 'default' : 'pointer',
+                      '&:hover': {
+                        backgroundColor: isGlobalReadOnly ? undefined : 'action.hover',
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                      <Stack spacing={1.5}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Box
+                              sx={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: 1,
+                                bgcolor: categoria.color,
+                                border: '1px solid',
+                                borderColor: 'divider'
+                              }}
+                            />
+                            <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                              {categoria.nombre}
+                            </Typography>
+                            {categoria.esGlobal && (
+                              <Chip
+                                icon={<Public sx={{ fontSize: '0.75rem !important' }} />}
+                                label="Global"
+                                size="small"
+                                color="info"
+                                variant="outlined"
+                                sx={{ fontSize: '0.65rem', height: 18, '& .MuiChip-label': { px: 0.5 } }}
+                              />
+                            )}
+                          </Box>
+                          <Tooltip title={isGlobalReadOnly ? "Las categorías globales no se pueden eliminar" : "Eliminar categoría"}>
+                            <span>
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(categoria.id);
+                                }}
+                                size="small"
+                                color="error"
+                                disabled={isGlobalReadOnly}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                         </Box>
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(categoria.id);
-                          }}
-                          size="small"
-                          color="error"
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </Box>
-                      
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
-                        Color: {categoria.color}
-                      </Typography>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
+
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
+                          Color: {categoria.color}
+                        </Typography>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </Stack>
           </Box>
         ) : (
@@ -411,99 +435,118 @@ export default function CategoriasPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredCategories.map((categoria) => (
-                  <TableRow 
-                    key={categoria.id}
-                    onClick={() => handleOpen(categoria)}
-                    sx={{
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
-                      },
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                      },
-                    }}
-                  >
-                    <TableCell>
-                      <Box display="flex" alignItems="center" gap={1.5}>
-                        <Box
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: 1,
-                            bgcolor: categoria.color,
-                            border: '1px solid',
-                            borderColor: 'divider'
-                          }}
-                        />
-                        <Typography variant="body2" fontWeight="medium">
-                          {categoria.nombre}
+                {filteredCategories.map((categoria) => {
+                  const isGlobalReadOnly = categoria.esGlobal && !isSuperAdmin;
+                  return (
+                    <TableRow
+                      key={categoria.id}
+                      onClick={() => handleOpen(categoria)}
+                      sx={{
+                        cursor: isGlobalReadOnly ? 'default' : 'pointer',
+                        '&:hover': {
+                          backgroundColor: isGlobalReadOnly ? undefined : 'action.hover',
+                        },
+                        '&:nth-of-type(odd)': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                        },
+                      }}
+                    >
+                      <TableCell>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                          <Box
+                            sx={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 1,
+                              bgcolor: categoria.color,
+                              border: '1px solid',
+                              borderColor: 'divider'
+                            }}
+                          />
+                          <Typography variant="body2" fontWeight="medium">
+                            {categoria.nombre}
+                          </Typography>
+                          {categoria.esGlobal && (
+                            <Chip
+                              icon={<Public sx={{ fontSize: '0.75rem !important' }} />}
+                              label="Global"
+                              size="small"
+                              color="info"
+                              variant="outlined"
+                              sx={{ fontSize: '0.7rem' }}
+                            />
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                          {categoria.color}
                         </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                        {categoria.color}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Stack direction="row" spacing={0.5} justifyContent="center">
-                        <Tooltip title="Editar categoría">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpen(categoria);
-                            }}
-                            size="small"
-                            color="primary"
-                          >
-                            <Edit fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar categoría">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(categoria.id);
-                            }}
-                            size="small"
-                            color="error"
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack direction="row" spacing={0.5} justifyContent="center">
+                          <Tooltip title={isGlobalReadOnly ? "Las categorías globales no se pueden modificar" : "Editar categoría"}>
+                            <span>
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpen(categoria);
+                                }}
+                                size="small"
+                                color="primary"
+                                disabled={isGlobalReadOnly}
+                              >
+                                <Edit fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title={isGlobalReadOnly ? "Las categorías globales no se pueden eliminar" : "Eliminar categoría"}>
+                            <span>
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(categoria.id);
+                                }}
+                                size="small"
+                                color="error"
+                                disabled={isGlobalReadOnly}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
         )}
       </ContentCard>
-      
+
       {/* Dialog para crear/editar categoría */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>{editingCategory ? "Editar Categoría" : "Nueva Categoría"}</DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
-            <TextField 
-              fullWidth 
-              label="Nombre" 
+            <TextField
+              fullWidth
+              label="Nombre"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               required
               placeholder="Ej: Bebidas, Snacks, Limpieza..."
             />
-            
+
             <Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Color de la categoría
               </Typography>
               <Box display="flex" alignItems="center" gap={2}>
-                <TextField 
-                  type="color" 
+                <TextField
+                  type="color"
                   value={color}
                   onChange={(e) => setColor(e.target.value)}
                   sx={{ width: 80 }}
@@ -523,10 +566,10 @@ export default function CategoriasPage() {
                 >
                   <ColorLens sx={{ color: 'white', fontSize: 16 }} />
                 </Box>
-                <Chip 
+                <Chip
                   label={nombre || "Vista previa"}
                   size="small"
-                  sx={{ 
+                  sx={{
                     bgcolor: color,
                     color: 'white',
                     fontWeight: 'medium'
@@ -534,15 +577,35 @@ export default function CategoriasPage() {
                 />
               </Box>
             </Box>
+
+            {isSuperAdmin && !editingCategory && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={createAsGlobal}
+                    onChange={(e) => setCreateAsGlobal(e.target.checked)}
+                    color="info"
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2">Categoría Global</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Disponible para todos los negocios, solo editable por superadmins
+                    </Typography>
+                  </Box>
+                }
+              />
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} color="secondary">
             Cancelar
           </Button>
-          <Button 
-            onClick={handleSave} 
-            variant="contained" 
+          <Button
+            onClick={handleSave}
+            variant="contained"
             color="primary"
             disabled={!nombre.trim()}
           >

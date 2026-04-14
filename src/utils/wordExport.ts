@@ -1,6 +1,6 @@
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, WidthType, AlignmentType, TextRun, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
-import { IProductoTiendaV2 } from '@/types/IProducto';
+import { IProductoTiendaV2 } from '@/schemas/producto';
 
 interface ExportInventoryOptions {
   productos: IProductoTiendaV2[];

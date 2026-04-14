@@ -48,13 +48,13 @@ import {
   Message
 } from "@mui/icons-material";
 import { NotificationApiService } from "@/services/notificationApiService";
-import { INotificacion, INotificacionFormData, INotificacionStats, NivelImportancia, TipoNotificacion } from "@/types/INotificacion";
+import { INotificacion, INotificacionFormData, INotificacionStats, NivelImportancia, TipoNotificacion } from "@/schemas/notificacion";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useMessageContext } from "@/context/MessageContext";
 import dayjs from 'dayjs';
-import { INegocio } from "@/types/INegocio";
+import { INegocio } from "@/schemas/negocio";
 
 export default function NotificacionesPage() {
   const [notificaciones, setNotificaciones] = useState<INotificacion[]>([]);

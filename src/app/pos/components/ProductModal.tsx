@@ -11,7 +11,7 @@ import {
   Fab,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import { IProductoTiendaV2 } from "@/types/IProducto";
+import { IProductoTiendaV2 } from "@/schemas/producto";
 import { QuantityDialog } from "./QuantityDialog";
 import { ProductQuickActions } from "./ProductQuickActions";
 import { useCartStore } from "@/store/cartStore";

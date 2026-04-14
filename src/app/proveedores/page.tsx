@@ -34,7 +34,7 @@ import {
   LocalShipping,
   MonetizationOn,
 } from "@mui/icons-material";
-import { IProveedorConsignacion } from "@/types/IProveedorConsignación";
+import { IProveedorConsignacion } from "@/schemas/proveedor";
 import { getProveedoresConsignacion } from "@/services/preoveedoresService";
 
 export default function ProveedoresPage() {

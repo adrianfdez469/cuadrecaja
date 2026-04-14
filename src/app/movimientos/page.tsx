@@ -45,7 +45,7 @@ import { AddMovimientoDialog } from "./components/addMovimientoDialog";
 import { useAppContext } from "@/context/AppContext";
 import { cretateBatchMovimientos, findMovimientos, getMovimientosProductosEnviados, rejectMovimiento } from "@/services/movimientoService";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
-import { ITipoMovimiento } from "@/types/IMovimiento";
+import { ITipoMovimiento } from "@/schemas/movimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatNumber, formatDateTime } from '@/utils/formatters';
@@ -168,7 +168,6 @@ export default function MovimientosPage() {
 
     if(result.length > 0){
       pendienteRecepcionSetOnConfirm((prods) => {
-        console.log('prods',prods);
         // Crear documento de tipo TRASPASO_ENTRADA con los productos
         crearMovimientosRecepción(prods);
       })
@@ -203,15 +202,14 @@ export default function MovimientosPage() {
       fecthPendientesRecep();
 
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage("No se pudo crear los movimientos de entrada", "error");
     } finally {
       setLoadingData(false);
     }
   }
 
-  const loadPendientesRecep = async (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string}): Promise<IProductoDisponible[]> => {
-    console.log(operacion, take, skip, filter);
+  const loadPendientesRecep = async (_operacion: OperacionTipo, _take: number, _skip: number, _filter?: { categoriaId?: string, text?: string}): Promise<IProductoDisponible[]> => {
     
     return pendienteRecepcion.map((item) => {
       return {

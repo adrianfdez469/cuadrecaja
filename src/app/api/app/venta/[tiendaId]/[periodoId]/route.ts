@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { getSessionFromRequest } from '@/utils/authFromRequest';
 import { applyDiscountsForSale } from '@/lib/discounts';
-import { IVenta } from '@/types/IVenta';
+import { IVenta } from '@/schemas/venta';
 
 // Tipos auxiliares
 interface IncomingProduct {

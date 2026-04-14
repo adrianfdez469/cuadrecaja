@@ -1,5 +1,5 @@
-import { IProveedorConsignacion } from "@/types/IProveedorConsignación";
-import axios from "axios";
+import { IProveedorConsignacion } from "@/schemas/proveedor";
+import axiosClient from "@/lib/axiosClient";
 
 
 const API_URL = "/api/proveedores-consignadores";
@@ -37,7 +37,7 @@ export const findUltimaLiquidacion = (acc, item) => {
 }
 
 export const getProveedoresConsignacion = async (): Promise<IProveedorConsignacion[]> => {
-    const response = await axios.get(API_URL);
+    const response = await axiosClient.get(API_URL);
     const data = response.data.map((proveedor) => {
         const pclc = proveedor.prodProveedorLiquidacion;
         const dataProveedor:IProveedorConsignacion = {
@@ -57,11 +57,11 @@ export const getProveedoresConsignacion = async (): Promise<IProveedorConsignaci
 }
 
 export const getProveedoresConsignacionById = async (id: string) => {
-    const response = await axios.get(`${API_URL}/proveedor/${id}`);
+    const response = await axiosClient.get(`${API_URL}/proveedor/${id}`);
     return response.data;
 }
 
 export const liquidarProveedorConsignacion = async (cierreId: string, proveedorId: string) => {
-    const response = await axios.put(`${API_URL}/cierre/${cierreId}/${proveedorId}`);
+    const response = await axiosClient.put(`${API_URL}/cierre/${cierreId}/${proveedorId}`);
     return response.data;
 }

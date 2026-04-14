@@ -104,7 +104,6 @@ export default function ChatbotWidget() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Respuesta del chatbot:', data);
         
         if (data.success && data.response) {
           return data.response;

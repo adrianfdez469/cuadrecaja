@@ -1,135 +1,71 @@
-"use client"; // Asegúrate de que AppProvider sea un Client Component
+"use client";
 
-import { createContext, useContext, useState } from "react";
-import { Alert, AlertColor, Snackbar, Stack, Box, Typography, LinearProgress } from "@mui/material";
-
-interface PersistentMessage {
-  id: string;
-  text: string;
-  severity: AlertColor;
-  persistent?: boolean;
-  progress?: number; // Para mostrar progreso (0-100)
-}
+import React, { createContext, useContext } from "react";
+import { AlertColor, IconButton } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { SnackbarProvider, useSnackbar, closeSnackbar, SnackbarKey } from "notistack";
 
 const MessageContext = createContext<{
-  showMessage: (text: string, severity: AlertColor, persistent?: boolean, id?: string) => void,
-  updateMessage: (id: string, text: string, progress?: number) => void,
-  removeMessage: (id: string) => void,
+  showMessage: (text: string, severity: AlertColor, persistent?: boolean, id?: string) => void;
+  removeMessage: (id: string) => void;
 }>(null);
 
-export function MessageProvider({ children }: { children: React.ReactNode }) {
-  
-  const [showInfo, setShowInfo] = useState(false);
-  const [textInfo, setTextInfo] = useState("");
-  const [severityInfo, setSeverityInfo] = useState<AlertColor>("success");
-  const [persistentMessages, setPersistentMessages] = useState<PersistentMessage[]>([]);
+function CloseButton({ snackbarKey }: { snackbarKey: SnackbarKey }) {
+  return (
+    <IconButton
+      size="small"
+      color="inherit"
+      onClick={() => closeSnackbar(snackbarKey)}
+      sx={{ alignSelf: "center" }}
+    >
+      <CloseIcon fontSize="small" />
+    </IconButton>
+  );
+}
+
+function MessageProviderInner({ children }: { children: React.ReactNode }) {
+  const { enqueueSnackbar } = useSnackbar();
 
   const showMessage = (text: string, severity: AlertColor, persistent: boolean = false, id?: string) => {
-    if (persistent && id) {
-      // Mensaje persistente
-      setPersistentMessages(prev => {
-        const existing = prev.find(msg => msg.id === id);
-        if (existing) {
-          // Actualizar mensaje existente
-          return prev.map(msg => msg.id === id ? { ...msg, text, severity } : msg);
-        } else {
-          // Agregar nuevo mensaje persistente
-          return [...prev, { id, text, severity, persistent: true }];
-        }
-      });
-    } else {
-      // Mensaje temporal normal
-      setTextInfo(text);
-      setSeverityInfo(severity);
-      setShowInfo(true);
+    const isError = severity === "error";
+    const shouldPersist = persistent || isError;
 
-      setTimeout(() => {
-        setShowInfo(false);
-      }, 3000);
-    }
-  }
-
-  const updateMessage = (id: string, text: string, progress?: number) => {
-    setPersistentMessages(prev => 
-      prev.map(msg => 
-        msg.id === id 
-          ? { ...msg, text, progress }
-          : msg
-      )
-    );
-  }
+    enqueueSnackbar(text, {
+      variant: severity,
+      key: id as SnackbarKey | undefined,
+      persist: shouldPersist,
+      autoHideDuration: shouldPersist ? null : 3000,
+      preventDuplicate: !!id,
+    });
+  };
 
   const removeMessage = (id: string) => {
-    setPersistentMessages(prev => prev.filter(msg => msg.id !== id));
-  }
+    closeSnackbar(id as SnackbarKey);
+  };
 
   return (
-    <MessageContext.Provider value={{ 
-      showMessage,
-      updateMessage,
-      removeMessage
-    }}>
+    <MessageContext.Provider value={{ showMessage, removeMessage }}>
       {children}
-      
-      {/* Mensajes temporales normales */}
-      <Snackbar open={showInfo} autoHideDuration={3000} anchorOrigin={{vertical: 'top', horizontal: 'right'}}>
-        <Alert
-          severity={severityInfo}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {textInfo}
-        </Alert>
-      </Snackbar>
-
-      {/* Mensajes persistentes */}
-      {persistentMessages.length > 0 && (
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 80,
-            right: 16,
-            zIndex: 1400,
-            maxWidth: 400,
-          }}
-        >
-          <Stack spacing={1}>
-            {persistentMessages.map((message) => (
-              <Alert
-                key={message.id}
-                severity={message.severity}
-                variant="filled"
-                sx={{ width: '100%' }}
-              >
-                <Typography variant="body2">{message.text}</Typography>
-                {message.progress !== undefined && (
-                  <Box sx={{ mt: 1 }}>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={message.progress} 
-                      sx={{ 
-                        backgroundColor: 'rgba(255,255,255,0.3)',
-                        '& .MuiLinearProgress-bar': {
-                          backgroundColor: 'rgba(255,255,255,0.8)'
-                        }
-                      }}
-                    />
-                  </Box>
-                )}
-              </Alert>
-            ))}
-          </Stack>
-        </Box>
-      )}
     </MessageContext.Provider>
+  );
+}
+
+export function MessageProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <SnackbarProvider
+      maxSnack={5}
+      anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      action={(key) => <CloseButton snackbarKey={key} />}
+    >
+      <MessageProviderInner>{children}</MessageProviderInner>
+    </SnackbarProvider>
   );
 }
 
 export const useMessageContext = () => {
   const context = useContext(MessageContext);
   if (!context) {
-    throw new Error('useMessageContext must be used within a MessageProvider');
+    throw new Error("useMessageContext must be used within a MessageProvider");
   }
-  const { showMessage, updateMessage, removeMessage } = context;
-  return { showMessage, updateMessage, removeMessage };
-}
+  return context;
+};

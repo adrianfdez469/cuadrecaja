@@ -79,7 +79,6 @@ export async function POST(
       data: { codigo: codigoNormalizado, productoId: id },
     });
 
-    console.log(`✅ [APP/PRODUCTOS/AGREGAR-CODIGO] Código "${codigoNormalizado}" asociado al producto "${id}" por usuario "${user.id}"`);
 
     return NextResponse.json(
       {

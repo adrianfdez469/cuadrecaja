@@ -269,7 +269,7 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
     >
       {/* Título */}
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", py: 1.5, px: 2 }}>
-        <Typography variant="h6" fontWeight={700}>
+        <Typography variant="h6" fontWeight={700} component="span">
           Punto de partida y comportamiento
         </Typography>
         <Stack direction="row" spacing={0.5}>

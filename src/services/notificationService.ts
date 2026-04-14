@@ -32,7 +32,6 @@ export class NotificationService {
         }
       });
 
-      console.log(`Notificación automática creada: ${notificacion.titulo}`);
       return notificacion;
     } catch (error) {
       console.error('Error al crear notificación automática:', error);
@@ -76,7 +75,6 @@ export class NotificationService {
         }
       });
 
-      console.log(`Notificación actualizada: ${notificacion.titulo}`);
       return notificacion;
     } catch (error) {
       console.error('Error al actualizar notificación:', error);
@@ -93,7 +91,6 @@ export class NotificationService {
         where: { id: notificationId }
       });
 
-      console.log(`Notificación eliminada: ${notificationId}`);
     } catch (error) {
       console.error('Error al eliminar notificación:', error);
       throw error;
@@ -131,7 +128,6 @@ export class NotificationService {
         if (negocio) {
           await this.processSubscriptionExpiration(negocio);
         } else {
-          console.log('Negocio no encontrado:', negocioId);
         }
       }
     } catch (error) {
@@ -162,7 +158,6 @@ export class NotificationService {
       const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
       if (notificacionExistente) {
         await this.deleteNotification(notificacionExistente.id);
-        console.log(`Notificación eliminada: ${titulo} - Negocio: ${negocio.nombre}`);
       }
       return;
     }
@@ -229,7 +224,6 @@ export class NotificationService {
         if (negocio) {
           await this.processProductLimits(negocio);
         } else {
-          console.log('Negocio no encontrado:', negocioId);
         }
       }
     } catch (error) {
@@ -248,7 +242,6 @@ export class NotificationService {
       const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
       if (notificacionExistente) {
         await this.deleteNotification(notificacionExistente.id);
-        console.log(`Notificación eliminada: ${titulo} - Negocio: ${negocio.nombre}`);
       }
       return;
     }
@@ -264,7 +257,6 @@ export class NotificationService {
       const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
       if (notificacionExistente) {
         await this.deleteNotification(notificacionExistente.id);
-        console.log(`Notificación eliminada: ${titulo} - Negocio: ${negocio.nombre}`);
       }
       return;
     }
@@ -333,7 +325,6 @@ export class NotificationService {
         if (negocio) {
           await this.processUserLimits(negocio);
         } else {
-          console.log('Negocio no encontrado:', negocioId);
         }
       }
     } catch (error) {
@@ -352,7 +343,6 @@ export class NotificationService {
       const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
       if (notificacionExistente) {
         await this.deleteNotification(notificacionExistente.id);
-        console.log(`Notificación eliminada: ${titulo} - Negocio: ${negocio.nombre}`);
       }
       return;
     }
@@ -368,7 +358,6 @@ export class NotificationService {
       const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
       if (notificacionExistente) {
         await this.deleteNotification(notificacionExistente.id);
-        console.log(`Notificación eliminada: ${titulo} - Negocio: ${negocio.nombre}`);
       }
       return;
     }
@@ -517,7 +506,6 @@ export class NotificationService {
    * Ejecutar todas las verificaciones automáticas
    */
   static async runAutomaticChecks(negocioId?: string) {
-    console.log('Iniciando verificaciones automáticas de notificaciones...');
 
     await Promise.all([
       this.checkSubscriptionExpiration(negocioId),
@@ -527,6 +515,5 @@ export class NotificationService {
       this.deleteExpiredNotifications()
     ]);
 
-    console.log('Verificaciones automáticas completadas');
   }
 }

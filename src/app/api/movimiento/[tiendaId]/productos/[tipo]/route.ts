@@ -29,6 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
         const rows = await prisma.$queryRaw<{ id: string }[]>`
           SELECT id FROM "Producto"
           WHERE "negocioId" = ${negocioId}
+            AND "deletedAt" IS NULL
             AND unaccent(lower(nombre)) LIKE unaccent(lower(${pattern}))
         `;
         textFilterIds = rows.map(r => r.id);
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
           LEFT JOIN "ProductoTienda" pt ON pt."productoId" = p.id AND pt."tiendaId" = ${tiendaId}
           LEFT JOIN "Proveedor" prov ON pt."proveedorId" = prov.id
           WHERE p."negocioId" = ${negocioId}
+            AND p."deletedAt" IS NULL
             AND (
               unaccent(lower(p.nombre)) LIKE unaccent(lower(${pattern}))
               OR unaccent(lower(COALESCE(prov.nombre, ''))) LIKE unaccent(lower(${pattern}))
@@ -59,6 +61,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
       const productos = await prisma.producto.findMany({
         where: {
           negocioId: negocioId,
+          deletedAt: null,
           ...(textFilterIds && { id: { in: textFilterIds } }),
           ...(categoriaId && {
             categoriaId: categoriaId
@@ -100,19 +103,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
       const productos = await prisma.producto.findMany({
         where: {
           negocioId: negocioId,
+          deletedAt: null,
           fraccionDeId: null,
           ...(textFilterIds && { id: { in: textFilterIds } }),
           ...(categoriaId && {
             categoriaId: categoriaId
           }),
-          
-          productosTienda: {  
+
+          productosTienda: {
             some: {
               tiendaId: tiendaId,
               existencia: {
                 gt: 0
               }
-            },  
+            },
 
           }
         },
@@ -142,7 +146,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
       return NextResponse.json({error: 'Tipo de movimiento no válido'}, {status: 400});
     }
   } catch (error) {
-    console.log(error);
+    console.error(error);
     
     return NextResponse.json(
       { error: "Error al cargar movimiento" },

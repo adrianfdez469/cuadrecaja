@@ -20,7 +20,7 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import LinkIcon from "@mui/icons-material/Link";
-import { IProductoTiendaV2 } from "@/types/IProducto";
+import { IProductoTiendaV2 } from "@/schemas/producto";
 import { asociarCodigoProducto } from "@/services/productServise";
 import { normalizeSearch } from "@/utils/formatters";
 

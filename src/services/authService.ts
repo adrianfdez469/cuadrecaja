@@ -1,9 +1,9 @@
-import axios from "axios";
+import axiosClient from "@/lib/axiosClient";
 
 const API_URL = "/api/auth"; // Ruta base del backend
 
 export const cambiarLocal = async (newTiendaId: string) => {
-  const response = await axios.post(`${API_URL}/cambiar-tienda`, {
+  const response = await axiosClient.post(`${API_URL}/cambiar-tienda`, {
     tiendaId: newTiendaId
   });
 
@@ -11,7 +11,7 @@ export const cambiarLocal = async (newTiendaId: string) => {
 };
 
 export const cambiarNegocio = async (newNegocioId: string) => {
-  const response = await axios.post(`${API_URL}/cambiar-negocio`, {
+  const response = await axiosClient.post(`${API_URL}/cambiar-negocio`, {
     negocioId: newNegocioId
   });
 
@@ -19,6 +19,6 @@ export const cambiarNegocio = async (newNegocioId: string) => {
 };
 
 export const getLocalesDisponibles = async () => {
-  const response = await axios.get("/api/locales-disponibles");
+  const response = await axiosClient.get("/api/locales-disponibles");
   return response.data;
 };

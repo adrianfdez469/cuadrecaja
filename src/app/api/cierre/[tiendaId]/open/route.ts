@@ -47,7 +47,6 @@ export async function PUT(
     return NextResponse.json(nuevoPeriodo, { status: 201 });
 
   } catch (error) {
-    console.log(error);
     
     // Manejar el error específico de período ya abierto
     if (error instanceof Error && error.message === "PERIODO_ABIERTO") {

@@ -28,8 +28,8 @@ export async function GET(
       return NextResponse.json({ error: "Rol no encontrado" }, { status: 404 });
     }
 
-    // Solo puede ver roles de su propio negocio (excepto SUPER_ADMIN)
-    if (rol.negocioId !== user.negocio.id && user.rol !== "SUPER_ADMIN") {
+    // Los roles globales son visibles para todos; los negocio-específicos solo para su negocio (excepto SUPER_ADMIN)
+    if (!rol.isGlobal && rol.negocioId !== user.negocio.id && user.rol !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -76,8 +76,13 @@ export async function PUT(
       return NextResponse.json({ error: "Rol no encontrado" }, { status: 404 });
     }
 
-    if (existingRol.negocioId !== user.negocio.id && user.rol !== "SUPER_ADMIN") {
+    if (!existingRol.isGlobal && existingRol.negocioId !== user.negocio.id && user.rol !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    // Los roles globales solo pueden ser modificados por SUPER_ADMIN
+    if (existingRol.isGlobal && user.rol !== "SUPER_ADMIN") {
+      return NextResponse.json({ error: "Los roles globales solo pueden ser modificados por un superadmin" }, { status: 403 });
     }
 
     // Si se está cambiando el nombre, verificar que no exista otro con el mismo nombre
@@ -149,8 +154,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Rol no encontrado" }, { status: 404 });
     }
 
-    if (existingRol.negocioId !== user.negocio.id && user.rol !== "SUPER_ADMIN") {
+    if (!existingRol.isGlobal && existingRol.negocioId !== user.negocio.id && user.rol !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    // Los roles globales no pueden ser eliminados
+    if (existingRol.isGlobal) {
+      return NextResponse.json({ error: "Los roles globales del sistema no pueden ser eliminados" }, { status: 403 });
     }
 
     // TODO: En el futuro, verificar que no haya usuarios asignados a este rol

@@ -12,7 +12,6 @@ export async function POST(request: Request) {
     }
 
     
-    console.log('Iniciando verificaciones automáticas de notificaciones...');
     
     await NotificationService.runAutomaticChecks(negocioId);
     

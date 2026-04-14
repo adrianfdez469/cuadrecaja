@@ -5,7 +5,7 @@ import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { moneyRegex } from '@/utils/regex'
 import { useMessageContext } from "@/context/MessageContext";
 import { formatCurrency } from "@/utils/formatters";
-import { ITransferDestination } from "@/types/ITransferDestination";
+import { ITransferDestination } from "@/schemas/transferDestination";
 import type { DiscountApplicationResult, DiscountApplicationResultItem } from "@/lib/discounts";
 
 interface IProps {
@@ -44,7 +44,6 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
       // No mostramos notificaciones aquí porque handleMakePay se encarga de eso
       makePay(finalTotal, cashReceived, transferReceived, transferDestinationId, promoCode ? [promoCode] : [])
         .then(() => {
-          console.log("✅ Pago procesado exitosamente");
         })
         .catch((error) => {
           console.error("❌ Error procesando pago:", error);

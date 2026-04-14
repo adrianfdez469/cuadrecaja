@@ -2,8 +2,8 @@ import { NextRequest } from 'next/server';
 import { getServerSession, Session } from 'next-auth';
 import { authOptions } from './authOptions';
 import { jwtVerify } from 'jose';
-import { INegocio } from '@/types/INegocio';
-import { ILocal } from '@/types/ILocal';
+import { INegocio } from '@/schemas/negocio';
+import { ILocal } from '@/schemas/tienda';
 
 /**
  * Obtiene la sesión del usuario desde cookies (web) o desde headers (Flutter/mobile)
@@ -24,10 +24,8 @@ export async function getSessionFromRequest(request: NextRequest): Promise<Sessi
 
     // 2. Si no hay sesión por cookies, intentar obtener token JWT desde headers (para Flutter)
     const authHeader = request.headers.get("authorization");
-    console.log("🔍 [AUTH] Authorization header:", authHeader ? `Bearer ${authHeader.substring(7, 27)}...` : 'No presente');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('❌ [AUTH] No se encontró token en header Authorization');
       return null;
     }
 
@@ -35,7 +33,6 @@ export async function getSessionFromRequest(request: NextRequest): Promise<Sessi
     const tokenString = authHeader.substring(7);
     
     if (!tokenString || !process.env.NEXTAUTH_SECRET) {
-      console.log('❌ [AUTH] Token vacío o NEXTAUTH_SECRET no configurado');
       return null;
     }
 
@@ -43,8 +40,6 @@ export async function getSessionFromRequest(request: NextRequest): Promise<Sessi
     const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
     const { payload } = await jwtVerify(tokenString, secret);
     
-    console.log('✅ [AUTH] Token JWT verificado y decodificado');
-    console.log('📋 [AUTH] Usuario:', payload.usuario, '| Rol:', payload.rol);
 
     // 3. Construir objeto de sesión desde el payload del token JWT
     return {

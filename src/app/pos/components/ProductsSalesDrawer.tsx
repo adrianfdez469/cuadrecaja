@@ -1,5 +1,5 @@
 import React from "react";
-import { TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
+import { TablaProductosCierre } from "@/components/tablaProductosCierre";
 import { Products } from "@/store/salesStore";
 import { Close } from "@mui/icons-material";
 import { Box, Drawer, IconButton } from "@mui/material";

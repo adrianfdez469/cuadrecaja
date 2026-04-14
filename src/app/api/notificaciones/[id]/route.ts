@@ -26,7 +26,7 @@ export async function GET(
 
     return NextResponse.json(notificacion);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al cargar la notificación' }, { status: 500 });
   }
 }
@@ -94,7 +94,7 @@ export async function PUT(
 
     return NextResponse.json(notificacionActualizada);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al actualizar la notificación' }, { status: 500 });
   }
 }
@@ -126,7 +126,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Notificación eliminada correctamente' });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al eliminar la notificación' }, { status: 500 });
   }
 }

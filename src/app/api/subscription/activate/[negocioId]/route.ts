@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SubscriptionService } from '@/services/subscriptionService';
+import { SubscriptionLib } from '@/lib/subscriptionLib';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 
 export async function POST(
@@ -14,7 +14,7 @@ export async function POST(
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    await SubscriptionService.activateBusiness(negocioId);
+    await SubscriptionLib.activateBusiness(negocioId);
     
     return NextResponse.json({
       message: `Negocio ${negocioId} activado exitosamente`,

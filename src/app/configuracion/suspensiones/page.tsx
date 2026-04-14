@@ -46,7 +46,8 @@ import { useAppContext } from '@/context/AppContext';
 import { useMessageContext } from '@/context/MessageContext';
 import { formatDate, formatDaysRemaining, getDaysRemainingColor } from '@/utils/formatters';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import { SubscriptionService } from '@/services/subscriptionService';
+import { getNegocios } from '@/services/negocioServce';
 import useConfirmDialog from '@/components/confirmDialog';
 import dayjs from 'dayjs';
 
@@ -120,7 +121,6 @@ export default function SuspensionesPage() {
   // Protección: Solo SUPER_ADMIN puede acceder
   useEffect(() => {
     if (!loadingContext && user) {
-      console.log(user);
       //   if (user.rol !== "SUPER_ADMIN") {
       //     showMessage("No tienes permisos para acceder a la gestión de suspensiones", "error");
       //     router.push("/");
@@ -135,21 +135,20 @@ export default function SuspensionesPage() {
     setLoading(true);
     try {
       // Obtener estadísticas generales
-      const statsResponse = await axios.get('/api/subscription/stats');
-      setStats(statsResponse.data.stats);
+      const stats = await SubscriptionService.getSubscriptionStats();
+      setStats(stats);
 
       // Obtener lista de negocios con estado de suscripción
-      const negociosResponse = await axios.get('/api/negocio');
-      const negociosData = negociosResponse.data;
+      const negociosData = await getNegocios();
 
       // Obtener estado de suscripción para cada negocio
       const negociosConEstado = await Promise.all(
-        negociosData.map(async (negocio: NegocioSuspension) => {
+        negociosData.map(async (negocio) => {
           try {
-            const statusResponse = await axios.get(`/api/subscription/status/${negocio.id}`);
+            const status = await SubscriptionService.getSubscriptionStatus(negocio.id);
             return {
               ...negocio,
-              ...statusResponse.data
+              ...status
             };
           } catch (error) {
             console.error(`Error al obtener estado de ${negocio.nombre}:`, error);
@@ -166,7 +165,7 @@ export default function SuspensionesPage() {
         })
       );
 
-      setNegocios(negociosConEstado);
+      setNegocios(negociosConEstado as unknown as NegocioSuspension[]);
     } catch (error) {
       console.error('Error al cargar datos:', error);
       showMessage('Error al cargar los datos de suspensiones', 'error');
@@ -194,7 +193,7 @@ export default function SuspensionesPage() {
   const handleActivar = async (negocio: NegocioSuspension) => {
     setActivating(negocio.id);
     try {
-      await axios.post(`/api/subscription/activate/${negocio.id}`);
+      await SubscriptionService.activateBusiness(negocio.id);
       showMessage(`Negocio ${negocio.nombre} activado exitosamente`, 'success');
       fetchNegocios();
     } catch (error) {
@@ -228,7 +227,7 @@ export default function SuspensionesPage() {
         payload.daysToAdd = reactivateDialog.daysToAdd;
       }
 
-      await axios.post(`/api/subscription/reactivate/${reactivateDialog.negocio.id}`, payload);
+      await SubscriptionService.reactivateBusiness(reactivateDialog.negocio.id, payload);
 
       showMessage(`Negocio ${reactivateDialog.negocio.nombre} reactivado exitosamente`, 'success');
       setReactivateDialog({ open: false, negocio: null, daysToAdd: 30, useSpecificDate: false, specificDate: '' });
@@ -248,14 +247,9 @@ export default function SuspensionesPage() {
     try {
       if (manageDaysDialog.useSpecificDate) {
         // Usar API de establecer fecha específica
-        await axios.post(`/api/subscription/set-expiration/${manageDaysDialog.negocio.id}`, {
-          expirationDate: manageDaysDialog.specificDate
-        });
+        await SubscriptionService.setExpirationDate(manageDaysDialog.negocio.id, new Date(manageDaysDialog.specificDate));
       } else {
-        // Usar API de extender suscripción
-        await axios.post(`/api/subscription/extend/${manageDaysDialog.negocio.id}`, {
-          daysToAdd: manageDaysDialog.daysToAdd
-        });
+        await SubscriptionService.extendSubscription(manageDaysDialog.negocio.id, manageDaysDialog.daysToAdd);
       }
 
       showMessage(`Suscripción del negocio ${manageDaysDialog.negocio.nombre} actualizada exitosamente`, 'success');
@@ -275,7 +269,7 @@ export default function SuspensionesPage() {
       `¿Estás seguro de que quieres suspender el negocio ${negocio.nombre}?`,
       async () => {
         try {
-          await axios.post(`/api/subscription/suspend/${negocio.id}`);
+          await SubscriptionService.suspendBusiness(negocio.id);
           showMessage(`Negocio ${negocio.nombre} suspendido exitosamente`, 'success');
           fetchNegocios(); // Recargar datos  
         } catch (error) {
@@ -323,7 +317,7 @@ export default function SuspensionesPage() {
         variant="contained"
         startIcon={<PlayArrow />}
         onClick={() => {
-          axios.post('/api/subscription/auto-suspend').then(() => {
+          SubscriptionService.checkAndProcessSuspensions().then(() => {
             showMessage('Verificación de suspensiones ejecutada', 'success');
             fetchNegocios();
           }).catch(() => {

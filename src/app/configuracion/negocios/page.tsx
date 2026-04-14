@@ -53,12 +53,12 @@ import {
   Info,
   Refresh,
 } from "@mui/icons-material";
-import { createNegocio, getNegocios, updateNegocio, deleteNegocio } from "@/services/negocioServce";
+import { createNegocio, getNegocios, updateNegocio, deleteNegocio, getNegocioStatsById } from "@/services/negocioServce";
 import { getPlanes } from "@/services/planService";
 import type { IPlan } from "@/schemas/plan";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
-import { INegocio } from "@/types/INegocio";
+import { INegocio } from "@/schemas/negocio";
 import { 
   formatDate, 
   formatDaysRemaining, 
@@ -68,7 +68,6 @@ import {
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useRouter } from "next/navigation";
-import axios from 'axios';
 
 interface NegocioStats {
   tiendas: {
@@ -121,7 +120,7 @@ export default function Negocios() {
       const data = await getNegocios({ soloActivacionLanding });
       setNegocios(data);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       setError('Error al cargar los negocios');
     } finally {
       setLoading(false);
@@ -148,10 +147,10 @@ export default function Negocios() {
 
   const fetchNegocioStats = async (negocioId: string) => {
     try {
-      const response = await axios.get(`/api/negocio/${negocioId}/stats`);
+      const data = await getNegocioStatsById(negocioId);
       setNegocioStats(prev => ({
         ...prev,
-        [negocioId]: response.data
+        [negocioId]: data
       }));
     } catch (error) {
       console.error('Error al cargar estadísticas del negocio:', error);
@@ -206,7 +205,7 @@ export default function Negocios() {
       }
       handleCloseDialog();
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage(`Ocurrió un error al ${selectedNegocio ? 'actualizar' : 'crear'} el negocio`, 'error');
     } finally {
       setLoading(false);
@@ -224,7 +223,7 @@ export default function Negocios() {
       showMessage('Negocio eliminado satisfactoriamente', 'success');
       await fetchNegocios();
     } catch (error) {
-      console.log(error);
+      console.error(error);
       const errorMessage = error.response?.data?.error || 'Ocurrió un error al eliminar el negocio';
       showMessage(errorMessage, 'error');
     } finally {

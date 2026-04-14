@@ -21,12 +21,12 @@ import {
 } from "@mui/material";
 import React, {useCallback, useEffect, useRef, useState} from "react";
 import {IProductoDisponible, OperacionTipo} from "../ProductSelectionModal";
-import {ICategory} from "@/types/ICategoria";
+import {ICategory} from "@/schemas/categoria";
 import {fetchCategories} from "@/services/categoryService";
 import {useVirtualizer} from '@tanstack/react-virtual';
 import ProductCard from "@/components/ProductcSelectionModal/ProductCard";
 import ProductProcessorData from "@/components/ProductProcessorData/ProductProcessorData";
-import {IProcessedData} from "@/types/IProcessedData";
+import {IProcessedData} from "@/schemas/processedData";
 
 interface IProps {
   operacion: OperacionTipo;
@@ -75,7 +75,6 @@ const TableProductosDisponibles: React.FC<IProps> = ({
 
 
   // Clear category filter when switching to mobile
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isMobile && filterCategoryId) {
       setFilterCategoryId('');

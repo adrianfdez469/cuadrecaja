@@ -20,9 +20,9 @@ import { closePeriod, fetchCierreData, openPeriod } from "@/services/cierrePerio
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import { ICierreData, ICierrePeriodo } from "@/types/ICierre";
+import { ICierreData, ICierrePeriodo } from "@/schemas/cierre";
 import useConfirmDialog from "@/components/confirmDialog";
-import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre/intex";
+import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre";
 import { useSalesStore } from "@/store/salesStore";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
@@ -93,7 +93,7 @@ const CierreCajaPage = () => {
       await openPeriod(localId);
       showMessage('Cierre de caja realizado exitosamente', 'success');
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage('Ha ocurrido un error al realizar el cierre', 'error');
       throw error;
     } finally {
@@ -115,7 +115,7 @@ const CierreCajaPage = () => {
       await getInitData();
       showMessage("Primer período creado exitosamente", "success");
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage("Error al crear el primer período", "error");
     } finally {
       setIsProcessingCierre(false);

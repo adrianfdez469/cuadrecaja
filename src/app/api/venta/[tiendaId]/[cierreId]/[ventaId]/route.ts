@@ -54,7 +54,6 @@ export async function DELETE(
       }
     });
 
-    console.log(movimientos);
     
     
     // Generamos un movimiento de ajuste para arreglar cantidades
@@ -113,7 +112,7 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json(
       { error: "Error al eliminar la venta" },
       { status: 500 }

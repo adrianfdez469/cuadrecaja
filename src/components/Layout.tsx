@@ -68,7 +68,7 @@ import { cambiarLocal, cambiarNegocio, getLocalesDisponibles } from "@/services/
 import { signOut, useSession } from "next-auth/react";
 import { useMessageContext } from "@/context/MessageContext";
 import { getNegocios } from "@/services/negocioServce";
-import { INegocio } from "@/types/INegocio";
+import { INegocio } from "@/schemas/negocio";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChangeCircleIcon from '@mui/icons-material/ChangeCircleOutlined';
 import NextWeekIcon from '@mui/icons-material/NextWeekOutlined';
@@ -76,7 +76,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
-import { TipoLocal } from "@/types/ILocal";
+import { TipoLocal } from "@/schemas/tienda";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
 import { Avatar } from "@mui/material";
@@ -186,7 +186,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [cambiandoNegocio, setCambiandoNegocio] = useState(false);
   const [negocioRecienCambiado, setNegocioRecienCambiado] = useState(false);
   const selectorLocalAbiertoRef = useRef(false);
-  const { update, data: session } = useSession();
+  const { update, data: session, status: sessionStatus } = useSession();
   const { showMessage } = useMessageContext();
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   const [loadingNegocios, setLoadingNegocios] = useState(false);
@@ -253,6 +253,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       setOpenSelectLocal(true);
       selectorLocalAbiertoRef.current = true;
     } catch (error) {
+      console.error(error);
       showMessage("No se pueden cargar los locales disponibles", "error", error);
     } finally {
       setLoadingLocales(false);
@@ -266,6 +267,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       setNegocios(negocios);
       setOpenSelectNegocio(true);
     } catch (error) {
+      console.error(error);
       showMessage("No se puede cambiar de negocio", "error", error);
     } finally {
       setLoadingNegocios(false);
@@ -281,7 +283,6 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const handleSelectLocal = async (selectedLocal) => {
-    console.log(selectedLocal);
     const resp = await cambiarLocal(selectedLocal);
     if (resp.status === 201) {
       await update({
@@ -293,14 +294,14 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       // Redirigir a /home para forzar re-render con el nuevo local
       gotToPath('/home');
     } else {
-      console.log(resp);
       showMessage("No se pudo actualizar el local", "error");
       handleCloseCambiarLocal();
     }
   };
 
   const handleSelectNegocio = async (selectedNegocio) => {
-    console.log("🔄 Iniciando cambio de negocio");
+    if (cambiandoNegocio) return;
+    handleCloseCambiarNegocio();
     setCambiandoNegocio(true);
     setNegocioRecienCambiado(true);
     selectorLocalAbiertoRef.current = false; // Reset del ref
@@ -319,14 +320,11 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         setLocalesDisponibles(locales);
         setTotalLocalesDisponibles(locales.length);
 
-        console.log("🏪 Locales disponibles:", locales.length);
 
         // Solo abrir selector si hay locales disponibles
         if (locales.length > 0) {
-          console.log("⏰ Programando apertura del selector en 300ms");
           // Esperar un poco para asegurar que la sesión se actualice
           setTimeout(() => {
-            console.log("✅ Abriendo selector de local desde cambio de negocio");
             setOpenSelectLocal(true);
             selectorLocalAbiertoRef.current = true;
           }, 300);
@@ -339,20 +337,18 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         // Resetear el flag después de un tiempo más largo solo si hay locales
         if (locales.length > 0) {
           setTimeout(() => {
-            console.log("🔄 Reseteando negocioRecienCambiado");
             setNegocioRecienCambiado(false);
           }, 3000); // Aumentado a 3 segundos para mayor seguridad
         }
       } catch (error) {
+        console.error(error);
         showMessage("Error al cargar locales disponibles", "error", error);
         setNegocioRecienCambiado(false);
       }
     } else {
-      console.log(resp);
       showMessage("No se pudo actualizar el negocio", "error");
       setNegocioRecienCambiado(false);
     }
-    handleCloseCambiarNegocio();
 
     // Usar setTimeout para asegurar que el estado se actualice después del render
     setTimeout(() => {
@@ -515,25 +511,14 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
   // Detectar si el usuario necesita seleccionar una local
   useEffect(() => {
-    console.log("🔍 useEffect selector local ejecutándose:", {
-      negocioRecienCambiado,
-      isAuth,
-      localActual: !!user?.localActual,
-      totalLocalesDisponibles: totalLocalesDisponibles,
-      openSelectLocal: openSelectLocal,
-      cambiandoNegocio,
-      selectorAbierto: selectorLocalAbiertoRef.current
-    });
 
     // SOLO ejecutar si NO acabamos de cambiar de negocio
     if (negocioRecienCambiado) {
-      console.log("⏹️ Saliendo temprano - negocio recién cambiado");
       return; // Salir temprano si acabamos de cambiar negocio
     }
 
     // No mostrar selector automáticamente si estamos cambiando de negocio, ya está abierto, ya se abrió antes
     if (isAuth && user && !user.localActual && totalLocalesDisponibles >= 1 && !openSelectLocal && !cambiandoNegocio && !selectorLocalAbiertoRef.current) {
-      console.log("🚀 Abriendo selector de local desde useEffect");
       // Mostrar automáticamente el selector de local si el usuario no tiene una asignada
       handleCambiarLocal();
     }
@@ -551,7 +536,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     // 1. No hay sesión
     // 2. Estamos online (para evitar problemas offline)
     // 3. No estuvimos offline recientemente (para evitar redirecciones después de reconectar)
-    if (!session && isOnline && !wasOffline) {
+    if (!session && sessionStatus !== 'loading' && isOnline && !wasOffline) {
       goToLogin();
     }
   }, [session, isOnline, wasOffline]);
@@ -1084,10 +1069,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         }}
       >
         <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h6" fontWeight={600}>
+          <Typography variant="h6" fontWeight={600} component="span" display="block">
             {!user?.localActual ? 'Seleccionar local' : 'Cambiar local'}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" component="span" display="block">
             {!user?.localActual
               ? 'Necesitas seleccionar un local para comenzar a trabajar'
               : 'Selecciona el local donde deseas trabajar'
@@ -1166,12 +1151,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           }}
         >
           <DialogTitle sx={{ pb: 1 }}>
-            <Typography variant="h6" fontWeight={600}>
               Cambiar negocio
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Selecciona el negocio al que deseas cambiar
-            </Typography>
           </DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
             {loadingNegocios ? (
@@ -1227,10 +1207,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         }}
       >
         <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h6" fontWeight={600}>
+          <Typography variant="h6" fontWeight={600} component="span" display="block">
             Cambiar Contraseña
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" component="span" display="block">
             Ingresa tu contraseña actual y define una nueva contraseña segura.
           </Typography>
         </DialogTitle>

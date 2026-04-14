@@ -59,6 +59,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Usuario eliminado" }, { status: 200 });
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -127,6 +128,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json(nuevoUsuario, { status: 201 });
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

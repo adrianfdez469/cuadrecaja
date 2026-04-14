@@ -36,7 +36,7 @@ import {
 } from "@mui/icons-material";
 import { useMessageContext } from "@/context/MessageContext";
 import { useRouter } from "next/navigation";
-import { TipoLocal } from "@/types/ILocal";
+import { TipoLocal } from "@/schemas/tienda";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
 import NotificationsWidget from "@/components/NotificationsWidget";
@@ -112,7 +112,6 @@ const HomePage = () => {
     const fetchNegocioStats = async () => {
       setLoadingNegocioStats(true);
       const stats = await getNegocioStats();
-      console.log(stats);
       setNegocioStats(stats);
       setLoadingNegocioStats(false);
     }
@@ -437,8 +436,8 @@ const HomePage = () => {
 
         <Divider sx={{ my: 1 }} />
         {loadingNegocioStats ? <CircularProgress size="20px" /> : (
-        <Box 
-          display="flex" 
+        <Box
+          display="flex"
           flexDirection={{ xs: "column", sm: "row" }}
           flexWrap="wrap"
           gap={{ xs: 1, sm: 1, md: 2 }}
@@ -506,7 +505,7 @@ const HomePage = () => {
 
       {/* Widget de Notificaciones */}
       <Box sx={{ mb: 3 }}>
-        <SuspensionSummary />
+        {user.rol === 'SUPER_ADMIN' && <SuspensionSummary />}
         <SubscriptionWarning />
         <ExpiringProductsAlert tiendaId={user.localActual.id} />
         <NotificationsWidget maxNotifications={5} showBadge={true} />

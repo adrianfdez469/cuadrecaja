@@ -1,7 +1,7 @@
 import React, { useImperativeHandle, forwardRef } from 'react';
 import QrModuleScanner from '@/components/ProductProcessorData/QrModuleScanner';
 import { processClientDataFromQR } from '@/utils/scanner';
-import {IProcessedData} from "@/types/IProcessedData";
+import {IProcessedData} from "@/schemas/processedData";
 import { Box } from '@mui/material';
 
 type ClientProcessorDataProps = {

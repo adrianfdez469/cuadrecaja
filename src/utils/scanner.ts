@@ -1,4 +1,4 @@
-import {IProcessedData} from "@/types/IProcessedData";
+import {IProcessedData} from "@/schemas/processedData";
 
 export function formatName(name: string) {
   const words = name.split(' ');

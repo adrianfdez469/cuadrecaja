@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from "@/utils/auth";
-import { IProveedorUpdate } from '@/types/IProveedor';
+import { IProveedorUpdate } from '@/schemas/proveedor';
 import { verificarPermisoUsuario } from '@/utils/permisos_back';
 
 // GET /api/proveedores/[id] - Obtener un proveedor por ID

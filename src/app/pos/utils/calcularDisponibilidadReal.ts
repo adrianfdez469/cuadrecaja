@@ -1,4 +1,4 @@
-import { IProductoTiendaV2 } from "@/types/IProducto";
+import { IProductoTiendaV2 } from "@/schemas/producto";
 
 /**
  * Calcula la disponibilidad real de un producto, considerando desagregación para productos fracción.

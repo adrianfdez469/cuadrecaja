@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ICierreData } from "@/types/ICierre";
+import { ICierreData } from "@/schemas/cierre";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
@@ -266,9 +266,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
         .sort((a, b) => a.nombre.localeCompare(b.nombre)),
     };
     return NextResponse.json(cierreData);
-  } catch (error: unknown) {
-    // eslint-disable-next-line no-console
-    console.log(error);
+  } catch (_error: unknown) {
     return NextResponse.json({ error: "Error al obtener los datos del cierre" }, { status: 500 });
   }
 }

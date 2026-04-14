@@ -47,7 +47,7 @@ import {
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { findUltimaLiquidacion, getProveedoresConsignacionById, liquidarProveedorConsignacion, sumDineroLiquidado, sumDineroPorLiquidar, sumProdsConsignación } from "@/services/preoveedoresService";
-import { IProveedorConsignacion } from "@/types/IProveedorConsignación";
+import { IProveedorConsignacion } from "@/schemas/proveedor";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { usePermisos } from "@/utils/permisos_front";
@@ -232,7 +232,6 @@ export default function ProveedorDetallePage() {
           }
         }
       }, {});
-console.log('liquidacionesData',liquidacionesData);
 
       const prodsConsignación = Object.values(prodsConsignaciónMap);
 

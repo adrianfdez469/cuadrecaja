@@ -60,7 +60,7 @@ export async function POST(
       notificacion: notificacionActualizada 
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al marcar la notificación como leída' }, { status: 500 });
   }
 }

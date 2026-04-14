@@ -1,29 +1,39 @@
-import axios from 'axios';
-import { IRol, ICreateRol, IUpdateRol } from '@/types/IRol';
+import axiosClient from '@/lib/axiosClient';
+import { IRol, ICreateRol, IUpdateRol } from '@/schemas/rol';
 
 const API_BASE = '/api/roles';
 
 export const getRoles = async (negocioId?: string): Promise<IRol[]> => {
   const params = negocioId ? { negocioId } : {};
-  const response = await axios.get(API_BASE, { params });
+  const response = await axiosClient.get(API_BASE, { params });
   return response.data;
 };
 
 export const getRolById = async (id: string): Promise<IRol> => {
-  const response = await axios.get(`${API_BASE}/${id}`);
+  const response = await axiosClient.get(`${API_BASE}/${id}`);
   return response.data;
 };
 
 export const createRol = async (rolData: ICreateRol): Promise<IRol> => {
-  const response = await axios.post(API_BASE, rolData);
+  const response = await axiosClient.post(API_BASE, rolData);
   return response.data;
 };
 
 export const updateRol = async (id: string, rolData: IUpdateRol): Promise<IRol> => {
-  const response = await axios.put(`${API_BASE}/${id}`, rolData);
+  const response = await axiosClient.put(`${API_BASE}/${id}`, rolData);
   return response.data;
 };
 
 export const deleteRol = async (id: string): Promise<void> => {
-  await axios.delete(`${API_BASE}/${id}`);
-}; 
+  await axiosClient.delete(`${API_BASE}/${id}`);
+};
+
+export const getPermisos = async () => {
+  const response = await axiosClient.get('/api/permisos');
+  return response.data;
+};
+
+export const getPermisosTemplates = async () => {
+  const response = await axiosClient.get('/api/permisos/templates');
+  return response.data;
+};

@@ -60,7 +60,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     });
     return NextResponse.json(updatedDestination);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: "Error al actualizar destino de transferencia" }, { status: 500 });
   }
 }
@@ -113,7 +113,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     return NextResponse.json({ message: "Destino de transferencia eliminado correctamente" }, { status: 200 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: "Error al eliminar el destino de transferencia" }, { status: 500 });
   }
 } 

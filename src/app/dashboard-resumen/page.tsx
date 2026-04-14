@@ -27,7 +27,7 @@ import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
-import axios from "axios";
+import { getDashboardResumen } from "@/services/dashboardService";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 
@@ -89,11 +89,8 @@ export default function DashboardResumenPage() {
         throw new Error("No hay tienda seleccionada");
       }
 
-      const response = await axios.get(`/api/dashboard/resumen/${user.localActual.id}`, {
-        params: filters
-      });
-
-      setMetrics(response.data);
+      const data = await getDashboardResumen(user.localActual.id, filters as unknown as Record<string, unknown>);
+      setMetrics(data);
     } catch (error) {
       console.error("Error al obtener métricas del dashboard:", error);
       setError("Error al cargar las métricas del dashboard");

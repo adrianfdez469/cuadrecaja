@@ -50,7 +50,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(tiendas);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json(
       { error: "Error al obtener tiendas disponibles" },
       { status: 500 }

@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
     const productosTienda = await prisma.productoTienda.findMany({
       where: {
         tiendaId,
-        fechaVencimiento: { not: null, lte: en30Dias }
+        fechaVencimiento: { not: null, lte: en30Dias },
+        producto: { deletedAt: null }
       },
       include: {
         producto: {

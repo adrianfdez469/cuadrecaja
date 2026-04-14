@@ -1,5 +1,5 @@
 import axios from "@/lib/axiosClient";
-import {
+import type {
   IGastoPlantilla,
   IGastoTienda,
   IGastoCierre,
@@ -10,7 +10,10 @@ import {
   IUpdateGastoTienda,
   IAssignPlantilla,
   IGastoAdHocCreate,
+  IGastosCierreResponse,
+  IGastosPreviewResponse,
 } from "@/schemas/gastos";
+export type { IGastosCierreResponse, IGastosPreviewResponse } from "@/schemas/gastos";
 
 // ─── Plantillas (nivel negocio) ──────────────────────────────────────────────
 
@@ -76,26 +79,10 @@ export const assignPlantilla = async (
 
 // ─── Gastos de cierre ────────────────────────────────────────────────────────
 
-export interface IGastosCierreResponse {
-  gastos: IGastoCierre[];
-  totalGastos: number;
-  agrupados: Record<string, IGastoCierre[]>;
-}
-
 export const getGastosCierre = async (cierreId: string): Promise<IGastosCierreResponse> => {
   const res = await axios.get(`/api/gastos/cierre/${cierreId}`);
   return res.data;
 };
-
-export interface IGastosPreviewResponse {
-  gastosRecurrentes: IGastoPreview[];
-  gastosNoAplican: IGastoPreview[];
-  gastosAdHoc: IGastoCierre[];
-  totalGastos: number;
-  totalVentas: number;
-  totalGanancia: number;
-  totalGananciaFinal: number;
-}
 
 export const previewGastosCierre = async (cierreId: string): Promise<IGastosPreviewResponse> => {
   const res = await axios.post(`/api/gastos/cierre/${cierreId}/preview`);

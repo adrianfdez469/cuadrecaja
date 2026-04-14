@@ -6,15 +6,13 @@ import { verificarPermisoUsuario } from '@/utils/permisos_back';
 
 // Obtener todas las categorías
 export async function GET(request: NextRequest) {
-  try {console.log('request', request);
-    // Intentar obtener sesión desde cookies (web) o headers (Flutter)
+  try {    // Intentar obtener sesión desde cookies (web) o headers (Flutter)
     let session = await getSession();
     
     // Si no hay sesión por cookies, intentar desde headers (para Flutter)
     if (!session) {
       session = await getSessionFromRequest(request);
     }
-    console.log(session);
     if (!session || !session.user) {
       return NextResponse.json(
         { error: 'No autenticado. Debes iniciar sesión.' },
@@ -25,16 +23,20 @@ export async function GET(request: NextRequest) {
     const user = session.user;
 
     const categorias = await prisma.categoria.findMany({
-      orderBy: {
-        nombre: 'asc'
-      },
+      orderBy: [
+        { esGlobal: 'desc' },
+        { nombre: 'asc' }
+      ],
       where: {
-        negocioId: user.negocio.id
+        OR: [
+          { negocioId: null },
+          { negocioId: user.negocio.id }
+        ]
       }
     });
     return NextResponse.json(categorias);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al obtener categorías' }, { status: 500 });
   }
 }
@@ -66,13 +68,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { nombre, color } = await request.json();
+    const { nombre, color, esGlobal } = await request.json();
+    const createAsGlobal = user.rol === "SUPER_ADMIN" && esGlobal === true;
+
     const newCategory = await prisma.categoria.create({
-      data: { nombre: nombre.trim(), color, negocioId: user.negocio.id },
+      data: {
+        nombre: nombre.trim(),
+        color,
+        esGlobal: createAsGlobal,
+        negocioId: createAsGlobal ? null : user.negocio.id,
+      },
     });
     return NextResponse.json(newCategory, { status: 201 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al crear categoría' }, { status: 500 });
   }
 }

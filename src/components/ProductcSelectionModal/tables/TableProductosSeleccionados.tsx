@@ -20,7 +20,7 @@ import {
 } from "@mui/material";
 import React from "react";
 import {OperacionTipo, IProductoSeleccionado} from "../ProductSelectionModal";
-import {ITipoMovimiento} from "@/types/IMovimiento";
+import {ITipoMovimiento} from "@/schemas/movimiento";
 import ProductSelectedCard from "@/components/ProductcSelectionModal/ProductSelectedCard";
 
 interface IProps {

@@ -1,7 +1,6 @@
 import { DefaultSession } from "next-auth";
-import { INegocio } from "./INegocio";
-import { ILocal } from "./ILocal";
-
+import type { INegocio } from "@/schemas/negocio";
+import type { ILocal } from "@/schemas/tienda";
 
 declare module "next-auth" {
   interface Session {
@@ -10,13 +9,11 @@ declare module "next-auth" {
       usuario: string;
       nombre: string;
       rol: string;
-      // tiendas: ILocal[];
-      // tiendaActual?: ILocal | null;
       locales: ILocal[];
       localActual?: ILocal | null;
       negocio: INegocio;
       expiresAt: string;
-      permisos?: string; // Nueva propiedad para permisos del sistema nuevo
+      permisos?: string;
     } & DefaultSession["user"];
   }
 
@@ -25,13 +22,10 @@ declare module "next-auth" {
     usuario: string;
     nombre: string;
     rol: string;
-    // tiendas: ILocal[];
-    // tiendaActual?: ILocal | null;
     locales: ILocal[];
     localActual?: ILocal | null;
     negocio: INegocio;
-    permisos?: string; // Nueva propiedad para permisos del sistema nuevo
-    // expiresAt: string;
+    permisos?: string;
   }
 }
 
@@ -41,12 +35,10 @@ declare module "next-auth/jwt" {
     usuario: string;
     nombre: string;
     rol: string;
-    // tiendas: ILocal[];
-    // tiendaActual?: ILocal | null;
     locales: ILocal[];
     localActual?: ILocal | null;
     negocio: INegocio;
     expCustom: string;
-    permisos?: string; // Nueva propiedad para permisos del sistema nuevo
+    permisos?: string;
   }
 }

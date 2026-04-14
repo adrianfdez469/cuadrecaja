@@ -138,7 +138,6 @@ const PreciosCantidades = () => {
   }, [loadingContext]);
 
   useEffect(() => {
-    console.log(productos);
 
     const mapProductos = productos.map(p => {
       return {

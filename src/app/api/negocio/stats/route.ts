@@ -31,29 +31,33 @@ export async function GET(req: Request): Promise<NextResponse<NegocioStats | { e
     }
 
     // Obtener conteos actuales y límites del plan desde la BD
-    const negocio = await prisma.negocio.findUnique({
-      where: { id: user.negocio.id },
-      select: {
-        usuarios: {
-          select: {
-            rol: true
+    const [negocio, productosCount] = await Promise.all([
+      prisma.negocio.findUnique({
+        where: { id: user.negocio.id },
+        select: {
+          usuarios: {
+            select: {
+              rol: true
+            }
+          },
+          _count: {
+            select: {
+              tiendas: true,
+            }
+          },
+          plan: {
+            select: {
+              limiteLocales: true,
+              limiteUsuarios: true,
+              limiteProductos: true
+            }
           }
         },
-        _count: {
-          select: {
-            tiendas: true,
-            productos: true
-          }
-        },
-        plan: {
-          select: {
-            limiteLocales: true,
-            limiteUsuarios: true,
-            limiteProductos: true
-          }
-        }
-      },
-    });
+      }),
+      prisma.producto.count({
+        where: { negocioId: user.negocio.id, deletedAt: null }
+      })
+    ]);
 
     const locallimit = negocio.plan?.limiteLocales ?? -1;
     const userlimit = negocio.plan?.limiteUsuarios ?? -1;
@@ -73,7 +77,6 @@ export async function GET(req: Request): Promise<NextResponse<NegocioStats | { e
 
     const tiendasCount = negocio._count.tiendas;
     const usuariosCount = negocio.usuarios.filter((usuario) => usuario.rol !== "SUPER_ADMIN").length;
-    const productosCount = negocio._count.productos;
 
     const stats: NegocioStats = {
       tiendas: {

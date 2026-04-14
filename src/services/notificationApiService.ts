@@ -1,4 +1,4 @@
-import { INotificacion, INotificacionConEstado, INotificacionFormData, INotificacionStats, INotificacionResponse } from '@/types/INotificacion';
+import { INotificacion, INotificacionConEstado, INotificacionFormData, INotificacionStats, INotificacionResponse } from '@/schemas/notificacion';
 
 export class NotificationApiService {
   private static baseUrl = '/api/notificaciones';

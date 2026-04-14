@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SubscriptionService } from '@/services/subscriptionService';
+import { SubscriptionLib } from '@/lib/subscriptionLib';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 
 export async function POST(
@@ -16,7 +16,7 @@ export async function POST(
 
     const { forceManual = true } = await request.json().catch(() => ({}));
 
-    await SubscriptionService.suspendBusiness(negocioId, forceManual);
+    await SubscriptionLib.suspendBusiness(negocioId, forceManual);
     
     return NextResponse.json({
       message: `Negocio ${negocioId} suspendido exitosamente`,

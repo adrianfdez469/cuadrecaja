@@ -81,6 +81,6 @@ export const config = {
   matcher: [
     '/api/:path*',
     // Incluir todas las rutas excepto: _next, static assets, login, subscription-expired
-    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|login|activar|subscription-expired|descargar).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|login|activar|subscription-expired|descargar|forbidden).*)',
   ],
 }

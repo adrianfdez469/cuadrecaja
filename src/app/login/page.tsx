@@ -72,10 +72,9 @@ export default function LoginPage() {
         }
       } else {
         // Éxito - NextAuth manejará la redirección automáticamente
-        console.log("Login exitoso:", result);
       }
     } catch (err) {
-      console.log(err);
+      console.error(err);
       setError("Error de conexión. Intenta nuevamente.");
     } finally {
       setLoading(false);

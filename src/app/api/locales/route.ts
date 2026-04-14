@@ -44,7 +44,7 @@ export async function GET() {
 
     return NextResponse.json(tiendasFormateadas);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json(
       { error: "Error al obtener tiendas" },
       { status: 500 }
@@ -83,7 +83,6 @@ export async function POST(request: Request) {
     }
 
     const { nombre, tipo, usuariosRoles } = await request.json();
-    console.log('usuariosRoles:', usuariosRoles);
 
     const newLocal = await prisma.tienda.create({
       data: {
@@ -101,7 +100,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(newLocal, { status: 201 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json(
       { error: "Error al crear la tienda" },
       { status: 500 }

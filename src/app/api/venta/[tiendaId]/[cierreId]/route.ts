@@ -1,7 +1,7 @@
 import {NextRequest, NextResponse} from "next/server";
 import {prisma} from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import {IVenta} from "@/types/IVenta";
+import {IVenta} from "@/schemas/venta";
 import { applyDiscountsForSale } from "@/lib/discounts";
 
 // Tipos auxiliares estrictos para evitar usos de any
@@ -33,10 +33,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
   try {
     const { cierreId, tiendaId } = await params;
 
-    console.log('🔍 [POST /api/venta] Recibiendo petición de venta:', {
-      tiendaId,
-      cierreId
-    });
 
     const {
       usuarioId,
@@ -55,19 +51,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
     syncId = syncIdBody;
 
-    console.log('🔍 [POST /api/venta] Datos de la venta:', {
-      usuarioId,
-      total,
-      totalcash,
-      totaltransfer,
-      syncId,
-      productos,
-      transferDestinationId,
-      createdAt,
-      wasOffline,
-      syncAttempts,
-      discountCodes
-    });
 
     if (!tiendaId || !usuarioId || !cierreId || !productos.length || !syncId || !createdAt) {
       console.error('❌ [POST /api/venta] Datos insuficientes:', {
@@ -91,13 +74,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       }
     });
 
-    console.log('🔍 [POST /api/venta] Verificando venta existente:', {
-      syncId,
-      existeVenta: !!existeVenta
-    });
 
     if (existeVenta) {
-      console.log('🔍 [POST /api/venta] Venta ya existe, retornando:', existeVenta);
       return NextResponse.json(existeVenta, { status: 200 });
     }
 
@@ -108,7 +86,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
 
 
-    console.log('🔍 [POST /api/venta] Período actual:', ultimoPeriodo);
 
     if (!ultimoPeriodo) {
       return NextResponse.json({ error: "No existe un período abierto en la tienda" }, { status: 404 });
@@ -140,7 +117,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
     // **TRANSACCIÓN ATÓMICA: Todo o nada**
     const result = await prisma.$transaction(async (tx) => {
-      console.log('🔍 [POST /api/venta] Iniciando transacción atómica...');
 
       // 1. Verificar que todos los productos existen
       const productosExistentes = await tx.productoTienda.findMany({
@@ -164,7 +140,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         }
       });
 
-      console.log('🔍 [POST /api/venta] Productos encontrados en DB:', productosExistentes);
 
       const productosNoEncontrados = productos.filter(
         p => !productosExistentes.some(pe => pe.id === p.productoTiendaId)
@@ -210,7 +185,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           products: discountProducts
         });
         discountTotalCalc = discountCalcResult.discountTotal;
-        console.log('🧮 [POST /api/venta] Descuento calculado:', discountCalcResult);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error('❌ [POST /api/venta] Error calculando descuentos:', msg);
@@ -251,7 +225,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         }
       });
 
-      console.log('🔍 [POST /api/venta] Venta creada:', venta.id);
 
       // 3.1 Persistir AppliedDiscount si corresponde
       try {
@@ -296,7 +269,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       });
 
       if (productosFraccionables.length > 0) {
-        console.log('🔍 [POST /api/venta] Procesando productos fraccionables:', productosFraccionables.length);
 
         const productosFraccionablesData = productosFraccionables.filter(pf => pf.producto.fraccionDeId);
 
@@ -330,7 +302,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
         // Crear movimientos de desagregación dentro de la misma transacción
         if (itemsDesagregaciónBaja.length > 0) {
-          console.log('🔍 [POST /api/venta] Procesando DESAGREGACION_BAJA...');
           for (const item of itemsDesagregaciónBaja) {
             const productoTiendaDesagregar = await tx.productoTienda.findFirst({
               where: {
@@ -344,7 +315,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
               const existenciaAnterior = productoTiendaDesagregar.existencia;
               
               if(existenciaAnterior < item.cantidad){
-                console.log('🔍 [POST /api/venta] No hay suficiente existencia para desagregar. Existencia:', existenciaAnterior, 'Cantidad a desagregar:', item.cantidad);
                 throw new Error(`Existencia insuficiente, no hay suficiente existencia para desagregar. Existencia: ${existenciaAnterior}, Cantidad a desagregar: ${item.cantidad}`);
               }
 
@@ -370,13 +340,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
                 }
               });
 
-              console.log(`🔍 [POST /api/venta] DESAGREGACION_BAJA creada para producto ${productoTiendaDesagregar.id}: -${item.cantidad}`);
             }
           }
         }
 
         if (itemsDesagregaciónAlta.length > 0) {
-          console.log('🔍 [POST /api/venta] Procesando DESAGREGACION_ALTA...');
           for (const item of itemsDesagregaciónAlta) {
             const productoTiendaAgregar = await tx.productoTienda.findFirst({
               where: {
@@ -411,14 +379,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
                 }
               });
 
-              console.log(`🔍 [POST /api/venta] DESAGREGACION_ALTA creada para producto ${productoTiendaAgregar.id}: +${item.cantidad}`);
             }
           }
         }
       }
 
       // 4. Crear movimientos de stock y actualizar existencias - ÚLTIMO
-      console.log('🔍 [POST /api/venta] Procesando movimientos de VENTA...');
       for (const producto of productos) {
         const productoTienda = productosExistentes.find(p => p.id === producto.productoTiendaId);
         if (!productoTienda) continue;
@@ -432,7 +398,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         const existenciaAnterior = productoTiendaActual.existencia;
 
         if(existenciaAnterior < producto.cantidad) {
-          console.log(`[POST /api/venta] No hay suficiente existencia para realizar la venta de productoTiendaId: ${producto.productoTiendaId}, existenciaAnterior: ${existenciaAnterior}, 'Cantidad a vender:`, producto.cantidad);
           throw new Error(`Existencia insuficiente para realizar la venta de productoTiendaId: ${producto.productoTiendaId}. Existencia: ${existenciaAnterior}, Cantidad a vender: ${producto.cantidad}`);
           
         }
@@ -462,14 +427,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           }
         });
 
-        console.log(`🔍 [POST /api/venta] Movimiento VENTA creado para producto ${producto.productoTiendaId}: -${producto.cantidad}`);
       }
 
-      console.log('🔍 [POST /api/venta] Transacción completada exitosamente');
       return venta;
     });
 
-    console.log('🔍 [POST /api/venta] Venta y movimientos creados exitosamente:', result.id);
 
     
     return NextResponse.json(result, { status: 201 });
@@ -596,7 +558,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
     return NextResponse.json(ventas);
 
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: "Error al obtener las ventas" }, { status: 500 });
   }
 }

@@ -28,16 +28,16 @@ import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 
 import { useCartStore } from "@/store/cartStore";
-import axios from "axios";
+import { getProductosVenta } from "@/services/costoPrecioServices";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ProductModal } from "./components/ProductModal";
-import { ICategory } from "@/types/ICategoria";
-import { IProductoTiendaV2 } from "@/types/IProducto";
+import { ICategory } from "@/schemas/categoria";
+import { IProductoTiendaV2 } from "@/schemas/producto";
 import CartDrawer from "@/components/cartDrawer/CartDrawer";
 import PaymentModal from "./components/PaymentModal";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
-import { ICierrePeriodo } from "@/types/ICierre";
+import { ICierrePeriodo } from "@/schemas/cierre";
 import useConfirmDialog from "@/components/confirmDialog";
 import { createSell } from "@/services/sellService";
 import { useSalesStore } from "@/store/salesStore";
@@ -53,8 +53,8 @@ import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
 
 import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
 
-import { IProcessedData } from "@/types/IProcessedData";
-import { ITransferDestination } from "@/types/ITransferDestination";
+import { IProcessedData } from "@/schemas/processedData";
+import { ITransferDestination } from "@/schemas/transferDestination";
 import { fetchTransferDestinations } from "@/services/transferDestinationsService";
 import { CartContent } from "@/components/cartDrawer/components/cartContent";
 import { ProductProcessorDataRef } from "@/components/ProductProcessorData/ProductProcessorData";
@@ -313,7 +313,6 @@ export default function POSInterface() {
   }
 
   const syncPendingSales = async () => {
-    console.log('🔄 Sincronización automática');
 
     const salesNotSynced = sales.filter((sale) =>
       sale.syncState === "not_synced" && !syncingIdentifiers.has(sale.identifier)
@@ -321,7 +320,6 @@ export default function POSInterface() {
 
     if (salesNotSynced.length === 0) return;
 
-    console.log(`🔄 Sincronizando automáticamente ${salesNotSynced.length} ventas pendientes...`);
     showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
 
     // Marcar como "sincronizando" para evitar duplicados
@@ -334,7 +332,6 @@ export default function POSInterface() {
 
     for (const sale of salesNotSynced) {
       try {
-        console.log(`🔄 Sincronizando venta: ${sale.identifier}`);
         markSyncing(sale.identifier); // Marcar como sincronizando
         const ventaDb = await createSell(
           sale.tiendaId,
@@ -412,15 +409,8 @@ export default function POSInterface() {
   const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
       if (!silent) setLoading(true);
-      const response = await axios.get<IProductoTiendaV2[]>(
-        `/api/productos_tienda/${user.localActual.id}/productos_venta`,
-        {
-          params: {
-            incluseCategories: true,
-          },
-        }
-      );
-      const prods = response.data
+      const rawProductos = await getProductosVenta(user.localActual.id, { incluseCategories: true });
+      const prods = rawProductos
         // Agregar el nombre del proveedor al producto
         .map(prod => ({
           ...prod,
@@ -436,7 +426,7 @@ export default function POSInterface() {
           if (p.existencia <= 0) {
             // Si el producto tiene unidades por fracción, se debe verificar que el producto padre tenga existencia
             if (p.producto.fraccionDeId !== null) {
-              const pPadre = response.data.find(
+              const pPadre = rawProductos.find(
                 (padre) => padre.productoId === p.producto.fraccionDeId
               );
               if (pPadre && pPadre.existencia > 0) {
@@ -511,17 +501,6 @@ export default function POSInterface() {
         const cierreId = periodo.id;
         const identifier = crypto.randomUUID();
 
-        console.log('🔍 [handleMakePay] Preparando datos de venta:', {
-          tiendaId,
-          cierreId,
-          usuarioId: user.id,
-          total,
-          totalCash,
-          totalTransfer,
-          identifier,
-          ...(totalTransfer > 0 && { transferDestinationId })
-        });
-
         const data = cart.map((prod) => {
           const productoEnTienda = productosTienda.find(p => p.id === prod.productoTiendaId);
           if (!productoEnTienda) {
@@ -536,7 +515,6 @@ export default function POSInterface() {
           };
         });
 
-        console.log('🔍 [handleMakePay] Productos en carrito:', data);
 
         const cash = total - totalTransfer;
 
@@ -624,7 +602,6 @@ export default function POSInterface() {
         // 5. Intentar sincronizar con el backend si estamos online
         if (isOnline) {
           try {
-            console.log('🔍 [handleMakePay] Enviando venta al backend...');
             markSyncing(identifier); // Marcar como sincronizando
             const ventaDb = await createSell(
               tiendaId,
@@ -641,11 +618,10 @@ export default function POSInterface() {
               1, // 🆕 Primer intento exitoso
               discountCodes
             );
-            console.log('🔍 [handleMakePay] Respuesta del backend:', ventaDb);
             markSynced(identifier, ventaDb.id);
             showMessage("✅ Venta procesada y sincronizada exitosamente", "success");
           } catch (syncError) {
-            console.log('🔍 [handleMakePay] Error de sincronización:', syncError);
+            console.error(syncError);
 
             // Manejo mejorado de errores de sincronización
             if (syncError.message?.includes('TIMEOUT_ERROR')) {
@@ -674,7 +650,7 @@ export default function POSInterface() {
         }
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage("❌ Error al procesar el pago", "error");
       // En caso de error, también limpiar el carrito para evitar estados inconsistentes
       clearCart();
@@ -838,7 +814,7 @@ export default function POSInterface() {
             setPeriodo(lastPeriod);
           }
         } catch (error) {
-          console.log(error);
+          console.error(error);
           showMessage(
             "Ocurrió un erro intentando cargar le período",
             "error"
@@ -857,8 +833,7 @@ export default function POSInterface() {
 
   useEffect(() => {
     if (periodo) {
-      fetchProductosAndCategories().catch((error) => {
-        console.log(error);
+      fetchProductosAndCategories().catch(() => {
         showMessage(
           "Ocurrió un error intentando cargar las categorías",
           "error"

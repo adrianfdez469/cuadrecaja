@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     });
     return NextResponse.json(transferDestinations);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al obtener destinos de transferencia' }, { status: 500 });
   }
 }
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(newTransferDestination, { status: 201 });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: 'Error al crear destino de transferencia' }, { status: 500 });
   }
 } 

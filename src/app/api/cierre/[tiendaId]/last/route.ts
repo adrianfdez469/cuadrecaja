@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
     // Retornar null explícitamente si no hay períodos
     return NextResponse.json(ultimoPeriodo || null);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: "Error al obtener el estado del período" }, { status: 500 });
   }
 }

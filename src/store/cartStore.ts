@@ -1,21 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ICartItem, ICart } from "@/schemas/cart";
 
-export interface ICartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  productoTiendaId: string;
-  fechaVencimiento?: string | null;
-}
-
-export interface ICart {
-  id: string;
-  name: string;
-  items: ICartItem[];
-  total: number;
-}
+export type { ICartItem, ICart };
 
 interface CartState {
   // Backward-compatible selectors for existing UI

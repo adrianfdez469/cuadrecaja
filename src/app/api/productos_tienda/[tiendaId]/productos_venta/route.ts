@@ -30,6 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
     const productosTienda = await prisma.productoTienda.findMany({
       where: {
         tiendaId: tiendaId,
+        producto: { deletedAt: null },
         ...filter
       },
       include: {
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
 
     return NextResponse.json(result);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json(
       { error: "Error al obtener productos" },
       { status: 500 }

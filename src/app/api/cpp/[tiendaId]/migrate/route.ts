@@ -9,11 +9,9 @@ export async function POST(
     const { tiendaId } = await params;
     const { dryRun } = await req.json();
 
-    console.log(`🔄 Iniciando migración CPP para tienda ${tiendaId}, dryRun: ${dryRun}`);
 
     const reporte = await migrarDatosHistoricosCPP(tiendaId, dryRun);
 
-    console.log(`✅ Migración completada:`, reporte);
 
     return NextResponse.json({
       success: true,

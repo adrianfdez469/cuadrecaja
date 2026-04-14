@@ -54,7 +54,7 @@ import { ContentCard } from "@/components/ContentCard";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from "@/services/proveedorService";
-import { IProveedor, IProveedorCreate, IProveedorUpdate } from "@/types/IProveedor";
+import { IProveedor, IProveedorCreate, IProveedorUpdate } from "@/schemas/proveedor";
 import { getUsuarios, IUsuarioBasico } from "@/services/usuarioService";
 
 export default function Proveedores() {

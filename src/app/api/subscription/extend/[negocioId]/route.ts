@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SubscriptionService } from '@/services/subscriptionService';
+import { SubscriptionLib } from '@/lib/subscriptionLib';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 
 export async function POST(
@@ -23,7 +23,7 @@ export async function POST(
       );
     }
     
-    await SubscriptionService.extendSubscription(negocioId, daysToAdd);
+    await SubscriptionLib.extendSubscription(negocioId, daysToAdd);
     
     return NextResponse.json({
       message: `Suscripción del negocio ${negocioId} extendida por ${daysToAdd} días`,

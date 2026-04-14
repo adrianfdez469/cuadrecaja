@@ -4,8 +4,8 @@ import { useSession } from "next-auth/react";
 import { createContext, useContext, useEffect, useState, useTransition } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
-import { ILocal } from "@/types/ILocal";
-import { INegocio } from "@/types/INegocio";
+import { ILocal } from "@/schemas/tienda";
+import { INegocio } from "@/schemas/negocio";
 
 interface ISessionUser {
   id: string;
@@ -45,7 +45,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const gotToPath = (path: string) => {
     if (isAuth) {
-      console.log('path', path);
       if (pathname !== path) {
         startTransition(() => {
           router.push(path);
@@ -55,7 +54,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    console.log('session', session);
 
     if (status === 'authenticated') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -67,7 +65,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         gotToPath('/home');
       }
     }
-  }, [status, pathname, isAuth]);
+  }, [status, pathname, isAuth, session]);
 
   return (
     <AppContext.Provider value={{

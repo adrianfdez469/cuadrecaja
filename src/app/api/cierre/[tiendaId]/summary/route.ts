@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ISummaryCierre } from "@/types/ICierre";
+import { ISummaryCierre } from "@/schemas/cierre";
 import {startOfNextDay} from "@/utils/date";
 
 type Params = { tiendaId: string };
@@ -225,9 +225,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<Params
       sumTotalGananciaFinal,
       totalItems: totalCierres
     });
-  } catch (error: unknown) {
-     
-    console.log(error);
+  } catch (_error: unknown) {
     return NextResponse.json({ error: "Error al obtener los datos del cierre" }, { status: 500 });
   }
 }

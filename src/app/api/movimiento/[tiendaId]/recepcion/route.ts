@@ -60,7 +60,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ tiendaId
 
     return NextResponse.json(movs, {status: 200});
   } catch (error) {
-    console.log(error);
+    console.error(error);
     
     return NextResponse.json(
       { error: "Error al cargar movimiento" },

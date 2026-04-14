@@ -211,7 +211,6 @@ export const authOptions: NextAuthOptions = {
         }
       }
       if (trigger === "update" && session?.negocio) {
-        console.log('cambiando negocio');
 
         token.negocio = session.negocio;
         // token.tiendaActual = null;

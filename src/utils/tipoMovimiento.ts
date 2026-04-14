@@ -1,4 +1,4 @@
-import { ITipoMovimiento } from "@/types/IMovimiento";
+import { ITipoMovimiento } from "@/schemas/movimiento";
 
 export const isMovimientoBaja = (tipo: ITipoMovimiento) => {
   return tipo === 'AJUSTE_SALIDA' 

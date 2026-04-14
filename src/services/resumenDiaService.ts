@@ -1,4 +1,4 @@
-import axios from "axios";
+import axiosClient from "@/lib/axiosClient";
 import { IResumenDiaResponse } from "@/schemas/resumenDia";
 
 export const getResumenDia = async (
@@ -6,7 +6,7 @@ export const getResumenDia = async (
   cierreId: string,
   soloConMovimientos = true
 ): Promise<IResumenDiaResponse> => {
-  const response = await axios.get<IResumenDiaResponse>(
+  const response = await axiosClient.get<IResumenDiaResponse>(
     `/api/resumen-dia/${tiendaId}`,
     { params: { cierreId, soloConMovimientos } }
   );

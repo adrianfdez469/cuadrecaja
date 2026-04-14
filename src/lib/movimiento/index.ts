@@ -1,19 +1,17 @@
 import { prisma } from '../prisma';
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
-import { calcularCPP, requiereCPP, formatearCPPLog } from '../cpp-calculator';
+import { calcularCPP, requiereCPP } from '../cpp-calculator';
 
 export const CreateMoviento = async (data, items) => {
 
   const { tipo, tiendaId, usuarioId, referenciaId, motivo, proveedorId, destinationId } = data;
 
-  console.log('data', data);
   
 
   await prisma.$transaction(async (tx) => {
 
     for (const movimiento of items) {
       const { productoId, cantidad, costoUnitario, proveedorId: itemProveedorId, movimientoOrigenId, fechaVencimiento } = movimiento;
-      console.log('movimiento', movimiento);
       
 
       // 1. Obtener el productoTienda existente para capturar la existencia anterior
@@ -45,7 +43,6 @@ export const CreateMoviento = async (data, items) => {
             );
             nuevoCosto = calculoCPP.costoNuevo;
 
-            console.log('🔄 CPP CALCULADO:', formatearCPPLog(calculoCPP));
           } catch (error) {
             console.error('❌ Error calculando CPP:', error.message);
             // En caso de error, mantener el costo anterior
@@ -83,7 +80,6 @@ export const CreateMoviento = async (data, items) => {
       } else {
         // 2. Create para obtener el productoTienda
 
-        console.log(`Intentando crear productoTienda ${productoId} en tienda ${tiendaId} con proveedor ${itemProveedorId || proveedorId || null}`);
         
 
         productoTienda = await tx.productoTienda.create({
@@ -112,7 +108,6 @@ export const CreateMoviento = async (data, items) => {
             costoTotalCompra: cantidad * costoUnitario
           };
 
-          console.log('🆕 PRODUCTO NUEVO - CPP INICIAL:', formatearCPPLog(calculoCPP));
         }
       }
 

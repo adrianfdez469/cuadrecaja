@@ -1,5 +1,5 @@
-import { ICierreData } from "@/types/ICierre";
-import { ICierrePeriodo } from "@/types/ICierre";
+import { ICierreData } from "@/schemas/cierre";
+import { ICierrePeriodo } from "@/schemas/cierre";
 import axios from "@/lib/axiosClient";
 
 const API_URL = (tiendaId) => `/api/cierre/${tiendaId}`; // Ruta base del backend
@@ -11,7 +11,6 @@ export const fetchLastPeriod = async (tiendaId): Promise<ICierrePeriodo|undefine
 
 export const openPeriod = async (tiendaId): Promise<ICierrePeriodo|undefined> => {
   const response = await axios.put<ICierrePeriodo>(`${API_URL(tiendaId)}/open`);
-  console.log(response); 
   return response.data;
 }
 

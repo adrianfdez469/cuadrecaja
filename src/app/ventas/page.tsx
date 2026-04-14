@@ -40,8 +40,8 @@ import {
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import { ICierrePeriodo } from "@/types/ICierre";
-import { IVenta } from "@/types/IVenta";
+import { ICierrePeriodo } from "@/schemas/cierre";
+import { IVenta } from "@/schemas/venta";
 import useConfirmDialog from "@/components/confirmDialog";
 import { getSells, removeProductFromSale, removeSell } from "@/services/sellService";
 import { PageContainer } from "@/components/PageContainer";
@@ -82,7 +82,7 @@ const Ventas = () => {
       await loadData();
       showMessage("Primer período creado exitosamente", "success");
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage("Error al crear el primer período", "error");
     } finally {
       setIsProcessingPeriod(false);
@@ -114,7 +114,7 @@ const Ventas = () => {
       setVentas(data || []);
       return data || [];
     } catch (error) {
-      console.log(error);
+      console.error(error);
       showMessage("Error: los datos de ventas no pudieron ser cargados", "error");
       setVentas([]);
       return [];
@@ -142,7 +142,7 @@ const Ventas = () => {
           await removeSell(tiendaId, currentPeriod.id, venta.id, user.id);
           showMessage("La venta fue eliminada satisfactoriamente", 'success');
         } catch (error) {
-          console.log(error);
+          console.error(error);
           showMessage("La venta no pudo ser eliminada", 'error');
         } finally {
           await loadData();
@@ -162,7 +162,7 @@ const Ventas = () => {
           await removeProductFromSale(tiendaId, currentPeriod.id, venta.id, ventaProductoId);
           showMessage("Producto eliminado de la venta", "success");
         } catch (error) {
-          console.log(error);
+          console.error(error);
           showMessage("No se pudo eliminar el producto de la venta", "error");
         } finally {
           setDeletingVentaProductoId(null);

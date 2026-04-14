@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SubscriptionService } from '@/services/subscriptionService';
+import { SubscriptionLib } from '@/lib/subscriptionLib';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 
 export async function GET() {
@@ -9,9 +9,8 @@ export async function GET() {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    console.log('Obteniendo estadísticas de suscripciones...');
     
-    const stats = await SubscriptionService.getSubscriptionStats();
+    const stats = await SubscriptionLib.getSubscriptionStats();
     
     return NextResponse.json({
       message: 'Estadísticas obtenidas exitosamente',

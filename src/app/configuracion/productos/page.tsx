@@ -47,7 +47,7 @@ import {
   editProduct,
   fetchProducts,
 } from "@/services/productServise";
-import { IProducto } from "@/types/IProducto";
+import { IProducto } from "@/schemas/producto";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
@@ -143,8 +143,9 @@ export default function ProductList() {
         await deleteProduct(id);
         showMessage('Producto eliminado', 'success');
       } catch (error) {
-        console.log(error);
-        showMessage('Error al intentar eliminar el producto. Es probable que esté en uso!', 'error');
+        console.error(error);
+        const msg = error.response?.data?.error || 'Error al intentar eliminar el producto';
+        showMessage(msg, 'error');
       } finally {
         await loadProducts();
       }
