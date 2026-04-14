@@ -4,6 +4,8 @@ export const categoriaSchema = z.object({
   id: z.string().uuid(),
   nombre: z.string().min(1, 'El nombre es requerido'),
   color: z.string().min(1, 'El color es requerido'),
+  esGlobal: z.boolean().default(false),
+  negocioId: z.string().nullable().optional(),
 });
 
 export const createCategoriaSchema = categoriaSchema.omit({ id: true });

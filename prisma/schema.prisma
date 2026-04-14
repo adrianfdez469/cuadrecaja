@@ -151,14 +151,15 @@ model Rol {
 // Representa una categoría de productos (ej. Electrónica, Ropa, etc.)
 model Categoria {
   id        String     @id @default(uuid())
-  nombre    String // Removido @unique - ahora será único por negocio
+  nombre    String
   color     String // Color representativo (hexadecimal)
+  esGlobal  Boolean    @default(false) // Si true, es transversal a todos los negocios (solo SUPER_ADMIN la gestiona)
   productos Producto[] // Relación con los productos de esta categoría
 
-  negocio   Negocio @relation(fields: [negocioId], references: [id])
-  negocioId String  @default("")
+  negocio   Negocio? @relation(fields: [negocioId], references: [id])
+  negocioId String? // null = categoría global
 
-  // Índice de unicidad compuesto: nombre único por negocio
+  // Nombre único por negocio; para globales se usa un partial unique index en la migración
   @@unique([nombre, negocioId])
 }
 

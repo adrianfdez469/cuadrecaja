@@ -23,11 +23,15 @@ export async function GET(request: NextRequest) {
     const user = session.user;
 
     const categorias = await prisma.categoria.findMany({
-      orderBy: {
-        nombre: 'asc'
-      },
+      orderBy: [
+        { esGlobal: 'desc' },
+        { nombre: 'asc' }
+      ],
       where: {
-        negocioId: user.negocio.id
+        OR: [
+          { negocioId: null },
+          { negocioId: user.negocio.id }
+        ]
       }
     });
     return NextResponse.json(categorias);
@@ -64,9 +68,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { nombre, color } = await request.json();
+    const { nombre, color, esGlobal } = await request.json();
+    const createAsGlobal = user.rol === "SUPER_ADMIN" && esGlobal === true;
+
     const newCategory = await prisma.categoria.create({
-      data: { nombre: nombre.trim(), color, negocioId: user.negocio.id },
+      data: {
+        nombre: nombre.trim(),
+        color,
+        esGlobal: createAsGlobal,
+        negocioId: createAsGlobal ? null : user.negocio.id,
+      },
     });
     return NextResponse.json(newCategory, { status: 201 });
   } catch (error) {

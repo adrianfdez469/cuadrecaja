@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
-import { permisosTemplates } from '@/constants/permisos/permisos.templates';
 
 const MAX_LOCALES_ONBOARDING = 19;
 
@@ -64,16 +63,10 @@ export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboa
       tiendas.push(t);
     }
 
-    const permisos = permisosTemplates.administrador.join('|');
-
-    const rol = await tx.rol.create({
-      data: {
-        nombre: 'Administrador',
-        descripcion: 'Rol administrador con acceso completo al negocio',
-        permisos,
-        negocioId: negocio.id,
-      },
+    const rol = await tx.rol.findFirst({
+      where: { isGlobal: true, nombre: 'Administrador' },
     });
+    if (!rol) throw new Error('Rol global Administrador no encontrado. Verifique que la migración de roles globales se haya aplicado correctamente.');
 
     const usuario = await tx.usuario.create({
       data: {

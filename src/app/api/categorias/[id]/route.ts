@@ -18,9 +18,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         { status: 403 }
       );
     }
+
+    const categoria = await prisma.categoria.findUnique({ where: { id } });
+
+    if (!categoria) {
+      return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
+    }
+
+    if (categoria.esGlobal && user.rol !== "SUPER_ADMIN") {
+      return NextResponse.json({ error: "No puedes editar categorías globales" }, { status: 403 });
+    }
+
+    if (!categoria.esGlobal && categoria.negocioId !== user.negocio.id) {
+      return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
+    }
+
     const { nombre, color } = await req.json();
     const updatedCategory = await prisma.categoria.update({
-      where: { id, negocioId: user.negocio.id },
+      where: { id },
       data: { nombre, color },
     });
     return NextResponse.json(updatedCategory);
@@ -48,18 +63,21 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }
 
-    // Verificar si la categoría existe antes de eliminarla
-    const categoria = await prisma.categoria.findUnique({
-      where: { id, negocioId: user.negocio.id },
-    });
+    const categoria = await prisma.categoria.findUnique({ where: { id } });
 
     if (!categoria) {
       return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
     }
 
-    await prisma.categoria.delete({
-      where: { id },
-    });
+    if (categoria.esGlobal && user.rol !== "SUPER_ADMIN") {
+      return NextResponse.json({ error: "No puedes eliminar categorías globales" }, { status: 403 });
+    }
+
+    if (!categoria.esGlobal && categoria.negocioId !== user.negocio.id) {
+      return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
+    }
+
+    await prisma.categoria.delete({ where: { id } });
 
     return NextResponse.json({ message: "Categoría eliminada correctamente" }, { status: 200 });
   } catch (error) {

@@ -135,6 +135,46 @@ async function main() {
   console.log('Seed completado.');
 
   // ──────────────────────────────────────────────────────────────────────
+  // Categorías globales — corren en todos los entornos
+  // ──────────────────────────────────────────────────────────────────────
+  console.log('\nSeeding categorías globales...');
+  const globalCategorias = [
+    { nombre: 'Bebidas', color: '#2196F3' },
+    { nombre: 'Bebidas Alcohólicas', color: '#1565C0' },
+    { nombre: 'Snacks y Golosinas', color: '#FF9800' },
+    { nombre: 'Lácteos', color: '#4CAF50' },
+    { nombre: 'Panadería y Repostería', color: '#8D6E63' },
+    { nombre: 'Carnes y Embutidos', color: '#E53935' },
+    { nombre: 'Frutas y Verduras', color: '#66BB6A' },
+    { nombre: 'Enlatados y Conservas', color: '#78909C' },
+    { nombre: 'Cereales y Granos', color: '#FFA726' },
+    { nombre: 'Condimentos y Salsas', color: '#EF5350' },
+    { nombre: 'Congelados', color: '#29B6F6' },
+    { nombre: 'Aseo del Hogar', color: '#AB47BC' },
+    { nombre: 'Aseo Personal', color: '#9C27B0' },
+    { nombre: 'Medicamentos y Salud', color: '#F44336' },
+    { nombre: 'Electrónica y Accesorios', color: '#455A64' },
+    { nombre: 'Papelería y Oficina', color: '#42A5F5' },
+    { nombre: 'Ropa y Calzado', color: '#EC407A' },
+    { nombre: 'Juguetes y Entretenimiento', color: '#FFCA28' },
+    { nombre: 'Herramientas y Ferretería', color: '#607D8B' },
+    { nombre: 'Otros', color: '#9E9E9E' },
+  ];
+  let globalCreadas = 0;
+  for (const cat of globalCategorias) {
+    const existe = await prisma.categoria.findFirst({
+      where: { nombre: cat.nombre, negocioId: null }
+    });
+    if (!existe) {
+      await prisma.categoria.create({
+        data: { ...cat, esGlobal: true, negocioId: null }
+      });
+      globalCreadas++;
+    }
+  }
+  console.log(`  ✓ Categorías globales (${globalCreadas} creadas, ${globalCategorias.length - globalCreadas} existentes)`);
+
+  // ──────────────────────────────────────────────────────────────────────
   // Seed de desarrollo — solo fuera de producción
   // ──────────────────────────────────────────────────────────────────────
   if (process.env.NODE_ENV !== 'production') {
