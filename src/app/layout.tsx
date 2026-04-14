@@ -1,6 +1,7 @@
 "use client"; // Esto hace que todo el layout sea un Client Component
 
 import { ThemeProvider, CssBaseline } from "@mui/material";
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import theme from "@/theme";
 import Layout from "@/components/Layout";
 import { AppProvider } from "@/context/AppContext";
@@ -25,6 +26,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       <body>
+        <AppRouterCacheProvider>
         <SessionProvider>
           <AppProvider>
             <ThemeProvider theme={theme}>
@@ -37,6 +39,7 @@ export default function RootLayout({
             </ThemeProvider>
           </AppProvider>
         </SessionProvider>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );
