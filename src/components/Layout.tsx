@@ -274,9 +274,11 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     }
   };
 
-  const handleCloseCambiarLocal = () => {
+  const handleCloseCambiarLocal = (localSeleccionado = false) => {
     setOpenSelectLocal(false);
-    selectorLocalAbiertoRef.current = false;
+    if (!localSeleccionado) {
+      selectorLocalAbiertoRef.current = false;
+    }
   };
   const handleCloseCambiarNegocio = () => {
     setOpenSelectNegocio(false);
@@ -289,7 +291,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         localActual: localesDisponibles?.find((t) => t.id === selectedLocal),
       });
       showMessage("El local fue actualizada satisfactoriamente", "success");
-      handleCloseCambiarLocal();
+      handleCloseCambiarLocal(true);
 
       // Redirigir a /home para forzar re-render con el nuevo local
       gotToPath('/home');
@@ -1105,7 +1107,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             <RadioGroup
               onChange={(e) => handleSelectLocal(e.target.value)}
             >
-              {localesDisponibles?.map((local) => (
+              {localesDisponibles?.filter((local) => local.id !== user?.localActual?.id).map((local) => (
                 <FormControlLabel
                   key={local.id}
                   value={local.id}
@@ -1132,7 +1134,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
           {(user?.localActual || localesDisponibles.length === 0) && (
-            <Button onClick={handleCloseCambiarLocal} variant="outlined">
+            <Button onClick={() => handleCloseCambiarLocal()} variant="outlined">
               {localesDisponibles.length === 0 ? 'Cerrar' : 'Cancelar'}
             </Button>
           )}
@@ -1162,7 +1164,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               <RadioGroup
                 onChange={(e) => handleSelectNegocio(e.target.value)}
               >
-                {negocios.map((negocio) => (
+                {negocios.filter((negocio) => negocio.id !== user?.negocio?.id).map((negocio) => (
                   <FormControlLabel
                     key={negocio.id}
                     value={negocio.id}

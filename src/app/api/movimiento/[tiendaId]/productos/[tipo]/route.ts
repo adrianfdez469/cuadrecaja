@@ -104,7 +104,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tipo
         where: {
           negocioId: negocioId,
           deletedAt: null,
-          fraccionDeId: null,
           ...(textFilterIds && { id: { in: textFilterIds } }),
           ...(categoriaId && {
             categoriaId: categoriaId
