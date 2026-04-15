@@ -2,6 +2,7 @@ import { CreateMoviento } from "@/lib/movimiento";
 import { prisma } from "@/lib/prisma";
 import { MovimientoTipo } from "@prisma/client";
 import { NextResponse } from "next/server";
+import {startOfNextDay} from "@/utils/date";
 
 export async function GET(req: Request) {
   try {
@@ -13,7 +14,10 @@ export async function GET(req: Request) {
     const tiendaId = searchParams.get("tiendaId");
     const fechaInicio = searchParams.get("fechaInicio");
     const fechaFin = searchParams.get("fechaFin");
-    const tipo = searchParams.get("tipo") as MovimientoTipo;
+    const tipoRaw = searchParams.get("tipo");
+    const tipos: MovimientoTipo[] = tipoRaw
+      ? (tipoRaw.split(",").filter(Boolean) as MovimientoTipo[])
+      : [];
     const productoTiendaId = searchParams.get("productoTiendaId");
     const referenciaId = searchParams.get("referenciaId");
     const search = searchParams.get("search");
@@ -43,8 +47,9 @@ export async function GET(req: Request) {
 
     const filtros = {
       ...(fechaInicio && {fecha: { gte: new Date(fechaInicio).toISOString() }}),
-      ...(fechaFin && {fecha: {lte: new Date(fechaFin).toISOString()}}),
-      ...(tipo && {tipo: tipo}),
+      ...(fechaFin && {fecha: {lte: startOfNextDay(new Date(fechaFin)).toISOString()}}),
+      ...(tipos.length === 1 && { tipo: tipos[0] }),
+      ...(tipos.length > 1 && { tipo: { in: tipos } }),
       ...(productoTiendaId && {productoTiendaId: productoTiendaId}),
       ...(referenciaId && {referenciaId: referenciaId}),
       ...(searchIds && { id: { in: searchIds } }),

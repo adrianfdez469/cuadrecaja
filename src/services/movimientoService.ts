@@ -22,7 +22,7 @@ export const findMovimientos = async (
   take: number = 20, 
   skip: number = 0, 
   productoTiendaId?: string, 
-  tipo?: ITipoMovimiento, 
+  tipo?: ITipoMovimiento[],
   intervalo?: {fechaInicio?: Date, fechaFin?: Date},
   searchTerm?: string
 ) => {
@@ -34,7 +34,7 @@ export const findMovimientos = async (
       ...(intervalo?.fechaInicio && {fechaInicio: intervalo.fechaInicio}),
       ...(intervalo?.fechaFin && {fechaFin: intervalo.fechaFin}),
       ...(productoTiendaId && {productoTiendaId: productoTiendaId}),
-      ...(tipo && {tipo: tipo}),
+      ...(tipo && tipo.length > 0 && { tipo: tipo.join(",") }),
       ...(searchTerm && {search: searchTerm}),
     }
   });

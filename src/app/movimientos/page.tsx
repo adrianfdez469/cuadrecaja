@@ -26,7 +26,11 @@ import {
   IconButton,
   Collapse,
   Divider,
-  Badge
+  Badge,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import {
   Add,
@@ -39,13 +43,17 @@ import {
   Refresh,
   ExpandMore,
   Message,
-  ExpandLess
+  ExpandLess,
+  FilterAlt,
+  CleaningServices,
 } from "@mui/icons-material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs, { Dayjs } from "dayjs";
 import { AddMovimientoDialog } from "./components/addMovimientoDialog";
 import { useAppContext } from "@/context/AppContext";
 import { cretateBatchMovimientos, findMovimientos, getMovimientosProductosEnviados, rejectMovimiento } from "@/services/movimientoService";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
-import { ITipoMovimiento } from "@/schemas/movimiento";
+import { ITipoMovimiento, MovimientoTipoEnum } from "@/schemas/movimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatNumber, formatDateTime } from '@/utils/formatters';
@@ -60,6 +68,21 @@ import { useMessageContext } from "@/context/MessageContext";
 
 const PAGE_SIZE = 20;
 
+const TIPO_LABELS: Record<ITipoMovimiento, string> = {
+  COMPRA: 'Compra',
+  VENTA: 'Venta',
+  AJUSTE_ENTRADA: 'Ajuste Entrada',
+  AJUSTE_SALIDA: 'Ajuste Salida',
+  TRASPASO_ENTRADA: 'Traspaso Entrada',
+  TRASPASO_SALIDA: 'Traspaso Salida',
+  DESAGREGACION_BAJA: 'Desagregación Baja',
+  DESAGREGACION_ALTA: 'Desagregación Alta',
+  CONSIGNACION_ENTRADA: 'Consignación Entrada',
+  CONSIGNACION_DEVOLUCION: 'Consignación Devolución',
+};
+
+const TODOS_TIPOS = MovimientoTipoEnum.options;
+
 export default function MovimientosPage() {
   const [movimientos, setMovimientos] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -70,6 +93,10 @@ export default function MovimientosPage() {
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [pendienteRecepcion, setPendienteRecepcion] = useState([]);
+  const [tipoFilter, setTipoFilter] = useState<ITipoMovimiento[]>([]);
+  const [fechaInicio, setFechaInicio] = useState<Dayjs | null>(null);
+  const [fechaFin, setFechaFin] = useState<Dayjs | null>(null);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const { showMessage } = useMessageContext()
   
   // 🆕 Estados para paginación mejorada
@@ -91,6 +118,7 @@ export default function MovimientosPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const disabledCleanFilter = !(searchTerm || searchInputValue || tipoFilter.length > 0 || fechaInicio || fechaFin) || loadingData;
 
   const [skip, setSkip] = useState(0);
 
@@ -109,20 +137,29 @@ export default function MovimientosPage() {
     }
   };
 
-  // 🆕 Función mejorada para cargar movimientos con filtrado en backend
-  const fetchMovimientos = async (nuevoSkip = skip, searchFilter = searchTerm) => {
+  const fetchMovimientos = async (
+    nuevoSkip = skip,
+    searchFilter = searchTerm,
+    tipoParam: ITipoMovimiento[] = tipoFilter,
+    inicioParam: Dayjs | null = fechaInicio,
+    finParam: Dayjs | null = fechaFin
+  ) => {
     try {
       setLoadingData(true);
       const tiendaId = user.localActual.id;
-      
+
+      const intervalo = (inicioParam || finParam)
+        ? { fechaInicio: inicioParam?.toDate(), fechaFin: finParam?.toDate() }
+        : undefined;
+
       const result = await findMovimientos(
-        tiendaId, 
-        PAGE_SIZE, 
+        tiendaId,
+        PAGE_SIZE,
         nuevoSkip,
-        undefined, // productoTiendaId
-        undefined, // tipo
-        undefined, // intervalo
-        searchFilter // 🆕 Nuevo parámetro para búsqueda
+        undefined,
+        tipoParam.length > 0 ? tipoParam : undefined,
+        intervalo,
+        searchFilter
       );
       
       setMovimientos(result?.data || []);
@@ -139,24 +176,24 @@ export default function MovimientosPage() {
     }
   };
 
-  // 🆕 Función para manejar búsqueda con botón filtrar
   const handleFilter = () => {
     setSearchTerm(searchInputValue);
     setSkip(0);
     setCurrentPage(0);
-    fetchMovimientos(0, searchInputValue);
+    fetchMovimientos(0, searchInputValue, tipoFilter, fechaInicio, fechaFin);
   };
 
-  // 🆕 Función para limpiar búsqueda
   const handleClearSearch = () => {
     setSearchTerm("");
     setSearchInputValue("");
+    setTipoFilter([]);
+    setFechaInicio(null);
+    setFechaFin(null);
     setSkip(0);
     setCurrentPage(0);
-    fetchMovimientos(0, "");
+    fetchMovimientos(0, "", [], null, null);
   };
 
-  // 🆕 Función para manejar cambio en el input (no controlado)
   const handleInputChange = (value: string) => {
     setSearchInputValue(value);
   };
@@ -548,11 +585,7 @@ export default function MovimientosPage() {
               placeholder={isMobile ? "Buscar..." : "Buscar movimiento..."}
               value={searchInputValue}
               onChange={(e) => handleInputChange(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  handleFilter();
-                }
-              }}
+              onKeyPress={(e) => { if (e.key === 'Enter') handleFilter(); }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -560,36 +593,93 @@ export default function MovimientosPage() {
                   </InputAdornment>
                 ),
               }}
-              sx={{
-                minWidth: isMobile ? 120 : 200,
-                maxWidth: isMobile ? 150 : 250
-              }}
+              sx={{ minWidth: isMobile ? 120 : 200, maxWidth: isMobile ? 150 : 250 }}
             />
+            <Tooltip title={filtersExpanded ? "Ocultar filtros" : "Más filtros"}>
+              <IconButton
+                size="small"
+                onClick={() => setFiltersExpanded(v => !v)}
+                color={tipoFilter.length > 0 || fechaInicio || fechaFin ? "primary" : "default"}
+              >
+                {filtersExpanded ? <ExpandLess /> : <FilterAlt />}
+              </IconButton>
+            </Tooltip>
             <Button
               variant="contained"
               size="small"
               onClick={handleFilter}
-              disabled={loadingData || !searchInputValue.trim()}
+              disabled={loadingData}
               sx={{ minWidth: 'auto', px: 2 }}
             >
-              {isMobile ? "Filtrar" : "Filtrar"}
+              Filtrar
             </Button>
-            {(searchTerm || searchInputValue) && (
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleClearSearch}
-                disabled={loadingData}
-                sx={{ minWidth: 'auto', px: 2 }}
-              >
-                {isMobile ? "Limpiar" : "Limpiar"}
-              </Button>
-            )}
+
+              <Tooltip title="Limpiar todos los filtros">
+                <Button
+                    size="small" onClick={handleClearSearch}
+                    disabled={disabledCleanFilter}
+                >
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <CleaningServices fontSize="small" />
+                    <span>Limpiar filtros</span>
+                  </Stack>
+
+                </Button>
+              </Tooltip>
+
           </Stack>
         }
         noPadding
         fullHeight
       >
+        {/* Panel de filtros adicionales */}
+        <Collapse in={filtersExpanded}>
+          <Box sx={{ px: isMobile ? 1.5 : 3, pt: 2, pb: 2 }}>
+            <Stack direction={isMobile ? "column" : "row"} spacing={2} alignItems={isMobile ? "stretch" : "flex-end"}>
+              <FormControl size="small" sx={{ minWidth: 220, maxWidth: isMobile ? '100%' : 320 }}>
+                <InputLabel>Tipo de movimiento</InputLabel>
+                <Select
+                  multiple
+                  value={tipoFilter}
+                  label="Tipo de movimiento"
+                  onChange={(e) => setTipoFilter(e.target.value as ITipoMovimiento[])}
+                  renderValue={(selected) =>
+                    (selected as ITipoMovimiento[]).map(t => TIPO_LABELS[t]).join(", ")
+                  }
+                >
+                  {TODOS_TIPOS.map((tipo) => (
+                    <MenuItem key={tipo} value={tipo}>
+                      {TIPO_LABELS[tipo]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <DatePicker
+                label="Fecha inicio"
+                value={fechaInicio}
+                onChange={(val) => setFechaInicio(val)}
+                maxDate={fechaFin ?? dayjs()}
+                slotProps={{
+                  textField: { size: "small", sx: { maxWidth: isMobile ? '100%' : 180 } },
+                  actionBar: { actions: ['clear'] },
+                }}
+              />
+              <DatePicker
+                label="Fecha fin"
+                value={fechaFin}
+                onChange={(val) => setFechaFin(val)}
+                minDate={fechaInicio ?? undefined}
+                maxDate={dayjs()}
+                slotProps={{
+                  textField: { size: "small", sx: { maxWidth: isMobile ? '100%' : 180 } },
+                  actionBar: { actions: ['clear'] },
+                }}
+              />
+            </Stack>
+          </Box>
+          <Divider />
+        </Collapse>
+
         {movimientos.length === 0 ? (
           <Box sx={{ p: 2 }}>
             <Alert severity="info" sx={{ mt: 2 }}>
@@ -780,9 +870,9 @@ export default function MovimientosPage() {
                 Siguiente
               </Button>
             </Stack>
-            {searchTerm && (
+            {(searchTerm || tipoFilter.length > 0 || fechaInicio || fechaFin) && (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
-               {`Filtro activo: "${searchTerm}" - ${movimientos.length} resultados encontrados`}
+                Filtros activos:{searchTerm ? ` "${searchTerm}"` : ''}{tipoFilter.length > 0 ? ` · ${tipoFilter.map(t => TIPO_LABELS[t]).join(", ")}` : ''}{fechaInicio ? ` · desde ${fechaInicio.format('DD/MM/YYYY')}` : ''}{fechaFin ? ` · hasta ${fechaFin.format('DD/MM/YYYY')}` : ''}
               </Typography>
             )}
           </Box>
