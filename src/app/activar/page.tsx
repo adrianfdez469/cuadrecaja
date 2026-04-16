@@ -33,6 +33,7 @@ interface Credentials {
 }
 
 const TEAL = '#4ECDC4';
+const LOGIN_PREFILL_KEY = 'prefill_login_credentials';
 
 function CopiarCampo({ label, value }: { label: string; value: string }) {
   const [copiado, setCopiado] = useState(false);
@@ -78,6 +79,19 @@ function ActivarContent() {
   const [estado, setEstado] = useState<ActivationState>('loading');
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const navegarALoginConPrefill = () => {
+    if (credentials) {
+      sessionStorage.setItem(
+        LOGIN_PREFILL_KEY,
+        JSON.stringify({
+          usuario: credentials.usuario,
+          password: credentials.passwordTemporal,
+        })
+      );
+    }
+    router.push('/login');
+  };
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -213,7 +227,7 @@ function ActivarContent() {
           size="large"
           fullWidth
           startIcon={<Login />}
-          onClick={() => router.push('/login')}
+          onClick={navegarALoginConPrefill}
           sx={{
             py: 1.5,
             fontSize: '1rem',

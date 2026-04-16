@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { 
   TextField, 
@@ -34,6 +34,26 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const LOGIN_PREFILL_KEY = "prefill_login_credentials";
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(LOGIN_PREFILL_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as { usuario?: string; password?: string };
+      const usuario = (parsed.usuario ?? "").trim().toLowerCase();
+      const password = parsed.password ?? "";
+
+      if (usuario || password) {
+        setCredentials({ usuario, password });
+      }
+    } catch {
+      // Si el formato no es válido, se ignora silenciosamente.
+    } finally {
+      sessionStorage.removeItem(LOGIN_PREFILL_KEY);
+    }
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if(e.target.name === "usuario") {
