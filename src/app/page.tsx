@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import {
   Box,
   Container,
@@ -10,6 +10,7 @@ import {
   AppBar,
   Toolbar,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
   Phone,
@@ -142,8 +143,16 @@ export default function LandingPage() {
       {/* Testimonials Section */}
       {/* <TestimonialsSection /> */}
 
-      {/* Contact Section */}
-      <ContactSection />
+      {/* ContactSection usa useSearchParams: Suspense requerido para build estático */}
+      <Suspense
+        fallback={
+          <Box sx={{ py: 12, bgcolor: '#252a3a', display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress sx={{ color: '#6ee7de' }} />
+          </Box>
+        }
+      >
+        <ContactSection />
+      </Suspense>
 
       {/* Footer */}
       <Box sx={{

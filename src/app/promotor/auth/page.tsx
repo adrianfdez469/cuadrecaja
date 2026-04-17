@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Box, CircularProgress, Container, Typography } from '@mui/material';
 
-export default function PromotorAuthPage() {
+function PromotorAuthRedirect() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -26,5 +26,26 @@ export default function PromotorAuthPage() {
         </Typography>
       </Container>
     </Box>
+  );
+}
+
+function PromotorAuthFallback() {
+  return (
+    <Box sx={{ minHeight: '100vh', bgcolor: '#1a1d29', display: 'flex', alignItems: 'center' }}>
+      <Container maxWidth="sm" sx={{ textAlign: 'center' }}>
+        <CircularProgress />
+        <Typography sx={{ mt: 2, color: 'rgba(255,255,255,0.85)' }}>
+          Cargando...
+        </Typography>
+      </Container>
+    </Box>
+  );
+}
+
+export default function PromotorAuthPage() {
+  return (
+    <Suspense fallback={<PromotorAuthFallback />}>
+      <PromotorAuthRedirect />
+    </Suspense>
   );
 }
