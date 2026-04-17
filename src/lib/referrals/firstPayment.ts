@@ -125,20 +125,13 @@ export async function registerFirstPaymentForBusiness(
       throw new Error('REFERRAL_REWARD_RULE_NOT_FOUND');
     }
 
-    await tx.referral.update({
+    const updatedReferral = await tx.referral.update({
       where: { id: referral.id },
       data: {
         firstPaidAt: paidAt,
         firstPaidPlanId: input.planId,
         newBusinessDiscountSnapshot: rewardRule.discountForNewBusiness,
         promoterRewardSnapshot: rewardRule.rewardForPromoter,
-        status: REFERRAL_STATUS.qualified,
-      },
-    });
-
-    const updatedReferral = await tx.referral.update({
-      where: { id: referral.id },
-      data: {
         status: REFERRAL_STATUS.liquidationPending,
       },
     });
