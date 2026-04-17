@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
+import { captureReferralForNewBusiness } from '@/lib/referrals/captureReferral';
 
 const MAX_LOCALES_ONBOARDING = 19;
 
@@ -10,6 +11,7 @@ export interface IOnboardingInput {
   telefono: string;
   /** Cantidad de tiendas a crear (1–19). */
   numeroLocales: number;
+  referido?: string;
 }
 
 export interface IOnboardingResult {
@@ -64,7 +66,7 @@ export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboa
     }
 
     const rol = await tx.rol.findFirst({
-      where: { isGlobal: true, nombre: 'Administrador' },
+      where: { nombre: 'Administrador', negocioId: null },
     });
     if (!rol) throw new Error('Rol global Administrador no encontrado. Verifique que la migración de roles globales se haya aplicado correctamente.');
 
@@ -88,6 +90,13 @@ export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboa
         },
       });
     }
+
+    await captureReferralForNewBusiness({
+      tx,
+      newBusinessId: negocio.id,
+      promoterCode: input.referido,
+      creatorEmail: correo,
+    });
   });
 
   return {

@@ -51,9 +51,10 @@ export default function RootLayout({
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Landing, descarga, activación y páginas de error: sin Layout principal
-  const noLayoutPaths = ['/', '/descargar', '/activar', '/forbidden'];
-  if (noLayoutPaths.includes(pathname)) {
+  // Landing, descarga, activación, promotores (público) y páginas de error: sin Layout principal
+  const noLayoutPaths = ['/', '/descargar', '/activar', '/forbidden', '/activar-promotor'];
+  const isPromotorPublicArea = pathname === '/promotor' || pathname.startsWith('/promotor/');
+  if (noLayoutPaths.includes(pathname) || isPromotorPublicArea) {
     return <>{children}</>;
   }
 

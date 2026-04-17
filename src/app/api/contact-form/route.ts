@@ -1,61 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-
-const MAX_LOCALES_CONTACT = 19;
-
-interface ContactFormData {
-  nombre: string;
-  nombreNegocio: string;
-  correo: string;
-  telefono?: string;
-  numeroLocales: number;
-  mensaje?: string;
-}
+import { ZodError } from 'zod';
+import { landingContactFormSchema } from '@/schemas/referral';
 
 export async function POST(request: NextRequest) {
   try {
-    const body: ContactFormData = await request.json();
-
-    const { nombre, nombreNegocio, correo, telefono, numeroLocales } = body;
-
-    if (!nombre?.trim() || !nombreNegocio?.trim() || !correo?.trim()) {
-      return NextResponse.json(
-        { error: 'Nombre, nombre del negocio y correo son obligatorios' },
-        { status: 400 }
-      );
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(correo.trim())) {
-      return NextResponse.json(
-        { error: 'El formato del correo electrónico no es válido' },
-        { status: 400 }
-      );
-    }
-
-    const nLocales = Number(numeroLocales);
-    if (
-      !Number.isFinite(nLocales) ||
-      !Number.isInteger(nLocales) ||
-      nLocales < 1 ||
-      nLocales > MAX_LOCALES_CONTACT
-    ) {
-      return NextResponse.json(
-        { error: `El número de locales debe ser un entero entre 1 y ${MAX_LOCALES_CONTACT}` },
-        { status: 400 }
-      );
-    }
+    const body = landingContactFormSchema.parse(await request.json());
 
     const telefonoNormalizado =
-      typeof telefono === 'string' && telefono.trim() ? telefono.replace(/\s/g, '') : '';
+      typeof body.telefono === 'string' && body.telefono.trim() ? body.telefono.replace(/\s/g, '') : '';
+    const referidoNormalizado = body.referido?.trim().toUpperCase() || '';
 
     const payload = {
-      nombre: nombre.trim(),
-      nombreNegocio: nombreNegocio.trim(),
-      correo: correo.trim(),
+      nombre: body.nombre.trim(),
+      nombreNegocio: body.nombreNegocio.trim(),
+      correo: body.correo.trim(),
       telefono: telefonoNormalizado,
-      numeroLocales: nLocales,
+      numeroLocales: body.numeroLocales,
       mensaje: body.mensaje ?? '',
+      referido: referidoNormalizado,
       timestamp: new Date().toISOString(),
       source: 'landing-page',
     };
@@ -73,6 +36,7 @@ export async function POST(request: NextRequest) {
           correo: payload.correo,
           telefono: payload.telefono,
           numeroLocales: payload.numeroLocales,
+          referido: payload.referido,
         },
         activationSecret,
         { expiresIn: '30m' }
@@ -121,6 +85,16 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        {
+          error: error.issues[0]?.message ?? 'Datos del formulario inválidos',
+          success: false,
+        },
+        { status: 400 }
+      );
+    }
+
     console.error('❌ Error procesando formulario de contacto:', error);
     
     return NextResponse.json(

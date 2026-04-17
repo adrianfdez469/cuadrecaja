@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { deleteNegocioCompleto } from '@/lib/negocio/deleteNegocioCompleto';
+import { cancelReferralIfBusinessDeletedUnpaid } from '@/lib/referrals/cancelUnpaidReferral';
 import { corsHeaders } from '@/middleware/cors';
 
 const ENV_KEY = 'PURGE_LANDING_NEGOCIOS_API_KEY';
@@ -136,6 +137,11 @@ export async function POST(request: NextRequest) {
     if (eliminar) {
       for (const n of candidatos) {
         try {
+          await cancelReferralIfBusinessDeletedUnpaid({
+            businessId: n.id,
+            deletedAt: new Date(),
+            reason: 'TRIAL_EXPIRED_UNPAID_PURGE',
+          });
           await deleteNegocioCompleto(n.id);
           eliminados.push(n);
         } catch (err) {

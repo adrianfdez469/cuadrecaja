@@ -76,6 +76,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
+import GroupsIcon from '@mui/icons-material/Groups';
 import { TipoLocal } from "@/schemas/tienda";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
@@ -87,6 +88,7 @@ import Logo from "./Logo";
 const SUPER_ADMIN_MENU_ITEMS = [
   { label: "Negocios", path: "/configuracion/negocios", icon: BusinessCenterIcon },
   { label: "Planes de Negocio", path: "/configuracion/planes-admin", icon: WorkspacePremiumIcon },
+  { label: "Referidos", path: "/configuracion/referidos", icon: GroupsIcon },
   { label: "Suspensiones", path: "/configuracion/suspensiones", icon: Block },
   { label: "Notificaciones", path: "/configuracion/notificaciones", icon: Notifications },
 ];
