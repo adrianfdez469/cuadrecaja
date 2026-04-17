@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import {
   Box,
   Container,
@@ -10,12 +10,15 @@ import {
   AppBar,
   Toolbar,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
   Phone,
   Email,
   Login as LoginIcon,
+  CardGiftcard as CardGiftcardIcon,
 } from '@mui/icons-material';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import HeroSection from './landing-components/HeroSection';
 import FeaturesSection from './landing-components/FeaturesSection';
@@ -36,7 +39,7 @@ export default function LandingPage() {
     <Box sx={{
       minHeight: '100vh',
       bgcolor: '#1a1d29',
-      overflow: 'hidden'
+      overflowX: 'hidden',
     }}>
       {/* Navigation Bar */}
       <AppBar
@@ -62,31 +65,66 @@ export default function LandingPage() {
             </Typography>
           </Box>
 
-          <Button
-            variant="contained"
-            startIcon={<LoginIcon />}
-            onClick={handleGoToLogin}
-            sx={{
-              bgcolor: '#4ECDC4',
-              color: '#1a1d29',
-              px: { xs: 1.5, sm: 3 },
-              py: { xs: 0.6, sm: 1 },
-              fontSize: { xs: '0.8rem', sm: '0.9375rem' },
-              fontWeight: 600,
-              textTransform: 'none',
-              minWidth: { xs: 0, sm: 'auto' },
-              boxShadow: '0 4px 16px rgba(78, 205, 196, 0.3)',
-              '&:hover': {
-                bgcolor: '#45b8b0',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 6px 20px rgba(78, 205, 196, 0.4)',
-              },
-              transition: 'all 0.3s ease',
-              '& .MuiButton-startIcon': { mr: { xs: 0.5, sm: 1 } },
-            }}
-          >
-            Iniciar Sesión
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 }, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <Button
+              component={Link}
+              href="/promotor/registro"
+              variant="contained"
+              startIcon={<CardGiftcardIcon />}
+              sx={{
+                background: 'linear-gradient(135deg, #ff8a65 0%, #ff6b35 45%, #e85d04 100%)',
+                color: '#fff',
+                px: { xs: 1.25, sm: 2.5 },
+                py: { xs: 0.6, sm: 1 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                fontWeight: 700,
+                textTransform: 'none',
+                minWidth: 0,
+                boxShadow: '0 4px 18px rgba(255, 107, 53, 0.45)',
+                animation: 'promoPulse 2.8s ease-in-out infinite',
+                '@keyframes promoPulse': {
+                  '0%, 100%': { boxShadow: '0 4px 18px rgba(255, 107, 53, 0.45)' },
+                  '50%': { boxShadow: '0 6px 28px rgba(255, 138, 101, 0.65)' },
+                },
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #ff9a75 0%, #ff7b45 45%, #f06d14 100%)',
+                  transform: 'translateY(-2px)',
+                },
+                transition: 'transform 0.2s ease, background 0.2s ease',
+                '& .MuiButton-startIcon': { mr: { xs: 0.35, sm: 0.75 } },
+              }}
+            >
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                Gana con referidos
+              </Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Promotores</Box>
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<LoginIcon />}
+              onClick={handleGoToLogin}
+              sx={{
+                bgcolor: '#4ECDC4',
+                color: '#1a1d29',
+                px: { xs: 1.5, sm: 3 },
+                py: { xs: 0.6, sm: 1 },
+                fontSize: { xs: '0.8rem', sm: '0.9375rem' },
+                fontWeight: 600,
+                textTransform: 'none',
+                minWidth: { xs: 0, sm: 'auto' },
+                boxShadow: '0 4px 16px rgba(78, 205, 196, 0.3)',
+                '&:hover': {
+                  bgcolor: '#45b8b0',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 6px 20px rgba(78, 205, 196, 0.4)',
+                },
+                transition: 'all 0.3s ease',
+                '& .MuiButton-startIcon': { mr: { xs: 0.5, sm: 1 } },
+              }}
+            >
+              Iniciar Sesión
+            </Button>
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -105,8 +143,16 @@ export default function LandingPage() {
       {/* Testimonials Section */}
       {/* <TestimonialsSection /> */}
 
-      {/* Contact Section */}
-      <ContactSection />
+      {/* ContactSection usa useSearchParams: Suspense requerido para build estático */}
+      <Suspense
+        fallback={
+          <Box sx={{ py: 12, bgcolor: '#252a3a', display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress sx={{ color: '#6ee7de' }} />
+          </Box>
+        }
+      >
+        <ContactSection />
+      </Suspense>
 
       {/* Footer */}
       <Box sx={{

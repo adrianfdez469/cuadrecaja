@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { prisma } from '@/lib/prisma';
+import { ZodError } from 'zod';
 import { initializeNegocio } from '@/lib/onboarding/initializeNegocio';
+import { LandingRegistrationConflictError } from '@/lib/onboarding/landingRegistrationAvailability';
+import { activationTokenPayloadSchema } from '@/schemas/referral';
 
 const MAX_LOCALES_ACTIVATION = 19;
-
-interface ActivationTokenPayload {
-  nombre: string;
-  nombreNegocio: string;
-  correo: string;
-  telefono?: string;
-  numeroLocales?: number | string;
-  iat?: number;
-  exp?: number;
-}
 
 function normalizarNumeroLocales(raw: unknown): number {
   if (typeof raw === 'number' && Number.isInteger(raw)) {
@@ -43,9 +35,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Error de configuración del servidor' }, { status: 500 });
     }
 
-    let payload: ActivationTokenPayload;
+    let payload: unknown;
     try {
-      payload = jwt.verify(token, secret) as ActivationTokenPayload;
+      payload = jwt.verify(token, secret);
     } catch (err) {
       if (err instanceof jwt.TokenExpiredError) {
         return NextResponse.json(
@@ -56,24 +48,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'El enlace de activación no es válido.' }, { status: 400 });
     }
 
-    const { nombre, nombreNegocio, correo, telefono } = payload;
+    const parsedPayload = activationTokenPayloadSchema.parse(payload);
+    const { nombre, nombreNegocio, correo, telefono, referido } = parsedPayload;
 
     if (!nombre?.trim() || !correo?.trim() || !nombreNegocio?.trim()) {
       return NextResponse.json({ error: 'El enlace de activación no contiene información válida.' }, { status: 400 });
     }
 
-    const numeroLocales = normalizarNumeroLocales(payload.numeroLocales);
-
-    const usuarioExistente = await prisma.usuario.findUnique({
-      where: { usuario: correo },
-    });
-
-    if (usuarioExistente) {
-      return NextResponse.json(
-        { error: 'Esta cuenta ya fue activada. Puedes iniciar sesión directamente.' },
-        { status: 409 }
-      );
-    }
+    const numeroLocales = normalizarNumeroLocales(parsedPayload.numeroLocales);
 
     const resultado = await initializeNegocio({
       nombre: nombre.trim(),
@@ -81,11 +63,26 @@ export async function POST(request: NextRequest) {
       correo: correo.trim(),
       telefono: typeof telefono === 'string' ? telefono : '',
       numeroLocales,
+      referido,
     });
 
     return NextResponse.json(resultado, { status: 201 });
 
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: error.issues[0]?.message ?? 'El enlace de activación no contiene información válida.' },
+        { status: 400 }
+      );
+    }
+
+    if (error instanceof LandingRegistrationConflictError) {
+      return NextResponse.json(
+        { error: error.message, conflict: error.conflict },
+        { status: 409 }
+      );
+    }
+
     console.error('❌ Error al activar cuenta:', error);
     return NextResponse.json(
       { error: 'Error interno al crear tu cuenta. Por favor, contacta al soporte.' },

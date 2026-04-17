@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";;
 import bcrypt from "bcrypt";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import { Prisma } from "@prisma/client";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Obtener usuarios del negocio (excluyendo SUPER_ADMIN)
 export async function GET() {
@@ -60,7 +63,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const nombreUsuario = (data.usuario as string).trim();
+    const nombreUsuario = (data.usuario as string).trim().toLowerCase();
+    data.usuario = nombreUsuario;
+
+    if (!EMAIL_REGEX.test(data.usuario)) {
+      return NextResponse.json(
+        { error: "El campo usuario debe ser un correo electrónico válido." },
+        { status: 400 }
+      );
+    }
 
     if (!data.nombre) {
       data.nombre = nombreUsuario
@@ -75,10 +86,22 @@ export async function POST(req: Request) {
 
     const password = await bcrypt.hash(data.password, 10);
 
+    const usuarioExistente = await prisma.usuario.findUnique({
+      where: { usuario: data.usuario },
+      select: { id: true },
+    });
+
+    if (usuarioExistente) {
+      return NextResponse.json(
+        { error: "El usuario/correo ya está en uso. Intenta con otro." },
+        { status: 409 }
+      );
+    }
+
     const usuario = await prisma.usuario.create({
       data: {
         ...data,
-        nombre: nombreUsuario,
+        nombre: data.nombre,
         password,
         negocioId: user.negocio.id,
         localActualId: null
@@ -87,6 +110,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(usuario, { status: 201 });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json(
+        { error: "El usuario/correo ya está en uso. Intenta con otro." },
+        { status: 409 }
+      );
+    }
+
     console.error(error);
     return NextResponse.json(
       { error: "Error al crear un usuario" },

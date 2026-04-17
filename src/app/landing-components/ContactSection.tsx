@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Box,
   Container,
@@ -36,6 +37,7 @@ interface FormData {
   correo: string;
   telefono: string;
   numeroLocales: number;
+  referido: string;
   mensaje: string;
 }
 
@@ -45,13 +47,55 @@ const initialFormData: FormData = {
   correo: '',
   telefono: '',
   numeroLocales: 1,
+  referido: '',
   mensaje: '',
 };
 
 const opcionesNumeroLocales = Array.from({ length: MAX_LOCALES }, (_, i) => i + 1);
 
 export default function ContactSection() {
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState<FormData>(initialFormData);
+  useEffect(() => {
+    const refCode = searchParams.get('ref')?.trim().toUpperCase();
+    if (!refCode) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      referido: refCode,
+    }));
+
+    const headerReservePx = (): number => {
+      const appBar = document.querySelector('.MuiAppBar-root');
+      if (appBar instanceof HTMLElement) {
+        return Math.ceil(appBar.getBoundingClientRect().height) + 16;
+      }
+      return 104;
+    };
+
+    const scrollToForm = () => {
+      const el = document.getElementById('landing-contact-form');
+      if (!el) return;
+      const reserve = headerReservePx();
+      const top = el.getBoundingClientRect().top + window.scrollY - reserve;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    };
+
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(scrollToForm);
+    });
+    const t1 = setTimeout(scrollToForm, 280);
+    const t2 = setTimeout(scrollToForm, 600);
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [searchParams]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -108,6 +152,7 @@ export default function ContactSection() {
       correo: formData.correo.trim(),
       telefono: telefonoTrim ? normalizePhone(telefonoTrim) : '',
       numeroLocales: formData.numeroLocales,
+      referido: formData.referido.trim().toUpperCase(),
       mensaje: formData.mensaje,
     };
 
@@ -120,11 +165,18 @@ export default function ContactSection() {
         body: JSON.stringify(payload),
       });
 
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
       if (response.ok) {
         setSubmitStatus('success');
         setFormData(initialFormData);
       } else {
-        throw new Error('Error al enviar el formulario');
+        setSubmitStatus('error');
+        setErrorMessage(
+          typeof data.error === 'string' && data.error.trim()
+            ? data.error
+            : 'No se pudo enviar el formulario. Intenta de nuevo.'
+        );
       }
     } catch (error) {
       console.error('Error:', error);
@@ -178,6 +230,7 @@ export default function ContactSection() {
           {/* Contact Form */}
           <Grid item xs={12} md={6}>
             <Card
+              id="landing-contact-form"
               className="contact-form-card"
               sx={{
                 p: 4,
@@ -314,6 +367,16 @@ export default function ContactSection() {
                     </FormControl>
                   </Grid>
                   
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Código de Referido (opcional)"
+                      value={formData.referido}
+                      onChange={handleInputChange('referido')}
+                      placeholder="PRM-XXXX"
+                    />
+                  </Grid>
+
                   <Grid item xs={12}>
                     <TextField
                       fullWidth

@@ -53,6 +53,7 @@ import {
   Info,
   Refresh,
 } from "@mui/icons-material";
+import Payments from "@mui/icons-material/Payments";
 import { createNegocio, getNegocios, updateNegocio, deleteNegocio, getNegocioStatsById } from "@/services/negocioServce";
 import { getPlanes } from "@/services/planService";
 import type { IPlan } from "@/schemas/plan";
@@ -68,6 +69,7 @@ import {
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useRouter } from "next/navigation";
+import { registerFirstPaymentForNegocio } from "@/services/referralAdminService";
 
 interface NegocioStats {
   tiendas: {
@@ -110,6 +112,13 @@ export default function Negocios() {
   const [nombre, setNombre] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<IPlan | undefined>();
   const [planes, setPlanes] = useState<IPlan[]>([]);
+
+  const [firstPaymentOpen, setFirstPaymentOpen] = useState(false);
+  const [fpNegocio, setFpNegocio] = useState<INegocio | null>(null);
+  const [fpPlanId, setFpPlanId] = useState("");
+  const [fpPaidAt, setFpPaidAt] = useState("");
+  const [fpAmount, setFpAmount] = useState("");
+  const [fpSubmitting, setFpSubmitting] = useState(false);
 
   const router = useRouter();
 
@@ -249,6 +258,70 @@ export default function Negocios() {
     setSelectedNegocio(null);
     setSelectedPlan(undefined);
     setOpen(false);
+  };
+
+  const toLocalDatetimeInput = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
+      d.getMinutes()
+    )}`;
+  };
+
+  const openFirstPaymentDialog = (negocio: INegocio) => {
+    setFpNegocio(negocio);
+    const paid =
+      planes.find((p) => p.id === negocio.planId && p.precio > 0 && p.activo) ??
+      planes.find((p) => p.precio > 0 && p.activo) ??
+      planes.find((p) => p.activo);
+    setFpPlanId(paid?.id ?? "");
+    setFpPaidAt(toLocalDatetimeInput(new Date()));
+    setFpAmount("");
+    setFirstPaymentOpen(true);
+  };
+
+  const closeFirstPaymentDialog = () => {
+    setFirstPaymentOpen(false);
+    setFpNegocio(null);
+  };
+
+  const handleSubmitFirstPayment = async () => {
+    if (!fpNegocio || !fpPlanId) {
+      showMessage("Selecciona un plan de pago válido.", "error");
+      return;
+    }
+    setFpSubmitting(true);
+    try {
+      const res = await registerFirstPaymentForNegocio(fpNegocio.id, {
+        planId: fpPlanId,
+        paidAt: fpPaidAt ? new Date(fpPaidAt).toISOString() : undefined,
+        paymentAmount: fpAmount.trim() ? Number.parseFloat(fpAmount) : undefined,
+      });
+      const r = res.result;
+      if (r?.alreadyQualified) {
+        showMessage(
+          "Este negocio ya tenía registrado el primer pago. No se aplicaron cambios nuevos.",
+          "info"
+        );
+      } else if (r?.qualifiedNow) {
+        showMessage(
+          r.hasReferral
+            ? "Primer pago registrado. Referido calificado y pendiente de liquidación si aplica."
+            : "Primer pago registrado. Este negocio no tenía código de referido asociado.",
+          "success"
+        );
+      } else {
+        showMessage(res.message ?? "Operación completada.", "success");
+      }
+      closeFirstPaymentDialog();
+      await fetchNegocios();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } }; message?: string };
+      const msg =
+        err.response?.data?.error ?? err.message ?? "No se pudo registrar el primer pago.";
+      showMessage(msg, "error");
+    } finally {
+      setFpSubmitting(false);
+    }
   };
 
   const getPlanForNegocio = (negocio: INegocio): IPlan | undefined =>
@@ -508,6 +581,15 @@ export default function Negocios() {
           {/* Botones de acción */}
           <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
             <Stack direction="row" spacing={0.5}>
+              <Tooltip title="Registrar primer pago (módulo referidos)">
+                <IconButton
+                  onClick={() => openFirstPaymentDialog(negocio)}
+                  size="small"
+                  color="success"
+                >
+                  <Payments fontSize="small" />
+                </IconButton>
+              </Tooltip>
               <Tooltip title="Editar negocio">
                 <IconButton
                   onClick={() => handleEdit(negocio)}
@@ -918,6 +1000,15 @@ export default function Negocios() {
                                 {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                               </IconButton>
                             </Tooltip>
+                            <Tooltip title="Registrar primer pago (referidos)">
+                              <IconButton
+                                onClick={() => openFirstPaymentDialog(negocio)}
+                                size="small"
+                                color="success"
+                              >
+                                <Payments fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                             <Tooltip title="Editar negocio">
                               <IconButton
                                 onClick={() => handleEdit(negocio)}
@@ -1157,6 +1248,95 @@ export default function Negocios() {
             ) : (
               selectedNegocio ? "Actualizar" : "Crear"
             )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={firstPaymentOpen}
+        onClose={() => !fpSubmitting && closeFirstPaymentDialog()}
+        fullWidth
+        maxWidth="sm"
+        fullScreen={isMobile}
+        PaperProps={{
+          sx: {
+            borderRadius: isMobile ? 0 : 3,
+            m: isMobile ? 0 : 2,
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Payments color="success" />
+            <Typography variant={isMobile ? "h6" : "h5"} fontWeight={600}>
+              Registrar primer pago (referidos)
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: isMobile ? 1.5 : 3, py: isMobile ? 1 : 2 }}>
+          <Stack spacing={2} sx={{ mt: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              Negocio: <strong>{fpNegocio?.nombre ?? "—"}</strong>
+            </Typography>
+            <Alert severity="info" icon={<Info />}>
+              Marca el plan que contrató el cliente al pagar en efectivo. Si había referido, se califica y se
+              generan los montos según la tabla de reglas. Requiere una regla activa por plan en base de datos.
+            </Alert>
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Plan pagado
+              </Typography>
+              <Select
+                fullWidth
+                value={fpPlanId}
+                onChange={(e) => setFpPlanId(e.target.value as string)}
+                displayEmpty
+                size={isMobile ? "small" : "medium"}
+              >
+                <MenuItem value="" disabled>
+                  Selecciona un plan
+                </MenuItem>
+                {planes
+                  .filter((p) => p.activo)
+                  .map((planData) => (
+                    <MenuItem key={planData.id} value={planData.id}>
+                      {planData.nombre}
+                      {planData.precio > 0 ? ` — $${planData.precio}` : ""}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </Box>
+            <TextField
+              label="Fecha y hora del pago"
+              type="datetime-local"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={fpPaidAt}
+              onChange={(e) => setFpPaidAt(e.target.value)}
+              size={isMobile ? "small" : "medium"}
+            />
+            <TextField
+              label="Monto cobrado (opcional, referencia)"
+              type="number"
+              fullWidth
+              value={fpAmount}
+              onChange={(e) => setFpAmount(e.target.value)}
+              inputProps={{ min: 0, step: "0.01" }}
+              size={isMobile ? "small" : "medium"}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: isMobile ? 1.5 : 3, gap: 1 }}>
+          <Button onClick={closeFirstPaymentDialog} color="secondary" disabled={fpSubmitting}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmitFirstPayment}
+            variant="contained"
+            color="success"
+            disabled={!fpPlanId || fpSubmitting}
+          >
+            {fpSubmitting ? <CircularProgress size={22} /> : "Confirmar primer pago"}
           </Button>
         </DialogActions>
       </Dialog>

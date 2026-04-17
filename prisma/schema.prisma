@@ -11,22 +11,24 @@ datasource db {
 }
 
 model Plan {
-  id              String    @id @default(uuid())
-  nombre          String    @unique
+  id              String   @id @default(uuid())
+  nombre          String   @unique
   descripcion     String?
   limiteLocales   Int
   limiteUsuarios  Int
   limiteProductos Int
   precio          Float
-  moneda          String    @default("USD")
-  duracion        Int       // días; -1 = negociable
-  recomendado     Boolean   @default(false)
-  color           String    // string de color MUI: "info", "primary", etc.
-  activo          Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  moneda          String   @default("USD")
+  duracion        Int // días; -1 = negociable
+  recomendado     Boolean  @default(false)
+  color           String // string de color MUI: "info", "primary", etc.
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  negocios        Negocio[]
+  negocios           Negocio[]
+  ReferralRewardRule ReferralRewardRule?
+  Referral           Referral[]
 }
 
 model Negocio {
@@ -35,10 +37,10 @@ model Negocio {
   descripcion String?
   createdAt   DateTime @default(now())
 
-  limitTime    DateTime
+  limitTime DateTime
 
-  plan    Plan?   @relation(fields: [planId], references: [id])
-  planId  String?
+  plan   Plan?   @relation(fields: [planId], references: [id])
+  planId String?
 
   usuarios    Usuario[]
   tiendas     Tienda[]
@@ -56,6 +58,112 @@ model Negocio {
   discountRules    DiscountRule[]
   gastosPlantillas GastoPlantilla[]
   gastosTienda     GastoTienda[]
+  referredBy       Referral?        @relation("ReferredBusiness")
+}
+
+model Promoter {
+  id          String         @id @default(uuid())
+  fullName    String
+  email       String         @unique
+  promoCode   String         @unique
+  status      PromoterStatus @default(PENDING_EMAIL_VERIFICATION)
+  activatedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  authTokens AuthToken[]
+  referrals  Referral[]
+
+  @@index([status])
+}
+
+model AuthToken {
+  id         String        @id @default(uuid())
+  email      String
+  tokenHash  String        @unique
+  tokenType  AuthTokenType
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime      @default(now())
+  promoterId String?
+
+  promoter Promoter? @relation(fields: [promoterId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([tokenType])
+  @@index([expiresAt])
+}
+
+model ReferralRewardRule {
+  id                     String   @id @default(uuid())
+  planId                 String   @unique
+  discountForNewBusiness Float
+  rewardForPromoter      Float
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+}
+
+model Referral {
+  id                          String         @id @default(uuid())
+  promoterId                  String
+  /// Nulo si el negocio referido fue eliminado (p. ej. purga); el referido sigue en historial con su estado.
+  newBusinessId               String?        @unique
+  promoCodeSnapshot           String
+  status                      ReferralStatus @default(PENDING_FIRST_PAYMENT)
+  fraudReason                 String?
+  firstPaidAt                 DateTime?
+  firstPaidPlanId             String?
+  newBusinessDiscountSnapshot Float?
+  promoterRewardSnapshot      Float?
+  createdAt                   DateTime       @default(now())
+  updatedAt                   DateTime       @updatedAt
+
+  promoter      Promoter             @relation(fields: [promoterId], references: [id], onDelete: Restrict)
+  newBusiness   Negocio?             @relation("ReferredBusiness", fields: [newBusinessId], references: [id], onDelete: SetNull)
+  firstPaidPlan Plan?                @relation(fields: [firstPaidPlanId], references: [id], onDelete: SetNull)
+  liquidation   ReferralLiquidation?
+  eventLogs     ReferralEventLog[]
+
+  @@index([promoterId])
+  @@index([status])
+  @@index([firstPaidAt])
+}
+
+model ReferralLiquidation {
+  id            String                    @id @default(uuid())
+  referralId    String                    @unique
+  status        ReferralLiquidationStatus @default(PENDING)
+  liquidatedAt  DateTime?
+  paidAmount    Float?
+  paymentMethod String?
+  note          String?
+  liquidatedBy  String?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  referral Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model ReferralEventLog {
+  id          String             @id @default(uuid())
+  referralId  String?
+  entityType  ReferralEntityType
+  eventType   String
+  payload     Json?
+  actorUserId String?
+  actorEmail  String?
+  createdAt   DateTime           @default(now())
+
+  referral Referral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
+
+  @@index([entityType])
+  @@index([eventType])
+  @@index([createdAt])
 }
 
 // Representa un local. Puede tener múltiples usuarios y productos asociados.
@@ -294,8 +402,8 @@ model CierrePeriodo {
   prodProveedoresLiquidacion ProductoProveedorLiquidacion[]
 
   // Gastos aplicados en este cierre
-  totalGastos        Float        @default(0)
-  totalGananciaFinal Float        @default(0)
+  totalGastos        Float         @default(0)
+  totalGananciaFinal Float         @default(0)
   gastosCierre       GastoCierre[]
 
   // Idices
@@ -493,9 +601,9 @@ model GastoPlantilla {
   categoria   String
   tipoCalculo TipoCalculo
   recurrencia RecurrenciaGasto
-  diaMes      Int?             // 1-31, solo para MENSUAL
-  mesAnio     Int?             // 1-12, solo para ANUAL
-  diaAnio     Int?             // 1-31, solo para ANUAL
+  diaMes      Int? // 1-31, solo para MENSUAL
+  mesAnio     Int? // 1-12, solo para ANUAL
+  diaAnio     Int? // 1-31, solo para ANUAL
   activo      Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -516,8 +624,8 @@ model GastoTienda {
   nombre      String
   categoria   String
   tipoCalculo TipoCalculo
-  monto       Float?           // cuando tipoCalculo = MONTO_FIJO
-  porcentaje  Float?           // 0-100, cuando tipoCalculo = PORCENTAJE_*
+  monto       Float? // cuando tipoCalculo = MONTO_FIJO
+  porcentaje  Float? // 0-100, cuando tipoCalculo = PORCENTAJE_*
   recurrencia RecurrenciaGasto
   diaMes      Int?
   mesAnio     Int?
@@ -542,8 +650,8 @@ model GastoCierre {
   categoria      String
   tipoCalculo    TipoCalculo
   montoCalculado Float
-  monto          Float?        // snapshot del monto al momento del cierre
-  porcentaje     Float?        // snapshot del porcentaje al momento del cierre
+  monto          Float? // snapshot del monto al momento del cierre
+  porcentaje     Float? // snapshot del porcentaje al momento del cierre
   esAdHoc        Boolean       @default(false)
   createdAt      DateTime      @default(now())
 
@@ -603,4 +711,36 @@ enum MovimientoState {
   PENDIENTE
   APROBADO
   RECHAZADO
+}
+
+enum PromoterStatus {
+  PENDING_EMAIL_VERIFICATION
+  ACTIVE
+  INACTIVE
+}
+
+enum AuthTokenType {
+  ACTIVATION
+  MAGIC_LOGIN
+}
+
+enum ReferralStatus {
+  CAPTURED
+  PENDING_FIRST_PAYMENT
+  QUALIFIED
+  LIQUIDATION_PENDING
+  LIQUIDATED_MANUALLY
+  REJECTED_FRAUD
+  CANCELLED_UNPAID_DELETED
+}
+
+enum ReferralLiquidationStatus {
+  PENDING
+  LIQUIDATED
+}
+
+enum ReferralEntityType {
+  PROMOTER
+  REFERRAL
+  LIQUIDATION
 }

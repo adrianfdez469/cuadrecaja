@@ -1,5 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
+import { captureReferralForNewBusiness } from '@/lib/referrals/captureReferral';
+import {
+  getLandingRegistrationConflict,
+  LandingRegistrationConflictError,
+} from '@/lib/onboarding/landingRegistrationAvailability';
 
 const MAX_LOCALES_ONBOARDING = 19;
 
@@ -10,6 +15,7 @@ export interface IOnboardingInput {
   telefono: string;
   /** Cantidad de tiendas a crear (1–19). */
   numeroLocales: number;
+  referido?: string;
 }
 
 export interface IOnboardingResult {
@@ -25,6 +31,12 @@ function generarPasswordTemporal(): string {
 
 export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboardingResult> {
   const { nombre, nombreNegocio, correo } = input;
+
+  const conflict = await getLandingRegistrationConflict(correo, nombreNegocio);
+  if (conflict) {
+    throw new LandingRegistrationConflictError(conflict);
+  }
+
   const count = Math.min(
     MAX_LOCALES_ONBOARDING,
     Math.max(1, Math.floor(Number(input.numeroLocales)) || 1)
@@ -64,7 +76,7 @@ export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboa
     }
 
     const rol = await tx.rol.findFirst({
-      where: { isGlobal: true, nombre: 'Administrador' },
+      where: { nombre: 'Administrador', negocioId: null },
     });
     if (!rol) throw new Error('Rol global Administrador no encontrado. Verifique que la migración de roles globales se haya aplicado correctamente.');
 
@@ -88,6 +100,13 @@ export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboa
         },
       });
     }
+
+    await captureReferralForNewBusiness({
+      tx,
+      newBusinessId: negocio.id,
+      promoterCode: input.referido,
+      creatorEmail: correo,
+    });
   });
 
   return {

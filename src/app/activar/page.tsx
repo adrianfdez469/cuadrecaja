@@ -22,9 +22,17 @@ import {
   ErrorOutline,
   AccessTime,
   Home,
+  WarningAmber,
 } from '@mui/icons-material';
 
-type ActivationState = 'loading' | 'activating' | 'success' | 'error_expired' | 'error_used' | 'error_invalid';
+type ActivationState =
+  | 'loading'
+  | 'activating'
+  | 'success'
+  | 'error_expired'
+  | 'error_used'
+  | 'error_conflict'
+  | 'error_invalid';
 
 interface Credentials {
   usuario: string;
@@ -33,6 +41,7 @@ interface Credentials {
 }
 
 const TEAL = '#4ECDC4';
+const LOGIN_PREFILL_KEY = 'prefill_login_credentials';
 
 function CopiarCampo({ label, value }: { label: string; value: string }) {
   const [copiado, setCopiado] = useState(false);
@@ -79,6 +88,19 @@ function ActivarContent() {
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const navegarALoginConPrefill = () => {
+    if (credentials) {
+      sessionStorage.setItem(
+        LOGIN_PREFILL_KEY,
+        JSON.stringify({
+          usuario: credentials.usuario,
+          password: credentials.passwordTemporal,
+        })
+      );
+    }
+    router.push('/login');
+  };
+
   useEffect(() => {
     const token = searchParams.get('token');
 
@@ -101,10 +123,13 @@ function ActivarContent() {
         body: JSON.stringify({ token }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        error?: string;
+        conflict?: 'email' | 'negocio' | 'both';
+      };
 
       if (response.ok) {
-        setCredentials(data);
+        setCredentials(data as Credentials);
         setEstado('success');
         return;
       }
@@ -116,8 +141,18 @@ function ActivarContent() {
       }
 
       if (response.status === 409) {
-        setEstado('error_used');
-        setErrorMessage(data.error ?? 'Esta cuenta ya fue activada.');
+        const c = data.conflict;
+        if (c === 'negocio' || c === 'both') {
+          setEstado('error_conflict');
+        } else {
+          setEstado('error_used');
+        }
+        setErrorMessage(
+          data.error ??
+            (c === 'negocio' || c === 'both'
+              ? 'Los datos indicados ya están en uso.'
+              : 'Esta cuenta ya fue activada.')
+        );
         return;
       }
 
@@ -213,7 +248,7 @@ function ActivarContent() {
           size="large"
           fullWidth
           startIcon={<Login />}
-          onClick={() => router.push('/login')}
+          onClick={navegarALoginConPrefill}
           sx={{
             py: 1.5,
             fontSize: '1rem',
@@ -238,6 +273,10 @@ function ActivarContent() {
     error_used: {
       icon: <CheckCircle sx={{ fontSize: 56, color: TEAL }} />,
       title: 'Cuenta ya activada',
+    },
+    error_conflict: {
+      icon: <WarningAmber sx={{ fontSize: 56, color: '#ffb74d' }} />,
+      title: 'No se pudo completar el registro',
     },
     error_invalid: {
       icon: <ErrorOutline sx={{ fontSize: 56, color: '#ef5350' }} />,

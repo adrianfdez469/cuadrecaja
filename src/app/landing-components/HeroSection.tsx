@@ -19,7 +19,9 @@ import {
     Login as LoginIcon,
     Android,
     Email,
+    CardGiftcard,
 } from '@mui/icons-material';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function HeroSection() {
@@ -134,6 +136,36 @@ export default function HeroSection() {
                         </Stack>
 
                         <Stack direction={isMobile ? "column" : "row"} spacing={2} alignItems="stretch">
+                            <Button
+                                component={Link}
+                                href="/promotor/registro"
+                                variant="contained"
+                                size="large"
+                                startIcon={<CardGiftcard />}
+                                sx={{
+                                    background: 'linear-gradient(135deg, #ff8a65 0%, #ff6b35 42%, #e85d04 100%)',
+                                    color: '#fff',
+                                    px: { xs: 2.5, sm: 3, md: 2.5 },
+                                    py: { xs: 1.25, sm: 1.5 },
+                                    fontSize: { xs: '0.95rem', sm: '1rem', md: '0.9rem' },
+                                    fontWeight: 700,
+                                    minWidth: { md: 0 },
+                                    textTransform: 'none',
+                                    boxShadow: '0 4px 22px rgba(255, 107, 53, 0.5)',
+                                    animation: 'heroPromoGlow 3s ease-in-out infinite',
+                                    '@keyframes heroPromoGlow': {
+                                        '0%, 100%': { boxShadow: '0 4px 22px rgba(255, 107, 53, 0.5)' },
+                                        '50%': { boxShadow: '0 8px 32px rgba(255, 160, 122, 0.75)' },
+                                    },
+                                    '&:hover': {
+                                        background: 'linear-gradient(135deg, #ff9a75 0%, #ff7b45 42%, #f06d14 100%)',
+                                        transform: 'translateY(-2px)',
+                                    },
+                                    transition: 'all 0.3s ease',
+                                }}
+                            >
+                                Ser promotor — gana refiriendo
+                            </Button>
                             <Button
                                 variant="contained"
                                 size="large"

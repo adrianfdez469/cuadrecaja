@@ -61,6 +61,7 @@ import {
   Block,
   Android,
   TrendingDown,
+  Campaign,
 } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
@@ -76,6 +77,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import OfflineBanner from './OfflineBanner';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
+import GroupsIcon from '@mui/icons-material/Groups';
 import { TipoLocal } from "@/schemas/tienda";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
@@ -87,6 +89,7 @@ import Logo from "./Logo";
 const SUPER_ADMIN_MENU_ITEMS = [
   { label: "Negocios", path: "/configuracion/negocios", icon: BusinessCenterIcon },
   { label: "Planes de Negocio", path: "/configuracion/planes-admin", icon: WorkspacePremiumIcon },
+  { label: "Referidos", path: "/configuracion/referidos", icon: GroupsIcon },
   { label: "Suspensiones", path: "/configuracion/suspensiones", icon: Block },
   { label: "Notificaciones", path: "/configuracion/notificaciones", icon: Notifications },
 ];
@@ -216,6 +219,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   });
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [loadingPasswordChange, setLoadingPasswordChange] = useState(false);
+  const [loadingPromoterAccess, setLoadingPromoterAccess] = useState(false);
 
   const getMainMenuItemsByLocalType = (localType: string, type: string, user: { rol: string, permisos: string }) => {
     let items = [];
@@ -497,6 +501,38 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     }
   };
 
+  const handlePromoterQuickAccess = async () => {
+    if (loadingPromoterAccess) return;
+    setLoadingPromoterAccess(true);
+    handleClose();
+
+    try {
+      const response = await fetch('/api/promoters/self-enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = (await response.json()) as { ok?: boolean; error?: string; wasCreated?: boolean };
+
+      if (!response.ok || !data?.ok) {
+        showMessage(data?.error || 'No se pudo abrir el panel de promotor.', 'error');
+        return;
+      }
+
+      showMessage(
+        data.wasCreated
+          ? 'Tu perfil de promotor fue creado. Redirigiendo al panel...'
+          : 'Redirigiendo a tu panel de promotor...',
+        'success'
+      );
+      gotToPath('/promotor');
+    } catch (error) {
+      console.error(error);
+      showMessage('Error de conexión al habilitar el acceso de promotor.', 'error');
+    } finally {
+      setLoadingPromoterAccess(false);
+    }
+  };
+
   const togglePasswordVisibility = (field: string) => {
     setShowPasswords(prev => ({
       ...prev,
@@ -716,6 +752,19 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   <Lock sx={{ mr: 2, color: 'info.main' }} />
                   <Typography variant="body2" fontWeight={500}>
                     Cambiar contraseña
+                  </Typography>
+                </MenuItem>
+
+                <Divider sx={{ mx: 2, my: 1 }} />
+
+                <MenuItem onClick={handlePromoterQuickAccess} disabled={loadingPromoterAccess}>
+                  {loadingPromoterAccess ? (
+                    <CircularProgress size={18} sx={{ mr: 2 }} />
+                  ) : (
+                    <Campaign sx={{ mr: 2, color: 'secondary.main' }} />
+                  )}
+                  <Typography variant="body2" fontWeight={500}>
+                    Panel de promotor
                   </Typography>
                 </MenuItem>
 

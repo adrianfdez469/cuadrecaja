@@ -3,7 +3,9 @@ import { getSession } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { verificarPermisoUsuario  } from "@/utils/permisos_back";
+import { Prisma } from "@prisma/client";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Eliminar un usuario (DELETE)
 export async function DELETE(
@@ -78,6 +80,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     
     // const user = await getUserFromRequest(req);
     const { nombre, usuario, password } = await req.json();
+    const usuarioNormalizado = typeof usuario === "string" ? usuario.trim().toLowerCase() : "";
 
     if(!verificarPermisoUsuario(user.permisos, "configuracion.usuarios.acceder", user.rol)) {
       return NextResponse.json(
@@ -116,9 +119,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       data = {
         nombre,
-        usuario,
+        usuario: usuarioNormalizado,
         ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
       }
+    }
+
+    if (userId !== id && !EMAIL_REGEX.test(usuarioNormalizado)) {
+      return NextResponse.json(
+        { error: "El campo usuario debe ser un correo electrónico válido." },
+        { status: 400 }
+      );
     }
 
     const nuevoUsuario = await prisma.usuario.update({
@@ -128,6 +138,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json(nuevoUsuario, { status: 201 });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json(
+        { error: "El usuario/correo ya está en uso. Intenta con otro." },
+        { status: 409 }
+      );
+    }
+
     console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
