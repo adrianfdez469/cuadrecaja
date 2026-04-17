@@ -22,6 +22,9 @@ import {
 import Grid from '@mui/material/Grid2';
 import Check from '@mui/icons-material/Check';
 import ContentCopy from '@mui/icons-material/ContentCopy';
+import WhatsApp from '@mui/icons-material/WhatsApp';
+import Facebook from '@mui/icons-material/Facebook';
+import Instagram from '@mui/icons-material/Instagram';
 import type { IPromoterDashboardData } from '@/lib/referrals/promoterDashboard';
 import { REFERRAL_STATUS } from '@/constants/referrals';
 
@@ -49,6 +52,7 @@ function formatMoney(value: number | null): string {
 export default function PromotorDashboardClient({ data }: { data: IPromoterDashboardData }) {
   const [referralLandingUrl, setReferralLandingUrl] = useState('');
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+  const [socialHint, setSocialHint] = useState<'instagram' | null>(null);
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -66,6 +70,7 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
     if (copyResetRef.current) clearTimeout(copyResetRef.current);
     copyResetRef.current = setTimeout(() => {
       setCopied(null);
+      setSocialHint(null);
       copyResetRef.current = null;
     }, COPY_FEEDBACK_MS);
   };
@@ -81,6 +86,36 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
     await navigator.clipboard.writeText(referralLandingUrl);
     setCopied('link');
     scheduleCopyReset();
+  };
+
+  const shareText = 'Te comparto Cuadre de Caja, un sistema simple para ventas e inventario de tu negocio.';
+  const shareFullText = `${shareText} ${referralLandingUrl}`;
+  const encodedLink = encodeURIComponent(referralLandingUrl);
+  const encodedShareText = encodeURIComponent(shareFullText);
+  const encodedQuote = encodeURIComponent(shareText);
+
+  const handleShareWhatsapp = () => {
+    if (!referralLandingUrl) return;
+    window.open(`https://wa.me/?text=${encodedShareText}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleShareFacebook = () => {
+    if (!referralLandingUrl) return;
+    // Facebook no siempre respeta "quote" en todos los contextos, pero es el soporte web disponible.
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}&quote=${encodedQuote}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  };
+
+  const handleShareInstagram = async () => {
+    if (!referralLandingUrl) return;
+    // Instagram web no permite prellenar texto/link directamente; copiamos mensaje + link y abrimos Instagram.
+    await navigator.clipboard.writeText(shareFullText);
+    setSocialHint('instagram');
+    scheduleCopyReset();
+    window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
   };
 
   const statItems = [
@@ -194,9 +229,71 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
                 </IconButton>
               </span>
             </Tooltip>
+            <Tooltip title="Compartir por WhatsApp">
+              <span>
+                <IconButton
+                  onClick={handleShareWhatsapp}
+                  size="small"
+                  disabled={!referralLandingUrl}
+                  sx={{
+                    color: '#66bb6a',
+                    flexShrink: 0,
+                    bgcolor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    '&:hover': { bgcolor: 'rgba(102, 187, 106, 0.15)' },
+                  }}
+                  aria-label="Compartir enlace por WhatsApp"
+                >
+                  <WhatsApp fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Compartir por Facebook">
+              <span>
+                <IconButton
+                  onClick={handleShareFacebook}
+                  size="small"
+                  disabled={!referralLandingUrl}
+                  sx={{
+                    color: '#42a5f5',
+                    flexShrink: 0,
+                    bgcolor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    '&:hover': { bgcolor: 'rgba(66, 165, 245, 0.15)' },
+                  }}
+                  aria-label="Compartir enlace por Facebook"
+                >
+                  <Facebook fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Compartir por Instagram (copia mensaje + link)">
+              <span>
+                <IconButton
+                  onClick={handleShareInstagram}
+                  size="small"
+                  disabled={!referralLandingUrl}
+                  sx={{
+                    color: '#e1306c',
+                    flexShrink: 0,
+                    bgcolor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    '&:hover': { bgcolor: 'rgba(225, 48, 108, 0.15)' },
+                  }}
+                  aria-label="Compartir enlace por Instagram"
+                >
+                  <Instagram fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
             {copied === 'link' && (
               <Typography component="span" variant="caption" sx={{ color: COPY_OK, fontWeight: 600 }}>
                 Copiado
+              </Typography>
+            )}
+            {socialHint === 'instagram' && (
+              <Typography component="span" variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                Texto copiado para Instagram
               </Typography>
             )}
           </Box>
