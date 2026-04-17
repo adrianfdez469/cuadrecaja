@@ -48,6 +48,8 @@ import { useMessageContext } from "@/context/MessageContext";
 import { usePermisos } from "@/utils/permisos_front";
 import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from "@/services/usuarioService";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState([]);
   const [open, setOpen] = useState(false);
@@ -112,9 +114,15 @@ export default function UsuariosPage() {
       return;
     }
 
+    const emailNormalizado = usuario.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(emailNormalizado)) {
+      showMessage("El campo usuario debe ser un correo electrónico válido.", "warning");
+      return;
+    }
+
     const data = {
-      nombre: nombre,
-      usuario: usuario,
+      nombre: nombre.trim(),
+      usuario: emailNormalizado,
     };
 
     if(password !== "") data["password"] = password;
@@ -508,11 +516,12 @@ export default function UsuariosPage() {
             
             <TextField 
               fullWidth 
-              label="Usuario" 
+              type="email"
+              label="Correo electrónico (usuario)" 
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               required
-              placeholder="Nombre de usuario para iniciar sesión"
+              placeholder="ejemplo@correo.com"
             />
 
             <TextField 
@@ -534,7 +543,13 @@ export default function UsuariosPage() {
             onClick={handleSave} 
             variant="contained" 
             color="primary"
-            disabled={!nombre.trim() || !usuario.trim() || (!selectedUsuario && !password.trim()) || saving}
+            disabled={
+              !nombre.trim() ||
+              !usuario.trim() ||
+              !EMAIL_REGEX.test(usuario.trim().toLowerCase()) ||
+              (!selectedUsuario && !password.trim()) ||
+              saving
+            }
             startIcon={saving ? <CircularProgress size={16} /> : undefined}
           >
             {saving ? "Guardando..." : "Guardar"}
