@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { ZodError } from 'zod';
-import { prisma } from '@/lib/prisma';
 import { initializeNegocio } from '@/lib/onboarding/initializeNegocio';
+import { LandingRegistrationConflictError } from '@/lib/onboarding/landingRegistrationAvailability';
 import { activationTokenPayloadSchema } from '@/schemas/referral';
 
 const MAX_LOCALES_ACTIVATION = 19;
@@ -57,17 +57,6 @@ export async function POST(request: NextRequest) {
 
     const numeroLocales = normalizarNumeroLocales(parsedPayload.numeroLocales);
 
-    const usuarioExistente = await prisma.usuario.findUnique({
-      where: { usuario: correo },
-    });
-
-    if (usuarioExistente) {
-      return NextResponse.json(
-        { error: 'Esta cuenta ya fue activada. Puedes iniciar sesión directamente.' },
-        { status: 409 }
-      );
-    }
-
     const resultado = await initializeNegocio({
       nombre: nombre.trim(),
       nombreNegocio: nombreNegocio.trim(),
@@ -84,6 +73,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: error.issues[0]?.message ?? 'El enlace de activación no contiene información válida.' },
         { status: 400 }
+      );
+    }
+
+    if (error instanceof LandingRegistrationConflictError) {
+      return NextResponse.json(
+        { error: error.message, conflict: error.conflict },
+        { status: 409 }
       );
     }
 

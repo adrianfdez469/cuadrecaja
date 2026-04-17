@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -15,15 +15,19 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Stack,
   Tooltip,
   Typography,
 } from '@mui/material';
 import Grid from '@mui/material/Grid2';
+import Check from '@mui/icons-material/Check';
 import ContentCopy from '@mui/icons-material/ContentCopy';
 import type { IPromoterDashboardData } from '@/lib/referrals/promoterDashboard';
 import { REFERRAL_STATUS } from '@/constants/referrals';
 
 const TEAL = '#4ECDC4';
+const COPY_OK = '#81c784';
+const COPY_FEEDBACK_MS = 2200;
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -45,23 +49,38 @@ function formatMoney(value: number | null): string {
 export default function PromotorDashboardClient({ data }: { data: IPromoterDashboardData }) {
   const [referralLandingUrl, setReferralLandingUrl] = useState('');
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const code = encodeURIComponent(data.promoter.promoCode);
     setReferralLandingUrl(`${window.location.origin}/?ref=${code}`);
   }, [data.promoter.promoCode]);
 
+  useEffect(() => {
+    return () => {
+      if (copyResetRef.current) clearTimeout(copyResetRef.current);
+    };
+  }, []);
+
+  const scheduleCopyReset = () => {
+    if (copyResetRef.current) clearTimeout(copyResetRef.current);
+    copyResetRef.current = setTimeout(() => {
+      setCopied(null);
+      copyResetRef.current = null;
+    }, COPY_FEEDBACK_MS);
+  };
+
   const copyCode = async () => {
     await navigator.clipboard.writeText(data.promoter.promoCode);
     setCopied('code');
-    setTimeout(() => setCopied(null), 2000);
+    scheduleCopyReset();
   };
 
   const copyReferralLink = async () => {
     if (!referralLandingUrl) return;
     await navigator.clipboard.writeText(referralLandingUrl);
     setCopied('link');
-    setTimeout(() => setCopied(null), 2000);
+    scheduleCopyReset();
   };
 
   const statItems = [
@@ -115,11 +134,26 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
             >
               {data.promoter.promoCode}
             </Typography>
-            <Tooltip title={copied === 'code' ? 'Copiado' : 'Copiar código'}>
-              <IconButton onClick={copyCode} size="small" sx={{ color: TEAL }} aria-label="Copiar código de promoción">
-                <ContentCopy fontSize="small" />
+            <Tooltip title={copied === 'code' ? 'Copiado al portapapeles' : 'Copiar código'}>
+              <IconButton
+                onClick={copyCode}
+                size="small"
+                sx={{
+                  color: copied === 'code' ? COPY_OK : TEAL,
+                  bgcolor: copied === 'code' ? 'rgba(129, 199, 132, 0.15)' : 'transparent',
+                  transition: 'color 0.2s ease, background-color 0.2s ease',
+                  '&:hover': { bgcolor: copied === 'code' ? 'rgba(129, 199, 132, 0.22)' : 'rgba(78, 205, 196, 0.12)' },
+                }}
+                aria-label={copied === 'code' ? 'Código copiado' : 'Copiar código de promoción'}
+              >
+                {copied === 'code' ? <Check fontSize="small" /> : <ContentCopy fontSize="small" />}
               </IconButton>
             </Tooltip>
+            {copied === 'code' && (
+              <Typography component="span" variant="caption" sx={{ color: COPY_OK, fontWeight: 600 }}>
+                Copiado
+              </Typography>
+            )}
           </Box>
 
           <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.55)', mt: 2.5, mb: 1 }}>
@@ -141,19 +175,30 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
             >
               {referralLandingUrl || '…'}
             </Typography>
-            <Tooltip title={copied === 'link' ? 'Copiado' : 'Copiar enlace'}>
+            <Tooltip title={copied === 'link' ? 'Copiado al portapapeles' : 'Copiar enlace'}>
               <span>
                 <IconButton
                   onClick={copyReferralLink}
                   size="small"
                   disabled={!referralLandingUrl}
-                  sx={{ color: TEAL, flexShrink: 0 }}
-                  aria-label="Copiar enlace de invitación"
+                  sx={{
+                    color: copied === 'link' ? COPY_OK : TEAL,
+                    flexShrink: 0,
+                    bgcolor: copied === 'link' ? 'rgba(129, 199, 132, 0.15)' : 'transparent',
+                    transition: 'color 0.2s ease, background-color 0.2s ease',
+                    '&:hover': { bgcolor: copied === 'link' ? 'rgba(129, 199, 132, 0.22)' : 'rgba(78, 205, 196, 0.12)' },
+                  }}
+                  aria-label={copied === 'link' ? 'Enlace copiado' : 'Copiar enlace de invitación'}
                 >
-                  <ContentCopy fontSize="small" />
+                  {copied === 'link' ? <Check fontSize="small" /> : <ContentCopy fontSize="small" />}
                 </IconButton>
               </span>
             </Tooltip>
+            {copied === 'link' && (
+              <Typography component="span" variant="caption" sx={{ color: COPY_OK, fontWeight: 600 }}>
+                Copiado
+              </Typography>
+            )}
           </Box>
 
           <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: 'rgba(255,255,255,0.45)' }}>
@@ -191,26 +236,112 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
               Negocios referidos
             </Typography>
           </Box>
-          <TableContainer>
+          <Box sx={{ display: { xs: 'block', sm: 'none' }, p: 2 }}>
+            {data.referrals.length === 0 ? (
+              <Typography sx={{ color: 'rgba(255,255,255,0.5)', py: 2, textAlign: 'center' }}>
+                Aún no hay negocios registrados con tu código.
+              </Typography>
+            ) : (
+              <Stack spacing={1.5}>
+                {data.referrals.map((r) => (
+                  <Paper
+                    key={r.id}
+                    elevation={0}
+                    sx={{
+                      p: 1.5,
+                      bgcolor:
+                        r.status === REFERRAL_STATUS.rejectedFraud
+                          ? 'rgba(239, 83, 80, 0.12)'
+                          : 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <Typography fontWeight={700} sx={{ color: 'rgba(255,255,255,0.92)' }}>
+                      {r.businessName}
+                    </Typography>
+                    <Box sx={{ mt: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+                        Estado
+                      </Typography>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Chip label={r.statusLabel} size="small" variant="outlined" sx={{ color: 'rgba(255,255,255,0.88)', borderColor: 'rgba(255,255,255,0.35)' }} />
+                      </Box>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+                        Alta
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
+                        {formatDate(r.createdAt)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+                        1er pago
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
+                        {formatDate(r.firstPaidAt)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+                        Plan
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
+                        {r.planNombre ?? '—'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+                        Desc. negocio
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
+                        {formatMoney(r.discountSnapshot)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+                        Tu recompensa
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
+                        {formatMoney(r.rewardSnapshot)}
+                      </Typography>
+                    </Box>
+                    {r.status === REFERRAL_STATUS.rejectedFraud && (
+                      <Alert severity="warning" sx={{ mt: 1, py: 0, fontSize: '0.75rem' }}>
+                        No aplica recompensa por detección de fraude. El negocio se creó con normalidad.
+                      </Alert>
+                    )}
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+          </Box>
+
+          <TableContainer
+            sx={{
+              display: { xs: 'none', sm: 'block' },
+              // Tema global (claro) pinta thead/hover en gris claro; aquí forzamos UI oscura con contraste.
+              '& ::selection': {
+                backgroundColor: 'rgba(78, 205, 196, 0.35)',
+                color: 'rgba(255,255,255,0.98)',
+              },
+            }}
+          >
             <Table size="small">
-              <TableHead>
+              <TableHead
+                sx={{
+                  '& .MuiTableCell-head': {
+                    backgroundColor: 'rgba(255,255,255,0.06)',
+                    color: 'rgba(255,255,255,0.65)',
+                    borderBottom: '1px solid rgba(255,255,255,0.1)',
+                    fontWeight: 600,
+                  },
+                }}
+              >
                 <TableRow>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.6)' }}>Negocio</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.6)' }}>Estado</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.6)' }}>Alta</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.6)' }}>1er pago</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.6)' }}>Plan</TableCell>
-                  <TableCell align="right" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                    Desc. negocio
-                  </TableCell>
-                  <TableCell align="right" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                    Tu recompensa
-                  </TableCell>
+                  <TableCell>Negocio</TableCell>
+                  <TableCell>Estado</TableCell>
+                  <TableCell>Alta</TableCell>
+                  <TableCell>1er pago</TableCell>
+                  <TableCell>Plan</TableCell>
+                  <TableCell align="right">Desc. negocio</TableCell>
+                  <TableCell align="right">Tu recompensa</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {data.referrals.length === 0 ? (
-                  <TableRow>
+                  <TableRow sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}>
                     <TableCell colSpan={7} sx={{ color: 'rgba(255,255,255,0.5)', py: 4, textAlign: 'center' }}>
                       Aún no hay negocios registrados con tu código.
                     </TableCell>
@@ -224,6 +355,12 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
                           r.status === REFERRAL_STATUS.rejectedFraud
                             ? 'rgba(239, 83, 80, 0.12)'
                             : 'transparent',
+                        '&:hover': {
+                          bgcolor:
+                            r.status === REFERRAL_STATUS.rejectedFraud
+                              ? 'rgba(239, 83, 80, 0.2)'
+                              : 'rgba(255,255,255,0.06)',
+                        },
                         '& td': { color: 'rgba(255,255,255,0.88)', borderColor: 'rgba(255,255,255,0.08)' },
                       }}
                     >

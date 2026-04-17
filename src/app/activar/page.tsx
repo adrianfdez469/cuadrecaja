@@ -22,9 +22,17 @@ import {
   ErrorOutline,
   AccessTime,
   Home,
+  WarningAmber,
 } from '@mui/icons-material';
 
-type ActivationState = 'loading' | 'activating' | 'success' | 'error_expired' | 'error_used' | 'error_invalid';
+type ActivationState =
+  | 'loading'
+  | 'activating'
+  | 'success'
+  | 'error_expired'
+  | 'error_used'
+  | 'error_conflict'
+  | 'error_invalid';
 
 interface Credentials {
   usuario: string;
@@ -115,10 +123,13 @@ function ActivarContent() {
         body: JSON.stringify({ token }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        error?: string;
+        conflict?: 'email' | 'negocio' | 'both';
+      };
 
       if (response.ok) {
-        setCredentials(data);
+        setCredentials(data as Credentials);
         setEstado('success');
         return;
       }
@@ -130,8 +141,18 @@ function ActivarContent() {
       }
 
       if (response.status === 409) {
-        setEstado('error_used');
-        setErrorMessage(data.error ?? 'Esta cuenta ya fue activada.');
+        const c = data.conflict;
+        if (c === 'negocio' || c === 'both') {
+          setEstado('error_conflict');
+        } else {
+          setEstado('error_used');
+        }
+        setErrorMessage(
+          data.error ??
+            (c === 'negocio' || c === 'both'
+              ? 'Los datos indicados ya están en uso.'
+              : 'Esta cuenta ya fue activada.')
+        );
         return;
       }
 
@@ -252,6 +273,10 @@ function ActivarContent() {
     error_used: {
       icon: <CheckCircle sx={{ fontSize: 56, color: TEAL }} />,
       title: 'Cuenta ya activada',
+    },
+    error_conflict: {
+      icon: <WarningAmber sx={{ fontSize: 56, color: '#ffb74d' }} />,
+      title: 'No se pudo completar el registro',
     },
     error_invalid: {
       icon: <ErrorOutline sx={{ fontSize: 56, color: '#ef5350' }} />,

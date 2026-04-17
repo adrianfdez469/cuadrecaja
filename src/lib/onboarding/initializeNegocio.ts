@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
 import { captureReferralForNewBusiness } from '@/lib/referrals/captureReferral';
+import {
+  getLandingRegistrationConflict,
+  LandingRegistrationConflictError,
+} from '@/lib/onboarding/landingRegistrationAvailability';
 
 const MAX_LOCALES_ONBOARDING = 19;
 
@@ -27,6 +31,12 @@ function generarPasswordTemporal(): string {
 
 export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboardingResult> {
   const { nombre, nombreNegocio, correo } = input;
+
+  const conflict = await getLandingRegistrationConflict(correo, nombreNegocio);
+  if (conflict) {
+    throw new LandingRegistrationConflictError(conflict);
+  }
+
   const count = Math.min(
     MAX_LOCALES_ONBOARDING,
     Math.max(1, Math.floor(Number(input.numeroLocales)) || 1)

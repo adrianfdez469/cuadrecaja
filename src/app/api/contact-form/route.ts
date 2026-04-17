@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { ZodError } from 'zod';
 import { landingContactFormSchema } from '@/schemas/referral';
+import {
+  getLandingRegistrationConflict,
+  landingConflictMessage,
+} from '@/lib/onboarding/landingRegistrationAvailability';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +14,18 @@ export async function POST(request: NextRequest) {
     const telefonoNormalizado =
       typeof body.telefono === 'string' && body.telefono.trim() ? body.telefono.replace(/\s/g, '') : '';
     const referidoNormalizado = body.referido?.trim().toUpperCase() || '';
+
+    const conflict = await getLandingRegistrationConflict(body.correo, body.nombreNegocio);
+    if (conflict) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: landingConflictMessage(conflict),
+          conflict,
+        },
+        { status: 409 }
+      );
+    }
 
     const payload = {
       nombre: body.nombre.trim(),

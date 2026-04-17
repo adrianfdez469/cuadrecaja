@@ -165,11 +165,18 @@ export default function ContactSection() {
         body: JSON.stringify(payload),
       });
 
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
       if (response.ok) {
         setSubmitStatus('success');
         setFormData(initialFormData);
       } else {
-        throw new Error('Error al enviar el formulario');
+        setSubmitStatus('error');
+        setErrorMessage(
+          typeof data.error === 'string' && data.error.trim()
+            ? data.error
+            : 'No se pudo enviar el formulario. Intenta de nuevo.'
+        );
       }
     } catch (error) {
       console.error('Error:', error);
