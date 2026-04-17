@@ -198,7 +198,9 @@ model Usuario {
   id       String  @id @default(uuid())
   nombre   String
   usuario  String  @unique // Nombre de usuario único
-  password String
+  /// Nulo mientras el usuario está pendiente de definir contraseña (invitación por correo).
+  password       String?
+  estadoCuenta   UsuarioEstadoCuenta @default(ACTIVO)
   rol      String? // Aqui solo se registrará si el usuario es superadministrador con el rol SUPER_ADMIN
 
   // tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
@@ -743,4 +745,10 @@ enum ReferralEntityType {
   PROMOTER
   REFERRAL
   LIQUIDATION
+}
+
+/// Estado del ciclo de vida de la cuenta (invitación / activación).
+enum UsuarioEstadoCuenta {
+  ACTIVO
+  PENDIENTE_VERIFICACION
 }

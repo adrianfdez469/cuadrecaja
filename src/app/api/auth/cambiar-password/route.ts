@@ -48,6 +48,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
     }
 
+    if (!user.password) {
+      return NextResponse.json(
+        {
+          error:
+            "Debes completar la activación de tu cuenta antes de cambiar la contraseña desde aquí.",
+        },
+        { status: 400 }
+      );
+    }
+
     // Verificar la contraseña actual
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isCurrentPasswordValid) {

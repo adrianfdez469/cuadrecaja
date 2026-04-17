@@ -28,6 +28,8 @@ import Instagram from '@mui/icons-material/Instagram';
 import type { IPromoterDashboardData } from '@/lib/referrals/promoterDashboard';
 import { REFERRAL_STATUS } from '@/constants/referrals';
 
+type IPromoterReferralRow = IPromoterDashboardData['referrals'][number];
+
 const TEAL = '#4ECDC4';
 const COPY_OK = '#81c784';
 const COPY_FEEDBACK_MS = 2200;
@@ -117,6 +119,107 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
     scheduleCopyReset();
     window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
   };
+
+  const referralsNormales = data.referrals.filter((r) => r.status !== REFERRAL_STATUS.rejectedFraud);
+  const referralsFraude = data.referrals.filter((r) => r.status === REFERRAL_STATUS.rejectedFraud);
+
+  const renderReferralMobileCard = (r: IPromoterReferralRow) => (
+    <Paper
+      key={r.id}
+      elevation={0}
+      sx={{
+        p: 1.5,
+        bgcolor:
+          r.status === REFERRAL_STATUS.rejectedFraud
+            ? 'rgba(239, 83, 80, 0.12)'
+            : 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.08)',
+      }}
+    >
+      <Typography fontWeight={700} sx={{ color: 'rgba(255,255,255,0.92)' }}>
+        {r.businessName}
+      </Typography>
+      <Box sx={{ mt: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+          Estado
+        </Typography>
+        <Box sx={{ textAlign: 'right' }}>
+          <Chip label={r.statusLabel} size="small" variant="outlined" sx={{ color: 'rgba(255,255,255,0.88)', borderColor: 'rgba(255,255,255,0.35)' }} />
+        </Box>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+          Alta
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
+          {formatDate(r.createdAt)}
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+          1er pago
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
+          {formatDate(r.firstPaidAt)}
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+          Plan
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
+          {r.planNombre ?? '—'}
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+          Desc. negocio
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
+          {formatMoney(r.discountSnapshot)}
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+          Tu recompensa
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
+          {formatMoney(r.rewardSnapshot)}
+        </Typography>
+      </Box>
+      {r.status === REFERRAL_STATUS.rejectedFraud && (
+        <Alert severity="warning" sx={{ mt: 1, py: 0, fontSize: '0.75rem' }}>
+          No aplica recompensa por detección de fraude. El negocio se creó con normalidad.
+        </Alert>
+      )}
+    </Paper>
+  );
+
+  const renderReferralTableRow = (r: IPromoterReferralRow) => (
+    <TableRow
+      key={r.id}
+      sx={{
+        bgcolor:
+          r.status === REFERRAL_STATUS.rejectedFraud
+            ? 'rgba(239, 83, 80, 0.12)'
+            : 'transparent',
+        '&:hover': {
+          bgcolor:
+            r.status === REFERRAL_STATUS.rejectedFraud
+              ? 'rgba(239, 83, 80, 0.2)'
+              : 'rgba(255,255,255,0.06)',
+        },
+        '& td': { color: 'rgba(255,255,255,0.88)', borderColor: 'rgba(255,255,255,0.08)' },
+      }}
+    >
+      <TableCell>
+        <Typography fontWeight={600}>{r.businessName}</Typography>
+        {r.status === REFERRAL_STATUS.rejectedFraud && (
+          <Alert severity="warning" sx={{ mt: 1, py: 0, fontSize: '0.75rem' }}>
+            No aplica recompensa por detección de fraude. El negocio se creó con normalidad.
+          </Alert>
+        )}
+      </TableCell>
+      <TableCell>
+        <Chip label={r.statusLabel} size="small" variant="outlined" sx={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.35)' }} />
+      </TableCell>
+      <TableCell>{formatDate(r.createdAt)}</TableCell>
+      <TableCell>{formatDate(r.firstPaidAt)}</TableCell>
+      <TableCell>{r.planNombre ?? '—'}</TableCell>
+      <TableCell align="right">{formatMoney(r.discountSnapshot)}</TableCell>
+      <TableCell align="right">{formatMoney(r.rewardSnapshot)}</TableCell>
+    </TableRow>
+  );
 
   const statItems = [
     { label: 'Pendientes de pago', value: data.stats.capturados, color: '#90caf9' },
@@ -339,68 +442,29 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
                 Aún no hay negocios registrados con tu código.
               </Typography>
             ) : (
-              <Stack spacing={1.5}>
-                {data.referrals.map((r) => (
-                  <Paper
-                    key={r.id}
-                    elevation={0}
-                    sx={{
-                      p: 1.5,
-                      bgcolor:
-                        r.status === REFERRAL_STATUS.rejectedFraud
-                          ? 'rgba(239, 83, 80, 0.12)'
-                          : 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    <Typography fontWeight={700} sx={{ color: 'rgba(255,255,255,0.92)' }}>
-                      {r.businessName}
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.75)', mb: 1, fontWeight: 600 }}>
+                    Referidos
+                  </Typography>
+                  {referralsNormales.length === 0 ? (
+                    <Typography sx={{ color: 'rgba(255,255,255,0.45)', py: 1, fontSize: '0.875rem' }}>
+                      {referralsFraude.length > 0
+                        ? 'No hay referidos en esta categoría; los registros actuales están solo en la sección de fraude.'
+                        : 'Ningún referido en esta categoría.'}
                     </Typography>
-                    <Box sx={{ mt: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
-                        Estado
-                      </Typography>
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Chip label={r.statusLabel} size="small" variant="outlined" sx={{ color: 'rgba(255,255,255,0.88)', borderColor: 'rgba(255,255,255,0.35)' }} />
-                      </Box>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
-                        Alta
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
-                        {formatDate(r.createdAt)}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
-                        1er pago
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
-                        {formatDate(r.firstPaidAt)}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
-                        Plan
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
-                        {r.planNombre ?? '—'}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
-                        Desc. negocio
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
-                        {formatMoney(r.discountSnapshot)}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
-                        Tu recompensa
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.88)', textAlign: 'right' }}>
-                        {formatMoney(r.rewardSnapshot)}
-                      </Typography>
-                    </Box>
-                    {r.status === REFERRAL_STATUS.rejectedFraud && (
-                      <Alert severity="warning" sx={{ mt: 1, py: 0, fontSize: '0.75rem' }}>
-                        No aplica recompensa por detección de fraude. El negocio se creó con normalidad.
-                      </Alert>
-                    )}
-                  </Paper>
-                ))}
+                  ) : (
+                    <Stack spacing={1.5}>{referralsNormales.map((r) => renderReferralMobileCard(r))}</Stack>
+                  )}
+                </Box>
+                {referralsFraude.length > 0 ? (
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ color: '#ef9a9a', mb: 1, fontWeight: 600 }}>
+                      Marcados como fraude
+                    </Typography>
+                    <Stack spacing={1.5}>{referralsFraude.map((r) => renderReferralMobileCard(r))}</Stack>
+                  </Box>
+                ) : null}
               </Stack>
             )}
           </Box>
@@ -444,41 +508,54 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
                     </TableCell>
                   </TableRow>
                 ) : (
-                  data.referrals.map((r) => (
-                    <TableRow
-                      key={r.id}
-                      sx={{
-                        bgcolor:
-                          r.status === REFERRAL_STATUS.rejectedFraud
-                            ? 'rgba(239, 83, 80, 0.12)'
-                            : 'transparent',
-                        '&:hover': {
-                          bgcolor:
-                            r.status === REFERRAL_STATUS.rejectedFraud
-                              ? 'rgba(239, 83, 80, 0.2)'
-                              : 'rgba(255,255,255,0.06)',
-                        },
-                        '& td': { color: 'rgba(255,255,255,0.88)', borderColor: 'rgba(255,255,255,0.08)' },
-                      }}
-                    >
-                      <TableCell>
-                        <Typography fontWeight={600}>{r.businessName}</Typography>
-                        {r.status === REFERRAL_STATUS.rejectedFraud && (
-                          <Alert severity="warning" sx={{ mt: 1, py: 0, fontSize: '0.75rem' }}>
-                            No aplica recompensa por detección de fraude. El negocio se creó con normalidad.
-                          </Alert>
-                        )}
+                  <>
+                    <TableRow sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}>
+                      <TableCell
+                        colSpan={7}
+                        sx={{
+                          color: 'rgba(255,255,255,0.75)',
+                          py: 1.25,
+                          fontWeight: 600,
+                          fontSize: '0.8rem',
+                          borderColor: 'rgba(255,255,255,0.08)',
+                          bgcolor: 'rgba(255,255,255,0.04)',
+                        }}
+                      >
+                        Referidos
                       </TableCell>
-                      <TableCell>
-                        <Chip label={r.statusLabel} size="small" variant="outlined" sx={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.35)' }} />
-                      </TableCell>
-                      <TableCell>{formatDate(r.createdAt)}</TableCell>
-                      <TableCell>{formatDate(r.firstPaidAt)}</TableCell>
-                      <TableCell>{r.planNombre ?? '—'}</TableCell>
-                      <TableCell align="right">{formatMoney(r.discountSnapshot)}</TableCell>
-                      <TableCell align="right">{formatMoney(r.rewardSnapshot)}</TableCell>
                     </TableRow>
-                  ))
+                    {referralsNormales.length === 0 ? (
+                      <TableRow sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}>
+                        <TableCell colSpan={7} sx={{ color: 'rgba(255,255,255,0.45)', py: 2, fontSize: '0.875rem' }}>
+                          {referralsFraude.length > 0
+                            ? 'No hay referidos en esta categoría; los registros actuales están solo en la sección de fraude.'
+                            : 'Ningún referido en esta categoría.'}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      referralsNormales.map((r) => renderReferralTableRow(r))
+                    )}
+                    {referralsFraude.length > 0 ? (
+                      <>
+                        <TableRow sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' } }}>
+                          <TableCell
+                            colSpan={7}
+                            sx={{
+                              color: '#ef9a9a',
+                              py: 1.25,
+                              fontWeight: 600,
+                              fontSize: '0.8rem',
+                              borderColor: 'rgba(255,255,255,0.08)',
+                              bgcolor: 'rgba(239, 83, 80, 0.08)',
+                            }}
+                          >
+                            Marcados como fraude
+                          </TableCell>
+                        </TableRow>
+                        {referralsFraude.map((r) => renderReferralTableRow(r))}
+                      </>
+                    ) : null}
+                  </>
                 )}
               </TableBody>
             </Table>

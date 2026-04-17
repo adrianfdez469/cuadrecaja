@@ -2,8 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
-import { verificarPermisoUsuario  } from "@/utils/permisos_back";
+import { UsuarioEstadoCuenta } from "@prisma/client";
+import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { Prisma } from "@prisma/client";
+import { roles } from "@/utils/roles";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,17 +42,29 @@ export async function DELETE(
 
     // // Verificar que el usuario no está asociado a nunguna tienda o ah realizado una venta
     const usuarioUsado = await prisma.usuario.findUnique({
-      where: {id},
+      where: { id },
       include: {
-        locales: {take: 1},
-        //tiendas: {take: 1},
-        ventas: {take: 1}
-      }
+        locales: { take: 1 },
+        ventas: { take: 1 },
+      },
     });
 
-    if(usuarioUsado?.locales?.length || usuarioUsado?.ventas.length) {
+    if (!usuarioUsado) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
+    if (usuarioUsado.estadoCuenta === UsuarioEstadoCuenta.PENDIENTE_VERIFICACION) {
+      await prisma.usuarioTienda.deleteMany({ where: { usuarioId: id } });
+      await prisma.usuario.delete({ where: { id } });
+      return NextResponse.json({ message: "Usuario eliminado" }, { status: 200 });
+    }
+
+    if (usuarioUsado.locales.length || usuarioUsado.ventas.length) {
       return NextResponse.json(
-        { error: "No se puede eliminar el usuario porque tiene ventas asociadas o está en alguna tienda" },
+        {
+          error:
+            "No se puede eliminar el usuario porque tiene ventas asociadas o está en alguna tienda",
+        },
         { status: 500 }
       );
     }
@@ -62,7 +76,8 @@ export async function DELETE(
     return NextResponse.json({ message: "Usuario eliminado" }, { status: 200 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Error desconocido";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -97,31 +112,39 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
-    let data = {};
-    if(userId === id ){
+    let data: Prisma.UsuarioUpdateInput = {};
+    if (userId === id) {
       data = {
-        ...(nombre ? {nombre} : {}),
+        ...(nombre ? { nombre } : {}),
         ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
-      }
+      };
     } else {
-      if(password && !verificarPermisoUsuario(user.permisos, "configuracion.usuarios.cambiarpassword", user.rol)) {
+      if (
+        password &&
+        user.rol !== roles.SUPER_ADMIN
+      ) {
         return NextResponse.json(
-          { error: "Acceso no autorizado a cambiar contraseñas" },
+          {
+            error:
+              "Solo un superadministrador puede asignar o restablecer la contraseña de otro usuario.",
+          },
           { status: 403 }
         );
       }
-      if(!verificarPermisoUsuario(user.permisos, "configuracion.usuarios.acceder", user.rol)) {
-        return NextResponse.json(
-          { error: "Acceso no autorizado" },
-          { status: 403 }
-        );
-      }
-
+      const hashed = password ? await bcrypt.hash(password, 10) : null;
       data = {
         nombre,
         usuario: usuarioNormalizado,
-        ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
-      }
+        ...(hashed
+          ? {
+              password: hashed,
+              ...(usuarioDB.estadoCuenta ===
+              UsuarioEstadoCuenta.PENDIENTE_VERIFICACION
+                ? { estadoCuenta: UsuarioEstadoCuenta.ACTIVO }
+                : {}),
+            }
+          : {}),
+      };
     }
 
     if (userId !== id && !EMAIL_REGEX.test(usuarioNormalizado)) {
@@ -131,9 +154,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
+    const usuarioSelect = {
+      id: true,
+      nombre: true,
+      usuario: true,
+      rol: true,
+      negocioId: true,
+      localActualId: true,
+      isActive: true,
+      estadoCuenta: true,
+    } satisfies Prisma.UsuarioSelect;
+
     const nuevoUsuario = await prisma.usuario.update({
       where: { id },
-      data
+      data,
+      select: usuarioSelect,
     });
 
     return NextResponse.json(nuevoUsuario, { status: 201 });
@@ -146,6 +181,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     console.error(error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Error desconocido";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

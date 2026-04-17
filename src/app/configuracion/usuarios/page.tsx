@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { 
   Typography, 
   Button, 
@@ -38,7 +39,8 @@ import {
   Search,
   Refresh,
   ExpandMore,
-  ExpandLess
+  ExpandLess,
+  MailOutline,
 } from "@mui/icons-material";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
@@ -46,14 +48,23 @@ import { ContentCard } from "@/components/ContentCard";
 import LimitDialog from "@/components/LimitDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { usePermisos } from "@/utils/permisos_front";
-import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from "@/services/usuarioService";
+import {
+  getUsuarios,
+  createUsuario,
+  updateUsuario,
+  deleteUsuario,
+  reenviarInvitacionUsuario,
+} from "@/services/usuarioService";
+import type { IUsuarioListItem } from "@/schemas/usuario";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PENDIENTE_VERIFICACION = "PENDIENTE_VERIFICACION" as const;
 
 export default function UsuariosPage() {
-  const [usuarios, setUsuarios] = useState([]);
+  const { data: session } = useSession();
+  const [usuarios, setUsuarios] = useState<IUsuarioListItem[]>([]);
   const [open, setOpen] = useState(false);
-  const [selectedUsuario, setSelectedUsuario] = useState(null);
+  const [selectedUsuario, setSelectedUsuario] = useState<IUsuarioListItem | null>(null);
   const [nombre, setNombre] = useState("");
   const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
@@ -85,32 +96,68 @@ export default function UsuariosPage() {
     }
   };
 
-  const handleOpen = (user = null) => {
+  const handleOpen = (user: IUsuarioListItem | null = null) => {
     setSelectedUsuario(user);
     setNombre(user?.nombre || "");
     setUsuario(user?.usuario || "");
+    setPassword("");
     setOpen(true);
   };
 
   const handleClose = () => {
     setOpen(false);
     setSelectedUsuario(null);
+    setPassword("");
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     confirmDialog("¿Estás seguro de eliminar este usuario?", async () => {
       try {
         await deleteUsuario(id);
+        showMessage("Usuario eliminado", "success");
         fetchUsuarios();
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error al eliminar el usuario", error);
+        const msg =
+          typeof error === "object" &&
+          error !== null &&
+          "response" in error &&
+          typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error ===
+            "string"
+            ? (error as { response: { data: { error: string } } }).response.data.error
+            : "Error al eliminar el usuario";
+        showMessage(msg, "error");
       }
     });
   };
 
+  const handleReinvite = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      await reenviarInvitacionUsuario(id);
+      showMessage("Invitación reenviada", "success");
+    } catch (error: unknown) {
+      const msg =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error ===
+          "string"
+          ? (error as { response: { data: { error: string } } }).response.data.error
+          : "No se pudo reenviar la invitación";
+      showMessage(msg, "error");
+    }
+  };
+
+  const isSuperAdmin = session?.user?.rol === "SUPER_ADMIN";
+  const isEditingSelf =
+    !!selectedUsuario && session?.user?.id === selectedUsuario.id;
+  const showPasswordField =
+    !!selectedUsuario && (isEditingSelf || isSuperAdmin);
+
   const handleSave = async () => {
-    if (!nombre.trim() || !usuario.trim() || (!selectedUsuario && !password.trim())) {
-      showMessage("Todos los campos son obligatorios", "warning");
+    if (!nombre.trim() || !usuario.trim()) {
+      showMessage("Nombre y correo son obligatorios", "warning");
       return;
     }
 
@@ -120,12 +167,14 @@ export default function UsuariosPage() {
       return;
     }
 
-    const data = {
+    const data: { nombre: string; usuario: string; password?: string } = {
       nombre: nombre.trim(),
       usuario: emailNormalizado,
     };
 
-    if(password !== "") data["password"] = password;
+    if (showPasswordField && password.trim() !== "") {
+      data.password = password.trim();
+    }
 
     setSaving(true);
     try {
@@ -134,22 +183,23 @@ export default function UsuariosPage() {
         showMessage("Usuario actualizado exitosamente", "success");
       } else {
         await createUsuario(data);
-        showMessage("Usuario creado exitosamente", "success");
+        showMessage(
+          "Usuario creado. Se envió una invitación por correo para que defina su contraseña.",
+          "success"
+        );
       }
       fetchUsuarios();
       handleClose();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error al guardar el usuario", error);
-      
-      // Manejar específicamente el error de límite de usuarios
-      if (error.response?.status === 400 && 
-          error.response?.data?.error?.includes("Limite de usuarios exedido")) {
+      const err = error as { response?: { status?: number; data?: { error?: string } } };
+      if (
+        err.response?.status === 400 &&
+        err.response?.data?.error?.includes("Limite de usuarios exedido")
+      ) {
         setLimitDialog(true);
       } else {
-        showMessage(
-          error.response?.data?.error || "Error al guardar el usuario", 
-          "error"
-        );
+        showMessage(err.response?.data?.error || "Error al guardar el usuario", "error");
       }
     } finally {
       setSaving(false);
@@ -160,9 +210,10 @@ export default function UsuariosPage() {
     setLimitDialog(false);
   };
 
-  const filteredUsuarios = usuarios.filter((user) =>
-    user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.usuario.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsuarios = usuarios.filter(
+    (user) =>
+      user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.usuario.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Cálculos para estadísticas
@@ -392,20 +443,31 @@ export default function UsuariosPage() {
                         <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
                           {user.nombre}
                         </Typography>
-                        {user.rol === "SUPER_ADMIN" && 
-                          <Chip 
-                            label={user.rol}
-                            color={'info'}
-                            size="small"
-                            sx={{ height: 20 }}
-                          />
-                        }
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                          {user.estadoCuenta === PENDIENTE_VERIFICACION ? (
+                            <Chip label="Pendiente" color="warning" size="small" sx={{ height: 20 }} />
+                          ) : null}
+                          {user.rol === "SUPER_ADMIN" ? (
+                            <Chip label={user.rol} color="info" size="small" sx={{ height: 20 }} />
+                          ) : null}
+                        </Stack>
                       </Box>
                       
                       <Box display="flex" justifyContent="space-between" alignItems="center">
                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
                           Usuario: {user.usuario}
                         </Typography>
+                        {user.estadoCuenta === PENDIENTE_VERIFICACION &&
+                        verificarPermiso("configuracion.usuarios.acceder") ? (
+                          <IconButton
+                            onClick={(e) => handleReinvite(e, user.id)}
+                            size="small"
+                            color="primary"
+                            title="Reenviar invitación"
+                          >
+                            <MailOutline fontSize="small" />
+                          </IconButton>
+                        ) : null}
                         <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
@@ -432,6 +494,7 @@ export default function UsuariosPage() {
                 <TableRow>
                   <TableCell>Nombre</TableCell>
                   <TableCell>Usuario</TableCell>
+                  <TableCell>Estado</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
@@ -460,9 +523,28 @@ export default function UsuariosPage() {
                         {user.usuario}
                       </Typography>
                     </TableCell>
-                    
+                    <TableCell>
+                      {user.estadoCuenta === PENDIENTE_VERIFICACION ? (
+                        <Chip label="Pendiente" color="warning" size="small" />
+                      ) : (
+                        <Chip label="Activo" color="success" size="small" variant="outlined" />
+                      )}
+                    </TableCell>
+
                     <TableCell align="center">
                       <Stack direction="row" spacing={0.5} justifyContent="center">
+                        {user.estadoCuenta === PENDIENTE_VERIFICACION &&
+                        verificarPermiso("configuracion.usuarios.acceder") ? (
+                          <Tooltip title="Reenviar invitación">
+                            <IconButton
+                              onClick={(e) => handleReinvite(e, user.id)}
+                              size="small"
+                              color="primary"
+                            >
+                              <MailOutline fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        ) : null}
                         <Tooltip title="Editar usuario">
                           <IconButton
                             onClick={(e) => {
@@ -502,9 +584,18 @@ export default function UsuariosPage() {
 
       {/* Dialog para crear/editar usuario */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{selectedUsuario ? "Editar Usuario" : "Nuevo Usuario"}</DialogTitle>
+        <DialogTitle>
+          {selectedUsuario ? "Editar usuario" : "Invitar usuario"}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
+            {!selectedUsuario ? (
+              <Typography variant="body2" color="text.secondary">
+                Se enviará un correo con un enlace para que la persona defina su contraseña y active
+                su cuenta (válido varias horas).
+              </Typography>
+            ) : null}
+
             <TextField 
               fullWidth 
               label="Nombre completo" 
@@ -522,17 +613,33 @@ export default function UsuariosPage() {
               onChange={(e) => setUsuario(e.target.value)}
               required
               placeholder="ejemplo@correo.com"
+              disabled={!!selectedUsuario && selectedUsuario.estadoCuenta === PENDIENTE_VERIFICACION}
+              helperText={
+                selectedUsuario?.estadoCuenta === PENDIENTE_VERIFICACION
+                  ? "El correo no se puede cambiar mientras la invitación esté pendiente."
+                  : undefined
+              }
             />
 
-            <TextField 
-              fullWidth 
-              label="Contraseña" 
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required={!selectedUsuario}
-              placeholder={selectedUsuario ? "Dejar vacío para mantener la actual" : "Contraseña segura"}
-            />
+            {showPasswordField ? (
+              <TextField 
+                fullWidth 
+                label="Contraseña" 
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={
+                  isSuperAdmin && !isEditingSelf
+                    ? "Opcional: solo emergencias / soporte"
+                    : "Dejar vacío para mantener la actual"
+                }
+                helperText={
+                  isSuperAdmin && !isEditingSelf
+                    ? "Solo superadministrador: asignar contraseña desactiva el flujo por correo si lo completas."
+                    : undefined
+                }
+              />
+            ) : null}
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -547,7 +654,6 @@ export default function UsuariosPage() {
               !nombre.trim() ||
               !usuario.trim() ||
               !EMAIL_REGEX.test(usuario.trim().toLowerCase()) ||
-              (!selectedUsuario && !password.trim()) ||
               saving
             }
             startIcon={saving ? <CircularProgress size={16} /> : undefined}

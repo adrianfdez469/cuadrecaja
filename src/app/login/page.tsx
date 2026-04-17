@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
-import { 
-  TextField, 
-  Button, 
-  Box, 
-  Typography, 
+import NextLink from "next/link";
+import {
+  TextField,
+  Button,
+  Box,
+  Typography,
   Container,
   CardContent,
   Alert,
@@ -15,7 +16,8 @@ import {
   IconButton,
   Paper,
   Fade,
-  Avatar
+  Avatar,
+  Link,
 } from "@mui/material";
 import { 
   Visibility, 
@@ -28,17 +30,20 @@ import {
   WhatsApp,
   Email
 } from "@mui/icons-material";
+import {
+  LOGIN_CREDENTIALS_SESSION_KEY,
+  OLVIDE_CONTRASEÑA_PATH,
+} from "@/constants/userAccount";
 
 export default function LoginPage() {
   const [credentials, setCredentials] = useState({ usuario: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const LOGIN_PREFILL_KEY = "prefill_login_credentials";
 
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(LOGIN_PREFILL_KEY);
+      const raw = sessionStorage.getItem(LOGIN_CREDENTIALS_SESSION_KEY);
       if (!raw) return;
 
       const parsed = JSON.parse(raw) as { usuario?: string; password?: string };
@@ -51,7 +56,7 @@ export default function LoginPage() {
     } catch {
       // Si el formato no es válido, se ignora silenciosamente.
     } finally {
-      sessionStorage.removeItem(LOGIN_PREFILL_KEY);
+      sessionStorage.removeItem(LOGIN_CREDENTIALS_SESSION_KEY);
     }
   }, []);
 
@@ -86,7 +91,10 @@ export default function LoginPage() {
           // Extraer el mensaje completo del error
           const mensajeError = result.error.split(": ")[1] || result.error;
           setError(`USUARIO_SIN_CONFIGURAR: ${mensajeError}`);
-        } 
+        } else if (result.error.includes("USUARIO_PENDIENTE_VERIFICACION")) {
+          const mensajeError = result.error.split(": ")[1] || result.error;
+          setError(`USUARIO_PENDIENTE_VERIFICACION: ${mensajeError}`);
+        }
         else {
           setError("Credenciales inválidas. Verifica tu usuario y contraseña.");
         }
@@ -409,6 +417,25 @@ export default function LoginPage() {
                           </Box>
                         </Box>
                       </Alert>
+                    ) : error.startsWith("USUARIO_PENDIENTE_VERIFICACION:") ? (
+                      <Alert
+                        severity="info"
+                        sx={{
+                          mb: 3,
+                          borderRadius: 2,
+                          "& .MuiAlert-message": { width: "100%" },
+                        }}
+                      >
+                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                          Cuenta pendiente de activación
+                        </Typography>
+                        <Typography variant="body2">
+                          {error.split(": ").slice(1).join(": ")}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 1.5 }} color="text.secondary">
+                          Si no encuentras el correo, pide a un administrador que reenvíe la invitación.
+                        </Typography>
+                      </Alert>
                     ) : error === "SUBSCRIPTION_EXPIRED" ? (
                       <Alert 
                         severity="error" 
@@ -536,6 +563,12 @@ export default function LoginPage() {
                     )}
                   </>
                 )}
+
+                <Box sx={{ textAlign: "right", mb: 2 }}>
+                  <Link component={NextLink} href={OLVIDE_CONTRASEÑA_PATH} variant="body2" underline="hover">
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </Box>
 
                 <Button
                   type="submit"
