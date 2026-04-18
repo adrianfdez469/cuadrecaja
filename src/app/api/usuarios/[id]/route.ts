@@ -40,38 +40,63 @@ export async function DELETE(
       );
     }
 
-    // // Verificar que el usuario no está asociado a nunguna tienda o ah realizado una venta
-    const usuarioUsado = await prisma.usuario.findUnique({
-      where: { id },
-      include: {
-        locales: { take: 1 },
-        ventas: { take: 1 },
-      },
-    });
-
-    if (!usuarioUsado) {
-      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
-    }
-
-    if (usuarioUsado.estadoCuenta === UsuarioEstadoCuenta.PENDIENTE_VERIFICACION) {
+    if (usuario.estadoCuenta === UsuarioEstadoCuenta.PENDIENTE_VERIFICACION) {
       await prisma.usuarioTienda.deleteMany({ where: { usuarioId: id } });
       await prisma.usuario.delete({ where: { id } });
       return NextResponse.json({ message: "Usuario eliminado" }, { status: 200 });
     }
 
-    if (usuarioUsado.locales.length || usuarioUsado.ventas.length) {
+    const [countLocales, countVentas, countMovimientos, countProveedores] = await Promise.all([
+      prisma.usuarioTienda.count({ where: { usuarioId: id } }),
+      prisma.venta.count({ where: { usuarioId: id } }),
+      prisma.movimientoStock.count({ where: { usuarioId: id } }),
+      prisma.proveedor.count({ where: { usuarioId: id } }),
+    ]);
+
+    const razones: string[] = [];
+    if (countLocales > 0) {
+      razones.push(
+        `está asignado a ${countLocales} local(es); quítalo de los locales en configuración`
+      );
+    }
+    if (countVentas > 0) {
+      razones.push(`tiene ${countVentas} venta(s) registrada(s) en el sistema`);
+    }
+    if (countMovimientos > 0) {
+      razones.push(`tiene ${countMovimientos} movimiento(s) de inventario asociados`);
+    }
+    if (countProveedores > 0) {
+      razones.push(`está vinculado a ${countProveedores} proveedor(es)`);
+    }
+
+    if (razones.length > 0) {
       return NextResponse.json(
         {
-          error:
-            "No se puede eliminar el usuario porque tiene ventas asociadas o está en alguna tienda",
+          error: `No se puede eliminar el usuario porque ${razones.join("; ")}.`,
         },
-        { status: 500 }
+        { status: 409 }
       );
     }
 
-    await prisma.usuario.delete({
-      where: { id },
-    });
+    try {
+      await prisma.usuario.delete({
+        where: { id },
+      });
+    } catch (deleteErr) {
+      if (
+        deleteErr instanceof Prisma.PrismaClientKnownRequestError &&
+        deleteErr.code === "P2003"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "No se puede eliminar el usuario: aún tiene datos vinculados en el sistema (por ejemplo ventas, movimientos o referencias en otras tablas).",
+          },
+          { status: 409 }
+        );
+      }
+      throw deleteErr;
+    }
 
     return NextResponse.json({ message: "Usuario eliminado" }, { status: 200 });
   } catch (error) {
