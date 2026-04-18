@@ -66,8 +66,6 @@ export async function dispatchUserPasswordResetToN8n(payload: ResetWebhookBody):
   }
   try {
     const body = JSON.stringify(payload);
-    console.log("[N8N_USER_PASSWORD_RESET_WEBHOOK] body enviado:", body);
-    console.log("[N8N_USER_PASSWORD_RESET_WEBHOOK] url:", url);
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

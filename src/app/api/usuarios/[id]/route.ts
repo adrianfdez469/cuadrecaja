@@ -114,6 +114,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     let data: Prisma.UsuarioUpdateInput = {};
     if (userId === id) {
+      if (typeof usuario === "string" && usuario.trim() !== "") {
+        const intento = usuario.trim().toLowerCase();
+        if (intento !== usuarioDB.usuario.toLowerCase()) {
+          return NextResponse.json(
+            { error: "No puedes modificar tu correo de acceso desde aquí." },
+            { status: 400 }
+          );
+        }
+      }
       data = {
         ...(nombre ? { nombre } : {}),
         ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
