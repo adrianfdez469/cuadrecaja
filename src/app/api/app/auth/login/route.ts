@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { UsuarioEstadoCuenta } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -61,6 +62,19 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Usuario o contraseña incorrectos' },
         { status: 401 }
+      );
+    }
+
+    if (
+      !user.password ||
+      user.estadoCuenta === UsuarioEstadoCuenta.PENDIENTE_VERIFICACION
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Cuenta pendiente de activación. Completa el registro desde el enlace enviado a tu correo.',
+        },
+        { status: 403 }
       );
     }
 

@@ -1,7 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async redirects() {
+    return [
+      {
+        source: "/olvide-contraseña",
+        destination: "/olvide-contrasena",
+        permanent: true,
+      },
+      {
+        source: "/restablecer-contraseña",
+        destination: "/restablecer-contrasena",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

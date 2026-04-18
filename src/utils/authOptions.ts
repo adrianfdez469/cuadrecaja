@@ -1,5 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { UsuarioEstadoCuenta } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
 import { JWT } from "next-auth/jwt";
@@ -44,6 +45,15 @@ export const authOptions: NextAuthOptions = {
         });
         
         if (!user) throw new Error("Usuario no encontrado");
+
+        if (
+          !user.password ||
+          user.estadoCuenta === UsuarioEstadoCuenta.PENDIENTE_VERIFICACION
+        ) {
+          throw new Error(
+            "USUARIO_PENDIENTE_VERIFICACION: Completa la activación desde el enlace enviado a tu correo."
+          );
+        }
 
         const passwordMatch = await bcrypt.compare(credentials.password, user.password);
         if (!passwordMatch) throw new Error("Contraseña incorrecta");

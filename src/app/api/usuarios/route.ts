@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
+import { UsuarioEstadoCuenta } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/utils/auth";;
-import bcrypt from "bcrypt";
+import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { Prisma } from "@prisma/client";
+import { sendUserInviteNotification } from "@/lib/userAccount/sendUserInviteNotification";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const usuarioListSelect = {
+  id: true,
+  nombre: true,
+  usuario: true,
+  rol: true,
+  negocioId: true,
+  localActualId: true,
+  isActive: true,
+  estadoCuenta: true,
+} satisfies Prisma.UsuarioSelect;
 
 // Obtener usuarios del negocio (excluyendo SUPER_ADMIN)
 export async function GET() {
@@ -15,10 +27,11 @@ export async function GET() {
     const usuarios = await prisma.usuario.findMany({
       where: {
         negocioId: user.negocio.id,
-      }
+      },
+      select: usuarioListSelect,
     });
-    
-    const usuariosFiltrados = usuarios.filter(user => user.rol !== "SUPER_ADMIN");
+
+    const usuariosFiltrados = usuarios.filter((u) => u.rol !== "SUPER_ADMIN");
 
     return NextResponse.json(usuariosFiltrados);
   } catch (error) {
@@ -36,26 +49,29 @@ export async function POST(req: Request) {
     const session = await getSession();
     const user = session.user;
 
-    if(!verificarPermisoUsuario(user.permisos || '', "configuracion.usuarios.acceder", user.rol )) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado" },
-        { status: 403 }
-      );    
+    if (
+      !verificarPermisoUsuario(
+        user.permisos || "",
+        "configuracion.usuarios.acceder",
+        user.rol
+      )
+    ) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
     }
-    
+
     const [usersCounter, negocio] = await Promise.all([
       prisma.usuario.count({
         where: {
-          negocioId: user.negocio.id
-        }
+          negocioId: user.negocio.id,
+        },
       }),
       prisma.negocio.findUnique({
         where: { id: user.negocio.id },
-        include: { plan: { select: { limiteUsuarios: true } } }
-      })
+        include: { plan: { select: { limiteUsuarios: true } } },
+      }),
     ]);
 
-    const userlimit = negocio.plan?.limiteUsuarios ?? -1;
+    const userlimit = negocio?.plan?.limiteUsuarios ?? -1;
     if (userlimit !== -1 && userlimit <= usersCounter) {
       return NextResponse.json(
         { error: "Limite de usuarios exedido" },
@@ -64,30 +80,28 @@ export async function POST(req: Request) {
     }
 
     const nombreUsuario = (data.usuario as string).trim().toLowerCase();
-    data.usuario = nombreUsuario;
 
-    if (!EMAIL_REGEX.test(data.usuario)) {
+    if (!EMAIL_REGEX.test(nombreUsuario)) {
       return NextResponse.json(
         { error: "El campo usuario debe ser un correo electrónico válido." },
         { status: 400 }
       );
     }
 
-    if (!data.nombre) {
-      data.nombre = nombreUsuario
-        .split("")
-        .reduce((acc: string, letter: string, index: number) => {
-          if (index === 0) {
-            return `${acc}${letter.toUpperCase()}`;
-          }
-          return `${acc}${letter.toLowerCase()}`;
-        }, "");
-    }
-
-    const password = await bcrypt.hash(data.password, 10);
+    const nombre: string =
+      typeof data.nombre === "string" && data.nombre.trim()
+        ? data.nombre.trim()
+        : nombreUsuario
+            .split("")
+            .reduce((acc: string, letter: string, index: number) => {
+              if (index === 0) {
+                return `${acc}${letter.toUpperCase()}`;
+              }
+              return `${acc}${letter.toLowerCase()}`;
+            }, "");
 
     const usuarioExistente = await prisma.usuario.findUnique({
-      where: { usuario: data.usuario },
+      where: { usuario: nombreUsuario },
       select: { id: true },
     });
 
@@ -100,17 +114,33 @@ export async function POST(req: Request) {
 
     const usuario = await prisma.usuario.create({
       data: {
-        ...data,
-        nombre: data.nombre,
-        password,
+        nombre,
+        usuario: nombreUsuario,
+        password: null,
+        estadoCuenta: UsuarioEstadoCuenta.PENDIENTE_VERIFICACION,
         negocioId: user.negocio.id,
-        localActualId: null
+        localActualId: null,
       },
+      select: usuarioListSelect,
+    });
+
+    await sendUserInviteNotification({
+      request: req,
+      usuarioId: usuario.id,
+      negocioId: user.negocio.id,
+      negocioNombre: negocio?.nombre ?? "",
+      creadorNombre: user.nombre ?? "",
+      creadorEmail: user.usuario ?? "",
+      invitadoNombre: nombre,
+      invitadoEmail: nombreUsuario,
     });
 
     return NextResponse.json(usuario, { status: 201 });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
       return NextResponse.json(
         { error: "El usuario/correo ya está en uso. Intenta con otro." },
         { status: 409 }

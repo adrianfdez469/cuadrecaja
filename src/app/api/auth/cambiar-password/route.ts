@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/utils/authOptions";
 import bcrypt from "bcrypt";
+import { validatePasswordPolicy } from "@/lib/userAccount/passwordPolicy";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -23,19 +24,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validar que la nueva contraseña cumpla con los requisitos
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { error: "La nueva contraseña debe tener al menos 8 caracteres" },
-        { status: 400 }
-      );
-    }
-
-    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      return NextResponse.json(
-        { error: "La nueva contraseña debe contener mayúsculas, minúsculas y números" },
-        { status: 400 }
-      );
+    const policyError = validatePasswordPolicy(newPassword);
+    if (policyError) {
+      return NextResponse.json({ error: policyError }, { status: 400 });
     }
 
     // Obtener el usuario actual
@@ -46,6 +37,16 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
+    if (!user.password) {
+      return NextResponse.json(
+        {
+          error:
+            "Debes completar la activación de tu cuenta antes de cambiar la contraseña desde aquí.",
+        },
+        { status: 400 }
+      );
     }
 
     // Verificar la contraseña actual

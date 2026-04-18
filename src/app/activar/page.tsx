@@ -24,6 +24,7 @@ import {
   Home,
   WarningAmber,
 } from '@mui/icons-material';
+import { LOGIN_CREDENTIALS_SESSION_KEY } from '@/constants/userAccount';
 
 type ActivationState =
   | 'loading'
@@ -41,7 +42,6 @@ interface Credentials {
 }
 
 const TEAL = '#4ECDC4';
-const LOGIN_PREFILL_KEY = 'prefill_login_credentials';
 
 function CopiarCampo({ label, value }: { label: string; value: string }) {
   const [copiado, setCopiado] = useState(false);
@@ -91,7 +91,7 @@ function ActivarContent() {
   const navegarALoginConPrefill = () => {
     if (credentials) {
       sessionStorage.setItem(
-        LOGIN_PREFILL_KEY,
+        LOGIN_CREDENTIALS_SESSION_KEY,
         JSON.stringify({
           usuario: credentials.usuario,
           password: credentials.passwordTemporal,

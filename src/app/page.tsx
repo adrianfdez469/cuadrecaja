@@ -51,7 +51,12 @@ export default function LandingPage() {
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        <Toolbar>
+        <Toolbar
+          sx={{
+            px: { xs: 3, sm: 4 },
+            py: { xs: 1.25, sm: 1 },
+          }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
             <Logo size={40} variant="light" sx={{ mr: 1.5 }} />
             <Typography
@@ -65,7 +70,16 @@ export default function LandingPage() {
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 }, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { xs: 'stretch', sm: 'center' },
+              gap: { xs: 1, sm: 1.5 },
+              justifyContent: 'flex-end',
+              minWidth: 0,
+            }}
+          >
             <Button
               component={Link}
               href="/promotor/registro"
@@ -79,6 +93,7 @@ export default function LandingPage() {
                 fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 fontWeight: 700,
                 textTransform: 'none',
+                width: { xs: '100%', sm: 'auto' },
                 minWidth: 0,
                 boxShadow: '0 4px 18px rgba(255, 107, 53, 0.45)',
                 animation: 'promoPulse 2.8s ease-in-out infinite',
@@ -111,6 +126,7 @@ export default function LandingPage() {
                 fontSize: { xs: '0.8rem', sm: '0.9375rem' },
                 fontWeight: 600,
                 textTransform: 'none',
+                width: { xs: '100%', sm: 'auto' },
                 minWidth: { xs: 0, sm: 'auto' },
                 boxShadow: '0 4px 16px rgba(78, 205, 196, 0.3)',
                 '&:hover': {

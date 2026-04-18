@@ -268,6 +268,10 @@ export default function Negocios() {
   };
 
   const openFirstPaymentDialog = (negocio: INegocio) => {
+    if (!puedeMostrarBotonPrimerPago(negocio)) {
+      showMessage('Este negocio ya está en un plan de pago. No aplica registrar primer pago desde aquí.', 'info');
+      return;
+    }
     setFpNegocio(negocio);
     const paid =
       planes.find((p) => p.id === negocio.planId && p.precio > 0 && p.activo) ??
@@ -326,6 +330,13 @@ export default function Negocios() {
 
   const getPlanForNegocio = (negocio: INegocio): IPlan | undefined =>
     planes.find(p => p.id === negocio.planId);
+
+  /** Solo negocios aún en plan gratuito/freemium (precio 0 o sin plan): ya en plan de pago no aplica registrar “primer pago” desde aquí. */
+  const puedeMostrarBotonPrimerPago = (negocio: INegocio): boolean => {
+    const p = getPlanForNegocio(negocio);
+    if (!p) return true;
+    return p.precio <= 0;
+  };
 
   const getPlanName = (negocio: INegocio): string =>
     getPlanForNegocio(negocio)?.nombre ?? 'Sin plan';
@@ -581,15 +592,17 @@ export default function Negocios() {
           {/* Botones de acción */}
           <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
             <Stack direction="row" spacing={0.5}>
-              <Tooltip title="Registrar primer pago (módulo referidos)">
-                <IconButton
-                  onClick={() => openFirstPaymentDialog(negocio)}
-                  size="small"
-                  color="success"
-                >
-                  <Payments fontSize="small" />
-                </IconButton>
-              </Tooltip>
+              {puedeMostrarBotonPrimerPago(negocio) && (
+                <Tooltip title="Registrar primer pago (módulo referidos)">
+                  <IconButton
+                    onClick={() => openFirstPaymentDialog(negocio)}
+                    size="small"
+                    color="success"
+                  >
+                    <Payments fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Tooltip title="Editar negocio">
                 <IconButton
                   onClick={() => handleEdit(negocio)}
@@ -1000,15 +1013,17 @@ export default function Negocios() {
                                 {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Registrar primer pago (referidos)">
-                              <IconButton
-                                onClick={() => openFirstPaymentDialog(negocio)}
-                                size="small"
-                                color="success"
-                              >
-                                <Payments fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
+                            {puedeMostrarBotonPrimerPago(negocio) && (
+                              <Tooltip title="Registrar primer pago (referidos)">
+                                <IconButton
+                                  onClick={() => openFirstPaymentDialog(negocio)}
+                                  size="small"
+                                  color="success"
+                                >
+                                  <Payments fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
                             <Tooltip title="Editar negocio">
                               <IconButton
                                 onClick={() => handleEdit(negocio)}
