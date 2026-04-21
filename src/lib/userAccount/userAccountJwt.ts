@@ -20,7 +20,7 @@ const resetPayloadSchema = basePayloadSchema.extend({
 
 const emailChangePayloadSchema = basePayloadSchema.extend({
   typ: z.literal("email_change"),
-  currentEmail: z.string().email(),
+  currentEmail: z.string().min(1),
   newEmail: z.string().email(),
 });
 
