@@ -2,41 +2,51 @@
 
 Textos pensados para **usuarios finales sin conocimientos técnicos**. No sustituyen al equipo humano cuando hace falta acceso interno o cambios en la cuenta del negocio.
 
-## Cómo está organizado
+## Embeddings y RAG
 
-| Carpeta | Para qué sirve |
-|---------|----------------|
-| `problemas_y_soluciones` | Síntomas habituales y qué hacer |
-| `guia_paso_a_paso` | Tutoriales: “pulsa aquí, luego allá” |
-| `errores_comunes` | Mensajes o comportamientos y cómo reaccionar |
-| `configuracion_usuario` | Qué debe dejar listo el usuario o el administrador del negocio |
-| `permisos_usuario` | Por qué a veces “no aparece” una opción |
-| `respuestas_chatbot` | Frases listas y preguntas de diagnóstico |
+Para **indexar o generar embeddings**, usa los documentos **consolidados por tema** en la carpeta **`kb/`** (un archivo por módulo, con toda la información relacionada en el mismo sitio). Ver `kb/README.md`.
 
-## Nombres de archivo
+Tras editar los archivos fuente en la raíz de `docs/chatbot/`, regenera los consolidados:
 
-En cada subcarpeta de `docs/chatbot/`, el nombre del fichero combina el **nombre de esa carpeta**, un guion bajo y el **tema**, con extensión `.md`. Ejemplo: acceso a cuenta en configuración de usuario → `configuracion_usuario/configuracion_usuario_acceso_cuenta.md`.
+```bash
+python3 docs/chatbot/build_kb.py
+```
+
+## Cómo está organizado el contenido fuente
+
+Cada **tema** del producto se documenta en **seis archivos** en `docs/chatbot/`, con prefijo de capa:
+
+| Prefijo del archivo | Contenido |
+|---------------------|-----------|
+| `configuracion_usuario_` | Qué debe dejar listo el usuario o el administrador del negocio |
+| `guia_paso_a_paso_` | Tutoriales: “pulsa aquí, luego allá” |
+| `permisos_usuario_` | Por qué a veces “no aparece” una opción |
+| `errores_comunes_` | Mensajes o comportamientos y cómo reaccionar |
+| `problemas_y_soluciones_` | Síntomas habituales y qué hacer |
+| `respuestas_chatbot_` | Frases listas y preguntas de diagnóstico |
+
+Nombre: **`<capa>_<tema>.md`**. Ejemplo: `permisos_usuario_pos.md`.
 
 ## Temas (orden de trabajo)
 
-Cada tema aparece **una vez por carpeta** con el nombre anterior (mismo orden de trabajo):
+1. **Configuración** — `configuracion`  
+2. **Proveedores** — `proveedores`  
+3. **Movimientos** — `movimientos`  
+4. **Inventario** — `inventario`  
+5. **CPP (análisis)** — `cpp`  
+6. **Conformar precios** — `conformar_precios`  
+7. **Gastos** — `gastos`  
+8. **POS** — `pos`  
+9. **Ventas** — `ventas`  
+10. **Cierre** — `cierre`  
+11. **Resumen de cierres** — `resumen_cierres`  
+12. **Dashboard** (ejecutivo + Resumen del negocio) — `dashboard`  
+13. **Inicio (`/home`)** — `home`  
+14. **Descargar app** — `descargar_app`  
+15. **Suscripción y planes** — `suscripcion`  
+16. **Acceso a la cuenta** — `acceso_cuenta`
 
-1. **Configuración** — tema `configuracion`.  
-2. **Proveedores** — tema `proveedores`.  
-3. **Movimientos** — tema `movimientos`.  
-4. **Inventario** — tema `inventario`.  
-5. **CPP (análisis)** — tema `cpp`.  
-6. **Conformar precios** — tema `conformar_precios`.  
-7. **Gastos** — tema `gastos`.  
-8. **POS** — tema `pos`.  
-9. **Ventas** — tema `ventas`.  
-10. **Cierre** — tema `cierre`.  
-11. **Resumen de cierres** — tema `resumen_cierres`.  
-12. **Dashboard** (ejecutivo + Resumen del negocio) — tema `dashboard`.  
-13. **Inicio (`/home`)** — tema `home`.  
-14. **Descargar app** — tema `descargar_app`.  
-15. **Suscripción y planes** — tema `suscripcion`.  
-16. **Acceso a la cuenta** (olvidé contraseña, restablecer, activar) — tema `acceso_cuenta`.
+Cada tema tiene su vista consolidada en **`kb/<tema>.md`** (por ejemplo `kb/pos.md`).
 
 Opcionales sugeridos en el plan: FAQ transversal y glosario (`PLAN_BASE_CONOCIMIENTO.md`).
 

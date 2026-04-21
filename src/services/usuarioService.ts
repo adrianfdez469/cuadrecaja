@@ -23,6 +23,10 @@ export const reenviarInvitacionUsuario = async (id: string): Promise<void> => {
   await axiosClient.post(`${API_URL}/${id}/reinvitar`);
 };
 
+export const resetearPasswordUsuario = async (id: string): Promise<void> => {
+  await axiosClient.post(`${API_URL}/${id}/reset-password`);
+};
+
 export const deleteUsuario = async (id: string): Promise<void> => {
   await axiosClient.delete(`${API_URL}/${id}`);
 };

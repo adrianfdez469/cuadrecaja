@@ -2,13 +2,13 @@
 
 **Objetivo:** que el bot responda con precisión a preguntas reales de usuarios (sin tecnicismos), con guías, permisos y errores comunes por módulo.
 
-**Estado actual:** **Plan operativo + ampliación de cuenta/inicio** — doce módulos núcleo **más cuatro temas**; en cada subcarpeta el fichero sigue **`<carpeta>_<tema>.md`** (p. ej. `problemas_y_soluciones/problemas_y_soluciones_home.md` para el panel `/home`).
+**Estado actual:** **Plan operativo + ampliación de cuenta/inicio** — doce módulos núcleo **más cuatro temas**. El contenido por capa vive en `docs/chatbot/<capa>_<tema>.md`; para **embeddings** usar **`docs/chatbot/kb/<tema>.md`** (consolidado por tema, generado con `python3 docs/chatbot/build_kb.py`).
 
 ---
 
 ## Qué falta (por orden acordado)
 
-Para cada módulo se repite el mismo paquete en las seis carpetas; el nombre del fichero es **`<carpetaPadre>_<tema>.md`** (ej. `errores_comunes/errores_comunes_movimientos.md`).
+Para cada módulo se repite el mismo paquete en **seis archivos** en `docs/chatbot/` con prefijo de capa (`configuracion_usuario_`, `guia_paso_a_paso_`, etc.). Vista única para RAG: **`kb/<tema>.md`**.
 
 | Orden | Módulo | Por qué importa para preguntas típicas |
 |-------|--------|----------------------------------------|
@@ -27,12 +27,12 @@ Para cada módulo se repite el mismo paquete en las seis carpetas; el nombre del
 
 ### Ampliación (cuenta, inicio, app)
 
-| Tema | Archivos en cada carpeta `docs/chatbot/*/` | Contenido breve |
-|------|---------------------------------------------|------------------|
-| ~~**Inicio / home**~~ | tema `home` → p. ej. `problemas_y_soluciones/problemas_y_soluciones_home.md` | Atajos por permiso, tipo almacén, chips de plan, avisos, backup superadmin. |
-| ~~**Descargar app**~~ | tema `descargar_app` | APK Android, arquitecturas, fallo de carga, instalación. |
-| ~~**Suscripción y planes**~~ | tema `suscripcion` | `SubscriptionWarning`, `/subscription-expired`, `/configuracion/planes`, `planes-admin`, soporte en UI. |
-| ~~**Acceso a la cuenta**~~ | tema `acceso_cuenta` | `/olvide-contrasena`, `/restablecer-contrasena`, `/activar`, `/activar-usuario`, reglas de contraseña. |
+| Tema | Archivos fuente + consolidado `kb/` | Contenido breve |
+|------|--------------------------------------|------------------|
+| ~~**Inicio / home**~~ | tema `home` → `kb/home.md` | Atajos por permiso, tipo almacén, chips de plan, avisos, backup superadmin. |
+| ~~**Descargar app**~~ | tema `descargar_app` → `kb/descargar_app.md` | APK Android, arquitecturas, fallo de carga, instalación. |
+| ~~**Suscripción y planes**~~ | tema `suscripcion` → `kb/suscripcion.md` | `SubscriptionWarning`, `/subscription-expired`, `/configuracion/planes`, `planes-admin`, soporte en UI. |
+| ~~**Acceso a la cuenta**~~ | tema `acceso_cuenta` → `kb/acceso_cuenta.md` | `/olvide-contrasena`, `/restablecer-contrasena`, `/activar`, `/activar-usuario`, reglas de contraseña. |
 
 ---
 
@@ -40,10 +40,10 @@ Para cada módulo se repite el mismo paquete en las seis carpetas; el nombre del
 
 | Pregunta del usuario | Bloques mínimos que faltan documentar |
 |----------------------|-------------------------------------|
-| ¿Por qué no aparecen productos en el POS? | Cubierto en **POS** (`docs/chatbot/respuestas_chatbot/respuestas_chatbot_pos.md` y `problemas_y_soluciones/problemas_y_soluciones_pos.md`) enlazado con **Inventario** y **Conformar precios**. |
+| ¿Por qué no aparecen productos en el POS? | Cubierto en **POS** (`docs/chatbot/kb/pos.md`; capas `respuestas_chatbot_pos.md` y `problemas_y_soluciones_pos.md`) enlazado con **Inventario** y **Conformar precios**. |
 | ¿Cómo vendo productos conformados por otros? | **Conformar precios** + **POS** en chatbot; **Ventas** documenta consulta y anulaciones, no el cobro. |
 | ¿Cómo creo nuevos usuarios? | Cubierto en **Configuración**; opcional: ampliar con capturas de flujo si el producto lo permite. |
-| ¿Qué es eso de proveedores? | Cubierto en **Proveedores** (`docs/chatbot/respuestas_chatbot/respuestas_chatbot_proveedores.md` y guías asociadas). |
+| ¿Qué es eso de proveedores? | Cubierto en **Proveedores** (`docs/chatbot/kb/proveedores.md`). |
 
 ---
 
@@ -66,7 +66,7 @@ Antes de dar por cerrado cada módulo:
 - **Conformar precios** debe alinearse con **POS** y **Ventas** (misma nomenclatura para el usuario: “producto conformado”, “compuesto”, etc., según lo que diga la UI real).
 - **Cierre** y **Resumen de cierres** deben usar los mismos nombres de pasos que ve el usuario.
 - **Cierre** enlaza con **POS** (ventas locales sin sincronizar), **Ventas** (coherencia de período) y **Gastos** (revisión previa y ad-hoc); el **histórico** de cortes pasados va en **Resumen de cierres** (menú **Recuperaciones**, permiso distinto al de **Cierre** operativo).
-- **Inventario** y **Conformar precios:** editar **fecha de vencimiento** desde inventario requiere permiso de conformar precios en el sistema actual; el chatbot debe decirlo en lenguaje llano (`permisos_usuario/permisos_usuario_inventario.md`).
+- **Inventario** y **Conformar precios:** editar **fecha de vencimiento** desde inventario requiere permiso de conformar precios en el sistema actual; el chatbot debe decirlo en lenguaje llano (`kb/inventario.md`, sección *Permisos del usuario*).
 - **Dashboard** (dos pantallas) vs **Resumen de cierres** vs **Inventario (recuperaciones):** el bot no debe confundir **cortes de caja** (histórico) con **estadísticas por calendario** (Resumen del negocio) ni con **stock actual** (Inventario).
 - **Inicio** (tema `home`) enlaza con **Suscripción** y con permisos de cada atajo; **acceso_cuenta** es previo al login y no reemplaza a **Configuración → usuarios**.
 
@@ -74,7 +74,7 @@ Antes de dar por cerrado cada módulo:
 
 ## Entregables opcionales (después del núcleo)
 
-- Una sola **FAQ transversal** (`docs/chatbot/problemas_y_soluciones/problemas_y_soluciones_faq_general.md`, cuando exista) con enlaces a cada módulo.
+- Una sola **FAQ transversal** (`problemas_y_soluciones_faq_general.md` en la raíz de `docs/chatbot/`, cuando exista; luego incluirla en `build_kb.py` o fusionar a mano) con enlaces a cada `kb/<tema>.md`.
 - Revisión final de **glosario** (una página: “local = tienda”, “conformar”, “CPP”, etc.).
 
 ---

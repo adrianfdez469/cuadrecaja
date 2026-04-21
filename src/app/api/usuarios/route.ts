@@ -24,6 +24,23 @@ export async function GET() {
   try {
     const session = await getSession();
     const user = session.user;
+    const canManageUsers = verificarPermisoUsuario(
+      user.permisos || "",
+      "configuracion.usuarios.acceder",
+      user.rol
+    );
+
+    if (!canManageUsers) {
+      const currentUser = await prisma.usuario.findFirst({
+        where: {
+          id: user.id,
+          negocioId: user.negocio.id,
+        },
+        select: usuarioListSelect,
+      });
+      return NextResponse.json(currentUser ? [currentUser] : []);
+    }
+
     const usuarios = await prisma.usuario.findMany({
       where: {
         negocioId: user.negocio.id,

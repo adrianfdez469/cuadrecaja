@@ -18,9 +18,16 @@ const resetPayloadSchema = basePayloadSchema.extend({
   typ: z.literal("password_reset"),
 });
 
+const emailChangePayloadSchema = basePayloadSchema.extend({
+  typ: z.literal("email_change"),
+  currentEmail: z.string().min(1),
+  newEmail: z.string().email(),
+});
+
 export type UserAccountJwtVerified =
   | z.infer<typeof invitePayloadSchema>
-  | z.infer<typeof resetPayloadSchema>;
+  | z.infer<typeof resetPayloadSchema>
+  | z.infer<typeof emailChangePayloadSchema>;
 
 function requireUserAccountSecret(): string {
   const secret = process.env.USER_ACCOUNT_JWT_SECRET;
@@ -61,6 +68,28 @@ export function signUserPasswordResetToken(input: {
 export function verifyUserAccountToken(token: string): UserAccountJwtVerified {
   const secret = requireUserAccountSecret();
   const decoded = jwt.verify(token, secret);
-  const parsed = z.union([invitePayloadSchema, resetPayloadSchema]).parse(decoded);
+  const parsed = z
+    .union([invitePayloadSchema, resetPayloadSchema, emailChangePayloadSchema])
+    .parse(decoded);
   return parsed;
+}
+
+export function signUserEmailChangeToken(input: {
+  usuarioId: string;
+  negocioId: string;
+  currentEmail: string;
+  newEmail: string;
+}): string {
+  const secret = requireUserAccountSecret();
+  return jwt.sign(
+    {
+      typ: "email_change" as const,
+      sub: input.usuarioId,
+      negocioId: input.negocioId,
+      currentEmail: input.currentEmail,
+      newEmail: input.newEmail,
+    },
+    secret,
+    { expiresIn: USER_ACCOUNT_JWT_INVITE_EXPIRES_IN }
+  );
 }

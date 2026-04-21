@@ -32,7 +32,7 @@ El **Panel de control** es la pantalla principal tras iniciar sesión: muestra e
 
 **Qué es:** El sistema detectó **vencimiento cercano**, **suscripción vencida** (con posible **gracia**) o **cuenta suspendida**.
 
-**Qué hacer:** Usar **Renovar ahora** (lleva a **Planes**), **Contactar soporte** o el correo que indique el aviso. Detalle en `docs/chatbot/problemas_y_soluciones/problemas_y_soluciones_suscripcion.md`.
+**Qué hacer:** Usar **Renovar ahora** (lleva a **Planes**), **Contactar soporte** o el correo que indique el aviso. Detalle en `kb/suscripcion.md` o en `problemas_y_soluciones_suscripcion.md`.
 
 ---
 

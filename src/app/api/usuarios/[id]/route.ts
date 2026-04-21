@@ -1,11 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcrypt";
 import { UsuarioEstadoCuenta } from "@prisma/client";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { Prisma } from "@prisma/client";
-import { roles } from "@/utils/roles";
+import { sendUserEmailChangeNotification } from "@/lib/userAccount/sendUserEmailChangeNotification";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -108,7 +107,6 @@ export async function DELETE(
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    
     const session = await getSession();
     const user = session?.user;
     const userId = session?.user?.id;
@@ -118,11 +116,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }
     
-    // const user = await getUserFromRequest(req);
-    const { nombre, usuario, password } = await req.json();
+    const { nombre, usuario } = await req.json();
     const usuarioNormalizado = typeof usuario === "string" ? usuario.trim().toLowerCase() : "";
+    const canManageUsers = verificarPermisoUsuario(
+      user.permisos || "",
+      "configuracion.usuarios.acceder",
+      user.rol
+    );
+    const isEditingSelf = userId === id;
 
-    if(!verificarPermisoUsuario(user.permisos, "configuracion.usuarios.acceder", user.rol)) {
+    if (!isEditingSelf && !canManageUsers) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
         { status: 403 }
@@ -137,55 +140,42 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
-    let data: Prisma.UsuarioUpdateInput = {};
-    if (userId === id) {
-      if (typeof usuario === "string" && usuario.trim() !== "") {
-        const intento = usuario.trim().toLowerCase();
-        if (intento !== usuarioDB.usuario.toLowerCase()) {
-          return NextResponse.json(
-            { error: "No puedes modificar tu correo de acceso desde aquí." },
-            { status: 400 }
-          );
-        }
-      }
-      data = {
-        ...(nombre ? { nombre } : {}),
-        ...(password ? { password: await bcrypt.hash(password, 10) } : {}),
-      };
-    } else {
-      if (
-        password &&
-        user.rol !== roles.SUPER_ADMIN
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Solo un superadministrador puede asignar o restablecer la contraseña de otro usuario.",
-          },
-          { status: 403 }
-        );
-      }
-      const hashed = password ? await bcrypt.hash(password, 10) : null;
-      data = {
-        nombre,
-        usuario: usuarioNormalizado,
-        ...(hashed
-          ? {
-              password: hashed,
-              ...(usuarioDB.estadoCuenta ===
-              UsuarioEstadoCuenta.PENDIENTE_VERIFICACION
-                ? { estadoCuenta: UsuarioEstadoCuenta.ACTIVO }
-                : {}),
-            }
-          : {}),
-      };
-    }
+    const wantsToChangeEmail =
+      !!usuarioNormalizado && usuarioNormalizado !== usuarioDB.usuario.toLowerCase();
 
-    if (userId !== id && !EMAIL_REGEX.test(usuarioNormalizado)) {
+    if (wantsToChangeEmail && !EMAIL_REGEX.test(usuarioNormalizado)) {
       return NextResponse.json(
         { error: "El campo usuario debe ser un correo electrónico válido." },
         { status: 400 }
       );
+    }
+
+    if (wantsToChangeEmail) {
+      const existing = await prisma.usuario.findUnique({
+        where: { usuario: usuarioNormalizado },
+        select: { id: true },
+      });
+      if (existing && existing.id !== usuarioDB.id) {
+        return NextResponse.json(
+          { error: "El usuario/correo ya está en uso. Intenta con otro." },
+          { status: 409 }
+        );
+      }
+    }
+
+    let data: Prisma.UsuarioUpdateInput = {};
+    if (isEditingSelf) {
+      data = {
+        ...(typeof nombre === "string" && nombre.trim() ? { nombre: nombre.trim() } : {}),
+      };
+    } else {
+      data = {
+        ...(typeof nombre === "string" && nombre.trim() ? { nombre: nombre.trim() } : {}),
+      };
+
+      if (!wantsToChangeEmail && usuarioNormalizado) {
+        data.usuario = usuarioNormalizado;
+      }
     }
 
     const usuarioSelect = {
@@ -205,7 +195,28 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       select: usuarioSelect,
     });
 
-    return NextResponse.json(nuevoUsuario, { status: 201 });
+    if (wantsToChangeEmail) {
+      await sendUserEmailChangeNotification({
+        request: req,
+        usuarioId: usuarioDB.id,
+        usuarioNombre: nuevoUsuario.nombre,
+        negocioId: user.negocio.id,
+        negocioNombre: user.negocio.nombre ?? "",
+        requestedByNombre: user.nombre ?? "",
+        requestedByEmail: user.usuario ?? "",
+        previousEmail: usuarioDB.usuario,
+        newEmail: usuarioNormalizado,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        ...nuevoUsuario,
+        pendingEmailChange: wantsToChangeEmail,
+        pendingEmailValue: wantsToChangeEmail ? usuarioNormalizado : null,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return NextResponse.json(
