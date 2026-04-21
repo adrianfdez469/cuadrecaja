@@ -57,6 +57,7 @@ function LayoutWrapper({ children }: { children: React.ReactNode }) {
     '/descargar',
     '/activar',
     '/activar-usuario',
+    '/activar-cambio-correo',
     '/restablecer-contrasena',
     '/olvide-contrasena',
     '/login',
