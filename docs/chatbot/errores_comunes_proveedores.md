@@ -70,7 +70,7 @@ Los textos siguientes son los que el usuario puede ver o inferir; pueden cambiar
 
 **Qué puede ser:** No hay proveedores dados de alta, o no hay datos de consignación aún.
 
-**Qué hacer:** Ver la guía “Parte 1 y Parte 2” en `guia_paso_a_paso/guia_paso_a_paso_proveedores.md`.
+**Qué hacer:** Ver la guía “Parte 1 y Parte 2” en `guia_paso_a_paso_proveedores.md` (mismo contenido en el consolidado `kb/proveedores.md`, sección *Guía paso a paso*).
 
 ---
 

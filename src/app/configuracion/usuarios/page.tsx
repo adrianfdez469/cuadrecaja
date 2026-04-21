@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 import { 
   Typography, 
   Button, 
@@ -41,6 +40,7 @@ import {
   ExpandMore,
   ExpandLess,
   MailOutline,
+  LockReset,
 } from "@mui/icons-material";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
@@ -54,6 +54,7 @@ import {
   updateUsuario,
   deleteUsuario,
   reenviarInvitacionUsuario,
+  resetearPasswordUsuario,
 } from "@/services/usuarioService";
 import type { IUsuarioListItem } from "@/schemas/usuario";
 
@@ -61,13 +62,12 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PENDIENTE_VERIFICACION = "PENDIENTE_VERIFICACION" as const;
 
 export default function UsuariosPage() {
-  const { data: session } = useSession();
   const [usuarios, setUsuarios] = useState<IUsuarioListItem[]>([]);
+  const [resetPasswordSent, setResetPasswordSent] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState(false);
   const [selectedUsuario, setSelectedUsuario] = useState<IUsuarioListItem | null>(null);
   const [nombre, setNombre] = useState("");
   const [usuario, setUsuario] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statsExpanded, setStatsExpanded] = useState(false);
@@ -76,6 +76,7 @@ export default function UsuariosPage() {
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { showMessage } = useMessageContext();
   const { verificarPermiso } = usePermisos();
+  const canManageUsers = verificarPermiso("configuracion.usuarios.acceder");
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -89,6 +90,15 @@ export default function UsuariosPage() {
     try {
       const data = await getUsuarios();
       setUsuarios(data);
+      setResetPasswordSent((prev) => {
+        const next: Record<string, boolean> = {};
+        data.forEach((user) => {
+          if (prev[user.id]) {
+            next[user.id] = true;
+          }
+        });
+        return next;
+      });
     } catch (error) {
       console.error("Error al obtener los usuarios", error);
     } finally {
@@ -100,14 +110,12 @@ export default function UsuariosPage() {
     setSelectedUsuario(user);
     setNombre(user?.nombre || "");
     setUsuario(user?.usuario || "");
-    setPassword("");
     setOpen(true);
   };
 
   const handleClose = () => {
     setOpen(false);
     setSelectedUsuario(null);
-    setPassword("");
   };
 
   const handleDelete = async (id: string) => {
@@ -149,12 +157,6 @@ export default function UsuariosPage() {
     }
   };
 
-  const isSuperAdmin = session?.user?.rol === "SUPER_ADMIN";
-  const isEditingSelf =
-    !!selectedUsuario && session?.user?.id === selectedUsuario.id;
-  const showPasswordField =
-    !!selectedUsuario && (isEditingSelf || isSuperAdmin);
-
   const handleSave = async () => {
     if (!nombre.trim() || !usuario.trim()) {
       showMessage("Nombre y correo son obligatorios", "warning");
@@ -167,20 +169,23 @@ export default function UsuariosPage() {
       return;
     }
 
-    const data: { nombre: string; usuario: string; password?: string } = {
+    const data: { nombre: string; usuario: string } = {
       nombre: nombre.trim(),
       usuario: emailNormalizado,
     };
-
-    if (showPasswordField && password.trim() !== "") {
-      data.password = password.trim();
-    }
 
     setSaving(true);
     try {
       if (selectedUsuario) {
         await updateUsuario(selectedUsuario.id, data);
-        showMessage("Usuario actualizado exitosamente", "success");
+        const emailCambiado =
+          selectedUsuario.usuario.trim().toLowerCase() !== emailNormalizado;
+        showMessage(
+          emailCambiado
+            ? "Datos guardados. Se envió un correo de activación para confirmar el nuevo email."
+            : "Usuario actualizado exitosamente",
+          "success"
+        );
       } else {
         await createUsuario(data);
         showMessage(
@@ -204,6 +209,30 @@ export default function UsuariosPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleResetPassword = async (e: React.MouseEvent, user: IUsuarioListItem) => {
+    e.stopPropagation();
+    confirmDialog(
+      `Se enviará un correo de restablecimiento a ${user.usuario}. ¿Deseas continuar?`,
+      async () => {
+        try {
+          await resetearPasswordUsuario(user.id);
+          setResetPasswordSent((prev) => ({ ...prev, [user.id]: true }));
+          showMessage("Correo de restablecimiento enviado", "success");
+        } catch (error: unknown) {
+          const msg =
+            typeof error === "object" &&
+            error !== null &&
+            "response" in error &&
+            typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error ===
+              "string"
+              ? (error as { response: { data: { error: string } } }).response.data.error
+              : "No se pudo enviar el restablecimiento";
+          showMessage(msg, "error");
+        }
+      }
+    );
   };
 
   const handleCloseLimitDialog = () => {
@@ -239,14 +268,16 @@ export default function UsuariosPage() {
           </IconButton>
         </Tooltip>
       )}
-      <Button
-        variant="contained"
-        startIcon={!isMobile ? <Add /> : undefined}
-        onClick={() => handleOpen()}
-        size="small"
-      >
-        {isMobile ? "Agregar" : "Agregar Usuario"}
-      </Button>
+      {canManageUsers ? (
+        <Button
+          variant="contained"
+          startIcon={!isMobile ? <Add /> : undefined}
+          onClick={() => handleOpen()}
+          size="small"
+        >
+          {isMobile ? "Agregar" : "Agregar Usuario"}
+        </Button>
+      ) : null}
     </Stack>
   );
 
@@ -450,6 +481,9 @@ export default function UsuariosPage() {
                           {user.rol === "SUPER_ADMIN" ? (
                             <Chip label={user.rol} color="info" size="small" sx={{ height: 20 }} />
                           ) : null}
+                          {resetPasswordSent[user.id] ? (
+                            <Chip label="Reset enviado" color="info" size="small" sx={{ height: 20 }} />
+                          ) : null}
                         </Stack>
                       </Box>
                       
@@ -466,6 +500,16 @@ export default function UsuariosPage() {
                             title="Reenviar invitación"
                           >
                             <MailOutline fontSize="small" />
+                          </IconButton>
+                        ) : null}
+                        {canManageUsers && user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
+                          <IconButton
+                            onClick={(e) => handleResetPassword(e, user)}
+                            size="small"
+                            color="primary"
+                            title="Enviar restablecimiento de contraseña"
+                          >
+                            <LockReset fontSize="small" />
                           </IconButton>
                         ) : null}
                         <IconButton
@@ -524,11 +568,16 @@ export default function UsuariosPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      {user.estadoCuenta === PENDIENTE_VERIFICACION ? (
-                        <Chip label="Pendiente" color="warning" size="small" />
-                      ) : (
-                        <Chip label="Activo" color="success" size="small" variant="outlined" />
-                      )}
+                      <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-start">
+                        {user.estadoCuenta === PENDIENTE_VERIFICACION ? (
+                          <Chip label="Pendiente" color="warning" size="small" />
+                        ) : (
+                          <Chip label="Activo" color="success" size="small" variant="outlined" />
+                        )}
+                        {resetPasswordSent[user.id] ? (
+                          <Chip label="Reset enviado" color="info" size="small" variant="outlined" />
+                        ) : null}
+                      </Stack>
                     </TableCell>
 
                     <TableCell align="center">
@@ -542,6 +591,17 @@ export default function UsuariosPage() {
                               color="primary"
                             >
                               <MailOutline fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        ) : null}
+                        {canManageUsers && user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
+                          <Tooltip title="Enviar restablecimiento de contraseña">
+                            <IconButton
+                              onClick={(e) => handleResetPassword(e, user)}
+                              size="small"
+                              color="primary"
+                            >
+                              <LockReset fontSize="small" />
                             </IconButton>
                           </Tooltip>
                         ) : null}
@@ -613,32 +673,12 @@ export default function UsuariosPage() {
               onChange={(e) => setUsuario(e.target.value)}
               required
               placeholder="ejemplo@correo.com"
-              disabled={!!selectedUsuario && selectedUsuario.estadoCuenta === PENDIENTE_VERIFICACION}
-              helperText={
-                selectedUsuario?.estadoCuenta === PENDIENTE_VERIFICACION
-                  ? "El correo no se puede cambiar mientras la invitación esté pendiente."
-                  : undefined
-              }
             />
 
-            {showPasswordField ? (
-              <TextField 
-                fullWidth 
-                label="Contraseña" 
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={
-                  isSuperAdmin && !isEditingSelf
-                    ? "Opcional: solo emergencias / soporte"
-                    : "Dejar vacío para mantener la actual"
-                }
-                helperText={
-                  isSuperAdmin && !isEditingSelf
-                    ? "Solo superadministrador: asignar contraseña desactiva el flujo por correo si lo completas."
-                    : undefined
-                }
-              />
+            {selectedUsuario ? (
+              <Typography variant="caption" color="text.secondary">
+                La contraseña se gestiona por flujo de restablecimiento enviado por correo.
+              </Typography>
             ) : null}
           </Stack>
         </DialogContent>

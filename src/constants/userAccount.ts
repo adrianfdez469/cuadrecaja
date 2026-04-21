@@ -8,6 +8,7 @@ export const USER_ACCOUNT_JWT_RESET_EXPIRES_IN = "1h" as const;
 export const LOGIN_CREDENTIALS_SESSION_KEY = "prefill_login_credentials";
 
 export const ACTIVAR_USUARIO_PATH = "/activar-usuario";
+export const ACTIVAR_CAMBIO_CORREO_PATH = "/activar-cambio-correo";
 /** Solo ASCII en la ruta (evita 404 en algunos hosts/proxies con `ñ` en el path). */
 export const RESTABLECER_CONTRASEÑA_PATH = "/restablecer-contrasena";
 export const OLVIDE_CONTRASEÑA_PATH = "/olvide-contrasena";
