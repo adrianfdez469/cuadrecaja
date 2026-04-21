@@ -487,42 +487,74 @@ export default function UsuariosPage() {
                         </Stack>
                       </Box>
                       
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
+                      <Box
+                        display="flex"
+                        flexDirection="row"
+                        alignItems="center"
+                        gap={1}
+                        sx={{ width: "100%", minWidth: 0 }}
+                      >
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{
+                            fontSize: "0.6875rem",
+                            flex: 1,
+                            minWidth: 0,
+                            wordBreak: "break-all",
+                            lineHeight: 1.35,
+                          }}
+                        >
                           Usuario: {user.usuario}
                         </Typography>
-                        {user.estadoCuenta === PENDIENTE_VERIFICACION &&
-                        verificarPermiso("configuracion.usuarios.acceder") ? (
-                          <IconButton
-                            onClick={(e) => handleReinvite(e, user.id)}
-                            size="small"
-                            color="primary"
-                            title="Reenviar invitación"
-                          >
-                            <MailOutline fontSize="small" />
-                          </IconButton>
-                        ) : null}
-                        {canManageUsers && user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
-                          <IconButton
-                            onClick={(e) => handleResetPassword(e, user)}
-                            size="small"
-                            color="primary"
-                            title="Enviar restablecimiento de contraseña"
-                          >
-                            <LockReset fontSize="small" />
-                          </IconButton>
-                        ) : null}
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(user.id);
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          flexShrink={0}
+                          spacing={0}
+                          onClick={(e) => e.stopPropagation()}
+                          sx={{
+                            "& .MuiIconButton-root": {
+                              padding: "4px",
+                            },
                           }}
-                          size="small"
-                          color="error"
-                          disabled={!verificarPermiso('configuracion.usuarios.deleteOrDisable')}
                         >
-                          <Delete fontSize="small" />
-                        </IconButton>
+                          {user.estadoCuenta === PENDIENTE_VERIFICACION &&
+                          verificarPermiso("configuracion.usuarios.acceder") ? (
+                            <IconButton
+                              onClick={(e) => handleReinvite(e, user.id)}
+                              size="small"
+                              color="primary"
+                              title="Reenviar invitación"
+                              aria-label="Reenviar invitación"
+                            >
+                              <MailOutline sx={{ fontSize: 20 }} />
+                            </IconButton>
+                          ) : null}
+                          {canManageUsers && user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
+                            <IconButton
+                              onClick={(e) => handleResetPassword(e, user)}
+                              size="small"
+                              color="primary"
+                              title="Enviar restablecimiento de contraseña"
+                              aria-label="Enviar restablecimiento de contraseña"
+                            >
+                              <LockReset sx={{ fontSize: 20 }} />
+                            </IconButton>
+                          ) : null}
+                          <IconButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(user.id);
+                            }}
+                            size="small"
+                            color="error"
+                            disabled={!verificarPermiso("configuracion.usuarios.deleteOrDisable")}
+                            aria-label="Eliminar usuario"
+                          >
+                            <Delete sx={{ fontSize: 20 }} />
+                          </IconButton>
+                        </Stack>
                       </Box>
                     </Stack>
                   </CardContent>
