@@ -343,21 +343,16 @@ export default function DashboardResumenPage() {
                     Top 10 productos más vendidos
                   </Typography>
                   {metrics.topProductos.length > 0 ? (
-                    <Box sx={{ height: 300, width: '100%' }}>
+                    <Box sx={{ width: '100%' }}>
                       <BarChart
                         dataset={metrics.topProductos}
-                        xAxis={[{
-                          scaleType: 'band',
-                          dataKey: 'nombre',
-                          tickLabelStyle: {
-                            angle: 45,
-                            textAnchor: 'start',
-                            fontSize: 12,
-                          },
-                        }]}
+                        layout="horizontal"
+                        yAxis={[{ scaleType: 'band', dataKey: 'nombre', width: 160 }]}
+                        xAxis={[{ valueFormatter: (value) => formatNumber(value) }]}
                         series={[{ dataKey: 'unidades', label: 'Unidades vendidas', valueFormatter: (value) => formatNumber(value) }]}
-                        height={300}
-                        margin={{ top: 10, bottom: 70, left: 40, right: 10 }}
+                        barLabel={(item) => item.value != null ? formatNumber(item.value) : null}
+                        height={350}
+                        margin={{ top: 10, bottom: 20, left: 10, right: 10 }}
                       />
                     </Box>
                   ) : (
@@ -375,21 +370,16 @@ export default function DashboardResumenPage() {
                     Top 10 por ganancia generada
                   </Typography>
                   {metrics.topGanancias.length > 0 ? (
-                    <Box sx={{ height: 300, width: '100%' }}>
+                    <Box sx={{ width: '100%' }}>
                       <BarChart
                         dataset={metrics.topGanancias}
-                        xAxis={[{
-                          scaleType: 'band',
-                          dataKey: 'nombre',
-                          tickLabelStyle: {
-                            angle: 45,
-                            textAnchor: 'start',
-                            fontSize: 12,
-                          },
-                        }]}
+                        layout="horizontal"
+                        yAxis={[{ scaleType: 'band', dataKey: 'nombre', width: 160 }]}
+                        xAxis={[{ valueFormatter: (value) => formatCurrency(value) }]}
                         series={[{ dataKey: 'ganancia', label: 'Ganancia', valueFormatter: (value) => formatCurrency(value) }]}
-                        height={300}
-                        margin={{ top: 10, bottom: 70, left: 40, right: 10 }}
+                        barLabel={(item) => item.value != null ? formatCurrency(item.value) : null}
+                        height={350}
+                        margin={{ top: 10, bottom: 20, left: 10, right: 10 }}
                       />
                     </Box>
                   ) : (
