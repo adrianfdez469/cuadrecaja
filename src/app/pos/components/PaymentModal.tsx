@@ -1,12 +1,16 @@
 import React, { FC, useEffect, useMemo, useState } from "react";
-import { Modal, Box, Typography, Button, FormControl, InputLabel, InputAdornment, OutlinedInput, Select, MenuItem, TextField, Stack } from "@mui/material";
+import { Modal, Box, Typography, Button, FormControl, InputLabel, InputAdornment, OutlinedInput, Select, MenuItem, TextField, Stack, Collapse } from "@mui/material";
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { moneyRegex } from '@/utils/regex'
 import { useMessageContext } from "@/context/MessageContext";
 import { formatCurrency } from "@/utils/formatters";
 import { ITransferDestination } from "@/schemas/transferDestination";
 import type { DiscountApplicationResult, DiscountApplicationResultItem } from "@/lib/discounts";
+import BillBreakdownInput from "@/components/BillBreakdown/BillBreakdownInput";
+import { DEFAULT_CURRENCY } from "@/constants/billDenominations";
 
 interface IProps {
   open: boolean;
@@ -21,8 +25,11 @@ interface IProps {
 }
 
 const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDestinations, tiendaId, products }) => {
-  const [cashReceived, setCashReceived] = useState(0);
+  // null = auto-calculado (finalTotal - transferReceived); number = override manual o desglose
+  const [cashOverride, setCashOverride] = useState<number | null>(null);
   const [transferReceived, setTransferReceived] = useState(0);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [breakdownResetKey, setBreakdownResetKey] = useState(0);
   const { showMessage } = useMessageContext();
   const [transferDestinationId, setTransferDestinationId] = useState(
     transferDestinations.length === 0 ? "" :
@@ -34,6 +41,12 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   const [discountTotal, setDiscountTotal] = useState(0);
   const [applied, setApplied] = useState<DiscountApplicationResultItem[]>([]);
   const finalTotal = useMemo(() => Math.max(0, total - discountTotal), [total, discountTotal]);
+  // Derivado: si override nulo y breakdown cerrado → auto = finalTotal - transfer
+  const cashReceived = useMemo(() => {
+    if (cashOverride !== null) return cashOverride;
+    if (showBreakdown) return 0;
+    return Math.max(0, finalTotal - transferReceived);
+  }, [cashOverride, showBreakdown, finalTotal, transferReceived]);
 
   const handlePayment = async () => {
     try {
@@ -57,11 +70,20 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   };
 
   const handleClose = () => {
-    // El modal siempre se puede cerrar, sin importar el estado de procesamiento
-    setCashReceived(0);
+    setCashOverride(null);
     setTransferReceived(0);
+    setShowBreakdown(false);
+    setBreakdownResetKey((k) => k + 1);
     onClose();
   }
+
+  const handleToggleBreakdown = () => {
+    setShowBreakdown((prev) => {
+      if (!prev) setBreakdownResetKey((k) => k + 1);
+      setCashOverride(null);
+      return !prev;
+    });
+  };
 
   const validateMoneyInput = (money: string) => {
     return moneyRegex.test(money);
@@ -69,27 +91,21 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
 
   const handleCashReceived = (cash: string) => {
     if (validateMoneyInput(cash)) {
-      setCashReceived(Number.parseInt(cash));
+      setCashOverride(Number.parseInt(cash));
     } else if (cash === "") {
-      setCashReceived(0);
+      setCashOverride(0);
     }
   }
 
   const handleTransferReceived = (trasnfer: string) => {
     if (validateMoneyInput(trasnfer)) {
       setTransferReceived(Number.parseInt(trasnfer));
-      setCashReceived(finalTotal - Number.parseInt(trasnfer));
+      if (!showBreakdown) setCashOverride(null);
     } else if (trasnfer === "") {
       setTransferReceived(0);
-      setCashReceived(finalTotal);
+      if (!showBreakdown) setCashOverride(null);
     }
   }
-
-  useEffect(() => {
-    if (open === true) {
-      setCashReceived(finalTotal);
-    }
-  }, [open, total, finalTotal])
 
   // useEffect(() => {
   //   if (transferDestinations.length > 0 && !transferDestinationId) {
@@ -146,7 +162,9 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
           p: 4,
           borderRadius: 2,
           boxShadow: 24,
-          width: 420,
+          width: { xs: '95vw', sm: 420 },
+          maxHeight: '90vh',
+          overflowY: 'auto',
         }}
       >
         <Typography variant="h5" fontWeight="bold" mb={2}>
@@ -172,9 +190,35 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
             startAdornment={<InputAdornment position="start"><AttachMoneyIcon /></InputAdornment>}
             label="Efectivo"
             value={cashReceived}
-            onChange={(e) => handleCashReceived(e.target.value)}
+            onChange={(e) => !showBreakdown && handleCashReceived(e.target.value)}
+            inputProps={{ readOnly: showBreakdown }}
+            sx={showBreakdown ? { bgcolor: 'action.hover' } : {}}
           />
         </FormControl>
+
+        <Button
+          variant="text"
+          size="small"
+          onClick={handleToggleBreakdown}
+          startIcon={showBreakdown ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          sx={{ mt: 0.5, mb: 0.5, textTransform: 'none', color: 'text.secondary' }}
+        >
+          {showBreakdown ? 'Ocultar desglose' : 'Desglosar billetes'}
+        </Button>
+
+        <Collapse in={showBreakdown}>
+          {showBreakdown && (
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 1.5, pb: 1 }}>
+                <BillBreakdownInput
+                    currency={DEFAULT_CURRENCY}
+                    targetAmount={finalTotal}
+                    onChange={(t) => setCashOverride(t)}
+                    resetKey={breakdownResetKey}
+                />
+              </Box>
+          )}
+
+        </Collapse>
 
         <FormControl fullWidth sx={{ marginTop: 2 }}>
           <InputLabel htmlFor="outlined-adornment-amount">Transferencia</InputLabel>

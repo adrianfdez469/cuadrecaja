@@ -1,5 +1,6 @@
 import { ICierreData } from "@/schemas/cierre";
 import { ICierrePeriodo } from "@/schemas/cierre";
+import { IBillCount, ICashBreakdownCierre } from "@/schemas/billBreakdown";
 import axios from "@/lib/axiosClient";
 
 const API_URL = (tiendaId) => `/api/cierre/${tiendaId}`; // Ruta base del backend
@@ -23,3 +24,23 @@ export const closePeriod = async (tiendaId: string, cierreId: string): Promise<I
   const response = await axios.put<ICierrePeriodo>(`${API_URL(tiendaId)}/${cierreId}/close`);
   return response.data;
 }
+
+export const fetchCashBreakdown = async (tiendaId: string, cierreId: string): Promise<ICashBreakdownCierre | null> => {
+  const response = await axios.get<ICashBreakdownCierre | null>(`${API_URL(tiendaId)}/${cierreId}/cash-breakdown`);
+  return response.data;
+};
+
+export const saveCashBreakdown = async (
+  tiendaId: string,
+  cierreId: string,
+  currency: string,
+  items: IBillCount[],
+  total: number,
+): Promise<ICashBreakdownCierre> => {
+  const response = await axios.put<ICashBreakdownCierre>(`${API_URL(tiendaId)}/${cierreId}/cash-breakdown`, {
+    currency,
+    items,
+    total,
+  });
+  return response.data;
+};

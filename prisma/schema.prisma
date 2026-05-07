@@ -408,10 +408,22 @@ model CierrePeriodo {
   totalGananciaFinal Float         @default(0)
   gastosCierre       GastoCierre[]
 
+  cashBreakdown CashBreakdownCierre?
+
   // Idices
   @@index([fechaInicio])
   @@index([fechaFin])
   @@index([tiendaId])
+}
+
+model CashBreakdownCierre {
+  id              String        @id @default(uuid())
+  cierrePeriodo   CierrePeriodo @relation(fields: [cierrePeriodoId], references: [id], onDelete: Cascade)
+  cierrePeriodoId String        @unique
+  currency        String        @default("CUP")
+  items           Json
+  total           Float
+  updatedAt       DateTime      @updatedAt
 }
 
 model MovimientoStock {

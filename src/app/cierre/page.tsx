@@ -15,6 +15,7 @@ import {
   useTheme,
   IconButton,
   Tooltip,
+  Collapse,
 } from "@mui/material";
 import { closePeriod, fetchCierreData, openPeriod } from "@/services/cierrePeriodService";
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
@@ -41,6 +42,8 @@ import GastoCierreList from "@/app/gastos/components/GastoCierreList";
 import GastoAdHocDialog from "@/app/gastos/components/GastoAdHocDialog";
 import { createGastoAdHoc, getGastosTienda } from "@/services/gastoService";
 import { IGastoAdHocCreate } from "@/schemas/gastos";
+import CashVerificationDialog from "@/app/cierre/components/CashVerificationDialog";
+import LocalAtmIcon from "@mui/icons-material/LocalAtm";
 
 const CierreCajaPage = () => {
   const { user, loadingContext, gotToPath } = useAppContext();
@@ -58,6 +61,8 @@ const CierreCajaPage = () => {
   const [isProcessingCierre, setIsProcessingCierre] = useState(false);
   const [gastosReviewOpen, setGastosReviewOpen] = useState(false);
   const [adHocOpen, setAdHocOpen] = useState(false);
+  const [cashVerifOpen, setCashVerifOpen] = useState(false);
+  const [breakdownTotal, setBreakdownTotal] = useState<number | null>(null);
   const [categoriasGastos, setCategoriasGastos] = useState<string[]>([]);
   const { ConfirmDialogComponent } = useConfirmDialog();
   const { clearSales, sales } = useSalesStore();
@@ -90,6 +95,7 @@ const CierreCajaPage = () => {
     try {
       await closePeriod(localId, currentPeriod.id);
       clearSales();
+      setBreakdownTotal(null);
       await openPeriod(localId);
       showMessage('Cierre de caja realizado exitosamente', 'success');
     } catch (error) {
@@ -241,12 +247,21 @@ const CierreCajaPage = () => {
     { label: 'Cierre de Caja' }
   ];
 
+  const expectedCash = (cierreData?.totalVentas ?? 0) - (cierreData?.totalTransferencia ?? 0);
+
   const headerActions = (
     <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
       {canManageGastos && currentPeriod && !currentPeriod.fechaFin && (
         <Tooltip title="Registrar gasto puntual del período">
           <IconButton onClick={() => setAdHocOpen(true)} size={isMobile ? "small" : "medium"}>
             <ReceiptLongIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      {cierreData && currentPeriod && !currentPeriod.fechaFin && (
+        <Tooltip title="Verificar efectivo en caja">
+          <IconButton onClick={() => setCashVerifOpen(true)} size={isMobile ? "small" : "medium"}>
+            <LocalAtmIcon />
           </IconButton>
         </Tooltip>
       )}
@@ -354,6 +369,27 @@ const CierreCajaPage = () => {
         headerActions={headerActions}
         maxWidth="xl"
       >
+        {/* Alert de verificación de efectivo en tiempo real */}
+        <Collapse in={breakdownTotal !== null}>
+          {breakdownTotal !== null && (() => {
+            const diff = breakdownTotal - expectedCash
+            const isMatch = diff === 0
+            const isOver = diff > 0
+            return (
+              <Alert
+                severity={diff >= 0 ? 'success' : 'error'}
+                sx={{ mb: 2 }}
+              >
+                {isMatch
+                  ? `Cuadre perfecto — el efectivo contado coincide con el total del período (${formatCurrency(expectedCash)})`
+                  : isOver
+                    ? `Excedente de ${formatCurrency(diff)} — se contaron ${formatCurrency(breakdownTotal)} vs ${formatCurrency(expectedCash)} esperados`
+                    : `Faltan ${formatCurrency(Math.abs(diff))} — se contaron ${formatCurrency(breakdownTotal)} vs ${formatCurrency(expectedCash)} esperados`}
+              </Alert>
+            )
+          })()}
+        </Collapse>
+
         {/* Estadísticas del cierre */}
         <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
           
@@ -470,6 +506,15 @@ const CierreCajaPage = () => {
             onConfirm={handleConfirmarCierre}
           />
         )}
+
+        <CashVerificationDialog
+          open={cashVerifOpen}
+          onClose={() => setCashVerifOpen(false)}
+          expectedCash={expectedCash}
+          tiendaId={user?.localActual?.id ?? ''}
+          cierreId={currentPeriod?.id ?? ''}
+          onBreakdownChange={setBreakdownTotal}
+        />
       </PageContainer>
     );
   }
