@@ -15,7 +15,7 @@ const DenominationRow: FC<Props> = ({ denomination, count, onChange }) => {
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: '80px 16px 160px 16px 1fr',
+        gridTemplateColumns: '1fr 16px 160px 16px 1fr',
         alignItems: 'center',
         gap: 0.5,
         py: 0.25,

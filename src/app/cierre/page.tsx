@@ -250,7 +250,7 @@ const CierreCajaPage = () => {
   const expectedCash = (cierreData?.totalVentas ?? 0) - (cierreData?.totalTransferencia ?? 0);
 
   const headerActions = (
-    <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
+    <Stack direction="row-reverse" spacing={1} sx={{ width: '100%'}}>
       {canManageGastos && currentPeriod && !currentPeriod.fechaFin && (
         <Tooltip title="Registrar gasto puntual del período">
           <IconButton onClick={() => setAdHocOpen(true)} size={isMobile ? "small" : "medium"}>
