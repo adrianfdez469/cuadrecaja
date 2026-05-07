@@ -102,6 +102,11 @@ export async function PUT(
 
     const [periodoCerrado] = await prisma.$transaction(async (tx) => {
 
+      // Eliminar desglose de billetes temporal antes de cerrar
+      await tx.cashBreakdownCierre.deleteMany({
+        where: { cierrePeriodoId: ultimoPeriodo.id },
+      });
+
       // Reconciliar gastos aplicados (pueden haber sido aplicados antes del close via /apply)
       const gastosCierre = await tx.gastoCierre.findMany({
         where: { cierreId: ultimoPeriodo.id },
