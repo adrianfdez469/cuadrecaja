@@ -122,7 +122,43 @@ const PERMISOS_VENDEDOR = [
   'operaciones.gastos.ver',
 ].join('|');
 
+const MONEDAS_INICIALES = [
+  {
+    code: 'CUP',
+    nombre: 'Peso Cubano',
+    simbolo: '$',
+    denominaciones: [1000, 500, 200, 100, 50, 20, 10, 5, 3, 1],
+  },
+  {
+    code: 'USD',
+    nombre: 'Dólar Estadounidense',
+    simbolo: 'USD',
+    denominaciones: [100, 50, 20, 10, 5, 1],
+  },
+];
+
 async function main() {
+  console.log('Seeding monedas globales...');
+  for (const m of MONEDAS_INICIALES) {
+    await prisma.moneda.upsert({
+      where: { code: m.code },
+      update: { nombre: m.nombre, simbolo: m.simbolo },
+      create: { code: m.code, nombre: m.nombre, simbolo: m.simbolo },
+    });
+    // Seed denominaciones solo si no existen aún
+    const existentes = await prisma.denominacionBillete.count({ where: { monedaCode: m.code } });
+    if (existentes === 0) {
+      const denoms = m.denominaciones.map((valor, i) => ({
+        monedaCode: m.code,
+        valor,
+        orden: m.denominaciones.length - i,
+      }));
+      await prisma.denominacionBillete.createMany({ data: denoms });
+    }
+    console.log(`  ✓ ${m.code} (${m.denominaciones.length} denominaciones)`);
+  }
+  console.log('Monedas seeded.\n');
+
   console.log('Seeding planes de negocio...');
   for (const plan of planes) {
     await prisma.plan.upsert({

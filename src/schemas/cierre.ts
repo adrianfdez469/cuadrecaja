@@ -32,6 +32,16 @@ const cierreProductoVendidosSchema = z.object({
   productoId: z.string().uuid(),
 });
 
+const resumenMonedaCierreSchema = z.object({
+  id: z.string(),
+  monedaCode: z.string(),
+  totalEfectivo: z.number(),
+  totalTransfer: z.number(),
+  equivalenteBase: z.number(),
+});
+
+export type IResumenMonedaCierre = z.infer<typeof resumenMonedaCierreSchema>;
+
 export const cierreDataSchema = z.object({
   productosVendidos: z.array(cierreProductoVendidosSchema),
   totalVentas: z.number(),
@@ -53,6 +63,7 @@ export const cierreDataSchema = z.object({
     nombre: z.string(),
     total: z.number(),
   })),
+  resumenMonedas: z.array(resumenMonedaCierreSchema).optional(),
 });
 
 export const summaryCierreSchema = z.object({

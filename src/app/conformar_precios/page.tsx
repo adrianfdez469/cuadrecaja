@@ -1,490 +1,453 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  Box,
-  TextField,
-  CircularProgress,
-  Button,
   Alert,
-  Typography,
-  InputAdornment,
-  useTheme,
-  useMediaQuery,
+  Backdrop,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
   IconButton,
-  Backdrop
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
   DataGrid,
   GridRowModel,
   GridColDef,
   GridRenderCellParams,
-  GridRenderEditCellParams
+  GridRenderEditCellParams,
 } from "@mui/x-data-grid";
-import { Search, Save, Refresh, Print, CheckCircle } from "@mui/icons-material";
+import { CheckCircle, Print, Refresh, Save, Search } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { fecthCostosPreciosProds } from "@/services/costoPrecioServices";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
-import { formatCurrency, normalizeSearch } from '@/utils/formatters';
-import { PrintLabelsModal } from './components/PrintLabelsModal';
+import { formatCurrency, normalizeSearch } from "@/utils/formatters";
+import { PrintLabelsModal } from "./components/PrintLabelsModal";
 
-// Componente personalizado para editar precios
+// ── Desktop: inline DataGrid edit cell ───────────────────────────────────────
 const PriceEditCell = (params: GridRenderEditCellParams) => {
   const { id, value, field } = params;
-
-  const handleConfirm = (e?: React.MouseEvent | React.KeyboardEvent) => {
-    if (e) e.stopPropagation();
+  const stop = (e?: React.MouseEvent | React.KeyboardEvent) => {
+    e?.stopPropagation();
     params.api.stopCellEditMode({ id, field });
   };
-
   return (
     <TextField
-      fullWidth
-      autoFocus
-      type="number"
-      value={value ?? ''}
+      fullWidth autoFocus type="number" value={value ?? ""}
       onChange={(e) => {
-        const newValue = parseFloat(e.target.value);
-        params.api.setEditCellValue({ id, field, value: isNaN(newValue) ? 0 : newValue });
+        const v = parseFloat(e.target.value);
+        params.api.setEditCellValue({ id, field, value: isNaN(v) ? 0 : v });
       }}
-      onFocus={(e) => {
-        e.target.select();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          handleConfirm(e);
-        }
-      }}
+      onFocus={(e) => e.target.select()}
+      onKeyDown={(e) => { if (e.key === "Enter") stop(e); }}
       slotProps={{
         input: {
           startAdornment: <InputAdornment position="start">$</InputAdornment>,
           endAdornment: (
             <InputAdornment position="end">
-              <IconButton
-                color="success"
-                onClick={handleConfirm}
-                sx={{ p: 0.5 }}
-              >
+              <IconButton color="success" onClick={stop} sx={{ p: 0.5 }}>
                 <CheckCircle fontSize="small" />
               </IconButton>
             </InputAdornment>
           ),
         },
-        htmlInput: {
-          min: 0,
-          step: 0.01,
-          inputMode: 'decimal',
-          style: { fontSize: '0.875rem' }
-        }
+        htmlInput: { min: 0, step: 0.01, inputMode: "decimal", style: { fontSize: "0.875rem" } },
       }}
-      size="small"
-      variant="standard"
-      sx={{
-        '& .MuiInput-root': {
-          fontSize: '0.875rem'
-        }
-      }}
+      size="small" variant="standard"
+      sx={{ "& .MuiInput-root": { fontSize: "0.875rem" } }}
     />
   );
 };
 
-// Componente para mostrar precios formateados
-const PriceDisplayCell = (params: GridRenderCellParams) => {
-  const value = params.value || 0;
-  return (
-    <Typography variant="body2" fontWeight="medium">
-      {formatCurrency(value)}
-    </Typography>
-  );
+const PriceDisplayCell = (params: GridRenderCellParams) => (
+  <Typography variant="body2" fontWeight="medium">{formatCurrency(params.value || 0)}</Typography>
+);
+
+// ── Mobile: one card per product ─────────────────────────────────────────────
+type Producto = {
+  id: string;
+  nombre: string;
+  costo: number;
+  precio: number;
 };
 
+interface MobileCardProps {
+  producto: Producto;
+  isDirty: boolean;
+  onSave: (id: string, precio: number) => Promise<void>;
+  saving: boolean;
+}
+
+function MobileProductCard({ producto, isDirty, onSave, saving }: MobileCardProps) {
+  const [precio, setPrecio] = useState(producto.precio);
+  const [localDirty, setLocalDirty] = useState(false);
+
+  // Sync if parent reloads data
+  useEffect(() => {
+    setPrecio(producto.precio);
+    setLocalDirty(false);
+  }, [producto.precio]);
+
+  const rentabilidad =
+    precio > 0 && producto.costo > 0
+      ? (((precio - producto.costo) / producto.costo) * 100).toFixed(1)
+      : "0";
+
+  const handleConfirm = async () => {
+    if (!localDirty) return;
+    await onSave(producto.id, precio);
+    setLocalDirty(false);
+  };
+
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        borderColor: isDirty ? "warning.main" : "divider",
+        bgcolor: isDirty ? "warning.50" : "background.paper",
+      }}
+    >
+      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+        {/* Product name + rentabilidad badge */}
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
+          <Typography variant="body2" fontWeight="medium" sx={{ flex: 1, mr: 1 }}>
+            {producto.nombre}
+          </Typography>
+          <Chip
+            label={`${rentabilidad}%`}
+            size="small"
+            color={parseFloat(rentabilidad) > 0 ? "success" : "default"}
+            variant="outlined"
+          />
+        </Stack>
+
+        {/* Costo + Precio fields side by side */}
+        <Stack direction="row" gap={1.5} alignItems="center">
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              Costo
+            </Typography>
+            <Typography variant="body2" color="text.secondary" fontWeight="medium">
+              {formatCurrency(producto.costo)}
+            </Typography>
+          </Box>
+
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              Precio de venta
+            </Typography>
+            <TextField
+              type="number"
+              size="small"
+              fullWidth
+              value={precio || ""}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                setPrecio(isNaN(v) ? 0 : v);
+                setLocalDirty(true);
+              }}
+              onFocus={(e) => e.target.select()}
+              onKeyDown={(e) => { if (e.key === "Enter") handleConfirm(); }}
+              slotProps={{
+                input: {
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                  endAdornment: localDirty ? (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        color="success"
+                        onClick={handleConfirm}
+                        disabled={saving}
+                        edge="end"
+                      >
+                        <CheckCircle fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
+                },
+                htmlInput: { min: 0, step: 0.01, inputMode: "decimal" },
+              }}
+              disabled={saving}
+            />
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 const PreciosCantidades = () => {
-  const [productos, setProductos] = useState([]);
-  const [filteredProductos, setFilteredProductos] = useState([]);
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [filteredProductos, setFilteredProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [idDirtyProds, setIdDirtyProds] = useState([]);
+  const [idDirtyProds, setIdDirtyProds] = useState<string[]>([]);
   const [printLabelsOpen, setPrintLabelsOpen] = useState(false);
+
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
-
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const fetchProductos = async () => {
+  const fetchProductos = useCallback(async () => {
+    if (!user?.localActual?.id) return;
     try {
       setLoading(true);
-      if (user?.localActual?.id) {
-        const data = await fecthCostosPreciosProds(user?.localActual?.id);
-        setProductos(data || []);
-        setFilteredProductos(data || []);
-        setIdDirtyProds([]);
-      }
-    } catch (error) {
-      console.error("Error al obtener productos", error);
+      const data = await fecthCostosPreciosProds(user.localActual.id);
+      const mapped = (data || []).map((p: any) => ({
+        ...p,
+        nombre: p.proveedor?.nombre ? `${p.producto.nombre} - ${p.proveedor.nombre}` : p.producto.nombre,
+        costo: p.costo || 0,
+        precio: p.precio || 0,
+      }));
+      setProductos(mapped);
+      setFilteredProductos(mapped);
+      setIdDirtyProds([]);
+    } catch {
       showMessage("Error al cargar los productos", "error");
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.localActual?.id, showMessage]);
 
   useEffect(() => {
-    if (!loadingContext) {
-      fetchProductos();
-    }
-  }, [loadingContext]);
+    if (!loadingContext) fetchProductos();
+  }, [loadingContext, fetchProductos]);
 
   useEffect(() => {
-
-    const mapProductos = productos.map(p => {
-      return {
-        ...p,
-        nombre: p.proveedor && p.proveedor.nombre ? `${p.producto.nombre} - ${p.proveedor.nombre}` : p.producto.nombre,
-        costo: p.costo || 0,
-        precio: p.precio || 0
-      }
-    })
     if (!searchTerm.trim()) {
-      setFilteredProductos(mapProductos);
+      setFilteredProductos(productos);
     } else {
-      const filtered = mapProductos.filter(producto =>
-        normalizeSearch(producto.nombre ?? '').includes(normalizeSearch(searchTerm))
+      setFilteredProductos(
+        productos.filter((p) =>
+          normalizeSearch(p.nombre ?? "").includes(normalizeSearch(searchTerm))
+        )
       );
-      setFilteredProductos(filtered);
     }
   }, [searchTerm, productos]);
 
+  // ── Desktop DataGrid handlers ────────────────────────────────────────────
   const handleProcessRowUpdate = (newRow: GridRowModel) => {
-    // Validar que los valores sean positivos
     if (newRow.costo < 0 || newRow.precio < 0) {
-      showMessage("Los valores de precio deben ser positivos", "warning");
-      return productos.find(p => p.id === newRow.id) || newRow;
+      showMessage("Los valores deben ser positivos", "warning");
+      return productos.find((p) => p.id === newRow.id) || newRow;
     }
-
-    // Marcar como modificado
-    if (!idDirtyProds.includes(newRow.id)) {
-      setIdDirtyProds(prev => [...prev, newRow.id]);
-    }
-
-    // Actualizar el producto en el estado
-    setProductos(prev => prev.map(p => p.id === newRow.id ? newRow : p));
-
-    // Si es móvil y hubo cambios reales, auto-salvar
-    if (isMobile) {
-      const oldRow = productos.find(p => p.id === newRow.id);
-      if (oldRow && (oldRow.precio !== newRow.precio || oldRow.costo !== newRow.costo)) {
-        autoSaveRow(newRow);
-      }
-    }
-
+    if (!idDirtyProds.includes(newRow.id)) setIdDirtyProds((prev) => [...prev, newRow.id]);
+    setProductos((prev) => prev.map((p) => (p.id === newRow.id ? { ...p, ...newRow } : p)));
     return newRow;
   };
 
   const handleProcessRowUpdateError = (error: Error) => {
-    console.error("Error al actualizar fila:", error);
+    console.error(error);
     showMessage("Error al actualizar el producto", "error");
   };
 
-  const autoSaveRow = async (row: GridRowModel) => {
+  // ── Shared save helpers ──────────────────────────────────────────────────
+  const saveRows = async (rows: { id: string; costo: number; precio: number }[]) => {
+    const response = await fetch(`/api/productos_tienda/${user!.localActual!.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productos: rows }),
+    });
+    if (!response.ok) throw new Error("Error al actualizar productos");
+  };
+
+  // Mobile: auto-save single card on blur
+  const handleMobileSave = async (id: string, precio: number) => {
     try {
       setSaving(true);
-      const response = await fetch(`/api/productos_tienda/${user.localActual.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productos: [{
-            id: row.id,
-            costo: Number(row.costo) || 0,
-            precio: Number(row.precio) || 0
-          }]
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al actualizar producto");
-      }
-
-      // Quitar de dirty si se guardó correctamente
-      setIdDirtyProds(prev => prev.filter(id => id !== row.id));
-      showMessage("Cambio guardado automáticamente", "success");
-    } catch (error) {
-      console.error("Error en auto-save:", error);
-      showMessage("Error al guardar automáticamente", "error");
+      await saveRows([{ id, costo: productos.find((p) => p.id === id)?.costo ?? 0, precio }]);
+      setProductos((prev) => prev.map((p) => (p.id === id ? { ...p, precio } : p)));
+      setIdDirtyProds((prev) => prev.filter((x) => x !== id));
+      showMessage("Precio actualizado", "success");
+    } catch {
+      showMessage("Error al guardar", "error");
     } finally {
       setSaving(false);
     }
   };
 
+  // Desktop: batch save
   const save = async () => {
-    const productsToSave = productos.filter(prod =>
-      idDirtyProds.includes(prod.id)
-    ).map(prod => ({
-      id: prod.id,
-      costo: Number(prod.costo) || 0,
-      precio: Number(prod.precio) || 0
-    }));
-
-    if (productsToSave.length === 0) {
-      showMessage("No hay cambios para guardar", "info");
-      return;
-    }
-
+    const toSave = productos
+      .filter((p) => idDirtyProds.includes(p.id))
+      .map((p) => ({ id: p.id, costo: p.costo, precio: p.precio }));
+    if (toSave.length === 0) { showMessage("No hay cambios para guardar", "info"); return; }
     try {
       setSaving(true);
-      const response = await fetch(`/api/productos_tienda/${user.localActual.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productos: productsToSave })
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al actualizar productos");
-      }
-
-      showMessage(`${productsToSave.length} producto(s) actualizado(s) correctamente`, "success");
+      await saveRows(toSave);
+      showMessage(`${toSave.length} producto(s) actualizado(s)`, "success");
       await fetchProductos();
-    } catch (error) {
-      console.error("Error:", error);
+    } catch {
       showMessage("Error al guardar los cambios", "error");
     } finally {
       setSaving(false);
     }
   };
 
+  // ── DataGrid columns (desktop) ───────────────────────────────────────────
   const columns: GridColDef[] = [
     {
-      field: "nombre",
-      headerName: "Producto",
-      flex: isMobile ? 1 : 2,
-      minWidth: 200,
-      renderCell: (params) => (
-
+      field: "nombre", headerName: "Producto", flex: 2, minWidth: 200,
+      renderCell: (p) => (
         <Box sx={{ py: 1 }}>
-          <Typography variant="body2" fontWeight="medium">
-            {params.value}
-          </Typography>
+          <Typography variant="body2" fontWeight="medium">{p.value}</Typography>
         </Box>
-      )
+      ),
     },
     {
-      field: "precio",
-      headerName: "Precio",
-      flex: 1,
-      minWidth: 120,
-      editable: true,
-      type: "number",
-      renderCell: (params) => (
-        <Box
-          onClick={(e) => {
-            if (isMobile && params.api?.startCellEditMode) {
-              e.stopPropagation();
-              params.api.startCellEditMode({ id: params.id, field: params.field });
-            }
-          }}
-          sx={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: isMobile ? 'pointer' : 'inherit'
-          }}
-        >
-          <PriceDisplayCell {...params} />
+      field: "precio", headerName: "Precio", flex: 1, minWidth: 130,
+      editable: true, type: "number",
+      renderCell: (p) => (
+        <Box sx={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <PriceDisplayCell {...p} />
         </Box>
       ),
       renderEditCell: PriceEditCell,
-      headerAlign: 'center',
-      align: 'center'
+      headerAlign: "center", align: "center",
     },
     {
-      field: "costo",
-      headerName: "Costo",
-      flex: 1,
-      minWidth: 120,
-      renderCell: PriceDisplayCell,
-      headerAlign: 'center',
-      align: 'center'
+      field: "costo", headerName: "Costo", flex: 1, minWidth: 120,
+      renderCell: PriceDisplayCell, headerAlign: "center", align: "center",
     },
     {
-      field: "porciento",
-      headerName: "Rentabilidad",
-      flex: 1,
-      minWidth: 120,
-      renderCell: (params) => {
-        const { row } = params;
-        if (row.costo === 0) return '0%';
-        if (row.precio === 0) return '0%';
-
-        const porciento = (((row.precio - row.costo) / row.costo) * 100).toFixed(2);
-        return (
-          <Typography variant="body2" fontWeight="medium">
-            {porciento}%
-          </Typography>
-
-        );
-      }
-    }
+      field: "porciento", headerName: "Rentabilidad", flex: 1, minWidth: 120,
+      renderCell: ({ row }) => {
+        if (!row.costo || !row.precio) return <Typography variant="body2">0%</Typography>;
+        const pct = (((row.precio - row.costo) / row.costo) * 100).toFixed(2);
+        return <Typography variant="body2" fontWeight="medium">{pct}%</Typography>;
+      },
+    },
   ];
 
+  // ── Guards ───────────────────────────────────────────────────────────────
   if (loading || loadingContext) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando productos...
-        </Typography>
+        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>Cargando productos...</Typography>
       </Box>
     );
   }
 
   if (!user?.localActual?.id) {
     return (
-      <PageContainer
-        title="Costos y Precios"
-        breadcrumbs={[
-          { label: 'Inicio', href: '/home' },
-          { label: 'Costos y Precios' }
-        ]}
-      >
+      <PageContainer title="Costos y Precios" breadcrumbs={[{ label: "Inicio", href: "/home" }, { label: "Costos y Precios" }]}>
         <Alert severity="warning">
-          <Typography variant="h6" gutterBottom>
-            No hay tienda seleccionada
-          </Typography>
-          <Typography variant="body1">
-            Para gestionar los precios, necesitas tener una tienda seleccionada como tienda actual.
-          </Typography>
+          <Typography variant="h6" gutterBottom>No hay tienda seleccionada</Typography>
+          <Typography>Para gestionar los precios, necesitas tener una tienda seleccionada.</Typography>
         </Alert>
       </PageContainer>
     );
   }
 
-  const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Conformar Precios' }
-  ];
+  const breadcrumbs = [{ label: "Inicio", href: "/home" }, { label: "Conformar Precios" }];
 
   const headerActions = (
     <Box display="flex" gap={1} alignItems="center">
-
-      {isMobile ?
-        <IconButton
-          size="small"
-          onClick={fetchProductos}
-          disabled={loading}
-        >
+      {isMobile ? (
+        <IconButton size="small" onClick={fetchProductos} disabled={loading}>
           <Refresh />
         </IconButton>
-        :
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<Refresh />}
-          onClick={fetchProductos}
-          disabled={loading}
-        >
+      ) : (
+        <Button variant="outlined" size="small" startIcon={<Refresh />} onClick={fetchProductos} disabled={loading}>
           Actualizar
         </Button>
-      }
+      )}
 
-      {isMobile ?
-        <IconButton
-          size="small"
-          onClick={() => setPrintLabelsOpen(true)}
-          disabled={loading || !user?.localActual?.id}
-        >
+      {isMobile ? (
+        <IconButton size="small" onClick={() => setPrintLabelsOpen(true)} disabled={loading}>
           <Print />
         </IconButton>
-        :
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<Print />}
-          onClick={() => setPrintLabelsOpen(true)}
-          disabled={loading || !user?.localActual?.id}
-          color="secondary"
-        >
+      ) : (
+        <Button variant="outlined" size="small" startIcon={<Print />} onClick={() => setPrintLabelsOpen(true)} disabled={loading} color="secondary">
           Etiquetas
         </Button>
-      }
+      )}
 
-      <Button
-        variant="contained"
-        size="small"
-        startIcon={<Save />}
-        onClick={save}
-        disabled={idDirtyProds.length === 0 || saving}
-        color={idDirtyProds.length > 0 ? "primary" : "inherit"}
-      >
-        {saving ? "Guardando..." : isMobile ? "Guardar" : `Guardar${idDirtyProds.length > 0 ? ` (${idDirtyProds.length})` : ""}`}
-      </Button>
-    </Box >
+      {!isMobile && (
+        <Button
+          variant="contained" size="small" startIcon={<Save />} onClick={save}
+          disabled={idDirtyProds.length === 0 || saving}
+          color={idDirtyProds.length > 0 ? "primary" : "inherit"}
+        >
+          {saving ? "Guardando..." : `Guardar${idDirtyProds.length > 0 ? ` (${idDirtyProds.length})` : ""}`}
+        </Button>
+      )}
+    </Box>
   );
 
   return (
-    <PageContainer
-      title="Conformar Precios"
-      subtitle="Gestiona los precios de venta de tus productos"
-      breadcrumbs={breadcrumbs}
-      headerActions={headerActions}
-      maxWidth="xl"
-    >
+    <PageContainer title="Conformar Precios" subtitle="Gestiona los precios de venta de tus productos" breadcrumbs={breadcrumbs} headerActions={headerActions} maxWidth="xl">
       <ContentCard
         title="Productos"
-        subtitle={`${filteredProductos.length} producto${filteredProductos.length !== 1 ? 's' : ''} encontrado${filteredProductos.length !== 1 ? 's' : ''}`}
+        subtitle={`${filteredProductos.length} producto${filteredProductos.length !== 1 ? "s" : ""} encontrado${filteredProductos.length !== 1 ? "s" : ""}`}
         headerActions={
           <TextField
             size="small"
             placeholder={isMobile ? "Buscar..." : "Buscar producto..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : 'none'
-            }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
+            sx={{ minWidth: isMobile ? 150 : 250 }}
           />
         }
-        noPadding
-        fullHeight
+        noPadding={!isMobile}
+        fullHeight={!isMobile}
       >
         {filteredProductos.length === 0 ? (
           <Box sx={{ p: 3 }}>
             <Alert severity="info">
-              <Typography variant="h6" gutterBottom>
-                {searchTerm ? 'No se encontraron productos' : 'No hay productos registrados'}
-              </Typography>
               <Typography variant="body1">
-                {searchTerm ?
-                  'Intenta con otros términos de búsqueda.' :
-                  'Primero debes realizar operaiones de entrada de productos desde los movimientos productos.'
-                }
+                {searchTerm ? "No se encontraron productos con ese término." : "No hay productos registrados en esta tienda."}
               </Typography>
             </Alert>
           </Box>
+        ) : isMobile ? (
+          /* ── Mobile: card list ── */
+          <Stack spacing={1.5} sx={{ p: 1.5 }}>
+            {idDirtyProds.length > 0 && (
+              <Alert severity="warning" sx={{ py: 0.5 }}>
+                <Typography variant="body2">
+                  {idDirtyProds.length} producto{idDirtyProds.length !== 1 ? "s" : ""} con cambios sin guardar
+                </Typography>
+              </Alert>
+            )}
+            {filteredProductos.map((p) => (
+              <MobileProductCard
+                key={p.id}
+                producto={p}
+                isDirty={idDirtyProds.includes(p.id)}
+                onSave={handleMobileSave}
+                saving={saving}
+              />
+            ))}
+          </Stack>
         ) : (
+          /* ── Desktop: DataGrid ── */
           <>
             {idDirtyProds.length > 0 && (
-              <Box sx={{ p: 2, bgcolor: 'warning.50', borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
                 <Alert severity="warning" sx={{ py: 0.5 }}>
                   <Typography variant="body2">
-                    Tienes {idDirtyProds.length} producto{idDirtyProds.length !== 1 ? 's' : ''} con cambios sin guardar.
-                    {`Haz clic en \"Guardar\" para aplicar los cambios.`}
+                    Tienes {idDirtyProds.length} producto{idDirtyProds.length !== 1 ? "s" : ""} con cambios sin guardar. Haz clic en &quot;Guardar&quot; para aplicar.
                   </Typography>
                 </Alert>
               </Box>
             )}
-
-            <Box sx={{ height: 'calc(100vh - 300px)', minHeight: 400, width: '100%', position: 'relative' }}>
+            <Box sx={{ height: "calc(100vh - 300px)", minHeight: 400, width: "100%", position: "relative" }}>
               <DataGrid
                 rows={filteredProductos}
                 columns={columns}
@@ -493,84 +456,40 @@ const PreciosCantidades = () => {
                 onProcessRowUpdateError={handleProcessRowUpdateError}
                 loading={loading}
                 pageSizeOptions={[10, 25, 50, 100]}
-                initialState={{
-                  pagination: {
-                    paginationModel: { pageSize: 25 }
-                  }
-                }}
-                getRowClassName={(params) =>
-                  idDirtyProds.includes(params.id) ? 'row-modified' : ''
-                }
+                initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+                getRowClassName={(params) => (idDirtyProds.includes(params.id as string) ? "row-modified" : "")}
                 sx={{
-                  border: 'none',
-                  '& .MuiDataGrid-cell:focus': {
-                    outline: 'none',
-                  },
-                  '& .MuiDataGrid-cell:focus-within': {
-                    outline: '2px solid',
-                    outlineColor: 'primary.main',
-                    outlineOffset: '-2px',
-                  },
-                  '& .MuiDataGrid-editInputCell': {
-                    fontSize: '0.875rem',
-                  },
-                  '& .row-modified': {
-                    backgroundColor: '#ffebee', // Rojo clarito
-                    '&:hover': {
-                      backgroundColor: '#ffcdd2', // Rojo un poco más oscuro en hover
-                    },
-                  }
+                  border: "none",
+                  "& .MuiDataGrid-cell:focus": { outline: "none" },
+                  "& .MuiDataGrid-cell:focus-within": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: "-2px" },
+                  "& .row-modified": { backgroundColor: "#ffebee", "&:hover": { backgroundColor: "#ffcdd2" } },
                 }}
                 localeText={{
-                  noRowsLabel: 'No hay productos',
-                  noResultsOverlayLabel: 'No se encontraron resultados',
-                  toolbarDensity: 'Densidad',
-                  toolbarDensityLabel: 'Densidad',
-                  toolbarDensityCompact: 'Compacta',
-                  toolbarDensityStandard: 'Estándar',
-                  toolbarDensityComfortable: 'Cómoda',
-                  toolbarColumns: 'Columnas',
-                  toolbarColumnsLabel: 'Seleccionar columnas',
-                  toolbarFilters: 'Filtros',
-                  toolbarFiltersLabel: 'Mostrar filtros',
-                  toolbarFiltersTooltipHide: 'Ocultar filtros',
-                  toolbarFiltersTooltipShow: 'Mostrar filtros',
-                  toolbarExport: 'Exportar',
-                  toolbarExportLabel: 'Exportar',
-                  toolbarExportCSV: 'Descargar como CSV',
-                  toolbarExportPrint: 'Imprimir',
+                  noRowsLabel: "No hay productos",
+                  noResultsOverlayLabel: "No se encontraron resultados",
+                  toolbarDensity: "Densidad", toolbarDensityLabel: "Densidad",
+                  toolbarDensityCompact: "Compacta", toolbarDensityStandard: "Estándar", toolbarDensityComfortable: "Cómoda",
+                  toolbarColumns: "Columnas", toolbarColumnsLabel: "Seleccionar columnas",
+                  toolbarFilters: "Filtros", toolbarFiltersLabel: "Mostrar filtros",
+                  toolbarFiltersTooltipHide: "Ocultar filtros", toolbarFiltersTooltipShow: "Mostrar filtros",
+                  toolbarExport: "Exportar", toolbarExportLabel: "Exportar",
+                  toolbarExportCSV: "Descargar como CSV", toolbarExportPrint: "Imprimir",
                 }}
               />
               <Backdrop
-                sx={{
-                  color: '#fff',
-                  zIndex: (theme) => theme.zIndex.modal + 1,
-                  position: 'absolute',
-                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                  borderRadius: 2
-                }}
                 open={saving}
+                sx={{ color: "#fff", zIndex: (t) => t.zIndex.modal + 1, position: "absolute", backgroundColor: "rgba(0,0,0,0.3)", flexDirection: "column", gap: 2, borderRadius: 2 }}
               >
                 <CircularProgress color="inherit" />
-                <Typography variant="h6" sx={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
-                  Guardando cambios...
-                </Typography>
+                <Typography variant="h6" sx={{ textShadow: "0 2px 4px rgba(0,0,0,0.3)" }}>Guardando cambios...</Typography>
               </Backdrop>
             </Box>
           </>
         )}
       </ContentCard>
 
-      {/* Modal para imprimir etiquetas */}
       {printLabelsOpen && (
-        <PrintLabelsModal
-          open={printLabelsOpen}
-          onClose={() => setPrintLabelsOpen(false)}
-          tiendaId={user?.localActual?.id || ''}
-        />
+        <PrintLabelsModal open={printLabelsOpen} onClose={() => setPrintLabelsOpen(false)} tiendaId={user?.localActual?.id || ""} />
       )}
     </PageContainer>
   );

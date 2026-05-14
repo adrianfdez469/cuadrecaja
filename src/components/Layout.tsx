@@ -83,6 +83,8 @@ import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
 import { Avatar } from "@mui/material";
 import LocalOffer from "@mui/icons-material/LocalOffer";
+import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
+import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import Loading from "./Loading";
 import Logo from "./Logo";
 
@@ -92,6 +94,7 @@ const SUPER_ADMIN_MENU_ITEMS = [
   { label: "Referidos", path: "/configuracion/referidos", icon: GroupsIcon },
   { label: "Suspensiones", path: "/configuracion/suspensiones", icon: Block },
   { label: "Notificaciones", path: "/configuracion/notificaciones", icon: Notifications },
+  { label: "Monedas globales", path: "/configuracion/monedas", icon: MonetizationOnIcon },
 ];
 
 const CONFIGURATION_MENU_ITEMS = [
@@ -148,6 +151,18 @@ const CONFIGURATION_MENU_ITEMS = [
     path: "/configuracion/destinos-transferencia",
     icon: CardGiftcardOutlined,
     permission: 'configuracion.destinostransferencia.acceder'
+  },
+  {
+    label: "Monedas del negocio",
+    path: "/configuracion/monedas-negocio",
+    icon: MonetizationOnIcon,
+    permission: 'configuracion.administrador'
+  },
+  {
+    label: "Tasas de cambio",
+    path: "/configuracion/tasas-cambio",
+    icon: CurrencyExchangeIcon,
+    permission: 'configuracion.administrador'
   },
   {
     label: "Planes y Suscripción",

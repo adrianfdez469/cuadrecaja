@@ -1112,6 +1112,38 @@ export default function ResumenCierrePage() {
                       </Grid>
                     </Grid>
 
+                    {/* Desglose por moneda (multimoneda) */}
+                    {cierreProducData.ciereData.resumenMonedas && cierreProducData.ciereData.resumenMonedas.length > 0 && (
+                      <ContentCard
+                        title="Desglose por Moneda"
+                        subtitle={!isMobile ? "Ingresos reales por moneda de cobro" : undefined}
+                        fullHeight={false}
+                      >
+                        <Stack spacing={1.5}>
+                          {cierreProducData.ciereData.resumenMonedas.map((rm) => (
+                            <Card key={rm.monedaCode} variant="outlined">
+                              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                                <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+                                  <Chip label={rm.monedaCode} size="small" color="primary" variant="outlined" />
+                                  <Typography variant="body2" color="text.secondary">
+                                    ≈ {formatCurrency(rm.equivalenteBase)} base
+                                  </Typography>
+                                </Stack>
+                                <Stack direction="row" justifyContent="space-between">
+                                  <Typography variant="body2" color="text.secondary">Efectivo:</Typography>
+                                  <Typography variant="body2" fontWeight="medium">{rm.totalEfectivo.toFixed(2)} {rm.monedaCode}</Typography>
+                                </Stack>
+                                <Stack direction="row" justifyContent="space-between">
+                                  <Typography variant="body2" color="text.secondary">Transfer:</Typography>
+                                  <Typography variant="body2" fontWeight="medium">{rm.totalTransfer.toFixed(2)} {rm.monedaCode}</Typography>
+                                </Stack>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </Stack>
+                      </ContentCard>
+                    )}
+
                     {/* Tabla de productos vendidos */}
                     <ContentCard
                         title="Productos Vendidos"

@@ -16,6 +16,8 @@ import {
   IconButton,
   Tooltip,
   Collapse,
+  Chip,
+  Divider,
 } from "@mui/material";
 import { closePeriod, fetchCierreData, openPeriod } from "@/services/cierrePeriodService";
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
@@ -463,8 +465,35 @@ const CierreCajaPage = () => {
           </Grid>
         </Grid>
 
+        {/* Desglose por moneda (solo visible si hay ventas multimoneda) */}
+        {cierreData.resumenMonedas && cierreData.resumenMonedas.length > 0 && (
+          <ContentCard title="Desglose por Moneda" subtitle={!isMobile ? "Ingresos reales por moneda de cobro" : undefined}>
+            <Stack spacing={1.5} divider={<Divider flexItem />}>
+              {cierreData.resumenMonedas.map((rm) => (
+                <Stack key={rm.monedaCode} direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+                  <Chip label={rm.monedaCode} size="small" color="primary" variant="outlined" />
+                  <Stack direction="row" gap={3} flexWrap="wrap">
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Efectivo</Typography>
+                      <Typography variant="body2" fontWeight="medium">{rm.totalEfectivo.toFixed(2)} {rm.monedaCode}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Transferencia</Typography>
+                      <Typography variant="body2" fontWeight="medium">{rm.totalTransfer.toFixed(2)} {rm.monedaCode}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">≈ Base</Typography>
+                      <Typography variant="body2" fontWeight="medium" color="success.main">{formatCurrency(rm.equivalenteBase)}</Typography>
+                    </Box>
+                  </Stack>
+                </Stack>
+              ))}
+            </Stack>
+          </ContentCard>
+        )}
+
         {/* Tabla de productos vendidos */}
-        <ContentCard 
+        <ContentCard
           title="Detalle de Productos Vendidos"
           subtitle={!isMobile ? "Resumen completo de las ventas del período actual" : undefined}
           noPadding

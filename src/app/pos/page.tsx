@@ -493,7 +493,8 @@ export default function POSInterface() {
     totalCash: number,
     totalTransfer: number,
     transferDestinationId?: string,
-    discountCodes?: string[]
+    discountCodes?: string[],
+    multimoneda?: import('@/app/pos/components/PaymentModal').IMultimonedaExtras
   ) => {
     try {
       if (total <= totalCash + totalTransfer) {
@@ -613,10 +614,11 @@ export default function POSInterface() {
               data,
               identifier,
               transferDestinationId,
-              Date.now(), // 🆕 Timestamp actual
-              !isOnline, // 🆕 Estado offline
-              1, // 🆕 Primer intento exitoso
-              discountCodes
+              Date.now(),
+              !isOnline,
+              1,
+              discountCodes,
+              multimoneda
             );
             markSynced(identifier, ventaDb.id);
             showMessage("✅ Venta procesada y sincronizada exitosamente", "success");
@@ -1142,8 +1144,8 @@ export default function POSInterface() {
           open={paymentDialog}
           onClose={() => setPaymentDialog(false)}
           total={total}
-          makePay={(total: number, totalchash: number, totaltransfer: number, transferDestinationId?: string, discountCodes?: string[]) =>
-            handleMakePay(total, totalchash, totaltransfer, transferDestinationId, discountCodes)
+          makePay={(total, totalchash, totaltransfer, transferDestinationId, discountCodes, multimoneda) =>
+            handleMakePay(total, totalchash, totaltransfer, transferDestinationId, discountCodes, multimoneda)
           }
           transferDestinations={transferDestinations}
           tiendaId={user.localActual.id}

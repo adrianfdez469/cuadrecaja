@@ -1,6 +1,7 @@
 import axiosClient, { RetryConfig } from "@/lib/axiosClient";
 import { IVenta } from "@/schemas/venta";
 import { IProductoVenta } from "@/schemas/producto";
+import type { IMultimonedaExtras } from "@/app/pos/components/PaymentModal";
 
 const API_URL = (tiendaId: string, cierreId: string) => `/api/venta/${tiendaId}/${cierreId}`;
 
@@ -17,7 +18,8 @@ export const createSell = async (
   createdAt?: number,
   wasOffline?: boolean,
   syncAttempts?: number,
-  discountCodes?: string[]
+  discountCodes?: string[],
+  multimoneda?: IMultimonedaExtras
 ): Promise<IVenta> => {
   try {
     const response = await axiosClient.post(
@@ -33,7 +35,13 @@ export const createSell = async (
         wasOffline,
         syncAttempts,
         transferDestinationId,
-        ...(discountCodes && discountCodes.length > 0 ? { discountCodes } : {})
+        ...(discountCodes && discountCodes.length > 0 ? { discountCodes } : {}),
+        ...(multimoneda ? {
+          monedaCobro: multimoneda.monedaCobro,
+          pagosDetalle: multimoneda.pagosDetalle,
+          vueltoDetalle: multimoneda.vueltoDetalle,
+          tasaSnapshot: multimoneda.tasaSnapshot,
+        } : {})
       },
       { _retryCount: 0 } as RetryConfig
     );
