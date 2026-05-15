@@ -12,11 +12,11 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import { moneyRegex } from '@/utils/regex';
 import { useMessageContext } from "@/context/MessageContext";
-import { formatCurrency } from "@/utils/formatters";
 import { ITransferDestination } from "@/schemas/transferDestination";
 import type { DiscountApplicationResult, DiscountApplicationResultItem } from "@/lib/discounts";
 import BillBreakdownInput from "@/components/BillBreakdown/BillBreakdownInput";
-import { DEFAULT_CURRENCY } from "@/constants/billDenominations";
+import BillBreakdownDynamic from "@/components/BillBreakdown/BillBreakdownDynamic";
+import { DEFAULT_CURRENCY, DENOMINACIONES } from "@/constants/billDenominations";
 import { useAppContext } from "@/context/AppContext";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
@@ -57,8 +57,10 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
 
-  const monedasActivas = monedasNegocio.filter(m => m.activo);
-  const hasExtraCurrencies = monedasActivas.some(m => m.monedaCode !== monedaBase);
+  const monedasActivas = useMemo(() => monedasNegocio.filter(m => m.activo), [monedasNegocio]);
+  const hasExtraCurrencies = useMemo(() => monedasActivas.some(m => m.monedaCode !== monedaBase), [monedasActivas, monedaBase]);
+
+  const fmtBase = (amount: number) => `${amount.toFixed(2)} ${monedaBase}`;
 
   // ─── Discounts ────────────────────────────────────────────────────────────
   const [promoCode, setPromoCode] = useState("");
@@ -68,11 +70,12 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   const finalTotal = useMemo(() => Math.max(0, total - discountTotal), [total, discountTotal]);
 
   // ─── Payments ─────────────────────────────────────────────────────────────
-  // Keyed by moneda code; insertion order = display order
   const [pagosMap, setPagosMap] = useState<Record<string, PagoMoneda>>({});
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [breakdownResetKey, setBreakdownResetKey] = useState(0);
-  const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
+  const [showPayBreakdown, setShowPayBreakdown] = useState<Record<string, boolean>>({});
+  const [payBreakdownKeys, setPayBreakdownKeys] = useState<Record<string, number>>({});
+  const [addPayAnchor, setAddPayAnchor] = useState<null | HTMLElement>(null);
 
   const monedas = Object.keys(pagosMap);
 
@@ -88,11 +91,12 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   );
 
   const denominaciones = useMemo<Record<string, number[]>>(() => {
-    const map: Record<string, number[]> = {};
+    // CUP gets static fallback so breakdown always works for base
+    const map: Record<string, number[]> = { CUP: [...DENOMINACIONES.CUP].sort((a, b) => b - a) };
     for (const nm of monedasActivas) {
       if (nm.moneda?.denominaciones) {
-        map[nm.monedaCode] = nm.moneda.denominaciones
-          .filter(d => d.activo).map(d => d.valor).sort((a, b) => b - a);
+        const vals = nm.moneda.denominaciones.filter(d => d.activo).map(d => d.valor).sort((a, b) => b - a);
+        if (vals.length > 0) map[nm.monedaCode] = vals;
       }
     }
     return map;
@@ -100,14 +104,11 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
 
   const totalPagado = useMemo(
     () => Object.entries(pagosMap).reduce(
-      (sum, [moneda, { cash, transfer }]) =>
-        sum + convertToBase(cash + transfer, moneda, tasasVigentes, monedaBase),
-      0,
+      (sum, [moneda, { cash, transfer }]) => sum + convertToBase(cash + transfer, moneda, tasasVigentes, monedaBase), 0,
     ),
     [pagosMap, tasasVigentes, monedaBase],
   );
 
-  // Flat IPagoLinea[] for vuelto calculation and submission
   const pagosLinea = useMemo<IPagoLinea[]>(
     () => Object.entries(pagosMap).flatMap(([moneda, { cash, transfer, transferDestId }]) => {
       const arr: IPagoLinea[] = [];
@@ -118,12 +119,53 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     [pagosMap, tasasVigentes, monedaBase],
   );
 
-  const vuelto = useMemo(
-    () => calcularVuelto(finalTotal, pagosLinea, monedaBase, monedaBase, tasasVigentes, denominaciones),
-    [finalTotal, pagosLinea, monedaBase, tasasVigentes, denominaciones],
+  const falta = totalPagado < finalTotal;
+  const vueltoTotalBase = Math.max(0, totalPagado - finalTotal);
+
+  // ─── Change distribution ───────────────────────────────────────────────────
+  const [vueltoMap, setVueltoMap] = useState<Record<string, number>>({});
+  const [vueltoLocked, setVueltoLocked] = useState(false);
+  const [addVueltoAnchor, setAddVueltoAnchor] = useState<null | HTMLElement>(null);
+
+  const vueltoDistBase = useMemo(
+    () => Object.entries(vueltoMap).reduce((s, [m, amt]) => s + convertToBase(amt, m, tasasVigentes, monedaBase), 0),
+    [vueltoMap, tasasVigentes, monedaBase],
   );
 
-  const falta = totalPagado < finalTotal;
+  // Currencies eligible for change: any supported currency with denominations not yet in vueltoMap
+  const monedasEligiblesVuelto = useMemo(
+    () => todasMonedas.filter(m => !(m in vueltoMap) && (denominaciones[m]?.length ?? 0) > 0),
+    [todasMonedas, vueltoMap, denominaciones],
+  );
+
+  // Auto-compute default change distribution
+  useEffect(() => {
+    if (falta) {
+      setVueltoMap({});
+      setVueltoLocked(false);
+      return;
+    }
+    if (vueltoLocked) return;
+
+    const mainCurrency = Object.entries(pagosMap)
+      .filter(([, p]) => p.cash > 0)
+      .map(([m, p]) => ({ moneda: m, base: convertToBase(p.cash, m, tasasVigentes, monedaBase) }))
+      .sort((a, b) => b.base - a.base)[0]?.moneda;
+
+    if (!mainCurrency) { setVueltoMap({}); return; }
+
+    const lineas: IPagoLinea[] = Object.entries(pagosMap).flatMap(([moneda, { cash, transfer, transferDestId }]) => {
+      const arr: IPagoLinea[] = [];
+      if (cash > 0) arr.push({ tipo: 'cash', moneda, monto: cash, equivalenteBase: convertToBase(cash, moneda, tasasVigentes, monedaBase) });
+      if (transfer > 0) arr.push({ tipo: 'transfer', moneda, monto: transfer, equivalenteBase: convertToBase(transfer, moneda, tasasVigentes, monedaBase), transferDestinationId: transferDestId });
+      return arr;
+    });
+
+    const dv = calcularVuelto(finalTotal, lineas, mainCurrency, monedaBase, tasasVigentes, denominaciones);
+    const newMap: Record<string, number> = {};
+    for (const v of dv) if (v.monto > 0) newMap[v.moneda] = v.monto;
+    setVueltoMap(newMap);
+  }, [falta, vueltoLocked, totalPagado, finalTotal, monedaBase, pagosMap, tasasVigentes, denominaciones]);
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -131,6 +173,10 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     setPagosMap({ [monedaBase]: { cash: 0, transfer: 0, transferDestId: defaultDestId(transferDestinations) } });
     setShowBreakdown(false);
     setBreakdownResetKey(k => k + 1);
+    setVueltoMap({});
+    setVueltoLocked(false);
+    setShowPayBreakdown({});
+    setPayBreakdownKeys({});
   }, [open, monedaBase]);
 
   // Sync base cash when finalTotal resolves (discount) — only while single-currency
@@ -144,7 +190,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     });
   }, [finalTotal, monedaBase, open]);
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
+  // ─── Payment helpers ───────────────────────────────────────────────────────
   const suggestCash = (moneda: string, excludeMoneda?: string): number => {
     const otherPaid = Object.entries(pagosMap)
       .filter(([m]) => m !== excludeMoneda)
@@ -154,26 +200,29 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     return parseFloat(convertFromBase(rem, moneda, tasasVigentes, monedaBase).toFixed(2));
   };
 
-  const updatePago = (moneda: string, partial: Partial<PagoMoneda>) => {
+  const updatePago = (moneda: string, partial: Partial<PagoMoneda>) =>
     setPagosMap(prev => ({ ...prev, [moneda]: { ...prev[moneda], ...partial } }));
-  };
 
   const addCurrency = (moneda: string) => {
     const cash = suggestCash(moneda);
-    setPagosMap(prev => ({
-      ...prev,
-      [moneda]: { cash, transfer: 0, transferDestId: defaultDestId(transferDestinations) },
-    }));
-    setAddMenuAnchor(null);
+    setPagosMap(prev => ({ ...prev, [moneda]: { cash, transfer: 0, transferDestId: defaultDestId(transferDestinations) } }));
+    setAddPayAnchor(null);
   };
 
   const removeCurrency = (moneda: string) => {
-    setPagosMap(prev => {
-      const next = { ...prev };
-      delete next[moneda];
-      return next;
-    });
+    setPagosMap(prev => { const n = { ...prev }; delete n[moneda]; return n; });
     if (moneda === monedaBase) setShowBreakdown(false);
+    setShowPayBreakdown(prev => { const n = { ...prev }; delete n[moneda]; return n; });
+    setPayBreakdownKeys(prev => { const n = { ...prev }; delete n[moneda]; return n; });
+  };
+
+  const togglePayBreakdown = (moneda: string) => {
+    setShowPayBreakdown(prev => {
+      const next = !prev[moneda];
+      if (next) setPayBreakdownKeys(k => ({ ...k, [moneda]: (k[moneda] ?? 0) + 1 }));
+      else updatePago(moneda, { cash: pagosMap[moneda]?.cash ?? 0 });
+      return { ...prev, [moneda]: next };
+    });
   };
 
   const handleToggleBreakdown = () => {
@@ -186,17 +235,42 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     setShowBreakdown(prev => !prev);
   };
 
+  // ─── Change helpers ────────────────────────────────────────────────────────
+  const updateVuelto = (moneda: string, monto: number) => {
+    setVueltoLocked(true);
+    setVueltoMap(prev => ({ ...prev, [moneda]: monto }));
+  };
+
+  const removeVueltoMoneda = (moneda: string) => {
+    setVueltoLocked(true);
+    setVueltoMap(prev => { const n = { ...prev }; delete n[moneda]; return n; });
+  };
+
+  const addVueltoMoneda = (moneda: string) => {
+    setVueltoLocked(true);
+    const rem = Math.max(0, vueltoTotalBase - vueltoDistBase);
+    const suggested = rem > 0 ? parseFloat(convertFromBase(rem, moneda, tasasVigentes, monedaBase).toFixed(2)) : 0;
+    setVueltoMap(prev => ({ ...prev, [moneda]: suggested }));
+    setAddVueltoAnchor(null);
+  };
+
+
   // ─── Actions ──────────────────────────────────────────────────────────────
   const handleClose = () => {
     setPagosMap({});
+    setVueltoMap({});
+    setVueltoLocked(false);
     setShowBreakdown(false);
     setBreakdownResetKey(k => k + 1);
+    setShowPayBreakdown({});
+    setPayBreakdownKeys({});
     onClose();
   };
 
   const handlePayment = async () => {
     try {
       const pagosArr = pagosLinea;
+      const vueltoArr: IVueltoLinea[] = Object.entries(vueltoMap).map(([moneda, monto]) => ({ moneda, monto }));
       handleClose();
       const totalcashBase = pagosArr.filter(p => p.tipo === 'cash')
         .reduce((s, p) => s + convertToBase(p.monto, p.moneda, tasasVigentes, monedaBase), 0);
@@ -206,7 +280,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
       const multimoneda: IMultimonedaExtras = {
         monedaCobro: monedaBase,
         pagosDetalle: pagosArr,
-        vueltoDetalle: vuelto,
+        vueltoDetalle: vueltoArr,
         tasaSnapshot: tasasVigentes,
       };
       makePay(finalTotal, totalcashBase, totalTransferBase, firstTransferDestId, promoCode ? [promoCode] : [], multimoneda)
@@ -242,9 +316,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, JSON.stringify(products)]);
 
-  const canConfirm = finalTotal === 0
-    ? monedas.length > 0
-    : !falta && totalPagado > 0;
+  const canConfirm = finalTotal === 0 ? monedas.length > 0 : !falta && totalPagado > 0;
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -265,11 +337,11 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
           Cobrar:&nbsp;
           {discountTotal > 0 && (
             <span style={{ textDecoration: 'line-through', color: '#999', marginRight: 6 }}>
-              {formatCurrency(total)}
+              {fmtBase(total)}
             </span>
           )}
           <span style={{ color: discountTotal > 0 ? '#2e7d32' : 'inherit' }}>
-            {formatCurrency(finalTotal)}
+            {fmtBase(finalTotal)}
           </span>
         </Typography>
 
@@ -289,14 +361,8 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
             <Box key={moneda}>
               {idx > 0 && <Divider sx={{ my: 2 }} />}
 
-              {/* Currency label + remove */}
               <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
-                <Chip
-                  label={moneda}
-                  size="small"
-                  color={isBase ? "primary" : "default"}
-                  variant={isBase ? "filled" : "outlined"}
-                />
+                <Chip label={moneda} size="small" color={isBase ? "primary" : "default"} variant={isBase ? "filled" : "outlined"} />
                 {!isBase && (
                   <IconButton size="small" onClick={() => removeCurrency(moneda)}>
                     <CloseIcon fontSize="small" />
@@ -315,20 +381,22 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
                       value={isBase ? pago.cash : (pago.cash || '')}
                       type={isBase ? undefined : 'number'}
                       onChange={(e) => {
-                        if (isBase && !showBreakdown) {
+                        const bdActive = isBase ? showBreakdown : (showPayBreakdown[moneda] ?? false);
+                        if (bdActive) return;
+                        if (isBase) {
                           const v = e.target.value;
                           if (moneyRegex.test(v)) updatePago(moneda, { cash: Number(v) });
                           else if (v === '') updatePago(moneda, { cash: 0 });
-                        } else if (!isBase) {
+                        } else {
                           updatePago(moneda, { cash: parseFloat(e.target.value) || 0 });
                         }
                       }}
-                      inputProps={{ readOnly: isBase && showBreakdown }}
-                      sx={isBase && showBreakdown ? { bgcolor: 'action.hover' } : {}}
+                      inputProps={{ readOnly: isBase ? showBreakdown : (showPayBreakdown[moneda] ?? false) }}
+                      sx={(isBase ? showBreakdown : (showPayBreakdown[moneda] ?? false)) ? { bgcolor: 'action.hover' } : {}}
                     />
                   </FormControl>
 
-                  {isBase && (
+                  {isBase ? (
                     <>
                       <Button
                         variant="text" size="small" onClick={handleToggleBreakdown}
@@ -345,6 +413,29 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
                               targetAmount={finalTotal}
                               onChange={(t) => updatePago(monedaBase, { cash: t })}
                               resetKey={breakdownResetKey}
+                            />
+                          </Box>
+                        )}
+                      </Collapse>
+                    </>
+                  ) : (denominaciones[moneda]?.length ?? 0) > 0 && (
+                    <>
+                      <Button
+                        variant="text" size="small"
+                        onClick={() => togglePayBreakdown(moneda)}
+                        startIcon={(showPayBreakdown[moneda] ?? false) ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        sx={{ mt: 0.5, mb: 0.5, textTransform: 'none', color: 'text.secondary' }}
+                      >
+                        {(showPayBreakdown[moneda] ?? false) ? 'Ocultar desglose' : 'Desglosar billetes'}
+                      </Button>
+                      <Collapse in={showPayBreakdown[moneda] ?? false}>
+                        {(showPayBreakdown[moneda] ?? false) && (
+                          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, px: 1.5, pb: 1 }}>
+                            <BillBreakdownDynamic
+                              denominations={denominaciones[moneda]}
+                              targetAmount={pago.cash}
+                              onChange={(t) => updatePago(moneda, { cash: t })}
+                              resetKey={payBreakdownKeys[moneda] ?? 0}
                             />
                           </Box>
                         )}
@@ -380,13 +471,8 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
               {pago.transfer > 0 && transferDestinations.length > 0 && (
                 <FormControl fullWidth margin="normal">
                   <InputLabel>Destino</InputLabel>
-                  <Select
-                    value={pago.transferDestId}
-                    onChange={(e) => updatePago(moneda, { transferDestId: e.target.value })}
-                  >
-                    {transferDestinations.map(d => (
-                      <MenuItem key={d.id} value={d.id}>{d.nombre}</MenuItem>
-                    ))}
+                  <Select value={pago.transferDestId} onChange={(e) => updatePago(moneda, { transferDestId: e.target.value })}>
+                    {transferDestinations.map(d => <MenuItem key={d.id} value={d.id}>{d.nombre}</MenuItem>)}
                   </Select>
                 </FormControl>
               )}
@@ -401,33 +487,69 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
           );
         })}
 
-        {/* Add currency */}
+        {/* Add payment currency */}
         {hasExtraCurrencies && monedasDisponibles.length > 0 && (
           <Box mt={2}>
             <Button
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={(e) => {
-                if (monedasDisponibles.length === 1) {
-                  addCurrency(monedasDisponibles[0]);
-                } else {
-                  setAddMenuAnchor(e.currentTarget);
-                }
-              }}
+              size="small" startIcon={<AddIcon />}
+              onClick={(e) => monedasDisponibles.length === 1 ? addCurrency(monedasDisponibles[0]) : setAddPayAnchor(e.currentTarget)}
               sx={{ textTransform: 'none' }}
             >
               Agregar moneda
             </Button>
-            <Menu
-              anchorEl={addMenuAnchor}
-              open={Boolean(addMenuAnchor)}
-              onClose={() => setAddMenuAnchor(null)}
-            >
-              {monedasDisponibles.map(code => (
-                <MenuItem key={code} onClick={() => addCurrency(code)}>{code}</MenuItem>
-              ))}
+            <Menu anchorEl={addPayAnchor} open={Boolean(addPayAnchor)} onClose={() => setAddPayAnchor(null)}>
+              {monedasDisponibles.map(code => <MenuItem key={code} onClick={() => addCurrency(code)}>{code}</MenuItem>)}
             </Menu>
           </Box>
+        )}
+
+        {/* ── Change section ── */}
+        {!falta && vueltoTotalBase > 0 && (
+          <>
+            <Divider sx={{ my: 2 }} />
+
+            <Stack direction="row" alignItems="baseline" justifyContent="space-between" mb={1.5}>
+              <Typography variant="subtitle2" color="text.secondary">Cambio a dar</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {vueltoTotalBase.toFixed(2)} {monedaBase} equiv
+              </Typography>
+            </Stack>
+
+            {Object.entries(vueltoMap).map(([moneda, monto], idx) => (
+              <Box key={moneda} sx={{ mt: idx > 0 ? 1.5 : 0 }}>
+                <Stack direction="row" gap={1} alignItems="center">
+                  <Chip label={moneda} size="small" variant="outlined" />
+                  <OutlinedInput
+                    size="small"
+                    type="number"
+                    value={monto || ''}
+                    onChange={(e) => updateVuelto(moneda, parseFloat(e.target.value) || 0)}
+                    inputProps={{ min: 0, step: 0.01 }}
+                    sx={{ flex: 1 }}
+                  />
+                  <IconButton size="small" onClick={() => removeVueltoMoneda(moneda)}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </Box>
+            ))}
+
+            {/* Add change currency */}
+            {monedasEligiblesVuelto.length > 0 && (
+              <Box mt={1.5}>
+                <Button
+                  size="small" startIcon={<AddIcon />}
+                  onClick={(e) => monedasEligiblesVuelto.length === 1 ? addVueltoMoneda(monedasEligiblesVuelto[0]) : setAddVueltoAnchor(e.currentTarget)}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Dar cambio en otra moneda
+                </Button>
+                <Menu anchorEl={addVueltoAnchor} open={Boolean(addVueltoAnchor)} onClose={() => setAddVueltoAnchor(null)}>
+                  {monedasEligiblesVuelto.map(code => <MenuItem key={code} onClick={() => addVueltoMoneda(code)}>{code}</MenuItem>)}
+                </Menu>
+              </Box>
+            )}
+          </>
         )}
 
         <Divider sx={{ my: 2 }} />
@@ -436,8 +558,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
         <Stack spacing={1} mb={2}>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <TextField
-              label="Código de descuento"
-              value={promoCode}
+              label="Código de descuento" value={promoCode}
               onChange={(e) => setPromoCode(e.target.value.trim())}
               onKeyDown={(e) => { if (e.key === 'Enter') previewDiscount(promoCode ? [promoCode] : undefined); }}
               size="small" fullWidth
@@ -450,11 +571,11 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
             <Box>
               {applied.map(d => (
                 <Typography key={d.discountRuleId} variant="body2" color="success.main">
-                  {d.ruleName || 'Descuento'}: -{formatCurrency(d.amount)}
+                  {d.ruleName || 'Descuento'}: -{fmtBase(d.amount)}
                 </Typography>
               ))}
               <Typography variant="body2" fontWeight={600} mt={0.5}>
-                Total descuentos: -({formatCurrency(discountTotal)})
+                Total descuentos: -({fmtBase(discountTotal)})
               </Typography>
             </Box>
           )}
@@ -465,7 +586,7 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
           <Stack direction="row" justifyContent="space-between">
             <Typography variant="h6">Total:</Typography>
             <Typography variant="h6" color={discountTotal > 0 ? 'success.main' : 'inherit'} fontWeight={600}>
-              {formatCurrency(finalTotal)}
+              {fmtBase(finalTotal)}
             </Typography>
           </Stack>
           {falta ? (
@@ -475,22 +596,13 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
                 {(finalTotal - totalPagado).toFixed(2)} {monedaBase}
               </Typography>
             </Stack>
-          ) : vuelto.length === 0 ? (
+          ) : (
             <Stack direction="row" justifyContent="space-between">
               <Typography variant="h6" color="success.main">Cambio:</Typography>
-              <Typography variant="h6" color="success.main">{formatCurrency(0)}</Typography>
+              <Typography variant="h6" color="success.main">
+                {vueltoTotalBase.toFixed(2)} {monedaBase}
+              </Typography>
             </Stack>
-          ) : (
-            vuelto.map(v => (
-              <Stack key={v.moneda} direction="row" justifyContent="space-between">
-                <Typography variant="h6" color="success.main">
-                  Cambio{vuelto.length > 1 ? ` (${v.moneda})` : ''}:
-                </Typography>
-                <Typography variant="h6" color="success.main">
-                  {v.monto.toFixed(2)} {v.moneda}
-                </Typography>
-              </Stack>
-            ))
           )}
         </Stack>
 

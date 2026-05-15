@@ -79,7 +79,7 @@ export default function POSInterface() {
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
   const [noLocalActual, setNoLocalActual] = useState(false);
-  const { user, loadingContext, gotToPath } = useAppContext();
+  const { user, loadingContext, gotToPath, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { sales, addSale, markSynced, markSyncing, checkSyncTimeouts, markSyncError } = useSalesStore();
@@ -1468,7 +1468,7 @@ export default function POSInterface() {
                       >
                         <ListItemText
                           primary={product.producto.nombre}
-                          secondary={`$${product.precio} - ${getSecondaryTextForSearchedProducts(product)}`}
+                          secondary={`${product.precio.toFixed(2)} ${monedaBase} - ${getSecondaryTextForSearchedProducts(product)}`}
                           primaryTypographyProps={{
                             sx: {
                               fontWeight: normalizeSearch(product.producto.nombre)

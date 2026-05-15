@@ -3,9 +3,9 @@ import { Box, Typography, Button, Chip, IconButton, Paper, Tooltip, useMediaQuer
 import { ICartItem } from "@/store/cartStore";
 import PushPinIcon from '@mui/icons-material/PushPin';
 
-import { formatCurrencyCUP } from "@/utils/formatters";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
+import { useAppContext } from "@/context/AppContext";
 
 interface IProps {
   clear?: () => void;
@@ -33,6 +33,9 @@ export const CartContent = ({
 
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { showMessage } = useMessageContext();
+  const { monedaBase } = useAppContext();
+
+  const fmtBase = (amount: number) => `${amount.toFixed(2)} ${monedaBase}`;
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -260,7 +263,7 @@ export const CartContent = ({
               >
                 <Box display="flex" flexDirection="column" alignItems="flex-start">
                   <Typography variant="body2" color="green" fontWeight="medium">
-                    {formatCurrencyCUP(item.price)}
+                    {fmtBase(item.price)}
                   </Typography>
 
                   <Box
@@ -318,7 +321,7 @@ export const CartContent = ({
                         fontSize: isCartPinned ? '0.8rem' : '0.75rem'
                       }}
                     >
-                      Total: {formatCurrencyCUP(item.price * item.quantity)}
+                      Total: {fmtBase(item.price * item.quantity)}
                     </Typography>
                   </Box>
                 </Box>
@@ -366,7 +369,7 @@ export const CartContent = ({
               fontWeight: 'bold'
             }}
           >
-            Total: {formatCurrencyCUP(total)}
+            Total: {fmtBase(total)}
           </Typography>
         </Box>
         {onOkButtonClick && (

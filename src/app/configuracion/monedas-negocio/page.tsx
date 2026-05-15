@@ -153,7 +153,6 @@ export default function MonedasNegocioPage() {
       <ContentCard>
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={1}>
           <Box>
-            <Typography variant="h6">Monedas del negocio</Typography>
             <Typography variant="body2" color="text.secondary">
               Moneda base: <Chip label={monedaBase} size="small" color="primary" sx={{ ml: 0.5 }} />
             </Typography>
