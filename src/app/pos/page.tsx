@@ -1149,6 +1149,7 @@ export default function POSInterface() {
           }
           transferDestinations={transferDestinations}
           tiendaId={user.localActual.id}
+          cierreId={periodo?.id ?? ""}
           products={cart.map((prod) => ({
             productoTiendaId: prod.productoTiendaId,
             cantidad: prod.quantity,

@@ -43,6 +43,7 @@ interface IProps {
   ) => Promise<void>;
   transferDestinations: ITransferDestination[];
   tiendaId: string;
+  cierreId: string;
   products: { productoTiendaId: string; cantidad: number; precio: number }[];
 }
 
@@ -53,7 +54,7 @@ const defaultDestId = (dests: ITransferDestination[]) =>
     dests.length === 1 ? dests[0].id :
       dests.find(d => d.default)?.id ?? dests[0].id;
 
-const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDestinations, tiendaId, products }) => {
+const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDestinations, tiendaId, cierreId, products }) => {
   const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
 
@@ -127,6 +128,9 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
   const [vueltoLocked, setVueltoLocked] = useState(false);
   const [addVueltoAnchor, setAddVueltoAnchor] = useState<null | HTMLElement>(null);
 
+  // Net cash in drawer per currency (from previous sales in current period)
+  const [drawerBalance, setDrawerBalance] = useState<Record<string, number>>({});
+
   const vueltoDistBase = useMemo(
     () => Object.entries(vueltoMap).reduce((s, [m, amt]) => s + convertToBase(amt, m, tasasVigentes, monedaBase), 0),
     [vueltoMap, tasasVigentes, monedaBase],
@@ -177,7 +181,13 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     setVueltoLocked(false);
     setShowPayBreakdown({});
     setPayBreakdownKeys({});
-  }, [open, monedaBase]);
+    if (cierreId) {
+      fetch(`/api/cierre/${tiendaId}/${cierreId}/cash-balance`)
+        .then(r => r.ok ? r.json() : {})
+        .then((bal: Record<string, number>) => setDrawerBalance(bal))
+        .catch(() => setDrawerBalance({}));
+    }
+  }, [open, monedaBase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync base cash when finalTotal resolves (discount) — only while single-currency
   useEffect(() => {
@@ -316,7 +326,26 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, JSON.stringify(products)]);
 
-  const canConfirm = finalTotal === 0 ? monedas.length > 0 : !falta && totalPagado > 0;
+  // Drawer balance validation: available = accumulated from period + cash paid in this transaction
+  const vueltoErrors = useMemo<Record<string, string | null>>(
+    () => Object.fromEntries(
+      Object.entries(vueltoMap).map(([m, amt]) => {
+        const available = (drawerBalance[m] ?? 0) + (pagosMap[m]?.cash ?? 0);
+        if (amt > available + 0.001) {
+          return [m, `Disponible en caja: ${available.toFixed(2)} ${m}`];
+        }
+        return [m, null];
+      })
+    ),
+    [vueltoMap, drawerBalance, pagosMap],
+  );
+
+  const hasVueltoErrors = useMemo(
+    () => Object.values(vueltoErrors).some(e => e !== null),
+    [vueltoErrors],
+  );
+
+  const canConfirm = (finalTotal === 0 ? monedas.length > 0 : !falta && totalPagado > 0) && !hasVueltoErrors;
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -515,24 +544,33 @@ const PaymentModal: FC<IProps> = ({ open, onClose, total, makePay, transferDesti
               </Typography>
             </Stack>
 
-            {Object.entries(vueltoMap).map(([moneda, monto], idx) => (
-              <Box key={moneda} sx={{ mt: idx > 0 ? 1.5 : 0 }}>
-                <Stack direction="row" gap={1} alignItems="center">
-                  <Chip label={moneda} size="small" variant="outlined" />
-                  <OutlinedInput
-                    size="small"
-                    type="number"
-                    value={monto || ''}
-                    onChange={(e) => updateVuelto(moneda, parseFloat(e.target.value) || 0)}
-                    inputProps={{ min: 0, step: 0.01 }}
-                    sx={{ flex: 1 }}
-                  />
-                  <IconButton size="small" onClick={() => removeVueltoMoneda(moneda)}>
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                </Stack>
-              </Box>
-            ))}
+            {Object.entries(vueltoMap).map(([moneda, monto], idx) => {
+              const err = vueltoErrors[moneda];
+              return (
+                <Box key={moneda} sx={{ mt: idx > 0 ? 1.5 : 0 }}>
+                  <Stack direction="row" gap={1} alignItems="center">
+                    <Chip label={moneda} size="small" variant="outlined" />
+                    <OutlinedInput
+                      size="small"
+                      type="number"
+                      value={monto || ''}
+                      onChange={(e) => updateVuelto(moneda, parseFloat(e.target.value) || 0)}
+                      inputProps={{ min: 0, step: 0.01 }}
+                      sx={{ flex: 1 }}
+                      error={!!err}
+                    />
+                    <IconButton size="small" onClick={() => removeVueltoMoneda(moneda)}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                  {err && (
+                    <Typography variant="caption" color="error" display="block" mt={0.25} ml={1}>
+                      {err}
+                    </Typography>
+                  )}
+                </Box>
+              );
+            })}
 
             {/* Add change currency */}
             {monedasEligiblesVuelto.length > 0 && (

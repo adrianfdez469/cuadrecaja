@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { getSession } from "@/utils/auth";
-import type { IPagoLinea } from "@/schemas/pago";
+import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase } from "@/lib/currency";
 
@@ -158,6 +158,19 @@ export async function PUT(
             resumenMonedaMap[pago.moneda].totalTransfer += pago.monto;
           }
           resumenMonedaMap[pago.moneda].equivalenteBase += enBase;
+        }
+
+        // Subtract change given — vuelto reduces cash on hand per currency
+        if (venta.vueltoDetalle) {
+          const vueltos = venta.vueltoDetalle as unknown as IVueltoLinea[];
+          for (const vuelto of vueltos) {
+            if (!resumenMonedaMap[vuelto.moneda]) {
+              resumenMonedaMap[vuelto.moneda] = { totalEfectivo: 0, totalTransfer: 0, equivalenteBase: 0 };
+            }
+            const enBase = convertToBase(vuelto.monto, vuelto.moneda, tasas, monedaBase);
+            resumenMonedaMap[vuelto.moneda].totalEfectivo -= vuelto.monto;
+            resumenMonedaMap[vuelto.moneda].equivalenteBase -= enBase;
+          }
         }
       }
 

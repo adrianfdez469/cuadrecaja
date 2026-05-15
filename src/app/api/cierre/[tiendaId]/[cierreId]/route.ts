@@ -3,13 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { ICierreData } from "@/schemas/cierre";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
-import type { IPagoLinea } from "@/schemas/pago";
+import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase } from "@/lib/currency";
 
 type Params = { cierreId: string };
 
-function buildResumenMonedas(ventas: { pagosDetalle?: unknown; tasaSnapshot?: unknown }[], monedaBase: string) {
+function buildResumenMonedas(ventas: { pagosDetalle?: unknown; vueltoDetalle?: unknown; tasaSnapshot?: unknown }[], monedaBase: string) {
   const map: Record<string, { totalEfectivo: number; totalTransfer: number; equivalenteBase: number }> = {};
   for (const venta of ventas) {
     if (!venta.pagosDetalle) continue;
@@ -20,6 +20,15 @@ function buildResumenMonedas(ventas: { pagosDetalle?: unknown; tasaSnapshot?: un
       if (pago.tipo === 'cash') map[pago.moneda].totalEfectivo += pago.monto;
       else map[pago.moneda].totalTransfer += pago.monto;
       map[pago.moneda].equivalenteBase += convertToBase(pago.monto, pago.moneda, tasas, monedaBase);
+    }
+    // Subtract change given — reduces physical cash on hand per currency
+    if (venta.vueltoDetalle) {
+      const vueltos = venta.vueltoDetalle as IVueltoLinea[];
+      for (const vuelto of vueltos) {
+        if (!map[vuelto.moneda]) map[vuelto.moneda] = { totalEfectivo: 0, totalTransfer: 0, equivalenteBase: 0 };
+        map[vuelto.moneda].totalEfectivo -= vuelto.monto;
+        map[vuelto.moneda].equivalenteBase -= convertToBase(vuelto.monto, vuelto.moneda, tasas, monedaBase);
+      }
     }
   }
   return Object.entries(map).map(([monedaCode, vals]) => ({ id: monedaCode, monedaCode, ...vals }));
