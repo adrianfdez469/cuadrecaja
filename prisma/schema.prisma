@@ -423,8 +423,9 @@ model CierrePeriodo {
   totalGananciaFinal Float         @default(0)
   gastosCierre       GastoCierre[]
 
-  cashBreakdown  CashBreakdownCierre?
-  resumenMonedas ResumenMonedaCierre[]
+  cashBreakdown      CashBreakdownCierre?
+  resumenMonedas     ResumenMonedaCierre[]
+  cashBreakdownMoneda CashBreakdownMoneda[]
 
   // Idices
   @@index([fechaInicio])
@@ -440,6 +441,20 @@ model CashBreakdownCierre {
   items           Json
   total           Float
   updatedAt       DateTime      @updatedAt
+}
+
+// Bill breakdown per currency per period (replaces single-currency CashBreakdownCierre)
+model CashBreakdownMoneda {
+  id              String        @id @default(uuid())
+  cierrePeriodo   CierrePeriodo @relation(fields: [cierrePeriodoId], references: [id], onDelete: Cascade)
+  cierrePeriodoId String
+  monedaCode      String
+  items           Json          // IBillCount[]
+  total           Float
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([cierrePeriodoId, monedaCode])
+  @@index([cierrePeriodoId])
 }
 
 model MovimientoStock {

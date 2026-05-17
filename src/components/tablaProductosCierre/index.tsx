@@ -622,7 +622,7 @@ export const TablaProductosCierre: FC<IProps> = ({
       {/* Acordeones para productos separados con datos reales */}
       <Box sx={{ mb: 2 }}>
         {productosVendidos.filter(p => !p.proveedor).length > 0 && (
-          <Accordion expanded={expandedPropios}>
+          <Accordion expanded={expandedPropios} sx={{ border: 0 }}>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               onClick={() => setExpandedPropios(!expandedPropios)}
@@ -756,11 +756,8 @@ export const TablaProductosCierre: FC<IProps> = ({
         </Menu>
       </Box>
 
-      <Divider sx={{ my: 2 }} />
-
       {/* Tabla original (mantenida para compatibilidad) */}
       <Box sx={{ m: 2 }}>
-
         <Box display={'flex'} flexDirection={'row'} gap={2}>
 
           <Typography variant="h6" gutterBottom>
@@ -780,9 +777,6 @@ export const TablaProductosCierre: FC<IProps> = ({
           </Box>
 
         </Box>
-
-
-
         <TableContainer component={Paper} sx={{ mt: 2 }}>
           <Table size="small">
             <TableHead>

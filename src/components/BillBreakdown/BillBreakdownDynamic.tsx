@@ -8,15 +8,22 @@ interface Props {
   denominations: number[];
   targetAmount?: number;
   onChange: (total: number) => void;
+  onCounts?: (counts: Record<number, number>, total: number, isUserChange?: boolean) => void;
   resetKey?: number;
+  initialCounts?: Record<number, number>;
 }
 
-const BillBreakdownDynamic: FC<Props> = ({ denominations, targetAmount, onChange, resetKey }) => {
-  const [counts, setCounts] = useState<Record<number, number>>({});
+const BillBreakdownDynamic: FC<Props> = ({
+  denominations, targetAmount, onChange, onCounts, resetKey, initialCounts,
+}) => {
+  const [counts, setCounts] = useState<Record<number, number>>(initialCounts ?? {});
 
   useEffect(() => {
-    setCounts({});
-    onChange(0);
+    const next = initialCounts ?? {};
+    setCounts(next);
+    const total = denominations.reduce((acc, d) => acc + d * (next[d] ?? 0), 0);
+    onChange(total);
+    onCounts?.(next, total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
@@ -25,6 +32,7 @@ const BillBreakdownDynamic: FC<Props> = ({ denominations, targetAmount, onChange
     setCounts(next);
     const total = denominations.reduce((acc, d) => acc + d * (next[d] ?? 0), 0);
     onChange(total);
+    onCounts?.(next, total, true);
   };
 
   const total = denominations.reduce((acc, d) => acc + d * (counts[d] ?? 0), 0);

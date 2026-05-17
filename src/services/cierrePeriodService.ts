@@ -44,3 +44,24 @@ export const saveCashBreakdown = async (
   });
   return response.data;
 };
+
+export const fetchMonedaBreakdown = async (
+  tiendaId: string,
+  cierreId: string,
+  monedaCode: string,
+): Promise<{ items: IBillCount[]; total: number } | null> => {
+  const response = await axios.get<{ items: IBillCount[]; total: number } | null>(
+    `${API_URL(tiendaId)}/${cierreId}/moneda-breakdown/${monedaCode}`,
+  );
+  return response.data;
+};
+
+export const saveMonedaBreakdown = async (
+  tiendaId: string,
+  cierreId: string,
+  monedaCode: string,
+  items: IBillCount[],
+  total: number,
+): Promise<void> => {
+  await axios.put(`${API_URL(tiendaId)}/${cierreId}/moneda-breakdown/${monedaCode}`, { items, total });
+};
