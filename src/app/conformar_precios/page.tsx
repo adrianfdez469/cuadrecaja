@@ -81,6 +81,14 @@ type Producto = {
   precio: number;
 };
 
+type RawProductoCosto = {
+  id: string;
+  proveedor?: { nombre: string };
+  producto: { nombre: string };
+  costo?: number;
+  precio?: number;
+};
+
 interface MobileCardProps {
   producto: Producto;
   isDirty: boolean;
@@ -206,7 +214,7 @@ const PreciosCantidades = () => {
     try {
       setLoading(true);
       const data = await fecthCostosPreciosProds(user.localActual.id);
-      const mapped = (data || []).map((p: any) => ({
+      const mapped = ((data || []) as RawProductoCosto[]).map((p) => ({
         ...p,
         nombre: p.proveedor?.nombre ? `${p.producto.nombre} - ${p.proveedor.nombre}` : p.producto.nombre,
         costo: p.costo || 0,

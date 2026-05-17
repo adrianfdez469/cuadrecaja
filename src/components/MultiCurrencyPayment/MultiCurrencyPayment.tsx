@@ -63,12 +63,6 @@ export function MultiCurrencyPayment({
     return lista;
   }, [monedaBase, monedasDisponibles]);
 
-  // Remaining amount (in monedaBase) after the already-entered payments
-  const remaining = useMemo(
-    () => Math.max(0, totalBase - totalPagadoBase),
-    [totalBase, totalPagadoBase],
-  );
-
   const suggestMonto = (moneda: string, excludeIdx?: number): number => {
     const otherPaid = pagos
       .filter((_, i) => i !== excludeIdx)

@@ -1,7 +1,7 @@
 import { ILocal } from "@/schemas/tienda";
 import { INegocio } from "@/schemas/negocio";
 
-export default async function(req: Request): Promise<{
+export default async function getUserFromRequest(req: Request): Promise<{
   id: string,
   rol: string,
   nombre: string,

@@ -15,8 +15,6 @@ import {
   useTheme,
   IconButton,
   Tooltip,
-  Collapse,
-  Chip,
   Divider,
 } from "@mui/material";
 import { closePeriod, fetchCierreData, openPeriod } from "@/services/cierrePeriodService";
@@ -48,7 +46,7 @@ import MonedaBreakdownRow from "@/app/cierre/components/MonedaBreakdownRow";
 import { DENOMINACIONES } from "@/constants/billDenominations";
 
 const CierreCajaPage = () => {
-  const { user, loadingContext, gotToPath, monedasNegocio, monedaBase } = useAppContext();
+  const { user, loadingContext, gotToPath, monedasNegocio } = useAppContext();
   const { showMessage } = useMessageContext();
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>()
   const [isDataLoading, setIsDataLoading] = useState(true);
