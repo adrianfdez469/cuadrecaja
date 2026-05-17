@@ -648,45 +648,32 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             </IconButton>
           )}
 
-          <Box sx={{
-            flexGrow: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            justifyContent: 'center',
-            alignContent: 'center',
-            // gap: {xs: 0, sm: 2}
-          }}>
-            {user?.negocio?.nombre && (
+          {isAuth && user?.localActual && (
+            <Box
+              display="flex"
+              alignItems="center"
+              gap={0.5}
+              sx={{ cursor: 'pointer' }}
+              onClick={() => gotToPath('/home')}
+            >
+              <StoreIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+              <Typography variant="body2" fontWeight={700}>
+                {user.localActual.nombre}
+              </Typography>
+            </Box>
+          )}
 
-              <Chip
-                label={user?.negocio?.nombre}
-                variant="outlined"
-                sx={{
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  fontWeight: 500,
-                  display: 'flex'
-                }}
-                onClick={()=> gotToPath('/home')}
-              />
-            )}
-          </Box>
+          <Box sx={{ flexGrow: 1 }} />
 
           {isAuth && user ? (
-            <Box display="flex" flexDirection={'row'} alignItems="center" gap={0}>
-              {/* Info del usuario mejorada */}
-              <StoreIcon />
-              <Typography variant="body2" fontWeight={700} color="text.green">
-                {user?.localActual?.nombre}
-              </Typography>
+            <Box display="flex" flexDirection={'row'} alignItems="center" gap={1}>
               {monedaBase && (
                 <Chip
                   label={monedaBase}
                   size="small"
                   variant="outlined"
                   icon={<MonetizationOnIcon style={{ fontSize: 14 }} />}
-                  sx={{ ml: 1, fontWeight: 700, fontSize: '0.7rem', borderColor: 'primary.main', color: 'primary.main' }}
+                  sx={{ fontWeight: 700, fontSize: '0.7rem', borderColor: 'primary.main', color: 'primary.main' }}
                 />
               )}
 
@@ -760,11 +747,19 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="body1" fontWeight={600} color="text.primary">
-                        {user?.nombre || user?.usuario}
+                        {user?.nombre}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" display="block">
                         {user?.rol}
                       </Typography>
+                      {user?.rol === 'SUPER_ADMIN' && user?.negocio?.nombre && (
+                        <Chip
+                          label={user.negocio.nombre}
+                          size="small"
+                          variant="outlined"
+                          sx={{ mt: 0.25, mb: 0.25, borderColor: 'primary.main', color: 'primary.main', fontWeight: 500, fontSize: '0.7rem' }}
+                        />
+                      )}
                     </Box>
                   </Box>
                 </Box>
