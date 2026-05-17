@@ -1,6 +1,7 @@
 import { ICierreData } from "@/schemas/cierre";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import { IBillCount, ICashBreakdownCierre } from "@/schemas/billBreakdown";
+import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import axios from "@/lib/axiosClient";
 
 const API_URL = (tiendaId) => `/api/cierre/${tiendaId}`; // Ruta base del backend
@@ -53,6 +54,14 @@ export const fetchMonedaBreakdown = async (
   const response = await axios.get<{ items: IBillCount[]; total: number } | null>(
     `${API_URL(tiendaId)}/${cierreId}/moneda-breakdown/${monedaCode}`,
   );
+  return response.data;
+};
+
+export const fetchTasasAtClose = async (
+  tiendaId: string,
+  cierreId: string,
+): Promise<ITasaSnapshot> => {
+  const response = await axios.get<ITasaSnapshot>(`${API_URL(tiendaId)}/${cierreId}/tasas-at-close`);
   return response.data;
 };
 
