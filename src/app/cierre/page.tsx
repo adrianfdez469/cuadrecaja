@@ -15,7 +15,7 @@ import {
   useTheme,
   IconButton,
   Tooltip,
-  Collapse,
+  Divider,
 } from "@mui/material";
 import { closePeriod, fetchCierreData, openPeriod } from "@/services/cierrePeriodService";
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
@@ -42,11 +42,11 @@ import GastoCierreList from "@/app/gastos/components/GastoCierreList";
 import GastoAdHocDialog from "@/app/gastos/components/GastoAdHocDialog";
 import { createGastoAdHoc, getGastosTienda } from "@/services/gastoService";
 import { IGastoAdHocCreate } from "@/schemas/gastos";
-import CashVerificationDialog from "@/app/cierre/components/CashVerificationDialog";
-import LocalAtmIcon from "@mui/icons-material/LocalAtm";
+import MonedaBreakdownRow from "@/app/cierre/components/MonedaBreakdownRow";
+import { DENOMINACIONES } from "@/constants/billDenominations";
 
 const CierreCajaPage = () => {
-  const { user, loadingContext, gotToPath } = useAppContext();
+  const { user, loadingContext, gotToPath, monedasNegocio } = useAppContext();
   const { showMessage } = useMessageContext();
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>()
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -61,8 +61,6 @@ const CierreCajaPage = () => {
   const [isProcessingCierre, setIsProcessingCierre] = useState(false);
   const [gastosReviewOpen, setGastosReviewOpen] = useState(false);
   const [adHocOpen, setAdHocOpen] = useState(false);
-  const [cashVerifOpen, setCashVerifOpen] = useState(false);
-  const [breakdownTotal, setBreakdownTotal] = useState<number | null>(null);
   const [categoriasGastos, setCategoriasGastos] = useState<string[]>([]);
   const { ConfirmDialogComponent } = useConfirmDialog();
   const { clearSales, sales } = useSalesStore();
@@ -95,7 +93,7 @@ const CierreCajaPage = () => {
     try {
       await closePeriod(localId, currentPeriod.id);
       clearSales();
-      setBreakdownTotal(null);
+
       await openPeriod(localId);
       showMessage('Cierre de caja realizado exitosamente', 'success');
     } catch (error) {
@@ -247,21 +245,12 @@ const CierreCajaPage = () => {
     { label: 'Cierre de Caja' }
   ];
 
-  const expectedCash = (cierreData?.totalVentas ?? 0) - (cierreData?.totalTransferencia ?? 0);
-
   const headerActions = (
     <Stack direction="row-reverse" spacing={1} sx={{ width: '100%'}}>
       {canManageGastos && currentPeriod && !currentPeriod.fechaFin && (
         <Tooltip title="Registrar gasto puntual del período">
           <IconButton onClick={() => setAdHocOpen(true)} size={isMobile ? "small" : "medium"}>
             <ReceiptLongIcon />
-          </IconButton>
-        </Tooltip>
-      )}
-      {cierreData && currentPeriod && !currentPeriod.fechaFin && (
-        <Tooltip title="Verificar efectivo en caja">
-          <IconButton onClick={() => setCashVerifOpen(true)} size={isMobile ? "small" : "medium"}>
-            <LocalAtmIcon />
           </IconButton>
         </Tooltip>
       )}
@@ -368,28 +357,8 @@ const CierreCajaPage = () => {
         breadcrumbs={breadcrumbs}
         headerActions={headerActions}
         maxWidth="xl"
+        contentProps={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, sm: 3 } }}
       >
-        {/* Alert de verificación de efectivo en tiempo real */}
-        <Collapse in={breakdownTotal !== null}>
-          {breakdownTotal !== null && (() => {
-            const diff = breakdownTotal - expectedCash
-            const isMatch = diff === 0
-            const isOver = diff > 0
-            return (
-              <Alert
-                severity={diff >= 0 ? 'success' : 'error'}
-                sx={{ mb: 2 }}
-              >
-                {isMatch
-                  ? `Cuadre perfecto — el efectivo contado coincide con el total del período (${formatCurrency(expectedCash)})`
-                  : isOver
-                    ? `Excedente de ${formatCurrency(diff)} — se contaron ${formatCurrency(breakdownTotal)} vs ${formatCurrency(expectedCash)} esperados`
-                    : `Faltan ${formatCurrency(Math.abs(diff))} — se contaron ${formatCurrency(breakdownTotal)} vs ${formatCurrency(expectedCash)} esperados`}
-              </Alert>
-            )
-          })()}
-        </Collapse>
-
         {/* Estadísticas del cierre */}
         <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
           
@@ -463,8 +432,39 @@ const CierreCajaPage = () => {
           </Grid>
         </Grid>
 
+        {/* Desglose por moneda (solo visible si hay ventas multimoneda) */}
+        {cierreData.resumenMonedas && cierreData.resumenMonedas.length > 0 && (
+          <ContentCard title="Desglose por Moneda" subtitle={!isMobile ? "Ingresos reales por moneda de cobro" : undefined}>
+            <Stack spacing={1.5} divider={<Divider flexItem />}>
+              {cierreData.resumenMonedas.map((rm) => {
+                const negocioMoneda = monedasNegocio.find(m => m.monedaCode === rm.monedaCode);
+                // Denominations from DB config; CUP falls back to static list if not configured
+                const denominations =
+                  negocioMoneda?.moneda?.denominaciones
+                    ?.filter(d => d.activo)
+                    .map(d => d.valor)
+                    .sort((a, b) => b - a)
+                  ?? (rm.monedaCode === 'CUP' ? [...DENOMINACIONES.CUP].sort((a, b) => b - a) : []);
+                return (
+                  <MonedaBreakdownRow
+                    key={rm.monedaCode}
+                    monedaCode={rm.monedaCode}
+                    totalEfectivo={rm.totalEfectivo}
+                    totalTransfer={rm.totalTransfer}
+                    equivalenteBase={rm.equivalenteBase}
+                    tiendaId={user?.localActual?.id ?? ''}
+                    cierreId={currentPeriod.id}
+                    isOpen={!currentPeriod.fechaFin}
+                    denominations={denominations}
+                  />
+                );
+              })}
+            </Stack>
+          </ContentCard>
+        )}
+
         {/* Tabla de productos vendidos */}
-        <ContentCard 
+        <ContentCard
           title="Detalle de Productos Vendidos"
           subtitle={!isMobile ? "Resumen completo de las ventas del período actual" : undefined}
           noPadding
@@ -507,14 +507,7 @@ const CierreCajaPage = () => {
           />
         )}
 
-        <CashVerificationDialog
-          open={cashVerifOpen}
-          onClose={() => setCashVerifOpen(false)}
-          expectedCash={expectedCash}
-          tiendaId={user?.localActual?.id ?? ''}
-          cierreId={currentPeriod?.id ?? ''}
-          onBreakdownChange={setBreakdownTotal}
-        />
+
       </PageContainer>
     );
   }

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { getSession } from "@/utils/auth";
+import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
+import type { ITasaSnapshot } from "@/schemas/tasaCambio";
+import { convertToBase } from "@/lib/currency";
 
 export async function PUT(
   req: NextRequest,
@@ -26,6 +29,10 @@ export async function PUT(
         { status: 403 }
       );
     }
+
+    // Get monedaBase for currency conversions
+    const tienda = await prisma.tienda.findUnique({ where: { id: tiendaId }, select: { negocio: { select: { monedaBase: true } } } });
+    const monedaBase = tienda?.negocio?.monedaBase ?? 'CUP';
 
     // Buscar el último período abierto
     const ultimoPeriodo = await prisma.cierrePeriodo.findFirst({
@@ -102,10 +109,9 @@ export async function PUT(
 
     const [periodoCerrado] = await prisma.$transaction(async (tx) => {
 
-      // Eliminar desglose de billetes temporal antes de cerrar
-      await tx.cashBreakdownCierre.deleteMany({
-        where: { cierrePeriodoId: ultimoPeriodo.id },
-      });
+      // Eliminar desgloses de billetes temporales antes de cerrar
+      await tx.cashBreakdownCierre.deleteMany({ where: { cierrePeriodoId: ultimoPeriodo.id } });
+      await tx.cashBreakdownMoneda.deleteMany({ where: { cierrePeriodoId: ultimoPeriodo.id } });
 
       // Reconciliar gastos aplicados (pueden haber sido aplicados antes del close via /apply)
       const gastosCierre = await tx.gastoCierre.findMany({
@@ -131,6 +137,54 @@ export async function PUT(
           totalGananciaFinal,
         },
       });
+
+      // Calcular ResumenMonedaCierre agrupando pagosDetalle de todas las ventas
+      const resumenMonedaMap: Record<string, { totalEfectivo: number; totalTransfer: number; equivalenteBase: number }> = {};
+
+      for (const venta of ultimoPeriodo.ventas) {
+        if (!venta.pagosDetalle) continue;
+        const pagos = venta.pagosDetalle as unknown as IPagoLinea[];
+        const tasas = (venta.tasaSnapshot as unknown as ITasaSnapshot) ?? {};
+
+        for (const pago of pagos) {
+          if (!resumenMonedaMap[pago.moneda]) {
+            resumenMonedaMap[pago.moneda] = { totalEfectivo: 0, totalTransfer: 0, equivalenteBase: 0 };
+          }
+          const enBase = convertToBase(pago.monto, pago.moneda, tasas, monedaBase);
+          if (pago.tipo === 'cash') {
+            resumenMonedaMap[pago.moneda].totalEfectivo += pago.monto;
+          } else {
+            resumenMonedaMap[pago.moneda].totalTransfer += pago.monto;
+          }
+          resumenMonedaMap[pago.moneda].equivalenteBase += enBase;
+        }
+
+        // Subtract change given — vuelto reduces cash on hand per currency
+        if (venta.vueltoDetalle) {
+          const vueltos = venta.vueltoDetalle as unknown as IVueltoLinea[];
+          for (const vuelto of vueltos) {
+            if (!resumenMonedaMap[vuelto.moneda]) {
+              resumenMonedaMap[vuelto.moneda] = { totalEfectivo: 0, totalTransfer: 0, equivalenteBase: 0 };
+            }
+            const enBase = convertToBase(vuelto.monto, vuelto.moneda, tasas, monedaBase);
+            resumenMonedaMap[vuelto.moneda].totalEfectivo -= vuelto.monto;
+            resumenMonedaMap[vuelto.moneda].equivalenteBase -= enBase;
+          }
+        }
+      }
+
+      if (Object.keys(resumenMonedaMap).length > 0) {
+        await tx.resumenMonedaCierre.createMany({
+          data: Object.entries(resumenMonedaMap).map(([monedaCode, vals]) => ({
+            cierrePeriodoId: periodoCerrado.id,
+            monedaCode,
+            totalEfectivo: vals.totalEfectivo,
+            totalTransfer: vals.totalTransfer,
+            equivalenteBase: vals.equivalenteBase,
+          })),
+          skipDuplicates: true,
+        });
+      }
 
       const liquidaciones = {};
       for (const venta of ultimoPeriodo.ventas) {

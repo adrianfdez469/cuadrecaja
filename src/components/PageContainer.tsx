@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import {
   Box,
+  BoxProps,
   Typography,
   Breadcrumbs,
   Link,
@@ -22,6 +23,8 @@ interface PageContainerProps {
   }>;
   headerActions?: ReactNode;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | false;
+  /** Props forwarded to the content wrapper Box */
+  contentProps?: BoxProps;
   children: ReactNode;
 }
 
@@ -31,6 +34,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   breadcrumbs,
   headerActions,
   maxWidth = 'xl',
+  contentProps,
   children
 }) => {
   const router = useRouter();
@@ -147,7 +151,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
           </Box>
 
           {/* Content */}
-          <Box>
+          <Box {...contentProps}>
             {children}
           </Box>
         </Box>

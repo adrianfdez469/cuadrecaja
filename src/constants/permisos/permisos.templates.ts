@@ -57,6 +57,7 @@ export const permisosTemplates = {
         "operaciones.movimientos.crear.transferencia",
         "operaciones.movimientos.crear.recepcion",
         "operaciones.movimientos.crear.consignacion_entrada",
-        "operaciones.movimientos.crear.consignacion_devolucion"
+        "operaciones.movimientos.crear.consignacion_devolucion",
+        "configuracion.administrador"
     ],
 }

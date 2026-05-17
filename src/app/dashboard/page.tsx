@@ -46,7 +46,9 @@ import {
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
+import { TasasBanner } from "@/components/TasasBanner";
 import { formatCurrency, formatNumber, formatDate } from "@/utils/formatters";
+import { convertFromBase } from "@/lib/currency";
 import { getDashboardMetrics } from "@/services/dashboardService";
 
 // Interfaces para los datos del dashboard
@@ -100,8 +102,18 @@ export default function DashboardPage() {
     tienda: 'actual'
   });
   
-  const { user, loadingContext } = useAppContext();
+  const { user, loadingContext, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
+
+  const [displayCurrency, setDisplayCurrency] = useState<string>(monedaBase);
+  useEffect(() => { setDisplayCurrency(monedaBase); }, [monedaBase]);
+
+  const availableCurrencies = [
+    monedaBase,
+    ...monedasNegocio.filter(m => m.activo && m.monedaCode !== monedaBase).map(m => m.monedaCode),
+  ];
+  const hasMultipleCurrencies = availableCurrencies.length > 1;
+  const fmtS = (amt: number) => formatCurrency(convertFromBase(amt, displayCurrency, tasasVigentes, monedaBase));
 
   // Función para obtener las métricas del dashboard
   const fetchDashboardMetrics = async () => {
@@ -239,7 +251,7 @@ export default function DashboardPage() {
     format?: 'number' | 'currency';
   }) => {
     const percentage = total > 0 ? (current / total) * 100 : 0;
-    const formatValue = (value: number) => format === 'currency' ? formatCurrency(value) : formatNumber(value);
+    const formatValue = (value: number) => format === 'currency' ? fmtS(value) : formatNumber(value);
     
     return (
       <Card sx={{ height: '100%' }}>
@@ -319,6 +331,13 @@ export default function DashboardPage() {
 
   const headerActions = (
     <Stack direction="row" spacing={1} alignItems="center">
+      {hasMultipleCurrencies && (
+        <FormControl size="small" sx={{ minWidth: 90 }}>
+          <Select value={displayCurrency} onChange={e => setDisplayCurrency(e.target.value)} displayEmpty>
+            {availableCurrencies.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+          </Select>
+        </FormControl>
+      )}
       <Tooltip title="Actualizar métricas">
         <IconButton onClick={handleRefresh} disabled={loading} size="small">
           <Refresh />
@@ -340,6 +359,7 @@ export default function DashboardPage() {
       headerActions={headerActions}
       maxWidth="xl"
     >
+      <TasasBanner tasas={tasasVigentes} sx={{ mb: 2 }} />
       {/* Filtros */}
       <Collapse in={filtersExpanded}>
         <Paper sx={{ p: 2, mb: 3 }}>
@@ -443,7 +463,7 @@ export default function DashboardPage() {
                 <MetricCard
                   icon={<AttachMoney />}
                   title="Ventas del Período"
-                  value={formatCurrency(metrics.ventas.totalPeriodoActual)}
+                  value={fmtS(metrics.ventas.totalPeriodoActual)}
                   subtitle={`${metrics.ventas.cantidadVentasPeriodo} transacciones`}
                   color="success.main"
                   trend="up"
@@ -456,7 +476,7 @@ export default function DashboardPage() {
                 <MetricCard
                   icon={<CalendarToday />}
                   title="Ventas de Hoy"
-                  value={formatCurrency(metrics.ventas.totalHoy)}
+                  value={fmtS(metrics.ventas.totalHoy)}
                   subtitle={`${metrics.ventas.cantidadVentasHoy} transacciones`}
                   color="info.main"
                 />
@@ -466,7 +486,7 @@ export default function DashboardPage() {
                 <MetricCard
                   icon={<TrendingUp />}
                   title="Promedio Diario"
-                  value={formatCurrency(metrics.ventas.promedioVentaDiaria)}
+                  value={fmtS(metrics.ventas.promedioVentaDiaria)}
                   subtitle={`En ${metrics.general.diasPeriodoActual} días`}
                   color="primary.main"
                 />
@@ -526,7 +546,7 @@ export default function DashboardPage() {
                 <MetricCard
                   icon={<AttachMoney />}
                   title="Valor Inventario"
-                  value={formatCurrency(metrics.inventario.valorTotalInventario)}
+                  value={fmtS(metrics.inventario.valorTotalInventario)}
                   subtitle="Valor total en stock"
                   color="info.main"
                 />

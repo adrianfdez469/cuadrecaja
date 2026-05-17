@@ -42,11 +42,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       totaltransfer,
       transferDestinationId,
 
-      syncId: syncIdBody, // Id unico de transación y sincronización
-      createdAt, // Fecha y hora real de la creación la venta en el frontend
-      wasOffline, // El intento de venta fue realizado sin conexión?
-      syncAttempts, // Cantidad de reintentos alcanzados 
-      discountCodes // 🆕 Lista opcional de códigos de descuento a aplicar
+      syncId: syncIdBody,
+      createdAt,
+      wasOffline,
+      syncAttempts,
+      discountCodes,
+      // Multimoneda (opcionales — backward-compatible)
+      monedaCobro,
+      pagosDetalle,
+      vueltoDetalle,
+      tasaSnapshot,
     } = await req.json();
 
     syncId = syncIdBody;
@@ -218,7 +223,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
               precio: p.precio
             })),
           },
-          ...((transferDestinationId && totaltransfer > 0) && { transferDestinationId: transferDestinationId }),
+          ...((transferDestinationId && totaltransfer > 0) && { transferDestinationId }),
+          // Multimoneda
+          ...(monedaCobro && { monedaCobro }),
+          ...(pagosDetalle && { pagosDetalle }),
+          ...(vueltoDetalle && { vueltoDetalle }),
+          ...(tasaSnapshot && { tasaSnapshot }),
         },
         include: {
           productos: true

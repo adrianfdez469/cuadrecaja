@@ -265,9 +265,6 @@ export default function RolesPage() {
     <PageContainer title="Gestión de Roles">
       <ContentCard>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Gestión de Roles
-          </Typography>
           <Button
             variant="contained"
             startIcon={<Add />}

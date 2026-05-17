@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from "react";
+import { FC, useState, useEffect, useMemo } from "react";
 
 import {
   Box,
@@ -45,6 +45,7 @@ import dayjs, { Dayjs } from "dayjs";
 import { getProveedores, createProveedor } from "@/services/proveedorService";
 import { IProveedor } from "@/schemas/proveedor";
 import { requiereCPP } from "@/lib/cpp-calculator";
+import { convertToBase } from "@/lib/currency";
 import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
 import { IProductoDisponible, OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal";
 import { ILocal } from "@/schemas/tienda";
@@ -110,7 +111,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const [proveedores, setProveedores] = useState<IProveedor[]>([]);
   const [loadingProveedores, setLoadingProveedores] = useState(false);
   const [creandoProveedor, setCreandoProveedor] = useState(false);
-  const { user } = useAppContext();
+  const { user, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const [loadingProductos, setLoadingProductos] = useState(false);
   const {
     isOpen,
@@ -124,7 +125,16 @@ export const AddMovimientoDialog: FC<IProps> = ({
 
   const [destinations, setDestinations] = useState<ILocal[]>([])
   const [destinationId, setDestinationId] = useState<string>("")
+  const [monedaCompra, setMonedaCompra] = useState<string>(monedaBase);
   const { verificarPermiso } = usePermisos()
+
+  const monedasParaCompra = useMemo(() => {
+    const lista = [monedaBase];
+    for (const nm of monedasNegocio) {
+      if (nm.activo && nm.monedaCode !== monedaBase) lista.push(nm.monedaCode);
+    }
+    return lista;
+  }, [monedaBase, monedasNegocio]);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -168,9 +178,13 @@ export const AddMovimientoDialog: FC<IProps> = ({
     if(verificarPermiso("operaciones.movimientos.crear.compra")) {
       setTipo("COMPRA")
     } else if ( verificarPermiso("operaciones.movimientos.crear.transferencia")) {
-      setTipo("TRASPASO_SALIDA") 
+      setTipo("TRASPASO_SALIDA")
     }
   }, [])
+
+  useEffect(() => {
+    if (tipo !== "COMPRA") setMonedaCompra(monedaBase);
+  }, [tipo, monedaBase]);
 
   const tienePermisoAMovimiento = (tipoMov: ITipoMovimiento) => {
 
@@ -266,14 +280,19 @@ export const AddMovimientoDialog: FC<IProps> = ({
           })
         },
         itemsProductos.map((item) => {
+          const isExtraCurrency = tipo === "COMPRA" && monedaCompra !== monedaBase && item.costoUnitario;
+          const costoBase = isExtraCurrency
+            ? convertToBase(item.costoUnitario, monedaCompra, tasasVigentes, monedaBase)
+            : item.costoUnitario;
+
           return {
             cantidad: item.cantidad,
             productoId: item.productoId,
 
             // Agregar costos si es necesario
             ...(requiereCPP(tipo) && item.costoUnitario && {
-              costoUnitario: item.costoUnitario,
-              costoTotal: item.costoTotal
+              costoUnitario: costoBase,
+              costoTotal: costoBase * item.cantidad
             }),
             ...(item.proveedor && tipo === "TRASPASO_SALIDA" && {
               proveedorId: item.proveedor.id
@@ -281,6 +300,12 @@ export const AddMovimientoDialog: FC<IProps> = ({
             // Fecha de vencimiento por producto (solo para entradas)
             ...((tipo === "COMPRA" || tipo === "AJUSTE_ENTRADA") && item.fechaVencimiento && {
               fechaVencimiento: item.fechaVencimiento
+            }),
+            // Snapshot de moneda original cuando se compra en divisa
+            ...(isExtraCurrency && {
+              monedaOriginal: monedaCompra,
+              montoOriginal: item.costoUnitario,
+              tasaUsada: tasasVigentes[monedaCompra]
             })
           };
         })
@@ -763,6 +788,22 @@ export const AddMovimientoDialog: FC<IProps> = ({
             />
           )}
 
+          {/* Moneda de compra — solo para COMPRA y si hay más de una moneda */}
+          {tipo === "COMPRA" && monedasParaCompra.length > 1 && (
+            <FormControl fullWidth margin="normal" size="small">
+              <InputLabel>Moneda de compra</InputLabel>
+              <Select
+                value={monedaCompra}
+                label="Moneda de compra"
+                onChange={(e) => setMonedaCompra(e.target.value)}
+              >
+                {monedasParaCompra.map((code) => (
+                  <MenuItem key={code} value={code}>{code}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
           <Button
             sx={{ mb: 2, mt: 2 }}
             variant="contained"
@@ -784,12 +825,28 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     <Typography variant="body2" color="text.secondary">
                       {p.cantidad === 1 ? "1 unidad" : `${p.cantidad} unidades`}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {`Costo unitario: ${formatCurrency(p.costoUnitario || 0)}`}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {`Costo total: ${formatCurrency(p.costoTotal || 0)}`}
-                    </Typography>
+                    {tipo === "COMPRA" && monedaCompra !== monedaBase ? (
+                      <>
+                        <Typography variant="body2" color="text.secondary">
+                          {`Costo unitario: ${p.costoUnitario || 0} ${monedaCompra}`}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {`≈ ${formatCurrency(convertToBase(p.costoUnitario || 0, monedaCompra, tasasVigentes, monedaBase))} (${monedaBase})`}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {`Costo total: ${(p.costoUnitario || 0) * p.cantidad} ${monedaCompra}`}
+                        </Typography>
+                      </>
+                    ) : (
+                      <>
+                        <Typography variant="body2" color="text.secondary">
+                          {`Costo unitario: ${formatCurrency(p.costoUnitario || 0)}`}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {`Costo total: ${formatCurrency(p.costoTotal || 0)}`}
+                        </Typography>
+                      </>
+                    )}
                     {(tipo === "COMPRA" || tipo === "AJUSTE_ENTRADA") && (
                       <Box sx={{ mt: 1.5 }}>
                         <DatePicker

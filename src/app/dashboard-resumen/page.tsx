@@ -7,7 +7,10 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  FormControl,
   IconButton,
+  MenuItem,
+  Select,
   Stack,
   Table,
   TableBody,
@@ -26,7 +29,9 @@ import Grid from "@mui/material/Grid2";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
+import { TasasBanner } from "@/components/TasasBanner";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
+import { convertFromBase } from "@/lib/currency";
 import { getDashboardResumen } from "@/services/dashboardService";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
@@ -76,8 +81,18 @@ export default function DashboardResumenPage() {
     fechaFin: null
   });
 
-  const { user, loadingContext } = useAppContext();
+  const { user, loadingContext, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
+
+  const [displayCurrency, setDisplayCurrency] = useState<string>(monedaBase);
+  useEffect(() => { setDisplayCurrency(monedaBase); }, [monedaBase]);
+
+  const availableCurrencies = [
+    monedaBase,
+    ...monedasNegocio.filter(m => m.activo && m.monedaCode !== monedaBase).map(m => m.monedaCode),
+  ];
+  const hasMultipleCurrencies = availableCurrencies.length > 1;
+  const fmtS = (amt: number) => formatCurrency(convertFromBase(amt, displayCurrency, tasasVigentes, monedaBase));
 
   // Función para obtener las métricas del dashboard
   const fetchDashboardMetrics = async () => {
@@ -192,9 +207,19 @@ export default function DashboardResumenPage() {
       sx={{
         width: '100%',
         justifyContent: 'flex-end',
-        mt: { xs: 1, sm: 0 } // Separación extra en móvil si es necesario
+        mt: { xs: 1, sm: 0 }
       }}
     >
+      {hasMultipleCurrencies && (
+        <FormControl size="small" sx={{ minWidth: 90 }}>
+          <Select value={displayCurrency} onChange={e => setDisplayCurrency(e.target.value)} displayEmpty>
+            {availableCurrencies.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+          </Select>
+        </FormControl>
+      )}
+
+      <TasasBanner tasas={tasasVigentes} sx={{ mb: 2 }} />
+
       <ToggleButtonGroup
         value={filters.periodo}
         exclusive
@@ -307,7 +332,7 @@ export default function DashboardResumenPage() {
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <MetricCard
                 title={filters.periodo === 'dia' ? "Ventas de hoy" : filters.periodo === 'mes' ? "Ventas del mes" : "Ventas del período"}
-                value={formatCurrency(metrics.ventas.totalPeriodo)}
+                value={fmtS(metrics.ventas.totalPeriodo)}
               />
             </Grid>
 
@@ -321,7 +346,7 @@ export default function DashboardResumenPage() {
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <MetricCard
                 title="Ganancia estimada"
-                value={formatCurrency(metrics.ventas.gananciaTotal)}
+                value={fmtS(metrics.ventas.gananciaTotal)}
               />
             </Grid>
 
@@ -375,9 +400,9 @@ export default function DashboardResumenPage() {
                         dataset={metrics.topGanancias}
                         layout="horizontal"
                         yAxis={[{ scaleType: 'band', dataKey: 'nombre', width: 160 }]}
-                        xAxis={[{ valueFormatter: (value) => formatCurrency(value) }]}
-                        series={[{ dataKey: 'ganancia', label: 'Ganancia', valueFormatter: (value) => formatCurrency(value) }]}
-                        barLabel={(item) => item.value != null ? formatCurrency(item.value) : null}
+                        xAxis={[{ valueFormatter: (value) => fmtS(value) }]}
+                        series={[{ dataKey: 'ganancia', label: 'Ganancia', valueFormatter: (value) => fmtS(value) }]}
+                        barLabel={(item) => item.value != null ? fmtS(item.value) : null}
                         height={350}
                         margin={{ top: 10, bottom: 20, left: 10, right: 10 }}
                       />

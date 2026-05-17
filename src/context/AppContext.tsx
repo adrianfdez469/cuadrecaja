@@ -6,6 +6,10 @@ import { signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { ILocal } from "@/schemas/tienda";
 import { INegocio } from "@/schemas/negocio";
+import type { INegocioMoneda } from "@/schemas/moneda";
+import type { ITasaSnapshot } from "@/schemas/tasaCambio";
+import { getMonedasNegocio } from "@/services/monedaService";
+import { getTasasCambio } from "@/services/tasaCambioService";
 
 interface ISessionUser {
   id: string;
@@ -25,7 +29,12 @@ const AppContext = createContext<{
   isAuth: boolean,
   user: ISessionUser,
   isNavigating: boolean,
-  gotToPath: (path: string) => void
+  gotToPath: (path: string) => void,
+  monedasNegocio: INegocioMoneda[],
+  tasasVigentes: ITasaSnapshot,
+  monedaBase: string,
+  monedaFuerte: string,
+  refreshMonedas: () => Promise<void>,
 }>(null);
 
 
@@ -39,6 +48,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAuth, setIsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [monedasNegocio, setMonedasNegocio] = useState<INegocioMoneda[]>([]);
+  const [tasasVigentes, setTasasVigentes] = useState<ITasaSnapshot>({});
+  const [monedaBase, setMonedaBase] = useState('CUP');
+  const [monedaFuerte, setMonedaFuerte] = useState('CUP');
 
   // No longer need manual isNavigating state
   // No need to reset navigation manually
@@ -53,13 +66,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loadMonedas = async (negocioId: string, negocioMonedaBase: string, negocioMonedaFuerte: string) => {
+    try {
+      const [monedasResp, tasasResp] = await Promise.all([
+        getMonedasNegocio(negocioId),
+        getTasasCambio(negocioId),
+      ]);
+      setMonedasNegocio(monedasResp.filter((m) => m.activo));
+      setTasasVigentes(tasasResp.vigentes);
+      setMonedaBase(tasasResp.monedaBase || negocioMonedaBase);
+      setMonedaFuerte(negocioMonedaFuerte);
+    } catch {
+      setMonedaBase(negocioMonedaBase);
+      setMonedaFuerte(negocioMonedaFuerte);
+    }
+  };
+
+  const refreshMonedas = async () => {
+    const currentUser = user;
+    if (currentUser?.negocio?.id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await loadMonedas(currentUser.negocio.id, (currentUser.negocio as any).monedaBase ?? 'CUP', (currentUser.negocio as any).monedaFuerte ?? 'CUP');
+    }
+  };
+
   useEffect(() => {
 
     if (status === 'authenticated') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setUser((session as any).user);
+      const sessionUser = (session as any).user;
+      setUser(sessionUser);
       setIsAuth(true);
       setLoading(false);
+      // Cargar configuración multimoneda
+      if (sessionUser?.negocio?.id) {
+        loadMonedas(
+          sessionUser.negocio.id,
+          sessionUser.negocio.monedaBase ?? 'CUP',
+          sessionUser.negocio.monedaFuerte ?? 'CUP',
+        );
+      }
       // Solo redirigir a la página principal si estamos en login o raíz (landing)
       if (navigator.onLine && (pathname === '/login' || pathname === '/')) {
         gotToPath('/home');
@@ -73,7 +119,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isAuth,
       user,
       isNavigating: isPending,
-      gotToPath
+      gotToPath,
+      monedasNegocio,
+      tasasVigentes,
+      monedaBase,
+      monedaFuerte,
+      refreshMonedas,
     }}>
       {children}
     </AppContext.Provider>
@@ -87,7 +138,12 @@ export const useAppContext = () => {
     isAuth,
     user,
     isNavigating,
-    gotToPath
+    gotToPath,
+    monedasNegocio,
+    tasasVigentes,
+    monedaBase,
+    monedaFuerte,
+    refreshMonedas,
   } = useContext(AppContext);
 
   const handleLogout = async () => {
@@ -111,7 +167,12 @@ export const useAppContext = () => {
     loadingContext: loading,
     isAuth,
     user,
-    isNavigating
+    isNavigating,
+    monedasNegocio,
+    tasasVigentes,
+    monedaBase,
+    monedaFuerte,
+    refreshMonedas,
   }
 
 

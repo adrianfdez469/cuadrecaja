@@ -38,6 +38,9 @@
   "configuracion.roles.acceder": {
     "descripcion": "Permite realizar configuraciones de roles"
   },
+  "configuracion.administrador": {
+    "descripcion": "Permite acceder a la configuración avanzada del negocio: monedas habilitadas y tasas de cambio"
+  },
   "recuperaciones.dashboard.acceder": {
     "descripcion": "Permite acceder al dashboard de recuperaciones"
   },

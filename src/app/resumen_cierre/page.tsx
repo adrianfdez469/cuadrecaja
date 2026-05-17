@@ -25,23 +25,31 @@ import {
   Tooltip,
   Collapse,
   Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  ToggleButtonGroup,
+  ToggleButton,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import { getResumenCierres } from "@/services/resumenCierreService";
 import { useAppContext } from "@/context/AppContext";
 import { ICierreData, ICierrePeriodo, ISummaryCierre } from "@/schemas/cierre";
+import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import { Close, AttachMoney, TrendingUp, TrendingDown, Assessment, Refresh, FilterList, ArrowForward, AccountBalance } from "@mui/icons-material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { fetchCierreData } from "@/services/cierrePeriodService";
+import { fetchCierreData, fetchTasasAtClose } from "@/services/cierrePeriodService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
+import { convertFromBase } from "@/lib/currency";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import { usePermisos } from "@/utils/permisos_front";
+import { TasasBanner } from "@/components/TasasBanner";
 
 export default function ResumenCierrePage() {
   const [data, setData] = useState<ISummaryCierre>();
@@ -60,9 +68,23 @@ export default function ResumenCierrePage() {
     gananciaFinal: number;
   }>({ inversion: 0, venta: 0, ganancia: 0, transf: 0, gastos: 0, gananciaFinal: 0 });
   const [expandedTransfer, setExpandedTransfer] = useState(false);
-  const { user, loadingContext, gotToPath } = useAppContext();
+  const { user, loadingContext, gotToPath, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
+
+  // Currency display state — defaults sync when context finishes loading
+  const [displayCurrency, setDisplayCurrency] = useState<string>(monedaBase);
+  const [detailCurrency, setDetailCurrency] = useState<string>(monedaBase);
+
+  useEffect(() => {
+    setDisplayCurrency(monedaBase);
+    setDetailCurrency(monedaBase);
+  }, [monedaBase]);
+  const [rateMode, setRateMode] = useState<'current' | 'historical'>('current');
+  const [historicalTasas, setHistoricalTasas] = useState<ITasaSnapshot | null>(null);
+  const [loadingHistorical, setLoadingHistorical] = useState(false);
+
   const [showProducts, setShowProducts] = useState(false);
   const [cierreProducData, setCierreProductData] = useState<{
+    cierreId: string;
     ciereData: ICierreData;
     totales: ITotales;
     totalGastos?: number;
@@ -72,6 +94,37 @@ export default function ResumenCierrePage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
   const { verificarPermiso } = usePermisos();
+
+  // Derived: currencies available for display
+  const availableCurrencies = [
+    monedaBase,
+    ...monedasNegocio.filter(m => m.activo && m.monedaCode !== monedaBase).map(m => m.monedaCode),
+  ];
+  const hasMultipleCurrencies = availableCurrencies.length > 1;
+
+  // Formatters — all stored amounts are in monedaBase; format like the original but with conversion
+  const fmtS = (amt: number) => formatCurrency(convertFromBase(amt, displayCurrency, tasasVigentes, monedaBase));
+  const detailTasas: ITasaSnapshot = rateMode === 'historical' && historicalTasas ? historicalTasas : tasasVigentes;
+  const fmtD = (amt: number) => formatCurrency(convertFromBase(amt, detailCurrency, detailTasas, monedaBase));
+
+  const handleRateModeChange = async (mode: 'current' | 'historical') => {
+    if (mode === 'historical' && !historicalTasas && cierreProducData) {
+      setLoadingHistorical(true);
+      try {
+        const tasas = await fetchTasasAtClose(user.localActual.id, cierreProducData.cierreId);
+        setHistoricalTasas(tasas);
+      } finally {
+        setLoadingHistorical(false);
+      }
+    }
+    setRateMode(mode);
+  };
+
+  const handleCloseDetail = () => {
+    setShowProducts(false);
+    setRateMode('current');
+    setHistoricalTasas(null);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -237,7 +290,7 @@ export default function ResumenCierrePage() {
                           fontSize: '1rem'
                         }}
                       >
-                        {formatCurrency(transferencia._sum.totaltransfer)}
+                        {fmtS(transferencia._sum.totaltransfer)}
                       </Typography>
                       <Typography 
                         variant="caption" 
@@ -281,7 +334,11 @@ export default function ResumenCierrePage() {
       )
     };
 
+    setDetailCurrency(displayCurrency);
+    setRateMode('current');
+    setHistoricalTasas(null);
     setCierreProductData({
+      cierreId: itemCierre.id,
       ciereData: {
         productosVendidos: cierreData.productosVendidos,
         totalGanancia: itemCierre.totalGanancia,
@@ -363,7 +420,20 @@ export default function ResumenCierrePage() {
   ];
 
   const headerActions = (
-    <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
+    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+      {hasMultipleCurrencies && (
+        <FormControl size="small" sx={{ minWidth: 90 }}>
+          <Select
+            value={displayCurrency}
+            onChange={e => setDisplayCurrency(e.target.value)}
+            displayEmpty
+          >
+            {availableCurrencies.map(c => (
+              <MenuItem key={c} value={c}>{c}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
       <Tooltip title="Actualizar datos">
         <IconButton onClick={fetchData} disabled={loading} size={isMobile ? "small" : "medium"}>
           <Refresh />
@@ -436,6 +506,8 @@ export default function ResumenCierrePage() {
       maxWidth="xl"
     >
 
+      <TasasBanner tasas={tasasVigentes} sx={{ mb: 2 }} />
+
       {/* Filtros */}
       <ContentCard
           title="Filtros de Búsqueda"
@@ -489,7 +561,7 @@ export default function ResumenCierrePage() {
                 <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                         icon={<AttachMoney fontSize={"medium"} />}
-                        value={formatCurrency(data.sumTotalVentas)}
+                        value={fmtS(data.sumTotalVentas)}
                         label="Total Ventas"
                         color="success.light"
                     />
@@ -498,7 +570,7 @@ export default function ResumenCierrePage() {
                 <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                         icon={<TrendingUp fontSize={"medium"} />}
-                        value={formatCurrency(data.sumTotalGananciaFinal ?? data.sumTotalGanancia)}
+                        value={fmtS(data.sumTotalGananciaFinal ?? data.sumTotalGanancia)}
                         label="Ganancia Final"
                         color="info.light"
                     />
@@ -509,7 +581,7 @@ export default function ResumenCierrePage() {
                   <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                       icon={<TrendingDown fontSize={"medium"} />}
-                      value={formatCurrency(data.sumTotalGastos || 0)}
+                      value={fmtS(data.sumTotalGastos || 0)}
                       label="Total Gastos"
                       color="error.light"
                     />
@@ -519,7 +591,7 @@ export default function ResumenCierrePage() {
                 <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                         icon={<Assessment fontSize={"medium"} />}
-                        value={formatCurrency(data.sumTotalInversion)}
+                        value={fmtS(data.sumTotalInversion)}
                         label="Inversión Total"
                         color="warning.light"
                     />
@@ -530,7 +602,7 @@ export default function ResumenCierrePage() {
                   <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                       icon={<AttachMoney fontSize={"medium"} />}
-                      value={formatCurrency(data.sumTotalVentasBrutas || 0)}
+                      value={fmtS(data.sumTotalVentasBrutas || 0)}
                       label="Total Ventas (Bruto)"
                       color="success.light"
                     />
@@ -542,7 +614,7 @@ export default function ResumenCierrePage() {
                   <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                       icon={<TrendingUp fontSize={"medium"} />}
-                      value={formatCurrency(data.sumTotalDescuentos || 0)}
+                      value={fmtS(data.sumTotalDescuentos || 0)}
                       label="Descuentos (intervalo)"
                       color="error.light"
                     />
@@ -578,7 +650,7 @@ export default function ResumenCierrePage() {
                                 wordBreak: 'break-all'
                               }}
                             >
-                              {formatCurrency(data.sumTotalTransferencia)}
+                              {fmtS(data.sumTotalTransferencia)}
                             </Typography>
                             <Typography 
                               variant="body2" 
@@ -627,7 +699,7 @@ export default function ResumenCierrePage() {
                 <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                         icon={<StoreIcon fontSize={"medium"} />}
-                        value={formatCurrency(data?.sumTotalVentasPropias || 0)}
+                        value={fmtS(data?.sumTotalVentasPropias || 0)}
                         label="Ventas Propias"
                         color="success.dark"
                     />
@@ -636,7 +708,7 @@ export default function ResumenCierrePage() {
                 <Grid item xs={12} sm={6} md={4}>
                     <StatCard
                         icon={<HandshakeIcon fontSize={"medium"} />}
-                        value={formatCurrency(data?.sumTotalVentasConsignacion || 0)}
+                        value={fmtS(data?.sumTotalVentasConsignacion || 0)}
                         label="Ventas Consignación"
                         color="secondary.light"
                     />
@@ -682,7 +754,7 @@ export default function ResumenCierrePage() {
                                       Ventas
                                     </Typography>
                                     <Typography variant="body2" fontWeight="medium" color="success.main">
-                                      {formatCurrency(row.totalVentas)}
+                                      {fmtS(row.totalVentas)}
                                     </Typography>
                                   </Grid>
                                   {/* Bruto y Descuentos por cierre (si están disponibles) */}
@@ -692,7 +764,7 @@ export default function ResumenCierrePage() {
                                         Bruto
                                       </Typography>
                                       <Typography variant="body2" fontWeight="medium" color="success.main">
-                                        {formatCurrency(row.totalVentasBrutas || 0)}
+                                        {fmtS(row.totalVentasBrutas || 0)}
                                       </Typography>
                                     </Grid>
                                   )}
@@ -702,7 +774,7 @@ export default function ResumenCierrePage() {
                                         Descuentos
                                       </Typography>
                                       <Typography variant="body2" fontWeight="medium" color="error.main">
-                                        - {formatCurrency(row.totalDescuentos || 0)}
+                                        - {fmtS(row.totalDescuentos || 0)}
                                       </Typography>
                                     </Grid>
                                   )}
@@ -712,7 +784,7 @@ export default function ResumenCierrePage() {
                                         Gastos
                                       </Typography>
                                       <Typography variant="body2" fontWeight="medium" color="error.main">
-                                        - {formatCurrency(row.totalGastos || 0)}
+                                        - {fmtS(row.totalGastos || 0)}
                                       </Typography>
                                     </Grid>
                                   )}
@@ -721,7 +793,7 @@ export default function ResumenCierrePage() {
                                       Ganancia Final
                                     </Typography>
                                     <Typography variant="body2" fontWeight="medium" color="info.main">
-                                      {formatCurrency(row.totalGananciaFinal ?? row.totalGanancia)}
+                                      {fmtS(row.totalGananciaFinal ?? row.totalGanancia)}
                                     </Typography>
                                   </Grid>
                                   <Grid item xs={6}>
@@ -729,7 +801,7 @@ export default function ResumenCierrePage() {
                                       Inversión
                                     </Typography>
                                     <Typography variant="body2" fontWeight="medium">
-                                      {formatCurrency(row.totalInversion)}
+                                      {fmtS(row.totalInversion)}
                                     </Typography>
                                   </Grid>
                                   <Grid item xs={6}>
@@ -737,7 +809,7 @@ export default function ResumenCierrePage() {
                                       Transferencias
                                     </Typography>
                                     <Typography variant="body2" fontWeight="medium">
-                                      {formatCurrency(row.totalTransferencia)}
+                                      {fmtS(row.totalTransferencia)}
                                     </Typography>
                                   </Grid>
                                   {/* NUEVAS FILAS PARA CONSIGNACIÓN */}
@@ -747,7 +819,7 @@ export default function ResumenCierrePage() {
                                       Ventas Propias
                                     </Typography>
                                     <Typography variant="body2" fontWeight="medium" color="success.dark">
-                                      {formatCurrency(row.totalVentasPropias || 0)}
+                                      {fmtS(row.totalVentasPropias || 0)}
                                     </Typography>
                                   </Grid>
                                   <Grid item xs={6}>
@@ -756,7 +828,7 @@ export default function ResumenCierrePage() {
                                       Ventas Consignación
                                     </Typography>
                                     <Typography variant="body2" fontWeight="medium" color="secondary.main">
-                                      {formatCurrency(row.totalVentasConsignacion || 0)}
+                                      {fmtS(row.totalVentasConsignacion || 0)}
                                     </Typography>
                                   </Grid>
                                 </Grid>
@@ -834,51 +906,51 @@ export default function ResumenCierrePage() {
                               </TableCell>
                               <TableCell align="right">
                                 <Typography variant="body2">
-                                  {formatCurrency(row.totalInversion)}
+                                  {fmtS(row.totalInversion)}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right">
                                 <Typography variant="body2" fontWeight="medium" color="success.main">
-                                  {formatCurrency(row.totalVentas)}
+                                  {fmtS(row.totalVentas)}
                                 </Typography>
                               </TableCell>
                               {/* Celdas para Bruto y Descuentos con fallbacks */}
                               <TableCell align="right">
                                 <Typography variant="body2" color="text.secondary">
-                                  {typeof row.totalVentasBrutas === 'number' ? formatCurrency(row.totalVentasBrutas || 0) : '—'}
+                                  {typeof row.totalVentasBrutas === 'number' ? fmtS(row.totalVentasBrutas || 0) : '—'}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right">
                                 <Typography variant="body2" color="error.main">
-                                  {typeof row.totalDescuentos === 'number' ? `- ${formatCurrency(row.totalDescuentos || 0)}` : '—'}
+                                  {typeof row.totalDescuentos === 'number' ? `- ${fmtS(row.totalDescuentos || 0)}` : '—'}
                                 </Typography>
                               </TableCell>
                               {verificarPermiso("operaciones.cierre.gananciascostos") && (
                                 <TableCell align="right">
                                   <Typography variant="body2" color="error.main">
-                                    {(row.totalGastos || 0) > 0 ? `- ${formatCurrency(row.totalGastos || 0)}` : '—'}
+                                    {(row.totalGastos || 0) > 0 ? `- ${fmtS(row.totalGastos || 0)}` : '—'}
                                   </Typography>
                                 </TableCell>
                               )}
                               <TableCell align="right">
                                 <Typography variant="body2">
-                                  {formatCurrency(row.totalTransferencia)}
+                                  {fmtS(row.totalTransferencia)}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right">
                                 <Typography variant="body2" fontWeight="medium" color="info.main">
-                                  {formatCurrency(row.totalGananciaFinal ?? row.totalGanancia)}
+                                  {fmtS(row.totalGananciaFinal ?? row.totalGanancia)}
                                 </Typography>
                               </TableCell>
                               {/* NUEVAS COLUMNAS CON DATOS REALES */}
                               <TableCell align="right">
                                 <Typography variant="body2" fontWeight="medium" color="success.dark">
-                                  {formatCurrency(row.totalVentasPropias || 0)}
+                                  {fmtS(row.totalVentasPropias || 0)}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right">
                                 <Typography variant="body2" fontWeight="medium" color="secondary.main">
-                                  {formatCurrency(row.totalVentasConsignacion || 0)}
+                                  {fmtS(row.totalVentasConsignacion || 0)}
                                 </Typography>
                               </TableCell>
                               <TableCell align="center">
@@ -904,50 +976,50 @@ export default function ResumenCierrePage() {
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold">
-                              {formatCurrency(totales.inversion)}
+                              {fmtS(totales.inversion)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="success.main">
-                              {formatCurrency(totales.venta)}
+                              {fmtS(totales.venta)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="text.secondary">
-                              {formatCurrency(data?.sumTotalVentasBrutas || 0)}
+                              {fmtS(data?.sumTotalVentasBrutas || 0)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="error.main">
-                              - {formatCurrency(data?.sumTotalDescuentos || 0)}
+                              - {fmtS(data?.sumTotalDescuentos || 0)}
                             </Typography>
                           </TableCell>
                           {verificarPermiso("operaciones.cierre.gananciascostos") && (
                             <TableCell align="right">
                               <Typography variant="body2" fontWeight="bold" color="error.main">
-                                {totales.gastos > 0 ? `- ${formatCurrency(totales.gastos)}` : '—'}
+                                {totales.gastos > 0 ? `- ${fmtS(totales.gastos)}` : '—'}
                               </Typography>
                             </TableCell>
                           )}
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold">
-                              {formatCurrency(totales.transf)}
+                              {fmtS(totales.transf)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="info.main">
-                              {formatCurrency(totales.gananciaFinal)}
+                              {fmtS(totales.gananciaFinal)}
                             </Typography>
                           </TableCell>
                           {/* NUEVOS TOTALES PARA CONSIGNACIÓN */}
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="success.dark">
-                              {formatCurrency(data?.sumTotalVentasPropias || 0)}
+                              {fmtS(data?.sumTotalVentasPropias || 0)}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="secondary.main">
-                              {formatCurrency(data?.sumTotalVentasConsignacion || 0)}
+                              {fmtS(data?.sumTotalVentasConsignacion || 0)}
                             </Typography>
                           </TableCell>
                           <TableCell></TableCell>
@@ -1003,28 +1075,22 @@ export default function ResumenCierrePage() {
                         borderBottom: "1px solid",
                         borderColor: "divider",
                         bgcolor: "background.paper",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
                         flexShrink: 0,
                         zIndex: 1,
                       }}
                   >
-                    <Typography variant={isMobile ? "h6" : "h5"} fontWeight="bold">
-                      Detalle del Cierre
-                    </Typography>
-                    <IconButton
-                        onClick={() => setShowProducts(false)}
-                        size={isMobile ? "small" : "medium"}
-                        sx={{
-                          bgcolor: "action.hover",
-                          "&:hover": {
-                            bgcolor: "action.selected",
-                          },
-                        }}
-                    >
-                      <Close />
-                    </IconButton>
+                    <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" gap={1}>
+                      <Typography variant={isMobile ? "h6" : "h5"} fontWeight="bold" sx={{ flex: 1, minWidth: 0 }}>
+                        Detalle del Cierre
+                      </Typography>
+                      <IconButton
+                          onClick={handleCloseDetail}
+                          size={isMobile ? "small" : "medium"}
+                          sx={{ bgcolor: "action.hover", "&:hover": { bgcolor: "action.selected" } }}
+                      >
+                        <Close />
+                      </IconButton>
+                    </Stack>
                   </Box>
 
                   {/* Contenido con scroll mejorado */}
@@ -1039,12 +1105,42 @@ export default function ResumenCierrePage() {
                         minHeight: 0,
                       }}
                   >
+                    <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
+                      {hasMultipleCurrencies && (
+                          <>
+                            <FormControl size="small" sx={{ minWidth: 90 }}>
+                              <Select
+                                  value={detailCurrency}
+                                  onChange={e => setDetailCurrency(e.target.value)}
+                              >
+                                {availableCurrencies.map(c => (
+                                    <MenuItem key={c} value={c}>{c}</MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                            <ToggleButtonGroup
+                                size="small"
+                                value={rateMode}
+                                exclusive
+                                onChange={(_, v) => v && handleRateModeChange(v)}
+                                disabled={loadingHistorical}
+                            >
+                              <ToggleButton value="current">Actual</ToggleButton>
+                              <ToggleButton value="historical">Al cierre</ToggleButton>
+                            </ToggleButtonGroup>
+                          </>
+                      )}
+
+                    </Stack>
+                    {/* Tasas aplicadas */}
+                    <TasasBanner tasas={detailTasas} historical={rateMode === 'historical'} sx={{ mb: 2 }} />
+
                     {/* Estadísticas del cierre específico */}
                     <Grid container spacing={isMobile ? 1.5 : 3} sx={{ mb: isMobile ? 2 : 3 }}>
                       <Grid item xs={6} sm={6} md={3}>
                         <StatCard
                             icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
-                            value={formatCurrency(cierreProducData.ciereData.totalVentas)}
+                            value={fmtD(cierreProducData.ciereData.totalVentas)}
                             label="Total Ventas"
                             color="success.light"
                         />
@@ -1053,7 +1149,7 @@ export default function ResumenCierrePage() {
                       <Grid item xs={6} sm={6} md={3}>
                         <StatCard
                             icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
-                            value={formatCurrency(
+                            value={fmtD(
                               cierreProducData.totalGananciaFinal ?? cierreProducData.ciereData.totalGanancia
                             )}
                             label="Ganancia Final"
@@ -1065,7 +1161,7 @@ export default function ResumenCierrePage() {
                       <Grid item xs={6} sm={6} md={3}>
                         <StatCard
                           icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
-                          value={formatCurrency((cierreProducData.ciereData.totalVentasBrutas ?? 0))}
+                          value={fmtD(cierreProducData.ciereData.totalVentasBrutas ?? 0)}
                           label="Total Ventas (Bruto)"
                           color="success.light"
                         />
@@ -1075,7 +1171,7 @@ export default function ResumenCierrePage() {
                         <Grid item xs={6} sm={6} md={3}>
                           <StatCard
                             icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
-                            value={formatCurrency((cierreProducData.ciereData.totalDescuentos ?? 0))}
+                            value={fmtD(cierreProducData.ciereData.totalDescuentos ?? 0)}
                             label="Descuentos del Período"
                             color="error.light"
                           />
@@ -1086,7 +1182,7 @@ export default function ResumenCierrePage() {
                         <Grid item xs={6} sm={6} md={3}>
                           <StatCard
                             icon={<TrendingDown fontSize={isMobile ? "medium" : "large"} />}
-                            value={formatCurrency(cierreProducData.totalGastos || 0)}
+                            value={fmtD(cierreProducData.totalGastos || 0)}
                             label="Gastos del Período"
                             color="error.light"
                           />
@@ -1105,12 +1201,44 @@ export default function ResumenCierrePage() {
                       <Grid item xs={6} sm={6} md={3}>
                         <StatCard
                             icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
-                            value={formatCurrency(cierreProducData.ciereData.totalTransferencia)}
+                            value={fmtD(cierreProducData.ciereData.totalTransferencia)}
                             label="Transferencias"
                             color="warning.light"
                         />
                       </Grid>
                     </Grid>
+
+                    {/* Desglose por moneda (multimoneda) */}
+                    {cierreProducData.ciereData.resumenMonedas && cierreProducData.ciereData.resumenMonedas.length > 0 && (
+                      <ContentCard
+                        title="Desglose por Moneda"
+                        subtitle={!isMobile ? "Ingresos reales por moneda de cobro" : undefined}
+                        fullHeight={false}
+                      >
+                        <Stack spacing={1.5}>
+                          {cierreProducData.ciereData.resumenMonedas.map((rm) => (
+                            <Card key={rm.monedaCode} variant="outlined">
+                              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                                <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+                                  <Chip label={rm.monedaCode} size="small" color="primary" variant="outlined" />
+                                  <Typography variant="body2" color="text.secondary">
+                                    ≈ {fmtD(rm.equivalenteBase)}
+                                  </Typography>
+                                </Stack>
+                                <Stack direction="row" justifyContent="space-between">
+                                  <Typography variant="body2" color="text.secondary">Efectivo:</Typography>
+                                  <Typography variant="body2" fontWeight="medium">{rm.totalEfectivo.toFixed(2)} {rm.monedaCode}</Typography>
+                                </Stack>
+                                <Stack direction="row" justifyContent="space-between">
+                                  <Typography variant="body2" color="text.secondary">Transfer:</Typography>
+                                  <Typography variant="body2" fontWeight="medium">{rm.totalTransfer.toFixed(2)} {rm.monedaCode}</Typography>
+                                </Stack>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </Stack>
+                      </ContentCard>
+                    )}
 
                     {/* Tabla de productos vendidos */}
                     <ContentCard
@@ -1127,6 +1255,7 @@ export default function ResumenCierrePage() {
                             cierreData={cierreProducData.ciereData}
                             totales={cierreProducData.totales}
                             showOnlyCants={!verificarPermiso("operaciones.cierre.gananciascostos")}
+                            formatAmount={fmtD}
                         />
                       </Box>
                     </ContentCard>

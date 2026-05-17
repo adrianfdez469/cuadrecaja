@@ -83,6 +83,8 @@ import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
 import { Avatar } from "@mui/material";
 import LocalOffer from "@mui/icons-material/LocalOffer";
+import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
+import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import Loading from "./Loading";
 import Logo from "./Logo";
 
@@ -92,6 +94,7 @@ const SUPER_ADMIN_MENU_ITEMS = [
   { label: "Referidos", path: "/configuracion/referidos", icon: GroupsIcon },
   { label: "Suspensiones", path: "/configuracion/suspensiones", icon: Block },
   { label: "Notificaciones", path: "/configuracion/notificaciones", icon: Notifications },
+  { label: "Monedas globales", path: "/configuracion/monedas", icon: MonetizationOnIcon },
 ];
 
 const CONFIGURATION_MENU_ITEMS = [
@@ -150,6 +153,18 @@ const CONFIGURATION_MENU_ITEMS = [
     permission: 'configuracion.destinostransferencia.acceder'
   },
   {
+    label: "Monedas del negocio",
+    path: "/configuracion/monedas-negocio",
+    icon: MonetizationOnIcon,
+    permission: 'configuracion.administrador'
+  },
+  {
+    label: "Tasas de cambio",
+    path: "/configuracion/tasas-cambio",
+    icon: CurrencyExchangeIcon,
+    permission: 'configuracion.administrador'
+  },
+  {
     label: "Planes y Suscripción",
     path: "/configuracion/planes",
     icon: UpgradeIcon,
@@ -182,7 +197,7 @@ const HELP_MENU_ITEMS = [
 
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [open, setOpen] = useState(false);
-  const { user, isAuth, handleLogout, goToLogin, gotToPath, isNavigating } = useAppContext();
+  const { user, isAuth, handleLogout, goToLogin, gotToPath, isNavigating, monedaBase } = useAppContext();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openSelectLocal, setOpenSelectLocal] = useState(false);
   const [openSelectNegocio, setOpenSelectNegocio] = useState(false);
@@ -633,38 +648,34 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             </IconButton>
           )}
 
-          <Box sx={{
-            flexGrow: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            justifyContent: 'center',
-            alignContent: 'center',
-            // gap: {xs: 0, sm: 2}
-          }}>
-            {user?.negocio?.nombre && (
+          {isAuth && user?.localActual && (
+            <Box
+              display="flex"
+              alignItems="center"
+              gap={0.5}
+              sx={{ cursor: 'pointer' }}
+              onClick={() => gotToPath('/home')}
+            >
+              <StoreIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+              <Typography variant="body2" fontWeight={700}>
+                {user.localActual.nombre}
+              </Typography>
+            </Box>
+          )}
 
-              <Chip
-                label={user?.negocio?.nombre}
-                variant="outlined"
-                sx={{
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  fontWeight: 500,
-                  display: 'flex'
-                }}
-                onClick={()=> gotToPath('/home')}
-              />
-            )}
-          </Box>
+          <Box sx={{ flexGrow: 1 }} />
 
           {isAuth && user ? (
-            <Box display="flex" flexDirection={'row'} alignItems="center" gap={0}>
-              {/* Info del usuario mejorada */}
-              <StoreIcon />
-              <Typography variant="body2" fontWeight={700} color="text.green">
-                {user?.localActual?.nombre}
-              </Typography>
+            <Box display="flex" flexDirection={'row'} alignItems="center" gap={1}>
+              {monedaBase && (
+                <Chip
+                  label={monedaBase}
+                  size="small"
+                  variant="outlined"
+                  icon={<MonetizationOnIcon style={{ fontSize: 14 }} />}
+                  sx={{ fontWeight: 700, fontSize: '0.7rem', borderColor: 'primary.main', color: 'primary.main' }}
+                />
+              )}
 
 
               <IconButton
@@ -736,11 +747,19 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="body1" fontWeight={600} color="text.primary">
-                        {user?.nombre || user?.usuario}
+                        {user?.nombre}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" display="block">
                         {user?.rol}
                       </Typography>
+                      {user?.rol === 'SUPER_ADMIN' && user?.negocio?.nombre && (
+                        <Chip
+                          label={user.negocio.nombre}
+                          size="small"
+                          variant="outlined"
+                          sx={{ mt: 0.25, mb: 0.25, borderColor: 'primary.main', color: 'primary.main', fontWeight: 500, fontSize: '0.7rem' }}
+                        />
+                      )}
                     </Box>
                   </Box>
                 </Box>

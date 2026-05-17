@@ -11,7 +11,7 @@ export const CreateMoviento = async (data, items) => {
   await prisma.$transaction(async (tx) => {
 
     for (const movimiento of items) {
-      const { productoId, cantidad, costoUnitario, proveedorId: itemProveedorId, movimientoOrigenId, fechaVencimiento } = movimiento;
+      const { productoId, cantidad, costoUnitario, proveedorId: itemProveedorId, movimientoOrigenId, fechaVencimiento, monedaOriginal, montoOriginal, tasaUsada: tasaUsadaItem } = movimiento;
       
 
       // 1. Obtener el productoTienda existente para capturar la existencia anterior
@@ -173,7 +173,8 @@ export const CreateMoviento = async (data, items) => {
           ...(proveedorId && { proveedorId: proveedorId }),
           ...(itemProveedorId && {proveedorId: itemProveedorId}),
           ...(destinationId && { destinationId: destinationId }),
-          ...(tipo === 'TRASPASO_SALIDA' && { state: 'PENDIENTE' })
+          ...(tipo === 'TRASPASO_SALIDA' && { state: 'PENDIENTE' }),
+          ...(monedaOriginal && { monedaOriginal, montoOriginal, tasaUsada: tasaUsadaItem })
         },
       });
 
