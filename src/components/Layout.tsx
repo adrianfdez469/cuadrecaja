@@ -197,7 +197,7 @@ const HELP_MENU_ITEMS = [
 
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [open, setOpen] = useState(false);
-  const { user, isAuth, handleLogout, goToLogin, gotToPath, isNavigating } = useAppContext();
+  const { user, isAuth, handleLogout, goToLogin, gotToPath, isNavigating, monedaBase } = useAppContext();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [openSelectLocal, setOpenSelectLocal] = useState(false);
   const [openSelectNegocio, setOpenSelectNegocio] = useState(false);
@@ -680,6 +680,15 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               <Typography variant="body2" fontWeight={700} color="text.green">
                 {user?.localActual?.nombre}
               </Typography>
+              {monedaBase && (
+                <Chip
+                  label={monedaBase}
+                  size="small"
+                  variant="outlined"
+                  icon={<MonetizationOnIcon style={{ fontSize: 14 }} />}
+                  sx={{ ml: 1, fontWeight: 700, fontSize: '0.7rem', borderColor: 'primary.main', color: 'primary.main' }}
+                />
+              )}
 
 
               <IconButton

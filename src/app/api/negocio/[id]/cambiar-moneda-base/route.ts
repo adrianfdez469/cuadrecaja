@@ -36,6 +36,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
 
     const totalProductos = await prisma.productoTienda.count({ where: { tienda: { negocioId: id } } });
+    const totalGastosFijos = await prisma.gastoTienda.count({
+      where: { negocioId: id, tipoCalculo: 'MONTO_FIJO', monto: { not: null } },
+    });
 
     const preview = ejemplos.map((p) => ({
       nombre: p.producto.nombre,
@@ -50,6 +53,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       monedaNueva,
       tasa: monedaNueva === 'CUP' ? 1 : tasas[monedaNueva],
       totalProductos,
+      totalGastosFijos,
       preview,
     });
   } catch (error) {
@@ -110,6 +114,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             precio: Math.round(precioNuevo * 100) / 100,
             costo: Math.round(costoNuevo * 100) / 100,
           },
+        });
+      }
+
+      // Convert fixed-amount expenses (MONTO_FIJO) — percentage-based ones are unaffected
+      const gastosFijos = await tx.gastoTienda.findMany({
+        where: { negocioId: id, tipoCalculo: 'MONTO_FIJO', monto: { not: null } },
+        select: { id: true, monto: true },
+      });
+      for (const g of gastosFijos) {
+        const montoNuevo = convertFromBase(
+          convertToBase(g.monto!, negocio.monedaBase, tasas),
+          monedaNueva,
+          tasas,
+        );
+        await tx.gastoTienda.update({
+          where: { id: g.id },
+          data: { monto: Math.round(montoNuevo * 100) / 100 },
         });
       }
 
