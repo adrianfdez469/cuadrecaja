@@ -125,7 +125,7 @@ export function InventarioMobileList({ productos, loading, onEdit, onChangeQty, 
 
   if (productos.length === 0) {
     return (
-      <Box py={4} textAlign="center">
+      <Box py={4} textAlign="center" minHeight="100dvh">
         <Typography color="text.secondary">No se encontraron productos</Typography>
       </Box>
     );
