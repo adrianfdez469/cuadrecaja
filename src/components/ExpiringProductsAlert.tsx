@@ -35,7 +35,7 @@ const getDiasLabel = (fechaVencimiento: string): { dias: number; label: string }
 export default function ExpiringProductsAlert({ tiendaId }: ExpiringProductsAlertProps) {
   const [vencidos, setVencidos] = useState<IProductoTiendaV2[]>([]);
   const [porVencer, setPorVencer] = useState<IProductoTiendaV2[]>([]);
-  const [expandedVencidos, setExpandedVencidos] = useState(true);
+  const [expandedVencidos, setExpandedVencidos] = useState(false);
   const [expandedPorVencer, setExpandedPorVencer] = useState(false);
   const router = useRouter();
 

@@ -172,19 +172,24 @@ export function useGestionInventario() {
   const handleChangeQtySave = async (producto: IProductoTiendaV2, newQty: number, options: ChangeQtyOptions) => {
     const delta = newQty - producto.existencia;
     if (delta === 0) return;
-    const tipo = delta > 0 ? "COMPRA" : "AJUSTE_SALIDA";
+    const esConsignacion = !!producto.proveedorId;
+    const tipo = delta > 0
+      ? (esConsignacion ? "CONSIGNACION_ENTRADA" : "COMPRA")
+      : (esConsignacion ? "CONSIGNACION_DEVOLUCION" : "AJUSTE_SALIDA");
+    const esEntrada = delta > 0;
     try {
       await cretateBatchMovimientos(
         {
           tipo,
           tiendaId,
           usuarioId: user.id,
-          motivo: options.motivo,
+          motivo: options?.motivo,
+          ...(esConsignacion && { proveedorId: producto.proveedorId }),
         },
         [{
           productoId: producto.productoId,
           cantidad: Math.abs(delta),
-          ...(tipo === "COMPRA" && {
+          ...(esEntrada && {
             costoUnitario: options.costoUnitario ?? producto.costo,
             costoTotal: (options.costoUnitario ?? producto.costo) * Math.abs(delta),
           }),
@@ -193,7 +198,8 @@ export function useGestionInventario() {
       showMessage("Movimiento registrado", "success");
       setChangeQtyTarget(null);
       await reload();
-    } catch {
+    } catch(e) {
+      console.error(e);
       showMessage("Error al registrar el movimiento", "error");
     }
   };

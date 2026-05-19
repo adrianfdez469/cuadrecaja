@@ -106,7 +106,7 @@ export function GestionInventarioPage() {
         open={Boolean(changeQtyTarget)}
         producto={changeQtyTarget}
         onClose={closeChangeQty}
-        onSave={handleChangeQtySave}
+        onSave={(newQty, options) => handleChangeQtySave(changeQtyTarget!, newQty, options)}
       />
 
       <ProductMovementsModal

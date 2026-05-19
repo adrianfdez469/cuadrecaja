@@ -15,10 +15,14 @@ import {
   useMediaQuery,
   IconButton,
   Tooltip,
+  Collapse,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
+import { useState } from "react";
 import { ICategory } from "@/schemas/categoria";
 import { StockFilter, ExpiryFilter } from "../hooks/useGestionInventario";
 
@@ -50,6 +54,14 @@ const EXPIRY_OPTIONS: { value: ExpiryFilter; label: string }[] = [
   { value: "vencidos", label: "Vencidos" },
 ];
 
+function hasActiveFilters(
+  selectedCategorias: string[],
+  stockFilter: StockFilter,
+  expiryFilter: ExpiryFilter
+) {
+  return selectedCategorias.length > 0 || stockFilter !== "todo" || expiryFilter !== "todos";
+}
+
 export function InventarioFiltersBar({
   searchTerm,
   onSearchChange,
@@ -66,9 +78,133 @@ export function InventarioFiltersBar({
 }: InventarioFiltersBarProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const selectedCats = categorias.filter(c => selectedCategorias.includes(c.id));
+  const activeFilters = hasActiveFilters(selectedCategorias, stockFilter, expiryFilter);
 
+  const handleClearFilters = () => {
+    onSearchChange("");
+    onCategoriasChange([]);
+    onStockChange("todo");
+    onExpiryChange("todos");
+  };
+
+  if (isMobile) {
+    return (
+      <Box display="flex" flexDirection="column" gap={1}>
+        {/* Fila 1: Nuevo + Refresh */}
+        <Box display="flex" gap={1} alignItems="center">
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={onCreateProduct}
+            size="small"
+            fullWidth
+          >
+            Nuevo producto
+          </Button>
+          <Tooltip title="Actualizar">
+            <IconButton onClick={onRefresh} disabled={loading} size="small">
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {/* Fila 2: Search + filtros + limpiar */}
+        <Box display="flex" gap={0.5} alignItems="center">
+          <TextField
+            size="small"
+            placeholder="Buscar..."
+            value={searchTerm}
+            onChange={e => onSearchChange(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ flex: 1 }}
+          />
+          <Tooltip title="Filtros avanzados">
+            <IconButton
+              size="small"
+              onClick={() => setFiltersOpen(v => !v)}
+              color={filtersOpen || activeFilters ? "primary" : "default"}
+            >
+              <FilterListIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Limpiar filtros">
+            <IconButton
+              size="small"
+              onClick={handleClearFilters}
+              disabled={!searchTerm && !activeFilters}
+              color={activeFilters || searchTerm ? "warning" : "default"}
+            >
+              <CleaningServicesIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {/* Filtros extra colapsables */}
+        <Collapse in={filtersOpen}>
+          <Box display="flex" flexDirection="column" gap={1}>
+            <Autocomplete
+              multiple
+              size="small"
+              options={categorias}
+              getOptionLabel={o => o.nombre}
+              value={selectedCats}
+              onChange={(_, val) => onCategoriasChange(val.map(v => v.id))}
+              renderInput={params => <TextField {...params} label="Categorías" />}
+              renderTags={(val, getTagProps) =>
+                val.map((opt, i) => (
+                  <Chip
+                    key={opt.id}
+                    label={opt.nombre}
+                    size="small"
+                    sx={{ bgcolor: opt.color, color: "white" }}
+                    {...getTagProps({ index: i })}
+                  />
+                ))
+              }
+              fullWidth
+            />
+
+            <FormControl size="small" fullWidth>
+              <InputLabel>Stock</InputLabel>
+              <Select
+                label="Stock"
+                value={stockFilter}
+                onChange={e => onStockChange(e.target.value as StockFilter)}
+              >
+                {STOCK_OPTIONS.map(o => (
+                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl size="small" fullWidth>
+              <InputLabel>Vencimiento</InputLabel>
+              <Select
+                label="Vencimiento"
+                value={expiryFilter}
+                onChange={e => onExpiryChange(e.target.value as ExpiryFilter)}
+              >
+                {EXPIRY_OPTIONS.map(o => (
+                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Collapse>
+      </Box>
+    );
+  }
+
+  // Desktop layout
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
       <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
@@ -77,7 +213,13 @@ export function InventarioFiltersBar({
           placeholder="Buscar producto o categoría..."
           value={searchTerm}
           onChange={e => onSearchChange(e.target.value)}
-          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
           sx={{ flexGrow: 1, minWidth: 200 }}
         />
         <Button
@@ -87,11 +229,21 @@ export function InventarioFiltersBar({
           size="small"
           sx={{ whiteSpace: "nowrap" }}
         >
-          {isMobile ? "Nuevo" : "Nuevo producto"}
+          Nuevo producto
         </Button>
         <Tooltip title="Actualizar">
           <IconButton onClick={onRefresh} disabled={loading} size="small">
             <RefreshIcon />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Limpiar filtros">
+          <IconButton
+            onClick={handleClearFilters}
+            disabled={!searchTerm && !activeFilters}
+            size="small"
+            color={activeFilters || searchTerm ? "warning" : "default"}
+          >
+            <CleaningServicesIcon />
           </IconButton>
         </Tooltip>
       </Box>

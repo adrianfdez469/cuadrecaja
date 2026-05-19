@@ -74,6 +74,9 @@ function ProductCard({ p, onEdit, onChangeQty, onViewMovements, onCreateMov, onD
                   sx={{ bgcolor: p.producto.categoria.color, color: "white", fontWeight: 500 }}
                 />
               )}
+              {p.proveedor && (
+                <Chip label={`Consig.`} size="small" variant="outlined" color="secondary" />
+              )}
               {getStockChip(p.existencia)}
               {getExpiryChip(p.fechaVencimiento)}
             </Box>

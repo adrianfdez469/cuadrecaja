@@ -31,7 +31,8 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
 
   useEffect(() => {
     if (open && producto) {
-      setNewQtyStr(formatNumber(producto.existencia));
+      // Use raw number string to avoid locale-formatted separators breaking parseFloat
+      setNewQtyStr(String(producto.existencia));
       setCostoUnitario(String(producto.costo));
       setMotivo("");
     }
@@ -39,22 +40,37 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
 
   if (!producto) return null;
 
-  const newQty = parseFloat(newQtyStr.replace(",", ".")) || 0;
+  const esConsignacion = !!producto.proveedorId;
+  const newQty = parseFloat(newQtyStr) || 0;
   const delta = newQty - producto.existencia;
-  const tipo = delta > 0 ? "COMPRA" : delta < 0 ? "AJUSTE_SALIDA" : null;
+  const tipo = delta > 0
+    ? (esConsignacion ? "CONSIGNACION_ENTRADA" : "COMPRA")
+    : delta < 0
+    ? (esConsignacion ? "CONSIGNACION_DEVOLUCION" : "AJUSTE_SALIDA")
+    : null;
+
+  const tipoLabel = tipo === "COMPRA" ? "Compra"
+    : tipo === "AJUSTE_SALIDA" ? "Ajuste de salida"
+    : tipo === "CONSIGNACION_ENTRADA" ? "Consignación entrada"
+    : tipo === "CONSIGNACION_DEVOLUCION" ? "Consignación devolución"
+    : null;
 
   const handleSave = async () => {
-    if (delta === 0) return;
+    if (delta === 0 || !tipo) return;
     setSaving(true);
     try {
       await onSave(newQty, {
-        costoUnitario: tipo === "COMPRA" ? parseFloat(costoUnitario) || producto.costo : undefined,
+        costoUnitario: (tipo === "COMPRA" || tipo === "CONSIGNACION_ENTRADA")
+          ? parseFloat(costoUnitario) || producto.costo
+          : undefined,
         motivo: motivo || undefined,
       });
     } finally {
       setSaving(false);
     }
   };
+
+  const mostrarCosto = tipo === "COMPRA" || tipo === "CONSIGNACION_ENTRADA";
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
@@ -65,7 +81,7 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
             <TextField
               label="Cantidad actual"
               value={formatNumber(producto.existencia)}
-              InputProps={{ readOnly: true }}
+              disabled
               size="small"
               sx={{ flex: 1 }}
             />
@@ -80,27 +96,33 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
             />
           </Box>
 
-          {tipo === "COMPRA" && (
-            <>
-              <Alert severity="info">Se creará un movimiento de <strong>Compra</strong> por {formatNumber(delta)} unidades.</Alert>
-              <TextField
-                label="Costo unitario"
-                value={costoUnitario}
-                onChange={e => setCostoUnitario(e.target.value)}
-                size="small"
-                inputProps={{ inputMode: "decimal" }}
-                InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-                helperText="Deja el valor actual si no cambió el costo"
-              />
-            </>
+          {delta > 0 && tipoLabel && (
+            <Alert severity="info">
+              Se creará un movimiento de <strong>{tipoLabel}</strong> por {formatNumber(delta)} unidades.
+              {esConsignacion && producto.proveedor && (
+                <> Proveedor: <strong>{producto.proveedor.nombre}</strong></>
+              )}
+            </Alert>
           )}
-
-          {tipo === "AJUSTE_SALIDA" && (
-            <Alert severity="warning">Se creará un <strong>Ajuste de salida</strong> por {formatNumber(Math.abs(delta))} unidades.</Alert>
+          {delta < 0 && tipoLabel && (
+            <Alert severity="warning">
+              Se creará un <strong>{tipoLabel}</strong> por {formatNumber(Math.abs(delta))} unidades.
+            </Alert>
           )}
-
           {delta === 0 && newQtyStr && (
             <Alert severity="success">Sin cambios en la cantidad.</Alert>
+          )}
+
+          {mostrarCosto && (
+            <TextField
+              label="Costo unitario"
+              value={costoUnitario}
+              onChange={e => setCostoUnitario(e.target.value)}
+              size="small"
+              inputProps={{ inputMode: "decimal" }}
+              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+              helperText="Deja el valor actual si no cambió el costo"
+            />
           )}
 
           {tipo && (

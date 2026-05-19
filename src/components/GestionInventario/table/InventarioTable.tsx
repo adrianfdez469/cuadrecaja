@@ -107,7 +107,12 @@ export function InventarioTable({ productos, loading, onEdit, onChangeQty, onVie
           {productos.map(p => (
             <TableRow key={p.id} hover>
               <TableCell>
-                <Typography variant="body2" fontWeight={500}>{p.producto.nombre}</Typography>
+                <Box display="flex" alignItems="center" gap={0.5} flexWrap="wrap">
+                  <Typography variant="body2" fontWeight={500}>{p.producto.nombre}</Typography>
+                  {p.proveedor && (
+                    <Chip label={`Consig. ${p.proveedor.nombre}`} size="small" variant="outlined" color="secondary" />
+                  )}
+                </Box>
               </TableCell>
               <TableCell>
                 {p.producto.categoria ? (
