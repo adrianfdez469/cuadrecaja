@@ -80,6 +80,7 @@ export function InventarioFiltersBar({
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [filtersOpen, setFiltersOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchRowRef = useRef<HTMLDivElement>(null);
 
   const selectedCats = categorias.filter(c => selectedCategorias.includes(c.id));
   const activeFilters = hasActiveFilters(selectedCategorias, stockFilter, expiryFilter);
@@ -113,14 +114,15 @@ export function InventarioFiltersBar({
         {/*</Box>*/}
 
         {/* Fila 2: Search + filtros + limpiar */}
-        <Box display="flex" gap={0.5} alignItems="center">
+        <Box ref={searchRowRef} display="flex" gap={0.5} alignItems="center" sx={{ scrollMarginTop: "64px" }}>
           <TextField
             size="small"
             placeholder="Buscar..."
             value={searchTerm}
             onChange={e => onSearchChange(e.target.value)}
             inputRef={searchInputRef}
-            onFocus={() => searchInputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onFocus={() => searchRowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onBlur={() => setTimeout(() => searchRowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 300)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
