@@ -15,12 +15,16 @@ import {
   Select,
   TextField,
   Autocomplete,
+  Typography,
 } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { IProveedor } from "@/schemas/proveedor";
+import { ILocal } from "@/schemas/tienda";
 import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { getProveedores } from "@/services/proveedorService";
+import { getLocales } from "@/services/localesService";
+import { convertToBase } from "@/lib/currency";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 
@@ -31,7 +35,13 @@ interface Props {
   onCreated: () => void;
 }
 
-type TipoMovimiento = "COMPRA" | "AJUSTE_ENTRADA" | "AJUSTE_SALIDA" | "CONSIGNACION_ENTRADA" | "CONSIGNACION_DEVOLUCION";
+type TipoMovimiento =
+  | "COMPRA"
+  | "AJUSTE_ENTRADA"
+  | "AJUSTE_SALIDA"
+  | "CONSIGNACION_ENTRADA"
+  | "CONSIGNACION_DEVOLUCION"
+  | "TRASPASO_SALIDA";
 
 const TIPOS_BASE: { value: TipoMovimiento; label: string; esEntrada: boolean }[] = [
   { value: "COMPRA", label: "Compra (entrada con costo)", esEntrada: true },
@@ -39,10 +49,11 @@ const TIPOS_BASE: { value: TipoMovimiento; label: string; esEntrada: boolean }[]
   { value: "AJUSTE_SALIDA", label: "Ajuste salida", esEntrada: false },
   { value: "CONSIGNACION_ENTRADA", label: "Consignación entrada", esEntrada: true },
   { value: "CONSIGNACION_DEVOLUCION", label: "Consignación devolución", esEntrada: false },
+  { value: "TRASPASO_SALIDA", label: "Envío de mercancía (traspaso)", esEntrada: false },
 ];
 
 export function CreateMovimientoDialog({ open, producto, onClose, onCreated }: Props) {
-  const { user } = useAppContext();
+  const { user, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
   const [tipo, setTipo] = useState<TipoMovimiento>("COMPRA");
   const [cantidad, setCantidad] = useState("");
@@ -50,11 +61,21 @@ export function CreateMovimientoDialog({ open, producto, onClose, onCreated }: P
   const [motivo, setMotivo] = useState("");
   const [proveedores, setProveedores] = useState<IProveedor[]>([]);
   const [selectedProveedor, setSelectedProveedor] = useState<IProveedor | null>(null);
+  const [destinos, setDestinos] = useState<ILocal[]>([]);
+  const [destinationId, setDestinationId] = useState<string>("");
+  const [monedaCompra, setMonedaCompra] = useState<string>(monedaBase);
   const [saving, setSaving] = useState(false);
+
+  const monedasParaCompra = useMemo(() => {
+    const lista = [monedaBase];
+    for (const nm of monedasNegocio) {
+      if (nm.activo && nm.monedaCode !== monedaBase) lista.push(nm.monedaCode);
+    }
+    return lista;
+  }, [monedaBase, monedasNegocio]);
 
   useEffect(() => {
     if (open && producto) {
-      // If product is in consignación, default to consignación types
       const defaultTipo: TipoMovimiento = producto.proveedorId
         ? "CONSIGNACION_ENTRADA"
         : "COMPRA";
@@ -63,19 +84,32 @@ export function CreateMovimientoDialog({ open, producto, onClose, onCreated }: P
       setCostoUnitario(String(producto.costo));
       setMotivo("");
       setSelectedProveedor(producto.proveedor ?? null);
+      setDestinationId("");
+      setMonedaCompra(monedaBase);
     }
-  }, [open, producto]);
+  }, [open, producto, monedaBase]);
 
   useEffect(() => {
     if (open && (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION")) {
       getProveedores().then(setProveedores).catch(() => {});
     }
-  }, [open, tipo]);
+    if (open && tipo === "TRASPASO_SALIDA") {
+      getLocales()
+        .then(locales => setDestinos(locales.filter(l => l.id !== user.localActual.id)))
+        .catch(() => {});
+    }
+    if (tipo !== "COMPRA" && tipo !== "CONSIGNACION_ENTRADA") {
+      setMonedaCompra(monedaBase);
+    }
+  }, [open, tipo, monedaBase, user.localActual.id]);
 
   if (!producto) return null;
 
   const esConsignacion = tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION";
+  const esTraspaso = tipo === "TRASPASO_SALIDA";
   const mostrarCosto = tipo === "COMPRA" || tipo === "CONSIGNACION_ENTRADA";
+  const mostrarMoneda = mostrarCosto && monedasParaCompra.length > 1;
+  const isExtraCurrency = mostrarCosto && monedaCompra !== monedaBase;
 
   const handleSave = async () => {
     const qty = parseFloat(cantidad.replace(",", "."));
@@ -87,7 +121,15 @@ export function CreateMovimientoDialog({ open, producto, onClose, onCreated }: P
       showMessage("Selecciona un proveedor para movimientos de consignación", "warning");
       return;
     }
-    const costo = parseFloat(costoUnitario) || 0;
+    if (esTraspaso && !destinationId) {
+      showMessage("Selecciona el local destino", "warning");
+      return;
+    }
+    const costoRaw = parseFloat(costoUnitario) || 0;
+    const costoBase = isExtraCurrency
+      ? convertToBase(costoRaw, monedaCompra, tasasVigentes, monedaBase)
+      : costoRaw;
+
     setSaving(true);
     try {
       await cretateBatchMovimientos(
@@ -97,16 +139,25 @@ export function CreateMovimientoDialog({ open, producto, onClose, onCreated }: P
           usuarioId: user.id,
           motivo: motivo || undefined,
           ...(esConsignacion && selectedProveedor && { proveedorId: selectedProveedor.id }),
+          ...(esTraspaso && { destinationId }),
         },
         [{
           productoId: producto.productoId,
           cantidad: qty,
-          ...(mostrarCosto && { costoUnitario: costo, costoTotal: costo * qty }),
+          ...(mostrarCosto && {
+            costoUnitario: costoBase,
+            costoTotal: costoBase * qty,
+          }),
+          ...(isExtraCurrency && {
+            monedaOriginal: monedaCompra,
+            montoOriginal: costoRaw,
+            tasaUsada: tasasVigentes[monedaCompra],
+          }),
         }]
       );
       showMessage("Movimiento registrado", "success");
       onCreated();
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       showMessage("Error al registrar el movimiento", "error");
     } finally {
@@ -154,6 +205,26 @@ export function CreateMovimientoDialog({ open, producto, onClose, onCreated }: P
             />
           )}
 
+          {esTraspaso && (
+            <FormControl size="small" fullWidth>
+              <InputLabel>Local destino *</InputLabel>
+              <Select
+                label="Local destino *"
+                value={destinationId}
+                onChange={e => setDestinationId(e.target.value)}
+              >
+                {destinos.length === 0 && (
+                  <MenuItem disabled value="">
+                    <Typography variant="body2" color="text.secondary">Sin locales disponibles</Typography>
+                  </MenuItem>
+                )}
+                {destinos.map(l => (
+                  <MenuItem key={l.id} value={l.id}>{l.nombre}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
           <TextField
             label="Cantidad"
             value={cantidad}
@@ -165,13 +236,33 @@ export function CreateMovimientoDialog({ open, producto, onClose, onCreated }: P
 
           {mostrarCosto && (
             <TextField
-              label="Costo unitario"
+              label={`Costo unitario${isExtraCurrency ? ` (${monedaCompra})` : ""}`}
               value={costoUnitario}
               onChange={e => setCostoUnitario(e.target.value)}
               size="small"
               inputProps={{ inputMode: "decimal" }}
               InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+              helperText={
+                isExtraCurrency && costoUnitario
+                  ? `≈ ${convertToBase(parseFloat(costoUnitario) || 0, monedaCompra, tasasVigentes, monedaBase).toFixed(2)} ${monedaBase}`
+                  : undefined
+              }
             />
+          )}
+
+          {mostrarMoneda && (
+            <FormControl size="small" fullWidth>
+              <InputLabel>Moneda de compra</InputLabel>
+              <Select
+                label="Moneda de compra"
+                value={monedaCompra}
+                onChange={e => setMonedaCompra(e.target.value)}
+              >
+                {monedasParaCompra.map(code => (
+                  <MenuItem key={code} value={code}>{code}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           )}
 
           <TextField
