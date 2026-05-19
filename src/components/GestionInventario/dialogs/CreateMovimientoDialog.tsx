@@ -101,7 +101,7 @@ export function CreateMovimientoDialog({ open, producto, onClose, onCreated }: P
     if (tipo !== "COMPRA" && tipo !== "CONSIGNACION_ENTRADA") {
       setMonedaCompra(monedaBase);
     }
-  }, [open, tipo, monedaBase, user.localActual.id]);
+  }, [open, tipo, monedaBase, user?.localActual?.id]);
 
   if (!producto) return null;
 
