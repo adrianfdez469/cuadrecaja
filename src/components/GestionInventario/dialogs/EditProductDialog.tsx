@@ -16,6 +16,7 @@ import {
   InputLabel,
   MenuItem,
   Select,
+  CircularProgress,
   TextField,
   Tooltip,
 } from "@mui/material";
@@ -272,7 +273,12 @@ export function EditProductDialog({ open, producto, categorias, onClose, onSave 
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={saving}>Cancelar</Button>
-        <Button onClick={handleSave} variant="contained" disabled={saving || !nombre.trim()}>
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          disabled={saving || !nombre.trim()}
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}
+        >
           {saving ? "Guardando..." : "Guardar cambios"}
         </Button>
       </DialogActions>

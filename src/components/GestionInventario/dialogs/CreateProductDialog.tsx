@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Checkbox,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -105,7 +106,7 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Nuevo producto</DialogTitle>
+      <DialogTitle>Nuevo productooo</DialogTitle>
       <DialogContent>
         <Box display="flex" flexDirection="column" gap={2} pt={1}>
           <TextField
@@ -156,22 +157,22 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
 
           <Box display="flex" gap={2}>
             <TextField
-              label="Precio"
-              value={precio}
-              onChange={e => setPrecio(e.target.value)}
-              size="small"
-              inputProps={{ inputMode: "decimal" }}
-              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-              sx={{ flex: 1 }}
-            />
-            <TextField
-              label="Costo"
+              label="Costo (Compra)"
               value={costo}
               onChange={e => setCosto(e.target.value)}
               size="small"
               inputProps={{ inputMode: "decimal" }}
               InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
               sx={{ flex: 1 }}
+            />
+            <TextField
+                label="Precio (Público)"
+                value={precio}
+                onChange={e => setPrecio(e.target.value)}
+                size="small"
+                inputProps={{ inputMode: "decimal" }}
+                InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+                sx={{ flex: 1 }}
             />
           </Box>
 
@@ -220,7 +221,12 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={saving}>Cancelar</Button>
-        <Button onClick={handleSave} variant="contained" disabled={saving || !nombre.trim()}>
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          disabled={saving || !nombre.trim()}
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}
+        >
           {saving ? "Creando..." : "Crear producto"}
         </Button>
       </DialogActions>

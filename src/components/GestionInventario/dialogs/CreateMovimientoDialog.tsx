@@ -2,8 +2,10 @@
 
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -14,7 +16,6 @@ import {
   MenuItem,
   Select,
   TextField,
-  Autocomplete,
   Typography,
 } from "@mui/material";
 import { useState, useEffect, useMemo } from "react";
@@ -276,7 +277,12 @@ export function CreateMovimientoDialog({ open, producto, onClose, onCreated }: P
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={saving}>Cancelar</Button>
-        <Button onClick={handleSave} variant="contained" disabled={saving}>
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          disabled={saving}
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}
+        >
           {saving ? "Guardando..." : "Registrar"}
         </Button>
       </DialogActions>

@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -142,6 +143,7 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
           onClick={handleSave}
           variant="contained"
           disabled={saving || delta === 0}
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}
         >
           {saving ? "Guardando..." : "Confirmar"}
         </Button>
