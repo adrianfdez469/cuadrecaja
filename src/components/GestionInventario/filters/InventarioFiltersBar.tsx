@@ -94,22 +94,22 @@ export function InventarioFiltersBar({
     return (
       <Box display="flex" flexDirection="column" gap={1}>
         {/* Fila 1: Nuevo + Refresh */}
-        <Box display="flex" gap={1} alignItems="center">
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={onCreateProduct}
-            size="small"
-            fullWidth
-          >
-            Nuevo producto
-          </Button>
-          <Tooltip title="Actualizar">
-            <IconButton onClick={onRefresh} disabled={loading} size="small">
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        {/*<Box display="flex" gap={1} alignItems="center">*/}
+        {/*  <Button*/}
+        {/*    variant="contained"*/}
+        {/*    startIcon={<AddIcon />}*/}
+        {/*    onClick={onCreateProduct}*/}
+        {/*    size="small"*/}
+        {/*    fullWidth*/}
+        {/*  >*/}
+        {/*    Nuevo producto*/}
+        {/*  </Button>*/}
+        {/*  <Tooltip title="Actualizar">*/}
+        {/*    <IconButton onClick={onRefresh} disabled={loading} size="small">*/}
+        {/*      <RefreshIcon />*/}
+        {/*    </IconButton>*/}
+        {/*  </Tooltip>*/}
+        {/*</Box>*/}
 
         {/* Fila 2: Search + filtros + limpiar */}
         <Box display="flex" gap={0.5} alignItems="center">
@@ -127,6 +127,13 @@ export function InventarioFiltersBar({
             }}
             sx={{ flex: 1 }}
           />
+          <IconButton
+              color="primary"
+              onClick={onCreateProduct}
+              size="small"
+          >
+            <AddIcon />
+          </IconButton>
           <Tooltip title="Filtros avanzados">
             <IconButton
               size="small"
@@ -144,6 +151,11 @@ export function InventarioFiltersBar({
               color={activeFilters || searchTerm ? "warning" : "default"}
             >
               <CleaningServicesIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Actualizar">
+            <IconButton onClick={onRefresh} disabled={loading} size="small">
+              <RefreshIcon />
             </IconButton>
           </Tooltip>
         </Box>

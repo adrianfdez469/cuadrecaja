@@ -87,8 +87,8 @@ function ProductCard({ p, onEdit, onChangeQty, onViewMovements, onCreateMov, onD
           <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
             <MenuItem onClick={() => { setAnchor(null); onEdit(p); }}>Editar</MenuItem>
             <MenuItem onClick={() => { setAnchor(null); onChangeQty(p); }}>Cambiar cantidad</MenuItem>
-            <MenuItem onClick={() => { setAnchor(null); onViewMovements(p); }}>Historial movimientos</MenuItem>
             <MenuItem onClick={() => { setAnchor(null); onCreateMov(p); }}>Registrar movimiento</MenuItem>
+            <MenuItem onClick={() => { setAnchor(null); onViewMovements(p); }}>Historial movimientos</MenuItem>
             <MenuItem onClick={() => { setAnchor(null); onDelete(p); }} sx={{ color: "error.main" }}>Eliminar</MenuItem>
           </Menu>
         </Box>

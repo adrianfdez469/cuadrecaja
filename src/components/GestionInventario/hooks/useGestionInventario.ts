@@ -93,6 +93,7 @@ export function useGestionInventario() {
       showMessage("Error al cargar el inventario", "error");
     } finally {
       setLoading(false);
+      setCreateMovTarget(null);
     }
   }, [tiendaId]);
 

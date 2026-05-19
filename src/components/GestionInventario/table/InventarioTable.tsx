@@ -67,8 +67,8 @@ function ActionsMenu({ producto, onEdit, onChangeQty, onViewMovements, onCreateM
       <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
         <MenuItem onClick={() => { setAnchor(null); onEdit(producto); }}>Editar</MenuItem>
         <MenuItem onClick={() => { setAnchor(null); onChangeQty(producto); }}>Cambiar cantidad</MenuItem>
-        <MenuItem onClick={() => { setAnchor(null); onViewMovements(producto); }}>Historial movimientos</MenuItem>
         <MenuItem onClick={() => { setAnchor(null); onCreateMov(producto); }}>Registrar movimiento</MenuItem>
+        <MenuItem onClick={() => { setAnchor(null); onViewMovements(producto); }}>Historial movimientos</MenuItem>
         <MenuItem onClick={() => { setAnchor(null); onDelete(producto); }} sx={{ color: "error.main" }}>Eliminar</MenuItem>
       </Menu>
     </>
