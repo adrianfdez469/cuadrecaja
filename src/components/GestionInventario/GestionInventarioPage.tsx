@@ -48,7 +48,7 @@ export function GestionInventarioPage() {
   } = useGestionInventario();
 
   return (
-    <PageContainer title="Gestión de Inventario">
+    <PageContainer title="Gestión de Unificada de Productos">
       {tiendaId && <GestionInventarioAlerts tiendaId={tiendaId} />}
 
       <InventarioStatsRow productos={productos} />

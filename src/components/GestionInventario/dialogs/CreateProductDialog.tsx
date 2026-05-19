@@ -16,7 +16,6 @@ import {
   MenuItem,
   Select,
   TextField,
-  createFilterOptions,
 } from "@mui/material";
 import { useEffect, useState } from "react";
 import { IProducto } from "@/schemas/producto";
@@ -33,8 +32,6 @@ interface Props {
 
 type CatOption = ICategory | { inputValue: string; nombre: string; id: string };
 
-const filter = createFilterOptions<CatOption>();
-
 function generateTempColor(): string {
   const colors = ["#2196f3", "#4caf50", "#ff9800", "#e91e63", "#9c27b0", "#00bcd4"];
   return colors[Math.floor(Math.random() * colors.length)];
@@ -44,6 +41,7 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [catValue, setCatValue] = useState<CatOption | null>(null);
+  const [catInputValue, setCatInputValue] = useState("");
   const [precio, setPrecio] = useState("");
   const [costo, setCosto] = useState("");
   const [cantidadInicial, setCantidadInicial] = useState("");
@@ -59,6 +57,7 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
       setNombre("");
       setDescripcion("");
       setCatValue(null);
+      setCatInputValue("");
       setPrecio("");
       setCosto("");
       setCantidadInicial("");
@@ -80,13 +79,18 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
     setSaving(true);
     try {
       const isNewCat = catValue && "inputValue" in catValue;
-      const categoriaId = isNewCat ? "" : (catValue as ICategory)?.id ?? "";
+      const newCatName = isNewCat
+        ? (catValue as { inputValue: string }).inputValue
+        : !catValue && catInputValue.trim()
+          ? catInputValue.trim()
+          : null;
+      const categoriaId = newCatName ? "" : (catValue as ICategory)?.id ?? "";
       await onSave({
         nombre: nombre.trim(),
         descripcion,
         categoriaId,
-        ...(isNewCat && {
-          newCategoriaName: (catValue as { inputValue: string }).inputValue,
+        ...(newCatName && {
+          newCategoriaName: newCatName,
           newCategoriaColor: generateTempColor(),
         }),
         precio: parseFloat(precio) || 0,
@@ -125,6 +129,7 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
 
           <Autocomplete
             value={catValue}
+            inputValue={catInputValue}
             onChange={(_, val) => {
               if (typeof val === "string") {
                 setCatValue({ inputValue: val, nombre: val, id: "" });
@@ -132,13 +137,7 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
                 setCatValue(val);
               }
             }}
-            filterOptions={(options, params) => {
-              const filtered = filter(options, params);
-              if (params.inputValue !== "") {
-                filtered.push({ inputValue: params.inputValue, nombre: `Crear "${params.inputValue}"`, id: "" });
-              }
-              return filtered;
-            }}
+            onInputChange={(_, val) => setCatInputValue(val)}
             options={categorias}
             getOptionLabel={opt => {
               if (typeof opt === "string") return opt;
@@ -146,15 +145,11 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
               return opt.nombre;
             }}
             renderOption={(props, opt) => (
-              <li {...props} key={opt.id}>
-                {"inputValue" in opt ? (
-                  <em>{opt.nombre}</em>
-                ) : (
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Box sx={{ width: 14, height: 14, borderRadius: "3px", bgcolor: (opt as ICategory).color }} />
-                    {opt.nombre}
-                  </Box>
-                )}
+              <li {...props} key={(opt as ICategory).id}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Box sx={{ width: 14, height: 14, borderRadius: "3px", bgcolor: (opt as ICategory).color }} />
+                  {opt.nombre}
+                </Box>
               </li>
             )}
             freeSolo
