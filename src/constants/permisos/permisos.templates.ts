@@ -59,6 +59,6 @@ export const permisosTemplates = {
         "operaciones.movimientos.crear.consignacion_entrada",
         "operaciones.movimientos.crear.consignacion_devolucion",
         "configuracion.administrador",
-        "operaciones.gestion-inventario.acceder"
+        "configuracion.gestion-inventario.acceder"
     ],
 }

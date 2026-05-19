@@ -48,6 +48,7 @@ import {
   GridView,
   Handshake,
   Inventory,
+  JoinInner,
   LocalShipping,
   PointOfSale,
   Receipt,
@@ -130,6 +131,12 @@ const CONFIGURATION_MENU_ITEMS = [
     permission: 'configuracion.productos.acceder'
   },
   {
+    label: "Gestión Unificada de Productos",
+    path: "/configuracion/gestion-inventario",
+    icon: JoinInner,
+    permission: 'configuracion.gestion-inventario.acceder'
+  },
+  {
     label: "Plantillas de Gastos",
     path: "/gastos/plantillas",
     icon: TrendingDown,
@@ -178,7 +185,6 @@ const MAIN_MENU_ITEMS = [
   { label: "Ventas", path: "/ventas", icon: Receipt, permission: 'operaciones.ventas.acceder' },
   { label: "Movimientos", path: "/movimientos", icon: SwapVert, permission: 'operaciones.movimientos.acceder' },
   { label: "Conformar Precios", path: "/conformar_precios", icon: GridView, permission: 'operaciones.conformarprecios.acceder' },
-  { label: "Gestión Inventario", path: "/operaciones/gestion-inventario", icon: ManageSearchIcon, permission: 'operaciones.gestion-inventario.acceder' },
   { label: "Gastos", path: "/gastos", icon: TrendingDown, permission: 'operaciones.gastos.ver' },
   { label: "Cierre", path: "/cierre", icon: AccountBalanceWallet, permission: 'operaciones.cierre.acceder' },
 ];

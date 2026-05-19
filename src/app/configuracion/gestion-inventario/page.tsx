@@ -12,7 +12,7 @@ export default function GestionInventarioRoute() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loadingContext && !verificarPermiso("operaciones.gestion-inventario.acceder")) {
+    if (!loadingContext && !verificarPermiso("configuracion.gestion-inventario.acceder")) {
       router.push("/forbidden");
     }
   }, [loadingContext]);
