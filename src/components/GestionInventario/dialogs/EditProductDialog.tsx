@@ -18,7 +18,6 @@ import {
   Select,
   TextField,
   Tooltip,
-  createFilterOptions,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -42,8 +41,6 @@ interface Props {
 
 type CatOption = ICategory | { inputValue: string; nombre: string; id: string };
 
-const filter = createFilterOptions<CatOption>();
-
 function generateTempColor(): string {
   const colors = ["#2196f3", "#4caf50", "#ff9800", "#e91e63", "#9c27b0", "#00bcd4"];
   return colors[Math.floor(Math.random() * colors.length)];
@@ -54,6 +51,7 @@ export function EditProductDialog({ open, producto, categorias, onClose, onSave 
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [catValue, setCatValue] = useState<CatOption | null>(null);
+  const [catInputValue, setCatInputValue] = useState("");
   const [precio, setPrecio] = useState("");
   const [costo, setCosto] = useState("");
   const [fechaVencimiento, setFechaVencimiento] = useState<Dayjs | null>(null);
@@ -70,7 +68,9 @@ export function EditProductDialog({ open, producto, categorias, onClose, onSave 
       const prod = producto.producto;
       setNombre(prod.nombre);
       setDescripcion(prod.descripcion || "");
-      setCatValue(categorias.find(c => c.id === prod.categoriaId) ?? null);
+      const foundCat = categorias.find(c => c.id === prod.categoriaId) ?? null;
+      setCatValue(foundCat);
+      setCatInputValue(foundCat?.nombre ?? "");
       setPrecio(String(producto.precio));
       setCosto(String(producto.costo));
       setFechaVencimiento(producto.fechaVencimiento ? dayjs(producto.fechaVencimiento) : null);
@@ -97,14 +97,17 @@ export function EditProductDialog({ open, producto, categorias, onClose, onSave 
     if (!nombre.trim()) return;
     setSaving(true);
     try {
-      const isNewCat = catValue && "inputValue" in catValue;
-      const categoriaId = isNewCat ? "" : (catValue as ICategory)?.id ?? "";
+      const typedText = catInputValue.trim();
+      const isExistingCat =
+        catValue && !("inputValue" in catValue) && (catValue as ICategory).nombre === typedText;
+      const newCatName = isExistingCat ? null : typedText || null;
+      const categoriaId = isExistingCat ? (catValue as ICategory).id : "";
       await onSave(producto!, {
         nombre: nombre.trim(),
         descripcion,
         categoriaId,
-        ...(isNewCat && {
-          newCategoriaName: (catValue as { inputValue: string }).inputValue,
+        ...(newCatName && {
+          newCategoriaName: newCatName,
           newCategoriaColor: generateTempColor(),
         }),
         precio: parseFloat(precio) || 0,
@@ -149,6 +152,7 @@ export function EditProductDialog({ open, producto, categorias, onClose, onSave 
 
           <Autocomplete
             value={catValue}
+            inputValue={catInputValue}
             onChange={(_, val) => {
               if (typeof val === "string") {
                 setCatValue({ inputValue: val, nombre: val, id: "" });
@@ -156,13 +160,7 @@ export function EditProductDialog({ open, producto, categorias, onClose, onSave 
                 setCatValue(val);
               }
             }}
-            filterOptions={(options, params) => {
-              const filtered = filter(options, params);
-              if (params.inputValue !== "") {
-                filtered.push({ inputValue: params.inputValue, nombre: `Crear "${params.inputValue}"`, id: "" });
-              }
-              return filtered;
-            }}
+            onInputChange={(_, val) => setCatInputValue(val)}
             options={categorias}
             getOptionLabel={opt => {
               if (typeof opt === "string") return opt;
@@ -170,15 +168,11 @@ export function EditProductDialog({ open, producto, categorias, onClose, onSave 
               return opt.nombre;
             }}
             renderOption={(props, opt) => (
-              <li {...props} key={opt.id}>
-                {"inputValue" in opt ? (
-                  <em>{opt.nombre}</em>
-                ) : (
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Box sx={{ width: 14, height: 14, borderRadius: "3px", bgcolor: (opt as ICategory).color }} />
-                    {opt.nombre}
-                  </Box>
-                )}
+              <li {...props} key={(opt as ICategory).id}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Box sx={{ width: 14, height: 14, borderRadius: "3px", bgcolor: (opt as ICategory).color }} />
+                  {opt.nombre}
+                </Box>
               </li>
             )}
             freeSolo

@@ -78,13 +78,11 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
     if (!nombre.trim()) return;
     setSaving(true);
     try {
-      const isNewCat = catValue && "inputValue" in catValue;
-      const newCatName = isNewCat
-        ? (catValue as { inputValue: string }).inputValue
-        : !catValue && catInputValue.trim()
-          ? catInputValue.trim()
-          : null;
-      const categoriaId = newCatName ? "" : (catValue as ICategory)?.id ?? "";
+      const typedText = catInputValue.trim();
+      const isExistingCat =
+        catValue && !("inputValue" in catValue) && (catValue as ICategory).nombre === typedText;
+      const newCatName = isExistingCat ? null : typedText || null;
+      const categoriaId = isExistingCat ? (catValue as ICategory).id : "";
       await onSave({
         nombre: nombre.trim(),
         descripcion,

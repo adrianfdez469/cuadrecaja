@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
-import { getProductosVenta, updateProductosTienda } from "@/services/costoPrecioServices";
+import { getProductosVenta, updateProductosTienda, createProductoTienda } from "@/services/costoPrecioServices";
 import { fetchCategories, createCategory } from "@/services/categoryService";
 import { createProduct, editProduct, deleteProduct } from "@/services/productServise";
 import { cretateBatchMovimientos } from "@/services/movimientoService";
@@ -234,6 +234,8 @@ export function useGestionInventario() {
         if (nuevoPT && data.precio) {
           await updateProductosTienda(tiendaId, [{ id: nuevoPT.id, precio: data.precio }]);
         }
+      } else {
+        await createProductoTienda(tiendaId, nuevoProducto.id, data.precio, data.costo);
       }
 
       showMessage("Producto creado", "success");

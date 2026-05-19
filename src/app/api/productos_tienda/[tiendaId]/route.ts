@@ -68,6 +68,35 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
   }
 }
 
+export async function POST(req: Request, { params }: { params: Promise<{ tiendaId: string }> }) {
+  try {
+    const { tiendaId } = await params;
+    const { productoId, precio, costo } = await req.json();
+
+    const session = await getSession();
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos, "operaciones.gestion-inventario.acceder", user.rol)) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+    }
+
+    const productoTienda = await prisma.productoTienda.create({
+      data: {
+        tiendaId,
+        productoId,
+        existencia: 0,
+        precio: precio ?? 0,
+        costo: costo ?? 0,
+      },
+    });
+
+    return NextResponse.json(productoTienda, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Error al crear relación producto-tienda" }, { status: 500 });
+  }
+}
+
 export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId: string }> }) {
   try {
     const { tiendaId } = await params;
