@@ -170,7 +170,7 @@ export function EditProductDialog({ open, producto, categorias, onClose, onSave 
               return opt.nombre;
             }}
             renderOption={(props, opt) => (
-              <li {...props} key={"id" in opt ? opt.id : opt.nombre}>
+              <li {...props} key={opt.id}>
                 {"inputValue" in opt ? (
                   <em>{opt.nombre}</em>
                 ) : (
