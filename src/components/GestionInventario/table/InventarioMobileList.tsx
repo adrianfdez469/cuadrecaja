@@ -132,7 +132,7 @@ export function InventarioMobileList({ productos, loading, onEdit, onChangeQty, 
   }
 
   return (
-    <Stack spacing={1}>
+    <Stack spacing={1} minHeight="100dvh">
       {productos.map(p => (
         <ProductCard
           key={p.id}
