@@ -22,7 +22,7 @@ import AddIcon from "@mui/icons-material/Add";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ICategory } from "@/schemas/categoria";
 import { StockFilter, ExpiryFilter } from "../hooks/useGestionInventario";
 
@@ -79,6 +79,7 @@ export function InventarioFiltersBar({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCats = categorias.filter(c => selectedCategorias.includes(c.id));
   const activeFilters = hasActiveFilters(selectedCategorias, stockFilter, expiryFilter);
@@ -118,6 +119,8 @@ export function InventarioFiltersBar({
             placeholder="Buscar..."
             value={searchTerm}
             onChange={e => onSearchChange(e.target.value)}
+            inputRef={searchInputRef}
+            onFocus={() => searchInputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
