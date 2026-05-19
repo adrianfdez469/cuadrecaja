@@ -22,9 +22,10 @@ import AddIcon from "@mui/icons-material/Add";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
-import { useState, useRef } from "react";
+import {useState, useRef, useMemo} from "react";
 import { ICategory } from "@/schemas/categoria";
 import { StockFilter, ExpiryFilter } from "../hooks/useGestionInventario";
+import {uniqueBy} from "@/utils/arrayUtils";
 
 interface InventarioFiltersBarProps {
   searchTerm: string;
@@ -76,6 +77,9 @@ export function InventarioFiltersBar({
   onRefresh,
   loading,
 }: InventarioFiltersBarProps) {
+  console.log({categorias})
+  const uniqueCategories =
+      useMemo(() => uniqueBy<ICategory>(categorias, "nombre", (current, candidate) => candidate.esGlobal === true), [categorias]);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -95,25 +99,6 @@ export function InventarioFiltersBar({
   if (isMobile) {
     return (
       <Box display="flex" flexDirection="column" gap={1}>
-        {/* Fila 1: Nuevo + Refresh */}
-        {/*<Box display="flex" gap={1} alignItems="center">*/}
-        {/*  <Button*/}
-        {/*    variant="contained"*/}
-        {/*    startIcon={<AddIcon />}*/}
-        {/*    onClick={onCreateProduct}*/}
-        {/*    size="small"*/}
-        {/*    fullWidth*/}
-        {/*  >*/}
-        {/*    Nuevo producto*/}
-        {/*  </Button>*/}
-        {/*  <Tooltip title="Actualizar">*/}
-        {/*    <IconButton onClick={onRefresh} disabled={loading} size="small">*/}
-        {/*      <RefreshIcon />*/}
-        {/*    </IconButton>*/}
-        {/*  </Tooltip>*/}
-        {/*</Box>*/}
-
-        {/* Fila 2: Search + filtros + limpiar */}
         <Box ref={searchRowRef} display="flex" gap={0.5} alignItems="center" sx={{ scrollMarginTop: "64px" }}>
           <TextField
             size="small"
@@ -167,15 +152,16 @@ export function InventarioFiltersBar({
 
         {/* Filtros extra colapsables */}
         <Collapse in={filtersOpen}>
-          <Box display="flex" flexDirection="column" gap={1}>
+          <Box display="flex" flexDirection="column" gap={2}>
             <Autocomplete
+              id="categorias-autocomplete-mobile"
               multiple
               size="small"
-              options={categorias}
-              getOptionLabel={o => o.nombre}
+              options={uniqueCategories}
+              getOptionLabel={(o) => o.nombre}
               value={selectedCats}
               onChange={(_, val) => onCategoriasChange(val.map(v => v.id))}
-              renderInput={params => <TextField {...params} label="Categorías" />}
+              renderInput={(params) => <TextField  {...params} label="Categorías" />}
               renderTags={(val, getTagProps) =>
                 val.map((opt, i) => (
                   <Chip
