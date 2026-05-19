@@ -76,7 +76,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
     const session = await getSession();
     const user = session.user;
 
-    if (!verificarPermisoUsuario(user.permisos, "operaciones.conformarprecios.acceder", user.rol)) {
+    if (
+      !verificarPermisoUsuario(user.permisos, "operaciones.conformarprecios.acceder", user.rol) &&
+      !verificarPermisoUsuario(user.permisos, "operaciones.gestion-inventario.acceder", user.rol)
+    ) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
         { status: 403 }
@@ -89,8 +92,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
 
     await prisma.$transaction(
       productos.map(producto => {
-        const data: { precio?: number; fechaVencimiento?: Date | null } = {};
+        const data: { precio?: number; costo?: number; fechaVencimiento?: Date | null } = {};
         if (producto.precio !== undefined) data.precio = producto.precio;
+        if (producto.costo !== undefined) data.costo = producto.costo;
         if ('fechaVencimiento' in producto) {
           data.fechaVencimiento = producto.fechaVencimiento ? new Date(producto.fechaVencimiento) : null;
         }

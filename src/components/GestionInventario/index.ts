@@ -1,0 +1,1 @@
+export { GestionInventarioPage } from "./GestionInventarioPage";
