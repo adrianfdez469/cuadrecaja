@@ -86,7 +86,6 @@ import { Avatar } from "@mui/material";
 import LocalOffer from "@mui/icons-material/LocalOffer";
 import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
-import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 import Loading from "./Loading";
 import Logo from "./Logo";
 
