@@ -16,8 +16,8 @@ export const createProduct = async (
   fraccion?: {fraccionDeId?: string, unidadesPorFraccion?: number},
   codigosProducto?: string[],
   permiteDecimal?: boolean
-) => {
-  await axiosClient.post(API_URL, {
+): Promise<IProducto> => {
+  const res = await axiosClient.post<IProducto>(API_URL, {
       descripcion: descripcion,
       nombre: nombre,
       categoriaId: categoriaId,
@@ -25,6 +25,7 @@ export const createProduct = async (
       codigosProducto: codigosProducto || [],
       permiteDecimal: permiteDecimal
   });
+  return res.data;
 }
 
 export const editProduct = async (

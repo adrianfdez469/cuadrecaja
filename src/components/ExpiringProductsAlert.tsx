@@ -8,7 +8,7 @@ import {
   Button,
   Chip,
   Collapse,
-  Divider,
+  Divider, IconButton,
   List,
   ListItem,
   ListItemText,
@@ -35,7 +35,7 @@ const getDiasLabel = (fechaVencimiento: string): { dias: number; label: string }
 export default function ExpiringProductsAlert({ tiendaId }: ExpiringProductsAlertProps) {
   const [vencidos, setVencidos] = useState<IProductoTiendaV2[]>([]);
   const [porVencer, setPorVencer] = useState<IProductoTiendaV2[]>([]);
-  const [expandedVencidos, setExpandedVencidos] = useState(true);
+  const [expandedVencidos, setExpandedVencidos] = useState(false);
   const [expandedPorVencer, setExpandedPorVencer] = useState(false);
   const router = useRouter();
 
@@ -61,18 +61,17 @@ export default function ExpiringProductsAlert({ tiendaId }: ExpiringProductsAler
         <Alert
           severity="error"
           action={
-            <Button
+            <IconButton
               color="inherit"
               size="small"
-              endIcon={expandedVencidos ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               onClick={() => setExpandedVencidos((v) => !v)}
             >
-              {expandedVencidos ? "Ocultar" : `Ver ${vencidos.length}`}
-            </Button>
+              {expandedVencidos ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </IconButton>
           }
         >
           <AlertTitle>
-            {vencidos.length} producto(s) <strong>vencido(s)</strong>
+             <strong>Vencidos</strong> ({vencidos.length})
           </AlertTitle>
           <Collapse in={expandedVencidos}>
             <List dense disablePadding sx={{ mt: 0.5 }}>
@@ -112,18 +111,17 @@ export default function ExpiringProductsAlert({ tiendaId }: ExpiringProductsAler
         <Alert
           severity="warning"
           action={
-            <Button
+            <IconButton
               color="inherit"
               size="small"
-              endIcon={expandedPorVencer ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               onClick={() => setExpandedPorVencer((v) => !v)}
             >
-              {expandedPorVencer ? "Ocultar" : `Ver ${porVencer.length}`}
-            </Button>
+              {expandedPorVencer ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </IconButton>
           }
         >
           <AlertTitle>
-            {porVencer.length} producto(s) <strong>próximos a vencer</strong> (≤30 días)
+            <strong>Próximos a vencer</strong> ({porVencer.length})
           </AlertTitle>
           <Collapse in={expandedPorVencer}>
             <List dense disablePadding sx={{ mt: 0.5 }}>

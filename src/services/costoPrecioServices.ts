@@ -12,7 +12,12 @@ export const getProductosVenta = async (tiendaId: string, params?: Record<string
   return response.data;
 }
 
-export const updateProductosTienda = async (tiendaId: string, productos: { id: string; fechaVencimiento?: string | null }[]) => {
+export const createProductoTienda = async (tiendaId: string, productoId: string, precio: number, costo: number) => {
+  const response = await axiosClient.post(`${API_URL}/${tiendaId}`, { productoId, precio, costo });
+  return response.data;
+}
+
+export const updateProductosTienda = async (tiendaId: string, productos: { id: string; fechaVencimiento?: string | null; precio?: number; costo?: number }[]) => {
   const response = await axiosClient.put(`${API_URL}/${tiendaId}`, { productos });
   return response.data;
 }

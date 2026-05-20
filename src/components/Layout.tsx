@@ -48,6 +48,7 @@ import {
   GridView,
   Handshake,
   Inventory,
+  JoinInner,
   LocalShipping,
   PointOfSale,
   Receipt,
@@ -127,6 +128,12 @@ const CONFIGURATION_MENU_ITEMS = [
     path: "/configuracion/productos",
     icon: ChangeHistoryIcon,
     permission: 'configuracion.productos.acceder'
+  },
+  {
+    label: "Gestión Unificada de Productos",
+    path: "/configuracion/gestion-inventario",
+    icon: JoinInner,
+    permission: 'configuracion.gestion-inventario.acceder'
   },
   {
     label: "Plantillas de Gastos",
