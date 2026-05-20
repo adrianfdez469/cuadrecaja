@@ -106,7 +106,7 @@ export function CreateProductDialog({ open, categorias, onClose, onSave }: Props
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Nuevo productooo</DialogTitle>
+      <DialogTitle>Nuevo producto</DialogTitle>
       <DialogContent>
         <Box display="flex" flexDirection="column" gap={2} pt={1}>
           <TextField
