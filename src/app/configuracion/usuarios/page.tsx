@@ -53,10 +53,12 @@ import {
   createUsuario,
   updateUsuario,
   deleteUsuario,
+  getUsuarioDeleteInfo,
   reenviarInvitacionUsuario,
   resetearPasswordUsuario,
 } from "@/services/usuarioService";
-import type { IUsuarioListItem } from "@/schemas/usuario";
+import type { IUsuarioDeleteInfo, IUsuarioListItem } from "@/schemas/usuario";
+import DeleteUsuarioDialog from "@/components/usuarios/DeleteUsuarioDialog";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PENDIENTE_VERIFICACION = "PENDIENTE_VERIFICACION" as const;
@@ -73,6 +75,9 @@ export default function UsuariosPage() {
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [limitDialog, setLimitDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleteInfo, setDeleteInfo] = useState<IUsuarioDeleteInfo | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { showMessage } = useMessageContext();
   const { verificarPermiso } = usePermisos();
@@ -119,24 +124,37 @@ export default function UsuariosPage() {
   };
 
   const handleDelete = async (id: string) => {
-    confirmDialog("¿Estás seguro de eliminar este usuario?", async () => {
-      try {
-        await deleteUsuario(id);
-        showMessage("Usuario eliminado", "success");
-        fetchUsuarios();
-      } catch (error: unknown) {
-        console.error("Error al eliminar el usuario", error);
-        const msg =
-          typeof error === "object" &&
-          error !== null &&
-          "response" in error &&
-          typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error ===
-            "string"
-            ? (error as { response: { data: { error: string } } }).response.data.error
-            : "Error al eliminar el usuario";
-        showMessage(msg, "error");
-      }
-    });
+    setDeleteLoading(true);
+    try {
+      const info = await getUsuarioDeleteInfo(id);
+      setDeleteInfo(info);
+      setDeleteDialogOpen(true);
+    } catch(e) {
+      showMessage("Error al obtener información del usuario", "error");
+      console.error("Error al eliminar el usuario", e);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteInfo) return;
+    try {
+      await deleteUsuario(deleteInfo.id);
+      showMessage("Usuario eliminado", "success");
+      setDeleteDialogOpen(false);
+      setDeleteInfo(null);
+      fetchUsuarios();
+    } catch (error: unknown) {
+      const msg =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error === "string"
+          ? (error as { response: { data: { error: string } } }).response.data.error
+          : "Error al eliminar el usuario";
+      showMessage(msg, "error");
+    }
   };
 
   const handleReinvite = async (e: React.MouseEvent, id: string) => {
@@ -549,7 +567,7 @@ export default function UsuariosPage() {
                             }}
                             size="small"
                             color="error"
-                            disabled={!verificarPermiso("configuracion.usuarios.deleteOrDisable")}
+                            disabled={!verificarPermiso("configuracion.usuarios.deleteOrDisable") || deleteLoading}
                             aria-label="Eliminar usuario"
                           >
                             <Delete sx={{ fontSize: 20 }} />
@@ -658,7 +676,7 @@ export default function UsuariosPage() {
                               }}
                               size="small"
                               color="error"
-                              disabled={!verificarPermiso('configuracion.usuarios.deleteOrDisable')}
+                              disabled={!verificarPermiso('configuracion.usuarios.deleteOrDisable') || deleteLoading}
                             >
                               <Delete fontSize="small" />
                             </IconButton>
@@ -734,6 +752,13 @@ export default function UsuariosPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DeleteUsuarioDialog
+        open={deleteDialogOpen}
+        info={deleteInfo}
+        onClose={() => { setDeleteDialogOpen(false); setDeleteInfo(null); }}
+        onConfirm={handleConfirmDelete}
+      />
 
       {ConfirmDialogComponent}
 

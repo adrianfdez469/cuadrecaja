@@ -8,35 +8,70 @@ import { sendUserEmailChangeNotification } from "@/lib/userAccount/sendUserEmail
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Eliminar un usuario (DELETE)
+// Info del usuario para confirmación de eliminación (GET)
+export async function GET(
+  req: NextRequest, { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+
+    const session = await getSession();
+    const user = session.user;
+
+    if (!verificarPermisoUsuario(user.permisos || '', "configuracion.usuarios.deleteOrDisable", user.rol)) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+    }
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { id, negocioId: user.negocio.id, deletedAt: null },
+      include: {
+        locales: { include: { tienda: { select: { id: true, nombre: true } } } }
+      }
+    });
+
+    if (!usuario) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
+    const [countVentas, countMovimientos, countProveedores] = await Promise.all([
+      prisma.venta.count({ where: { usuarioId: id } }),
+      prisma.movimientoStock.count({ where: { usuarioId: id } }),
+      prisma.proveedor.count({ where: { usuarioId: id } }),
+    ]);
+
+    return NextResponse.json({
+      id: usuario.id,
+      nombre: usuario.nombre,
+      usuario: usuario.usuario,
+      estadoCuenta: usuario.estadoCuenta,
+      locales: usuario.locales.map(l => ({ id: l.tienda.id, nombre: l.tienda.nombre })),
+      countVentas,
+      countMovimientos,
+      countProveedores,
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Error al obtener usuario" }, { status: 500 });
+  }
+}
+
+// Eliminar un usuario (DELETE) — soft delete
 export async function DELETE(
   req: NextRequest, { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-
     const { id } = await params;
+    if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
 
-    if (!id) {
-      return NextResponse.json({ error: "ID requerido" }, { status: 400 });
-    }
-
-    // const user = await getUserFromRequest(req);
     const session = await getSession();
     const user = session.user;
 
-    const usuario = await prisma.usuario.findUnique({where: {id, negocioId: user.negocio.id}});
-    if(!usuario) {
-      return NextResponse.json(
-        { error: "Usuario no encontrado" },
-        { status: 404 }
-      );
+    const usuario = await prisma.usuario.findUnique({ where: { id, negocioId: user.negocio.id, deletedAt: null } });
+    if (!usuario) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
     }
 
-    if(!verificarPermisoUsuario(user.permisos || '', "configuracion.usuarios.deleteOrDisable", user.rol )) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado" },
-        { status: 403 }
-      );
+    if (!verificarPermisoUsuario(user.permisos || '', "configuracion.usuarios.deleteOrDisable", user.rol)) {
+      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
     }
 
     if (usuario.estadoCuenta === UsuarioEstadoCuenta.PENDIENTE_VERIFICACION) {
@@ -45,57 +80,19 @@ export async function DELETE(
       return NextResponse.json({ message: "Usuario eliminado" }, { status: 200 });
     }
 
-    const [countLocales, countVentas, countMovimientos, countProveedores] = await Promise.all([
-      prisma.usuarioTienda.count({ where: { usuarioId: id } }),
-      prisma.venta.count({ where: { usuarioId: id } }),
-      prisma.movimientoStock.count({ where: { usuarioId: id } }),
-      prisma.proveedor.count({ where: { usuarioId: id } }),
-    ]);
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const nuevoUsuario = `${usuario.usuario}_ELIMINADO_${dd}-${mm}-${yyyy}`;
 
-    const razones: string[] = [];
-    if (countLocales > 0) {
-      razones.push(
-        `está asignado a ${countLocales} local(es); quítalo de los locales en configuración`
-      );
-    }
-    if (countVentas > 0) {
-      razones.push(`tiene ${countVentas} venta(s) registrada(s) en el sistema`);
-    }
-    if (countMovimientos > 0) {
-      razones.push(`tiene ${countMovimientos} movimiento(s) de inventario asociados`);
-    }
-    if (countProveedores > 0) {
-      razones.push(`está vinculado a ${countProveedores} proveedor(es)`);
-    }
-
-    if (razones.length > 0) {
-      return NextResponse.json(
-        {
-          error: `No se puede eliminar el usuario porque ${razones.join("; ")}.`,
-        },
-        { status: 409 }
-      );
-    }
-
-    try {
-      await prisma.usuario.delete({
+    await prisma.$transaction([
+      prisma.usuarioTienda.deleteMany({ where: { usuarioId: id } }),
+      prisma.usuario.update({
         where: { id },
-      });
-    } catch (deleteErr) {
-      if (
-        deleteErr instanceof Prisma.PrismaClientKnownRequestError &&
-        deleteErr.code === "P2003"
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "No se puede eliminar el usuario: aún tiene datos vinculados en el sistema (por ejemplo ventas, movimientos o referencias en otras tablas).",
-          },
-          { status: 409 }
-        );
-      }
-      throw deleteErr;
-    }
+        data: { deletedAt: now, usuario: nuevoUsuario },
+      }),
+    ]);
 
     return NextResponse.json({ message: "Usuario eliminado" }, { status: 200 });
   } catch (error) {

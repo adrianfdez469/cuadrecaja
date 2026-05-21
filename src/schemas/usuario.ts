@@ -25,7 +25,19 @@ export const usuarioListItemSchema = usuarioBasicoSchema.extend({
   isActive: z.boolean().optional(),
 });
 
+export const usuarioDeleteInfoSchema = z.object({
+  id: z.string().uuid(),
+  nombre: z.string(),
+  usuario: z.string(),
+  estadoCuenta: z.nativeEnum(UsuarioEstadoCuenta),
+  locales: z.array(z.object({ id: z.string(), nombre: z.string() })),
+  countVentas: z.number(),
+  countMovimientos: z.number(),
+  countProveedores: z.number(),
+});
+
 export type IUsuarioBasico = z.infer<typeof usuarioBasicoSchema>;
 export type IUser = z.infer<typeof usuarioSchema>;
 export type IUsuarioPayload = z.infer<typeof createUsuarioSchema>;
 export type IUsuarioListItem = z.infer<typeof usuarioListItemSchema>;
+export type IUsuarioDeleteInfo = z.infer<typeof usuarioDeleteInfoSchema>;

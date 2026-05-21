@@ -35,6 +35,7 @@ export async function GET() {
         where: {
           id: user.id,
           negocioId: user.negocio.id,
+          deletedAt: null,
         },
         select: usuarioListSelect,
       });
@@ -44,6 +45,7 @@ export async function GET() {
     const usuarios = await prisma.usuario.findMany({
       where: {
         negocioId: user.negocio.id,
+        deletedAt: null,
       },
       select: usuarioListSelect,
     });
@@ -80,6 +82,7 @@ export async function POST(req: Request) {
       prisma.usuario.count({
         where: {
           negocioId: user.negocio.id,
+          deletedAt: null,
         },
       }),
       prisma.negocio.findUnique({

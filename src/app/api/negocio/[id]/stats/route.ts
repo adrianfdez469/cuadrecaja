@@ -56,6 +56,7 @@ export async function GET(
       prisma.usuario.count({
         where: {
           negocioId: id,
+          deletedAt: null,
           OR: [
             { rol: null },
             { rol: { not: "SUPER_ADMIN" } }
