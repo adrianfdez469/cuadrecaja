@@ -229,7 +229,8 @@ model Usuario {
   localActual   Tienda? @relation(fields: [localActualId], references: [id])
   localActualId String?
 
-  isActive Boolean @default(true)
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Usuario y Tienda.
