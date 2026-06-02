@@ -17,13 +17,20 @@ import {
   Tooltip,
   Divider,
 } from "@mui/material";
-import { closePeriod, fetchCierreData, openPeriod } from "@/services/cierrePeriodService";
+import {
+  closePeriod,
+  fetchCierreData,
+  openPeriod,
+} from "@/services/cierrePeriodService";
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ICierreData, ICierrePeriodo } from "@/schemas/cierre";
 import useConfirmDialog from "@/components/confirmDialog";
-import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre";
+import {
+  ITotales,
+  TablaProductosCierre,
+} from "@/components/tablaProductosCierre";
 import { useSalesStore } from "@/store/salesStore";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
@@ -35,7 +42,7 @@ import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
-import { formatDate, formatCurrency, formatNumber } from '@/utils/formatters';
+import { formatDate, formatCurrency, formatNumber } from "@/utils/formatters";
 import { usePermisos } from "@/utils/permisos_front";
 import GastosCierreReviewDialog from "@/app/gastos/components/GastosCierreReviewDialog";
 import GastoCierreList from "@/app/gastos/components/GastoCierreList";
@@ -48,7 +55,7 @@ import { DENOMINACIONES } from "@/constants/billDenominations";
 const CierreCajaPage = () => {
   const { user, loadingContext, gotToPath, monedasNegocio } = useAppContext();
   const { showMessage } = useMessageContext();
-  const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>()
+  const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>();
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [cierreData, setCierreData] = useState<ICierreData>();
   const [totales, setTotales] = useState<ITotales>({
@@ -65,8 +72,8 @@ const CierreCajaPage = () => {
   const { ConfirmDialogComponent } = useConfirmDialog();
   const { clearSales, sales } = useSalesStore();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { verificarPermiso } = usePermisos()
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { verificarPermiso } = usePermisos();
   const canManageGastos = verificarPermiso("operaciones.gastos.gestionar");
 
   const handleSaveAdHoc = async (data: IGastoAdHocCreate) => {
@@ -78,8 +85,11 @@ const CierreCajaPage = () => {
   const handleCerrarCaja = async () => {
     if (isProcessingCierre) return;
 
-    if (sales.filter(sale => !sale.synced).length > 0) {
-      showMessage("Debe sincronizar las ventas en la interfaz del pos de ventas", "warning");
+    if (sales.filter((sale) => !sale.synced).length > 0) {
+      showMessage(
+        "Debe sincronizar las ventas en la interfaz del pos de ventas",
+        "warning",
+      );
     } else {
       // Abrir el dialog de revisión de gastos antes de confirmar el cierre
       setGastosReviewOpen(true);
@@ -95,10 +105,10 @@ const CierreCajaPage = () => {
       clearSales();
 
       await openPeriod(localId);
-      showMessage('Cierre de caja realizado exitosamente', 'success');
+      showMessage("Cierre de caja realizado exitosamente", "success");
     } catch (error) {
       console.error(error);
-      showMessage('Ha ocurrido un error al realizar el cierre', 'error');
+      showMessage("Ha ocurrido un error al realizar el cierre", "error");
       throw error;
     } finally {
       setIsProcessingCierre(false);
@@ -110,7 +120,7 @@ const CierreCajaPage = () => {
   const handleCreateFirstPeriod = async () => {
     // Evitar múltiples clics mientras se procesa
     if (isProcessingCierre) return;
-    
+
     setIsProcessingCierre(true);
     try {
       setIsDataLoading(true);
@@ -130,7 +140,7 @@ const CierreCajaPage = () => {
     setIsDataLoading(true);
     setNoPeriodFound(false);
     setNoLocalActual(false);
-    
+
     try {
       // Validar que el usuario tenga un local actual
       if (!user.localActual || !user.localActual.id) {
@@ -140,12 +150,12 @@ const CierreCajaPage = () => {
 
       const localId = user.localActual.id;
       const currentPeriod = await fetchLastPeriod(localId);
-      
+
       if (!currentPeriod) {
         setNoPeriodFound(true);
         return;
       }
-      
+
       setCurrentPeriod(currentPeriod);
       const [data, gastosTienda] = await Promise.all([
         fetchCierreData(localId, currentPeriod.id),
@@ -158,24 +168,15 @@ const CierreCajaPage = () => {
       setTotales({
         totalCantidad: data.productosVendidos.reduce(
           (acc, p) => acc + p.cantidad,
-          0
+          0,
         ),
         // Usar la ganancia total provista por el backend (ya ajustada por descuentos)
         totalGanancia: data.totalGanancia || 0,
-        totalMonto: data.productosVendidos.reduce(
-          (acc, p) => acc + p.total,
-          0
-        ),
+        totalMonto: data.productosVendidos.reduce((acc, p) => acc + p.total, 0),
       });
     } catch (error) {
       console.error("Error al cargar los datos de cierre:", error);
-      showMessage(
-        error.message,
-        "error",
-        true,
-          'permision-error'
-      );
-
+      showMessage(error.message, "error", true, "permision-error");
     } finally {
       setIsDataLoading(false);
     }
@@ -188,13 +189,18 @@ const CierreCajaPage = () => {
   }, [loadingContext]);
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({ icon, value, label, color }: { 
-    icon: React.ReactNode, 
-    value: string, 
-    label: string, 
-    color: string 
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    color: string;
   }) => (
-    <Card sx={{ height: '100%' }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -202,10 +208,10 @@ const CierreCajaPage = () => {
               p: isMobile ? 1 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 40 : 48,
               minHeight: isMobile ? 40 : 48,
             }}
@@ -213,23 +219,23 @@ const CierreCajaPage = () => {
             {icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "h5" : "h4"} 
+            <Typography
+              variant={isMobile ? "h5" : "h4"}
               fontWeight="bold"
-              sx={{ 
-                fontSize: isMobile ? '1.25rem' : '2rem',
+              sx={{
+                fontSize: isMobile ? "1.25rem" : "2rem",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
             </Typography>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
-                fontSize: isMobile ? '0.75rem' : '0.875rem',
-                lineHeight: 1.2
+              sx={{
+                fontSize: isMobile ? "0.75rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
@@ -241,21 +247,28 @@ const CierreCajaPage = () => {
   );
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Cierre de Caja' }
+    { label: "Inicio", href: "/home" },
+    { label: "Cierre de Caja" },
   ];
 
   const headerActions = (
-    <Stack direction="row-reverse" spacing={1} sx={{ width: '100%'}}>
+    <Stack direction="row-reverse" spacing={1} sx={{ width: "100%" }}>
       {canManageGastos && currentPeriod && !currentPeriod.fechaFin && (
         <Tooltip title="Registrar gasto puntual del período">
-          <IconButton onClick={() => setAdHocOpen(true)} size={isMobile ? "small" : "medium"}>
+          <IconButton
+            onClick={() => setAdHocOpen(true)}
+            size={isMobile ? "small" : "medium"}
+          >
             <ReceiptLongIcon />
           </IconButton>
         </Tooltip>
       )}
       <Tooltip title="Actualizar datos">
-        <IconButton onClick={getInitData} disabled={isDataLoading} size={isMobile ? "small" : "medium"}>
+        <IconButton
+          onClick={getInitData}
+          disabled={isDataLoading}
+          size={isMobile ? "small" : "medium"}
+        >
           <RefreshIcon />
         </IconButton>
       </Tooltip>
@@ -269,7 +282,12 @@ const CierreCajaPage = () => {
         subtitle="Gestión y control de cierres de período"
         breadcrumbs={breadcrumbs}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="200px"
+        >
           <CircularProgress />
           <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
             Cargando datos de cierre...
@@ -291,10 +309,12 @@ const CierreCajaPage = () => {
             No hay tienda seleccionada
           </Typography>
           <Typography variant="body1" gutterBottom>
-            Para realizar cierres de caja, necesitas tener una tienda seleccionada como tienda actual.
+            Para realizar cierres de caja, necesitas tener una tienda
+            seleccionada como tienda actual.
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Si no tienes ninguna tienda creada, primero debes crear una desde la configuración.
+            Si no tienes ninguna tienda creada, primero debes crear una desde la
+            configuración.
           </Typography>
           <Box mt={2}>
             <Button
@@ -305,10 +325,7 @@ const CierreCajaPage = () => {
             >
               Ir a Configuración de Tiendas
             </Button>
-            <Button
-              variant="outlined"
-              onClick={() => gotToPath("/home")}
-            >
+            <Button variant="outlined" onClick={() => gotToPath("/home")}>
               Volver al Inicio
             </Button>
           </Box>
@@ -329,11 +346,13 @@ const CierreCajaPage = () => {
             ¡Bienvenido a tu nuevo negocio!
           </Typography>
           <Typography variant="body1" gutterBottom>
-            No se encontraron períodos de cierre. Para comenzar a usar el sistema de punto de venta 
-            y realizar cierres de caja, necesitas crear tu primer período.
+            No se encontraron períodos de cierre. Para comenzar a usar el
+            sistema de punto de venta y realizar cierres de caja, necesitas
+            crear tu primer período.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Un período de cierre te permite controlar las ventas y realizar cortes de caja organizados por fechas.
+            Un período de cierre te permite controlar las ventas y realizar
+            cortes de caja organizados por fechas.
           </Typography>
         </Alert>
         <Button
@@ -357,11 +376,18 @@ const CierreCajaPage = () => {
         breadcrumbs={breadcrumbs}
         headerActions={headerActions}
         maxWidth="xl"
-        contentProps={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, sm: 3 } }}
+        contentProps={{
+          display: "flex",
+          flexDirection: "column",
+          gap: { xs: 2, sm: 3 },
+        }}
       >
         {/* Estadísticas del cierre */}
-        <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
-          
+        <Grid
+          container
+          spacing={isMobile ? 2 : 3}
+          sx={{ mb: isMobile ? 3 : 4 }}
+        >
           <Grid item xs={6} sm={6} md={4}>
             <StatCard
               icon={<InventoryIcon fontSize={"medium"} />}
@@ -370,7 +396,7 @@ const CierreCajaPage = () => {
               color="warning.light"
             />
           </Grid>
-          
+
           <Grid item xs={6} sm={6} md={4}>
             <StatCard
               icon={<ShoppingCartIcon fontSize={"medium"} />}
@@ -383,23 +409,26 @@ const CierreCajaPage = () => {
           <Grid item xs={12} sm={6} md={4}>
             <StatCard
               icon={<AttachMoneyIcon fontSize={"medium"} />}
-              value={formatCurrency((cierreData.totalVentasBrutas ?? totales.totalMonto) || 0)}
+              value={formatCurrency(
+                (cierreData.totalVentasBrutas ?? totales.totalMonto) || 0,
+              )}
               label="Total Ventas (Bruto)"
               color="success.light"
             />
           </Grid>
 
           {/* Mostrar descuentos totales del período si existen */}
-          {typeof cierreData.totalDescuentos === 'number' && (cierreData.totalDescuentos || 0) > 0 && (
-            <Grid item xs={12} sm={6} md={4}>
-              <StatCard
-                icon={<TrendingUpIcon fontSize={"medium"} />}
-                value={formatCurrency(cierreData.totalDescuentos || 0)}
-                label="Descuentos del Período"
-                color="error.light"
-              />
-            </Grid>
-          )}
+          {typeof cierreData.totalDescuentos === "number" &&
+            (cierreData.totalDescuentos || 0) > 0 && (
+              <Grid item xs={12} sm={6} md={4}>
+                <StatCard
+                  icon={<TrendingUpIcon fontSize={"medium"} />}
+                  value={formatCurrency(cierreData.totalDescuentos || 0)}
+                  label="Descuentos del Período"
+                  color="error.light"
+                />
+              </Grid>
+            )}
 
           {verificarPermiso("operaciones.cierre.gananciascostos") && (
             <Grid item xs={12} sm={6} md={4}>
@@ -434,17 +463,26 @@ const CierreCajaPage = () => {
 
         {/* Desglose por moneda (solo visible si hay ventas multimoneda) */}
         {cierreData.resumenMonedas && cierreData.resumenMonedas.length > 0 && (
-          <ContentCard title="Desglose por Moneda" subtitle={!isMobile ? "Ingresos reales por moneda de cobro" : undefined}>
+          <ContentCard
+            title="Desglose por Moneda"
+            subtitle={
+              !isMobile ? "Ingresos reales por moneda de cobro" : undefined
+            }
+          >
             <Stack spacing={1.5} divider={<Divider flexItem />}>
               {cierreData.resumenMonedas.map((rm) => {
-                const negocioMoneda = monedasNegocio.find(m => m.monedaCode === rm.monedaCode);
+                const negocioMoneda = monedasNegocio.find(
+                  (m) => m.monedaCode === rm.monedaCode,
+                );
                 // Denominations from DB config; CUP falls back to static list if not configured
                 const denominations =
                   negocioMoneda?.moneda?.denominaciones
-                    ?.filter(d => d.activo)
-                    .map(d => d.valor)
-                    .sort((a, b) => b - a)
-                  ?? (rm.monedaCode === 'CUP' ? [...DENOMINACIONES.CUP].sort((a, b) => b - a) : []);
+                    ?.filter((d) => d.activo)
+                    .map((d) => d.valor)
+                    .sort((a, b) => b - a) ??
+                  (rm.monedaCode === "CUP"
+                    ? [...DENOMINACIONES.CUP].sort((a, b) => b - a)
+                    : []);
                 return (
                   <MonedaBreakdownRow
                     key={rm.monedaCode}
@@ -452,7 +490,7 @@ const CierreCajaPage = () => {
                     totalEfectivo={rm.totalEfectivo}
                     totalTransfer={rm.totalTransfer}
                     equivalenteBase={rm.equivalenteBase}
-                    tiendaId={user?.localActual?.id ?? ''}
+                    tiendaId={user?.localActual?.id ?? ""}
                     cierreId={currentPeriod.id}
                     isOpen={!currentPeriod.fechaFin}
                     denominations={denominations}
@@ -466,22 +504,36 @@ const CierreCajaPage = () => {
         {/* Tabla de productos vendidos */}
         <ContentCard
           title="Detalle de Productos Vendidos"
-          subtitle={!isMobile ? "Resumen completo de las ventas del período actual" : undefined}
+          subtitle={
+            !isMobile
+              ? "Resumen completo de las ventas del período actual"
+              : undefined
+          }
           noPadding
           fullHeight
         >
           <TablaProductosCierre
             cierreData={cierreData}
             totales={totales}
-            handleCerrarCaja={!verificarPermiso("operaciones.cierre.cerrar") ? undefined : handleCerrarCaja}
-            showOnlyCants={!verificarPermiso("operaciones.cierre.gananciascostos")}
+            handleCerrarCaja={
+              !verificarPermiso("operaciones.cierre.cerrar")
+                ? undefined
+                : handleCerrarCaja
+            }
+            showOnlyCants={
+              !verificarPermiso("operaciones.cierre.gananciascostos")
+            }
             isProcessing={isProcessingCierre}
           />
         </ContentCard>
-        
+
         {verificarPermiso("operaciones.gastos.ver") && (
           <Box mt={3}>
-            <GastoCierreList cierreId={currentPeriod.id} totalGanancia={totales.totalGanancia} />
+            <GastoCierreList
+              cierreId={currentPeriod.id}
+              totalGanancia={totales.totalGanancia}
+              canDelete={canManageGastos && !currentPeriod.fechaFin}
+            />
           </Box>
         )}
 
@@ -506,8 +558,6 @@ const CierreCajaPage = () => {
             onConfirm={handleConfirmarCierre}
           />
         )}
-
-
       </PageContainer>
     );
   }
@@ -519,7 +569,8 @@ const CierreCajaPage = () => {
       breadcrumbs={breadcrumbs}
     >
       <Alert severity="error">
-        Error al cargar los datos de cierre. Por favor, intenta recargar la página.
+        Error al cargar los datos de cierre. Por favor, intenta recargar la
+        página.
       </Alert>
     </PageContainer>
   );
