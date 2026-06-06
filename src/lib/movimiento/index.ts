@@ -1,87 +1,141 @@
-import { prisma } from '../prisma';
+import { prisma } from "../prisma";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
-import { calcularCPP, requiereCPP } from '../cpp-calculator';
+import { calcularCPP, requiereCPP } from "../cpp-calculator";
+import { convertToBase, convertFromBase, buildTasaSnapshot } from "../currency";
 
 export const CreateMoviento = async (data, items) => {
+  const {
+    tipo,
+    tiendaId,
+    usuarioId,
+    referenciaId,
+    motivo,
+    proveedorId,
+    destinationId,
+  } = data;
 
-  const { tipo, tiendaId, usuarioId, referenciaId, motivo, proveedorId, destinationId } = data;
+  // Fetch exchange rates once for the whole batch
+  const tiendaWithNegocio = await prisma.tienda.findUnique({
+    where: { id: tiendaId },
+    select: { negocio: { select: { monedaBase: true, id: true } } },
+  });
+  const monedaBase = tiendaWithNegocio?.negocio?.monedaBase ?? "CUP";
+  const negocioId = tiendaWithNegocio?.negocio?.id;
 
-  
+  const tasasCambio = negocioId
+    ? await prisma.tasaCambio.findMany({
+        where: { negocioId },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const tasas = buildTasaSnapshot(tasasCambio);
 
   await prisma.$transaction(async (tx) => {
-
     for (const movimiento of items) {
-      const { productoId, cantidad, costoUnitario, proveedorId: itemProveedorId, movimientoOrigenId, fechaVencimiento, monedaOriginal, montoOriginal, tasaUsada: tasaUsadaItem } = movimiento;
-      
+      const {
+        productoId,
+        cantidad,
+        costoUnitario,
+        monedaCompra,
+        proveedorId: itemProveedorId,
+        movimientoOrigenId,
+        fechaVencimiento,
+        monedaOriginal,
+        montoOriginal,
+        tasaUsada: tasaUsadaItem,
+      } = movimiento;
 
-      // 1. Obtener el productoTienda existente para capturar la existencia anterior
+      // 1. Obtener el productoTienda existente
       let existenciaAnterior = 0;
       const productoTiendaExistente = await tx.productoTienda.findFirst({
         where: {
           tiendaId,
           productoId,
-          proveedorId: itemProveedorId || proveedorId || null
+          proveedorId: itemProveedorId || proveedorId || null,
         },
       });
 
       let productoTienda;
       let calculoCPP = null;
+      // Moneda efectiva del costo para este movimiento
+      const monedaEfectiva = monedaCompra ?? monedaBase;
 
       if (productoTiendaExistente) {
         existenciaAnterior = productoTiendaExistente.existencia;
 
-        // 🆕 CÁLCULO CPP
         let nuevoCosto = productoTiendaExistente.costo;
+        let nuevaMonedaCosto = productoTiendaExistente.monedaCostoCode;
 
         if (requiereCPP(tipo) && costoUnitario) {
+          // Resolver la moneda actual del producto (null = monedaBase)
+          const monedaActual =
+            productoTiendaExistente.monedaCostoCode ?? monedaBase;
+
+          // Si la moneda cambia, convertir el costo anterior a la nueva moneda
+          const costoAnteriorEnNuevaMoneda =
+            monedaActual === monedaEfectiva
+              ? productoTiendaExistente.costo
+              : convertFromBase(
+                  convertToBase(
+                    productoTiendaExistente.costo,
+                    monedaActual,
+                    tasas,
+                    monedaBase,
+                  ),
+                  monedaEfectiva,
+                  tasas,
+                  monedaBase,
+                );
+
           try {
             calculoCPP = calcularCPP(
               existenciaAnterior,
-              productoTiendaExistente.costo,
+              costoAnteriorEnNuevaMoneda,
               cantidad,
-              costoUnitario
+              costoUnitario,
             );
             nuevoCosto = calculoCPP.costoNuevo;
-
+            nuevaMonedaCosto = monedaEfectiva;
           } catch (error) {
-            console.error('❌ Error calculando CPP:', error.message);
-            // En caso de error, mantener el costo anterior
+            console.error("❌ Error calculando CPP:", error.message);
             nuevoCosto = productoTiendaExistente.costo;
           }
         }
 
-        // Calcular la fecha de vencimiento mínima (si aplica entrada con fecha)
+        // Calcular fecha de vencimiento mínima
         let minFechaVencimiento: Date | undefined = undefined;
         if (!isMovimientoBaja(tipo) && fechaVencimiento) {
           const nuevaFecha = new Date(fechaVencimiento);
           minFechaVencimiento = productoTiendaExistente.fechaVencimiento
-            ? new Date(Math.min(productoTiendaExistente.fechaVencimiento.getTime(), nuevaFecha.getTime()))
+            ? new Date(
+                Math.min(
+                  productoTiendaExistente.fechaVencimiento.getTime(),
+                  nuevaFecha.getTime(),
+                ),
+              )
             : nuevaFecha;
         }
 
-        // 2. Update para obtener el productoTienda
         productoTienda = await tx.productoTienda.update({
-          where: {
-            id: productoTiendaExistente.id
-          },
+          where: { id: productoTiendaExistente.id },
           data: {
             existencia: {
-              ...(isMovimientoBaja(tipo) ? {decrement: cantidad} : {increment: cantidad}),
+              ...(isMovimientoBaja(tipo)
+                ? { decrement: cantidad }
+                : { increment: cantidad }),
             },
-            // 🆕 Actualizar con CPP calculado o costo directo
-            ...(requiereCPP(tipo) && costoUnitario && {
-              costo: nuevoCosto
+            ...(requiereCPP(tipo) &&
+              costoUnitario && {
+                costo: nuevoCosto,
+                monedaCostoCode: nuevaMonedaCosto,
+              }),
+            ...(minFechaVencimiento && {
+              fechaVencimiento: minFechaVencimiento,
             }),
-            // 🆕 Actualizar fecha de vencimiento mínima
-            ...(minFechaVencimiento && { fechaVencimiento: minFechaVencimiento })
           },
         });
-
       } else {
-        // 2. Create para obtener el productoTienda
-
-        
-
+        // Producto nuevo en esta tienda
         productoTienda = await tx.productoTienda.create({
           data: {
             tiendaId,
@@ -89,12 +143,15 @@ export const CreateMoviento = async (data, items) => {
             costo: costoUnitario || 0,
             precio: 0,
             existencia: cantidad,
+            monedaCostoCode: costoUnitario ? monedaEfectiva : null,
             proveedorId: itemProveedorId || proveedorId || null,
-            ...(!isMovimientoBaja(tipo) && fechaVencimiento && { fechaVencimiento: new Date(fechaVencimiento) })
-          }
+            ...(!isMovimientoBaja(tipo) &&
+              fechaVencimiento && {
+                fechaVencimiento: new Date(fechaVencimiento),
+              }),
+          },
         });
 
-        // Para productos nuevos, registrar el cálculo inicial
         if (requiereCPP(tipo) && costoUnitario) {
           calculoCPP = {
             costoAnterior: 0,
@@ -105,52 +162,48 @@ export const CreateMoviento = async (data, items) => {
             existenciaNueva: cantidad,
             cantidadCompra: cantidad,
             costoUnitarioCompra: costoUnitario,
-            costoTotalCompra: cantidad * costoUnitario
+            costoTotalCompra: cantidad * costoUnitario,
           };
-
         }
       }
 
-      // 3 Buscar productos fraccionables
+      // 3. Actualizar productos fraccionados
       const productosFraccionados = await tx.producto.findMany({
-        where: {
-          fraccionDeId: productoId
-        }
+        where: { fraccionDeId: productoId },
       });
 
-      // 3.1 Actualizar los productos fraccionables
       for (const productoFraccion of productosFraccionados) {
-        // 3.1.1 Buscar el productoTienda del producto fraccionado
         const productoTiendaFraccionado = await tx.productoTienda.findFirst({
-          where: {
-            productoId: productoFraccion.id,
-            tiendaId
-          }
+          where: { productoId: productoFraccion.id, tiendaId },
         });
-        if(calculoCPP){
+        if (calculoCPP) {
+          const costoFraccion =
+            calculoCPP.costoNuevo / productoFraccion.unidadesPorFraccion;
           if (productoTiendaFraccionado) {
-            // 3.1.2 Actualizar el productoTienda del producto fraccionado
             await tx.productoTienda.update({
               where: { id: productoTiendaFraccionado.id },
-              data: { costo: calculoCPP.costoNuevo / productoFraccion.unidadesPorFraccion }
+              data: {
+                costo: costoFraccion,
+                ...(monedaEfectiva && { monedaCostoCode: monedaEfectiva }),
+              },
             });
           } else {
-            // 3.1.3 Crear el productoTienda del producto fraccionado
             await tx.productoTienda.create({
               data: {
                 productoId: productoFraccion.id,
                 tiendaId,
-                costo: calculoCPP.costoNuevo / productoFraccion.unidadesPorFraccion,
+                costo: costoFraccion,
                 precio: 0,
                 existencia: 0,
+                monedaCostoCode: monedaEfectiva,
                 proveedorId: itemProveedorId || proveedorId || null,
-              }
+              },
             });
           }
         }
       }
 
-      // 4. Crear el movimiento con el ID del productoTienda y los datos de CPP
+      // 4. Crear el movimiento
       await tx.movimientoStock.create({
         data: {
           tipo,
@@ -158,33 +211,35 @@ export const CreateMoviento = async (data, items) => {
           productoTiendaId: productoTienda.id,
           tiendaId,
           usuarioId,
-          existenciaAnterior, // Guardar la existencia ANTES del movimiento
+          existenciaAnterior,
 
-          // 🆕 CAMPOS CPP
           ...(calculoCPP && {
             costoUnitario: calculoCPP.costoUnitarioCompra,
             costoTotal: calculoCPP.costoTotalCompra,
             costoAnterior: calculoCPP.costoAnterior,
-            costoNuevo: calculoCPP.costoNuevo
+            costoNuevo: calculoCPP.costoNuevo,
           }),
 
-          ...(referenciaId && { referenciaId: referenciaId }),
-          ...(motivo && { motivo: motivo }),
-          ...(proveedorId && { proveedorId: proveedorId }),
-          ...(itemProveedorId && {proveedorId: itemProveedorId}),
-          ...(destinationId && { destinationId: destinationId }),
-          ...(tipo === 'TRASPASO_SALIDA' && { state: 'PENDIENTE' }),
-          ...(monedaOriginal && { monedaOriginal, montoOriginal, tasaUsada: tasaUsadaItem })
+          ...(referenciaId && { referenciaId }),
+          ...(motivo && { motivo }),
+          ...(proveedorId && { proveedorId }),
+          ...(itemProveedorId && { proveedorId: itemProveedorId }),
+          ...(destinationId && { destinationId }),
+          ...(tipo === "TRASPASO_SALIDA" && { state: "PENDIENTE" }),
+          ...(monedaOriginal && {
+            monedaOriginal,
+            montoOriginal,
+            tasaUsada: tasaUsadaItem,
+          }),
         },
       });
 
-      if(tipo === 'TRASPASO_ENTRADA'){
+      if (tipo === "TRASPASO_ENTRADA") {
         await tx.movimientoStock.update({
           where: { id: movimientoOrigenId },
-          data: { state: 'APROBADO' }
+          data: { state: "APROBADO" },
         });
       }
     }
   });
-
-}
+};

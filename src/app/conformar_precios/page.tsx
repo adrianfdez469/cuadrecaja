@@ -10,8 +10,11 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  FormControl,
   IconButton,
   InputAdornment,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Typography,
@@ -41,6 +44,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency, normalizeSearch } from "@/utils/formatters";
 import { PrintLabelsModal } from "./components/PrintLabelsModal";
+import { convertToBase, convertFromBase } from "@/lib/currency";
 
 // ── Desktop: inline DataGrid edit cell ───────────────────────────────────────
 const PriceEditCell = (params: GridRenderEditCellParams) => {
@@ -88,10 +92,21 @@ const PriceEditCell = (params: GridRenderEditCellParams) => {
   );
 };
 
-const PriceDisplayCell = (params: GridRenderCellParams) => (
-  <Typography variant="body2" fontWeight="medium">
-    {formatCurrency(params.value || 0)}
-  </Typography>
+const PriceDisplayCell = (
+  params: GridRenderCellParams & { monedaCode?: string | null },
+) => (
+  <Box display="flex" alignItems="center" gap={0.5}>
+    <Typography variant="body2" fontWeight="medium">
+      {formatCurrency(params.value || 0)}
+    </Typography>
+    {params.monedaCode && (
+      <Chip
+        label={params.monedaCode}
+        size="small"
+        sx={{ height: 16, fontSize: "0.6rem" }}
+      />
+    )}
+  </Box>
 );
 
 // ── Mobile: one card per product ─────────────────────────────────────────────
@@ -100,6 +115,8 @@ type Producto = {
   nombre: string;
   costo: number;
   precio: number;
+  monedaCostoCode: string | null;
+  monedaPrecioCode: string | null;
 };
 
 type RawProductoCosto = {
@@ -108,38 +125,84 @@ type RawProductoCosto = {
   producto: { nombre: string };
   costo?: number;
   precio?: number;
+  monedaCostoCode?: string | null;
+  monedaPrecioCode?: string | null;
 };
 
 interface MobileCardProps {
   producto: Producto;
   isDirty: boolean;
-  onSave: (id: string, precio: number) => Promise<void>;
+  monedasDisponibles: string[];
+  tasasVigentes: Record<string, number>;
+  monedaBase: string;
+  onSave: (
+    id: string,
+    precio: number,
+    monedaPrecioCode: string | null,
+  ) => Promise<void>;
   saving: boolean;
 }
 
 function MobileProductCard({
   producto,
   isDirty,
+  monedasDisponibles,
+  tasasVigentes,
+  monedaBase,
   onSave,
   saving,
 }: MobileCardProps) {
   const [precio, setPrecio] = useState(producto.precio);
+  const [monedaPrecio, setMonedaPrecio] = useState<string | null>(
+    producto.monedaPrecioCode,
+  );
   const [localDirty, setLocalDirty] = useState(false);
 
-  // Sync if parent reloads data
   useEffect(() => {
     setPrecio(producto.precio);
+    setMonedaPrecio(producto.monedaPrecioCode);
     setLocalDirty(false);
-  }, [producto.precio]);
+  }, [producto.precio, producto.monedaPrecioCode]);
 
+  const monedaPrecioEfectiva = monedaPrecio ?? monedaBase;
+  const monedaCostoEfectiva = producto.monedaCostoCode ?? monedaBase;
+
+  const precioBase = convertToBase(
+    precio,
+    monedaPrecioEfectiva,
+    tasasVigentes,
+    monedaBase,
+  );
+  const costoBase = convertToBase(
+    producto.costo,
+    monedaCostoEfectiva,
+    tasasVigentes,
+    monedaBase,
+  );
   const rentabilidad =
-    precio > 0 && producto.costo > 0
-      ? (((precio - producto.costo) / producto.costo) * 100).toFixed(1)
+    precioBase > 0 && costoBase > 0
+      ? (((precioBase - costoBase) / costoBase) * 100).toFixed(1)
       : "0";
+
+  const handleMonedaChange = (nuevaMoneda: string) => {
+    const anterior = monedaPrecio ?? monedaBase;
+    if (nuevaMoneda !== anterior && precio > 0) {
+      const enBase = convertToBase(precio, anterior, tasasVigentes, monedaBase);
+      const convertido = convertFromBase(
+        enBase,
+        nuevaMoneda,
+        tasasVigentes,
+        monedaBase,
+      );
+      setPrecio(Math.round(convertido * 100) / 100);
+    }
+    setMonedaPrecio(nuevaMoneda === monedaBase ? null : nuevaMoneda);
+    setLocalDirty(true);
+  };
 
   const handleConfirm = async () => {
     if (!localDirty) return;
-    await onSave(producto.id, precio);
+    await onSave(producto.id, precio, monedaPrecio);
     setLocalDirty(false);
   };
 
@@ -152,7 +215,7 @@ function MobileProductCard({
       }}
     >
       <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-        {/* Product name + rentabilidad badge */}
+        {/* Name + rentabilidad */}
         <Stack
           direction="row"
           justifyContent="space-between"
@@ -174,17 +237,17 @@ function MobileProductCard({
           />
         </Stack>
 
-        {/* Costo + Precio fields side by side */}
-        <Stack direction="row" gap={1.5} alignItems="center">
-          <Box sx={{ flex: 1 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              mb={0.5}
-            >
-              Costo
-            </Typography>
+        {/* Costo display + moneda chip */}
+        <Box mb={1}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            mb={0.5}
+          >
+            Costo
+          </Typography>
+          <Box display="flex" alignItems="center" gap={0.75}>
             <Typography
               variant="body2"
               color="text.secondary"
@@ -192,8 +255,18 @@ function MobileProductCard({
             >
               {formatCurrency(producto.costo)}
             </Typography>
+            {producto.monedaCostoCode && (
+              <Chip
+                label={producto.monedaCostoCode}
+                size="small"
+                sx={{ height: 18, fontSize: "0.65rem" }}
+              />
+            )}
           </Box>
+        </Box>
 
+        {/* Precio field + moneda selector */}
+        <Stack direction="row" gap={1} alignItems="flex-start">
           <Box sx={{ flex: 1 }}>
             <Typography
               variant="caption"
@@ -241,6 +314,24 @@ function MobileProductCard({
               disabled={saving}
             />
           </Box>
+
+          {monedasDisponibles.length > 1 && (
+            <Box sx={{ minWidth: 80, mt: "22px" }}>
+              <FormControl size="small" fullWidth>
+                <Select
+                  value={monedaPrecioEfectiva}
+                  onChange={(e) => handleMonedaChange(e.target.value)}
+                  disabled={saving}
+                >
+                  {monedasDisponibles.map((code) => (
+                    <MenuItem key={code} value={code}>
+                      {code}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          )}
         </Stack>
       </CardContent>
     </Card>
@@ -261,10 +352,19 @@ const PreciosCantidades = () => {
   >(null);
   const [mobileSortDir, setMobileSortDir] = useState<"asc" | "desc">("asc");
 
-  const { user, loadingContext } = useAppContext();
+  const { user, loadingContext, monedasNegocio, tasasVigentes, monedaBase } =
+    useAppContext();
   const { showMessage } = useMessageContext();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  const monedasDisponibles = useMemo(() => {
+    const lista = [monedaBase];
+    for (const nm of monedasNegocio) {
+      if (nm.activo && nm.monedaCode !== monedaBase) lista.push(nm.monedaCode);
+    }
+    return lista;
+  }, [monedaBase, monedasNegocio]);
 
   const fetchProductos = useCallback(async () => {
     if (!user?.localActual?.id) return;
@@ -278,6 +378,8 @@ const PreciosCantidades = () => {
           : p.producto.nombre,
         costo: p.costo || 0,
         precio: p.precio || 0,
+        monedaCostoCode: p.monedaCostoCode ?? null,
+        monedaPrecioCode: p.monedaPrecioCode ?? null,
       }));
       setProductos(mapped);
       setFilteredProductos(mapped);
@@ -311,8 +413,32 @@ const PreciosCantidades = () => {
       let aVal: number | string;
       let bVal: number | string;
       if (mobileSortBy === "rentabilidad") {
-        aVal = a.costo > 0 ? (a.precio - a.costo) / a.costo : 0;
-        bVal = b.costo > 0 ? (b.precio - b.costo) / b.costo : 0;
+        const aP = convertToBase(
+          a.precio,
+          a.monedaPrecioCode ?? monedaBase,
+          tasasVigentes,
+          monedaBase,
+        );
+        const aC = convertToBase(
+          a.costo,
+          a.monedaCostoCode ?? monedaBase,
+          tasasVigentes,
+          monedaBase,
+        );
+        const bP = convertToBase(
+          b.precio,
+          b.monedaPrecioCode ?? monedaBase,
+          tasasVigentes,
+          monedaBase,
+        );
+        const bC = convertToBase(
+          b.costo,
+          b.monedaCostoCode ?? monedaBase,
+          tasasVigentes,
+          monedaBase,
+        );
+        aVal = aC > 0 ? (aP - aC) / aC : 0;
+        bVal = bC > 0 ? (bP - bC) / bC : 0;
       } else {
         aVal = a[mobileSortBy];
         bVal = b[mobileSortBy];
@@ -325,20 +451,70 @@ const PreciosCantidades = () => {
         ? (aVal as number) - (bVal as number)
         : (bVal as number) - (aVal as number);
     });
-  }, [filteredProductos, mobileSortBy, mobileSortDir]);
+  }, [
+    filteredProductos,
+    mobileSortBy,
+    mobileSortDir,
+    tasasVigentes,
+    monedaBase,
+  ]);
 
   // ── Desktop DataGrid handlers ────────────────────────────────────────────
-  const handleProcessRowUpdate = (newRow: GridRowModel) => {
+  const handleProcessRowUpdate = (
+    newRow: GridRowModel,
+    oldRow: GridRowModel,
+  ) => {
     if (newRow.costo < 0 || newRow.precio < 0) {
       showMessage("Los valores deben ser positivos", "warning");
       return productos.find((p) => p.id === newRow.id) || newRow;
     }
-    if (!idDirtyProds.includes(newRow.id))
-      setIdDirtyProds((prev) => [...prev, newRow.id]);
+
+    const updated = { ...newRow };
+
+    // Auto-convert precio when monedaPrecio changes
+    const oldPrecioMoneda =
+      (oldRow.monedaPrecioCode as string | null) ?? monedaBase;
+    const newPrecioMoneda =
+      (newRow.monedaPrecioCode as string | null) ?? monedaBase;
+    if (oldPrecioMoneda !== newPrecioMoneda && newRow.precio > 0) {
+      const enBase = convertToBase(
+        newRow.precio as number,
+        oldPrecioMoneda,
+        tasasVigentes,
+        monedaBase,
+      );
+      updated.precio =
+        Math.round(
+          convertFromBase(enBase, newPrecioMoneda, tasasVigentes, monedaBase) *
+            100,
+        ) / 100;
+    }
+
+    // Auto-convert costo when monedaCosto changes
+    const oldCostoMoneda =
+      (oldRow.monedaCostoCode as string | null) ?? monedaBase;
+    const newCostoMoneda =
+      (newRow.monedaCostoCode as string | null) ?? monedaBase;
+    if (oldCostoMoneda !== newCostoMoneda && newRow.costo > 0) {
+      const enBase = convertToBase(
+        newRow.costo as number,
+        oldCostoMoneda,
+        tasasVigentes,
+        monedaBase,
+      );
+      updated.costo =
+        Math.round(
+          convertFromBase(enBase, newCostoMoneda, tasasVigentes, monedaBase) *
+            100,
+        ) / 100;
+    }
+
+    if (!idDirtyProds.includes(newRow.id as string))
+      setIdDirtyProds((prev) => [...prev, newRow.id as string]);
     setProductos((prev) =>
-      prev.map((p) => (p.id === newRow.id ? { ...p, ...newRow } : p)),
+      prev.map((p) => (p.id === newRow.id ? { ...p, ...updated } : p)),
     );
-    return newRow;
+    return updated;
   };
 
   const handleProcessRowUpdateError = (error: Error) => {
@@ -348,7 +524,13 @@ const PreciosCantidades = () => {
 
   // ── Shared save helpers ──────────────────────────────────────────────────
   const saveRows = async (
-    rows: { id: string; costo: number; precio: number }[],
+    rows: {
+      id: string;
+      costo: number;
+      precio: number;
+      monedaCostoCode: string | null;
+      monedaPrecioCode: string | null;
+    }[],
   ) => {
     const response = await fetch(
       `/api/productos_tienda/${user!.localActual!.id}`,
@@ -361,15 +543,26 @@ const PreciosCantidades = () => {
     if (!response.ok) throw new Error("Error al actualizar productos");
   };
 
-  // Mobile: auto-save single card on blur
-  const handleMobileSave = async (id: string, precio: number) => {
+  // Mobile: auto-save single card
+  const handleMobileSave = async (
+    id: string,
+    precio: number,
+    monedaPrecioCode: string | null,
+  ) => {
     try {
       setSaving(true);
+      const p = productos.find((p) => p.id === id);
       await saveRows([
-        { id, costo: productos.find((p) => p.id === id)?.costo ?? 0, precio },
+        {
+          id,
+          costo: p?.costo ?? 0,
+          precio,
+          monedaCostoCode: p?.monedaCostoCode ?? null,
+          monedaPrecioCode,
+        },
       ]);
       setProductos((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, precio } : p)),
+        prev.map((p) => (p.id === id ? { ...p, precio, monedaPrecioCode } : p)),
       );
       setIdDirtyProds((prev) => prev.filter((x) => x !== id));
       showMessage("Precio actualizado", "success");
@@ -384,7 +577,13 @@ const PreciosCantidades = () => {
   const save = async () => {
     const toSave = productos
       .filter((p) => idDirtyProds.includes(p.id))
-      .map((p) => ({ id: p.id, costo: p.costo, precio: p.precio }));
+      .map((p) => ({
+        id: p.id,
+        costo: p.costo,
+        precio: p.precio,
+        monedaCostoCode: p.monedaCostoCode,
+        monedaPrecioCode: p.monedaPrecioCode,
+      }));
     if (toSave.length === 0) {
       showMessage("No hay cambios para guardar", "info");
       return;
@@ -433,31 +632,103 @@ const PreciosCantidades = () => {
             justifyContent: "center",
           }}
         >
-          <PriceDisplayCell {...p} />
+          <PriceDisplayCell {...p} monedaCode={p.row.monedaPrecioCode} />
         </Box>
       ),
       renderEditCell: PriceEditCell,
       headerAlign: "center",
       align: "center",
     },
+    ...(monedasDisponibles.length > 1
+      ? [
+          {
+            field: "monedaPrecioCode",
+            headerName: "M. Precio",
+            width: 100,
+            editable: true,
+            type: "singleSelect" as const,
+            valueOptions: monedasDisponibles,
+            valueFormatter: (value: string | null) => value ?? monedaBase,
+            renderCell: (p: GridRenderCellParams) => (
+              <Chip
+                label={p.value ?? monedaBase}
+                size="small"
+                variant="outlined"
+                sx={{ height: 20, fontSize: "0.7rem" }}
+              />
+            ),
+            headerAlign: "center" as const,
+            align: "center" as const,
+          },
+        ]
+      : []),
     {
       field: "costo",
       headerName: "Costo",
       flex: 1,
-      minWidth: 120,
-      renderCell: PriceDisplayCell,
+      minWidth: 130,
+      editable: true,
+      type: "number",
+      renderCell: (p) => (
+        <Box
+          sx={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <PriceDisplayCell {...p} monedaCode={p.row.monedaCostoCode} />
+        </Box>
+      ),
+      renderEditCell: PriceEditCell,
       headerAlign: "center",
       align: "center",
     },
+    ...(monedasDisponibles.length > 1
+      ? [
+          {
+            field: "monedaCostoCode",
+            headerName: "M. Costo",
+            width: 100,
+            editable: true,
+            type: "singleSelect" as const,
+            valueOptions: monedasDisponibles,
+            valueFormatter: (value: string | null) => value ?? monedaBase,
+            renderCell: (p: GridRenderCellParams) => (
+              <Chip
+                label={p.value ?? monedaBase}
+                size="small"
+                variant="outlined"
+                sx={{ height: 20, fontSize: "0.7rem" }}
+              />
+            ),
+            headerAlign: "center" as const,
+            align: "center" as const,
+          },
+        ]
+      : []),
     {
       field: "porciento",
       headerName: "Rentabilidad",
       flex: 1,
       minWidth: 120,
       renderCell: ({ row }) => {
-        if (!row.costo || !row.precio)
-          return <Typography variant="body2">0%</Typography>;
-        const pct = (((row.precio - row.costo) / row.costo) * 100).toFixed(2);
+        const p = convertToBase(
+          row.precio,
+          (row.monedaPrecioCode as string | null) ?? monedaBase,
+          tasasVigentes,
+          monedaBase,
+        );
+        const c = convertToBase(
+          row.costo,
+          (row.monedaCostoCode as string | null) ?? monedaBase,
+          tasasVigentes,
+          monedaBase,
+        );
+        if (!c || !p) return <Typography variant="body2">0%</Typography>;
+        const pct = (((p - c) / c) * 100).toFixed(2);
         return (
           <Typography variant="body2" fontWeight="medium">
             {pct}%
@@ -675,6 +946,9 @@ const PreciosCantidades = () => {
                 key={p.id}
                 producto={p}
                 isDirty={idDirtyProds.includes(p.id)}
+                monedasDisponibles={monedasDisponibles}
+                tasasVigentes={tasasVigentes}
+                monedaBase={monedaBase}
                 onSave={handleMobileSave}
                 saving={saving}
               />

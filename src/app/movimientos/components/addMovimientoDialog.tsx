@@ -28,7 +28,11 @@ import CloseIcon from "@mui/icons-material/Close";
 import SaveIcon from "@mui/icons-material/Save";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useMessageContext } from "@/context/MessageContext";
-import { cretateBatchMovimientos, getProductosTiendaParaEntrada, getProductosTiendaParaNoEntrada } from "@/services/movimientoService";
+import {
+  cretateBatchMovimientos,
+  getProductosTiendaParaEntrada,
+  getProductosTiendaParaNoEntrada,
+} from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
 import { ITipoMovimiento } from "@/schemas/movimiento";
 import {
@@ -36,7 +40,7 @@ import {
   TIPO_MOVIMIENTO_LABELS,
   TIPO_MOVIMIENTO_DESCRIPTIONS,
   TIPO_MOVIMIENTO_EJEMPLOS,
-  TIPO_MOVIMIENTO_COLORS
+  TIPO_MOVIMIENTO_COLORS,
 } from "@/constants/movimientos";
 import { formatCurrency } from "@/utils/formatters";
 import { Add, Info } from "@mui/icons-material";
@@ -47,7 +51,11 @@ import { IProveedor } from "@/schemas/proveedor";
 import { requiereCPP } from "@/lib/cpp-calculator";
 import { convertToBase } from "@/lib/currency";
 import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
-import { IProductoDisponible, OperacionTipo, ProductSelectionModal } from "@/components/ProductcSelectionModal";
+import {
+  IProductoDisponible,
+  OperacionTipo,
+  ProductSelectionModal,
+} from "@/components/ProductcSelectionModal";
 import { ILocal } from "@/schemas/tienda";
 import { getLocales } from "@/services/localesService";
 import { usePermisos } from "@/utils/permisos_front";
@@ -66,7 +74,6 @@ interface IProductoMovimiento {
   };
   fechaVencimiento?: string | null;
 }
-
 
 interface IProps {
   dialogOpen: boolean;
@@ -94,16 +101,18 @@ const getOperacion = (tipo: ITipoMovimiento): OperacionTipo => {
     default:
       return "ENTRADA";
   }
-}
+};
 
 export const AddMovimientoDialog: FC<IProps> = ({
   dialogOpen,
   closeDialog,
   // productos,
-  fetchMovimientos
+  fetchMovimientos,
 }) => {
   const [tipo, setTipo] = useState<ITipoMovimiento>();
-  const [itemsProductos, setItemsProductos] = useState<IProductoMovimiento[]>([]);
+  const [itemsProductos, setItemsProductos] = useState<IProductoMovimiento[]>(
+    [],
+  );
   const [saving, setSaving] = useState(false);
   const { showMessage } = useMessageContext();
   const [motivo, setMotivo] = useState("");
@@ -120,13 +129,12 @@ export const AddMovimientoDialog: FC<IProps> = ({
     closeModal,
     handleConfirm,
     setOnConfirm,
-
   } = useProductSelectionModal();
 
-  const [destinations, setDestinations] = useState<ILocal[]>([])
-  const [destinationId, setDestinationId] = useState<string>("")
+  const [destinations, setDestinations] = useState<ILocal[]>([]);
+  const [destinationId, setDestinationId] = useState<string>("");
   const [monedaCompra, setMonedaCompra] = useState<string>(monedaBase);
-  const { verificarPermiso } = usePermisos()
+  const { verificarPermiso } = usePermisos();
 
   const monedasParaCompra = useMemo(() => {
     const lista = [monedaBase];
@@ -137,14 +145,17 @@ export const AddMovimientoDialog: FC<IProps> = ({
   }, [monedaBase, monedasNegocio]);
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // Cargar proveedores cuando se abre el diálogo o cambia el tipo
   useEffect(() => {
-    if (dialogOpen && (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION")) {
+    if (
+      dialogOpen &&
+      (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION")
+    ) {
       fetchProveedores();
     }
-    if (dialogOpen && (tipo === "TRASPASO_SALIDA")) {
+    if (dialogOpen && tipo === "TRASPASO_SALIDA") {
       fetchDestinations();
     }
   }, [dialogOpen, tipo]);
@@ -165,40 +176,47 @@ export const AddMovimientoDialog: FC<IProps> = ({
             ...(p.proveedor && {
               proveedor: {
                 id: p.proveedor?.id || "",
-                nombre: p.proveedor?.nombre || ""
-              }
-            })
-          }
-        })
+                nombre: p.proveedor?.nombre || "",
+              },
+            }),
+          };
+        }),
       );
     });
   }, [operacion, setOnConfirm]);
 
   useEffect(() => {
-    if(verificarPermiso("operaciones.movimientos.crear.compra")) {
-      setTipo("COMPRA")
-    } else if ( verificarPermiso("operaciones.movimientos.crear.transferencia")) {
-      setTipo("TRASPASO_SALIDA")
+    if (verificarPermiso("operaciones.movimientos.crear.compra")) {
+      setTipo("COMPRA");
+    } else if (
+      verificarPermiso("operaciones.movimientos.crear.transferencia")
+    ) {
+      setTipo("TRASPASO_SALIDA");
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     if (tipo !== "COMPRA") setMonedaCompra(monedaBase);
   }, [tipo, monedaBase]);
 
   const tienePermisoAMovimiento = (tipoMov: ITipoMovimiento) => {
-
-    switch(tipoMov) {
+    switch (tipoMov) {
       case "AJUSTE_ENTRADA":
-        return verificarPermiso("operaciones.movimientos.crear.ajuste_entradas");
+        return verificarPermiso(
+          "operaciones.movimientos.crear.ajuste_entradas",
+        );
       case "AJUSTE_SALIDA":
         return verificarPermiso("operaciones.movimientos.crear.ajuste_salidas");
       case "COMPRA":
         return verificarPermiso("operaciones.movimientos.crear.compra");
       case "CONSIGNACION_DEVOLUCION":
-        return verificarPermiso("operaciones.movimientos.crear.consignacion_devolucion");
+        return verificarPermiso(
+          "operaciones.movimientos.crear.consignacion_devolucion",
+        );
       case "CONSIGNACION_ENTRADA":
-        return verificarPermiso("operaciones.movimientos.crear.consignacion_entrada");
+        return verificarPermiso(
+          "operaciones.movimientos.crear.consignacion_entrada",
+        );
       case "TRASPASO_ENTRADA":
         return verificarPermiso("operaciones.movimientos.crear.recepcion");
       case "TRASPASO_SALIDA":
@@ -206,7 +224,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
       default:
         return false;
     }
-  }
+  };
 
   const fetchProveedores = async () => {
     setLoadingProveedores(true);
@@ -233,17 +251,18 @@ export const AddMovimientoDialog: FC<IProps> = ({
         nombre: nombre.trim(),
         descripcion: "",
         direccion: "",
-        telefono: ""
+        telefono: "",
       });
 
       // Actualizar lista de proveedores
-      setProveedores(prev => [...prev, nuevoProveedor]);
+      setProveedores((prev) => [...prev, nuevoProveedor]);
       setProveedor(nuevoProveedor);
 
       showMessage("Proveedor creado exitosamente", "success");
     } catch (error) {
       console.error("Error al crear proveedor:", error);
-      const errorMessage = error.response?.data?.error || "Error al crear el proveedor";
+      const errorMessage =
+        error.response?.data?.error || "Error al crear el proveedor";
       showMessage(errorMessage, "error");
     } finally {
       setCreandoProveedor(false);
@@ -272,49 +291,50 @@ export const AddMovimientoDialog: FC<IProps> = ({
           tipo: tipo,
           usuarioId: user.id,
           ...(motivo !== "" && { motivo: motivo }),
-          ...((tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION" ) && proveedor && {
-            proveedorId: proveedor.id
-          }),
+          ...((tipo === "CONSIGNACION_ENTRADA" ||
+            tipo === "CONSIGNACION_DEVOLUCION") &&
+            proveedor && {
+              proveedorId: proveedor.id,
+            }),
           ...(tipo === "TRASPASO_SALIDA" && {
-            destinationId: destinationId
-          })
+            destinationId: destinationId,
+          }),
         },
         itemsProductos.map((item) => {
-          const isExtraCurrency = tipo === "COMPRA" && monedaCompra !== monedaBase && item.costoUnitario;
-          const costoBase = isExtraCurrency
-            ? convertToBase(item.costoUnitario, monedaCompra, tasasVigentes, monedaBase)
-            : item.costoUnitario;
-
           return {
             cantidad: item.cantidad,
             productoId: item.productoId,
 
-            // Agregar costos si es necesario
-            ...(requiereCPP(tipo) && item.costoUnitario && {
-              costoUnitario: costoBase,
-              costoTotal: costoBase * item.cantidad
-            }),
-            ...(item.proveedor && tipo === "TRASPASO_SALIDA" && {
-              proveedorId: item.proveedor.id
-            }),
+            // Costo en la moneda seleccionada — sin conversión a monedaBase
+            ...(requiereCPP(tipo) &&
+              item.costoUnitario && {
+                costoUnitario: item.costoUnitario,
+                costoTotal: item.costoUnitario * item.cantidad,
+                monedaCompra,
+              }),
+            ...(item.proveedor &&
+              tipo === "TRASPASO_SALIDA" && {
+                proveedorId: item.proveedor.id,
+              }),
             // Fecha de vencimiento por producto (solo para entradas)
-            ...((tipo === "COMPRA" || tipo === "AJUSTE_ENTRADA") && item.fechaVencimiento && {
-              fechaVencimiento: item.fechaVencimiento
-            }),
-            // Snapshot de moneda original cuando se compra en divisa
-            ...(isExtraCurrency && {
-              monedaOriginal: monedaCompra,
-              montoOriginal: item.costoUnitario,
-              tasaUsada: tasasVigentes[monedaCompra]
-            })
+            ...((tipo === "COMPRA" || tipo === "AJUSTE_ENTRADA") &&
+              item.fechaVencimiento && {
+                fechaVencimiento: item.fechaVencimiento,
+              }),
+            // Auditoría de moneda original
+            ...(tipo === "COMPRA" &&
+              item.costoUnitario && {
+                monedaOriginal: monedaCompra,
+                montoOriginal: item.costoUnitario,
+                tasaUsada: tasasVigentes[monedaCompra] ?? 1,
+              }),
           };
-        })
+        }),
       );
 
       showMessage("Movimiento creado exitosamente", "success");
       handleClose();
       fetchMovimientos();
-
     } catch (error) {
       console.error(error);
       showMessage("No se pudo guardar el movimiento", "error");
@@ -323,46 +343,70 @@ export const AddMovimientoDialog: FC<IProps> = ({
     }
   };
 
-  const handleSetFechaVencimientoItem = (index: number, fecha: Dayjs | null) => {
-    setItemsProductos(prev => prev.map((item, i) =>
-      i === index ? { ...item, fechaVencimiento: fecha ? fecha.toISOString() : null } : item
-    ));
+  const handleSetFechaVencimientoItem = (
+    index: number,
+    fecha: Dayjs | null,
+  ) => {
+    setItemsProductos((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? { ...item, fechaVencimiento: fecha ? fecha.toISOString() : null }
+          : item,
+      ),
+    );
   };
 
   const isFormValid = () => {
     const emptyItems = !itemsProductos || itemsProductos.length === 0;
-    const hasInvalidProducts = itemsProductos.some(item =>
-      !item.productoId ||
-      item.cantidad <= 0 ||
-      (requiereCPP(tipo) && (!item.costoUnitario || item.costoUnitario <= 0))
+    const hasInvalidProducts = itemsProductos.some(
+      (item) =>
+        !item.productoId ||
+        item.cantidad <= 0 ||
+        (requiereCPP(tipo) && (!item.costoUnitario || item.costoUnitario <= 0)),
     );
 
-    const needsProveedor = (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && !proveedor;
+    const needsProveedor =
+      (tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") &&
+      !proveedor;
 
     const needsDestination = tipo === "TRASPASO_SALIDA" && !destinationId;
 
-    if(emptyItems || hasInvalidProducts || needsProveedor || needsDestination) {
+    if (
+      emptyItems ||
+      hasInvalidProducts ||
+      needsProveedor ||
+      needsDestination
+    ) {
       return false;
     }
 
     return true;
   };
 
-  const loadProductos = async (operacion: OperacionTipo, take = 50, skip = 0, filter?: { categoriaId?: string, text?: string }): Promise<IProductoDisponible[]> => {
+  const loadProductos = async (
+    operacion: OperacionTipo,
+    take = 50,
+    skip = 0,
+    filter?: { categoriaId?: string; text?: string },
+  ): Promise<IProductoDisponible[]> => {
     try {
       setLoadingProductos(true);
       const tiendaId = user.localActual.id;
-      if (operacion === 'ENTRADA') {
-        const productos = await getProductosTiendaParaEntrada(tiendaId, tipo, { take, skip, ...filter }, proveedor?.id)
+      if (operacion === "ENTRADA") {
+        const productos = await getProductosTiendaParaEntrada(
+          tiendaId,
+          tipo,
+          { take, skip, ...filter },
+          proveedor?.id,
+        );
         const prods: IProductoDisponible[] = [];
         productos.forEach((p) => {
-
           if (p.productosTienda.length > 0) {
             p.productosTienda.forEach((pt) => {
               prods.push({
                 productoId: p.id,
                 nombre: p.nombre,
-                permiteDecimal:p.permiteDecimal,
+                permiteDecimal: p.permiteDecimal,
                 categoriaId: p.categoriaId,
                 categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
                 productoTiendaId: pt.id,
@@ -395,17 +439,21 @@ export const AddMovimientoDialog: FC<IProps> = ({
         });
         return prods;
       }
-      if (operacion === 'SALIDA') {
-        const productos = await getProductosTiendaParaNoEntrada(tiendaId, tipo, { take, skip, ...filter }, proveedor?.id);
+      if (operacion === "SALIDA") {
+        const productos = await getProductosTiendaParaNoEntrada(
+          tiendaId,
+          tipo,
+          { take, skip, ...filter },
+          proveedor?.id,
+        );
         const prods: IProductoDisponible[] = [];
-
 
         productos.forEach((p) => {
           p.productosTienda.forEach((pt) => {
             prods.push({
               productoId: p.id,
               nombre: p.nombre,
-              permiteDecimal:p.permiteDecimal,
+              permiteDecimal: p.permiteDecimal,
               categoriaId: p.categoriaId,
               categoria: { id: p.categoriaId, nombre: p.categoria.nombre },
               productoTiendaId: pt.id,
@@ -416,13 +464,10 @@ export const AddMovimientoDialog: FC<IProps> = ({
               proveedor: pt.proveedor,
               codigosProducto: p.codigosProducto,
               // tiendaId: tiendaId,
-
             });
           });
-
         });
         return prods;
-
       }
     } catch (error) {
       console.error(error);
@@ -430,7 +475,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
     } finally {
       setLoadingProductos(false);
     }
-  }
+  };
 
   return (
     <>
@@ -441,9 +486,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
         maxWidth={isMobile ? "xs" : "md"}
         fullScreen={isMobile}
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          Crear Movimiento
-        </DialogTitle>
+        <DialogTitle sx={{ pb: 1 }}>Crear Movimiento</DialogTitle>
 
         <DialogContent sx={{ px: isMobile ? 2 : 3 }}>
           {/* Selector de tipo de movimiento */}
@@ -457,40 +500,38 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 PaperProps: {
                   sx: {
                     maxHeight: isMobile ? 300 : 400,
-                    maxWidth: isMobile ? '90vw' : undefined
-                  }
-                }
+                    maxWidth: isMobile ? "90vw" : undefined,
+                  },
+                },
               }}
             >
-              {TIPOS_MOVIMIENTO_MANUAL
-                
-                .filter(tienePermisoAMovimiento)
-                
+              {TIPOS_MOVIMIENTO_MANUAL.filter(tienePermisoAMovimiento)
+
                 .map((tipoMovimiento) => (
-                <MenuItem key={tipoMovimiento} value={tipoMovimiento}>
-                  <Box sx={{ width: '100%' }}>
-                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {TIPO_MOVIMIENTO_LABELS[tipoMovimiento]}
-                    </Typography>
-                    {/* {!isMobile && ( */}
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        fontSize: '0.75rem',
-                        lineHeight: 1.2,
-                        display: 'block',
-                        mt: 0.25,
-                        whiteSpace: 'normal',
-                        wordWrap: 'break-word'
-                      }}
-                    >
-                      {TIPO_MOVIMIENTO_DESCRIPTIONS[tipoMovimiento]}
-                    </Typography>
-                    {/* )} */}
-                  </Box>
-                </MenuItem>
-              ))}
+                  <MenuItem key={tipoMovimiento} value={tipoMovimiento}>
+                    <Box sx={{ width: "100%" }}>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        {TIPO_MOVIMIENTO_LABELS[tipoMovimiento]}
+                      </Typography>
+                      {/* {!isMobile && ( */}
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          fontSize: "0.75rem",
+                          lineHeight: 1.2,
+                          display: "block",
+                          mt: 0.25,
+                          whiteSpace: "normal",
+                          wordWrap: "break-word",
+                        }}
+                      >
+                        {TIPO_MOVIMIENTO_DESCRIPTIONS[tipoMovimiento]}
+                      </Typography>
+                      {/* )} */}
+                    </Box>
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
 
@@ -500,41 +541,45 @@ export const AddMovimientoDialog: FC<IProps> = ({
               <Accordion
                 defaultExpanded={false}
                 sx={{
-                  boxShadow: 'none',
+                  boxShadow: "none",
                   border: `2px solid ${TIPO_MOVIMIENTO_COLORS[tipo]}30`,
-                  '&:before': { display: 'none' },
+                  "&:before": { display: "none" },
                   borderRadius: 1,
-                  overflow: 'hidden'
+                  overflow: "hidden",
                 }}
               >
                 <AccordionSummary
-                  expandIcon={<ExpandMoreIcon sx={{ color: TIPO_MOVIMIENTO_COLORS[tipo] }} />}
+                  expandIcon={
+                    <ExpandMoreIcon
+                      sx={{ color: TIPO_MOVIMIENTO_COLORS[tipo] }}
+                    />
+                  }
                   sx={{
                     bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}08`,
-                    '&:hover': { bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}12` },
+                    "&:hover": { bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}12` },
                     minHeight: 56,
-                    '& .MuiAccordionSummary-content': {
-                      alignItems: 'center',
-                      my: 1
-                    }
+                    "& .MuiAccordionSummary-content": {
+                      alignItems: "center",
+                      my: 1,
+                    },
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ display: "flex", alignItems: "center" }}>
                     <Icon
                       sx={{
                         color: TIPO_MOVIMIENTO_COLORS[tipo],
-                        fontSize: '22px',
-                        mr: 1.5
+                        fontSize: "22px",
+                        mr: 1.5,
                       }}
                     >
-                      {isMobile ? <Info /> : <Info sx={{ fontSize: '22px' }} />}
+                      {isMobile ? <Info /> : <Info sx={{ fontSize: "22px" }} />}
                     </Icon>
                     <Box>
                       <Typography
                         variant={isMobile ? "subtitle1" : "h6"}
                         sx={{
-                          fontWeight: 'bold',
-                          color: TIPO_MOVIMIENTO_COLORS[tipo]
+                          fontWeight: "bold",
+                          color: TIPO_MOVIMIENTO_COLORS[tipo],
                         }}
                       >
                         {TIPO_MOVIMIENTO_LABELS[tipo]}
@@ -542,7 +587,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                       <Typography
                         variant="caption"
                         color="text.secondary"
-                        sx={{ fontSize: '0.75rem' }}
+                        sx={{ fontSize: "0.75rem" }}
                       >
                         Descripción y ejemplo
                       </Typography>
@@ -555,10 +600,10 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     <Typography
                       variant="body2"
                       sx={{
-                        fontSize: isMobile ? '0.875rem' : '0.95rem',
+                        fontSize: isMobile ? "0.875rem" : "0.95rem",
                         lineHeight: 1.5,
                         fontWeight: 500,
-                        mb: 1
+                        mb: 1,
                       }}
                     >
                       ¿Qué es este tipo de movimiento?
@@ -567,8 +612,8 @@ export const AddMovimientoDialog: FC<IProps> = ({
                       variant="body2"
                       color="text.secondary"
                       sx={{
-                        fontSize: isMobile ? '0.875rem' : '0.95rem',
-                        lineHeight: 1.5
+                        fontSize: isMobile ? "0.875rem" : "0.95rem",
+                        lineHeight: 1.5,
                       }}
                     >
                       {TIPO_MOVIMIENTO_DESCRIPTIONS[tipo]}
@@ -581,17 +626,17 @@ export const AddMovimientoDialog: FC<IProps> = ({
                       p: 2,
                       bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}05`,
                       borderRadius: 1,
-                      borderLeft: `4px solid ${TIPO_MOVIMIENTO_COLORS[tipo]}`
+                      borderLeft: `4px solid ${TIPO_MOVIMIENTO_COLORS[tipo]}`,
                     }}
                   >
                     <Typography
                       variant="body2"
                       sx={{
-                        fontSize: isMobile ? '0.875rem' : '0.95rem',
+                        fontSize: isMobile ? "0.875rem" : "0.95rem",
                         lineHeight: 1.5,
                         fontWeight: 500,
                         mb: 1,
-                        color: TIPO_MOVIMIENTO_COLORS[tipo]
+                        color: TIPO_MOVIMIENTO_COLORS[tipo],
                       }}
                     >
                       Ejemplo práctico:
@@ -600,9 +645,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
                       variant="body2"
                       color="text.secondary"
                       sx={{
-                        fontSize: isMobile ? '0.875rem' : '0.95rem',
+                        fontSize: isMobile ? "0.875rem" : "0.95rem",
                         lineHeight: 1.5,
-                        fontStyle: 'italic'
+                        fontStyle: "italic",
                       }}
                     >
                       {TIPO_MOVIMIENTO_EJEMPLOS[tipo]}
@@ -627,24 +672,30 @@ export const AddMovimientoDialog: FC<IProps> = ({
             />
           )}
 
-
           {/* Campo de proveedor para consignaciones */}
-          {(tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION") && (
+          {(tipo === "CONSIGNACION_ENTRADA" ||
+            tipo === "CONSIGNACION_DEVOLUCION") && (
             <Box sx={{ mt: 2 }}>
               <Autocomplete
                 options={proveedores}
-                getOptionLabel={(option) => typeof option === 'string' ? option : option.nombre}
+                getOptionLabel={(option) =>
+                  typeof option === "string" ? option : option.nombre
+                }
                 value={proveedor}
                 onChange={(event, newValue) => {
                   // Manejar tanto IProveedor como string
-                  if (typeof newValue === 'string') {
+                  if (typeof newValue === "string") {
                     // Si es string, buscar en proveedores existentes o crear nuevo
-                    const proveedorExistente = proveedores.find(p => p.nombre.toLowerCase() === newValue.toLowerCase());
+                    const proveedorExistente = proveedores.find(
+                      (p) => p.nombre.toLowerCase() === newValue.toLowerCase(),
+                    );
                     if (proveedorExistente) {
                       setProveedor(proveedorExistente);
                     } else if (newValue.startsWith('Crear "')) {
                       // Extraer el nombre del proveedor a crear
-                      const nombreProveedor = newValue.replace('Crear "', '').replace('"', '');
+                      const nombreProveedor = newValue
+                        .replace('Crear "', "")
+                        .replace('"', "");
                       handleCrearProveedor(nombreProveedor);
                     }
                   } else {
@@ -698,43 +749,51 @@ export const AddMovimientoDialog: FC<IProps> = ({
                   ))
                 }
                 filterOptions={(options, params) => {
-                  const filtered = options.filter(option =>
-                    option.nombre.toLowerCase().includes(params.inputValue.toLowerCase())
+                  const filtered = options.filter((option) =>
+                    option.nombre
+                      .toLowerCase()
+                      .includes(params.inputValue.toLowerCase()),
                   );
 
                   const { inputValue } = params;
-                  const isExisting = options.some(option =>
-                    option.nombre.toLowerCase() === inputValue.toLowerCase()
+                  const isExisting = options.some(
+                    (option) =>
+                      option.nombre.toLowerCase() === inputValue.toLowerCase(),
                   );
 
-                  if (inputValue !== '' && !isExisting) {
+                  if (inputValue !== "" && !isExisting) {
                     filtered.push({
-                      id: 'new',
+                      id: "new",
                       nombre: `Crear "${inputValue}"`,
-                      descripcion: 'Nuevo proveedor',
+                      descripcion: "Nuevo proveedor",
                       direccion: null,
                       telefono: null,
-                      negocioId: '',
+                      negocioId: "",
                       createdAt: new Date(),
-                      updatedAt: new Date()
+                      updatedAt: new Date(),
                     });
                   }
 
                   return filtered;
                 }}
                 onInputChange={async (event, newInputValue, reason) => {
-                  if (reason === 'selectOption') {
-                    const selectedOption = proveedores.find(p => p.nombre === newInputValue) ||
-                      proveedores.find(p => p.nombre.includes(newInputValue));
+                  if (reason === "selectOption") {
+                    const selectedOption =
+                      proveedores.find((p) => p.nombre === newInputValue) ||
+                      proveedores.find((p) => p.nombre.includes(newInputValue));
 
-                    if (!selectedOption && newInputValue && !newInputValue.startsWith('Crear "')) {
+                    if (
+                      !selectedOption &&
+                      newInputValue &&
+                      !newInputValue.startsWith('Crear "')
+                    ) {
                       // Si no existe el proveedor, intentar crearlo
                       try {
                         await handleCrearProveedor(newInputValue);
                       } catch (error) {
                         // Error ya manejado en handleCrearProveedor
                         console.error(error);
-                        showMessage('Error al crear el proveedor', 'error');
+                        showMessage("Error al crear el proveedor", "error");
                       }
                     }
                   }
@@ -742,14 +801,21 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 onBlur={async (event) => {
                   const target = event.target as HTMLInputElement;
                   const inputValue = target.value;
-                  if (inputValue && !proveedor && !proveedores.some(p => p.nombre.toLowerCase() === inputValue.toLowerCase())) {
+                  if (
+                    inputValue &&
+                    !proveedor &&
+                    !proveedores.some(
+                      (p) =>
+                        p.nombre.toLowerCase() === inputValue.toLowerCase(),
+                    )
+                  ) {
                     // Si hay texto y no hay proveedor seleccionado, crear uno nuevo
                     try {
                       await handleCrearProveedor(inputValue);
                     } catch (error) {
                       console.error(error);
                       // Error ya manejado en handleCrearProveedor
-                      showMessage('Error al crear el proveedor', 'error');
+                      showMessage("Error al crear el proveedor", "error");
                     }
                   }
                 }}
@@ -759,7 +825,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
           )}
 
           {/* Campo local para seleccionar el local */}
-          {(tipo === 'TRASPASO_SALIDA' &&
+          {tipo === "TRASPASO_SALIDA" && (
             <FormControl fullWidth margin="normal">
               <InputLabel>Local</InputLabel>
               <Select
@@ -798,7 +864,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 onChange={(e) => setMonedaCompra(e.target.value)}
               >
                 {monedasParaCompra.map((code) => (
-                  <MenuItem key={code} value={code}>{code}</MenuItem>
+                  <MenuItem key={code} value={code}>
+                    {code}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -814,13 +882,15 @@ export const AddMovimientoDialog: FC<IProps> = ({
             Adicionar Productos
           </Button>
 
-          {itemsProductos.length > 0
-            && itemsProductos.map((p, index) => {
+          {itemsProductos.length > 0 &&
+            itemsProductos.map((p, index) => {
               return (
                 <Card key={index} sx={{ mb: 1 }}>
                   <CardContent>
                     <Typography variant="body1" fontWeight={500}>
-                      {p.proveedor ? `${p.nombre} - ${p.proveedor.nombre}` : p.nombre}
+                      {p.proveedor
+                        ? `${p.nombre} - ${p.proveedor.nombre}`
+                        : p.nombre}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {p.cantidad === 1 ? "1 unidad" : `${p.cantidad} unidades`}
@@ -851,27 +921,35 @@ export const AddMovimientoDialog: FC<IProps> = ({
                       <Box sx={{ mt: 1.5 }}>
                         <DatePicker
                           label="Fecha de vencimiento (opcional)"
-                          value={p.fechaVencimiento ? dayjs(p.fechaVencimiento) : null}
-                          onChange={(val) => handleSetFechaVencimientoItem(index, val)}
+                          value={
+                            p.fechaVencimiento
+                              ? dayjs(p.fechaVencimiento)
+                              : null
+                          }
+                          onChange={(val) =>
+                            handleSetFechaVencimientoItem(index, val)
+                          }
                           disablePast
                           slotProps={{
                             textField: {
                               size: "small",
                               fullWidth: true,
-                              helperText: "Se guardará la fecha más próxima si ya tiene una asignada",
-                            }
+                              helperText:
+                                "Se guardará la fecha más próxima si ya tiene una asignada",
+                            },
                           }}
                         />
                       </Box>
                     )}
                   </CardContent>
                 </Card>
-              )
+              );
             })}
-
         </DialogContent>
 
-        <DialogActions sx={{ px: isMobile ? 2 : 3, pb: isMobile ? 2 : undefined }}>
+        <DialogActions
+          sx={{ px: isMobile ? 2 : 3, pb: isMobile ? 2 : undefined }}
+        >
           <Button
             onClick={handleClose}
             startIcon={!isMobile ? <CloseIcon /> : undefined}

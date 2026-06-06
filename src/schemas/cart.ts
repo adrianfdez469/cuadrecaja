@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const cartItemSchema = z.object({
   id: z.string(),
@@ -7,6 +7,8 @@ export const cartItemSchema = z.object({
   quantity: z.number(),
   productoTiendaId: z.string(),
   fechaVencimiento: z.string().nullable().optional(),
+  monedaPrecioCode: z.string().nullable().optional(),
+  priceBase: z.number().optional(), // equivalente en monedaBase al momento de agregar al carrito
 });
 
 export const cartSchema = z.object({

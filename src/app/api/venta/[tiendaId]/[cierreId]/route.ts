@@ -1,7 +1,7 @@
-import {NextRequest, NextResponse} from "next/server";
-import {prisma} from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import {IVenta} from "@/schemas/venta";
+import { IVenta } from "@/schemas/venta";
 import { applyDiscountsForSale } from "@/lib/discounts";
 
 // Tipos auxiliares estrictos para evitar usos de any
@@ -20,6 +20,8 @@ interface ProductoExistenteSelect {
   existencia: number;
   costo: number;
   precio: number;
+  monedaCostoCode: string | null;
+  monedaPrecioCode: string | null;
   proveedorId: string | null;
   producto: { permiteDecimal: boolean };
 }
@@ -27,12 +29,14 @@ interface ProductoExistenteSelect {
 type MergedProduct = ProductoExistenteSelect & IncomingProduct;
 
 // Crear una venta
-export async function POST(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ tiendaId: string; cierreId: string }> },
+) {
   let syncId: string | undefined;
 
   try {
     const { cierreId, tiendaId } = await params;
-
 
     const {
       usuarioId,
@@ -56,29 +60,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
     syncId = syncIdBody;
 
-
-    if (!tiendaId || !usuarioId || !cierreId || !productos.length || !syncId || !createdAt) {
-      console.error('❌ [POST /api/venta] Datos insuficientes:', {
+    if (
+      !tiendaId ||
+      !usuarioId ||
+      !cierreId ||
+      !productos.length ||
+      !syncId ||
+      !createdAt
+    ) {
+      console.error("❌ [POST /api/venta] Datos insuficientes:", {
         tiendaId,
         usuarioId,
         cierreId,
         productosLength: productos.length,
         syncId,
-        createdAt
+        createdAt,
       });
-      return NextResponse.json({ error: "Datos insuficientes para crear la venta" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Datos insuficientes para crear la venta" },
+        { status: 400 },
+      );
     }
 
     // Verificar si ya existe una venta con este syncId (idempotencia)
     const existeVenta = await prisma.venta.findFirst({
       where: {
-        syncId: syncId
+        syncId: syncId,
       },
       include: {
-        productos: true
-      }
+        productos: true,
+      },
     });
-
 
     if (existeVenta) {
       return NextResponse.json(existeVenta, { status: 200 });
@@ -89,11 +101,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       orderBy: { fechaInicio: "desc" },
     });
 
-
-
-
     if (!ultimoPeriodo) {
-      return NextResponse.json({ error: "No existe un período abierto en la tienda" }, { status: 404 });
+      return NextResponse.json(
+        { error: "No existe un período abierto en la tienda" },
+        { status: 404 },
+      );
     }
 
     // 🆕 VALIDACIÓN: Verificar que la venta pertenece al período actual
@@ -101,34 +113,40 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
       // Buscar el período
       const periodoDeLaVenta = await prisma.cierrePeriodo.findUnique({
         where: {
-          id: cierreId
-        }
+          id: cierreId,
+        },
       });
 
-      if(!periodoDeLaVenta) {
-        return NextResponse.json({ error: "No existe un período con el id proporcionado" }, { status: 404 });
+      if (!periodoDeLaVenta) {
+        return NextResponse.json(
+          { error: "No existe un período con el id proporcionado" },
+          { status: 404 },
+        );
       }
 
       const ventaCreatedAt = new Date(createdAt);
       const periodoInicio = new Date(periodoDeLaVenta.fechaInicio);
-      const periodoFin = periodoDeLaVenta.fechaFin && new Date(periodoDeLaVenta.fechaFin);
-      return NextResponse.json({
-        error: `La venta fue creada fuera del período actual. Venta: ${ventaCreatedAt.toLocaleString()}, Período: ${periodoInicio.toLocaleString()} - ${periodoFin.toLocaleString()}. No se puede sincronizar ventas de períodos anteriores.`,
-        ventaCreatedAt: ventaCreatedAt.toISOString(),
-        periodoInicio: periodoInicio.toISOString(),
-        periodoFin: periodoFin ? periodoFin.toISOString() : undefined
-      }, { status: 400 });
+      const periodoFin =
+        periodoDeLaVenta.fechaFin && new Date(periodoDeLaVenta.fechaFin);
+      return NextResponse.json(
+        {
+          error: `La venta fue creada fuera del período actual. Venta: ${ventaCreatedAt.toLocaleString()}, Período: ${periodoInicio.toLocaleString()} - ${periodoFin.toLocaleString()}. No se puede sincronizar ventas de períodos anteriores.`,
+          ventaCreatedAt: ventaCreatedAt.toISOString(),
+          periodoInicio: periodoInicio.toISOString(),
+          periodoFin: periodoFin ? periodoFin.toISOString() : undefined,
+        },
+        { status: 400 },
+      );
     }
 
     // **TRANSACCIÓN ATÓMICA: Todo o nada**
     const result = await prisma.$transaction(async (tx) => {
-
       // 1. Verificar que todos los productos existen
       const productosExistentes = await tx.productoTienda.findMany({
         where: {
           id: {
-            in: productos.map(p => p.productoTiendaId)
-          }
+            in: productos.map((p) => p.productoTiendaId),
+          },
         },
         select: {
           id: true,
@@ -136,63 +154,81 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           existencia: true,
           costo: true,
           precio: true,
+          monedaCostoCode: true,
+          monedaPrecioCode: true,
           proveedorId: true,
           producto: {
             select: {
-              permiteDecimal: true
-            }
-          }
-        }
+              permiteDecimal: true,
+            },
+          },
+        },
       });
 
-
       const productosNoEncontrados = productos.filter(
-        p => !productosExistentes.some(pe => pe.id === p.productoTiendaId)
+        (p) => !productosExistentes.some((pe) => pe.id === p.productoTiendaId),
       );
 
       if (productosNoEncontrados.length > 0) {
-        console.error('❌ [POST /api/venta] Productos no encontrados:', productosNoEncontrados);
-        throw new Error(`Productos no encontrados: ${productosNoEncontrados.map(p => p.name).join(', ')}`);
+        console.error(
+          "❌ [POST /api/venta] Productos no encontrados:",
+          productosNoEncontrados,
+        );
+        throw new Error(
+          `Productos no encontrados: ${productosNoEncontrados.map((p) => p.name).join(", ")}`,
+        );
       }
 
       const productosMegrados = productosExistentes.map((p) => {
         const producto = productos.find((p2) => p2.productoTiendaId === p.id);
         return {
           ...p,
-          ...producto
+          ...producto,
         };
       });
 
       // Validar cantidades decimales según configuración del producto
       const invalidDecimalProducts = productosMegrados.filter(
-        (p) => p && typeof p.cantidad === 'number' && !Number.isInteger(p.cantidad) && !(p.producto && p.producto.permiteDecimal)
+        (p) =>
+          p &&
+          typeof p.cantidad === "number" &&
+          !Number.isInteger(p.cantidad) &&
+          !(p.producto && p.producto.permiteDecimal),
       );
       if (invalidDecimalProducts.length > 0) {
-        const ids = invalidDecimalProducts.map((p) => p.productoId || p.productoTiendaId).join(', ');
-        throw new Error(`Cantidad decimal no permitida para los productos: ${ids}`);
+        const ids = invalidDecimalProducts
+          .map((p) => p.productoId || p.productoTiendaId)
+          .join(", ");
+        throw new Error(
+          `Cantidad decimal no permitida para los productos: ${ids}`,
+        );
       }
 
       // 2. Calcular descuentos SIEMPRE en base a los productos del payload (códigos opcionales)
       let discountTotalCalc = 0;
-      let discountCalcResult: Awaited<ReturnType<typeof applyDiscountsForSale>> | null = null;
+      let discountCalcResult: Awaited<
+        ReturnType<typeof applyDiscountsForSale>
+      > | null = null;
       try {
         // Construir la lista de productos para el motor de descuentos con datos confiables
         // Preferimos los valores de la DB (productosMegrados.precio) y hacemos fallback al payload (price | precio)
-        const discountProducts = (productosMegrados as MergedProduct[]).map((p) => ({
-          productoTiendaId: String(p.productoTiendaId),
-          cantidad: Number(p.cantidad) || 0,
-          precio: Number(p.precio ?? p.price) || 0,
-        }));
+        const discountProducts = (productosMegrados as MergedProduct[]).map(
+          (p) => ({
+            productoTiendaId: String(p.productoTiendaId),
+            cantidad: Number(p.cantidad) || 0,
+            precio: Number(p.precio ?? p.price) || 0,
+          }),
+        );
 
         discountCalcResult = await applyDiscountsForSale({
           tiendaId,
           discountCodes: Array.isArray(discountCodes) ? discountCodes : [],
-          products: discountProducts
+          products: discountProducts,
         });
         discountTotalCalc = discountCalcResult.discountTotal;
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.error('❌ [POST /api/venta] Error calculando descuentos:', msg);
+        console.error("❌ [POST /api/venta] Error calculando descuentos:", msg);
         // En caso de error, continuar sin aplicar descuentos
         discountTotalCalc = 0;
         discountCalcResult = null;
@@ -205,7 +241,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           usuarioId,
           // Ajustar total SIEMPRE basado en el cálculo del backend para evitar dobles descuentos
           // Si discountCalcResult está disponible, usar finalTotal; de lo contrario, usar el total enviado
-          total: discountCalcResult ? Number(discountCalcResult.finalTotal) : Math.max(0, Number(total) || 0),
+          total: discountCalcResult
+            ? Number(discountCalcResult.finalTotal)
+            : Math.max(0, Number(total) || 0),
           totalcash,
           totaltransfer,
           cierrePeriodoId: ultimoPeriodo.id,
@@ -220,10 +258,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
               productoTiendaId: p.productoTiendaId,
               cantidad: p.cantidad,
               costo: p.costo,
-              precio: p.precio
+              precio: p.precio,
+              monedaCostoCode: p.monedaCostoCode ?? null,
+              monedaPrecioCode: p.monedaPrecioCode ?? null,
             })),
           },
-          ...((transferDestinationId && totaltransfer > 0) && { transferDestinationId }),
+          ...(transferDestinationId &&
+            totaltransfer > 0 && { transferDestinationId }),
           // Multimoneda
           ...(monedaCobro && { monedaCobro }),
           ...(pagosDetalle && { pagosDetalle }),
@@ -231,10 +272,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           ...(tasaSnapshot && { tasaSnapshot }),
         },
         include: {
-          productos: true
-        }
+          productos: true,
+        },
       });
-
 
       // 3.1 Persistir AppliedDiscount si corresponde
       try {
@@ -247,48 +287,56 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
                 discountRuleId: a.discountRuleId,
                 amount: a.amount,
                 productsAffected: a.productsAffected ?? null,
-              }
+              },
             });
           }
         }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.error('❌ [POST /api/venta] Error guardando AppliedDiscount:', msg);
+        console.error(
+          "❌ [POST /api/venta] Error guardando AppliedDiscount:",
+          msg,
+        );
       }
 
       // 3. Manejar productos fraccionables (si aplica) - PRIMERO
       const productosFraccionables = await tx.productoTienda.findMany({
         where: {
           id: {
-            in: productos.map(p => p.productoTiendaId)
+            in: productos.map((p) => p.productoTiendaId),
           },
           producto: {
             fraccionDeId: {
-              not: null
-            }
-          }
+              not: null,
+            },
+          },
         },
         include: {
           producto: {
             select: {
               fraccionDeId: true,
-              unidadesPorFraccion: true
-            }
-          }
-        }
+              unidadesPorFraccion: true,
+            },
+          },
+        },
       });
 
       if (productosFraccionables.length > 0) {
-
-        const productosFraccionablesData = productosFraccionables.filter(pf => pf.producto.fraccionDeId);
+        const productosFraccionablesData = productosFraccionables.filter(
+          (pf) => pf.producto.fraccionDeId,
+        );
 
         // Usar existencias originales para el cálculo
-        const productosFraccionablesNeedDesagregateData = productosFraccionablesData
-          .filter((prodFracc) => {
-            const prod = productos.find(p => p.productoTiendaId === prodFracc.id);
+        const productosFraccionablesNeedDesagregateData =
+          productosFraccionablesData.filter((prodFracc) => {
+            const prod = productos.find(
+              (p) => p.productoTiendaId === prodFracc.id,
+            );
             if (prod) {
               if (prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
-                throw new Error(`Vendes más unidades sueltas de las que lleva una caja en una misma venta`);
+                throw new Error(
+                  `Vendes más unidades sueltas de las que lleva una caja en una misma venta`,
+                );
               }
               // Usar existencia original (antes de cualquier modificación)
               return prodFracc.existencia < prod.cantidad;
@@ -302,11 +350,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
         productosFraccionablesNeedDesagregateData.forEach((item) => {
           itemsDesagregaciónAlta.push({
             cantidad: item.producto.unidadesPorFraccion,
-            productoId: item.productoId
+            productoId: item.productoId,
           });
           itemsDesagregaciónBaja.push({
             cantidad: 1,
-            productoId: item.producto.fraccionDeId
+            productoId: item.producto.fraccionDeId,
           });
         });
 
@@ -317,24 +365,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
               where: {
                 tiendaId,
                 productoId: item.productoId,
-                proveedorId: null // Solo productos propios para desagregación
-              }
+                proveedorId: null, // Solo productos propios para desagregación
+              },
             });
 
             if (productoTiendaDesagregar) {
               const existenciaAnterior = productoTiendaDesagregar.existencia;
-              
-              if(existenciaAnterior < item.cantidad){
-                throw new Error(`Existencia insuficiente, no hay suficiente existencia para desagregar. Existencia: ${existenciaAnterior}, Cantidad a desagregar: ${item.cantidad}`);
+
+              if (existenciaAnterior < item.cantidad) {
+                throw new Error(
+                  `Existencia insuficiente, no hay suficiente existencia para desagregar. Existencia: ${existenciaAnterior}, Cantidad a desagregar: ${item.cantidad}`,
+                );
               }
 
               await tx.productoTienda.update({
                 where: { id: productoTiendaDesagregar.id },
                 data: {
                   existencia: {
-                    decrement: item.cantidad
-                  }
-                }
+                    decrement: item.cantidad,
+                  },
+                },
               });
 
               await tx.movimientoStock.create({
@@ -346,10 +396,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
                   usuarioId,
                   existenciaAnterior,
                   referenciaId: venta.id,
-                  motivo: `Desagregación para venta ${venta.id}`
-                }
+                  motivo: `Desagregación para venta ${venta.id}`,
+                },
               });
-
             }
           }
         }
@@ -360,8 +409,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
               where: {
                 tiendaId,
                 productoId: item.productoId,
-                proveedorId: null // Solo productos propios para desagregación
-              }
+                proveedorId: null, // Solo productos propios para desagregación
+              },
             });
 
             if (productoTiendaAgregar) {
@@ -371,9 +420,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
                 where: { id: productoTiendaAgregar.id },
                 data: {
                   existencia: {
-                    increment: item.cantidad
-                  }
-                }
+                    increment: item.cantidad,
+                  },
+                },
               });
 
               await tx.movimientoStock.create({
@@ -385,10 +434,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
                   usuarioId,
                   existenciaAnterior,
                   referenciaId: venta.id,
-                  motivo: `Desagregación para venta ${venta.id}`
-                }
+                  motivo: `Desagregación para venta ${venta.id}`,
+                },
               });
-
             }
           }
         }
@@ -396,20 +444,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
       // 4. Crear movimientos de stock y actualizar existencias - ÚLTIMO
       for (const producto of productos) {
-        const productoTienda = productosExistentes.find(p => p.id === producto.productoTiendaId);
+        const productoTienda = productosExistentes.find(
+          (p) => p.id === producto.productoTiendaId,
+        );
         if (!productoTienda) continue;
 
         // Obtener la existencia actual (después de desagregaciones si las hubo)
         const productoTiendaActual = await tx.productoTienda.findUnique({
           where: { id: producto.productoTiendaId },
-          select: { existencia: true }
+          select: { existencia: true },
         });
 
         const existenciaAnterior = productoTiendaActual.existencia;
 
-        if(existenciaAnterior < producto.cantidad) {
-          throw new Error(`Existencia insuficiente para realizar la venta de productoTiendaId: ${producto.productoTiendaId}. Existencia: ${existenciaAnterior}, Cantidad a vender: ${producto.cantidad}`);
-          
+        if (existenciaAnterior < producto.cantidad) {
+          throw new Error(
+            `Existencia insuficiente para realizar la venta de productoTiendaId: ${producto.productoTiendaId}. Existencia: ${existenciaAnterior}, Cantidad a vender: ${producto.cantidad}`,
+          );
         }
 
         // Actualizar existencia
@@ -417,15 +468,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
           where: { id: producto.productoTiendaId },
           data: {
             existencia: {
-              decrement: producto.cantidad
-            }
-          }
+              decrement: producto.cantidad,
+            },
+          },
         });
 
         // Crear movimiento de venta
         await tx.movimientoStock.create({
           data: {
-            tipo: 'VENTA',
+            tipo: "VENTA",
             cantidad: producto.cantidad,
             productoTiendaId: producto.productoTiendaId,
             tiendaId,
@@ -433,40 +484,42 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
             existenciaAnterior,
             referenciaId: venta.id,
             motivo: `Venta ${venta.id}`,
-            ...(productoTienda.proveedorId && { proveedorId: productoTienda.proveedorId })
-          }
+            ...(productoTienda.proveedorId && {
+              proveedorId: productoTienda.proveedorId,
+            }),
+          },
         });
-
       }
 
       return venta;
     });
 
-
-    
     return NextResponse.json(result, { status: 201 });
-
   } catch (error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
       const ventaExistente = await prisma.venta.findFirst({
         where: { syncId },
-        include: { productos: true }
+        include: { productos: true },
       });
       if (ventaExistente) {
         return NextResponse.json(ventaExistente, { status: 200 });
       }
     }
 
-    const message = error instanceof Error ? error.message : 'Error al crear la venta';
-    console.error('❌ [POST /api/venta] Error en transacción:', error);
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Error al crear la venta";
+    console.error("❌ [POST /api/venta] Error en transacción:", error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ tiendaId: string; cierreId: string }> },
+) {
   try {
     const { cierreId, tiendaId } = await params;
 
@@ -475,8 +528,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         usuario: {
           select: {
             id: true,
-            nombre: true
-          }
+            nombre: true,
+          },
         },
         productos: {
           select: {
@@ -486,42 +539,41 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
             precio: true,
             costo: true,
 
-
             producto: {
               select: {
                 proveedor: {
                   select: {
                     id: true,
-                    nombre: true
-                  }
+                    nombre: true,
+                  },
                 },
                 producto: {
                   select: {
                     nombre: true,
                     id: true,
-                  }
+                  },
                 },
-              }
-            }
+              },
+            },
           },
         },
         appliedDiscounts: {
           include: {
             discountRule: {
-              select: { name: true }
-            }
-          }
+              select: { name: true },
+            },
+          },
         },
         transferDestination: {
-          select: { id: true, nombre: true }
-        }
+          select: { id: true, nombre: true },
+        },
       },
       where: {
         cierrePeriodoId: cierreId,
-        tiendaId: tiendaId
+        tiendaId: tiendaId,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
@@ -539,7 +591,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         id: venta.usuario.id,
         nombre: venta.usuario.nombre,
         usuario: "",
-        rol: ""
+        rol: "",
       },
       productos: venta.productos.map((p) => ({
         id: p.producto.producto.id,
@@ -547,8 +599,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         ventaId: venta.id,
         productoTiendaId: p.productoTiendaId,
         cantidad: p.cantidad,
-        name: p.producto.proveedor ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}` : p.producto?.producto?.nombre ?? undefined,
-        price: p.precio ?? undefined
+        name: p.producto.proveedor
+          ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}`
+          : (p.producto?.producto?.nombre ?? undefined),
+        price: p.precio ?? undefined,
       })),
       appliedDiscounts: (venta.appliedDiscounts || []).map((ad) => ({
         id: ad.id,
@@ -556,20 +610,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
         ventaId: ad.ventaId,
         amount: ad.amount,
         // Prisma almacena JSON, lo convertimos al tipo esperado de la UI (si es posible)
-        productsAffected: ad.productsAffected as unknown as { productoTiendaId: string; cantidad: number }[] | undefined,
+        productsAffected: ad.productsAffected as unknown as
+          | { productoTiendaId: string; cantidad: number }[]
+          | undefined,
         createdAt: ad.createdAt,
-        ruleName: ad.discountRule?.name
+        ruleName: ad.discountRule?.name,
       })),
       transferDestinationId: venta.transferDestinationId ?? undefined,
       transferDestination: venta.transferDestination ?? undefined,
-      syncId: venta.syncId
+      syncId: venta.syncId,
     }));
 
     return NextResponse.json(ventas);
-
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Error al obtener las ventas" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al obtener las ventas" },
+      { status: 500 },
+    );
   }
 }
-

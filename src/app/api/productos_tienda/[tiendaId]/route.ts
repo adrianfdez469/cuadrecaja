@@ -3,59 +3,62 @@ import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { NextRequest, NextResponse } from "next/server";
 
-
-
 // Obtener todos los productos (Accesible para todos)
-export async function GET(req: NextRequest, { params }: { params: Promise<{ tiendaId: string }> }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ tiendaId: string }> },
+) {
   try {
     const { tiendaId } = await params;
     const { searchParams } = new URL(req.url);
-    const orderBy = searchParams.get('orderBy');
+    const orderBy = searchParams.get("orderBy");
 
     let orderByClause: {
       producto?: {
-        nombre?: 'asc' | 'desc'
-      }
-      precio?: 'asc' | 'desc'
+        nombre?: "asc" | "desc";
+      };
+      precio?: "asc" | "desc";
     } = {
       producto: {
-        nombre: 'asc'
-      }
+        nombre: "asc",
+      },
     };
 
-    if(orderBy === 'precio'){
+    if (orderBy === "precio") {
       orderByClause = {
-        precio: 'asc',
-        ...orderByClause
-      }
+        precio: "asc",
+        ...orderByClause,
+      };
     }
 
     const productosTienda = await prisma.productoTienda.findMany({
       where: {
         tiendaId: tiendaId,
-        producto: { deletedAt: null }
+        producto: { deletedAt: null },
       },
       include: {
         producto: {
           select: {
             id: true,
             nombre: true,
-          }
+          },
         },
         proveedor: {
           select: {
             id: true,
-            nombre: true
-          }
-        }
+            nombre: true,
+          },
+        },
       },
-      orderBy: orderByClause
+      orderBy: orderByClause,
     });
 
     // Serializar fechaVencimiento a ISO string para el cliente
-    const result = productosTienda.map(pt => ({
+    const result = productosTienda.map((pt) => ({
       ...pt,
-      fechaVencimiento: pt.fechaVencimiento ? pt.fechaVencimiento.toISOString() : null
+      fechaVencimiento: pt.fechaVencimiento
+        ? pt.fechaVencimiento.toISOString()
+        : null,
     }));
 
     return NextResponse.json(result);
@@ -63,21 +66,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
     console.error(error);
     return NextResponse.json(
       { error: "Error al obtener productos" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ tiendaId: string }> }) {
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ tiendaId: string }> },
+) {
   try {
     const { tiendaId } = await params;
-    const { productoId, precio, costo } = await req.json();
+    const { productoId, precio, costo, monedaCostoCode, monedaPrecioCode } =
+      await req.json();
 
     const session = await getSession();
     const user = session.user;
 
-    if (!verificarPermisoUsuario(user.permisos, "operaciones.gestion-inventario.acceder", user.rol)) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+    if (
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.gestion-inventario.acceder",
+        user.rol,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 },
+      );
     }
 
     const productoTienda = await prisma.productoTienda.create({
@@ -87,17 +103,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ tiendaI
         existencia: 0,
         precio: precio ?? 0,
         costo: costo ?? 0,
+        monedaCostoCode: monedaCostoCode ?? null,
+        monedaPrecioCode: monedaPrecioCode ?? null,
       },
     });
 
     return NextResponse.json(productoTienda, { status: 201 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Error al crear relación producto-tienda" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al crear relación producto-tienda" },
+      { status: 500 },
+    );
   }
 }
 
-export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId: string }> }) {
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ tiendaId: string }> },
+) {
   try {
     const { tiendaId } = await params;
     const { productos } = await req.json();
@@ -106,12 +130,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
     const user = session.user;
 
     if (
-      !verificarPermisoUsuario(user.permisos, "operaciones.conformarprecios.acceder", user.rol) &&
-      !verificarPermisoUsuario(user.permisos, "operaciones.gestion-inventario.acceder", user.rol)
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.conformarprecios.acceder",
+        user.rol,
+      ) &&
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.gestion-inventario.acceder",
+        user.rol,
+      )
     ) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -120,22 +152,33 @@ export async function PUT(req: Request, { params }: { params: Promise<{ tiendaId
     }
 
     await prisma.$transaction(
-      productos.map(producto => {
-        const data: { precio?: number; costo?: number; fechaVencimiento?: Date | null } = {};
+      productos.map((producto) => {
+        const data: {
+          precio?: number;
+          costo?: number;
+          fechaVencimiento?: Date | null;
+          monedaCostoCode?: string | null;
+          monedaPrecioCode?: string | null;
+        } = {};
         if (producto.precio !== undefined) data.precio = producto.precio;
         if (producto.costo !== undefined) data.costo = producto.costo;
-        if ('fechaVencimiento' in producto) {
-          data.fechaVencimiento = producto.fechaVencimiento ? new Date(producto.fechaVencimiento) : null;
+        if ("fechaVencimiento" in producto) {
+          data.fechaVencimiento = producto.fechaVencimiento
+            ? new Date(producto.fechaVencimiento)
+            : null;
         }
+        if ("monedaCostoCode" in producto)
+          data.monedaCostoCode = producto.monedaCostoCode ?? null;
+        if ("monedaPrecioCode" in producto)
+          data.monedaPrecioCode = producto.monedaPrecioCode ?? null;
         return prisma.productoTienda.update({
           where: { id: producto.id },
-          data
+          data,
         });
-      })
+      }),
     );
 
     return NextResponse.json({ success: true });
-
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });

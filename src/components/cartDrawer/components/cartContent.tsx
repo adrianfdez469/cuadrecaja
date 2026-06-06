@@ -1,7 +1,17 @@
 import { Close, Delete, Remove, Add } from "@mui/icons-material";
-import { Box, Typography, Button, Chip, IconButton, Paper, Tooltip, useMediaQuery, useTheme } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Button,
+  Chip,
+  IconButton,
+  Paper,
+  Tooltip,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
-import PushPinIcon from '@mui/icons-material/PushPin';
+import PushPinIcon from "@mui/icons-material/PushPin";
 
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
@@ -10,26 +20,45 @@ import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 function ExpiryChip({ fechaVencimiento }: { fechaVencimiento: string }) {
   const ahora = new Date();
   const fecha = new Date(fechaVencimiento);
-  const dias = Math.ceil((fecha.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
+  const dias = Math.ceil(
+    (fecha.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000),
+  );
 
   if (dias <= 0) {
     return (
       <Tooltip title="Este producto está vencido">
-        <Chip label="Vencido" color="error" size="small" sx={{ height: 18, fontSize: "0.65rem" }} />
+        <Chip
+          label="Vencido"
+          color="error"
+          size="small"
+          sx={{ height: 18, fontSize: "0.65rem" }}
+        />
       </Tooltip>
     );
   }
   if (dias <= 7) {
     return (
       <Tooltip title={`Vence en ${dias} día(s)`}>
-        <Chip label={`Vence en ${dias}d`} color="error" size="small" variant="outlined" sx={{ height: 18, fontSize: "0.65rem" }} />
+        <Chip
+          label={`Vence en ${dias}d`}
+          color="error"
+          size="small"
+          variant="outlined"
+          sx={{ height: 18, fontSize: "0.65rem" }}
+        />
       </Tooltip>
     );
   }
   if (dias <= 30) {
     return (
       <Tooltip title={`Vence en ${dias} día(s)`}>
-        <Chip label={`Vence en ${dias}d`} color="warning" size="small" variant="outlined" sx={{ height: 18, fontSize: "0.65rem" }} />
+        <Chip
+          label={`Vence en ${dias}d`}
+          color="warning"
+          size="small"
+          variant="outlined"
+          sx={{ height: 18, fontSize: "0.65rem" }}
+        />
       </Tooltip>
     );
   }
@@ -51,7 +80,8 @@ function CartItemCard({
   onRemove,
   canUpdateQuantity,
 }: CartItemCardProps) {
-  const lineTotal = item.price * item.quantity;
+  // Use priceBase (monedaBase equivalent) for MultiCurrencyAmount display; fall back to raw price if not set
+  const lineTotal = (item.priceBase ?? item.price) * item.quantity;
 
   return (
     <Paper
@@ -128,11 +158,19 @@ function CartItemCard({
             variant="caption"
             color="text.secondary"
             display="block"
-            sx={{ mb: 0.25, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: 0.4 }}
+            sx={{
+              mb: 0.25,
+              fontSize: "0.65rem",
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+            }}
           >
             Unitario
           </Typography>
-          <MultiCurrencyAmount amount={item.price} variant="compact" />
+          <MultiCurrencyAmount
+            amount={item.priceBase ?? item.price}
+            variant="compact"
+          />
         </Box>
 
         <Box minWidth={0}>
@@ -141,7 +179,12 @@ function CartItemCard({
             color="text.secondary"
             display="block"
             align="right"
-            sx={{ mb: 0.25, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: 0.4 }}
+            sx={{
+              mb: 0.25,
+              fontSize: "0.65rem",
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+            }}
           >
             Subtotal
           </Typography>
@@ -223,12 +266,11 @@ export const CartContent = ({
   onOkButtonClick,
   setIsCartPinned,
 }: IProps) => {
-
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { showMessage } = useMessageContext();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
 
   const handleRemoveItem = (item: ICartItem) => {
     if (removeItem) {
@@ -236,7 +278,7 @@ export const CartContent = ({
         `¿Estás seguro de que deseas eliminar "${item.name}" del carrito?`,
         () => {
           removeItem(item.id);
-        }
+        },
       );
     }
   };
@@ -251,7 +293,7 @@ export const CartContent = ({
           `¿Estás seguro de que deseas eliminar "${product?.name}" del carrito?`,
           () => {
             removeItem(id);
-          }
+          },
         );
       } else {
         showMessage("No puede elminar completamente el producto", "warning");
@@ -269,10 +311,10 @@ export const CartContent = ({
   const handleClearCart = () => {
     if (clear && cart.length > 0) {
       confirmDialog(
-        `¿Estás seguro de que deseas vaciar el carrito? Se eliminarán ${cart.length} producto${cart.length !== 1 ? 's' : ''}.`,
+        `¿Estás seguro de que deseas vaciar el carrito? Se eliminarán ${cart.length} producto${cart.length !== 1 ? "s" : ""}.`,
         () => {
           clear();
-        }
+        },
       );
     }
   };
@@ -281,13 +323,13 @@ export const CartContent = ({
     if (!isMobile) {
       setIsCartPinned(!isCartPinned);
     }
-  }
+  };
 
   // Calcular ancho dinámico según el estado y pantalla
   const getContainerWidth = () => {
     if (isCartPinned) {
       // Cuando está pineado, usar 100% del contenedor padre que ya está limitado
-      return '100%';
+      return "100%";
     }
     return 360; // Ancho estándar para drawer
   };
@@ -305,12 +347,12 @@ export const CartContent = ({
         maxHeight: isCartPinned ? "calc(100vh - 120px)" : "100dvh",
         boxSizing: "border-box",
         ...(isCartPinned && {
-          maxWidth: isMobile ? '100%' : isTablet ? '40vw' : '35vw',
+          maxWidth: isMobile ? "100%" : isTablet ? "40vw" : "35vw",
           minWidth: 360,
-          position: 'sticky',
+          position: "sticky",
           top: 0,
-          overflow: 'hidden'
-        })
+          overflow: "hidden",
+        }),
       }}
     >
       {/* Header */}
@@ -321,17 +363,22 @@ export const CartContent = ({
         mb={2}
       >
         <Box display={"flex"} flexDirection={"column"} flex={1}>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+            mb={1}
+          >
             <Typography variant="h6">Venta</Typography>
             {!isMobile && (
               <IconButton
                 onClick={() => handlePinCart()}
                 size="small"
                 sx={{
-                  color: isCartPinned ? 'primary.main' : 'secondary.main',
-                  '&:hover': {
-                    backgroundColor: isCartPinned ? 'primary.50' : 'grey.100'
-                  }
+                  color: isCartPinned ? "primary.main" : "secondary.main",
+                  "&:hover": {
+                    backgroundColor: isCartPinned ? "primary.50" : "grey.100",
+                  },
                 }}
               >
                 {isCartPinned ? <PushPinIcon /> : <PushPinIcon />}
@@ -353,17 +400,18 @@ export const CartContent = ({
               size={isCartPinned && !isTablet ? "medium" : "small"}
               sx={{
                 mr: 1,
-                ...(isCartPinned && !isTablet && {
-                  minWidth: 'auto',
-                  px: 2
-                })
+                ...(isCartPinned &&
+                  !isTablet && {
+                    minWidth: "auto",
+                    px: 2,
+                  }),
               }}
             >
               Vaciar{" "}
             </Button>
           )}
           <IconButton onClick={onClose} disabled={isCartPinned}>
-            <Close color={isCartPinned ? 'disabled' : 'error'} />
+            <Close color={isCartPinned ? "disabled" : "error"} />
           </IconButton>
         </Box>
       </Box>
@@ -373,18 +421,18 @@ export const CartContent = ({
         flex={1}
         overflow="auto"
         sx={{
-          '&::-webkit-scrollbar': {
-            width: '6px',
+          "&::-webkit-scrollbar": {
+            width: "6px",
           },
-          '&::-webkit-scrollbar-track': {
-            background: 'rgba(0,0,0,0.05)',
-            borderRadius: '3px',
+          "&::-webkit-scrollbar-track": {
+            background: "rgba(0,0,0,0.05)",
+            borderRadius: "3px",
           },
-          '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(0,0,0,0.2)',
-            borderRadius: '3px',
-            '&:hover': {
-              background: 'rgba(0,0,0,0.3)',
+          "&::-webkit-scrollbar-thumb": {
+            background: "rgba(0,0,0,0.2)",
+            borderRadius: "3px",
+            "&:hover": {
+              background: "rgba(0,0,0,0.3)",
             },
           },
         }}

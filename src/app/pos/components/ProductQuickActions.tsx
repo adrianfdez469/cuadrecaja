@@ -6,6 +6,8 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { useCartStore } from "@/store/cartStore";
 import { calcularDisponibilidadReal } from "../utils/calcularDisponibilidadReal";
+import { useAppContext } from "@/context/AppContext";
+import { convertToBase } from "@/lib/currency";
 
 interface ProductQuickActionsProps {
   productoTienda: IProductoTiendaV2;
@@ -25,13 +27,20 @@ export function ProductQuickActions({
   centered = false,
 }: ProductQuickActionsProps) {
   const { items, addToCart, updateQuantity, removeFromCart } = useCartStore();
+  const { tasasVigentes, monedaBase } = useAppContext();
 
   const getCartQuantity = (productoTiendaId: string) => {
-    return items.find((item) => item.productoTiendaId === productoTiendaId)?.quantity || 0;
+    return (
+      items.find((item) => item.productoTiendaId === productoTiendaId)
+        ?.quantity || 0
+    );
   };
 
   const getMaxDisponible = () => {
-    const { maxPorTransaccion } = calcularDisponibilidadReal(productoTienda, allProductosTienda);
+    const { maxPorTransaccion } = calcularDisponibilidadReal(
+      productoTienda,
+      allProductosTienda,
+    );
     const cartQty = getCartQuantity(productoTienda.id);
     return Math.max(0, maxPorTransaccion - cartQty);
   };
@@ -39,7 +48,10 @@ export function ProductQuickActions({
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     onStopPropagation?.(e);
-    const { maxPorTransaccion } = calcularDisponibilidadReal(productoTienda, allProductosTienda);
+    const { maxPorTransaccion } = calcularDisponibilidadReal(
+      productoTienda,
+      allProductosTienda,
+    );
     const cartQty = getCartQuantity(productoTienda.id);
     const disponible = maxPorTransaccion - cartQty;
     const permiteDecimal = productoTienda.producto?.permiteDecimal;
@@ -52,8 +64,15 @@ export function ProductQuickActions({
           price: productoTienda.precio,
           productoTiendaId: productoTienda.id,
           fechaVencimiento: productoTienda.fechaVencimiento ?? null,
+          monedaPrecioCode: productoTienda.monedaPrecioCode ?? null,
+          priceBase: convertToBase(
+            productoTienda.precio,
+            productoTienda.monedaPrecioCode ?? monedaBase,
+            tasasVigentes,
+            monedaBase,
+          ),
         },
-        incremento
+        incremento,
       );
     }
   };
@@ -128,7 +147,9 @@ export function ProductQuickActions({
         aria-live="polite"
         aria-atomic="true"
       >
-        {productoTienda.producto?.permiteDecimal ? cartQuantity.toFixed(1) : cartQuantity}
+        {productoTienda.producto?.permiteDecimal
+          ? cartQuantity.toFixed(1)
+          : cartQuantity}
       </Typography>
       <IconButton
         size="small"
