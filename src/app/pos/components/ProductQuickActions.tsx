@@ -11,6 +11,7 @@ interface ProductQuickActionsProps {
   productoTienda: IProductoTiendaV2;
   allProductosTienda: IProductoTiendaV2[];
   onStopPropagation?: (e: React.MouseEvent) => void;
+  centered?: boolean;
 }
 
 /**
@@ -21,6 +22,7 @@ export function ProductQuickActions({
   productoTienda,
   allProductosTienda,
   onStopPropagation,
+  centered = false,
 }: ProductQuickActionsProps) {
   const { items, addToCart, updateQuantity, removeFromCart } = useCartStore();
 
@@ -82,12 +84,23 @@ export function ProductQuickActions({
       aria-label={`Cantidad de ${productoTienda.producto.nombre} en carrito`}
       display="flex"
       alignItems="center"
-      justifyContent="flex-end"
+      justifyContent={centered ? "space-between" : "flex-end"}
       gap={0.25}
       onClick={(e) => {
         e.stopPropagation();
         onStopPropagation?.(e);
       }}
+      sx={
+        centered
+          ? {
+              width: "100%",
+              bgcolor: "action.hover",
+              borderRadius: 2,
+              px: 0.5,
+              py: 0.25,
+            }
+          : undefined
+      }
     >
       <IconButton
         size="small"

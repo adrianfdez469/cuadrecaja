@@ -2,6 +2,7 @@ import {useEffect, useState, useCallback} from "react";
 import {Box, Button, Dialog, Grow, Typography,} from "@mui/material";
 import {IProductoTiendaV2} from "@/schemas/producto";
 import {useCartStore} from "@/store/cartStore";
+import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 
 interface QuantityDialogProps {
   productoTienda: IProductoTiendaV2 | null;
@@ -249,9 +250,16 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
           justifyContent={"center"}
         >
           <Typography variant="h6">{productoTienda.producto.nombre}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Precio: ${productoTienda.precio}
-          </Typography>
+          <Box sx={{ mt: 0.5, mb: 0.5, textAlign: "center", width: "100%", px: 1 }}>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.25 }}>
+              Precio
+            </Typography>
+            <MultiCurrencyAmount
+              amount={productoTienda.precio}
+              align="center"
+              sx={{ width: "100%" }}
+            />
+          </Box>
           <Typography variant="body2" color="text.secondary">
             {productoTienda.producto.unidadesPorFraccion 
               ? `Stock: ${Math.max(0, productoTienda.existencia || 0)} | Máx. por venta: ${getMaxForDisplay()}`

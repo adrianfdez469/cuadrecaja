@@ -6,15 +6,16 @@ import {useCartStore} from "@/store/cartStore";
 interface ShoppingCartComponentProps {
   openCart: boolean;
   handleCartIcon: () => void;
+  hidden?: boolean;
 }
 
-function ShoppingCartComponent({openCart, handleCartIcon}: ShoppingCartComponentProps) {
+function ShoppingCartComponent({ openCart, handleCartIcon, hidden = false }: ShoppingCartComponentProps) {
 
   const {items} = useCartStore()
   return (
       <>
         {
-            items.length > 0 && !openCart && (
+            items.length > 0 && !openCart && !hidden && (
                 <Fab
                     color="primary"
                     aria-label="cart"

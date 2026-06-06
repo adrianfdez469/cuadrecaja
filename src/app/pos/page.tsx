@@ -1,20 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import {
   Typography,
   CircularProgress,
   Box,
   TextField,
-  Popper,
-  Fade,
   Paper as MuiPaper,
-  List,
-  ListItem,
-  ListItemText,
+  Portal,
   InputAdornment,
   IconButton,
-  ListItemButton,
   Alert,
   Button,
   useTheme,
@@ -46,7 +41,7 @@ import { SalesDrawer } from "./components/SalesDrawer";
 import { UserSalesDrawer } from "./components/UserSalesDrawer";
 
 import { QuantityDialog } from "./components/QuantityDialog";
-import { ProductQuickActions } from "./components/ProductQuickActions";
+import { PosProductItemLayout } from "./components/PosProductItemLayout";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
@@ -79,7 +74,7 @@ export default function POSInterface() {
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
   const [noLocalActual, setNoLocalActual] = useState(false);
-  const { user, loadingContext, gotToPath, monedaBase } = useAppContext();
+  const { user, loadingContext, gotToPath } = useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { sales, addSale, markSynced, markSyncing, checkSyncTimeouts, markSyncError } = useSalesStore();
@@ -89,6 +84,18 @@ export default function POSInterface() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchAnchorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchPanelLayout, setSearchPanelLayout] = useState({ bottom: 80, maxHeight: 300 });
+
+  const updateSearchPanelLayout = useCallback(() => {
+    const el = searchAnchorRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const gap = 4;
+    setSearchPanelLayout({
+      bottom: Math.max(0, window.innerHeight - rect.top + gap),
+      maxHeight: Math.max(120, rect.top - 16 - gap),
+    });
+  }, []);
   const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
   const {
     items: cart,
@@ -102,7 +109,6 @@ export default function POSInterface() {
     setActiveCart,
     renameCart,
     removeActiveCart,
-    items,
   } = useCartStore();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
@@ -270,25 +276,6 @@ export default function POSInterface() {
       return products[0];
     } else {
       return null;
-    }
-  }
-
-  const getCartQuantity = (productoTiendaId: string) => {
-    return items.find(item => item.productoTiendaId === productoTiendaId)?.quantity || 0;
-  }
-
-  function getSecondaryTextForSearchedProducts(product: IProductoTiendaV2) {
-    const cartQty = getCartQuantity(product.id);
-    const { maxPorTransaccion, esFraccion } = calcularDisponibilidadReal(product, productosTienda);
-
-    const disponible = maxPorTransaccion - cartQty;
-
-    if (esFraccion) {
-      // Para productos fracción: mostrar existencia real + máximo por venta
-      const existenciaReal = Math.max(0, product.existencia || 0);
-      return `Stock: ${existenciaReal} | Máx: ${disponible > 0 ? disponible : 0}`;
-    } else {
-      return `Cant: ${disponible > 0 ? disponible : 0}`;
     }
   }
 
@@ -748,6 +735,23 @@ export default function POSInterface() {
     }, 150);
   };
 
+  useLayoutEffect(() => {
+    if (!showSearchResults || searchResults.length === 0) return;
+
+    updateSearchPanelLayout();
+    window.addEventListener("resize", updateSearchPanelLayout);
+    window.addEventListener("scroll", updateSearchPanelLayout, true);
+    const ro = new ResizeObserver(updateSearchPanelLayout);
+    const el = searchAnchorRef.current;
+    if (el) ro.observe(el);
+
+    return () => {
+      window.removeEventListener("resize", updateSearchPanelLayout);
+      window.removeEventListener("scroll", updateSearchPanelLayout, true);
+      ro.disconnect();
+    };
+  }, [showSearchResults, searchResults.length, updateSearchPanelLayout]);
+
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
     // Solo sincronizar si:
@@ -1183,10 +1187,13 @@ export default function POSInterface() {
           incrementarCantidades={incrementarCantidades}
         />
 
-        <ShoppingCartComponent openCart={openCart} handleCartIcon={handleCartIcon} />
+        <ShoppingCartComponent
+          openCart={openCart}
+          handleCartIcon={handleCartIcon}
+          hidden={showSearchResults && searchResults.length > 0}
+        />
 
         <Box
-          ref={searchAnchorRef}
           sx={{
             m: 0,
             position: "fixed",
@@ -1323,6 +1330,8 @@ export default function POSInterface() {
             zIndex: 1200,
             background: "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
             backdropFilter: "blur(10px)",
+            boxSizing: "border-box",
+            maxWidth: "100vw",
           }}
         >
           <Stack direction="row" spacing={1}>
@@ -1380,113 +1389,68 @@ export default function POSInterface() {
           </Stack>
         </Box>
 
-        {/* Popper para resultados de búsqueda */
-        }
-        <Popper
-          open={showSearchResults && searchResults.length > 0}
-          anchorEl={searchAnchorRef.current}
-          placement="top"
-          transition
-          style={{ width: searchAnchorRef.current?.offsetWidth }}
-          modifiers={[
-            {
-              name: "preventOverflow",
-              enabled: true,
-              options: {
-                altAxis: true,
-                altBoundary: true,
-                tether: false,
-                rootBoundary: "viewport",
-                padding: isMobile ? 8 : 0,
-              },
-            },
-            {
-              name: "flip",
-              enabled: false, // Desactivar flip para mantener siempre arriba
-            },
-            {
-              name: "offset",
-              options: {
-                offset: [0, isMobile ? -8 : -8], // Offset adicional en móviles
-              },
-            },
-          ]}
-          sx={{ zIndex: 1300 }}
-        >
-          {({ TransitionProps }) => (
-            <Fade {...TransitionProps} timeout={200}>
+        {showSearchResults && searchResults.length > 0 && (
+          <Portal>
+            <Box
+              sx={{
+                position: "fixed",
+                left: 8,
+                right: 8,
+                bottom: searchPanelLayout.bottom,
+                maxHeight: searchPanelLayout.maxHeight,
+                zIndex: 1300,
+                minWidth: 0,
+                boxSizing: "border-box",
+                maxWidth: "calc(100vw - 16px)",
+                mx: "auto",
+              }}
+            >
               <MuiPaper
                 elevation={3}
                 onMouseDown={(e) => e.preventDefault()}
                 sx={{
                   width: "100%",
-                  maxHeight: isMobile ? "40vh" : "70vh", // Reducir altura máxima en móviles
-                  overflow: "auto",
-                  borderRadius: "12px 12px 0 0",
-                  mt: -2,
+                  maxWidth: "100%",
+                  boxSizing: "border-box",
+                  maxHeight: "inherit",
+                  overflowX: "hidden",
+                  overflowY: "auto",
+                  borderRadius: "12px",
                   bgcolor: "rgba(255,255,255,0.98)",
                   backdropFilter: "blur(10px)",
                   boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
+                  border: "1px solid",
+                  borderColor: "divider",
                 }}
               >
-                <List sx={{ p: 0 }}>
+                <Box
+                  sx={{
+                    p: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                    minWidth: 0,
+                  }}
+                >
                   {searchResults.map((product) => (
-                    <ListItem
+                    <PosProductItemLayout
                       key={product.id}
-                      disablePadding
-                      sx={{
-                        borderBottom: "1px solid rgba(0,0,0,0.05)",
-                        flexDirection: "row",
-                        alignItems: "center",
+                      productoTienda={product}
+                      allProductosTienda={productosTienda}
+                      highlightName={normalizeSearch(product.producto.nombre).startsWith(
+                        normalizeSearch(searchQuery),
+                      )}
+                      onClick={() => {
+                        handleProductSelect(product);
+                        setIntentToSearch(false);
                       }}
-                    >
-                      <Box
-                        sx={{
-                          flexShrink: 0,
-                          pr: 1,
-                          display: "flex",
-                          alignItems: "center",
-                        }}
-                      >
-                        <ProductQuickActions
-                          productoTienda={product}
-                          allProductosTienda={productosTienda}
-                        />
-                      </Box>
-                      <ListItemButton
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          handleProductSelect(product);
-                          setIntentToSearch(false);
-                        }}
-                        sx={{
-                          flex: 1,
-                          minWidth: 0,
-                          "&:hover": {
-                            bgcolor: "rgba(0,0,0,0.04)",
-                          },
-                        }}
-                      >
-                        <ListItemText
-                          primary={product.producto.nombre}
-                          secondary={`${product.precio.toFixed(2)} ${monedaBase} - ${getSecondaryTextForSearchedProducts(product)}`}
-                          primaryTypographyProps={{
-                            sx: {
-                              fontWeight: normalizeSearch(product.producto.nombre)
-                                .startsWith(normalizeSearch(searchQuery))
-                                ? 600
-                                : 400,
-                            },
-                          }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
+                    />
                   ))}
-                </List>
+                </Box>
               </MuiPaper>
-            </Fade>
-          )}
-        </Popper>
+            </Box>
+          </Portal>
+        )}
 
         {/* Dialog de cantidad */
         }
