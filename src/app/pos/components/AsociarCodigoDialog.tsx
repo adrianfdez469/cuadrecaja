@@ -23,6 +23,7 @@ import LinkIcon from "@mui/icons-material/Link";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { asociarCodigoProducto } from "@/services/productServise";
 import { normalizeSearch } from "@/utils/formatters";
+import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 
 interface AsociarCodigoDialogProps {
   open: boolean;
@@ -155,7 +156,15 @@ export function AsociarCodigoDialog({
                 >
                   <ListItemText
                     primary={prod.producto.nombre}
-                    secondary={`$${prod.precio} · Stock: ${prod.existencia}`}
+                    secondary={
+                      <Box component="span" sx={{ display: "flex", flexDirection: "column", gap: 0.25, mt: 0.25 }}>
+                        <MultiCurrencyAmount amount={prod.precio} variant="compact" />
+                        <Typography variant="caption" color="text.secondary" component="span">
+                          Stock: {prod.existencia}
+                        </Typography>
+                      </Box>
+                    }
+                    secondaryTypographyProps={{ component: "div" }}
                   />
                 </ListItemButton>
               ))

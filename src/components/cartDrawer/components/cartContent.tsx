@@ -5,7 +5,200 @@ import PushPinIcon from '@mui/icons-material/PushPin';
 
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
-import { useAppContext } from "@/context/AppContext";
+import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+
+function ExpiryChip({ fechaVencimiento }: { fechaVencimiento: string }) {
+  const ahora = new Date();
+  const fecha = new Date(fechaVencimiento);
+  const dias = Math.ceil((fecha.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
+
+  if (dias <= 0) {
+    return (
+      <Tooltip title="Este producto está vencido">
+        <Chip label="Vencido" color="error" size="small" sx={{ height: 18, fontSize: "0.65rem" }} />
+      </Tooltip>
+    );
+  }
+  if (dias <= 7) {
+    return (
+      <Tooltip title={`Vence en ${dias} día(s)`}>
+        <Chip label={`Vence en ${dias}d`} color="error" size="small" variant="outlined" sx={{ height: 18, fontSize: "0.65rem" }} />
+      </Tooltip>
+    );
+  }
+  if (dias <= 30) {
+    return (
+      <Tooltip title={`Vence en ${dias} día(s)`}>
+        <Chip label={`Vence en ${dias}d`} color="warning" size="small" variant="outlined" sx={{ height: 18, fontSize: "0.65rem" }} />
+      </Tooltip>
+    );
+  }
+  return null;
+}
+
+interface CartItemCardProps {
+  item: ICartItem;
+  onDecrease: (id: string) => void;
+  onIncrease: (id: string) => void;
+  onRemove?: (item: ICartItem) => void;
+  canUpdateQuantity: boolean;
+}
+
+function CartItemCard({
+  item,
+  onDecrease,
+  onIncrease,
+  onRemove,
+  canUpdateQuantity,
+}: CartItemCardProps) {
+  const lineTotal = item.price * item.quantity;
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: { xs: 1.25, sm: 1.5 },
+        mb: 1,
+        borderRadius: 2,
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
+      }}
+    >
+      {/* Fila 1: nombre + eliminar */}
+      <Box
+        display="flex"
+        alignItems="flex-start"
+        justifyContent="space-between"
+        gap={1}
+        mb={1}
+      >
+        <Box flex={1} minWidth={0}>
+          <Typography
+            variant="body2"
+            fontWeight={700}
+            sx={{
+              lineHeight: 1.35,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {item.name}
+          </Typography>
+          {item.fechaVencimiento && (
+            <Box mt={0.5}>
+              <ExpiryChip fechaVencimiento={item.fechaVencimiento} />
+            </Box>
+          )}
+        </Box>
+
+        {onRemove && (
+          <IconButton
+            onClick={() => onRemove(item)}
+            size="small"
+            aria-label={`Eliminar ${item.name}`}
+            sx={{
+              flexShrink: 0,
+              color: "error.main",
+              mt: -0.25,
+              "&:hover": { bgcolor: "error.50" },
+            }}
+          >
+            <Delete fontSize="small" />
+          </IconButton>
+        )}
+      </Box>
+
+      {/* Fila 2: precios en dos columnas */}
+      <Box
+        display="grid"
+        gridTemplateColumns="1fr 1fr"
+        gap={1}
+        mb={1.25}
+        sx={{
+          borderTop: "1px dashed",
+          borderColor: "divider",
+          pt: 1,
+        }}
+      >
+        <Box minWidth={0}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            sx={{ mb: 0.25, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: 0.4 }}
+          >
+            Unitario
+          </Typography>
+          <MultiCurrencyAmount amount={item.price} variant="compact" />
+        </Box>
+
+        <Box minWidth={0}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            align="right"
+            sx={{ mb: 0.25, fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: 0.4 }}
+          >
+            Subtotal
+          </Typography>
+          <MultiCurrencyAmount
+            amount={lineTotal}
+            variant="compact"
+            align="right"
+            color="success.main"
+          />
+        </Box>
+      </Box>
+
+      {/* Fila 3: cantidad centrada a ancho completo */}
+      {canUpdateQuantity && (
+        <Box display="flex" justifyContent="center">
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{
+              width: "100%",
+              maxWidth: 200,
+              bgcolor: "action.hover",
+              borderRadius: 2,
+              px: 0.5,
+              py: 0.25,
+            }}
+          >
+            <IconButton
+              size="small"
+              onClick={() => onDecrease(item.id)}
+              aria-label={`Reducir cantidad de ${item.name}`}
+              sx={{ minWidth: 44, minHeight: 44 }}
+            >
+              <Remove />
+            </IconButton>
+            <Typography
+              variant="body1"
+              fontWeight={700}
+              sx={{ minWidth: 32, textAlign: "center" }}
+            >
+              {item.quantity}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => onIncrease(item.id)}
+              aria-label={`Aumentar cantidad de ${item.name}`}
+              sx={{ minWidth: 44, minHeight: 44 }}
+            >
+              <Add />
+            </IconButton>
+          </Box>
+        </Box>
+      )}
+    </Paper>
+  );
+}
 
 interface IProps {
   clear?: () => void;
@@ -33,10 +226,6 @@ export const CartContent = ({
 
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { showMessage } = useMessageContext();
-  const { monedaBase } = useAppContext();
-
-  const fmtBase = (amount: number) => `${amount.toFixed(2)} ${monedaBase}`;
-
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -201,190 +390,62 @@ export const CartContent = ({
         }}
       >
         {cart.map((item) => (
-          <Paper
+          <CartItemCard
             key={item.id}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              p: isCartPinned ? 1.5 : 1,
-              mb: 1,
-              ...(isCartPinned && {
-                borderRadius: 2,
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              })
-            }}
-          >
-            <Box flex={1}>
-              <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap">
-                <Typography
-                  variant="body1"
-                  fontWeight="bold"
-                  sx={{
-                    fontSize: isCartPinned && !isTablet ? '1rem' : '0.875rem'
-                  }}
-                >
-                  {item.name}
-                </Typography>
-                {item.fechaVencimiento && (() => {
-                  const ahora = new Date();
-                  const fecha = new Date(item.fechaVencimiento);
-                  const dias = Math.ceil((fecha.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
-                  if (dias <= 0) {
-                    return (
-                      <Tooltip title="Este producto está vencido">
-                        <Chip label="Vencido" color="error" size="small" sx={{ height: 18, fontSize: '0.65rem' }} />
-                      </Tooltip>
-                    );
-                  }
-                  if (dias <= 7) {
-                    return (
-                      <Tooltip title={`Vence en ${dias} día(s)`}>
-                        <Chip label={`Vence en ${dias}d`} color="error" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
-                      </Tooltip>
-                    );
-                  }
-                  if (dias <= 30) {
-                    return (
-                      <Tooltip title={`Vence en ${dias} día(s)`}>
-                        <Chip label={`Vence en ${dias}d`} color="warning" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
-                      </Tooltip>
-                    );
-                  }
-                  return null;
-                })()}
-              </Box>
-
-              <Box
-                display={"flex"}
-                flexDirection={isCartPinned ? "row" : "column"}
-                alignItems={isCartPinned ? "center" : "flex-start"}
-                justifyContent={"space-between"}
-                gap={isCartPinned ? 2 : 1}
-              >
-                <Box display="flex" flexDirection="column" alignItems="flex-start">
-                  <Typography variant="body2" color="green" fontWeight="medium">
-                    {fmtBase(item.price)}
-                  </Typography>
-
-                  <Box
-                    display={"flex"}
-                    flexDirection={"row"}
-                    alignItems={"center"}
-                    gap={isCartPinned ? 1 : 0.5}
-                  >
-                    <Box
-                      display="flex"
-                      alignItems="center"
-                      bgcolor={"aliceblue"}
-                      borderRadius={1}
-                      sx={{
-                        ...(isCartPinned && {
-                          px: 0.5,
-                          py: 0.25
-                        })
-                      }}
-                    >
-                      {updateQuantity && (
-                        <IconButton
-                          size="small"
-                          onClick={() => decreseQty(item.id)}
-                        >
-                          <Remove />
-                        </IconButton>
-                      )}
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          minWidth: '20px',
-                          textAlign: 'center',
-                          fontWeight: 'medium'
-                        }}
-                      >
-                        {item.quantity}
-                      </Typography>
-                      {updateQuantity && (
-                        <IconButton
-                          size="small"
-                          onClick={() => increseQty(item.id)}
-                        >
-                          <Add />
-                        </IconButton>
-                      )}
-                    </Box>
-
-                    <Typography
-                      variant="body2"
-                      color="textSecondary"
-                      fontWeight="medium"
-                      sx={{
-                        paddingLeft: isCartPinned ? 1 : 2,
-                        fontSize: isCartPinned ? '0.8rem' : '0.75rem'
-                      }}
-                    >
-                      Total: {fmtBase(item.price * item.quantity)}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                {removeItem && (
-                  <IconButton
-                    onClick={() => handleRemoveItem(item)}
-                    size={isCartPinned ? "medium" : "small"}
-                    sx={{
-                      color: 'error.main',
-                      '&:hover': {
-                        backgroundColor: 'error.50'
-                      }
-                    }}
-                  >
-                    <Delete />
-                  </IconButton>
-                )}
-              </Box>
-            </Box>
-          </Paper>
+            item={item}
+            onDecrease={decreseQty}
+            onIncrease={increseQty}
+            onRemove={removeItem ? handleRemoveItem : undefined}
+            canUpdateQuantity={Boolean(updateQuantity)}
+          />
         ))}
       </Box>
 
       {/* Footer */}
       <Box
         mt={2}
-        display={"flex"}
-        flexDirection={"row"}
-        alignItems={"center"}
-        justifyContent={"space-between"}
         sx={{
-          ...(isCartPinned && {
-            pt: 2,
-            borderTop: '1px solid rgba(0,0,0,0.1)'
-          })
+          pt: 2,
+          borderTop: "1px solid",
+          borderColor: "divider",
         }}
       >
-        <Box>
-          <Typography
-            variant="h6"
-            color="green"
-            sx={{
-              fontSize: isCartPinned && !isTablet ? '1.25rem' : '1.125rem',
-              fontWeight: 'bold'
-            }}
-          >
-            Total: {fmtBase(total)}
-          </Typography>
+        <Box
+          display="flex"
+          alignItems="flex-end"
+          justifyContent="space-between"
+          gap={1.5}
+          mb={onOkButtonClick ? 1.5 : 0}
+        >
+          <Box minWidth={0} flex={1}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{ mb: 0.25, textTransform: "uppercase", letterSpacing: 0.4 }}
+            >
+              Total venta
+            </Typography>
+            <MultiCurrencyAmount
+              amount={total}
+              variant="emphasized"
+              color="success.main"
+            />
+          </Box>
         </Box>
+
         {onOkButtonClick && (
           <Button
             variant="contained"
             color="success"
             disabled={cart.length === 0}
             onClick={onOkButtonClick}
-            size={isCartPinned && !isTablet ? "large" : "medium"}
+            fullWidth
+            size="large"
             sx={{
-              fontWeight: 'bold',
-              ...(isCartPinned && !isTablet && {
-                px: 4,
-                py: 1.5
-              })
+              fontWeight: "bold",
+              py: 1.25,
+              minHeight: 48,
             }}
           >
             VENDER
