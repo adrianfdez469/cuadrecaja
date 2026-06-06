@@ -109,7 +109,6 @@ export default function POSInterface() {
     setActiveCart,
     renameCart,
     removeActiveCart,
-    items,
   } = useCartStore();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
