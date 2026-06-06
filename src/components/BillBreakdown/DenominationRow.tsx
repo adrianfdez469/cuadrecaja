@@ -1,22 +1,22 @@
-import { FC } from 'react'
-import { Box, Typography } from '@mui/material'
-import NumberSpinner from '@/components/NumberSpinner'
+import { FC } from "react";
+import { Box, Typography } from "@mui/material";
+import NumberSpinner from "@/components/NumberSpinner";
 
 interface Props {
-  denomination: number
-  count: number
-  onChange: (count: number) => void
+  denomination: number;
+  count: number;
+  onChange: (count: number) => void;
 }
 
 const DenominationRow: FC<Props> = ({ denomination, count, onChange }) => {
-  const subtotal = denomination * count
+  const subtotal = denomination * count;
 
   return (
     <Box
       sx={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 16px 160px 16px 1fr',
-        alignItems: 'center',
+        display: "grid",
+        gridTemplateColumns: "56px 20px 1fr 20px 72px",
+        alignItems: "center",
         gap: 0.5,
         py: 0.25,
       }}
@@ -24,8 +24,10 @@ const DenominationRow: FC<Props> = ({ denomination, count, onChange }) => {
       <Typography variant="body2" fontWeight={500} textAlign="right">
         {denomination}
       </Typography>
-      <Typography variant="body2" color="text.secondary" textAlign="center">×</Typography>
-      <Box sx={{ width: 160, '& .MuiFormControl-root': { width: '100%' } }}>
+      <Typography variant="body2" color="text.secondary" textAlign="center">
+        ×
+      </Typography>
+      <Box sx={{ "& .MuiFormControl-root": { width: "100%" } }}>
         <NumberSpinner
           size="small"
           value={count}
@@ -34,16 +36,18 @@ const DenominationRow: FC<Props> = ({ denomination, count, onChange }) => {
           onValueChange={(val) => onChange(val ?? 0)}
         />
       </Box>
-      <Typography variant="body2" color="text.secondary" textAlign="center">=</Typography>
+      <Typography variant="body2" color="text.secondary" textAlign="center">
+        =
+      </Typography>
       <Typography
         variant="body2"
-        color={subtotal > 0 ? 'text.primary' : 'text.disabled'}
+        color={subtotal > 0 ? "text.primary" : "text.disabled"}
         fontWeight={subtotal > 0 ? 500 : 400}
       >
         {subtotal}
       </Typography>
     </Box>
-  )
-}
+  );
+};
 
-export default DenominationRow
+export default DenominationRow;

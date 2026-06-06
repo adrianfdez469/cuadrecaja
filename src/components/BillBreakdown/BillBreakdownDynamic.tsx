@@ -1,22 +1,33 @@
-'use client'
+"use client";
 
-import { FC, useEffect, useState } from 'react'
-import { Box, Stack, Typography } from '@mui/material'
-import DenominationRow from './DenominationRow'
+import { FC, useEffect, useState } from "react";
+import { Box, Stack, Typography } from "@mui/material";
+import DenominationRow from "./DenominationRow";
 
 interface Props {
   denominations: number[];
   targetAmount?: number;
   onChange: (total: number) => void;
-  onCounts?: (counts: Record<number, number>, total: number, isUserChange?: boolean) => void;
+  onCounts?: (
+    counts: Record<number, number>,
+    total: number,
+    isUserChange?: boolean,
+  ) => void;
   resetKey?: number;
   initialCounts?: Record<number, number>;
 }
 
 const BillBreakdownDynamic: FC<Props> = ({
-  denominations, targetAmount, onChange, onCounts, resetKey, initialCounts,
+  denominations,
+  targetAmount,
+  onChange,
+  onCounts,
+  resetKey,
+  initialCounts,
 }) => {
-  const [counts, setCounts] = useState<Record<number, number>>(initialCounts ?? {});
+  const [counts, setCounts] = useState<Record<number, number>>(
+    initialCounts ?? {},
+  );
 
   useEffect(() => {
     const next = initialCounts ?? {};
@@ -39,8 +50,8 @@ const BillBreakdownDynamic: FC<Props> = ({
   const diff = targetAmount !== undefined ? total - targetAmount : null;
 
   return (
-    <Box sx={{ py: 1 }}>
-      {denominations.map(d => (
+    <Box sx={{ py: 1, maxWidth: 500, mx: "auto" }}>
+      {denominations.map((d) => (
         <DenominationRow
           key={d}
           denomination={d}
@@ -48,11 +59,28 @@ const BillBreakdownDynamic: FC<Props> = ({
           onChange={(count) => handleChange(d, count)}
         />
       ))}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" pt={1} mt={0.5} sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="h5" fontWeight={600}>Total: {total.toFixed(2)}</Typography>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        pt={1}
+        mt={0.5}
+        sx={{ borderTop: "1px solid", borderColor: "divider" }}
+      >
+        <Typography variant="h5" fontWeight={600}>
+          Total: {total.toFixed(2)}
+        </Typography>
         {diff !== null && total > 0 && (
-          <Typography variant="body2" color={diff >= 0 ? 'success.main' : 'error.main'} fontWeight={500}>
-            {diff === 0 ? 'Exacto ✓' : diff > 0 ? `Sobra: ${diff.toFixed(2)}` : `Faltan: ${Math.abs(diff).toFixed(2)}`}
+          <Typography
+            variant="body2"
+            color={diff >= 0 ? "success.main" : "error.main"}
+            fontWeight={500}
+          >
+            {diff === 0
+              ? "Exacto ✓"
+              : diff > 0
+                ? `Sobra: ${diff.toFixed(2)}`
+                : `Faltan: ${Math.abs(diff).toFixed(2)}`}
           </Typography>
         )}
       </Stack>
