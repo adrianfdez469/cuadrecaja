@@ -76,6 +76,13 @@ import { AsociarCodigoDialog } from "@/app/pos/components/AsociarCodigoDialog";
 import { usePermisos } from "@/utils/permisos_front";
 import { useHardwareScanner } from "@/hooks/useHardwareScanner";
 import { processClientDataFromQR } from "@/utils/scanner";
+import { useOnboardingStore } from "@/features/onboarding/store/onboardingStore";
+import {
+  ONBOARDING_PROMPT_POS_PERIOD_EVENT,
+  TOUR_POS_VENTA,
+} from "@/features/onboarding/constants";
+import { shouldDeferPosPeriodPrompt } from "@/features/onboarding/utils/posOnboardingPeriod";
+import { getTourById } from "@/features/onboarding/tours/primerosPasos";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -212,6 +219,13 @@ export default function POSInterface() {
   const puedeAsociarCodigo = verificarPermiso(
     "operaciones.pos-venta.asociar_codigo",
   );
+
+  const posOnboardingBlocksInteraction = useOnboardingStore((s) => {
+    if (!s.run || s.activeTourId !== TOUR_POS_VENTA) return false;
+    const step = getTourById(TOUR_POS_VENTA)?.steps[s.stepIndex];
+    if (!step) return false;
+    return !(step.spotlightClicks ?? false);
+  });
 
   const [asociarCodigoOpen, setAsociarCodigoOpen] = useState(false);
   const [codigoNoEncontrado, setCodigoNoEncontrado] = useState<string>("");
@@ -558,6 +572,46 @@ export default function POSInterface() {
     } finally {
       if (!silent) setLoading(false);
     }
+  };
+
+  const promptOpenPeriod = (onboardingMode: boolean) => {
+    const message =
+      "No existe un período abierto. ¿Desea abrir un nuevo período?";
+
+    confirmDialog(
+      message,
+      () =>
+        openPeriod(user.localActual.id).then((newPeriod) => {
+          setPeriodo(newPeriod);
+          void fetchProductosAndCategories();
+          if (onboardingMode) {
+            const store = useOnboardingStore.getState();
+            store.signalEvent({ type: "period_opened" });
+            store.bumpLayoutNonce();
+          }
+        }),
+      () => {
+        if (onboardingMode) {
+          showMessage(
+            "Abre un período con «Sí» para continuar la guía del POS",
+            "warning",
+          );
+        } else {
+          showMessage(
+            "No puede comenzar a vender si no tiene un período abierto",
+            "warning",
+          );
+          gotToPath("/home");
+        }
+      },
+      onboardingMode
+        ? {
+            dialog: "pos-period-dialog",
+            confirm: "pos-period-confirm",
+            cancel: "pos-period-cancel",
+          }
+        : undefined,
+    );
   };
 
   const incrementarCantidades = (id: string, cantidad: number) => {
@@ -969,29 +1023,10 @@ export default function POSInterface() {
           setTransferDestinations(data);
 
           const lastPeriod = await fetchLastPeriod(user.localActual.id);
-          let message = "";
           if (!lastPeriod || lastPeriod.fechaFin) {
-            message =
-              "No existe un período abierto. Desea abrir un nuevo período?";
-          }
-          if (!lastPeriod || lastPeriod.fechaFin) {
-            // Mostrar un mensaje
-            confirmDialog(
-              message,
-              () => {
-                openPeriod(user.localActual.id).then((newPeriod) => {
-                  setPeriodo(newPeriod);
-                  return fetchProductosAndCategories();
-                });
-              },
-              () => {
-                showMessage(
-                  "No puede comenzar a vender si no tiene un período abierto",
-                  "warning",
-                );
-                gotToPath("/home");
-              },
-            );
+            if (!shouldDeferPosPeriodPrompt()) {
+              promptOpenPeriod(false);
+            }
           } else {
             setPeriodo(lastPeriod);
           }
@@ -1004,6 +1039,30 @@ export default function POSInterface() {
       }
     })();
   }, [loadingContext]);
+
+  useEffect(() => {
+    const onOnboardingPeriodPrompt = () => {
+      if (periodo && !periodo.fechaFin) {
+        const store = useOnboardingStore.getState();
+        store.signalEvent({ type: "period_opened" });
+        store.bumpLayoutNonce();
+        return;
+      }
+      promptOpenPeriod(true);
+      useOnboardingStore.getState().bumpLayoutNonce();
+    };
+
+    window.addEventListener(
+      ONBOARDING_PROMPT_POS_PERIOD_EVENT,
+      onOnboardingPeriodPrompt,
+    );
+    return () => {
+      window.removeEventListener(
+        ONBOARDING_PROMPT_POS_PERIOD_EVENT,
+        onOnboardingPeriodPrompt,
+      );
+    };
+  }, [periodo, user.localActual?.id]);
 
   // Activar audio context cuando se carga la página
   useEffect(() => {
@@ -1122,6 +1181,9 @@ export default function POSInterface() {
           height: "100%", // Use parent height
           p: 0,
           position: "relative",
+          ...(posOnboardingBlocksInteraction
+            ? { pointerEvents: "none", userSelect: "none" }
+            : {}),
         }}
       >
         {/* Barra superior con información del sistema - posicionada debajo del menú */}
@@ -1144,7 +1206,12 @@ export default function POSInterface() {
             mb: 1,
           }}
         >
-          <PeriodoBadge periodo={periodo} isMobile={isMobile} />
+          <Box
+            data-tour="pos-toolbar-periodo"
+            sx={{ display: "flex", alignItems: "center", minHeight: 32 }}
+          >
+            <PeriodoBadge periodo={periodo} isMobile={isMobile} />
+          </Box>
 
           <Box
             display="flex"
@@ -1154,7 +1221,11 @@ export default function POSInterface() {
           >
             <RefreshButton onRefresh={handleRefresh} />
             <Tooltip title="Punto de partida">
-              <IconButton size="small" onClick={() => setResumenDiaOpen(true)}>
+              <IconButton
+                size="small"
+                data-tour="pos-toolbar-punto-partida"
+                onClick={() => setResumenDiaOpen(true)}
+              >
                 <FlagIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -1192,9 +1263,12 @@ export default function POSInterface() {
             zIndex: 1,
           }}
         >
-          {categories.map((category) => (
+          {categories.map((category, categoryIndex) => (
             <Box
               key={category.id}
+              {...(categoryIndex === 0
+                ? { "data-tour": "pos-category-first" }
+                : {})}
               onClick={() => handleOpenProducts(category)}
               sx={{
                 position: "relative",
@@ -1571,6 +1645,7 @@ export default function POSInterface() {
         {/* Buscador flotante */}
         <Box
           ref={searchAnchorRef}
+          data-tour="pos-search"
           sx={{
             position: "fixed",
             bottom: 0,
@@ -1628,7 +1703,7 @@ export default function POSInterface() {
                 },
               }}
             />
-            <Grid size={{ xs: 7, sm: 10 }}>
+            <Grid size={{ xs: 7, sm: 10 }} data-tour="pos-toolbar-scanner">
               <ProductProcessorData
                 ref={scannerRef}
                 onProcessedData={(data: IProcessedData) => {

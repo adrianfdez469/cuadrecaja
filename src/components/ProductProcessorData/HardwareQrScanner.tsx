@@ -9,6 +9,7 @@ type HardwareQrScannerProps = {
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   keepFocus?: boolean; // Nueva prop para controlar si mantener el foco
   showInput?: boolean; // Cuando false (defecto), el campo es casi invisible pero funcional
+  disabled?: boolean;
 };
 
 function HardwareQrScanner({
@@ -17,7 +18,8 @@ function HardwareQrScanner({
   value,
   onChange,
   keepFocus = true,
-  showInput = false
+  showInput = false,
+  disabled = false,
 }: HardwareQrScannerProps) {
   const [internalQrData, setInternalQrData] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -25,13 +27,18 @@ function HardwareQrScanner({
 
   // Put the focus in the qr input
   useEffect(() => {
+    if (disabled && inputRef.current) {
+      inputRef.current.blur();
+      return;
+    }
     if (inputRef.current && keepFocus) {
       inputRef.current.focus();
     }
-  }, [keepFocus]);
+  }, [keepFocus, disabled]);
 
   
   function handleInput(event: React.FormEvent<HTMLInputElement>) {
+    if (disabled) return;
     // Esta función captura la entrada de pistolas escáner
     const target = event.target as HTMLInputElement;
     const newValue = target.value;
@@ -47,6 +54,7 @@ function HardwareQrScanner({
   }
 
   function handleKeyUp() {
+    if (disabled) return;
     if (timeoutRef?.current) clearTimeout(timeoutRef.current);
     const data = typeof value === 'string' ? value : internalQrData;
     if (data && data.length > 0) {
@@ -77,6 +85,8 @@ function HardwareQrScanner({
       value={typeof value === 'string' ? value : internalQrData}
       onKeyUp={handleKeyUp}
       onInput={handleInput}
+      disabled={disabled}
+      tabIndex={disabled ? -1 : undefined}
       variant="outlined"
       size="small"
       sx={showInput
@@ -106,10 +116,10 @@ function HardwareQrScanner({
         }
       }}
       // Asegurar que el campo siempre esté enfocado solo si keepFocus es true
-      onBlur={keepFocus ? () => {
+      onBlur={keepFocus && !disabled ? () => {
         // Pequeño delay para evitar conflictos con otros eventos
         setTimeout(() => {
-          if (inputRef.current) {
+          if (inputRef.current && !disabled) {
             inputRef.current.focus();
           }
         }, 10);

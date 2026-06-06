@@ -11,6 +11,7 @@ export default function ConnectionStatus({  isOnline }: Props) {
 
   return (
     <Box
+      data-tour="pos-toolbar-connection"
       sx={{
         display: "flex",
         alignItems: "center",

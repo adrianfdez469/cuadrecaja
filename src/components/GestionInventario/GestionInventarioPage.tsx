@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
+import { useOnboardingStore } from "@/features/onboarding";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { useGestionInventario } from "./hooks/useGestionInventario";
@@ -96,12 +97,25 @@ export function GestionInventarioPage() {
     }
   };
 
+  const signalEvent = useOnboardingStore((s) => s.signalEvent);
+
+  useEffect(() => {
+    if (!createProductOpen) return;
+    const timer = window.setTimeout(() => {
+      const store = useOnboardingStore.getState();
+      store.signalEvent({ type: "dialog_create_opened" });
+      store.bumpLayoutNonce();
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [createProductOpen, signalEvent]);
+
   return (
     <PageContainer title="Gestión de Unificada de Productos">
       {tiendaId && <GestionInventarioAlerts tiendaId={tiendaId} />}
 
       <InventarioStatsRow productos={productos} />
 
+      <Box data-tour="gi-product-table">
       <ContentCard>
         <Box mb={2}>
           <InventarioFiltersBar
@@ -145,6 +159,7 @@ export function GestionInventarioPage() {
           />
         )}
       </ContentCard>
+      </Box>
 
       <EditProductDialog
         open={Boolean(editTarget)}
