@@ -319,7 +319,12 @@ export const QuantityDialog = ({
               Precio
             </Typography>
             <MultiCurrencyAmount
-              amount={productoTienda.precio}
+              amount={convertToBase(
+                productoTienda.precio,
+                productoTienda.monedaPrecioCode ?? monedaBase,
+                tasasVigentes,
+                monedaBase,
+              )}
               align="center"
               sx={{ width: "100%" }}
             />

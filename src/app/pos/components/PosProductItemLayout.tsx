@@ -7,6 +7,8 @@ import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { ProductQuickActions } from "./ProductQuickActions";
 import { calcularDisponibilidadReal } from "../utils/calcularDisponibilidadReal";
 import { useCartStore } from "@/store/cartStore";
+import { useAppContext } from "@/context/AppContext";
+import { convertToBase } from "@/lib/currency";
 
 const sectionLabelSx = {
   mb: 0.25,
@@ -60,8 +62,10 @@ export function PosProductItemLayout({
   sx,
 }: PosProductItemLayoutProps) {
   const { items } = useCartStore();
+  const { tasasVigentes, monedaBase } = useAppContext();
   const cartQty =
-    items.find((item) => item.productoTiendaId === productoTienda.id)?.quantity || 0;
+    items.find((item) => item.productoTiendaId === productoTienda.id)
+      ?.quantity || 0;
   const disponibilidad = getDisponibilidadInfo(
     productoTienda,
     allProductosTienda,
@@ -93,7 +97,9 @@ export function PosProductItemLayout({
       }}
     >
       {/* Fila 1: nombre */}
-      <Box mb={showDescription && productoTienda.producto.descripcion ? 0.5 : 1}>
+      <Box
+        mb={showDescription && productoTienda.producto.descripcion ? 0.5 : 1}
+      >
         <Typography
           variant="body2"
           fontWeight={highlightName ? 700 : 600}
@@ -138,10 +144,23 @@ export function PosProductItemLayout({
         }}
       >
         <Box minWidth={0} sx={{ overflow: "hidden" }}>
-          <Typography variant="caption" color="text.secondary" display="block" sx={sectionLabelSx}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            sx={sectionLabelSx}
+          >
             Precio
           </Typography>
-          <MultiCurrencyAmount amount={productoTienda.precio} variant="compact" />
+          <MultiCurrencyAmount
+            amount={convertToBase(
+              productoTienda.precio,
+              productoTienda.monedaPrecioCode ?? monedaBase,
+              tasasVigentes,
+              monedaBase,
+            )}
+            variant="compact"
+          />
         </Box>
 
         <Box minWidth={0} sx={{ overflow: "hidden" }}>
@@ -164,7 +183,12 @@ export function PosProductItemLayout({
             {disponibilidad.primary}
           </Typography>
           {disponibilidad.secondary && (
-            <Typography variant="caption" color="text.secondary" align="right" display="block">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              align="right"
+              display="block"
+            >
               {disponibilidad.secondary}
             </Typography>
           )}
@@ -177,7 +201,10 @@ export function PosProductItemLayout({
               fontWeight={600}
               sx={{ mt: 0.25 }}
             >
-              En carrito: {productoTienda.producto?.permiteDecimal ? cartQty.toFixed(1) : cartQty}
+              En carrito:{" "}
+              {productoTienda.producto?.permiteDecimal
+                ? cartQty.toFixed(1)
+                : cartQty}
             </Typography>
           )}
         </Box>
