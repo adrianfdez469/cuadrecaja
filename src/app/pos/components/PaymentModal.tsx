@@ -199,8 +199,11 @@ const PaymentModal: FC<IProps> = ({
     [pagosMap, tasasVigentes, monedaBase],
   );
 
-  const falta = totalPagado < finalTotal;
-  const vueltoTotalBase = Math.max(0, totalPagado - finalTotal);
+  const falta = Math.round(totalPagado * 100) < Math.round(finalTotal * 100);
+  const vueltoTotalBase = Math.max(
+    0,
+    parseFloat((totalPagado - finalTotal).toFixed(2)),
+  );
 
   // ─── Change distribution ───────────────────────────────────────────────────
   const [vueltoMap, setVueltoMap] = useState<Record<string, number>>({});
