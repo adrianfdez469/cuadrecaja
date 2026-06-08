@@ -173,7 +173,6 @@ export async function GET(
     const productosVendidos: Record<string, ProductoVentaAcumulado> = {};
 
     cierre.ventas.forEach((venta) => {
-      totalVentas += venta.total;
       totalTransferencia += venta.totaltransfer;
       // Acumular descuentos del período
       totalDescuentos += Number(venta.discountTotal ?? 0);
@@ -200,10 +199,9 @@ export async function GET(
           total: 0,
         });
       }
-      totalVentasPorUsuario.find((u) => u.id === venta.usuario.id).total +=
-        venta.total;
 
       const tasasVenta = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+      let ventaBruta = 0;
       venta.productos.forEach((ventaProducto) => {
         const {
           producto: productoTienda,
@@ -237,6 +235,7 @@ export async function GET(
 
         // Acumular total bruto del período
         totalVentasBrutas += totalProducto;
+        ventaBruta += totalProducto;
 
         // Separar por tipo de producto
         if (proveedor) {
@@ -286,6 +285,13 @@ export async function GET(
         if (!lineasPorPt[id]) lineasPorPt[id] = [];
         lineasPorPt[id].push({ productoKey, subtotal: totalProducto });
       });
+
+      // Acumular totales netos por venta usando montos calculados desde los productos
+      const ventaDescuento = Number(venta.discountTotal ?? 0);
+      const ventaNeta = Math.max(0, ventaBruta - ventaDescuento);
+      totalVentas += ventaNeta;
+      totalVentasPorUsuario.find((u) => u.id === venta.usuario.id).total +=
+        ventaNeta;
 
       // Distribuir descuentos aplicados en esta venta entre productos afectados
       const applied = venta.appliedDiscounts || [];
