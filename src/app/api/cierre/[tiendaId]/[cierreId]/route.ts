@@ -5,7 +5,7 @@ import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { convertToBase } from "@/lib/currency";
+import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
 
 type Params = { cierreId: string };
 
@@ -16,6 +16,7 @@ function buildResumenMonedas(
     tasaSnapshot?: unknown;
   }[],
   monedaBase: string,
+  tasasFallback: ITasaSnapshot = {},
 ) {
   const map: Record<
     string,
@@ -24,7 +25,10 @@ function buildResumenMonedas(
   for (const venta of ventas) {
     if (!venta.pagosDetalle) continue;
     const pagos = venta.pagosDetalle as IPagoLinea[];
-    const tasas = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+    const tasas = {
+      ...tasasFallback,
+      ...((venta.tasaSnapshot ?? {}) as ITasaSnapshot),
+    };
     for (const pago of pagos) {
       if (!map[pago.moneda])
         map[pago.moneda] = {
@@ -96,7 +100,9 @@ export async function GET(
     const cierre = await prisma.cierrePeriodo.findUnique({
       where: { id: cierreId },
       include: {
-        tienda: { include: { negocio: { select: { monedaBase: true } } } },
+        tienda: {
+          include: { negocio: { select: { id: true, monedaBase: true } } },
+        },
         resumenMonedas: true,
         ventas: {
           include: {
@@ -150,6 +156,17 @@ export async function GET(
 
     const monedaBase = cierre.tienda.negocio?.monedaBase ?? "CUP";
 
+    // Fetch current rates as fallback for sales without a full tasaSnapshot
+    const negocioId = cierre.tienda.negocio?.id;
+    const tasasCambioActuales = negocioId
+      ? await prisma.tasaCambio.findMany({
+          where: { negocioId },
+          select: { monedaCode: true, tasa: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+    const tasasFallback = buildTasaSnapshot(tasasCambioActuales);
+
     // Calcular totales
     let totalVentas = 0; // Neto (venta.total)
     let totalTransferencia = 0;
@@ -200,7 +217,10 @@ export async function GET(
         });
       }
 
-      const tasasVenta = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+      const tasasVenta = {
+        ...tasasFallback,
+        ...((venta.tasaSnapshot ?? {}) as ITasaSnapshot),
+      };
       let ventaBruta = 0;
       venta.productos.forEach((ventaProducto) => {
         const {
@@ -399,7 +419,11 @@ export async function GET(
       totalGananciasConsignacion: totalGananciasConsignacionNet,
       totalTransferenciasByDestination,
       totalVentasPorUsuario,
-      resumenMonedas: buildResumenMonedas(cierre.ventas, monedaBase),
+      resumenMonedas: buildResumenMonedas(
+        cierre.ventas,
+        monedaBase,
+        tasasFallback,
+      ),
       productosVendidos: Object.values(productosVendidos)
         .map((p) => ({
           ...p,

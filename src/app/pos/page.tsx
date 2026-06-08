@@ -556,7 +556,13 @@ export default function POSInterface() {
       if (total <= totalCash + totalTransfer) {
         const tiendaId = user.localActual.id;
         const cierreId = periodo.id;
-        const identifier = crypto.randomUUID();
+        const identifier =
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+                const r = (Math.random() * 16) | 0;
+                return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+              });
 
         const data = cart.map((prod) => {
           const productoEnTienda = productosTienda.find(
