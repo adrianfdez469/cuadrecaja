@@ -24,7 +24,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import dayjs, { Dayjs } from "dayjs";
+import { Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { IProducto } from "@/schemas/producto";
 import { ICategory } from "@/schemas/categoria";
