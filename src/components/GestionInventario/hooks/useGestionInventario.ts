@@ -211,8 +211,10 @@ export function useGestionInventario() {
       showMessage("Producto actualizado", "success");
       setEditTarget(null);
       await reload();
-    } catch {
-      showMessage("Error al actualizar el producto", "error");
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response
+        ?.data?.error;
+      showMessage(msg ?? "Error al actualizar el producto", "error");
     }
   };
 

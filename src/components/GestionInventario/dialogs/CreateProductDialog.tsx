@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Alert,
   Autocomplete,
   Box,
   Button,
@@ -195,6 +196,13 @@ export function CreateProductDialog({
         )
       : null;
 
+  const precioBase =
+    precioEnBase !== null ? precioEnBase : parseFloat(precio) || 0;
+  const costoBase = costoEnBase !== null ? costoEnBase : parseFloat(costo) || 0;
+  const warnCostoMayorPrecio =
+    costoBase > 0 && precioBase > 0 && costoBase > precioBase;
+  const warnCantidadCero = (parseFloat(cantidadInicial) || 0) === 0;
+
   const handleSave = async () => {
     setSubmitted(true);
     if (!canSave) return;
@@ -309,6 +317,22 @@ export function CreateProductDialog({
 
           {/* Precio + moneda */}
           <Box display="flex" gap={1} alignItems="flex-start">
+            {monedasDisponibles.length > 1 && (
+              <FormControl size="small" sx={{ minWidth: 90 }}>
+                <InputLabel>Moneda</InputLabel>
+                <Select
+                  label="Moneda"
+                  value={precioMonedaEfectiva}
+                  onChange={(e) => handlePrecioMonedaChange(e.target.value)}
+                >
+                  {monedasDisponibles.map((code) => (
+                    <MenuItem key={code} value={code}>
+                      {code}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
             <TextField
               label={`Precio (${precioMonedaEfectiva})`}
               value={precio}
@@ -327,13 +351,17 @@ export function CreateProductDialog({
               }
               sx={{ flex: 1 }}
             />
+          </Box>
+
+          {/* Costo + moneda */}
+          <Box display="flex" gap={1} alignItems="flex-start">
             {monedasDisponibles.length > 1 && (
               <FormControl size="small" sx={{ minWidth: 90 }}>
                 <InputLabel>Moneda</InputLabel>
                 <Select
                   label="Moneda"
-                  value={precioMonedaEfectiva}
-                  onChange={(e) => handlePrecioMonedaChange(e.target.value)}
+                  value={costoMonedaEfectiva}
+                  onChange={(e) => handleCostoMonedaChange(e.target.value)}
                 >
                   {monedasDisponibles.map((code) => (
                     <MenuItem key={code} value={code}>
@@ -343,10 +371,6 @@ export function CreateProductDialog({
                 </Select>
               </FormControl>
             )}
-          </Box>
-
-          {/* Costo + moneda */}
-          <Box display="flex" gap={1} alignItems="flex-start">
             <TextField
               label={`Costo (${costoMonedaEfectiva})`}
               value={costo}
@@ -365,23 +389,14 @@ export function CreateProductDialog({
               }
               sx={{ flex: 1 }}
             />
-            {monedasDisponibles.length > 1 && (
-              <FormControl size="small" sx={{ minWidth: 90 }}>
-                <InputLabel>Moneda</InputLabel>
-                <Select
-                  label="Moneda"
-                  value={costoMonedaEfectiva}
-                  onChange={(e) => handleCostoMonedaChange(e.target.value)}
-                >
-                  {monedasDisponibles.map((code) => (
-                    <MenuItem key={code} value={code}>
-                      {code}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
           </Box>
+
+          {warnCostoMayorPrecio && (
+            <Alert severity="warning" sx={{ py: 0.5 }}>
+              El costo ({costoBase.toFixed(2)} {monedaBase}) es mayor al precio
+              de venta ({precioBase.toFixed(2)} {monedaBase}).
+            </Alert>
+          )}
 
           <DatePicker
             label="Fecha de vencimiento"
@@ -402,6 +417,12 @@ export function CreateProductDialog({
                 : "Deja en 0 para agregar stock después"
             }
           />
+
+          {warnCantidadCero && (
+            <Alert severity="warning" sx={{ py: 0.5 }}>
+              El producto quedará con stock 0 y no aparecerá en el POS de venta.
+            </Alert>
+          )}
 
           <FormControlLabel
             control={
