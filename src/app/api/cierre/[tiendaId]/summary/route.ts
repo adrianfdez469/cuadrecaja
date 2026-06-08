@@ -105,6 +105,8 @@ export async function GET(
         totalVentasConsignacion: true,
         totalGananciasPropias: true,
         totalGananciasConsignacion: true,
+        totalGastos: true,
+        totalGananciaFinal: true,
       },
       where: { ...filtros },
     });
@@ -272,18 +274,9 @@ export async function GET(
       (acc, c) => acc + Number(c.totalGanancia || 0),
       0,
     );
-    const sumTotalGastos = cierresConMontos.reduce(
-      (acc, c) => acc + Number((c as CierreResumenExt).totalGastos || 0),
-      0,
-    );
-    const sumTotalGananciaFinal = cierresConMontos.reduce(
-      (acc, c) =>
-        acc +
-        Number(
-          (c as CierreResumenExt).totalGananciaFinal ?? c.totalGanancia ?? 0,
-        ),
-      0,
-    );
+    // Global aggregates from DB — these cover ALL pages, not just the current one
+    const sumTotalGastos = totales._sum.totalGastos ?? 0;
+    const sumTotalGananciaFinal = totales._sum.totalGananciaFinal ?? 0;
 
     return NextResponse.json({
       cierres: cierresConMontos as unknown as ISummaryCierre["cierres"],
