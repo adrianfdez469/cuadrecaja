@@ -45,6 +45,7 @@ export const productoVentaSchema = z.object({
   cantidad: z.number(),
   productId: z.string().uuid(),
   price: z.number(),
+  monedaPrecioCode: z.string().nullable().optional(),
 });
 
 export const productoTiendaV2Schema = z.object({

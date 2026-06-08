@@ -579,6 +579,7 @@ export default function POSInterface() {
             productId: productoEnTienda.productoId,
             name: prod.name,
             price: prod.price,
+            monedaPrecioCode: prod.monedaPrecioCode ?? null,
           };
         });
 
@@ -1350,6 +1351,7 @@ export default function POSInterface() {
           period={periodo}
           incrementarCantidades={incrementarCantidades}
           transferDestinations={transferDestinations}
+          productosTienda={productosTienda}
         />
 
         {/* Drawer de ventas y sincronización  */}
@@ -1359,6 +1361,7 @@ export default function POSInterface() {
           period={periodo}
           reloadProdsAndCategories={() => fetchProductosAndCategories(true)}
           incrementarCantidades={incrementarCantidades}
+          productosTienda={productosTienda}
         />
 
         <ShoppingCartComponent

@@ -21,7 +21,14 @@ import {
   ButtonGroup,
   CircularProgress,
 } from "@mui/material";
-import { Close, History, GroupWork, Delete, ExpandLess, ExpandMore } from "@mui/icons-material";
+import {
+  Close,
+  History,
+  GroupWork,
+  Delete,
+  ExpandLess,
+  ExpandMore,
+} from "@mui/icons-material";
 import { Sale, useSalesStore } from "@/store/salesStore";
 import { useAppContext } from "@/context/AppContext";
 import { usePermisos } from "@/utils/permisos_front";
@@ -30,7 +37,9 @@ import { useMessageContext } from "@/context/MessageContext";
 import { removeProductFromSale } from "@/services/sellService";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import { ITransferDestination } from "@/schemas/transferDestination";
-import {formatDateTime} from "@/utils/formatters";
+import { IProductoTiendaV2 } from "@/schemas/producto";
+import { formatDateTime } from "@/utils/formatters";
+import { convertToBase } from "@/lib/currency";
 
 interface IProps {
   showUserSales: boolean;
@@ -38,6 +47,7 @@ interface IProps {
   period?: ICierrePeriodo;
   incrementarCantidades?: (productoTiendaId: string, cantidad: number) => void;
   transferDestinations?: ITransferDestination[];
+  productosTienda?: IProductoTiendaV2[];
 }
 
 interface ProductoDataHistorial {
@@ -58,13 +68,15 @@ export const UserSalesDrawer: React.FC<IProps> = ({
   period,
   incrementarCantidades,
   transferDestinations,
+  productosTienda,
 }) => {
-  const { sales, removeProductFromSale: removeProductFromSaleStore } = useSalesStore();
-  const { user } = useAppContext();
+  const { sales, removeProductFromSale: removeProductFromSaleStore } =
+    useSalesStore();
+  const { user, tasasVigentes, monedaBase } = useAppContext();
   const { verificarPermiso } = usePermisos();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
-  const [viewMode, setViewMode] = useState<'grouped' | 'historical'>('grouped');
+  const [viewMode, setViewMode] = useState<"grouped" | "historical">("grouped");
   const [onlyOwnSales, setOnlyOwnSales] = useState(true);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [transferExpanded, setTransferExpanded] = useState(false);
@@ -79,15 +91,23 @@ export const UserSalesDrawer: React.FC<IProps> = ({
     confirmDialog(
       `¿Eliminar "${product.name}" (${product.cantidad} unidad/es) de la venta?`,
       async () => {
-        const key = product.ventaProductoId ?? `${sale.identifier}-${product.productoTiendaId}`;
+        const key =
+          product.ventaProductoId ??
+          `${sale.identifier}-${product.productoTiendaId}`;
         setDeletingKey(key);
         try {
-          if (sale.synced && sale.dbId && product.ventaProductoId && period && user?.localActual?.id) {
+          if (
+            sale.synced &&
+            sale.dbId &&
+            product.ventaProductoId &&
+            period &&
+            user?.localActual?.id
+          ) {
             await removeProductFromSale(
               user.localActual.id,
               period.id,
               sale.dbId,
-              product.ventaProductoId
+              product.ventaProductoId,
             );
           }
           removeProductFromSaleStore(
@@ -96,7 +116,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
             product.productId,
             product.cantidad,
             product.ventaProductoId,
-            producto.productIndex
+            producto.productIndex,
           );
           incrementarCantidades?.(product.productoTiendaId, product.cantidad);
           showMessage("Producto eliminado de la venta", "success");
@@ -106,13 +126,15 @@ export const UserSalesDrawer: React.FC<IProps> = ({
         } finally {
           setDeletingKey(null);
         }
-      }
+      },
     );
   };
 
   // Filtrar ventas del usuario actual
   const userSales = useMemo(() => {
-    return onlyOwnSales ? sales.filter(sale => sale.usuarioId === user.id) : sales;
+    return onlyOwnSales
+      ? sales.filter((sale) => sale.usuarioId === user.id)
+      : sales;
   }, [sales, user.id, onlyOwnSales]);
 
   // Calcular totales y separar productos por consignación
@@ -128,32 +150,54 @@ export const UserSalesDrawer: React.FC<IProps> = ({
     const groupedPropios = new Map();
 
     // Desglose de transferencias por destino
-    const transfersByDestination = new Map<string, { nombre: string; total: number }>();
+    const transfersByDestination = new Map<
+      string,
+      { nombre: string; total: number }
+    >();
 
-    userSales.forEach(sale => {
-      totalGeneral += sale.total;
-
+    userSales.forEach((sale) => {
       if (sale.totaltransfer > 0) {
         const destId = sale.transferDestinationId || "__sin_destino__";
-        const nombre = transferDestinations?.find(d => d.id === destId)?.nombre ?? "Sin destino";
+        const nombre =
+          transferDestinations?.find((d) => d.id === destId)?.nombre ??
+          "Sin destino";
         const existing = transfersByDestination.get(destId);
         if (existing) {
           existing.total += sale.totaltransfer;
         } else {
-          transfersByDestination.set(destId, { nombre, total: sale.totaltransfer });
+          transfersByDestination.set(destId, {
+            nombre,
+            total: sale.totaltransfer,
+          });
         }
       }
 
       sale.productos.forEach((producto, productIndex) => {
-        const totalProducto = producto.price * producto.cantidad;
+        const moneda =
+          producto.monedaPrecioCode ??
+          productosTienda?.find((p) => p.id === producto.productoTiendaId)
+            ?.monedaPrecioCode ??
+          monedaBase;
+        const precioBase = convertToBase(
+          producto.price,
+          moneda,
+          tasasVigentes,
+          monedaBase,
+        );
+        const totalProducto = precioBase * producto.cantidad;
 
         const productoDataHistorial: ProductoDataHistorial = {
           nombre: producto.name,
           cantidad: producto.cantidad,
-          precio: producto.price,
+          precio: precioBase,
           total: totalProducto,
           fecha: formatDateTime(sale.createdAt),
-          estado: sale.syncState === "synced" ? "Sincronizada" : sale.syncState === "syncing" ? "Sincronizando" : "Pendiente",
+          estado:
+            sale.syncState === "synced"
+              ? "Sincronizada"
+              : sale.syncState === "syncing"
+                ? "Sincronizando"
+                : "Pendiente",
           sale,
           product: producto,
           productIndex,
@@ -161,9 +205,11 @@ export const UserSalesDrawer: React.FC<IProps> = ({
 
         const isConsignacion = producto.name.includes(" - ");
 
-        if (viewMode === 'grouped') {
+        if (viewMode === "grouped") {
           // Agrupar productos del mismo nombre
-          const targetMap = isConsignacion ? groupedConsignacion : groupedPropios;
+          const targetMap = isConsignacion
+            ? groupedConsignacion
+            : groupedPropios;
 
           if (targetMap.has(producto.name)) {
             const existing = targetMap.get(producto.name);
@@ -175,7 +221,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
             targetMap.set(producto.name, {
               nombre: producto.name,
               cantidad: producto.cantidad,
-              precio: producto.price,
+              precio: precioBase,
               total: totalProducto,
             });
           }
@@ -193,11 +239,12 @@ export const UserSalesDrawer: React.FC<IProps> = ({
         } else {
           totalPropios += totalProducto;
         }
+        totalGeneral += totalProducto;
       });
     });
 
     // Convertir maps a arrays para vista agrupada
-    if (viewMode === 'grouped') {
+    if (viewMode === "grouped") {
       productosConsignacion.push(...Array.from(groupedConsignacion.values()));
       productosPropios.push(...Array.from(groupedPropios.values()));
     }
@@ -211,7 +258,14 @@ export const UserSalesDrawer: React.FC<IProps> = ({
       cantidadVentas: userSales.length,
       transfersByDestination,
     };
-  }, [userSales, viewMode, transferDestinations]);
+  }, [
+    userSales,
+    viewMode,
+    transferDestinations,
+    tasasVigentes,
+    monedaBase,
+    productosTienda,
+  ]);
 
   return (
     <Drawer
@@ -229,7 +283,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           flexDirection: "column",
           height: "100dvh",
           bgcolor: "background.default",
-          position: 'relative',
+          position: "relative",
         }}
       >
         {/* Botón de cerrar fijo (Relativo al contenedor principal) */}
@@ -237,15 +291,15 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           onClick={() => setShowUserSales(false)}
           color="default"
           sx={{
-            position: 'absolute',
+            position: "absolute",
             top: "calc(16px + env(safe-area-inset-top))",
             right: 16,
             zIndex: 10,
-            bgcolor: 'background.paper',
+            bgcolor: "background.paper",
             boxShadow: 2,
-            '&:hover': {
-              bgcolor: 'background.default',
-            }
+            "&:hover": {
+              bgcolor: "background.default",
+            },
           }}
         >
           <Close />
@@ -259,9 +313,9 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           alignItems="center"
           sx={{
             pb: 2,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            mb: 2
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            mb: 2,
           }}
         >
           <Typography variant="h5" fontWeight="bold" color="primary">
@@ -270,7 +324,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
         </Box>
 
         {/* Contenido Scrollable */}
-        <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 0.5 }}>
+        <Box sx={{ flexGrow: 1, overflowY: "auto", pr: 0.5 }}>
           {/* Totales generales */}
           <Grid container spacing={2} mb={3}>
             <Grid item xs={12} sm={4}>
@@ -291,7 +345,11 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                   <Typography variant="body2" color="textSecondary">
                     Total Consignación
                   </Typography>
-                  <Typography variant="h6" fontWeight="bold" color="warning.main">
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="warning.main"
+                  >
                     ${salesData.totalConsignacion.toFixed(2)}
                   </Typography>
                 </CardContent>
@@ -303,7 +361,11 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                   <Typography variant="body2" color="textSecondary">
                     Total Propios
                   </Typography>
-                  <Typography variant="h6" fontWeight="bold" color="success.main">
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="success.main"
+                  >
                     ${salesData.totalPropios.toFixed(2)}
                   </Typography>
                 </CardContent>
@@ -312,55 +374,97 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           </Grid>
 
           {/* Tarjeta de transferencias (colapsable por destino) */}
-          {salesData.transfersByDestination.size > 0 && (() => {
-            const totalTransferencias = Array.from(salesData.transfersByDestination.values())
-              .reduce((sum, d) => sum + d.total, 0);
-            return (
-              <Grid container spacing={2} mb={3}>
-                <Grid item xs={12} sm={4}>
-                  <Card elevation={2}>
-                    <CardActionArea onClick={() => setTransferExpanded(prev => !prev)}>
-                      <CardContent sx={{ textAlign: "center", py: 1.5 }}>
-                        <Box display="flex" justifyContent="center" alignItems="center" gap={0.5}>
-                          <Typography variant="body2" color="textSecondary">
-                            Total Transferencias
-                          </Typography>
-                          {transferExpanded ? <ExpandLess fontSize="small" color="action" /> : <ExpandMore fontSize="small" color="action" />}
-                        </Box>
-                        <Typography variant="h6" fontWeight="bold" color="info.main">
-                          ${totalTransferencias.toFixed(2)}
-                        </Typography>
-                        <Collapse in={transferExpanded}>
-                          <Box mt={1} textAlign="left">
-                            {Array.from(salesData.transfersByDestination.values()).map(dest => (
-                              <Box key={dest.nombre} display="flex" justifyContent="space-between" px={1} py={0.25}>
-                                <Typography variant="caption" color="textSecondary">{dest.nombre}</Typography>
-                                <Typography variant="caption" fontWeight="bold">${dest.total.toFixed(2)}</Typography>
-                              </Box>
-                            ))}
+          {salesData.transfersByDestination.size > 0 &&
+            (() => {
+              const totalTransferencias = Array.from(
+                salesData.transfersByDestination.values(),
+              ).reduce((sum, d) => sum + d.total, 0);
+              return (
+                <Grid container spacing={2} mb={3}>
+                  <Grid item xs={12} sm={4}>
+                    <Card elevation={2}>
+                      <CardActionArea
+                        onClick={() => setTransferExpanded((prev) => !prev)}
+                      >
+                        <CardContent sx={{ textAlign: "center", py: 1.5 }}>
+                          <Box
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                            gap={0.5}
+                          >
+                            <Typography variant="body2" color="textSecondary">
+                              Total Transferencias
+                            </Typography>
+                            {transferExpanded ? (
+                              <ExpandLess fontSize="small" color="action" />
+                            ) : (
+                              <ExpandMore fontSize="small" color="action" />
+                            )}
                           </Box>
-                        </Collapse>
-                      </CardContent>
-                    </CardActionArea>
-                  </Card>
+                          <Typography
+                            variant="h6"
+                            fontWeight="bold"
+                            color="info.main"
+                          >
+                            ${totalTransferencias.toFixed(2)}
+                          </Typography>
+                          <Collapse in={transferExpanded}>
+                            <Box mt={1} textAlign="left">
+                              {Array.from(
+                                salesData.transfersByDestination.values(),
+                              ).map((dest) => (
+                                <Box
+                                  key={dest.nombre}
+                                  display="flex"
+                                  justifyContent="space-between"
+                                  px={1}
+                                  py={0.25}
+                                >
+                                  <Typography
+                                    variant="caption"
+                                    color="textSecondary"
+                                  >
+                                    {dest.nombre}
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    fontWeight="bold"
+                                  >
+                                    ${dest.total.toFixed(2)}
+                                  </Typography>
+                                </Box>
+                              ))}
+                            </Box>
+                          </Collapse>
+                        </CardContent>
+                      </CardActionArea>
+                    </Card>
+                  </Grid>
                 </Grid>
-              </Grid>
-            );
-          })()}
+              );
+            })()}
 
           {/* Toggle de vista y filtro de usuario */}
-          <Box display="flex" justifyContent="center" alignItems="center" mb={3} gap={2} flexWrap="wrap">
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            mb={3}
+            gap={2}
+            flexWrap="wrap"
+          >
             {/* Toggle para filtrar ventas del usuario o todas */}
             <ButtonGroup variant="outlined" size="small">
               <Button
-                variant={onlyOwnSales ? 'contained' : 'outlined'}
+                variant={onlyOwnSales ? "contained" : "outlined"}
                 color="primary"
                 onClick={() => setOnlyOwnSales(true)}
               >
                 Mis ventas
               </Button>
               <Button
-                variant={!onlyOwnSales ? 'contained' : 'outlined'}
+                variant={!onlyOwnSales ? "contained" : "outlined"}
                 color="primary"
                 onClick={() => setOnlyOwnSales(false)}
               >
@@ -371,15 +475,15 @@ export const UserSalesDrawer: React.FC<IProps> = ({
             <ButtonGroup variant="outlined" size="small">
               <Button
                 startIcon={<GroupWork />}
-                variant={viewMode === 'grouped' ? 'contained' : 'outlined'}
-                onClick={() => setViewMode('grouped')}
+                variant={viewMode === "grouped" ? "contained" : "outlined"}
+                onClick={() => setViewMode("grouped")}
               >
                 Vista Agrupada
               </Button>
               <Button
                 startIcon={<History />}
-                variant={viewMode === 'historical' ? 'contained' : 'outlined'}
-                onClick={() => setViewMode('historical')}
+                variant={viewMode === "historical" ? "contained" : "outlined"}
+                onClick={() => setViewMode("historical")}
               >
                 Vista Histórica
               </Button>
@@ -410,15 +514,31 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ bgcolor: "warning.light" }}>
-                      <TableCell><strong>Producto</strong></TableCell>
-                      <TableCell align="center"><strong>Cantidad</strong></TableCell>
-                      <TableCell align="right"><strong>Precio Unit.</strong></TableCell>
-                      <TableCell align="right"><strong>Total</strong></TableCell>
-                      {viewMode === 'historical' && (
+                      <TableCell>
+                        <strong>Producto</strong>
+                      </TableCell>
+                      <TableCell align="center">
+                        <strong>Cantidad</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Precio Unit.</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Total</strong>
+                      </TableCell>
+                      {viewMode === "historical" && (
                         <>
-                          <TableCell align="center"><strong>Fecha</strong></TableCell>
-                          <TableCell align="center"><strong>Estado</strong></TableCell>
-                          {canDeleteProducts && <TableCell align="center"><strong>Acciones</strong></TableCell>}
+                          <TableCell align="center">
+                            <strong>Fecha</strong>
+                          </TableCell>
+                          <TableCell align="center">
+                            <strong>Estado</strong>
+                          </TableCell>
+                          {canDeleteProducts && (
+                            <TableCell align="center">
+                              <strong>Acciones</strong>
+                            </TableCell>
+                          )}
                         </>
                       )}
                     </TableRow>
@@ -426,62 +546,89 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                   <TableBody>
                     {salesData.productosConsignacion.map((producto, index) => {
                       const prodHist = producto as ProductoDataHistorial;
-                      const deleteKey = 'sale' in prodHist ? (prodHist.product.ventaProductoId ?? `${prodHist.sale.identifier}-${index}`) : null;
+                      const deleteKey =
+                        "sale" in prodHist
+                          ? (prodHist.product.ventaProductoId ??
+                            `${prodHist.sale.identifier}-${index}`)
+                          : null;
                       return (
-                      <TableRow key={index} hover>
-                        <TableCell>{producto.nombre}</TableCell>
-                        <TableCell align="center">{producto.cantidad}</TableCell>
-                        <TableCell align="right">${producto?.precio?.toFixed(2)}</TableCell>
-                        <TableCell align="right">
-                          <Typography fontWeight="bold">
-                            ${producto.total.toFixed(2)}
-                          </Typography>
-                        </TableCell>
-                        {viewMode === 'historical' && (
-                          <>
-                            <TableCell align="center">{producto.fecha}</TableCell>
-                            <TableCell align="center">
-                              <Chip
-                                label={producto.estado}
-                                size="small"
-                                color={
-                                  producto.estado === "Sincronizada" ? "success" :
-                                    producto.estado === "Sincronizando" ? "info" : "warning"
-                                }
-                                variant="outlined"
-                              />
-                            </TableCell>
-                            {canDeleteProducts && 'sale' in prodHist && (
+                        <TableRow key={index} hover>
+                          <TableCell>{producto.nombre}</TableCell>
+                          <TableCell align="center">
+                            {producto.cantidad}
+                          </TableCell>
+                          <TableCell align="right">
+                            ${producto?.precio?.toFixed(2)}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography fontWeight="bold">
+                              ${producto.total.toFixed(2)}
+                            </Typography>
+                          </TableCell>
+                          {viewMode === "historical" && (
+                            <>
                               <TableCell align="center">
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  disabled={deletingKey === deleteKey || prodHist.sale.productos.length <= 1}
-                                  onClick={() => handleDeleteProduct(prodHist)}
-                                  aria-label="Eliminar producto"
-                                >
-                                  {deletingKey === deleteKey ? (
-                                    <CircularProgress size={20} />
-                                  ) : (
-                                    <Delete fontSize="small" />
-                                  )}
-                                </IconButton>
+                                {producto.fecha}
                               </TableCell>
-                            )}
-                          </>
-                        )}
-                      </TableRow>
-                    );})}
+                              <TableCell align="center">
+                                <Chip
+                                  label={producto.estado}
+                                  size="small"
+                                  color={
+                                    producto.estado === "Sincronizada"
+                                      ? "success"
+                                      : producto.estado === "Sincronizando"
+                                        ? "info"
+                                        : "warning"
+                                  }
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              {canDeleteProducts && "sale" in prodHist && (
+                                <TableCell align="center">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    disabled={
+                                      deletingKey === deleteKey ||
+                                      prodHist.sale.productos.length <= 1
+                                    }
+                                    onClick={() =>
+                                      handleDeleteProduct(prodHist)
+                                    }
+                                    aria-label="Eliminar producto"
+                                  >
+                                    {deletingKey === deleteKey ? (
+                                      <CircularProgress size={20} />
+                                    ) : (
+                                      <Delete fontSize="small" />
+                                    )}
+                                  </IconButton>
+                                </TableCell>
+                              )}
+                            </>
+                          )}
+                        </TableRow>
+                      );
+                    })}
                     <TableRow sx={{ bgcolor: "warning.light" }}>
-                      <TableCell colSpan={viewMode === 'grouped' ? 3 : canDeleteProducts ? 6 : 5}>
-                        <Typography fontWeight="bold">Subtotal Consignación:</Typography>
+                      <TableCell
+                        colSpan={
+                          viewMode === "grouped" ? 3 : canDeleteProducts ? 6 : 5
+                        }
+                      >
+                        <Typography fontWeight="bold">
+                          Subtotal Consignación:
+                        </Typography>
                       </TableCell>
                       <TableCell align="right">
                         <Typography fontWeight="bold">
                           ${salesData.totalConsignacion.toFixed(2)}
                         </Typography>
                       </TableCell>
-                      {viewMode === 'historical' && canDeleteProducts && <TableCell />}
+                      {viewMode === "historical" && canDeleteProducts && (
+                        <TableCell />
+                      )}
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -507,15 +654,31 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ bgcolor: "success.light" }}>
-                      <TableCell><strong>Producto</strong></TableCell>
-                      <TableCell align="center"><strong>Cantidad</strong></TableCell>
-                      <TableCell align="right"><strong>Precio Unit.</strong></TableCell>
-                      <TableCell align="right"><strong>Total</strong></TableCell>
-                      {viewMode === 'historical' && (
+                      <TableCell>
+                        <strong>Producto</strong>
+                      </TableCell>
+                      <TableCell align="center">
+                        <strong>Cantidad</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Precio Unit.</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Total</strong>
+                      </TableCell>
+                      {viewMode === "historical" && (
                         <>
-                          <TableCell align="center"><strong>Fecha</strong></TableCell>
-                          <TableCell align="center"><strong>Estado</strong></TableCell>
-                          {canDeleteProducts && <TableCell align="center"><strong>Acciones</strong></TableCell>}
+                          <TableCell align="center">
+                            <strong>Fecha</strong>
+                          </TableCell>
+                          <TableCell align="center">
+                            <strong>Estado</strong>
+                          </TableCell>
+                          {canDeleteProducts && (
+                            <TableCell align="center">
+                              <strong>Acciones</strong>
+                            </TableCell>
+                          )}
                         </>
                       )}
                     </TableRow>
@@ -523,62 +686,89 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                   <TableBody>
                     {salesData.productosPropios.map((producto, index) => {
                       const prodHist = producto as ProductoDataHistorial;
-                      const deleteKey = 'sale' in prodHist ? (prodHist.product.ventaProductoId ?? `${prodHist.sale.identifier}-${index}`) : null;
+                      const deleteKey =
+                        "sale" in prodHist
+                          ? (prodHist.product.ventaProductoId ??
+                            `${prodHist.sale.identifier}-${index}`)
+                          : null;
                       return (
-                      <TableRow key={index} hover>
-                        <TableCell>{producto.nombre}</TableCell>
-                        <TableCell align="center">{producto.cantidad}</TableCell>
-                        <TableCell align="right">${producto.precio?.toFixed(2)}</TableCell>
-                        <TableCell align="right">
-                          <Typography fontWeight="bold">
-                            ${producto.total.toFixed(2)}
-                          </Typography>
-                        </TableCell>
-                        {viewMode === 'historical' && (
-                          <>
-                            <TableCell align="center">{producto.fecha}</TableCell>
-                            <TableCell align="center">
-                              <Chip
-                                label={producto.estado}
-                                size="small"
-                                color={
-                                  producto.estado === "Sincronizada" ? "success" :
-                                    producto.estado === "Sincronizando" ? "info" : "warning"
-                                }
-                                variant="outlined"
-                              />
-                            </TableCell>
-                            {canDeleteProducts && 'sale' in prodHist && (
+                        <TableRow key={index} hover>
+                          <TableCell>{producto.nombre}</TableCell>
+                          <TableCell align="center">
+                            {producto.cantidad}
+                          </TableCell>
+                          <TableCell align="right">
+                            ${producto.precio?.toFixed(2)}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography fontWeight="bold">
+                              ${producto.total.toFixed(2)}
+                            </Typography>
+                          </TableCell>
+                          {viewMode === "historical" && (
+                            <>
                               <TableCell align="center">
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  disabled={deletingKey === deleteKey || prodHist.sale.productos.length <= 1}
-                                  onClick={() => handleDeleteProduct(prodHist)}
-                                  aria-label="Eliminar producto"
-                                >
-                                  {deletingKey === deleteKey ? (
-                                    <CircularProgress size={20} />
-                                  ) : (
-                                    <Delete fontSize="small" />
-                                  )}
-                                </IconButton>
+                                {producto.fecha}
                               </TableCell>
-                            )}
-                          </>
-                        )}
-                      </TableRow>
-                    );})}
+                              <TableCell align="center">
+                                <Chip
+                                  label={producto.estado}
+                                  size="small"
+                                  color={
+                                    producto.estado === "Sincronizada"
+                                      ? "success"
+                                      : producto.estado === "Sincronizando"
+                                        ? "info"
+                                        : "warning"
+                                  }
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              {canDeleteProducts && "sale" in prodHist && (
+                                <TableCell align="center">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    disabled={
+                                      deletingKey === deleteKey ||
+                                      prodHist.sale.productos.length <= 1
+                                    }
+                                    onClick={() =>
+                                      handleDeleteProduct(prodHist)
+                                    }
+                                    aria-label="Eliminar producto"
+                                  >
+                                    {deletingKey === deleteKey ? (
+                                      <CircularProgress size={20} />
+                                    ) : (
+                                      <Delete fontSize="small" />
+                                    )}
+                                  </IconButton>
+                                </TableCell>
+                              )}
+                            </>
+                          )}
+                        </TableRow>
+                      );
+                    })}
                     <TableRow sx={{ bgcolor: "success.light" }}>
-                      <TableCell colSpan={viewMode === 'grouped' ? 3 : canDeleteProducts ? 6 : 5}>
-                        <Typography fontWeight="bold">Subtotal Propios:</Typography>
+                      <TableCell
+                        colSpan={
+                          viewMode === "grouped" ? 3 : canDeleteProducts ? 6 : 5
+                        }
+                      >
+                        <Typography fontWeight="bold">
+                          Subtotal Propios:
+                        </Typography>
                       </TableCell>
                       <TableCell align="right">
                         <Typography fontWeight="bold">
                           ${salesData.totalPropios.toFixed(2)}
                         </Typography>
                       </TableCell>
-                      {viewMode === 'historical' && canDeleteProducts && <TableCell />}
+                      {viewMode === "historical" && canDeleteProducts && (
+                        <TableCell />
+                      )}
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -598,8 +788,13 @@ export const UserSalesDrawer: React.FC<IProps> = ({
               <Typography variant="h6" color="textSecondary" gutterBottom>
                 No tienes ventas registradas
               </Typography>
-              <Typography variant="body2" color="textSecondary" textAlign="center">
-                Cuando realices ventas, aparecerán aquí organizadas por tipo de producto.
+              <Typography
+                variant="body2"
+                color="textSecondary"
+                textAlign="center"
+              >
+                Cuando realices ventas, aparecerán aquí organizadas por tipo de
+                producto.
               </Typography>
             </Box>
           )}
