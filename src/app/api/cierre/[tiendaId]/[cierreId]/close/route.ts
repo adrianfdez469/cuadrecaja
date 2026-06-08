@@ -91,9 +91,9 @@ export async function PUT(
     let totalGananciasConsignacion = 0;
 
     for (const venta of ultimoPeriodo.ventas) {
-      totalVentas += venta.total;
       totalTransferencia += venta.totaltransfer;
       const tasas = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+      let ventaBruta = 0;
 
       for (const vp of venta.productos) {
         const costoBase = convertToBase(
@@ -108,6 +108,7 @@ export async function PUT(
           tasas,
           monedaBase,
         );
+        ventaBruta += precioBase * vp.cantidad;
 
         if (vp.producto.proveedorId) {
           const costoConsignacion = costoBase * vp.cantidad;
@@ -125,6 +126,9 @@ export async function PUT(
           totalGananciasPropias += ganancia;
         }
       }
+
+      const descuento = Number(venta.discountTotal ?? 0);
+      totalVentas += Math.max(0, ventaBruta - descuento);
     }
 
     const totalGanancia = totalGananciasPropias + totalGananciasConsignacion;
