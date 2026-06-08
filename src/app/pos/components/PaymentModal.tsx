@@ -664,7 +664,13 @@ const PaymentModal: FC<IProps> = ({
                           });
                         }
                       }}
-                      onFocus={(e) => e.target.select()}
+                      onMouseDown={(e) => {
+                        if (e.button !== 0) return;
+                        const inp = (
+                          e.currentTarget as HTMLElement
+                        ).querySelector("input");
+                        if (inp) setTimeout(() => inp.select(), 0);
+                      }}
                       inputProps={{
                         readOnly: isBase
                           ? showBreakdown
@@ -795,7 +801,13 @@ const PaymentModal: FC<IProps> = ({
                     label="Transferencia"
                     value={isBase ? pago.transfer : pago.transfer || ""}
                     type={isBase ? undefined : "number"}
-                    onFocus={(e) => e.target.select()}
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return;
+                      const inp = (
+                        e.currentTarget as HTMLElement
+                      ).querySelector("input");
+                      if (inp) setTimeout(() => inp.select(), 0);
+                    }}
                     onChange={(e) => {
                       if (isBase) {
                         const v = e.target.value;
@@ -925,7 +937,13 @@ const PaymentModal: FC<IProps> = ({
                       size="small"
                       type="number"
                       value={monto || ""}
-                      onFocus={(e) => e.target.select()}
+                      onMouseDown={(e) => {
+                        if (e.button !== 0) return;
+                        const inp = (
+                          e.currentTarget as HTMLElement
+                        ).querySelector("input");
+                        if (inp) setTimeout(() => inp.select(), 0);
+                      }}
                       onChange={(e) =>
                         updateVuelto(moneda, parseFloat(e.target.value) || 0)
                       }

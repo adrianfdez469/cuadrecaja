@@ -1537,7 +1537,11 @@ export default function POSInterface() {
               // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
               onFocus={() => handleSearchFocus()}
               onBlur={() => handleSearchBlur()}
-              onMouseDown={() => handleSearchMouseDown()}
+              onMouseDown={(e) => {
+                handleSearchMouseDown();
+                if (e.button === 0 && searchInputRef.current)
+                  setTimeout(() => searchInputRef.current?.select(), 0);
+              }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
