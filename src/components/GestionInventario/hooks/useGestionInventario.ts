@@ -48,10 +48,14 @@ export interface CreateProductData {
   newCategoriaColor?: string;
   precio: number;
   costo: number;
+  monedaPrecioCode: string | null;
+  monedaCostoCode: string | null;
+  fechaVencimiento: string | null;
   cantidadInicial: number;
   permiteDecimal: boolean;
   fraccionDeId?: string | null;
   unidadesPorFraccion?: number | null;
+  codigosProducto: string[];
 }
 
 export interface ChangeQtyOptions {
@@ -272,12 +276,17 @@ export function useGestionInventario() {
               unidadesPorFraccion: data.unidadesPorFraccion ?? undefined,
             }
           : undefined,
-        [],
+        data.codigosProducto.filter(Boolean),
         data.permiteDecimal,
       );
 
+      const extraFields = {
+        monedaPrecioCode: data.monedaPrecioCode,
+        monedaCostoCode: data.monedaCostoCode,
+        fechaVencimiento: data.fechaVencimiento,
+      };
+
       if (data.cantidadInicial > 0) {
-        // COMPRA movement creates ProductoTienda and sets costo via CPP
         await cretateBatchMovimientos(
           { tipo: "COMPRA", tiendaId, usuarioId: user.id },
           [
@@ -289,30 +298,36 @@ export function useGestionInventario() {
             },
           ],
         );
-        // Now find the newly created ProductoTienda to set precio
         const updated = await getProductosVenta(tiendaId);
         const nuevoPT = updated.find(
           (p: IProductoTiendaV2) => p.productoId === nuevoProducto.id,
         );
-        if (nuevoPT && data.precio) {
+        if (nuevoPT) {
           await updateProductosTienda(tiendaId, [
-            { id: nuevoPT.id, precio: data.precio },
+            { id: nuevoPT.id, precio: data.precio, ...extraFields },
           ]);
         }
       } else {
-        await createProductoTienda(
+        const nuevoPT = await createProductoTienda(
           tiendaId,
           nuevoProducto.id,
           data.precio,
           data.costo,
         );
+        if (nuevoPT?.id) {
+          await updateProductosTienda(tiendaId, [
+            { id: nuevoPT.id, ...extraFields },
+          ]);
+        }
       }
 
       showMessage("Producto creado", "success");
       setCreateProductOpen(false);
       await reload();
-    } catch {
-      showMessage("Error al crear el producto", "error");
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response
+        ?.data?.error;
+      showMessage(msg ?? "Error al crear el producto", "error");
     }
   };
 
