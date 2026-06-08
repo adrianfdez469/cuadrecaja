@@ -672,6 +672,7 @@ const PaymentModal: FC<IProps> = ({
                         if (inp) setTimeout(() => inp.select(), 0);
                       }}
                       inputProps={{
+                        inputMode: "decimal",
                         readOnly: isBase
                           ? showBreakdown
                           : (showPayBreakdown[moneda] ?? false),
@@ -841,6 +842,7 @@ const PaymentModal: FC<IProps> = ({
                         });
                       }
                     }}
+                    inputProps={{ inputMode: "decimal" }}
                   />
                 </FormControl>
               )}
@@ -909,7 +911,7 @@ const PaymentModal: FC<IProps> = ({
         )}
 
         {/* ── Change section ── */}
-        {!falta && vueltoTotalBase > 0 && (
+        {!falta && vueltoTotalBase >= 0.01 && (
           <>
             <Divider sx={{ my: 2 }} />
 
@@ -947,7 +949,7 @@ const PaymentModal: FC<IProps> = ({
                       onChange={(e) =>
                         updateVuelto(moneda, parseFloat(e.target.value) || 0)
                       }
-                      inputProps={{ min: 0, step: 0.01 }}
+                      inputProps={{ min: 0, step: 0.01, inputMode: "decimal" }}
                       sx={{ flex: 1 }}
                       error={!!err}
                     />
