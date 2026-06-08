@@ -1358,7 +1358,7 @@ export default function POSInterface() {
         <ShoppingCartComponent
           openCart={openCart}
           handleCartIcon={handleCartIcon}
-          hidden={showSearchResults && searchResults.length > 0}
+          hidden={false}
         />
 
         <Box
@@ -1516,7 +1516,7 @@ export default function POSInterface() {
             position: "fixed",
             bottom: 0,
             left: 0,
-            right: 0,
+            right: isCartPinned && !isMobile ? getCartWidth() : 0,
             p: 1,
             zIndex: 1200,
             background:
@@ -1603,14 +1603,19 @@ export default function POSInterface() {
               sx={{
                 position: "fixed",
                 left: 8,
-                right: 8,
+                right:
+                  isCartPinned && !isMobile
+                    ? `calc(${getCartWidth()} + 8px)`
+                    : 8,
                 bottom: searchPanelLayout.bottom,
                 maxHeight: searchPanelLayout.maxHeight,
                 zIndex: 1300,
                 minWidth: 0,
                 boxSizing: "border-box",
-                maxWidth: "calc(100vw - 16px)",
-                mx: "auto",
+                maxWidth:
+                  !isMobile && !isCartPinned
+                    ? "min(700px, calc(100vw - 16px))"
+                    : "calc(100vw - 16px)",
               }}
             >
               <MuiPaper
