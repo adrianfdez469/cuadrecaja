@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { usuarioSchema } from './usuario';
+import { z } from "zod";
+import { usuarioSchema } from "./usuario";
 
 export const ventaProductoSchema = z.object({
   id: z.string().uuid(),
@@ -9,6 +9,8 @@ export const ventaProductoSchema = z.object({
   cantidad: z.number(),
   name: z.string().optional(),
   price: z.number().optional(),
+  // Moneda del precio al momento de la venta (snapshot). null/undefined ⇒ moneda base del negocio.
+  monedaPrecioCode: z.string().optional(),
 });
 
 export const appliedDiscountSchema = z.object({
@@ -16,10 +18,14 @@ export const appliedDiscountSchema = z.object({
   discountRuleId: z.string().uuid(),
   ventaId: z.string().uuid(),
   amount: z.number(),
-  productsAffected: z.array(z.object({
-    productoTiendaId: z.string().uuid(),
-    cantidad: z.number(),
-  })).optional(),
+  productsAffected: z
+    .array(
+      z.object({
+        productoTiendaId: z.string().uuid(),
+        cantidad: z.number(),
+      }),
+    )
+    .optional(),
   createdAt: z.coerce.date(),
   ruleName: z.string().optional(),
 });
@@ -42,7 +48,9 @@ export const ventaSchema = z.object({
   syncAttempts: z.number().int().optional(),
   appliedDiscounts: z.array(appliedDiscountSchema).optional(),
   transferDestinationId: z.string().uuid().optional(),
-  transferDestination: z.object({ id: z.string(), nombre: z.string() }).optional(),
+  transferDestination: z
+    .object({ id: z.string(), nombre: z.string() })
+    .optional(),
 });
 
 export type IVenta = z.infer<typeof ventaSchema>;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogTitle,
@@ -22,8 +22,8 @@ import {
   IconButton,
   CircularProgress,
   useTheme,
-  useMediaQuery
-} from '@mui/material';
+  useMediaQuery,
+} from "@mui/material";
 import {
   Close,
   Receipt,
@@ -33,10 +33,13 @@ import {
   CreditCard,
   AccountBalance,
   ShoppingCart,
-  Delete
-} from '@mui/icons-material';
-import { IVenta } from '@/schemas/venta';
-import { formatCurrency, formatDate, formatTimeShort } from '@/utils/formatters';
+  Delete,
+} from "@mui/icons-material";
+import { IVenta } from "@/schemas/venta";
+import { formatDate, formatTimeShort } from "@/utils/formatters";
+import { useAppContext } from "@/context/AppContext";
+import { convertToBase, formatMoneda } from "@/lib/currency";
+import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 
 interface VentaDetailDialogProps {
   open: boolean;
@@ -56,22 +59,61 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   onDeleteProduct,
 }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { monedaBase, tasasVigentes } = useAppContext();
 
   if (!venta) return null;
 
-  // Calcular subtotal de productos y totales de descuento
-  const productosSubtotal = (venta.productos || []).reduce((acc, p) => acc + (p.price || 0) * (p.cantidad || 0), 0);
+  const tasas = tasasVigentes;
+
+  // El precio de cada producto está en su monedaPrecioCode (snapshot). Lo convertimos a la
+  // moneda base del negocio para poder sumar y comparar de forma homogénea.
+  const productosBase = (venta.productos || []).map((p) => {
+    const monedaProducto = p.monedaPrecioCode ?? monedaBase;
+    const precioBase = convertToBase(
+      p.price || 0,
+      monedaProducto,
+      tasas,
+      monedaBase,
+    );
+    return {
+      ...p,
+      monedaProducto,
+      precioBase,
+      subtotalBase: precioBase * (p.cantidad || 0),
+    };
+  });
+
+  // Calcular subtotal de productos (en base) y totales de descuento
+  const productosSubtotal = productosBase.reduce(
+    (acc, p) => acc + p.subtotalBase,
+    0,
+  );
   const totalDescuentos = Number(venta.discountTotal || 0);
   const appliedDiscounts = venta.appliedDiscounts || [];
 
-  const InfoCard = ({ icon, title, value, color = 'primary' }: {
+  // Formatea un importe ya convertido a base como "<monto> <monedaBase>".
+  const formatBase = (monto: number) =>
+    formatMoneda(monto, "", 2).concat(` ${monedaBase}`);
+
+  // Traza el precio original cuando el producto se cobró en una moneda distinta a la base.
+  const trazaOriginal = (precio: number, moneda: string) =>
+    moneda !== monedaBase
+      ? `Orig: ${formatMoneda(precio, "", 2)} ${moneda}`
+      : null;
+
+  const InfoCard = ({
+    icon,
+    title,
+    value,
+    color = "primary",
+  }: {
     icon: React.ReactNode;
     title: string;
     value: string;
-    color?: 'primary' | 'success' | 'info' | 'warning';
+    color?: "primary" | "success" | "info" | "warning";
   }) => (
-    <Card sx={{ height: '100%' }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <Box
@@ -80,9 +122,9 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
               borderRadius: 2,
               bgcolor: `${color}.light`,
               color: `${color}.contrastText`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: 40,
               minHeight: 40,
             }}
@@ -93,7 +135,11 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             <Typography variant="body2" color="text.secondary" gutterBottom>
               {title}
             </Typography>
-            <Typography variant="h6" fontWeight="bold" sx={{ wordBreak: 'break-all' }}>
+            <Typography
+              variant="h6"
+              fontWeight="bold"
+              sx={{ wordBreak: "break-all" }}
+            >
               {value}
             </Typography>
           </Box>
@@ -111,7 +157,11 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
       fullScreen={isMobile}
     >
       <DialogTitle>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+        >
           <Box display="flex" alignItems="center" gap={1}>
             <Receipt color="primary" />
             <Typography variant="h6">
@@ -147,7 +197,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             <InfoCard
               icon={<Person />}
               title="Vendedor"
-              value={venta.usuario?.nombre || 'Sistema'}
+              value={venta.usuario?.nombre || "Sistema"}
               color="primary"
             />
           </Grid>
@@ -164,46 +214,89 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
         {/* Resumen de pagos */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ display: "flex", alignItems: "center", gap: 1 }}
+            >
               <AttachMoney />
               Resumen de Pagos
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
-                <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.50', borderRadius: 1 }}>
-                  <CreditCard sx={{ fontSize: 32, color: 'success.main', mb: 1 }} />
+                <Box
+                  sx={{
+                    textAlign: "center",
+                    p: 2,
+                    bgcolor: "success.50",
+                    borderRadius: 1,
+                  }}
+                >
+                  <CreditCard
+                    sx={{ fontSize: 32, color: "success.main", mb: 1 }}
+                  />
                   <Typography variant="body2" color="text.secondary">
                     Efectivo
                   </Typography>
-                  <Typography variant="h6" fontWeight="bold" color="success.main">
-                    {formatCurrency(venta.totalcash)}
-                  </Typography>
+                  {/* venta.totalcash ya está en moneda base */}
+                  <MultiCurrencyAmount
+                    amount={venta.totalcash}
+                    variant="emphasized"
+                    align="center"
+                    color="success.main"
+                  />
                 </Box>
               </Grid>
-              
+
               <Grid item xs={12} sm={4}>
-                <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.50', borderRadius: 1 }}>
-                  <AccountBalance sx={{ fontSize: 32, color: 'info.main', mb: 1 }} />
+                <Box
+                  sx={{
+                    textAlign: "center",
+                    p: 2,
+                    bgcolor: "info.50",
+                    borderRadius: 1,
+                  }}
+                >
+                  <AccountBalance
+                    sx={{ fontSize: 32, color: "info.main", mb: 1 }}
+                  />
                   <Typography variant="body2" color="text.secondary">
                     Transferencia
                   </Typography>
-                  <Typography variant="h6" fontWeight="bold" color="info.main">
-                    {formatCurrency(venta.totaltransfer)}
-                  </Typography>
+                  {/* venta.totaltransfer ya está en moneda base */}
+                  <MultiCurrencyAmount
+                    amount={venta.totaltransfer}
+                    variant="emphasized"
+                    align="center"
+                    color="info.main"
+                  />
                 </Box>
               </Grid>
-              
+
               <Grid item xs={12} sm={4}>
-                <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
-                  <AttachMoney sx={{ fontSize: 32, color: 'primary.main', mb: 1 }} />
+                <Box
+                  sx={{
+                    textAlign: "center",
+                    p: 2,
+                    bgcolor: "primary.50",
+                    borderRadius: 1,
+                  }}
+                >
+                  <AttachMoney
+                    sx={{ fontSize: 32, color: "primary.main", mb: 1 }}
+                  />
                   <Typography variant="body2" color="text.secondary">
                     Total
                   </Typography>
-                  <Typography variant="h5" fontWeight="bold" color="primary.main">
-                    {formatCurrency(venta.total)}
-                  </Typography>
+                  {/* venta.total ya está en moneda base */}
+                  <MultiCurrencyAmount
+                    amount={venta.total}
+                    variant="emphasized"
+                    align="center"
+                    color="primary.main"
+                  />
                 </Box>
               </Grid>
             </Grid>
@@ -213,14 +306,18 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
         {/* Lista de productos */}
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ display: "flex", alignItems: "center", gap: 1 }}
+            >
               <ShoppingCart />
               Productos Vendidos
             </Typography>
             <Divider sx={{ mb: 2 }} />
 
             {!venta.productos || venta.productos.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Box sx={{ textAlign: "center", py: 4 }}>
                 <Typography variant="body1" color="text.secondary">
                   No hay productos registrados para esta venta
                 </Typography>
@@ -228,53 +325,98 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             ) : isMobile ? (
               // Vista móvil - Cards
               <Stack spacing={2}>
-                {venta.productos.map((producto, index) => {
+                {productosBase.map((producto, index) => {
                   const canDeleteThis =
                     canDeleteProducts &&
                     !!producto.ventaProductoId &&
                     (venta.productos?.length || 0) > 1;
-                  const isDeleting = deletingVentaProductoId === producto.ventaProductoId;
+                  const isDeleting =
+                    deletingVentaProductoId === producto.ventaProductoId;
+                  const traza = trazaOriginal(
+                    producto.price || 0,
+                    producto.monedaProducto,
+                  );
                   return (
-                  <Card key={producto.id || index} variant="outlined">
-                    <CardContent sx={{ p: 2 }}>
-                      <Stack spacing={1}>
-                        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                          <Typography variant="subtitle2" fontWeight="medium" sx={{ flex: 1, pr: 1 }}>
-                            {producto.name || `Producto ${index + 1}`}
-                          </Typography>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Chip
-                              label={`${producto.cantidad} unid.`}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                            />
-                            {canDeleteThis && (
-                              <IconButton
+                    <Card key={producto.id || index} variant="outlined">
+                      <CardContent sx={{ p: 2 }}>
+                        <Stack spacing={1}>
+                          <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="flex-start"
+                          >
+                            <Typography
+                              variant="subtitle2"
+                              fontWeight="medium"
+                              sx={{ flex: 1, pr: 1 }}
+                            >
+                              {producto.name || `Producto ${index + 1}`}
+                            </Typography>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <Chip
+                                label={`${producto.cantidad} unid.`}
                                 size="small"
-                                color="error"
-                                disabled={isDeleting}
-                                onClick={() => onDeleteProduct?.(venta, producto.ventaProductoId!)}
-                                aria-label="Eliminar producto"
-                              >
-                                {isDeleting ? <CircularProgress size={18} /> : <Delete fontSize="small" />}
-                              </IconButton>
-                            )}
+                                color="primary"
+                                variant="outlined"
+                              />
+                              {canDeleteThis && (
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  disabled={isDeleting}
+                                  onClick={() =>
+                                    onDeleteProduct?.(
+                                      venta,
+                                      producto.ventaProductoId!,
+                                    )
+                                  }
+                                  aria-label="Eliminar producto"
+                                >
+                                  {isDeleting ? (
+                                    <CircularProgress size={18} />
+                                  ) : (
+                                    <Delete fontSize="small" />
+                                  )}
+                                </IconButton>
+                              )}
+                            </Box>
                           </Box>
-                        </Box>
-                        
-                        <Box display="flex" justifyContent="space-between" alignItems="center">
-                          <Typography variant="body2" color="text.secondary">
-                            Precio unitario: {formatCurrency(producto.price || 0)}
-                          </Typography>
-                          <Typography variant="body1" fontWeight="bold" color="success.main">
-                            {formatCurrency((producto.price || 0) * producto.cantidad)}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                );})}
+
+                          <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <Box>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                Precio unitario:{" "}
+                                {formatBase(producto.precioBase)}
+                              </Typography>
+                              {traza && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {traza}
+                                </Typography>
+                              )}
+                            </Box>
+                            <Typography
+                              variant="body1"
+                              fontWeight="bold"
+                              color="success.main"
+                            >
+                              {formatBase(producto.subtotalBase)}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </Stack>
             ) : (
               // Vista desktop - Tabla
@@ -286,89 +428,142 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                       <TableCell align="center">Cantidad</TableCell>
                       <TableCell align="right">Precio Unitario</TableCell>
                       <TableCell align="right">Subtotal</TableCell>
-                      {canDeleteProducts && <TableCell align="center">Acciones</TableCell>}
+                      {canDeleteProducts && (
+                        <TableCell align="center">Acciones</TableCell>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {venta.productos.map((producto, index) => {
+                    {productosBase.map((producto, index) => {
                       const canDeleteThis =
                         canDeleteProducts &&
                         !!producto.ventaProductoId &&
                         (venta.productos?.length || 0) > 1;
-                      const isDeleting = deletingVentaProductoId === producto.ventaProductoId;
+                      const isDeleting =
+                        deletingVentaProductoId === producto.ventaProductoId;
+                      const traza = trazaOriginal(
+                        producto.price || 0,
+                        producto.monedaProducto,
+                      );
                       return (
-                      <TableRow key={producto.id || index}>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="medium">
-                            {producto.name || `Producto ${index + 1}`}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            ID: {producto.productoTiendaId}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip
-                            label={producto.cantidad}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2">
-                            {formatCurrency(producto.price || 0)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2" fontWeight="bold" color="success.main">
-                            {formatCurrency((producto.price || 0) * producto.cantidad)}
-                          </Typography>
-                        </TableCell>
-                        {canDeleteProducts && (
+                        <TableRow key={producto.id || index}>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="medium">
+                              {producto.name || `Producto ${index + 1}`}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              ID: {producto.productoTiendaId}
+                            </Typography>
+                          </TableCell>
                           <TableCell align="center">
-                            {canDeleteThis && (
-                              <IconButton
-                                size="small"
-                                color="error"
-                                disabled={isDeleting}
-                                onClick={() => onDeleteProduct?.(venta, producto.ventaProductoId!)}
-                                aria-label="Eliminar producto"
+                            <Chip
+                              label={producto.cantidad}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2">
+                              {formatBase(producto.precioBase)}
+                            </Typography>
+                            {traza && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                display="block"
                               >
-                                {isDeleting ? <CircularProgress size={18} /> : <Delete fontSize="small" />}
-                              </IconButton>
+                                {traza}
+                              </Typography>
                             )}
                           </TableCell>
-                        )}
-                      </TableRow>
-                    );})}
+                          <TableCell align="right">
+                            <Typography
+                              variant="body2"
+                              fontWeight="bold"
+                              color="success.main"
+                            >
+                              {formatBase(producto.subtotalBase)}
+                            </Typography>
+                          </TableCell>
+                          {canDeleteProducts && (
+                            <TableCell align="center">
+                              {canDeleteThis && (
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  disabled={isDeleting}
+                                  onClick={() =>
+                                    onDeleteProduct?.(
+                                      venta,
+                                      producto.ventaProductoId!,
+                                    )
+                                  }
+                                  aria-label="Eliminar producto"
+                                >
+                                  {isDeleting ? (
+                                    <CircularProgress size={18} />
+                                  ) : (
+                                    <Delete fontSize="small" />
+                                  )}
+                                </IconButton>
+                              )}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
                     {/* Desglose de totales */}
                     <TableRow>
-                      <TableCell colSpan={canDeleteProducts ? 4 : 3} align="right">
-                        <Typography variant="body2" color="text.secondary">Subtotal</Typography>
+                      <TableCell
+                        colSpan={canDeleteProducts ? 4 : 3}
+                        align="right"
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Subtotal
+                        </Typography>
                       </TableCell>
                       <TableCell align="right">
-                        <Typography variant="body2" color="text.secondary">{formatCurrency(productosSubtotal)}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {formatBase(productosSubtotal)}
+                        </Typography>
                       </TableCell>
                       {canDeleteProducts && <TableCell />}
                     </TableRow>
                     {totalDescuentos > 0 && (
                       <TableRow>
-                        <TableCell colSpan={canDeleteProducts ? 4 : 3} align="right">
-                          <Typography variant="body2" color="error.main">Total descuentos</Typography>
+                        <TableCell
+                          colSpan={canDeleteProducts ? 4 : 3}
+                          align="right"
+                        >
+                          <Typography variant="body2" color="error.main">
+                            Total descuentos
+                          </Typography>
                         </TableCell>
                         <TableCell align="right">
-                          <Typography variant="body2" color="error.main">- {formatCurrency(totalDescuentos)}</Typography>
+                          <Typography variant="body2" color="error.main">
+                            - {formatBase(totalDescuentos)}
+                          </Typography>
                         </TableCell>
                         {canDeleteProducts && <TableCell />}
                       </TableRow>
                     )}
                     <TableRow>
                       <TableCell colSpan={canDeleteProducts ? 4 : 3}>
-                        <Typography variant="h6" fontWeight="bold">Total a pagar</Typography>
+                        <Typography variant="h6" fontWeight="bold">
+                          Total a pagar
+                        </Typography>
                       </TableCell>
                       <TableCell align="right">
-                        <Typography variant="h6" fontWeight="bold" color="primary.main">
-                          {formatCurrency(venta.total)}
+                        <Typography
+                          variant="h6"
+                          fontWeight="bold"
+                          color="primary.main"
+                        >
+                          {formatBase(venta.total)}
                         </Typography>
                       </TableCell>
                       {canDeleteProducts && <TableCell />}
@@ -384,7 +579,11 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
         {totalDescuentos > 0 && (
           <Card sx={{ mt: 2 }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography
+                variant="h6"
+                gutterBottom
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+              >
                 Descuentos aplicados
               </Typography>
               <Divider sx={{ mb: 2 }} />
@@ -393,18 +592,18 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                 <Stack spacing={0.5}>
                   {appliedDiscounts.map((d) => (
                     <Typography key={d.id} variant="body2" color="success.main">
-                      {(d.ruleName || 'Descuento')}: -{formatCurrency(d.amount)}
+                      {d.ruleName || "Descuento"}: -{formatBase(d.amount)}
                     </Typography>
                   ))}
                 </Stack>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  -{formatCurrency(totalDescuentos)}
+                  -{formatBase(totalDescuentos)}
                 </Typography>
               )}
 
               <Typography variant="body2" fontWeight={600} mt={1}>
-                Total descuentos: -{formatCurrency(totalDescuentos)}
+                Total descuentos: -{formatBase(totalDescuentos)}
               </Typography>
             </CardContent>
           </Card>
@@ -420,4 +619,4 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   );
 };
 
-export default VentaDetailDialog; 
+export default VentaDetailDialog;

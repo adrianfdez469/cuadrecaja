@@ -4,13 +4,13 @@ import { UsuarioEstadoCuenta } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
 import { JWT } from "next-auth/jwt";
-import dayjs from 'dayjs';
+import dayjs from "dayjs";
 import { getPermisosUsuario } from "./getPermisosUsuario";
 import { getRolUsuario } from "./getRolUsuario";
 
 export const authOptions: NextAuthOptions = {
   session: {
-    strategy: 'jwt',
+    strategy: "jwt",
   },
   providers: [
     CredentialsProvider({
@@ -38,12 +38,20 @@ export const authOptions: NextAuthOptions = {
                 nombre: true,
                 limitTime: true,
                 planId: true,
-                plan: { select: { limiteLocales: true, limiteUsuarios: true, limiteProductos: true } }
-              }
-            }
+                monedaBase: true,
+                monedaFuerte: true,
+                plan: {
+                  select: {
+                    limiteLocales: true,
+                    limiteUsuarios: true,
+                    limiteProductos: true,
+                  },
+                },
+              },
+            },
           },
         });
-        
+
         if (!user) throw new Error("Usuario no encontrado");
 
         if (
@@ -51,11 +59,14 @@ export const authOptions: NextAuthOptions = {
           user.estadoCuenta === UsuarioEstadoCuenta.PENDIENTE_VERIFICACION
         ) {
           throw new Error(
-            "USUARIO_PENDIENTE_VERIFICACION: Completa la activación desde el enlace enviado a tu correo."
+            "USUARIO_PENDIENTE_VERIFICACION: Completa la activación desde el enlace enviado a tu correo.",
           );
         }
 
-        const passwordMatch = await bcrypt.compare(credentials.password, user.password);
+        const passwordMatch = await bcrypt.compare(
+          credentials.password,
+          user.password,
+        );
         if (!passwordMatch) throw new Error("Contraseña incorrecta");
 
         // ⚠️ VERIFICAR ESTADO DE SUSCRIPCIÓN - Bloquear login si está suspendido (excepto SUPER_ADMIN)
@@ -67,15 +78,16 @@ export const authOptions: NextAuthOptions = {
           const isExpired = daysRemaining <= 0;
           const gracePeriodDays = 7;
           const isInGracePeriod = daysRemaining > -gracePeriodDays;
-          
+
           // Consultar si el negocio está marcado como suspendido manualmente
           const negocioCompleto = await prisma.negocio.findUnique({
             where: { id: user.negocio.id },
-            select: { suspended: true }
+            select: { suspended: true },
           });
-          
-          const isSuspended = negocioCompleto?.suspended || (isExpired && !isInGracePeriod);
-          
+
+          const isSuspended =
+            negocioCompleto?.suspended || (isExpired && !isInGracePeriod);
+
           if (isSuspended) {
             // Error específico para suscripción expirada (será detectado en el frontend)
             throw new Error("SUBSCRIPTION_EXPIRED");
@@ -92,8 +104,8 @@ export const authOptions: NextAuthOptions = {
               id: true,
               nombre: true,
               negocioId: true,
-              tipo: true
-            }
+              tipo: true,
+            },
           });
           localesDisponibles = todasLasTiendas;
         } else {
@@ -101,7 +113,7 @@ export const authOptions: NextAuthOptions = {
             id: t.tienda.id,
             nombre: t.tienda.nombre,
             negocioId: t.tienda.negocioId,
-            tipo: t.tienda.tipo
+            tipo: t.tienda.tipo,
           }));
         }
 
@@ -109,32 +121,39 @@ export const authOptions: NextAuthOptions = {
         if (user.rol !== "SUPER_ADMIN") {
           // Verificar si tiene locales asignados
           if (localesDisponibles.length === 0) {
-            throw new Error("USUARIO_SIN_CONFIGURAR: No tienes locales (tiendas o almacenes) asignados. Contacta al administrador para completar tu configuración.");
+            throw new Error(
+              "USUARIO_SIN_CONFIGURAR: No tienes locales (tiendas o almacenes) asignados. Contacta al administrador para completar tu configuración.",
+            );
           }
 
           // Verificar si tiene al menos un rol asignado en algún local
           const tieneRolAsignado = await prisma.usuarioTienda.findFirst({
             where: {
               usuarioId: user.id,
-              rolId: { not: null } // Tiene un rol asignado
+              rolId: { not: null }, // Tiene un rol asignado
             },
-            select: { id: true }
+            select: { id: true },
           });
 
           if (!tieneRolAsignado) {
-            throw new Error("USUARIO_SIN_CONFIGURAR: No tienes un rol asignado en ningún local. Contacta al administrador para completar tu configuración.");
+            throw new Error(
+              "USUARIO_SIN_CONFIGURAR: No tienes un rol asignado en ningún local. Contacta al administrador para completar tu configuración.",
+            );
           }
         }
 
         // Obtener permisos basados en la tienda actual
-        const permisos = await getPermisosUsuario(user.id, user.localActual?.id || null);
+        const permisos = await getPermisosUsuario(
+          user.id,
+          user.localActual?.id || null,
+        );
 
         let rol = "";
 
         if (user.rol === "SUPER_ADMIN") {
           rol = "SUPER_ADMIN";
         } else {
-          rol = await getRolUsuario(user.id, user.localActual?.id || null)
+          rol = await getRolUsuario(user.id, user.localActual?.id || null);
         }
 
         const negocioParaToken = {
@@ -142,6 +161,8 @@ export const authOptions: NextAuthOptions = {
           nombre: user.negocio.nombre,
           limitTime: user.negocio.limitTime,
           planId: user.negocio.planId,
+          monedaBase: user.negocio.monedaBase ?? "CUP",
+          monedaFuerte: user.negocio.monedaFuerte ?? "CUP",
           locallimit: user.negocio.plan?.limiteLocales ?? -1,
           userlimit: user.negocio.plan?.limiteUsuarios ?? -1,
           productlimit: user.negocio.plan?.limiteProductos ?? -1,
@@ -157,18 +178,21 @@ export const authOptions: NextAuthOptions = {
           locales: localesDisponibles,
           // tiendaActual: user.tiendaActual
           localActual: user.localActual,
-          permisos: permisos
+          permisos: permisos,
         };
-      }
+      },
     }),
   ],
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       // válido
       if (user) {
-
         if (!token.expCustom) {
-          const tomorrowAt6AM = dayjs().add(1, 'day').set('hour', 6).set('minute', 0).set('second', 0);
+          const tomorrowAt6AM = dayjs()
+            .add(1, "day")
+            .set("hour", 6)
+            .set("minute", 0)
+            .set("second", 0);
           token.expCustom = tomorrowAt6AM.toISOString(); // timestamp en milisegundos
         }
 
@@ -183,7 +207,6 @@ export const authOptions: NextAuthOptions = {
           token.localActual = user.localActual;
           token.locales = user.locales;
           token.permisos = user.permisos;
-
         } else {
           token.id = null;
           token.rol = null;
@@ -209,19 +232,24 @@ export const authOptions: NextAuthOptions = {
 
         // Actualizar permisos cuando cambia la tienda actual
         if (token.id && session.localActual?.id) {
-          const nuevosPermisos = await getPermisosUsuario(token.id as string, session.localActual.id);
+          const nuevosPermisos = await getPermisosUsuario(
+            token.id as string,
+            session.localActual.id,
+          );
           token.permisos = nuevosPermisos;
 
           // ✅ PRESERVAR ROL SUPER_ADMIN - Solo actualizar rol si no es SUPER_ADMIN
           if (token.rol !== "SUPER_ADMIN") {
-            const nuevoRol = await getRolUsuario(token.id as string, session.localActual.id);
+            const nuevoRol = await getRolUsuario(
+              token.id as string,
+              session.localActual.id,
+            );
             token.rol = nuevoRol;
           }
           // Si es SUPER_ADMIN, mantener el rol original sin cambios
         }
       }
       if (trigger === "update" && session?.negocio) {
-
         token.negocio = session.negocio;
         // token.tiendaActual = null;
         token.localActual = null;
@@ -229,7 +257,6 @@ export const authOptions: NextAuthOptions = {
       }
 
       return token;
-
     },
     async session({ session, token }) {
       const userToken = token as JWT; // ✅ Forzamos el tipo JWT
@@ -247,7 +274,7 @@ export const authOptions: NextAuthOptions = {
         session.user.permisos = token.permisos; // Agregar permisos a la sesión
       }
       return session;
-    }
+    },
   },
   pages: {
     signIn: "/login",
