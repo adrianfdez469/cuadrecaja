@@ -2,25 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ cierreId: string }> }
+  { params }: { params: Promise<{ cierreId: string }> },
 ) {
   try {
     const { cierreId } = await params;
     const session = await getSession();
     const user = session.user;
 
-    if (!verificarPermisoUsuario(user.permisos, "operaciones.gastos.ver", user.rol)) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+    if (
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.gastos.ver",
+        user.rol,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 },
+      );
     }
 
     const cierre = await prisma.cierrePeriodo.findFirst({
       where: { id: cierreId, tienda: { negocioId: user.negocio.id } },
     });
     if (!cierre) {
-      return NextResponse.json({ error: "Cierre no encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Cierre no encontrado" },
+        { status: 404 },
+      );
     }
 
     const gastos = await prisma.gastoCierre.findMany({
@@ -28,7 +41,31 @@ export async function GET(
       orderBy: [{ esAdHoc: "asc" }, { createdAt: "asc" }],
     });
 
-    const totalGastos = gastos.reduce((s, g) => s + g.montoCalculado, 0);
+    // Fetch monedaBase and rates to convert foreign-currency gastos before summing
+    const negocio = await prisma.negocio.findUnique({
+      where: { id: user.negocio.id },
+      select: { monedaBase: true },
+    });
+    const monedaBase = negocio?.monedaBase ?? "CUP";
+
+    const tasasCambio = await prisma.tasaCambio.findMany({
+      where: { negocioId: user.negocio.id },
+      orderBy: { createdAt: "desc" },
+      distinct: ["monedaCode"],
+    });
+    const tasas = buildTasaSnapshot(tasasCambio);
+
+    const totalGastos = gastos.reduce(
+      (s, g) =>
+        s +
+        convertToBase(
+          g.montoCalculado,
+          g.monedaCode ?? monedaBase,
+          tasas,
+          monedaBase,
+        ),
+      0,
+    );
 
     // Agrupar por categoría
     const agrupados: Record<string, typeof gastos> = {};
@@ -40,6 +77,9 @@ export async function GET(
     return NextResponse.json({ gastos, totalGastos, agrupados });
   } catch (error) {
     console.error("Error al obtener gastos del cierre:", error);
-    return NextResponse.json({ error: "Error al obtener gastos" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al obtener gastos" },
+      { status: 500 },
+    );
   }
 }

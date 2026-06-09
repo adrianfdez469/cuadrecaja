@@ -18,24 +18,47 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { IGastoAdHocCreate, TipoCalculoEnum, gastoAdHocCreateSchema } from "@/schemas/gastos";
-import { TIPO_CALCULO_LABELS, TIPO_CALCULO_DESCRIPTIONS } from "@/constants/gastos";
+import {
+  IGastoAdHocCreate,
+  TipoCalculoEnum,
+  gastoAdHocCreateSchema,
+} from "@/schemas/gastos";
+import {
+  TIPO_CALCULO_LABELS,
+  TIPO_CALCULO_DESCRIPTIONS,
+} from "@/constants/gastos";
 
 interface Props {
   open: boolean;
   totalVentas?: number;
   totalGanancia?: number;
   categoriasExistentes?: string[];
+  monedasActivas?: {
+    monedaCode: string;
+    moneda?: { nombre: string; simbolo: string };
+  }[];
+  monedaBase?: string;
   onClose: () => void;
   onSave: (data: IGastoAdHocCreate) => Promise<void>;
 }
 
-export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia = 0, categoriasExistentes = [], onClose, onSave }: Props) {
+export default function GastoAdHocDialog({
+  open,
+  totalVentas = 0,
+  totalGanancia = 0,
+  categoriasExistentes = [],
+  monedasActivas,
+  monedaBase,
+  onClose,
+  onSave,
+}: Props) {
   const [nombre, setNombre] = useState("");
   const [categoria, setCategoria] = useState("");
-  const [tipoCalculo, setTipoCalculo] = useState<IGastoAdHocCreate["tipoCalculo"]>("MONTO_FIJO");
+  const [tipoCalculo, setTipoCalculo] =
+    useState<IGastoAdHocCreate["tipoCalculo"]>("MONTO_FIJO");
   const [monto, setMonto] = useState("");
   const [porcentaje, setPorcentaje] = useState("");
+  const [monedaCode, setMonedaCode] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -46,14 +69,17 @@ export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia 
       setTipoCalculo("MONTO_FIJO");
       setMonto("");
       setPorcentaje("");
+      setMonedaCode(null);
       setErrors({});
     }
   }, [open]);
 
   const montoCalculado = (): number => {
     if (tipoCalculo === "MONTO_FIJO") return Number(monto) || 0;
-    if (tipoCalculo === "PORCENTAJE_VENTAS") return ((Number(porcentaje) || 0) / 100) * totalVentas;
-    if (tipoCalculo === "PORCENTAJE_GANANCIAS") return ((Number(porcentaje) || 0) / 100) * totalGanancia;
+    if (tipoCalculo === "PORCENTAJE_VENTAS")
+      return ((Number(porcentaje) || 0) / 100) * totalVentas;
+    if (tipoCalculo === "PORCENTAJE_GANANCIAS")
+      return ((Number(porcentaje) || 0) / 100) * totalGanancia;
     return 0;
   };
 
@@ -65,6 +91,7 @@ export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia 
       montoCalculado: montoCalculado(),
       monto: tipoCalculo === "MONTO_FIJO" ? Number(monto) : null,
       porcentaje: tipoCalculo !== "MONTO_FIJO" ? Number(porcentaje) : null,
+      monedaCode: tipoCalculo === "MONTO_FIJO" ? (monedaCode ?? null) : null,
     };
 
     const parsed = gastoAdHocCreateSchema.safeParse(raw);
@@ -114,7 +141,9 @@ export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia 
                 {...params}
                 label="Categoría"
                 error={!!errors.categoria}
-                helperText={errors.categoria ?? "Ej: Reparación, Compra urgente"}
+                helperText={
+                  errors.categoria ?? "Ej: Reparación, Compra urgente"
+                }
                 required
               />
             )}
@@ -125,12 +154,18 @@ export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia 
             <Select
               value={tipoCalculo}
               label="Tipo de cálculo"
-              onChange={(e) => setTipoCalculo(e.target.value as IGastoAdHocCreate["tipoCalculo"])}
+              onChange={(e) =>
+                setTipoCalculo(
+                  e.target.value as IGastoAdHocCreate["tipoCalculo"],
+                )
+              }
             >
               {TipoCalculoEnum.options.map((opt) => (
                 <MenuItem key={opt} value={opt}>
                   <Box>
-                    <Typography variant="body2">{TIPO_CALCULO_LABELS[opt]}</Typography>
+                    <Typography variant="body2">
+                      {TIPO_CALCULO_LABELS[opt]}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
                       {TIPO_CALCULO_DESCRIPTIONS[opt]}
                     </Typography>
@@ -141,17 +176,44 @@ export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia 
           </FormControl>
 
           {tipoCalculo === "MONTO_FIJO" ? (
-            <TextField
-              label="Monto"
-              type="number"
-              value={monto}
-              onChange={(e) => setMonto(e.target.value)}
-              error={!!errors.monto || !!errors.montoCalculado}
-              helperText={errors.monto ?? errors.montoCalculado}
-              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-              inputProps={{ min: 0, step: "0.01" }}
-              fullWidth
-            />
+            <>
+              <TextField
+                label="Monto"
+                type="number"
+                value={monto}
+                onChange={(e) => setMonto(e.target.value)}
+                error={!!errors.monto || !!errors.montoCalculado}
+                helperText={errors.monto ?? errors.montoCalculado}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {monedasActivas?.find(
+                        (m) => m.monedaCode === (monedaCode ?? monedaBase),
+                      )?.moneda?.simbolo ?? "$"}
+                    </InputAdornment>
+                  ),
+                }}
+                inputProps={{ min: 0, step: "0.01" }}
+                fullWidth
+              />
+              {(monedasActivas?.length ?? 0) > 1 && (
+                <FormControl fullWidth>
+                  <InputLabel>Moneda del gasto</InputLabel>
+                  <Select
+                    value={monedaCode ?? monedaBase ?? ""}
+                    label="Moneda del gasto"
+                    onChange={(e) => setMonedaCode(e.target.value || null)}
+                  >
+                    {monedasActivas!.map((m) => (
+                      <MenuItem key={m.monedaCode} value={m.monedaCode}>
+                        {m.moneda?.nombre ?? m.monedaCode}
+                        {m.monedaCode === (monedaBase ?? "") && " (base)"}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            </>
           ) : (
             <>
               <TextField
@@ -161,15 +223,18 @@ export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia 
                 onChange={(e) => setPorcentaje(e.target.value)}
                 error={!!errors.porcentaje}
                 helperText={errors.porcentaje}
-                InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">%</InputAdornment>
+                  ),
+                }}
                 inputProps={{ min: 0, max: 100, step: "0.01" }}
                 fullWidth
               />
               {calculado > 0 && (
                 <Box bgcolor="action.hover" p={1} borderRadius={1}>
                   <Typography variant="body2">
-                    Monto calculado:{" "}
-                    <strong>${calculado.toFixed(2)}</strong>
+                    Monto calculado: <strong>${calculado.toFixed(2)}</strong>
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {tipoCalculo === "PORCENTAJE_VENTAS"
@@ -183,7 +248,9 @@ export default function GastoAdHocDialog({ open, totalVentas = 0, totalGanancia 
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={loading}>Cancelar</Button>
+        <Button onClick={onClose} disabled={loading}>
+          Cancelar
+        </Button>
         <Button variant="contained" onClick={handleSave} disabled={loading}>
           {loading ? "Guardando..." : "Registrar gasto"}
         </Button>

@@ -714,6 +714,7 @@ model GastoCierre {
   monto          Float? // snapshot del monto al momento del cierre
   porcentaje     Float? // snapshot del porcentaje al momento del cierre
   esAdHoc        Boolean       @default(false)
+  monedaCode     String? // null = monedaBase; solo aplica a MONTO_FIJO
   createdAt      DateTime      @default(now())
 
   @@index([cierreId])

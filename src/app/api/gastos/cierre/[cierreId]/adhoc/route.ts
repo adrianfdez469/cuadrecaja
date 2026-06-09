@@ -6,31 +6,49 @@ import { gastoAdHocCreateSchema } from "@/schemas/gastos";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ cierreId: string }> }
+  { params }: { params: Promise<{ cierreId: string }> },
 ) {
   try {
     const { cierreId } = await params;
     const session = await getSession();
     const user = session.user;
 
-    if (!verificarPermisoUsuario(user.permisos, "operaciones.gastos.gestionar", user.rol)) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+    if (
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.gastos.gestionar",
+        user.rol,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 },
+      );
     }
 
     const cierre = await prisma.cierrePeriodo.findFirst({
       where: { id: cierreId, tienda: { negocioId: user.negocio.id } },
     });
     if (!cierre) {
-      return NextResponse.json({ error: "Cierre no encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Cierre no encontrado" },
+        { status: 404 },
+      );
     }
     if (cierre.fechaFin) {
-      return NextResponse.json({ error: "El período ya está cerrado" }, { status: 400 });
+      return NextResponse.json(
+        { error: "El período ya está cerrado" },
+        { status: 400 },
+      );
     }
 
     const body = await req.json();
     const parsed = gastoAdHocCreateSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { error: "Datos inválidos", details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
 
     const gasto = await prisma.gastoCierre.create({
@@ -44,12 +62,19 @@ export async function POST(
         monto: parsed.data.monto ?? null,
         porcentaje: parsed.data.porcentaje ?? null,
         esAdHoc: true,
+        monedaCode:
+          parsed.data.tipoCalculo === "MONTO_FIJO"
+            ? (parsed.data.monedaCode ?? null)
+            : null,
       },
     });
 
     return NextResponse.json(gasto, { status: 201 });
   } catch (error) {
     console.error("Error al registrar gasto ad-hoc:", error);
-    return NextResponse.json({ error: "Error al registrar gasto" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al registrar gasto" },
+      { status: 500 },
+    );
   }
 }
