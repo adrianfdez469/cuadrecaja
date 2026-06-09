@@ -94,10 +94,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshMonedas = async () => {
     const currentUser = user;
     if (currentUser?.negocio?.id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await loadMonedas(
         currentUser.negocio.id,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (currentUser.negocio as any).monedaBase ?? "CUP",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (currentUser.negocio as any).monedaFuerte ?? "CUP",
       );
     }
