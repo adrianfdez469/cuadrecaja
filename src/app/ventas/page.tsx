@@ -21,21 +21,20 @@ import {
   CardContent,
   Stack,
   Tooltip,
-  Chip,
   useTheme,
   useMediaQuery,
   Collapse,
-  Divider
+  Divider,
 } from "@mui/material";
-import { 
-  Delete, 
+import {
+  Delete,
   AttachMoney,
   CalendarToday,
   Search,
   Refresh,
   ExpandMore,
   ExpandLess,
-  Visibility
+  Visibility,
 } from "@mui/icons-material";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
@@ -43,20 +42,25 @@ import { useMessageContext } from "@/context/MessageContext";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import { IVenta } from "@/schemas/venta";
 import useConfirmDialog from "@/components/confirmDialog";
-import { getSells, removeProductFromSale, removeSell } from "@/services/sellService";
+import {
+  getSells,
+  removeProductFromSale,
+  removeSell,
+} from "@/services/sellService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import VentaDetailDialog from "./components/VentaDetailDialog";
-import { formatDate, formatDateTime, formatCurrency, isToday } from '@/utils/formatters';
+import { formatDate, formatDateTime, isToday } from "@/utils/formatters";
 import { usePermisos } from "@/utils/permisos_front";
+import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 
 const Ventas = () => {
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { verificarPermiso } = usePermisos();
-  
+
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>();
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [ventas, setVentas] = useState<IVenta[]>([]);
@@ -68,12 +72,14 @@ const Ventas = () => {
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedVenta, setSelectedVenta] = useState<IVenta | null>(null);
-  const [deletingVentaProductoId, setDeletingVentaProductoId] = useState<string | null>(null);
+  const [deletingVentaProductoId, setDeletingVentaProductoId] = useState<
+    string | null
+  >(null);
 
   const handleCreateFirstPeriod = async () => {
     // Evitar múltiples clics mientras se procesa
     if (isProcessingPeriod) return;
-    
+
     setIsProcessingPeriod(true);
     try {
       setIsDataLoading(true);
@@ -93,7 +99,7 @@ const Ventas = () => {
     setIsDataLoading(true);
     setNoPeriodFound(false);
     setNoLocalActual(false);
-    
+
     try {
       if (!user.localActual || !user.localActual.id) {
         setNoLocalActual(true);
@@ -102,12 +108,12 @@ const Ventas = () => {
 
       const tiendaId = user.localActual.id;
       const currentPeriod = await fetchLastPeriod(tiendaId);
-      
+
       if (!currentPeriod) {
         setNoPeriodFound(true);
         return [];
       }
-      
+
       setCurrentPeriod(currentPeriod);
 
       const data = await getSells(tiendaId, currentPeriod.id);
@@ -115,7 +121,10 @@ const Ventas = () => {
       return data || [];
     } catch (error) {
       console.error(error);
-      showMessage("Error: los datos de ventas no pudieron ser cargados", "error");
+      showMessage(
+        "Error: los datos de ventas no pudieron ser cargados",
+        "error",
+      );
       setVentas([]);
       return [];
     } finally {
@@ -140,26 +149,34 @@ const Ventas = () => {
         try {
           const tiendaId = user.localActual.id;
           await removeSell(tiendaId, currentPeriod.id, venta.id, user.id);
-          showMessage("La venta fue eliminada satisfactoriamente", 'success');
+          showMessage("La venta fue eliminada satisfactoriamente", "success");
         } catch (error) {
           console.error(error);
-          showMessage("La venta no pudo ser eliminada", 'error');
+          showMessage("La venta no pudo ser eliminada", "error");
         } finally {
           await loadData();
           handleCloseDetail();
         }
-      }
+      },
     );
   };
 
-  const handleDeleteProductoFromVenta = (venta: IVenta, ventaProductoId: string) => {
+  const handleDeleteProductoFromVenta = (
+    venta: IVenta,
+    ventaProductoId: string,
+  ) => {
     confirmDialog(
       "¿Está seguro que desea eliminar este producto de la venta?",
       async () => {
         try {
           setDeletingVentaProductoId(ventaProductoId);
           const tiendaId = user.localActual.id;
-          await removeProductFromSale(tiendaId, currentPeriod.id, venta.id, ventaProductoId);
+          await removeProductFromSale(
+            tiendaId,
+            currentPeriod.id,
+            venta.id,
+            ventaProductoId,
+          );
           showMessage("Producto eliminado de la venta", "success");
         } catch (error) {
           console.error(error);
@@ -167,14 +184,14 @@ const Ventas = () => {
         } finally {
           setDeletingVentaProductoId(null);
           const data = await loadData();
-          const updated = data.find(v => v.id === venta.id) || null;
+          const updated = data.find((v) => v.id === venta.id) || null;
           if (updated) {
             setSelectedVenta(updated);
           } else {
             handleCloseDetail();
           }
         }
-      }
+      },
     );
   };
 
@@ -186,29 +203,40 @@ const Ventas = () => {
 
   const filteredVentas = ventas.filter((venta) => {
     const searchLower = searchTerm.toLowerCase();
-    const ventaId = venta.id?.toLowerCase() || '';
+    const ventaId = venta.id?.toLowerCase() || "";
     const ventaDate = formatDate(venta.createdAt).toLowerCase();
     const ventaTime = formatDateTime(venta.createdAt).toLowerCase();
-    const ventaProductos = venta.productos?.map(p => p.name?.toLowerCase()).join(' ') || '';
-    const ventaUsuario = (venta.usuario?.nombre || '').toLocaleLowerCase()
+    const ventaProductos =
+      venta.productos?.map((p) => p.name?.toLowerCase()).join(" ") || "";
+    const ventaUsuario = (venta.usuario?.nombre || "").toLocaleLowerCase();
 
-    return ventaId.includes(searchLower) || 
-           ventaDate.includes(searchLower) || 
-           ventaTime.includes(searchLower) ||
-           ventaProductos.includes(searchLower) ||
-           ventaUsuario.includes(searchLower)
-        ;
+    return (
+      ventaId.includes(searchLower) ||
+      ventaDate.includes(searchLower) ||
+      ventaTime.includes(searchLower) ||
+      ventaProductos.includes(searchLower) ||
+      ventaUsuario.includes(searchLower)
+    );
   });
 
   // Cálculos para estadísticas
-  const montoTotal = filteredVentas.reduce((sum, venta) => sum + (venta.total || 0), 0);
-  
-  const montoHoy = filteredVentas.filter(v => isToday(v.createdAt))
+  const montoTotal = filteredVentas.reduce(
+    (sum, venta) => sum + (venta.total || 0),
+    0,
+  );
+
+  const montoHoy = filteredVentas
+    .filter((v) => isToday(v.createdAt))
     .reduce((sum, venta) => sum + (venta.total || 0), 0);
 
   if (loadingContext || isDataLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <CircularProgress />
         <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
           Cargando ventas...
@@ -221,20 +249,19 @@ const Ventas = () => {
     return (
       <PageContainer
         title="Ventas"
-        breadcrumbs={[
-          { label: 'Inicio', href: '/home' },
-          { label: 'Ventas' }
-        ]}
+        breadcrumbs={[{ label: "Inicio", href: "/home" }, { label: "Ventas" }]}
       >
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             No hay tienda seleccionada
           </Typography>
           <Typography variant="body1" gutterBottom>
-            Para ver y gestionar las ventas, necesitas tener una tienda seleccionada como tienda actual.
+            Para ver y gestionar las ventas, necesitas tener una tienda
+            seleccionada como tienda actual.
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Si no tienes ninguna tienda creada, primero debes crear una desde la configuración.
+            Si no tienes ninguna tienda creada, primero debes crear una desde la
+            configuración.
           </Typography>
           <Box mt={2}>
             <Button
@@ -251,27 +278,22 @@ const Ventas = () => {
     );
   }
 
-  const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Ventas' }
-  ];
+  const breadcrumbs = [{ label: "Inicio", href: "/home" }, { label: "Ventas" }];
 
   if (noPeriodFound) {
     return (
-      <PageContainer
-        title="Ventas"
-        breadcrumbs={breadcrumbs}
-      >
+      <PageContainer title="Ventas" breadcrumbs={breadcrumbs}>
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             ¡Bienvenido a tu nuevo negocio!
           </Typography>
           <Typography variant="body1" gutterBottom>
-            No se encontraron períodos de cierre. Para comenzar a registrar ventas 
-            necesitas crear tu primer período de cierre.
+            No se encontraron períodos de cierre. Para comenzar a registrar
+            ventas necesitas crear tu primer período de cierre.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Una vez creado el período, podrás realizar ventas desde el POS y revisarlas aquí.
+            Una vez creado el período, podrás realizar ventas desde el POS y
+            revisarlas aquí.
           </Typography>
         </Alert>
         <Button
@@ -287,8 +309,6 @@ const Ventas = () => {
     );
   }
 
-  
-
   const headerActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">
       <Tooltip title="Actualizar ventas">
@@ -297,8 +317,15 @@ const Ventas = () => {
         </IconButton>
       </Tooltip>
       {isMobile && (
-        <Tooltip title={statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"}>
-          <IconButton onClick={() => setStatsExpanded(!statsExpanded)} size="small">
+        <Tooltip
+          title={
+            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
+          }
+        >
+          <IconButton
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            size="small"
+          >
             {statsExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Tooltip>
@@ -307,8 +334,18 @@ const Ventas = () => {
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode, value: string, label: string, color: string }) => (
-    <Card sx={{ height: '100%' }}>
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: React.ReactNode;
+    label: string;
+    color: string;
+  }) => (
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -316,55 +353,54 @@ const Ventas = () => {
               p: isMobile ? 0.75 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 32 : 48,
               minHeight: isMobile ? 32 : 48,
             }}
           >
-            {React.isValidElement(icon) 
-              ? React.cloneElement(icon, { 
-                  fontSize: isMobile ? "small" : "large" 
+            {React.isValidElement(icon)
+              ? React.cloneElement(icon, {
+                  fontSize: isMobile ? "small" : "large",
                 } as Record<string, unknown>)
-              : icon
-            }
+              : icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "subtitle1" : "h4"} 
-              fontWeight="bold"
-              sx={{ 
-                fontSize: isMobile ? '1rem' : '2rem',
+            {/* value puede ser un nodo (MultiCurrencyAmount) que renderiza su propia tipografía */}
+            <Box
+              sx={{
+                fontSize: isMobile ? "1rem" : "2rem",
+                fontWeight: "bold",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
-            </Typography>
-            <Typography 
-              variant="body2" 
+            </Box>
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
-                fontSize: isMobile ? '0.6875rem' : '0.875rem',
-                lineHeight: 1.2
+              sx={{
+                fontSize: isMobile ? "0.6875rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
             </Typography>
-            {searchTerm && 
-              <Typography 
-                variant="body2" 
+            {searchTerm && (
+              <Typography
+                variant="body2"
                 color="warning"
-                sx={{ 
-                  fontSize: isMobile ? '0.6875rem' : '0.875rem',
-                  lineHeight: 1.2
+                sx={{
+                  fontSize: isMobile ? "0.6875rem" : "0.875rem",
+                  lineHeight: 1.2,
                 }}
               >
                 Filtro Aplicado
               </Typography>
-            }
+            )}
           </Box>
         </Stack>
       </CardContent>
@@ -373,8 +409,10 @@ const Ventas = () => {
 
   return (
     <PageContainer
-      title={`Ventas - Período ${currentPeriod ? formatDate(currentPeriod.fechaInicio) : ''}`}
-      subtitle={!isMobile ? "Historial de ventas del período actual" : undefined}
+      title={`Ventas - Período ${currentPeriod ? formatDate(currentPeriod.fechaInicio) : ""}`}
+      subtitle={
+        !isMobile ? "Historial de ventas del período actual" : undefined
+      }
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
@@ -384,11 +422,15 @@ const Ventas = () => {
         <Box sx={{ mb: 2 }}>
           <Collapse in={statsExpanded}>
             <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              
               <Grid item xs={12} sm={12} md={6}>
                 <StatCard
                   icon={<AttachMoney />}
-                  value={formatCurrency(montoTotal)}
+                  value={
+                    <MultiCurrencyAmount
+                      amount={montoTotal}
+                      variant="emphasized"
+                    />
+                  }
                   label="Total Vendido"
                   color="success.light"
                 />
@@ -396,7 +438,12 @@ const Ventas = () => {
               <Grid item xs={12} sm={12} md={6}>
                 <StatCard
                   icon={<CalendarToday />}
-                  value={formatCurrency(montoHoy)}
+                  value={
+                    <MultiCurrencyAmount
+                      amount={montoHoy}
+                      variant="emphasized"
+                    />
+                  }
                   label="Monto Hoy"
                   color="warning.light"
                 />
@@ -410,7 +457,9 @@ const Ventas = () => {
           <Grid item xs={12} sm={12} md={6}>
             <StatCard
               icon={<AttachMoney />}
-              value={formatCurrency(montoTotal)}
+              value={
+                <MultiCurrencyAmount amount={montoTotal} variant="emphasized" />
+              }
               label="Total Vendido"
               color="success.light"
             />
@@ -418,7 +467,9 @@ const Ventas = () => {
           <Grid item xs={12} sm={12} md={6}>
             <StatCard
               icon={<CalendarToday />}
-              value={formatCurrency(montoHoy)}
+              value={
+                <MultiCurrencyAmount amount={montoHoy} variant="emphasized" />
+              }
               label="Monto Hoy"
               color="warning.light"
             />
@@ -427,9 +478,13 @@ const Ventas = () => {
       )}
 
       {/* Lista de ventas */}
-      <ContentCard 
+      <ContentCard
         title="Historial de Ventas"
-        subtitle={!isMobile ? "Haz clic en cualquier venta para ver los detalles" : undefined}
+        subtitle={
+          !isMobile
+            ? "Haz clic en cualquier venta para ver los detalles"
+            : undefined
+        }
         headerActions={
           <TextField
             size="small"
@@ -443,9 +498,9 @@ const Ventas = () => {
                 </InputAdornment>
               ),
             }}
-            sx={{ 
+            sx={{
               minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : 'none'
+              maxWidth: isMobile ? 200 : "none",
             }}
           />
         }
@@ -456,16 +511,21 @@ const Ventas = () => {
           <Box sx={{ p: 2 }}>
             <Alert severity="info" sx={{ mt: 2 }}>
               <Typography variant="h6" gutterBottom>
-                {searchTerm ? 'No se encontraron ventas' : 'No hay ventas registradas en este período'}
+                {searchTerm
+                  ? "No se encontraron ventas"
+                  : "No hay ventas registradas en este período"}
               </Typography>
               <Typography variant="body1" gutterBottom>
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Las ventas aparecerán aquí cuando:'}
+                {searchTerm
+                  ? "Intenta con otros términos de búsqueda"
+                  : "Las ventas aparecerán aquí cuando:"}
               </Typography>
               {!searchTerm && (
                 <Typography variant="body2" component="div">
-                  • Se realicen ventas desde el POS<br/>
-                  • Se procesen transacciones<br/>
-                  • Se registren pagos de clientes
+                  • Se realicen ventas desde el POS
+                  <br />
+                  • Se procesen transacciones
+                  <br />• Se registren pagos de clientes
                 </Typography>
               )}
             </Alert>
@@ -475,43 +535,63 @@ const Ventas = () => {
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
               {filteredVentas.map((venta) => (
-                <Card 
+                <Card
                   key={venta.id}
                   onClick={() => handleOpenVenta(venta)}
                   sx={{
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
+                    cursor: "pointer",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
                     <Stack spacing={1.5}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight="medium"
+                          sx={{ fontSize: "0.875rem" }}
+                        >
                           Venta #{venta.id.slice(-8)}
                         </Typography>
-                        <Chip 
-                          label={formatCurrency(venta.total)} 
-                          color="success" 
-                          size="small" 
-                          variant="filled"
-                          sx={{ height: 20 }}
+                        {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
+                        <MultiCurrencyAmount
+                          amount={venta.total}
+                          variant="compact"
+                          align="right"
+                          color="success.main"
                         />
                       </Box>
-                      
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
+
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
                         <Box>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontSize: "0.6875rem" }}
+                          >
                             {formatDateTime(venta.createdAt)}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontSize: "0.75rem" }}
+                          >
                             {venta.productos?.length || 0} productos
                           </Typography>
                         </Box>
 
                         <Typography variant="body2">
-                          {venta.usuario?.nombre || ''} 
+                          {venta.usuario?.nombre || ""}
                         </Typography>
 
                         <IconButton
@@ -547,16 +627,16 @@ const Ventas = () => {
               </TableHead>
               <TableBody>
                 {filteredVentas.map((venta) => (
-                  <TableRow 
+                  <TableRow
                     key={venta.id}
                     onClick={() => handleOpenVenta(venta)}
                     sx={{
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
                       },
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      "&:nth-of-type(odd)": {
+                        backgroundColor: "rgba(0, 0, 0, 0.02)",
                       },
                     }}
                   >
@@ -570,15 +650,15 @@ const Ventas = () => {
                         {formatDate(venta.createdAt)}
                       </Typography>
                       <Typography variant="body2">
-                          {formatDateTime(venta.createdAt).split(' • ')[1]}
-                        </Typography>
+                        {formatDateTime(venta.createdAt).split(" • ")[1]}
+                      </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Chip 
-                        label={formatCurrency(venta.total)} 
-                        color="success" 
-                        size="small" 
-                        variant="filled"
+                      {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
+                      <MultiCurrencyAmount
+                        amount={venta.total}
+                        align="right"
+                        color="success.main"
                       />
                     </TableCell>
                     <TableCell align="center">
@@ -588,11 +668,15 @@ const Ventas = () => {
                     </TableCell>
                     <TableCell align="center">
                       <Typography variant="body2">
-                        {venta.usuario?.nombre || ''}
+                        {venta.usuario?.nombre || ""}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <Stack direction="row" spacing={0.5} justifyContent="center">
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        justifyContent="center"
+                      >
                         <Tooltip title="Ver detalles">
                           <IconButton
                             onClick={(e) => {

@@ -4,7 +4,7 @@ import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { gastoAplicaEnFecha } from "@/utils/gastos";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { convertToBase } from "@/lib/currency";
+import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
 
 export async function POST(
   _req: NextRequest,
@@ -53,9 +53,19 @@ export async function POST(
 
     const tienda = await prisma.tienda.findUnique({
       where: { id: cierre.tiendaId },
-      select: { negocio: { select: { monedaBase: true } } },
+      select: { negocio: { select: { id: true, monedaBase: true } } },
     });
     const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
+    const negocioId = tienda?.negocio?.id;
+
+    const tasasCambio = negocioId
+      ? await prisma.tasaCambio.findMany({
+          where: { negocioId },
+          orderBy: { createdAt: "desc" },
+          distinct: ["monedaCode"],
+        })
+      : [];
+    const tasasActuales = buildTasaSnapshot(tasasCambio);
 
     // Calcular totales actuales del período — igual que cierre/[cierreId]/route.ts
     let totalVentas = 0;
@@ -137,8 +147,16 @@ export async function POST(
       (s, g) => s + g.montoCalculado,
       0,
     );
+    // Ad-hoc gastos may be in a foreign currency — convert to base before summing
     const totalGastosAdHoc = gastosAdHoc.reduce(
-      (s, g) => s + g.montoCalculado,
+      (s, g) =>
+        s +
+        convertToBase(
+          g.montoCalculado,
+          g.monedaCode ?? monedaBase,
+          tasasActuales,
+          monedaBase,
+        ),
       0,
     );
     const totalGastos = totalGastosRecurrentes + totalGastosAdHoc;

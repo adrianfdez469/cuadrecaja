@@ -6,6 +6,7 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
+import { applyGastosToResumenMap } from "@/lib/gastos";
 
 type Params = { cierreId: string };
 
@@ -402,6 +403,36 @@ export async function GET(
       totalGananciasPropiasNet + totalGananciasConsignacionNet,
     );
 
+    // Load gastos to deduct from per-currency summary
+    const gastosDelPeriodo = await prisma.gastoCierre.findMany({
+      where: { cierreId },
+      select: { tipoCalculo: true, montoCalculado: true, monedaCode: true },
+    });
+    const resumenMonedaMap = buildResumenMonedas(
+      cierre.ventas,
+      monedaBase,
+      tasasFallback,
+    ).reduce<
+      Record<
+        string,
+        {
+          monedaCode: string;
+          totalEfectivo: number;
+          totalTransfer: number;
+          equivalenteBase: number;
+        }
+      >
+    >((acc, r) => {
+      acc[r.monedaCode] = r;
+      return acc;
+    }, {});
+    applyGastosToResumenMap(
+      resumenMonedaMap,
+      gastosDelPeriodo,
+      monedaBase,
+      tasasFallback,
+    );
+
     const cierreData = {
       fechaInicio: cierre.fechaInicio,
       fechaFin: cierre.fechaFin,
@@ -419,10 +450,8 @@ export async function GET(
       totalGananciasConsignacion: totalGananciasConsignacionNet,
       totalTransferenciasByDestination,
       totalVentasPorUsuario,
-      resumenMonedas: buildResumenMonedas(
-        cierre.ventas,
-        monedaBase,
-        tasasFallback,
+      resumenMonedas: Object.entries(resumenMonedaMap).map(
+        ([monedaCode, vals]) => ({ ...vals, id: monedaCode, monedaCode }),
       ),
       productosVendidos: Object.values(productosVendidos)
         .map((p) => ({

@@ -1,7 +1,13 @@
 "use client"; // Asegúrate de que AppProvider sea un Client Component
 
 import { useSession } from "next-auth/react";
-import { createContext, useContext, useEffect, useState, useTransition } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
 import { signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { ILocal } from "@/schemas/tienda";
@@ -16,8 +22,8 @@ interface ISessionUser {
   usuario: string;
   rol: string;
   nombre: string;
-  // tiendaActual: ILocal; 
-  // tiendas: ILocal[]; 
+  // tiendaActual: ILocal;
+  // tiendas: ILocal[];
   localActual: ILocal;
   locales: ILocal[];
   negocio: INegocio;
@@ -25,18 +31,17 @@ interface ISessionUser {
 }
 
 const AppContext = createContext<{
-  loadingContext: boolean,
-  isAuth: boolean,
-  user: ISessionUser,
-  isNavigating: boolean,
-  gotToPath: (path: string) => void,
-  monedasNegocio: INegocioMoneda[],
-  tasasVigentes: ITasaSnapshot,
-  monedaBase: string,
-  monedaFuerte: string,
-  refreshMonedas: () => Promise<void>,
+  loadingContext: boolean;
+  isAuth: boolean;
+  user: ISessionUser;
+  isNavigating: boolean;
+  gotToPath: (path: string) => void;
+  monedasNegocio: INegocioMoneda[];
+  tasasVigentes: ITasaSnapshot;
+  monedaBase: string;
+  monedaFuerte: string;
+  refreshMonedas: () => Promise<void>;
 }>(null);
-
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -50,8 +55,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isPending, startTransition] = useTransition();
   const [monedasNegocio, setMonedasNegocio] = useState<INegocioMoneda[]>([]);
   const [tasasVigentes, setTasasVigentes] = useState<ITasaSnapshot>({});
-  const [monedaBase, setMonedaBase] = useState('CUP');
-  const [monedaFuerte, setMonedaFuerte] = useState('CUP');
+  const [monedaBase, setMonedaBase] = useState("CUP");
+  const [monedaFuerte, setMonedaFuerte] = useState("CUP");
 
   // No longer need manual isNavigating state
   // No need to reset navigation manually
@@ -66,7 +71,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loadMonedas = async (negocioId: string, negocioMonedaBase: string, negocioMonedaFuerte: string) => {
+  const loadMonedas = async (
+    negocioId: string,
+    negocioMonedaBase: string,
+    negocioMonedaFuerte: string,
+  ) => {
     try {
       const [monedasResp, tasasResp] = await Promise.all([
         getMonedasNegocio(negocioId),
@@ -85,47 +94,56 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshMonedas = async () => {
     const currentUser = user;
     if (currentUser?.negocio?.id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await loadMonedas(currentUser.negocio.id, (currentUser.negocio as any).monedaBase ?? 'CUP', (currentUser.negocio as any).monedaFuerte ?? 'CUP');
+      await loadMonedas(
+        currentUser.negocio.id,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (currentUser.negocio as any).monedaBase ?? "CUP",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (currentUser.negocio as any).monedaFuerte ?? "CUP",
+      );
     }
   };
 
   useEffect(() => {
-
-    if (status === 'authenticated') {
+    if (status === "authenticated") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sessionUser = (session as any).user;
       setUser(sessionUser);
       setIsAuth(true);
+      // Setear moneda base desde sesión antes de renderizar — evita mostrar "CUP" mientras carga el API
+      setMonedaBase(sessionUser.negocio?.monedaBase ?? "CUP");
+      setMonedaFuerte(sessionUser.negocio?.monedaFuerte ?? "CUP");
       setLoading(false);
-      // Cargar configuración multimoneda
+      // Cargar configuración multimoneda (puede sobreescribir monedaBase con valor del API)
       if (sessionUser?.negocio?.id) {
         loadMonedas(
           sessionUser.negocio.id,
-          sessionUser.negocio.monedaBase ?? 'CUP',
-          sessionUser.negocio.monedaFuerte ?? 'CUP',
+          sessionUser.negocio.monedaBase ?? "CUP",
+          sessionUser.negocio.monedaFuerte ?? "CUP",
         );
       }
       // Solo redirigir a la página principal si estamos en login o raíz (landing)
-      if (navigator.onLine && (pathname === '/login' || pathname === '/')) {
-        gotToPath('/home');
+      if (navigator.onLine && (pathname === "/login" || pathname === "/")) {
+        gotToPath("/home");
       }
     }
   }, [status, pathname, isAuth, session]);
 
   return (
-    <AppContext.Provider value={{
-      loadingContext: loading,
-      isAuth,
-      user,
-      isNavigating: isPending,
-      gotToPath,
-      monedasNegocio,
-      tasasVigentes,
-      monedaBase,
-      monedaFuerte,
-      refreshMonedas,
-    }}>
+    <AppContext.Provider
+      value={{
+        loadingContext: loading,
+        isAuth,
+        user,
+        isNavigating: isPending,
+        gotToPath,
+        monedasNegocio,
+        tasasVigentes,
+        monedaBase,
+        monedaFuerte,
+        refreshMonedas,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );
@@ -153,12 +171,11 @@ export const useAppContext = () => {
   const goToLogin = async () => {
     // Redirigir al login si estamos online
     if (navigator.onLine) {
-      await router.push('/login');
+      await router.push("/login");
     }
-  }
+  };
 
   // gotToPath is now coming from context
-
 
   return {
     handleLogout,
@@ -173,7 +190,5 @@ export const useAppContext = () => {
     monedaBase,
     monedaFuerte,
     refreshMonedas,
-  }
-
-
-}
+  };
+};

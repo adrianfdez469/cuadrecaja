@@ -239,11 +239,9 @@ export async function POST(
         data: {
           tiendaId,
           usuarioId,
-          // Ajustar total SIEMPRE basado en el cálculo del backend para evitar dobles descuentos
-          // Si discountCalcResult está disponible, usar finalTotal; de lo contrario, usar el total enviado
-          total: discountCalcResult
-            ? Number(discountCalcResult.finalTotal)
-            : Math.max(0, Number(total) || 0),
+          // El frontend envía `total` ya convertido a moneda base (useCartTotal + descuento aplicado).
+          // NO usar discountCalcResult.finalTotal: suma precios crudos en monedas mezcladas → incorrecto.
+          total: Math.max(0, Number(total) || 0),
           totalcash,
           totaltransfer,
           cierrePeriodoId: ultimoPeriodo.id,
@@ -538,6 +536,7 @@ export async function GET(
             productoTiendaId: true,
             precio: true,
             costo: true,
+            monedaPrecioCode: true,
 
             producto: {
               select: {
@@ -603,6 +602,7 @@ export async function GET(
           ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}`
           : (p.producto?.producto?.nombre ?? undefined),
         price: p.precio ?? undefined,
+        monedaPrecioCode: p.monedaPrecioCode ?? undefined,
       })),
       appliedDiscounts: (venta.appliedDiscounts || []).map((ad) => ({
         id: ad.id,

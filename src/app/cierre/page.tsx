@@ -53,7 +53,8 @@ import MonedaBreakdownRow from "@/app/cierre/components/MonedaBreakdownRow";
 import { DENOMINACIONES } from "@/constants/billDenominations";
 
 const CierreCajaPage = () => {
-  const { user, loadingContext, gotToPath, monedasNegocio } = useAppContext();
+  const { user, loadingContext, gotToPath, monedasNegocio, monedaBase } =
+    useAppContext();
   const { showMessage } = useMessageContext();
   const [currentPeriod, setCurrentPeriod] = useState<ICierrePeriodo>();
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -545,6 +546,8 @@ const CierreCajaPage = () => {
             totalVentas={cierreData.totalVentasBrutas ?? totales.totalMonto}
             totalGanancia={totales.totalGanancia}
             categoriasExistentes={categoriasGastos}
+            monedasActivas={monedasNegocio}
+            monedaBase={monedaBase}
             onClose={() => setAdHocOpen(false)}
             onSave={handleSaveAdHoc}
           />

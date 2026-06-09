@@ -4,7 +4,8 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { getSession } from "@/utils/auth";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { convertToBase } from "@/lib/currency";
+import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
+import { applyGastosToResumenMap } from "@/lib/gastos";
 
 export async function PUT(
   req: NextRequest,
@@ -39,9 +40,10 @@ export async function PUT(
     // Get monedaBase for currency conversions
     const tienda = await prisma.tienda.findUnique({
       where: { id: tiendaId },
-      select: { negocio: { select: { monedaBase: true } } },
+      select: { negocio: { select: { id: true, monedaBase: true } } },
     });
     const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
+    const negocioId = tienda?.negocio?.id;
 
     // Buscar el último período abierto
     const ultimoPeriodo = await prisma.cierrePeriodo.findFirst({
@@ -146,10 +148,25 @@ export async function PUT(
       const gastosCierre = await tx.gastoCierre.findMany({
         where: { cierreId: ultimoPeriodo.id },
       });
-      const totalGastos = gastosCierre.reduce(
-        (sum, g) => sum + g.montoCalculado,
-        0,
-      );
+      const tasasCambioGastos = negocioId
+        ? await tx.tasaCambio.findMany({
+            where: { negocioId },
+            orderBy: { createdAt: "desc" },
+            distinct: ["monedaCode"],
+          })
+        : [];
+      const tasasGastos = buildTasaSnapshot(tasasCambioGastos);
+
+      let totalGastos = 0;
+      for (const g of gastosCierre) {
+        const moneda = g.monedaCode ?? monedaBase;
+        totalGastos += convertToBase(
+          g.montoCalculado,
+          moneda,
+          tasasGastos,
+          monedaBase,
+        );
+      }
       const totalGananciaFinal = totalGanancia - totalGastos;
 
       // Cerrar el período con resumen
@@ -229,6 +246,14 @@ export async function PUT(
           }
         }
       }
+
+      // Deduct ad-hoc/recurring expenses from the per-currency cash summary
+      applyGastosToResumenMap(
+        resumenMonedaMap,
+        gastosCierre,
+        monedaBase,
+        tasasGastos,
+      );
 
       if (Object.keys(resumenMonedaMap).length > 0) {
         await tx.resumenMonedaCierre.createMany({
