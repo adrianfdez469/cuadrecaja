@@ -315,6 +315,44 @@ export function CreateProductDialog({
             )}
           />
 
+          {/* Costo + moneda */}
+          <Box display="flex" gap={1} alignItems="flex-start">
+            {monedasDisponibles.length > 1 && (
+                <FormControl size="small" sx={{ minWidth: 90 }}>
+                  <InputLabel>Moneda</InputLabel>
+                  <Select
+                      label="Moneda"
+                      value={costoMonedaEfectiva}
+                      onChange={(e) => handleCostoMonedaChange(e.target.value)}
+                  >
+                    {monedasDisponibles.map((code) => (
+                        <MenuItem key={code} value={code}>
+                          {code}
+                        </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+            )}
+            <TextField
+                label={`Costo (${costoMonedaEfectiva})`}
+                value={costo}
+                onChange={(e) => setCosto(e.target.value)}
+                size="small"
+                inputProps={{ inputMode: "decimal" }}
+                InputProps={{
+                  startAdornment: (
+                      <InputAdornment position="start">$</InputAdornment>
+                  ),
+                }}
+                helperText={
+                  costoEnBase !== null
+                      ? `≈ ${costoEnBase.toFixed(2)} ${monedaBase}`
+                      : undefined
+                }
+                sx={{ flex: 1 }}
+            />
+          </Box>
+
           {/* Precio + moneda */}
           <Box display="flex" gap={1} alignItems="flex-start">
             {monedasDisponibles.length > 1 && (
@@ -347,44 +385,6 @@ export function CreateProductDialog({
               helperText={
                 precioEnBase !== null
                   ? `≈ ${precioEnBase.toFixed(2)} ${monedaBase}`
-                  : undefined
-              }
-              sx={{ flex: 1 }}
-            />
-          </Box>
-
-          {/* Costo + moneda */}
-          <Box display="flex" gap={1} alignItems="flex-start">
-            {monedasDisponibles.length > 1 && (
-              <FormControl size="small" sx={{ minWidth: 90 }}>
-                <InputLabel>Moneda</InputLabel>
-                <Select
-                  label="Moneda"
-                  value={costoMonedaEfectiva}
-                  onChange={(e) => handleCostoMonedaChange(e.target.value)}
-                >
-                  {monedasDisponibles.map((code) => (
-                    <MenuItem key={code} value={code}>
-                      {code}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            <TextField
-              label={`Costo (${costoMonedaEfectiva})`}
-              value={costo}
-              onChange={(e) => setCosto(e.target.value)}
-              size="small"
-              inputProps={{ inputMode: "decimal" }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">$</InputAdornment>
-                ),
-              }}
-              helperText={
-                costoEnBase !== null
-                  ? `≈ ${costoEnBase.toFixed(2)} ${monedaBase}`
                   : undefined
               }
               sx={{ flex: 1 }}
