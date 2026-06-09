@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import {
   Typography,
   CircularProgress,
@@ -15,7 +22,8 @@ import {
   useTheme,
   useMediaQuery,
   Chip,
-  Stack, Grid2 as Grid,
+  Stack,
+  Grid2 as Grid,
   Tooltip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -45,8 +53,10 @@ import { PosProductItemLayout } from "./components/PosProductItemLayout";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
+import { useCartTotal } from "@/hooks/useCartTotal";
+import { convertToBase } from "@/lib/currency";
 
-import ProductProcessorData from '@/components/ProductProcessorData/ProductProcessorData';
+import ProductProcessorData from "@/components/ProductProcessorData/ProductProcessorData";
 
 import { IProcessedData } from "@/schemas/processedData";
 import { ITransferDestination } from "@/schemas/transferDestination";
@@ -68,23 +78,36 @@ import { usePermisos } from "@/utils/permisos_front";
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<ICategory>(null);
-  const [productosTienda, setProductosTienda] = useState<IProductoTiendaV2[]>([]);
+  const [productosTienda, setProductosTienda] = useState<IProductoTiendaV2[]>(
+    [],
+  );
   const [showProducts, setShowProducts] = useState(false);
   const [openCart, setOpenCart] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
   const [noLocalActual, setNoLocalActual] = useState(false);
-  const { user, loadingContext, gotToPath } = useAppContext();
+  const { user, loadingContext, gotToPath, tasasVigentes, monedaBase } =
+    useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
-  const { sales, addSale, markSynced, markSyncing, checkSyncTimeouts, markSyncError } = useSalesStore();
+  const {
+    sales,
+    addSale,
+    markSynced,
+    markSyncing,
+    checkSyncTimeouts,
+    markSyncError,
+  } = useSalesStore();
   const [showUserSales, setShowUserSales] = useState(false);
   const [showSyncView, setShowSyncView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchAnchorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [searchPanelLayout, setSearchPanelLayout] = useState({ bottom: 80, maxHeight: 300 });
+  const [searchPanelLayout, setSearchPanelLayout] = useState({
+    bottom: 80,
+    maxHeight: 300,
+  });
 
   const updateSearchPanelLayout = useCallback(() => {
     const el = searchAnchorRef.current;
@@ -96,10 +119,10 @@ export default function POSInterface() {
       maxHeight: Math.max(120, rect.top - 16 - gap),
     });
   }, []);
-  const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
+  const [selectedProduct, setSelectedProduct] =
+    useState<IProductoTiendaV2 | null>(null);
   const {
     items: cart,
-    total,
     clearCart,
     removeFromCart,
     updateQuantity,
@@ -110,10 +133,13 @@ export default function POSInterface() {
     renameCart,
     removeActiveCart,
   } = useCartStore();
+  const total = useCartTotal();
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
   useBlockBackNavigation();
-  const [transferDestinations, setTransferDestinations] = useState<ITransferDestination[]>([]);
+  const [transferDestinations, setTransferDestinations] = useState<
+    ITransferDestination[]
+  >([]);
   const [intentToSearch, setIntentToSearch] = useState(false);
   const [openSpeedDial, setOpenSpeedDial] = useState(false);
   const [resumenDiaOpen, setResumenDiaOpen] = useState(false);
@@ -133,14 +159,12 @@ export default function POSInterface() {
           } catch {
             try {
               el.focus();
-            } catch {
-            }
+            } catch {}
           }
           // Seleccionar el texto para facilitar la edición
           try {
             el.select();
-          } catch {
-          }
+          } catch {}
         }
       };
       const raf = requestAnimationFrame(() => setTimeout(focusLater, 0));
@@ -152,43 +176,49 @@ export default function POSInterface() {
   const scannerRef = useRef<ProductProcessorDataRef>(null);
 
   // Estado para prevenir múltiples sincronizaciones simultáneas (no para pagos)
-  const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(new Set());
+  const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Estado para el scanner
   const [scannerError, setScannerError] = useState<string | null>(null);
 
   // Estado para rastrear el origen del producto seleccionado
-  const [productOrigin, setProductOrigin] = useState<'camera' | 'search' | 'hardware' | null>(null);
+  const [productOrigin, setProductOrigin] = useState<
+    "camera" | "search" | "hardware" | null
+  >(null);
 
   const [isCartPinned, setIsCartPinned] = useState(false);
 
   const { verificarPermiso } = usePermisos();
-  const puedeAsociarCodigo = verificarPermiso("operaciones.pos-venta.asociar_codigo");
+  const puedeAsociarCodigo = verificarPermiso(
+    "operaciones.pos-venta.asociar_codigo",
+  );
 
   const [asociarCodigoOpen, setAsociarCodigoOpen] = useState(false);
   const [codigoNoEncontrado, setCodigoNoEncontrado] = useState<string>("");
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
 
   // Calcular ancho del carrito según la pantalla
   const getCartWidth = () => {
-    if (isMobile) return '100%';
-    if (isTablet) return '40vw';
-    return '35vw';
+    if (isMobile) return "100%";
+    if (isTablet) return "40vw";
+    return "35vw";
   };
 
   const getMainContentWidth = () => {
-    if (!isCartPinned) return '100%';
-    if (isMobile) return '100%';
-    if (isTablet) return 'calc(100% - 40vw)';
-    return 'calc(100% - 35vw)';
+    if (!isCartPinned) return "100%";
+    if (isMobile) return "100%";
+    if (isTablet) return "calc(100% - 40vw)";
+    return "calc(100% - 35vw)";
   };
 
   // Función para reabrir el scanner solo si el producto vino de escaneo de cámara
   const reopenScannerIfNeeded = () => {
-    if (productOrigin === 'camera' && scannerRef.current) {
+    if (productOrigin === "camera" && scannerRef.current) {
       // Pequeño delay para asegurar que el modal se haya cerrado
       setTimeout(() => {
         scannerRef.current?.openScanner();
@@ -205,13 +235,23 @@ export default function POSInterface() {
       if (product) {
         // Agregar directamente al carrito con cantidad 1
         const { addToCart } = useCartStore.getState();
-        addToCart({
-          id: product.id,
-          name: product.producto.nombre,
-          price: product.precio,
-          productoTiendaId: product.id,
-          fechaVencimiento: product.fechaVencimiento ?? null,
-        }, 1);
+        addToCart(
+          {
+            id: product.id,
+            name: product.producto.nombre,
+            price: product.precio,
+            productoTiendaId: product.id,
+            fechaVencimiento: product.fechaVencimiento ?? null,
+            monedaPrecioCode: product.monedaPrecioCode ?? null,
+            priceBase: convertToBase(
+              product.precio,
+              product.monedaPrecioCode ?? monedaBase,
+              tasasVigentes,
+              monedaBase,
+            ),
+          },
+          1,
+        );
 
         // Actualizar inventario local
 
@@ -227,7 +267,10 @@ export default function POSInterface() {
         // setProductosTienda(newProds);
 
         // Mostrar notificación
-        showMessage(`✅ ${product.producto.nombre} agregado al carrito`, "success");
+        showMessage(
+          `✅ ${product.producto.nombre} agregado al carrito`,
+          "success",
+        );
         setScannerError(null);
         audioService.playSuccessSound();
         // NO reabrir escáner para escaneo de hardware
@@ -238,18 +281,17 @@ export default function POSInterface() {
           setAsociarCodigoOpen(true);
           setScannerError(null);
         } else {
-          setScannerError('Producto no encontrado para el código escaneado');
+          setScannerError("Producto no encontrado para el código escaneado");
         }
       }
     }
   };
 
-
   // Crear un Map/índice al cargar productos una sola vez
   const productCodeMap = useMemo(() => {
     const map = new Map<string, IProductoTiendaV2[]>();
-    productosTienda.forEach(product => {
-      product.producto.codigosProducto?.forEach(code => {
+    productosTienda.forEach((product) => {
+      product.producto.codigosProducto?.forEach((code) => {
         if (!map.has(code.codigo)) map.set(code.codigo, []);
         map.get(code.codigo).push(product);
       });
@@ -286,7 +328,7 @@ export default function POSInterface() {
       setShowProducts(false); // Cierra modal de categorías si está abierto
       // El modal de cantidad se abre automáticamente por el estado selectedProduct
       setScannerError(null);
-      setProductOrigin('camera'); // Marcar como escaneo de cámara
+      setProductOrigin("camera"); // Marcar como escaneo de cámara
     } else {
       audioService.playErrorSound();
       if (puedeAsociarCodigo) {
@@ -294,15 +336,16 @@ export default function POSInterface() {
         setAsociarCodigoOpen(true);
         setScannerError(null);
       } else {
-        setScannerError('Producto no encontrado para el código escaneado');
+        setScannerError("Producto no encontrado para el código escaneado");
       }
     }
   }
 
   const syncPendingSales = async () => {
-
-    const salesNotSynced = sales.filter((sale) =>
-      sale.syncState === "not_synced" && !syncingIdentifiers.has(sale.identifier)
+    const salesNotSynced = sales.filter(
+      (sale) =>
+        sale.syncState === "not_synced" &&
+        !syncingIdentifiers.has(sale.identifier),
     );
 
     if (salesNotSynced.length === 0) return;
@@ -311,7 +354,7 @@ export default function POSInterface() {
 
     // Marcar como "sincronizando" para evitar duplicados
     const newSyncingIds = new Set(syncingIdentifiers);
-    salesNotSynced.forEach(sale => newSyncingIds.add(sale.identifier));
+    salesNotSynced.forEach((sale) => newSyncingIds.add(sale.identifier));
     setSyncingIdentifiers(newSyncingIds);
 
     let syncedCount = 0;
@@ -333,29 +376,48 @@ export default function POSInterface() {
           sale.createdAt, // 🆕 Usar timestamp de la venta
           sale.wasOffline, // 🆕 Usar estado offline de la venta
           sale.syncAttempts, // 🆕 Enviar intentos de sincronización
-          sale.discountCodes // 🆕 Reenviar códigos de descuento si existen
+          sale.discountCodes, // 🆕 Reenviar códigos de descuento si existen
         );
         markSynced(sale.identifier, ventaDb.id);
         syncedCount++;
       } catch (error) {
-        console.error(`❌ Error al sincronizar venta ${sale.identifier}:`, error);
+        console.error(
+          `❌ Error al sincronizar venta ${sale.identifier}:`,
+          error,
+        );
 
         // Manejo mejorado de errores
-        if (error.message?.includes('TIMEOUT_ERROR')) {
-          console.warn(`⚠️ Timeout en venta ${sale.identifier} - se reintentará más tarde`);
-        } else if (error.message?.includes('NETWORK_ERROR')) {
-          console.warn(`⚠️ Error de red en venta ${sale.identifier} - se reintentará cuando haya conexión`);
-        } else if (error.message?.includes('SERVER_ERROR')) {
-          console.warn(`⚠️ Error del servidor en venta ${sale.identifier} - se reintentará más tarde`);
-        } else if (error.message?.includes('CLIENT_ERROR')) {
-          console.error(`❌ Error de datos en venta ${sale.identifier}:`, error.message);
-        } else if (error.message?.includes('Existencia insuficiente')) {
-          console.error(`❌ Error crítico: Existencia insuficiente en venta ${sale.identifier}:`, error.message);
+        if (error.message?.includes("TIMEOUT_ERROR")) {
+          console.warn(
+            `⚠️ Timeout en venta ${sale.identifier} - se reintentará más tarde`,
+          );
+        } else if (error.message?.includes("NETWORK_ERROR")) {
+          console.warn(
+            `⚠️ Error de red en venta ${sale.identifier} - se reintentará cuando haya conexión`,
+          );
+        } else if (error.message?.includes("SERVER_ERROR")) {
+          console.warn(
+            `⚠️ Error del servidor en venta ${sale.identifier} - se reintentará más tarde`,
+          );
+        } else if (error.message?.includes("CLIENT_ERROR")) {
+          console.error(
+            `❌ Error de datos en venta ${sale.identifier}:`,
+            error.message,
+          );
+        } else if (error.message?.includes("Existencia insuficiente")) {
+          console.error(
+            `❌ Error crítico: Existencia insuficiente en venta ${sale.identifier}:`,
+            error.message,
+          );
           // Marcar como error permanente para evitar reintentos
           markSyncError(sale.identifier);
-        } else if (error.response?.status === 400 &&
-          error.response?.data?.error?.includes("fuera del período actual")) {
-          console.error(`❌ Error crítico: Venta ${sale.identifier} fuera del período actual - no se puede sincronizar`);
+        } else if (
+          error.response?.status === 400 &&
+          error.response?.data?.error?.includes("fuera del período actual")
+        ) {
+          console.error(
+            `❌ Error crítico: Venta ${sale.identifier} fuera del período actual - no se puede sincronizar`,
+          );
           // Marcar como error permanente para evitar reintentos
           markSyncError(sale.identifier);
         }
@@ -363,7 +425,7 @@ export default function POSInterface() {
         errorCount++;
       } finally {
         // Remover del set de sincronización
-        setSyncingIdentifiers(prev => {
+        setSyncingIdentifiers((prev) => {
           const newSet = new Set(prev);
           newSet.delete(sale.identifier);
           return newSet;
@@ -372,17 +434,22 @@ export default function POSInterface() {
     }
 
     if (errorCount > 0) {
-      showMessage(`⚠️ ${errorCount} ventas no pudieron sincronizarse`, "warning");
+      showMessage(
+        `⚠️ ${errorCount} ventas no pudieron sincronizarse`,
+        "warning",
+      );
     }
 
     if (syncedCount > 0) {
-      showMessage(`✅ ${syncedCount} ventas sincronizadas correctamente`, "success");
+      showMessage(
+        `✅ ${syncedCount} ventas sincronizadas correctamente`,
+        "success",
+      );
 
       if (isOnline) {
         fetchProductosAndCategories(true);
       }
     }
-
   };
 
   const handleRefresh = async () => {
@@ -396,15 +463,19 @@ export default function POSInterface() {
   const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
       if (!silent) setLoading(true);
-      const rawProductos = await getProductosVenta(user.localActual.id, { incluseCategories: true });
+      const rawProductos = await getProductosVenta(user.localActual.id, {
+        incluseCategories: true,
+      });
       const prods = rawProductos
         // Agregar el nombre del proveedor al producto
-        .map(prod => ({
+        .map((prod) => ({
           ...prod,
           producto: {
             ...prod.producto,
-            nombre: prod.proveedor ? `${prod.producto.nombre} - ${prod.proveedor.nombre}` : prod.producto.nombre
-          }
+            nombre: prod.proveedor
+              ? `${prod.producto.nombre} - ${prod.proveedor.nombre}`
+              : prod.producto.nombre,
+          },
         }))
         // Filtrar productos con precio positivo
         .filter((prod) => prod.precio > 0)
@@ -414,7 +485,7 @@ export default function POSInterface() {
             // Si el producto tiene unidades por fracción, se debe verificar que el producto padre tenga existencia
             if (p.producto.fraccionDeId !== null) {
               const pPadre = rawProductos.find(
-                (padre) => padre.productoId === p.producto.fraccionDeId
+                (padre) => padre.productoId === p.producto.fraccionDeId,
               );
               if (pPadre && pPadre.existencia > 0) {
                 return true;
@@ -425,7 +496,6 @@ export default function POSInterface() {
           return true;
         });
 
-
       const productosTienda = prods.sort((a, b) => {
         return a.producto.nombre.localeCompare(b.producto.nombre);
       });
@@ -434,7 +504,7 @@ export default function POSInterface() {
         prods.reduce((acum, prod) => {
           acum[prod.producto.categoria.id] = prod.producto.categoria;
           return acum;
-        }, {}) as ICategory[]
+        }, {}) as ICategory[],
       ).sort((a: ICategory, b: ICategory) => {
         return a.nombre.localeCompare(b.nombre);
       });
@@ -448,12 +518,12 @@ export default function POSInterface() {
   };
 
   const incrementarCantidades = (id: string, cantidad: number) => {
-    const productIndex = productosTienda.findIndex(p => p.id === id);
+    const productIndex = productosTienda.findIndex((p) => p.id === id);
     if (productIndex !== -1) {
       const newProds = [...productosTienda];
       newProds[productIndex] = {
         ...newProds[productIndex],
-        existencia: newProds[productIndex].existencia + cantidad
+        existencia: newProds[productIndex].existencia + cantidad,
       };
       setProductosTienda(newProds);
     }
@@ -465,8 +535,7 @@ export default function POSInterface() {
     //   return p;
     // });
     // setProductosTienda(productosTiendaEditados);
-  }
-
+  };
 
   const handleOpenProducts = (category: ICategory) => {
     setSelectedCategory(category);
@@ -481,18 +550,28 @@ export default function POSInterface() {
     totalTransfer: number,
     transferDestinationId?: string,
     discountCodes?: string[],
-    multimoneda?: import('@/app/pos/components/PaymentModal').IMultimonedaExtras
+    multimoneda?: import("@/app/pos/components/PaymentModal").IMultimonedaExtras,
   ) => {
     try {
       if (total <= totalCash + totalTransfer) {
         const tiendaId = user.localActual.id;
         const cierreId = periodo.id;
-        const identifier = crypto.randomUUID();
+        const identifier =
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+                const r = (Math.random() * 16) | 0;
+                return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+              });
 
         const data = cart.map((prod) => {
-          const productoEnTienda = productosTienda.find(p => p.id === prod.productoTiendaId);
+          const productoEnTienda = productosTienda.find(
+            (p) => p.id === prod.productoTiendaId,
+          );
           if (!productoEnTienda) {
-            throw new Error(`Producto no encontrado en la tienda: ${prod.name}`);
+            throw new Error(
+              `Producto no encontrado en la tienda: ${prod.name}`,
+            );
           }
           return {
             cantidad: prod.quantity,
@@ -500,9 +579,9 @@ export default function POSInterface() {
             productId: productoEnTienda.productoId,
             name: prod.name,
             price: prod.price,
+            monedaPrecioCode: prod.monedaPrecioCode ?? null,
           };
         });
-
 
         const cash = total - totalTransfer;
 
@@ -528,7 +607,9 @@ export default function POSInterface() {
           syncAttempts: 0, // Inicializar contador
           ...(totalTransfer > 0 && { transferDestinationId }),
           // Guardar los códigos para sincronización (tipado correcto)
-          ...(discountCodes && discountCodes.length > 0 ? { discountCodes } : {})
+          ...(discountCodes && discountCodes.length > 0
+            ? { discountCodes }
+            : {}),
         });
 
         // 3. Actualizar inventario local (incluyendo desagregaciones)
@@ -537,11 +618,13 @@ export default function POSInterface() {
           padreProductoId: string;
           cantidad: number;
           hijoId: string;
-          unidadesPorFraccion: number
+          unidadesPorFraccion: number;
         }[] = [];
 
         cart.forEach((cartProd) => {
-          const productoEnTienda = productosTienda.find(p => p.id === cartProd.productoTiendaId);
+          const productoEnTienda = productosTienda.find(
+            (p) => p.id === cartProd.productoTiendaId,
+          );
           if (productoEnTienda && productoEnTienda.producto.fraccionDeId) {
             // Es un producto fracción
             if (productoEnTienda.existencia < cartProd.quantity) {
@@ -550,7 +633,8 @@ export default function POSInterface() {
                 padreProductoId: productoEnTienda.producto.fraccionDeId,
                 cantidad: 1, // Siempre desagrega 1 unidad del padre
                 hijoId: productoEnTienda.id,
-                unidadesPorFraccion: productoEnTienda.producto.unidadesPorFraccion || 0
+                unidadesPorFraccion:
+                  productoEnTienda.producto.unidadesPorFraccion || 0,
               });
             }
           }
@@ -560,21 +644,27 @@ export default function POSInterface() {
           let nuevaExistencia = p.existencia;
 
           // Verificar si este producto es padre de alguna desagregación
-          const desagregacionPadre = desagregaciones.find(d => d.padreProductoId === p.productoId);
+          const desagregacionPadre = desagregaciones.find(
+            (d) => d.padreProductoId === p.productoId,
+          );
           if (desagregacionPadre) {
             // Restar 1 del producto padre
             nuevaExistencia -= desagregacionPadre.cantidad;
           }
 
           // Verificar si este producto es hijo de alguna desagregación
-          const desagregacionHijo = desagregaciones.find(d => d.hijoId === p.id);
+          const desagregacionHijo = desagregaciones.find(
+            (d) => d.hijoId === p.id,
+          );
           if (desagregacionHijo) {
             // Sumar las unidades por fracción
             nuevaExistencia += desagregacionHijo.unidadesPorFraccion;
           }
 
           // Verificar si este producto está en el carrito (venta)
-          const cartProd = cart.find((cartItem) => cartItem.productoTiendaId === p.id);
+          const cartProd = cart.find(
+            (cartItem) => cartItem.productoTiendaId === p.id,
+          );
           if (cartProd) {
             // Restar la cantidad vendida
             nuevaExistencia -= cartProd.quantity;
@@ -605,37 +695,68 @@ export default function POSInterface() {
               !isOnline,
               1,
               discountCodes,
-              multimoneda
+              multimoneda,
             );
             markSynced(identifier, ventaDb.id);
-            showMessage("✅ Venta procesada y sincronizada exitosamente", "success");
+            showMessage(
+              "✅ Venta procesada y sincronizada exitosamente",
+              "success",
+            );
           } catch (syncError) {
             console.error(syncError);
 
             // Manejo mejorado de errores de sincronización
-            if (syncError.message?.includes('TIMEOUT_ERROR')) {
-              showMessage("📱 Venta guardada localmente. Timeout en sincronización - se reintentará automáticamente.", "warning");
-            } else if (syncError.message?.includes('NETWORK_ERROR')) {
-              showMessage("📱 Venta guardada localmente. Error de red - se sincronizará cuando haya conexión.", "warning");
-            } else if (syncError.message?.includes('SERVER_ERROR')) {
-              showMessage("📱 Venta guardada localmente. Error del servidor - se reintentará automáticamente.", "warning");
-            } else if (syncError.message?.includes('CLIENT_ERROR')) {
-              showMessage("📱 Venta guardada localmente. Error en los datos - contacte al administrador.", "error");
-            } else if (syncError.message?.includes('Existencia insuficiente')) {
-              showMessage("❌ Error: No hay suficiente stock para completar la venta. Verifique el inventario.", "error");
+            if (syncError.message?.includes("TIMEOUT_ERROR")) {
+              showMessage(
+                "📱 Venta guardada localmente. Timeout en sincronización - se reintentará automáticamente.",
+                "warning",
+              );
+            } else if (syncError.message?.includes("NETWORK_ERROR")) {
+              showMessage(
+                "📱 Venta guardada localmente. Error de red - se sincronizará cuando haya conexión.",
+                "warning",
+              );
+            } else if (syncError.message?.includes("SERVER_ERROR")) {
+              showMessage(
+                "📱 Venta guardada localmente. Error del servidor - se reintentará automáticamente.",
+                "warning",
+              );
+            } else if (syncError.message?.includes("CLIENT_ERROR")) {
+              showMessage(
+                "📱 Venta guardada localmente. Error en los datos - contacte al administrador.",
+                "error",
+              );
+            } else if (syncError.message?.includes("Existencia insuficiente")) {
+              showMessage(
+                "❌ Error: No hay suficiente stock para completar la venta. Verifique el inventario.",
+                "error",
+              );
               // Marcar como error permanente para evitar reintentos
               markSyncError(identifier);
-            } else if (syncError.response?.status === 400 &&
-              syncError.response?.data?.error?.includes("fuera del período actual")) {
-              showMessage("❌ Error crítico: La venta no se puede sincronizar porque pertenece a un período anterior. Contacte al administrador.", "error");
+            } else if (
+              syncError.response?.status === 400 &&
+              syncError.response?.data?.error?.includes(
+                "fuera del período actual",
+              )
+            ) {
+              showMessage(
+                "❌ Error crítico: La venta no se puede sincronizar porque pertenece a un período anterior. Contacte al administrador.",
+                "error",
+              );
               // Marcar como error permanente para evitar reintentos
               markSyncError(identifier);
             } else {
-              showMessage("📱 Venta guardada localmente. Se sincronizará automáticamente.", "info");
+              showMessage(
+                "📱 Venta guardada localmente. Se sincronizará automáticamente.",
+                "info",
+              );
             }
           }
         } else {
-          showMessage("📱 Venta guardada localmente. Se sincronizará cuando haya conexión.", "info");
+          showMessage(
+            "📱 Venta guardada localmente. Se sincronizará cuando haya conexión.",
+            "info",
+          );
         }
       }
     } catch (error) {
@@ -649,9 +770,10 @@ export default function POSInterface() {
     }
   };
   const handleUpdateQuantity = (id: string, quantity: number) => {
-    const oldQuantity = cart.find(item => item.productoTiendaId === id)?.quantity || 0;
+    const oldQuantity =
+      cart.find((item) => item.productoTiendaId === id)?.quantity || 0;
     if (oldQuantity < quantity) {
-      const productoTienda = productosTienda.find(p => p.id === id);
+      const productoTienda = productosTienda.find((p) => p.id === id);
       if (!productoTienda) return;
 
       // Si el producto tiene unidades por fracción, se usa ese valor.
@@ -693,13 +815,17 @@ export default function POSInterface() {
   const searchResults = useMemo(() => {
     if (searchQuery.trim() === "") return [];
     return productosTienda
-      .filter((p) => normalizeSearch(p.producto.nombre).includes(normalizeSearch(searchQuery)))
+      .filter((p) =>
+        normalizeSearch(p.producto.nombre).includes(
+          normalizeSearch(searchQuery),
+        ),
+      )
       .slice(0, 10);
   }, [productosTienda, searchQuery]);
 
   const handleProductSelect = (product: IProductoTiendaV2) => {
     setSelectedProduct(product);
-    setProductOrigin('search'); // Marcar como selección manual
+    setProductOrigin("search"); // Marcar como selección manual
     setShowSearchResults(false);
     setSearchQuery("");
   };
@@ -758,7 +884,11 @@ export default function POSInterface() {
     // 1. Acabamos de recuperar la conexión (isOnline es true)
     // 2. Hay ventas pendientes de sincronizar
     // 3. El periodo está cargado
-    if (isOnline && periodo && sales.some(sale => sale.syncState === "not_synced")) {
+    if (
+      isOnline &&
+      periodo &&
+      sales.some((sale) => sale.syncState === "not_synced")
+    ) {
       // Pequeño delay para asegurar que la conexión esté estable
       const timeoutId = setTimeout(() => {
         syncPendingSales();
@@ -787,9 +917,7 @@ export default function POSInterface() {
           return;
         }
         try {
-
           const data = await fetchTransferDestinations(user.localActual.id);
-          ;
           setTransferDestinations(data);
 
           const lastPeriod = await fetchLastPeriod(user.localActual.id);
@@ -811,20 +939,17 @@ export default function POSInterface() {
               () => {
                 showMessage(
                   "No puede comenzar a vender si no tiene un período abierto",
-                  "warning"
+                  "warning",
                 );
                 gotToPath("/home");
-              }
+              },
             );
           } else {
             setPeriodo(lastPeriod);
           }
         } catch (error) {
           console.error(error);
-          showMessage(
-            "Ocurrió un erro intentando cargar le período",
-            "error"
-          );
+          showMessage("Ocurrió un erro intentando cargar le período", "error");
         } finally {
           setLoading(false);
         }
@@ -842,17 +967,19 @@ export default function POSInterface() {
       fetchProductosAndCategories().catch(() => {
         showMessage(
           "Ocurrió un error intentando cargar las categorías",
-          "error"
+          "error",
         );
       });
     }
   }, [periodo]);
 
-
-  const handleCodigoAsociado = (producto: IProductoTiendaV2, codigoNuevo: string) => {
+  const handleCodigoAsociado = (
+    producto: IProductoTiendaV2,
+    codigoNuevo: string,
+  ) => {
     // Actualizar el estado local para que el nuevo código quede indexado
-    setProductosTienda(prev =>
-      prev.map(p =>
+    setProductosTienda((prev) =>
+      prev.map((p) =>
         p.id === producto.id
           ? {
               ...p,
@@ -860,23 +987,35 @@ export default function POSInterface() {
                 ...p.producto,
                 codigosProducto: [
                   ...(p.producto.codigosProducto || []),
-                  { id: codigoNuevo, codigo: codigoNuevo, productoId: p.productoId },
+                  {
+                    id: codigoNuevo,
+                    codigo: codigoNuevo,
+                    productoId: p.productoId,
+                  },
                 ],
               },
             }
-          : p
-      )
+          : p,
+      ),
     );
-    showMessage(`✅ Código asociado a "${producto.producto.nombre}"`, "success");
+    showMessage(
+      `✅ Código asociado a "${producto.producto.nombre}"`,
+      "success",
+    );
     audioService.playSuccessSound();
     // Seleccionar el producto para que el vendedor pueda agregarlo al carrito
     setSelectedProduct(producto);
-    setProductOrigin('hardware');
+    setProductOrigin("hardware");
   };
 
   if (loadingContext || loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <CircularProgress />
       </Box>
     );
@@ -892,10 +1031,12 @@ export default function POSInterface() {
             No hay tienda seleccionada
           </Typography>
           <Typography variant="body1" gutterBottom>
-            Para usar el punto de venta, necesitas tener una tienda seleccionada como tienda actual.
+            Para usar el punto de venta, necesitas tener una tienda seleccionada
+            como tienda actual.
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Si no tienes ninguna tienda creada, primero debes crear una desde la configuración.
+            Si no tienes ninguna tienda creada, primero debes crear una desde la
+            configuración.
           </Typography>
           <Box mt={2}>
             <Button
@@ -906,10 +1047,7 @@ export default function POSInterface() {
             >
               Ir a Configuración de Tiendas
             </Button>
-            <Button
-              variant="outlined"
-              onClick={() => gotToPath("/")}
-            >
+            <Button variant="outlined" onClick={() => gotToPath("/")}>
               Volver al Inicio
             </Button>
           </Box>
@@ -919,16 +1057,24 @@ export default function POSInterface() {
   }
 
   return (
-    <Box p={0} display={'flex'} flexDirection={'row'} sx={{ height: { xs: "calc(100vh - 56px)", sm: "calc(100vh - 64px)" }, overflow: 'hidden' }}>
-      <Box sx={{
-        flex: isCartPinned ? '1' : 'none',
-        width: getMainContentWidth(),
-        overflow: 'auto',
-        height: '100%', // Use parent height
-        p: 0
-      }}>
-
-
+    <Box
+      p={0}
+      display={"flex"}
+      flexDirection={"row"}
+      sx={{
+        height: { xs: "calc(100vh - 56px)", sm: "calc(100vh - 64px)" },
+        overflow: "hidden",
+      }}
+    >
+      <Box
+        sx={{
+          flex: isCartPinned ? "1" : "none",
+          width: getMainContentWidth(),
+          overflow: "auto",
+          height: "100%", // Use parent height
+          p: 0,
+        }}
+      >
         {/* Barra superior con información del sistema - posicionada debajo del menú */}
         <Box
           sx={{
@@ -949,36 +1095,44 @@ export default function POSInterface() {
             mb: 1,
           }}
         >
-
           <PeriodoBadge periodo={periodo} isMobile={isMobile} />
 
-          <Box display="flex" flexDirection="row" justifyContent="center" alignItems="center">
+          <Box
+            display="flex"
+            flexDirection="row"
+            justifyContent="center"
+            alignItems="center"
+          >
             <RefreshButton onRefresh={handleRefresh} />
             <Tooltip title="Punto de partida">
               <IconButton size="small" onClick={() => setResumenDiaOpen(true)}>
                 <FlagIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <PosStatusToolBar handleShowSyncView={handleShowSyncView} handleShowUserSales={handleShowUserSales} />
+            <PosStatusToolBar
+              handleShowSyncView={handleShowSyncView}
+              handleShowUserSales={handleShowUserSales}
+            />
             <ConnectionStatus isOnline={isOnline} />
           </Box>
-
         </Box>
         {/* Contenido principal */}
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: isCartPinned ? {
-              xs: "repeat(2, 1fr)",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(3, 1fr)",
-              lg: "repeat(4, 1fr)",
-            } : {
-              xs: "repeat(2, 1fr)",
-              sm: "repeat(3, 1fr)",
-              md: "repeat(4, 1fr)",
-              lg: "repeat(5, 1fr)",
-            },
+            gridTemplateColumns: isCartPinned
+              ? {
+                  xs: "repeat(2, 1fr)",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(3, 1fr)",
+                  lg: "repeat(4, 1fr)",
+                }
+              : {
+                  xs: "repeat(2, 1fr)",
+                  sm: "repeat(3, 1fr)",
+                  md: "repeat(4, 1fr)",
+                  lg: "repeat(5, 1fr)",
+                },
             gap: { xs: 0.5, sm: 1.5, md: 2 },
             p: 1,
             width: "100%",
@@ -989,7 +1143,6 @@ export default function POSInterface() {
             zIndex: 1,
           }}
         >
-
           {categories.map((category) => (
             <Box
               key={category.id}
@@ -1037,7 +1190,8 @@ export default function POSInterface() {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  background: "linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6))",
+                  background:
+                    "linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6))",
                   opacity: 0.6,
                   transition: "opacity 0.3s ease",
                   zIndex: 2,
@@ -1061,7 +1215,8 @@ export default function POSInterface() {
                   alignItems: "center",
                   justifyContent: "flex-end",
                   height: "100%",
-                  background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
+                  background:
+                    "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
                 }}
               >
                 <Typography
@@ -1069,9 +1224,14 @@ export default function POSInterface() {
                   sx={{
                     color: "white",
                     fontWeight: 600,
-                    fontSize: isCartPinned ?
-                      { xs: "0.7rem", sm: "0.8rem", md: "1rem", lg: "1.25rem" } :
-                      { xs: "1.25rem", sm: "1.5rem" },
+                    fontSize: isCartPinned
+                      ? {
+                          xs: "0.7rem",
+                          sm: "0.8rem",
+                          md: "1rem",
+                          lg: "1.25rem",
+                        }
+                      : { xs: "1.25rem", sm: "1.5rem" },
                     textAlign: "center",
                     textShadow: `
               0 0 1px rgba(0,0,0,0.8),
@@ -1108,7 +1268,8 @@ export default function POSInterface() {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  background: "linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)",
+                  background:
+                    "linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)",
                   zIndex: 2,
                   pointerEvents: "none",
                 }}
@@ -1120,7 +1281,7 @@ export default function POSInterface() {
           <ProductModal
             open={showProducts}
             productosTienda={productosTienda.filter(
-              (p) => p.producto.categoria.id === selectedCategory.id
+              (p) => p.producto.categoria.id === selectedCategory.id,
             )}
             allProductosTienda={productosTienda}
             category={selectedCategory}
@@ -1148,8 +1309,22 @@ export default function POSInterface() {
           open={paymentDialog}
           onClose={() => setPaymentDialog(false)}
           total={total}
-          makePay={(total, totalchash, totaltransfer, transferDestinationId, discountCodes, multimoneda) =>
-            handleMakePay(total, totalchash, totaltransfer, transferDestinationId, discountCodes, multimoneda)
+          makePay={(
+            total,
+            totalchash,
+            totaltransfer,
+            transferDestinationId,
+            discountCodes,
+            multimoneda,
+          ) =>
+            handleMakePay(
+              total,
+              totalchash,
+              totaltransfer,
+              transferDestinationId,
+              discountCodes,
+              multimoneda,
+            )
           }
           transferDestinations={transferDestinations}
           tiendaId={user.localActual.id}
@@ -1157,7 +1332,7 @@ export default function POSInterface() {
           products={cart.map((prod) => ({
             productoTiendaId: prod.productoTiendaId,
             cantidad: prod.quantity,
-            precio: prod.price
+            precio: prod.price,
           }))}
         />
 
@@ -1176,6 +1351,7 @@ export default function POSInterface() {
           period={periodo}
           incrementarCantidades={incrementarCantidades}
           transferDestinations={transferDestinations}
+          productosTienda={productosTienda}
         />
 
         {/* Drawer de ventas y sincronización  */}
@@ -1185,12 +1361,13 @@ export default function POSInterface() {
           period={periodo}
           reloadProdsAndCategories={() => fetchProductosAndCategories(true)}
           incrementarCantidades={incrementarCantidades}
+          productosTienda={productosTienda}
         />
 
         <ShoppingCartComponent
           openCart={openCart}
           handleCartIcon={handleCartIcon}
-          hidden={showSearchResults && searchResults.length > 0}
+          hidden={false}
         />
 
         <Box
@@ -1202,16 +1379,21 @@ export default function POSInterface() {
             right: 0,
             p: 1,
             zIndex: 1200,
-            background: "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
+            background:
+              "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
             backdropFilter: "blur(10px)",
             borderTop: "1px solid rgba(0,0,0,0.1)",
             boxShadow: "0 -2px 1px rgba(0,0,0,0.1)",
           }}
         >
           {/* Píldoras de carritos */}
-          <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ overflowX: "auto", pb: 0.5 }}
+          >
             {carts.map((c) => (
-              <Box key={c.id} sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box key={c.id} sx={{ display: "flex", alignItems: "center" }}>
                 {editingCartId === c.id ? (
                   <TextField
                     size="small"
@@ -1221,7 +1403,8 @@ export default function POSInterface() {
                     onChange={(e) => setEditingCartName(e.target.value)}
                     onBlur={() => {
                       if (editingCartId) {
-                        const newName = (editingCartName || '').trim() || c.name;
+                        const newName =
+                          (editingCartName || "").trim() || c.name;
                         renameCart(editingCartId, newName);
                       }
                       setEditingCartId(null);
@@ -1230,15 +1413,19 @@ export default function POSInterface() {
                       const key = e.key;
                       // Evitar interferencia de IME y de manejadores globales
                       const composing = e?.nativeEvent?.isComposing ?? false;
-                      if (!composing && (key === 'Enter' || key === 'NumpadEnter')) {
+                      if (
+                        !composing &&
+                        (key === "Enter" || key === "NumpadEnter")
+                      ) {
                         e.preventDefault();
                         e.stopPropagation();
                         if (editingCartId) {
-                          const newName = (editingCartName || '').trim() || c.name;
+                          const newName =
+                            (editingCartName || "").trim() || c.name;
                           renameCart(editingCartId, newName);
                         }
                         setEditingCartId(null);
-                      } else if (key === 'Escape') {
+                      } else if (key === "Escape") {
                         e.preventDefault();
                         e.stopPropagation();
                         setEditingCartId(null);
@@ -1246,12 +1433,12 @@ export default function POSInterface() {
                     }}
                     InputProps={{
                       inputProps: {
-                        inputMode: 'text',
-                        autoComplete: 'off',
-                        autoCorrect: 'off',
-                        autoCapitalize: 'off',
+                        inputMode: "text",
+                        autoComplete: "off",
+                        autoCorrect: "off",
+                        autoCapitalize: "off",
                         spellCheck: false,
-                      }
+                      },
                     }}
                     sx={{ minWidth: 140 }}
                   />
@@ -1259,8 +1446,18 @@ export default function POSInterface() {
                   <Chip
                     tabIndex={-1}
                     label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Box sx={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</Box>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                      >
+                        <Box
+                          sx={{
+                            maxWidth: 140,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {c.name}
+                        </Box>
                         <IconButton
                           aria-label="Editar nombre"
                           size="small"
@@ -1290,8 +1487,8 @@ export default function POSInterface() {
                         </IconButton>
                       </Box>
                     }
-                    color={c.id === activeCartId ? 'primary' : 'default'}
-                    variant={c.id === activeCartId ? 'filled' : 'outlined'}
+                    color={c.id === activeCartId ? "primary" : "default"}
+                    variant={c.id === activeCartId ? "filled" : "outlined"}
                     onClick={() => setActiveCart(c.id)}
                     onDelete={() => {
                       if (carts.length <= 1) return; // mantener al menos uno
@@ -1301,8 +1498,12 @@ export default function POSInterface() {
                       removeActiveCart();
                     }}
                     sx={{
-                      cursor: 'pointer',
-                      '& .MuiChip-label': { maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' },
+                      cursor: "pointer",
+                      "& .MuiChip-label": {
+                        maxWidth: 160,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      },
                     }}
                   />
                 )}
@@ -1312,23 +1513,23 @@ export default function POSInterface() {
               label="Nueva cuenta"
               variant="outlined"
               onClick={() => createCart()}
-              sx={{ cursor: 'pointer' }}
+              sx={{ cursor: "pointer" }}
             />
           </Stack>
         </Box>
 
-        {/* Buscador flotante */
-        }
+        {/* Buscador flotante */}
         <Box
           ref={searchAnchorRef}
           sx={{
             position: "fixed",
             bottom: 0,
             left: 0,
-            right: 0,
+            right: isCartPinned && !isMobile ? getCartWidth() : 0,
             p: 1,
             zIndex: 1200,
-            background: "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
+            background:
+              "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
             backdropFilter: "blur(10px)",
             boxSizing: "border-box",
             maxWidth: "100vw",
@@ -1336,54 +1537,74 @@ export default function POSInterface() {
         >
           <Stack direction="row" spacing={1}>
             <TextField
-                inputRef={searchInputRef}
-                fullWidth
-                variant="outlined"
-                placeholder="Buscar productos..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
-                onFocus={() => handleSearchFocus()}
-                onBlur={() => handleSearchBlur()}
-                onMouseDown={() => handleSearchMouseDown()}
-                InputProps={{
-                  startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon />
-                      </InputAdornment>
-                  ),
-                  endAdornment: searchQuery && (
-                      <InputAdornment position="end">
-                        <IconButton
-                            size="small"
-                            onClick={() => {
-                              setSearchQuery("");
-                            }}
-                        >
-                          <CloseIcon />
-                        </IconButton>
-                      </InputAdornment>
-                  ),
-                  sx: {
-                    bgcolor: "white",
+              inputRef={searchInputRef}
+              fullWidth
+              variant="outlined"
+              placeholder="Buscar productos..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
+              onFocus={() => handleSearchFocus()}
+              onBlur={() => handleSearchBlur()}
+              onMouseDown={(e) => {
+                handleSearchMouseDown();
+                if (e.button === 0 && searchInputRef.current)
+                  setTimeout(() => searchInputRef.current?.select(), 0);
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setSearchQuery("");
+                      }}
+                    >
+                      <CloseIcon />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                sx: {
+                  bgcolor: "white",
+                  borderRadius: "12px",
+                  "& .MuiOutlinedInput-root": {
                     borderRadius: "12px",
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: "12px",
-                    },
                   },
-                }}
+                },
+              }}
             />
             <Grid size={{ xs: 7, sm: 10 }}>
               <ProductProcessorData
-                  ref={scannerRef}
-                  onProcessedData={(data: IProcessedData) => {
-                    if (data?.code) handleProductScan(data.code);
-                  }}
-                  onHardwareScan={handleHardwareScan}
-                  keepFocus={editingCartId ? false : !(intentToSearch || paymentDialog || showSyncView || openSpeedDial || resumenDiaOpen)}
+                ref={scannerRef}
+                onProcessedData={(data: IProcessedData) => {
+                  if (data?.code) handleProductScan(data.code);
+                }}
+                onHardwareScan={handleHardwareScan}
+                keepFocus={
+                  editingCartId
+                    ? false
+                    : !(
+                        intentToSearch ||
+                        paymentDialog ||
+                        showSyncView ||
+                        openSpeedDial ||
+                        resumenDiaOpen
+                      )
+                }
               />
               {scannerError && (
-                  <Alert severity="warning" onClose={() => setScannerError(null)} sx={{ mt: 1 }}>{scannerError}</Alert>
+                <Alert
+                  severity="warning"
+                  onClose={() => setScannerError(null)}
+                  sx={{ mt: 1 }}
+                >
+                  {scannerError}
+                </Alert>
               )}
             </Grid>
           </Stack>
@@ -1395,14 +1616,19 @@ export default function POSInterface() {
               sx={{
                 position: "fixed",
                 left: 8,
-                right: 8,
+                right:
+                  isCartPinned && !isMobile
+                    ? `calc(${getCartWidth()} + 8px)`
+                    : 8,
                 bottom: searchPanelLayout.bottom,
                 maxHeight: searchPanelLayout.maxHeight,
                 zIndex: 1300,
                 minWidth: 0,
                 boxSizing: "border-box",
-                maxWidth: "calc(100vw - 16px)",
-                mx: "auto",
+                maxWidth:
+                  !isMobile && !isCartPinned
+                    ? "min(700px, calc(100vw - 16px))"
+                    : "calc(100vw - 16px)",
               }}
             >
               <MuiPaper
@@ -1437,9 +1663,9 @@ export default function POSInterface() {
                       key={product.id}
                       productoTienda={product}
                       allProductosTienda={productosTienda}
-                      highlightName={normalizeSearch(product.producto.nombre).startsWith(
-                        normalizeSearch(searchQuery),
-                      )}
+                      highlightName={normalizeSearch(
+                        product.producto.nombre,
+                      ).startsWith(normalizeSearch(searchQuery))}
                       onClick={() => {
                         handleProductSelect(product);
                         setIntentToSearch(false);
@@ -1452,18 +1678,20 @@ export default function POSInterface() {
           </Portal>
         )}
 
-        {/* Dialog de cantidad */
-        }
+        {/* Dialog de cantidad */}
         <QuantityDialog
           productoTienda={selectedProduct}
           onClose={handleResetProductQuantity}
           onConfirm={handleConfirmQuantity}
           onAddToCart={reopenScannerIfNeeded}
-          maxDisponibleOverride={selectedProduct ? calcularDisponibilidadReal(selectedProduct, productosTienda).maxPorTransaccion : undefined}
+          maxDisponibleOverride={
+            selectedProduct
+              ? calcularDisponibilidadReal(selectedProduct, productosTienda)
+                  .maxPorTransaccion
+              : undefined
+          }
         />
-        {
-          ConfirmDialogComponent
-        }
+        {ConfirmDialogComponent}
 
         <AsociarCodigoDialog
           open={asociarCodigoOpen}
@@ -1474,17 +1702,18 @@ export default function POSInterface() {
         />
       </Box>
 
-      {
-        isCartPinned &&
-        <Box sx={{
-          width: getCartWidth(),
-          maxWidth: getCartWidth(),
-          minWidth: '360px',
-          height: '100%', // Use parent height
-          overflow: 'hidden',
-          borderLeft: '1px solid rgba(0,0,0,0.1)',
-          backgroundColor: 'background.paper'
-        }}>
+      {isCartPinned && (
+        <Box
+          sx={{
+            width: getCartWidth(),
+            maxWidth: getCartWidth(),
+            minWidth: "360px",
+            height: "100%", // Use parent height
+            overflow: "hidden",
+            borderLeft: "1px solid rgba(0,0,0,0.1)",
+            backgroundColor: "background.paper",
+          }}
+        >
           <CartContent
             cart={cart}
             total={total}
@@ -1497,8 +1726,7 @@ export default function POSInterface() {
             setIsCartPinned={setIsCartPinned}
           />
         </Box>
-      }
+      )}
     </Box>
-  )
-    ;
+  );
 }

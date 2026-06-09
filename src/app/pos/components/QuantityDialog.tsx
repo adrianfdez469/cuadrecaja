@@ -1,8 +1,10 @@
-import {useEffect, useState, useCallback} from "react";
-import {Box, Button, Dialog, Grow, Typography,} from "@mui/material";
-import {IProductoTiendaV2} from "@/schemas/producto";
-import {useCartStore} from "@/store/cartStore";
+import { useEffect, useState, useCallback } from "react";
+import { Box, Button, Dialog, Grow, Typography } from "@mui/material";
+import { IProductoTiendaV2 } from "@/schemas/producto";
+import { useCartStore } from "@/store/cartStore";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+import { useAppContext } from "@/context/AppContext";
+import { convertToBase } from "@/lib/currency";
 
 interface QuantityDialogProps {
   productoTienda: IProductoTiendaV2 | null;
@@ -12,25 +14,36 @@ interface QuantityDialogProps {
   maxDisponibleOverride?: number; // Máximo disponible calculado externamente (considera stock del padre para fracciones)
 }
 
-export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart, maxDisponibleOverride }: QuantityDialogProps) => {
+export const QuantityDialog = ({
+  productoTienda,
+  onClose,
+  onConfirm,
+  onAddToCart,
+  maxDisponibleOverride,
+}: QuantityDialogProps) => {
   const [quantity, setQuantity] = useState(1);
-  const [direction, setDirection] = useState<'up' | 'down'>('up');
+  const [direction, setDirection] = useState<"up" | "down">("up");
   const { addToCart, items } = useCartStore();
+  const { tasasVigentes, monedaBase } = useAppContext();
   const [isDecimalInput, setIsDecimalInput] = useState(false);
 
   // Calcular máximo disponible para inicialización
   const getInitialMaxQuantity = useCallback((): number => {
     if (!productoTienda) return 0;
-    
-    const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
-    
-    if (typeof maxDisponibleOverride === 'number' && maxDisponibleOverride >= 0) {
+
+    const cartQuantity =
+      items.find((item) => item.id === productoTienda.id)?.quantity || 0;
+
+    if (
+      typeof maxDisponibleOverride === "number" &&
+      maxDisponibleOverride >= 0
+    ) {
       return Math.max(0, maxDisponibleOverride - cartQuantity);
     }
-    
+
     const unidadesPorFraccion = productoTienda.producto?.unidadesPorFraccion;
     const existencia = productoTienda.existencia || 0;
-    
+
     if (unidadesPorFraccion && unidadesPorFraccion > 0) {
       return Math.max(0, unidadesPorFraccion - 1 - cartQuantity);
     } else {
@@ -41,7 +54,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
   useEffect(() => {
     // Verificar si el producto permite decimales
     setIsDecimalInput(productoTienda?.producto?.permiteDecimal || false);
-    
+
     // Establecer cantidad inicial basada en disponibilidad
     // Si hay al menos 1 disponible, iniciar en 1; sino, iniciar en 0
     const maxDisponible = getInitialMaxQuantity();
@@ -54,44 +67,61 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
    * Si se proporciona maxDisponibleOverride, lo usa (ya considera el stock del padre para fracciones).
    * Sino, calcula internamente basado en existencia o unidadesPorFraccion.
    */
-  const getMaxQuantity = useCallback((decrementForPrecision: number = 0): number => {
-    if (!productoTienda) return 0;
-    
-    const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
-    
-    // Si tenemos un override, usarlo (ya está calculado considerando el padre)
-    if (typeof maxDisponibleOverride === 'number' && maxDisponibleOverride >= 0) {
-      return Math.max(0, maxDisponibleOverride - cartQuantity - decrementForPrecision);
-    }
-    
-    // Fallback: calcular internamente (sin considerar stock del padre)
-    const unidadesPorFraccion = productoTienda.producto?.unidadesPorFraccion;
-    const existencia = productoTienda.existencia || 0;
-    
-    if (unidadesPorFraccion && unidadesPorFraccion > 0) {
-      // Es producto fracción
-      return Math.max(0, unidadesPorFraccion - 1 - cartQuantity - decrementForPrecision);
-    } else {
-      // Producto normal
-      return Math.max(0, existencia - cartQuantity - decrementForPrecision);
-    }
-  }, [productoTienda, items, maxDisponibleOverride]);
+  const getMaxQuantity = useCallback(
+    (decrementForPrecision: number = 0): number => {
+      if (!productoTienda) return 0;
+
+      const cartQuantity =
+        items.find((item) => item.id === productoTienda.id)?.quantity || 0;
+
+      // Si tenemos un override, usarlo (ya está calculado considerando el padre)
+      if (
+        typeof maxDisponibleOverride === "number" &&
+        maxDisponibleOverride >= 0
+      ) {
+        return Math.max(
+          0,
+          maxDisponibleOverride - cartQuantity - decrementForPrecision,
+        );
+      }
+
+      // Fallback: calcular internamente (sin considerar stock del padre)
+      const unidadesPorFraccion = productoTienda.producto?.unidadesPorFraccion;
+      const existencia = productoTienda.existencia || 0;
+
+      if (unidadesPorFraccion && unidadesPorFraccion > 0) {
+        // Es producto fracción
+        return Math.max(
+          0,
+          unidadesPorFraccion - 1 - cartQuantity - decrementForPrecision,
+        );
+      } else {
+        // Producto normal
+        return Math.max(0, existencia - cartQuantity - decrementForPrecision);
+      }
+    },
+    [productoTienda, items, maxDisponibleOverride],
+  );
 
   /**
    * Obtiene el máximo para mostrar en la UI (sin considerar lo que ya está en el carrito del diálogo actual)
    */
   const getMaxForDisplay = useCallback((): number => {
     if (!productoTienda) return 0;
-    
-    const cartQuantity = items.find(item => item.id === productoTienda.id)?.quantity || 0;
-    
-    if (typeof maxDisponibleOverride === 'number' && maxDisponibleOverride >= 0) {
+
+    const cartQuantity =
+      items.find((item) => item.id === productoTienda.id)?.quantity || 0;
+
+    if (
+      typeof maxDisponibleOverride === "number" &&
+      maxDisponibleOverride >= 0
+    ) {
       return Math.max(0, maxDisponibleOverride - cartQuantity);
     }
-    
+
     const unidadesPorFraccion = productoTienda.producto?.unidadesPorFraccion;
     const existencia = productoTienda.existencia || 0;
-    
+
     if (unidadesPorFraccion && unidadesPorFraccion > 0) {
       return Math.max(0, unidadesPorFraccion - 1 - cartQuantity);
     } else {
@@ -106,7 +136,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
       const maxQuantity = getMaxQuantity(increment);
 
       if (quantity < maxQuantity) {
-        setDirection('up');
+        setDirection("up");
         setQuantity(Math.round((quantity + increment) * 100) / 100);
       }
     }
@@ -116,7 +146,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
   const decreaseWithPrecision = (hundredths: boolean = false) => {
     const decrease = hundredths ? 0.01 : 0.1;
     if (quantity > decrease) {
-      setDirection('down');
+      setDirection("down");
       setQuantity(Math.round((quantity - decrease) * 100) / 100);
     }
   };
@@ -127,7 +157,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
       const maxQuantity = getMaxQuantity();
 
       if (quantity < maxQuantity) {
-        setDirection('up');
+        setDirection("up");
         setQuantity(quantity + 1);
       }
     }
@@ -135,7 +165,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
 
   const decrease = () => {
     if (quantity > 1) {
-      setDirection('down');
+      setDirection("down");
       setQuantity(quantity - 1);
     }
   };
@@ -146,7 +176,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
 
       const newQuantity = quantity + amount;
       if (newQuantity <= maxQuantity) {
-        setDirection('up');
+        setDirection("up");
         setQuantity(newQuantity);
       }
     }
@@ -156,7 +186,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
     const minValue = isDecimalInput ? 0.1 : 1;
     const newQuantity = quantity - amount;
     if (newQuantity >= minValue) {
-      setDirection('down');
+      setDirection("down");
       setQuantity(newQuantity);
     }
   };
@@ -168,7 +198,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
 
       const newQuantity = quantity + amount;
       if (newQuantity <= maxQuantity) {
-        setDirection('up');
+        setDirection("up");
         // Redondear a 2 decimales para evitar problemas de punto flotante
         setQuantity(Math.round(newQuantity * 100) / 100);
       }
@@ -178,7 +208,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
   const decreaseDecimalByAmount = (amount: number) => {
     const newQuantity = quantity - amount;
     if (newQuantity >= 0.1) {
-      setDirection('down');
+      setDirection("down");
       // Redondear a 2 decimales para evitar problemas de punto flotante
       setQuantity(Math.round(newQuantity * 100) / 100);
     }
@@ -197,17 +227,32 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
   const handleConfirmQuantity = () => {
     // Validación de seguridad: no agregar si no hay stock o cantidad inválida
     const maxDisponible = getMaxForDisplay();
-    if (!productoTienda || quantity <= 0 || quantity > maxDisponible || maxDisponible <= 0) {
+    if (
+      !productoTienda ||
+      quantity <= 0 ||
+      quantity > maxDisponible ||
+      maxDisponible <= 0
+    ) {
       return;
     }
-    
-    addToCart({
-      id: productoTienda.id,
-      name: productoTienda.producto.nombre,
-      price: productoTienda.precio,
-      productoTiendaId: productoTienda.id,
-      fechaVencimiento: productoTienda.fechaVencimiento ?? null,
-    }, quantity);
+
+    addToCart(
+      {
+        id: productoTienda.id,
+        name: productoTienda.producto.nombre,
+        price: productoTienda.precio,
+        productoTiendaId: productoTienda.id,
+        fechaVencimiento: productoTienda.fechaVencimiento ?? null,
+        monedaPrecioCode: productoTienda.monedaPrecioCode ?? null,
+        priceBase: convertToBase(
+          productoTienda.precio,
+          productoTienda.monedaPrecioCode ?? monedaBase,
+          tasasVigentes,
+          monedaBase,
+        ),
+      },
+      quantity,
+    );
     onClose();
     // Ejecutar callback después de agregar al carrito
     if (onAddToCart) {
@@ -218,17 +263,32 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
   const handlePayAll = () => {
     // Validación de seguridad: no agregar si no hay stock o cantidad inválida
     const maxDisponible = getMaxForDisplay();
-    if (!productoTienda || quantity <= 0 || quantity > maxDisponible || maxDisponible <= 0) {
+    if (
+      !productoTienda ||
+      quantity <= 0 ||
+      quantity > maxDisponible ||
+      maxDisponible <= 0
+    ) {
       return;
     }
 
-    addToCart({
-      id: productoTienda.id,
-      name: productoTienda.producto.nombre,
-      price: productoTienda.precio,
-      productoTiendaId: productoTienda.id,
-      fechaVencimiento: productoTienda.fechaVencimiento ?? null,
-    }, quantity);
+    addToCart(
+      {
+        id: productoTienda.id,
+        name: productoTienda.producto.nombre,
+        price: productoTienda.precio,
+        productoTiendaId: productoTienda.id,
+        fechaVencimiento: productoTienda.fechaVencimiento ?? null,
+        monedaPrecioCode: productoTienda.monedaPrecioCode ?? null,
+        priceBase: convertToBase(
+          productoTienda.precio,
+          productoTienda.monedaPrecioCode ?? monedaBase,
+          tasasVigentes,
+          monedaBase,
+        ),
+      },
+      quantity,
+    );
     onConfirm();
     // Ejecutar callback después de agregar al carrito
     if (onAddToCart) {
@@ -237,10 +297,7 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
   };
 
   return (
-    <Dialog
-      open={Boolean(productoTienda)}
-      onClose={onClose}
-    >
+    <Dialog open={Boolean(productoTienda)} onClose={onClose}>
       {productoTienda && (
         <Box
           p={3}
@@ -250,205 +307,218 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
           justifyContent={"center"}
         >
           <Typography variant="h6">{productoTienda.producto.nombre}</Typography>
-          <Box sx={{ mt: 0.5, mb: 0.5, textAlign: "center", width: "100%", px: 1 }}>
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.25 }}>
+          <Box
+            sx={{ mt: 0.5, mb: 0.5, textAlign: "center", width: "100%", px: 1 }}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{ mb: 0.25 }}
+            >
               Precio
             </Typography>
             <MultiCurrencyAmount
-              amount={productoTienda.precio}
+              amount={convertToBase(
+                productoTienda.precio,
+                productoTienda.monedaPrecioCode ?? monedaBase,
+                tasasVigentes,
+                monedaBase,
+              )}
               align="center"
               sx={{ width: "100%" }}
             />
           </Box>
           <Typography variant="body2" color="text.secondary">
-            {productoTienda.producto.unidadesPorFraccion 
+            {productoTienda.producto.unidadesPorFraccion
               ? `Stock: ${Math.max(0, productoTienda.existencia || 0)} | Máx. por venta: ${getMaxForDisplay()}`
-              : `Disponibles: ${getMaxForDisplay()}`
-            }
+              : `Disponibles: ${getMaxForDisplay()}`}
           </Typography>
 
-
-            <Box
-              display={"flex"}
-              flexDirection={"row"}
-              padding={0}
+          <Box
+            display={"flex"}
+            flexDirection={"row"}
+            padding={0}
+            sx={{
+              flexWrap: "wrap",
+              gap: { xs: 1, sm: 1.5, md: 2 },
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Button
+              variant="contained"
+              onClick={decrease}
+              disabled={quantity <= 1}
               sx={{
-                flexWrap: 'wrap',
-                gap: { xs: 1, sm: 1.5, md: 2 },
-                justifyContent: 'center',
-                alignItems: 'center',
+                transition: "all 0.2s ease-in-out",
+                "&:hover": {
+                  transform: "scale(1.1)",
+                },
+                "&:active": {
+                  transform: "scale(0.95)",
+                },
               }}
             >
-              <Button
-                variant="contained"
-                onClick={decrease}
-                disabled={quantity <= 1}
-                sx={{
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    transform: 'scale(1.1)',
-                  },
-                  '&:active': {
-                    transform: 'scale(0.95)',
-                  },
+              -1
+            </Button>
+            <Box
+              flex={1}
+              sx={{
+                marginLeft: 2,
+                marginRight: 2,
+                width: "30vw",
+                height: 100,
+                border: "2px solid black",
+                position: "relative",
+                overflow: "hidden",
+                borderRadius: "8px",
+              }}
+              display={"flex"}
+              alignItems={"center"}
+              justifyContent={"center"}
+            >
+              <Grow
+                in={true}
+                timeout={200}
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                -1
-              </Button>
-              <Box
-                flex={1}
-                sx={{
-                  marginLeft: 2,
-                  marginRight: 2,
-                  width: "30vw",
-                  height: 100,
-                  border: "2px solid black",
-                  position: "relative",
-                  overflow: "hidden",
-                  borderRadius: "8px",
-                }}
-                display={"flex"}
-                alignItems={"center"}
-                justifyContent={"center"}
-              >
-                <Grow
-                  in={true}
-                  timeout={200}
-                  style={{
-                    position: 'absolute',
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                <Typography
+                  sx={{
+                    fontSize: "8vw",
+                    fontWeight: "bold",
+                    transition: "all 0.2s ease-in-out",
+                    transform:
+                      direction === "up"
+                        ? "translateY(-10px)"
+                        : "translateY(10px)",
+                    animation: `${direction === "up" ? "slideUp" : "slideDown"} 0.2s ease-in-out`,
+                    "@keyframes slideUp": {
+                      "0%": {
+                        transform: "translateY(10px)",
+                        opacity: 0,
+                      },
+                      "100%": {
+                        transform: "translateY(0)",
+                        opacity: 1,
+                      },
+                    },
+                    "@keyframes slideDown": {
+                      "0%": {
+                        transform: "translateY(-10px)",
+                        opacity: 0,
+                      },
+                      "100%": {
+                        transform: "translateY(0)",
+                        opacity: 1,
+                      },
+                    },
                   }}
                 >
-                  <Typography
-                    sx={{
-                      fontSize: "8vw",
-                      fontWeight: "bold",
-                      transition: 'all 0.2s ease-in-out',
-                      transform: direction === 'up' ? 'translateY(-10px)' : 'translateY(10px)',
-                      animation: `${direction === 'up' ? 'slideUp' : 'slideDown'} 0.2s ease-in-out`,
-                      '@keyframes slideUp': {
-                        '0%': {
-                          transform: 'translateY(10px)',
-                          opacity: 0,
-                        },
-                        '100%': {
-                          transform: 'translateY(0)',
-                          opacity: 1,
-                        },
-                      },
-                      '@keyframes slideDown': {
-                        '0%': {
-                          transform: 'translateY(-10px)',
-                          opacity: 0,
-                        },
-                        '100%': {
-                          transform: 'translateY(0)',
-                          opacity: 1,
-                        },
-                      },
-                    }}
-                  >
-                    {quantity}
-                  </Typography>
-                </Grow>
-              </Box>
-              <Button
-                variant="contained"
-                onClick={increase}
-                disabled={quantity >= getMaxQuantity()}
-                sx={{
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    transform: 'scale(1.1)',
-                  },
-                  '&:active': {
-                    transform: 'scale(0.95)',
-                  },
-                }}
-              >
-                +1
-              </Button>
+                  {quantity}
+                </Typography>
+              </Grow>
             </Box>
-
+            <Button
+              variant="contained"
+              onClick={increase}
+              disabled={quantity >= getMaxQuantity()}
+              sx={{
+                transition: "all 0.2s ease-in-out",
+                "&:hover": {
+                  transform: "scale(1.1)",
+                },
+                "&:active": {
+                  transform: "scale(0.95)",
+                },
+              }}
+            >
+              +1
+            </Button>
+          </Box>
 
           <Box
             display={"flex"}
             flexDirection={"row"}
             pt={1}
             sx={{
-              flexWrap: 'wrap',
+              flexWrap: "wrap",
               gap: { xs: 1, sm: 1.5, md: 2 },
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}>
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
             {isDecimalInput && (
               // Botones para incrementos decimales
               <>
                 <Button
-                    variant="contained"
-                    onClick={()=> decreaseWithPrecision(true)}
-                    disabled={quantity <= 0.01}
-                    sx={{
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
-                        transform: 'scale(1.1)',
-                      },
-                      '&:active': {
-                        transform: 'scale(0.95)',
-                      },
-                    }}
+                  variant="contained"
+                  onClick={() => decreaseWithPrecision(true)}
+                  disabled={quantity <= 0.01}
+                  sx={{
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      transform: "scale(1.1)",
+                    },
+                    "&:active": {
+                      transform: "scale(0.95)",
+                    },
+                  }}
                 >
                   -0.01
                 </Button>
                 <Button
-                    variant="contained"
-                    onClick={()=> increaseWithPrecision(true)}
-                    disabled={quantity >= getMaxQuantity(0.01)}
-                    sx={{
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
-                        transform: 'scale(1.1)',
-                      },
-                      '&:active': {
-                        transform: 'scale(0.95)',
-                      },
-                    }}
+                  variant="contained"
+                  onClick={() => increaseWithPrecision(true)}
+                  disabled={quantity >= getMaxQuantity(0.01)}
+                  sx={{
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      transform: "scale(1.1)",
+                    },
+                    "&:active": {
+                      transform: "scale(0.95)",
+                    },
+                  }}
                 >
                   +0.01
                 </Button>
                 <Button
-                    variant="contained"
-                    onClick={()=> decreaseWithPrecision()}
-                    disabled={quantity <= 0.1}
-                    sx={{
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
-                        transform: 'scale(1.1)',
-                      },
-                      '&:active': {
-                        transform: 'scale(0.95)',
-                      },
-                    }}
+                  variant="contained"
+                  onClick={() => decreaseWithPrecision()}
+                  disabled={quantity <= 0.1}
+                  sx={{
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      transform: "scale(1.1)",
+                    },
+                    "&:active": {
+                      transform: "scale(0.95)",
+                    },
+                  }}
                 >
                   -0.1
                 </Button>
                 <Button
-                    variant="contained"
-                    onClick={()=> increaseWithPrecision()}
-                    disabled={quantity >= getMaxQuantity(0.1)}
-                    sx={{
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
-                        transform: 'scale(1.1)',
-                      },
-                      '&:active': {
-                        transform: 'scale(0.95)',
-                      },
-                    }}
+                  variant="contained"
+                  onClick={() => increaseWithPrecision()}
+                  disabled={quantity >= getMaxQuantity(0.1)}
+                  sx={{
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      transform: "scale(1.1)",
+                    },
+                    "&:active": {
+                      transform: "scale(0.95)",
+                    },
+                  }}
                 >
                   +0.1
                 </Button>
@@ -459,15 +529,15 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                   onClick={() => decreaseDecimalByAmount(0.5)}
                   disabled={quantity < 0.5}
                   sx={{
-                    minWidth: { xs: '40px', sm: '50px', md: '60px' },
-                    fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                    padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
-                    transition: 'all 0.2s ease-in-out',
-                    '&:hover': {
-                      transform: 'scale(1.05)',
+                    minWidth: { xs: "40px", sm: "50px", md: "60px" },
+                    fontSize: { xs: "0.7rem", sm: "0.8rem", md: "0.9rem" },
+                    padding: { xs: "4px 8px", sm: "6px 12px", md: "8px 16px" },
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      transform: "scale(1.05)",
                     },
-                    '&:active': {
-                      transform: 'scale(0.95)',
+                    "&:active": {
+                      transform: "scale(0.95)",
                     },
                   }}
                 >
@@ -479,15 +549,15 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                   color="primary"
                   onClick={() => increaseDecimalByAmount(0.5)}
                   sx={{
-                    minWidth: { xs: '40px', sm: '50px', md: '60px' },
-                    fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                    padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
-                    transition: 'all 0.2s ease-in-out',
-                    '&:hover': {
-                      transform: 'scale(1.05)',
+                    minWidth: { xs: "40px", sm: "50px", md: "60px" },
+                    fontSize: { xs: "0.7rem", sm: "0.8rem", md: "0.9rem" },
+                    padding: { xs: "4px 8px", sm: "6px 12px", md: "8px 16px" },
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      transform: "scale(1.05)",
                     },
-                    '&:active': {
-                      transform: 'scale(0.95)',
+                    "&:active": {
+                      transform: "scale(0.95)",
                     },
                   }}
                 >
@@ -496,7 +566,8 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
               </>
             )}
             <>
-              {(productoTienda?.existencia >= 10 || productoTienda?.producto.unidadesPorFraccion >= 10) && (
+              {(productoTienda?.existencia >= 10 ||
+                productoTienda?.producto.unidadesPorFraccion >= 10) && (
                 <>
                   <Button
                     size="small"
@@ -505,21 +576,26 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                     onClick={() => increaseByAmount(10)}
                     disabled={!canIncreaseByAmount(10)}
                     sx={{
-                      minWidth: { xs: '40px', sm: '50px', md: '60px' },
-                      fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                      padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
-                        transform: 'scale(1.05)',
+                      minWidth: { xs: "40px", sm: "50px", md: "60px" },
+                      fontSize: { xs: "0.7rem", sm: "0.8rem", md: "0.9rem" },
+                      padding: {
+                        xs: "4px 8px",
+                        sm: "6px 12px",
+                        md: "8px 16px",
                       },
-                      '&:active': {
-                        transform: 'scale(0.95)',
+                      transition: "all 0.2s ease-in-out",
+                      "&:hover": {
+                        transform: "scale(1.05)",
+                      },
+                      "&:active": {
+                        transform: "scale(0.95)",
                       },
                     }}
                   >
                     +10
                   </Button>
-                  {(productoTienda?.existencia >= 50 || productoTienda?.producto.unidadesPorFraccion >= 50) && (
+                  {(productoTienda?.existencia >= 50 ||
+                    productoTienda?.producto.unidadesPorFraccion >= 50) && (
                     <>
                       <Button
                         size="small"
@@ -528,21 +604,31 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                         onClick={() => increaseByAmount(50)}
                         disabled={!canIncreaseByAmount(50)}
                         sx={{
-                          minWidth: { xs: '40px', sm: '50px', md: '60px' },
-                          fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                          padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
-                          transition: 'all 0.2s ease-in-out',
-                          '&:hover': {
-                            transform: 'scale(1.05)',
+                          minWidth: { xs: "40px", sm: "50px", md: "60px" },
+                          fontSize: {
+                            xs: "0.7rem",
+                            sm: "0.8rem",
+                            md: "0.9rem",
                           },
-                          '&:active': {
-                            transform: 'scale(0.95)',
+                          padding: {
+                            xs: "4px 8px",
+                            sm: "6px 12px",
+                            md: "8px 16px",
+                          },
+                          transition: "all 0.2s ease-in-out",
+                          "&:hover": {
+                            transform: "scale(1.05)",
+                          },
+                          "&:active": {
+                            transform: "scale(0.95)",
                           },
                         }}
                       >
                         +50
                       </Button>
-                      {(productoTienda?.existencia >= 100 || productoTienda?.producto.unidadesPorFraccion >= 100) && (
+                      {(productoTienda?.existencia >= 100 ||
+                        productoTienda?.producto.unidadesPorFraccion >=
+                          100) && (
                         <Button
                           size="small"
                           variant="contained"
@@ -550,15 +636,23 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                           onClick={() => increaseByAmount(100)}
                           disabled={!canIncreaseByAmount(100)}
                           sx={{
-                            minWidth: { xs: '40px', sm: '50px', md: '60px' },
-                            fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                            padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
-                            transition: 'all 0.2s ease-in-out',
-                            '&:hover': {
-                              transform: 'scale(1.05)',
+                            minWidth: { xs: "40px", sm: "50px", md: "60px" },
+                            fontSize: {
+                              xs: "0.7rem",
+                              sm: "0.8rem",
+                              md: "0.9rem",
                             },
-                            '&:active': {
-                              transform: 'scale(0.95)',
+                            padding: {
+                              xs: "4px 8px",
+                              sm: "6px 12px",
+                              md: "8px 16px",
+                            },
+                            transition: "all 0.2s ease-in-out",
+                            "&:hover": {
+                              transform: "scale(1.05)",
+                            },
+                            "&:active": {
+                              transform: "scale(0.95)",
                             },
                           }}
                         >
@@ -572,21 +666,20 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
             </>
           </Box>
 
-
-
           <Box
             display={"flex"}
             flexDirection={"row"}
             pb={1}
             pt={1}
             sx={{
-              flexWrap: 'wrap',
+              flexWrap: "wrap",
               gap: { xs: 1, sm: 1.5, md: 2 },
-              justifyContent: 'center',
-              alignItems: 'center',
+              justifyContent: "center",
+              alignItems: "center",
             }}
           >
-            {(productoTienda?.existencia >= 10 || productoTienda?.producto.unidadesPorFraccion >= 10) && (
+            {(productoTienda?.existencia >= 10 ||
+              productoTienda?.producto.unidadesPorFraccion >= 10) && (
               <>
                 <Button
                   size="small"
@@ -595,21 +688,22 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                   onClick={() => decreaseByAmount(10)}
                   disabled={!canDecreaseByAmount(10)}
                   sx={{
-                    minWidth: { xs: '40px', sm: '50px', md: '60px' },
-                    fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                    padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
-                    transition: 'all 0.2s ease-in-out',
-                    '&:hover': {
-                      transform: 'scale(1.05)',
+                    minWidth: { xs: "40px", sm: "50px", md: "60px" },
+                    fontSize: { xs: "0.7rem", sm: "0.8rem", md: "0.9rem" },
+                    padding: { xs: "4px 8px", sm: "6px 12px", md: "8px 16px" },
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      transform: "scale(1.05)",
                     },
-                    '&:active': {
-                      transform: 'scale(0.95)',
+                    "&:active": {
+                      transform: "scale(0.95)",
                     },
                   }}
                 >
                   -10
                 </Button>
-                {(productoTienda?.existencia >= 50 || productoTienda?.producto.unidadesPorFraccion >= 50) && (
+                {(productoTienda?.existencia >= 50 ||
+                  productoTienda?.producto.unidadesPorFraccion >= 50) && (
                   <>
                     <Button
                       size="small"
@@ -618,22 +712,27 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                       onClick={() => decreaseByAmount(50)}
                       disabled={!canDecreaseByAmount(50)}
                       sx={{
-                        minWidth: { xs: '40px', sm: '50px', md: '60px' },
-                        fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                        padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
-                        transition: 'all 0.2s ease-in-out',
-                        '&:hover': {
-                          transform: 'scale(1.05)',
+                        minWidth: { xs: "40px", sm: "50px", md: "60px" },
+                        fontSize: { xs: "0.7rem", sm: "0.8rem", md: "0.9rem" },
+                        padding: {
+                          xs: "4px 8px",
+                          sm: "6px 12px",
+                          md: "8px 16px",
                         },
-                        '&:active': {
-                          transform: 'scale(0.95)',
+                        transition: "all 0.2s ease-in-out",
+                        "&:hover": {
+                          transform: "scale(1.05)",
+                        },
+                        "&:active": {
+                          transform: "scale(0.95)",
                         },
                       }}
                     >
                       -50
                     </Button>
 
-                    {(productoTienda.existencia >= 100 || productoTienda.producto.unidadesPorFraccion >= 100) &&
+                    {(productoTienda.existencia >= 100 ||
+                      productoTienda.producto.unidadesPorFraccion >= 100) && (
                       <Button
                         size="small"
                         variant="contained"
@@ -641,37 +740,49 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
                         onClick={() => decreaseByAmount(100)}
                         disabled={!canDecreaseByAmount(100)}
                         sx={{
-                          minWidth: { xs: '40px', sm: '50px', md: '60px' },
-                          fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                          padding: { xs: '4px 8px', sm: '6px 12px', md: '8px 16px' },
-                          transition: 'all 0.2s ease-in-out',
-                          '&:hover': {
-                            transform: 'scale(1.05)',
+                          minWidth: { xs: "40px", sm: "50px", md: "60px" },
+                          fontSize: {
+                            xs: "0.7rem",
+                            sm: "0.8rem",
+                            md: "0.9rem",
                           },
-                          '&:active': {
-                            transform: 'scale(0.95)',
+                          padding: {
+                            xs: "4px 8px",
+                            sm: "6px 12px",
+                            md: "8px 16px",
+                          },
+                          transition: "all 0.2s ease-in-out",
+                          "&:hover": {
+                            transform: "scale(1.05)",
+                          },
+                          "&:active": {
+                            transform: "scale(0.95)",
                           },
                         }}
                       >
                         -100
                       </Button>
-                    }
-                  </>)}
+                    )}
+                  </>
+                )}
               </>
-            )
-            }
+            )}
           </Box>
 
           <Button
             variant="contained"
             fullWidth
             onClick={handleConfirmQuantity}
-            disabled={quantity <= 0 || quantity > getMaxQuantity() || getMaxForDisplay() <= 0}
+            disabled={
+              quantity <= 0 ||
+              quantity > getMaxQuantity() ||
+              getMaxForDisplay() <= 0
+            }
             sx={{
-              transition: 'all 0.2s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+              transition: "all 0.2s ease-in-out",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
               },
             }}
           >
@@ -681,17 +792,21 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
           <Button
             sx={{
               mt: 2,
-              transition: 'all 0.2s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+              transition: "all 0.2s ease-in-out",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
               },
             }}
             variant="contained"
             color="success"
             fullWidth
             onClick={handlePayAll}
-            disabled={quantity <= 0 || quantity > getMaxQuantity() || getMaxForDisplay() <= 0}
+            disabled={
+              quantity <= 0 ||
+              quantity > getMaxQuantity() ||
+              getMaxForDisplay() <= 0
+            }
           >
             Venta Rápida
           </Button>
@@ -699,4 +814,4 @@ export const QuantityDialog = ({ productoTienda, onClose, onConfirm, onAddToCart
       )}
     </Dialog>
   );
-}; 
+};

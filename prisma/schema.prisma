@@ -329,11 +329,19 @@ model ProductoTienda {
   tiendaId    String
   producto    Producto          @relation(fields: [productoId], references: [id]) // Producto asociado
   productoId  String
-  costo       Float             @default(0) // Costo del producto en esa tienda
-  precio      Float             @default(0) // Precio de venta en esa tienda específica
+  costo       Float             @default(0) // Costo del producto en esa tienda (en monedaCosto, null=monedaBase)
+  precio      Float             @default(0) // Precio de venta en esa tienda (en monedaPrecio, null=monedaBase)
   existencia  Float             @default(0) // Cantidad en stock en esa tienda (soporta decimales)
   ventas      VentaProducto[] // Relación con la tabla intermedia de ventas
   movimientos MovimientoStock[] // Relacion con la tabla de movimientos
+
+  // Moneda del costo — null significa usar monedaBase del negocio
+  monedaCosto     Moneda? @relation("ProductoCostoMoneda", fields: [monedaCostoCode], references: [code])
+  monedaCostoCode String?
+
+  // Moneda del precio — null significa usar monedaBase del negocio
+  monedaPrecio     Moneda? @relation("ProductoPrecioMoneda", fields: [monedaPrecioCode], references: [code])
+  monedaPrecioCode String?
 
   // Proveedor para productos en consignación (null para productos propios)
   proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
@@ -392,8 +400,10 @@ model VentaProducto {
   producto         ProductoTienda @relation(fields: [productoTiendaId], references: [id]) // Producto vendido
   productoTiendaId String
   cantidad         Float // Cantidad de productos vendidos en la transacción (soporta decimales)
-  costo            Float          @default(0) // Costo al momento de la venta
-  precio           Float          @default(0) // Precio al momento de la venta
+  costo            Float          @default(0) // Costo al momento de la venta (en monedaCostoCode)
+  precio           Float          @default(0) // Precio al momento de la venta (en monedaPrecioCode)
+  monedaCostoCode  String? // Snapshot de la moneda del costo al momento de la venta
+  monedaPrecioCode String? // Snapshot de la moneda del precio al momento de la venta
 }
 
 // Representa un período de ventas cerrado con una fecha de inicio y una fecha de cierre.
@@ -716,13 +726,15 @@ model GastoCierre {
 
 // Catálogo global de monedas — administrado por SUPER_ADMIN
 model Moneda {
-  code           String                @id // ISO 4217: "CUP", "USD", "MLC"
-  nombre         String
-  simbolo        String
-  activo         Boolean               @default(true)
-  createdAt      DateTime              @default(now())
-  denominaciones DenominacionBillete[]
-  negociosMoneda NegocioMoneda[]
+  code            String                @id // ISO 4217: "CUP", "USD", "MLC"
+  nombre          String
+  simbolo         String
+  activo          Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  denominaciones  DenominacionBillete[]
+  negociosMoneda  NegocioMoneda[]
+  productosCosto  ProductoTienda[]      @relation("ProductoCostoMoneda")
+  productosPrecio ProductoTienda[]      @relation("ProductoPrecioMoneda")
 }
 
 // Billetes y monedas por currency — define la denominación mínima para el cálculo de vuelto

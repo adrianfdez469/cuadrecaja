@@ -8,7 +8,7 @@ import { convertToBase } from "@/lib/currency";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ tiendaId: string, cierreId: string }> }
+  { params }: { params: Promise<{ tiendaId: string; cierreId: string }> },
 ) {
   try {
     const { tiendaId, cierreId } = await params;
@@ -16,23 +16,32 @@ export async function PUT(
     if (!tiendaId) {
       return NextResponse.json(
         { error: "Tienda ID es requerido" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const session = await getSession();
     const user = session.user;
 
-    if (!verificarPermisoUsuario(user.permisos, "operaciones.cierre.cerrar", user.rol)) {
+    if (
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.cierre.cerrar",
+        user.rol,
+      )
+    ) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Get monedaBase for currency conversions
-    const tienda = await prisma.tienda.findUnique({ where: { id: tiendaId }, select: { negocio: { select: { monedaBase: true } } } });
-    const monedaBase = tienda?.negocio?.monedaBase ?? 'CUP';
+    const tienda = await prisma.tienda.findUnique({
+      where: { id: tiendaId },
+      select: { negocio: { select: { monedaBase: true } } },
+    });
+    const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
 
     // Buscar el último período abierto
     const ultimoPeriodo = await prisma.cierrePeriodo.findFirst({
@@ -43,7 +52,7 @@ export async function PUT(
           include: {
             productos: {
               include: {
-                producto: true
+                producto: true,
               },
             },
           },
@@ -54,21 +63,21 @@ export async function PUT(
     if (!ultimoPeriodo) {
       return NextResponse.json(
         { error: "No hay períodos para esta tienda" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (ultimoPeriodo.fechaFin) {
       return NextResponse.json(
         { error: "El último período ya está cerrado" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (ultimoPeriodo.id !== cierreId) {
       return NextResponse.json(
         { error: "Período no coincide con el cierre solicitado" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -82,20 +91,34 @@ export async function PUT(
     let totalGananciasConsignacion = 0;
 
     for (const venta of ultimoPeriodo.ventas) {
-      totalVentas += venta.total;
       totalTransferencia += venta.totaltransfer;
+      const tasas = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+      let ventaBruta = 0;
 
       for (const vp of venta.productos) {
-        
-        if(vp.producto.proveedorId){
-          const costoConsignacion = vp.costo * vp.cantidad;
-          const ventaConsignacion = vp.precio * vp.cantidad;
+        const costoBase = convertToBase(
+          vp.costo,
+          vp.monedaCostoCode ?? monedaBase,
+          tasas,
+          monedaBase,
+        );
+        const precioBase = convertToBase(
+          vp.precio,
+          vp.monedaPrecioCode ?? monedaBase,
+          tasas,
+          monedaBase,
+        );
+        ventaBruta += precioBase * vp.cantidad;
+
+        if (vp.producto.proveedorId) {
+          const costoConsignacion = costoBase * vp.cantidad;
+          const ventaConsignacion = precioBase * vp.cantidad;
           const gananciaConsignacion = ventaConsignacion - costoConsignacion;
           totalVentasConsignacion += ventaConsignacion;
           totalGananciasConsignacion += gananciaConsignacion;
         } else {
-          const costoTotal = vp.costo * vp.cantidad;
-          const ventaTotal = vp.precio * vp.cantidad;
+          const costoTotal = costoBase * vp.cantidad;
+          const ventaTotal = precioBase * vp.cantidad;
           const ganancia = ventaTotal - costoTotal;
 
           totalInversion += costoTotal;
@@ -103,21 +126,30 @@ export async function PUT(
           totalGananciasPropias += ganancia;
         }
       }
+
+      const descuento = Number(venta.discountTotal ?? 0);
+      totalVentas += Math.max(0, ventaBruta - descuento);
     }
 
     const totalGanancia = totalGananciasPropias + totalGananciasConsignacion;
 
     const [periodoCerrado] = await prisma.$transaction(async (tx) => {
-
       // Eliminar desgloses de billetes temporales antes de cerrar
-      await tx.cashBreakdownCierre.deleteMany({ where: { cierrePeriodoId: ultimoPeriodo.id } });
-      await tx.cashBreakdownMoneda.deleteMany({ where: { cierrePeriodoId: ultimoPeriodo.id } });
+      await tx.cashBreakdownCierre.deleteMany({
+        where: { cierrePeriodoId: ultimoPeriodo.id },
+      });
+      await tx.cashBreakdownMoneda.deleteMany({
+        where: { cierrePeriodoId: ultimoPeriodo.id },
+      });
 
       // Reconciliar gastos aplicados (pueden haber sido aplicados antes del close via /apply)
       const gastosCierre = await tx.gastoCierre.findMany({
         where: { cierreId: ultimoPeriodo.id },
       });
-      const totalGastos = gastosCierre.reduce((sum, g) => sum + g.montoCalculado, 0);
+      const totalGastos = gastosCierre.reduce(
+        (sum, g) => sum + g.montoCalculado,
+        0,
+      );
       const totalGananciaFinal = totalGanancia - totalGastos;
 
       // Cerrar el período con resumen
@@ -139,7 +171,14 @@ export async function PUT(
       });
 
       // Calcular ResumenMonedaCierre agrupando pagosDetalle de todas las ventas
-      const resumenMonedaMap: Record<string, { totalEfectivo: number; totalTransfer: number; equivalenteBase: number }> = {};
+      const resumenMonedaMap: Record<
+        string,
+        {
+          totalEfectivo: number;
+          totalTransfer: number;
+          equivalenteBase: number;
+        }
+      > = {};
 
       for (const venta of ultimoPeriodo.ventas) {
         if (!venta.pagosDetalle) continue;
@@ -148,10 +187,19 @@ export async function PUT(
 
         for (const pago of pagos) {
           if (!resumenMonedaMap[pago.moneda]) {
-            resumenMonedaMap[pago.moneda] = { totalEfectivo: 0, totalTransfer: 0, equivalenteBase: 0 };
+            resumenMonedaMap[pago.moneda] = {
+              totalEfectivo: 0,
+              totalTransfer: 0,
+              equivalenteBase: 0,
+            };
           }
-          const enBase = convertToBase(pago.monto, pago.moneda, tasas, monedaBase);
-          if (pago.tipo === 'cash') {
+          const enBase = convertToBase(
+            pago.monto,
+            pago.moneda,
+            tasas,
+            monedaBase,
+          );
+          if (pago.tipo === "cash") {
             resumenMonedaMap[pago.moneda].totalEfectivo += pago.monto;
           } else {
             resumenMonedaMap[pago.moneda].totalTransfer += pago.monto;
@@ -164,9 +212,18 @@ export async function PUT(
           const vueltos = venta.vueltoDetalle as unknown as IVueltoLinea[];
           for (const vuelto of vueltos) {
             if (!resumenMonedaMap[vuelto.moneda]) {
-              resumenMonedaMap[vuelto.moneda] = { totalEfectivo: 0, totalTransfer: 0, equivalenteBase: 0 };
+              resumenMonedaMap[vuelto.moneda] = {
+                totalEfectivo: 0,
+                totalTransfer: 0,
+                equivalenteBase: 0,
+              };
             }
-            const enBase = convertToBase(vuelto.monto, vuelto.moneda, tasas, monedaBase);
+            const enBase = convertToBase(
+              vuelto.monto,
+              vuelto.moneda,
+              tasas,
+              monedaBase,
+            );
             resumenMonedaMap[vuelto.moneda].totalEfectivo -= vuelto.monto;
             resumenMonedaMap[vuelto.moneda].equivalenteBase -= enBase;
           }
@@ -188,32 +245,41 @@ export async function PUT(
 
       const liquidaciones = {};
       for (const venta of ultimoPeriodo.ventas) {
+        const tasasLiq = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
         for (const vp of venta.productos) {
           if (vp.producto?.proveedorId) {
             const key = `${vp.producto.proveedorId}_${vp.producto.productoId}`;
-            
+            const costoBase = convertToBase(
+              vp.costo,
+              vp.monedaCostoCode ?? monedaBase,
+              tasasLiq,
+              monedaBase,
+            );
+            const precioBase = convertToBase(
+              vp.precio,
+              vp.monedaPrecioCode ?? monedaBase,
+              tasasLiq,
+              monedaBase,
+            );
+
             if (liquidaciones[key]) {
-              // Acumular datos existentes
               liquidaciones[key].vendidos += vp.cantidad;
-              liquidaciones[key].monto += (vp.cantidad * vp.costo);
-              // Para costo, calculamos el promedio ponderado
-              liquidaciones[key].costo = liquidaciones[key].monto / liquidaciones[key].vendidos;
-              // Para precio, mantenemos el más reciente (podría ser el precio actual)
-              liquidaciones[key].precio = vp.precio;
-              // Para existencia, usamos la más reciente (refleja el estado actual)
+              liquidaciones[key].monto += vp.cantidad * costoBase;
+              liquidaciones[key].costo =
+                liquidaciones[key].monto / liquidaciones[key].vendidos;
+              liquidaciones[key].precio = precioBase;
               liquidaciones[key].existencia = vp.producto.existencia;
             } else {
-              // Primera entrada para esta combinación proveedor-producto
               liquidaciones[key] = {
                 vendidos: vp.cantidad,
-                monto: vp.cantidad * vp.costo,
-                costo: vp.costo,
-                precio: vp.precio,
+                monto: vp.cantidad * costoBase,
+                costo: costoBase,
+                precio: precioBase,
                 existencia: vp.producto.existencia,
                 cierreId: periodoCerrado.id,
                 proveedorId: vp.producto.proveedorId,
                 productoId: vp.producto.productoId,
-                liquidatedAt: null
+                liquidatedAt: null,
               };
             }
           }
@@ -223,16 +289,16 @@ export async function PUT(
       if (Object.keys(liquidaciones).length > 0) {
         await tx.productoProveedorLiquidacion.createMany({
           data: Object.values(liquidaciones) as {
-            vendidos: number,
-            monto: number,
-            costo: number,
-            precio: number,
-            existencia: number,
-            cierreId: string,
-            proveedorId: string,
-            productoId: string,
-            liquidatedAt: Date | null
-          }[]
+            vendidos: number;
+            monto: number;
+            costo: number;
+            precio: number;
+            existencia: number;
+            cierreId: string;
+            proveedorId: string;
+            productoId: string;
+            liquidatedAt: Date | null;
+          }[],
         });
       }
 
@@ -240,12 +306,11 @@ export async function PUT(
     });
 
     return NextResponse.json(periodoCerrado, { status: 201 });
-
   } catch (error) {
     console.error("❌ Error al cerrar el período:", error);
     return NextResponse.json(
       { error: "Error al cerrar el período" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

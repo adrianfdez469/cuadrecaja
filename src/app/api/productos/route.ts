@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 // Obtener todos los productos (Accesible para todos)
 export async function GET() {
   try {
-
     const session = await getSession();
     const user = session.user;
 
@@ -25,22 +25,22 @@ export async function GET() {
             nombre: true,
           },
         },
-        codigosProducto: true
+        codigosProducto: true,
       },
       orderBy: {
         nombre: "asc",
       },
       where: {
         negocioId: user.negocio.id,
-        deletedAt: null
-      }
+        deletedAt: null,
+      },
     });
     return NextResponse.json(productos);
   } catch (error) {
     console.error(error);
     return NextResponse.json(
       { error: "Error al obtener productos" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -51,54 +51,80 @@ export async function POST(req: Request) {
     const session = await getSession();
     const user = session.user;
 
-    if (!verificarPermisoUsuario(user.permisos, "configuracion.productos.acceder", user.rol)) {
+    if (
+      !verificarPermisoUsuario(
+        user.permisos,
+        "configuracion.productos.acceder",
+        user.rol,
+      )
+    ) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
-        { status: 403 }
+        { status: 403 },
       );
     }
     const [productosCounter, negocio] = await Promise.all([
-      prisma.producto.count({ where: { negocioId: user.negocio.id, deletedAt: null } }),
+      prisma.producto.count({
+        where: { negocioId: user.negocio.id, deletedAt: null },
+      }),
       prisma.negocio.findUnique({
         where: { id: user.negocio.id },
-        include: { plan: { select: { limiteProductos: true } } }
-      })
+        include: { plan: { select: { limiteProductos: true } } },
+      }),
     ]);
 
     const productlimit = negocio.plan?.limiteProductos ?? -1;
     if (productlimit !== -1 && productlimit <= productosCounter) {
       return NextResponse.json(
         { error: "Límite de productos excedido" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const { nombre, descripcion, categoriaId, fraccion, codigosProducto, permiteDecimal } = await req.json();
+    const {
+      nombre,
+      descripcion,
+      categoriaId,
+      fraccion,
+      codigosProducto,
+      permiteDecimal,
+    } = await req.json();
 
     const nuevoProducto = await prisma.producto.create({
-      data: { 
-        nombre: nombre.trim(), 
-        descripcion: descripcion.trim(), 
-        categoriaId, 
-        negocioId: user.negocio.id, 
+      data: {
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim(),
+        categoriaId,
+        negocioId: user.negocio.id,
         permiteDecimal: Boolean(permiteDecimal),
-        ...(fraccion && {fraccionDeId: fraccion.fraccionDeId, unidadesPorFraccion: fraccion.unidadesPorFraccion}),
+        ...(fraccion && {
+          fraccionDeId: fraccion.fraccionDeId,
+          unidadesPorFraccion: fraccion.unidadesPorFraccion,
+        }),
         codigosProducto: {
-          create: (codigosProducto || []).map((codigo: string) => ({ codigo }))
-        }
+          create: (codigosProducto || []).map((codigo: string) => ({ codigo })),
+        },
       },
       include: {
-        codigosProducto: true
-      }
+        codigosProducto: true,
+      },
     });
 
     return NextResponse.json(nuevoProducto, { status: 201 });
   } catch (error) {
     console.error(error);
-
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "Ya existe un producto con ese nombre en este negocio" },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
       { error: "Error al crear el producto" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -4,9 +4,17 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
-import { getProductosVenta, updateProductosTienda, createProductoTienda } from "@/services/costoPrecioServices";
+import {
+  getProductosVenta,
+  updateProductosTienda,
+  createProductoTienda,
+} from "@/services/costoPrecioServices";
 import { fetchCategories, createCategory } from "@/services/categoryService";
-import { createProduct, editProduct, deleteProduct } from "@/services/productServise";
+import {
+  createProduct,
+  editProduct,
+  deleteProduct,
+} from "@/services/productServise";
 import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { ICategory } from "@/schemas/categoria";
@@ -23,6 +31,8 @@ export interface EditProductData {
   newCategoriaColor?: string;
   precio: number;
   costo: number;
+  monedaPrecioCode: string | null;
+  monedaCostoCode: string | null;
   fechaVencimiento: string | null;
   permiteDecimal: boolean;
   fraccionDeId?: string | null;
@@ -38,10 +48,14 @@ export interface CreateProductData {
   newCategoriaColor?: string;
   precio: number;
   costo: number;
+  monedaPrecioCode: string | null;
+  monedaCostoCode: string | null;
+  fechaVencimiento: string | null;
   cantidadInicial: number;
   permiteDecimal: boolean;
   fraccionDeId?: string | null;
   unidadesPorFraccion?: number | null;
+  codigosProducto: string[];
 }
 
 export interface ChangeQtyOptions {
@@ -52,7 +66,9 @@ export interface ChangeQtyOptions {
 const LOW_STOCK_THRESHOLD = 5;
 
 function getDiasHastaVencimiento(fechaVencimiento: string): number {
-  return Math.ceil((new Date(fechaVencimiento).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+  return Math.ceil(
+    (new Date(fechaVencimiento).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+  );
 }
 
 export function useGestionInventario() {
@@ -72,9 +88,12 @@ export function useGestionInventario() {
 
   // Dialog targets
   const [editTarget, setEditTarget] = useState<IProductoTiendaV2 | null>(null);
-  const [changeQtyTarget, setChangeQtyTarget] = useState<IProductoTiendaV2 | null>(null);
-  const [movementsTarget, setMovementsTarget] = useState<IProductoTiendaV2 | null>(null);
-  const [createMovTarget, setCreateMovTarget] = useState<IProductoTiendaV2 | null>(null);
+  const [changeQtyTarget, setChangeQtyTarget] =
+    useState<IProductoTiendaV2 | null>(null);
+  const [movementsTarget, setMovementsTarget] =
+    useState<IProductoTiendaV2 | null>(null);
+  const [createMovTarget, setCreateMovTarget] =
+    useState<IProductoTiendaV2 | null>(null);
   const [createProductOpen, setCreateProductOpen] = useState(false);
 
   const tiendaId = user?.localActual?.id;
@@ -106,28 +125,36 @@ export function useGestionInventario() {
 
     if (searchTerm.trim()) {
       const q = normalizeSearch(searchTerm);
-      result = result.filter(p =>
-        normalizeSearch(p.producto.nombre).includes(q) ||
-        normalizeSearch(p.producto.categoria?.nombre ?? "").includes(q)
+      result = result.filter(
+        (p) =>
+          normalizeSearch(p.producto.nombre).includes(q) ||
+          normalizeSearch(p.producto.categoria?.nombre ?? "").includes(q),
       );
     }
 
     if (selectedCategorias.length > 0) {
-      result = result.filter(p => selectedCategorias.includes(p.producto.categoriaId));
+      result = result.filter((p) =>
+        selectedCategorias.includes(p.producto.categoriaId),
+      );
     }
 
-    if (stockFilter === "en_stock") result = result.filter(p => p.existencia > LOW_STOCK_THRESHOLD);
-    else if (stockFilter === "bajo_stock") result = result.filter(p => p.existencia > 0 && p.existencia <= LOW_STOCK_THRESHOLD);
-    else if (stockFilter === "sin_stock") result = result.filter(p => p.existencia <= 0);
+    if (stockFilter === "en_stock")
+      result = result.filter((p) => p.existencia > LOW_STOCK_THRESHOLD);
+    else if (stockFilter === "bajo_stock")
+      result = result.filter(
+        (p) => p.existencia > 0 && p.existencia <= LOW_STOCK_THRESHOLD,
+      );
+    else if (stockFilter === "sin_stock")
+      result = result.filter((p) => p.existencia <= 0);
 
     if (expiryFilter === "proximos") {
-      result = result.filter(p => {
+      result = result.filter((p) => {
         if (!p.fechaVencimiento) return false;
         const dias = getDiasHastaVencimiento(p.fechaVencimiento);
         return dias > 0 && dias <= 30;
       });
     } else if (expiryFilter === "vencidos") {
-      result = result.filter(p => {
+      result = result.filter((p) => {
         if (!p.fechaVencimiento) return false;
         return getDiasHastaVencimiento(p.fechaVencimiento) <= 0;
       });
@@ -136,15 +163,25 @@ export function useGestionInventario() {
     return result;
   }, [productos, searchTerm, selectedCategorias, stockFilter, expiryFilter]);
 
-  const resolveCategoria = async (data: { categoriaId: string; newCategoriaName?: string; newCategoriaColor?: string }): Promise<string> => {
+  const resolveCategoria = async (data: {
+    categoriaId: string;
+    newCategoriaName?: string;
+    newCategoriaColor?: string;
+  }): Promise<string> => {
     if (data.newCategoriaName) {
-      const cat = await createCategory(data.newCategoriaName, data.newCategoriaColor ?? "#9e9e9e");
+      const cat = await createCategory(
+        data.newCategoriaName,
+        data.newCategoriaColor ?? "#9e9e9e",
+      );
       return cat.id;
     }
     return data.categoriaId;
   };
 
-  const handleEditSave = async (producto: IProductoTiendaV2, data: EditProductData) => {
+  const handleEditSave = async (
+    producto: IProductoTiendaV2,
+    data: EditProductData,
+  ) => {
     try {
       const categoriaId = await resolveCategoria(data);
       await editProduct(
@@ -152,31 +189,51 @@ export function useGestionInventario() {
         data.nombre,
         data.descripcion,
         categoriaId,
-        data.fraccionDeId ? { fraccionDeId: data.fraccionDeId, unidadesPorFraccion: data.unidadesPorFraccion ?? undefined } : undefined,
+        data.fraccionDeId
+          ? {
+              fraccionDeId: data.fraccionDeId,
+              unidadesPorFraccion: data.unidadesPorFraccion ?? undefined,
+            }
+          : undefined,
         data.codigosProducto,
-        data.permiteDecimal
+        data.permiteDecimal,
       );
-      await updateProductosTienda(tiendaId, [{
-        id: producto.id,
-        precio: data.precio,
-        costo: data.costo,
-        fechaVencimiento: data.fechaVencimiento,
-      }]);
+      await updateProductosTienda(tiendaId, [
+        {
+          id: producto.id,
+          precio: data.precio,
+          costo: data.costo,
+          monedaPrecioCode: data.monedaPrecioCode,
+          monedaCostoCode: data.monedaCostoCode,
+          fechaVencimiento: data.fechaVencimiento,
+        },
+      ]);
       showMessage("Producto actualizado", "success");
       setEditTarget(null);
       await reload();
-    } catch {
-      showMessage("Error al actualizar el producto", "error");
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response
+        ?.data?.error;
+      showMessage(msg ?? "Error al actualizar el producto", "error");
     }
   };
 
-  const handleChangeQtySave = async (producto: IProductoTiendaV2, newQty: number, options: ChangeQtyOptions) => {
+  const handleChangeQtySave = async (
+    producto: IProductoTiendaV2,
+    newQty: number,
+    options: ChangeQtyOptions,
+  ) => {
     const delta = newQty - producto.existencia;
     if (delta === 0) return;
     const esConsignacion = !!producto.proveedorId;
-    const tipo = delta > 0
-      ? (esConsignacion ? "CONSIGNACION_ENTRADA" : "COMPRA")
-      : (esConsignacion ? "CONSIGNACION_DEVOLUCION" : "AJUSTE_SALIDA");
+    const tipo =
+      delta > 0
+        ? esConsignacion
+          ? "CONSIGNACION_ENTRADA"
+          : "COMPRA"
+        : esConsignacion
+          ? "CONSIGNACION_DEVOLUCION"
+          : "AJUSTE_SALIDA";
     const esEntrada = delta > 0;
     try {
       await cretateBatchMovimientos(
@@ -187,19 +244,22 @@ export function useGestionInventario() {
           motivo: options?.motivo,
           ...(esConsignacion && { proveedorId: producto.proveedorId }),
         },
-        [{
-          productoId: producto.productoId,
-          cantidad: Math.abs(delta),
-          ...(esEntrada && {
-            costoUnitario: options.costoUnitario ?? producto.costo,
-            costoTotal: (options.costoUnitario ?? producto.costo) * Math.abs(delta),
-          }),
-        }]
+        [
+          {
+            productoId: producto.productoId,
+            cantidad: Math.abs(delta),
+            ...(esEntrada && {
+              costoUnitario: options.costoUnitario ?? producto.costo,
+              costoTotal:
+                (options.costoUnitario ?? producto.costo) * Math.abs(delta),
+            }),
+          },
+        ],
       );
       showMessage("Movimiento registrado", "success");
       setChangeQtyTarget(null);
       await reload();
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       showMessage("Error al registrar el movimiento", "error");
     }
@@ -212,37 +272,64 @@ export function useGestionInventario() {
         data.nombre,
         data.descripcion,
         categoriaId,
-        data.fraccionDeId ? { fraccionDeId: data.fraccionDeId, unidadesPorFraccion: data.unidadesPorFraccion ?? undefined } : undefined,
-        [],
-        data.permiteDecimal
+        data.fraccionDeId
+          ? {
+              fraccionDeId: data.fraccionDeId,
+              unidadesPorFraccion: data.unidadesPorFraccion ?? undefined,
+            }
+          : undefined,
+        data.codigosProducto.filter(Boolean),
+        data.permiteDecimal,
       );
 
+      const extraFields = {
+        monedaPrecioCode: data.monedaPrecioCode,
+        monedaCostoCode: data.monedaCostoCode,
+        fechaVencimiento: data.fechaVencimiento,
+      };
+
       if (data.cantidadInicial > 0) {
-        // COMPRA movement creates ProductoTienda and sets costo via CPP
         await cretateBatchMovimientos(
           { tipo: "COMPRA", tiendaId, usuarioId: user.id },
-          [{
-            productoId: nuevoProducto.id,
-            cantidad: data.cantidadInicial,
-            costoUnitario: data.costo,
-            costoTotal: data.costo * data.cantidadInicial,
-          }]
+          [
+            {
+              productoId: nuevoProducto.id,
+              cantidad: data.cantidadInicial,
+              costoUnitario: data.costo,
+              costoTotal: data.costo * data.cantidadInicial,
+            },
+          ],
         );
-        // Now find the newly created ProductoTienda to set precio
         const updated = await getProductosVenta(tiendaId);
-        const nuevoPT = updated.find((p: IProductoTiendaV2) => p.productoId === nuevoProducto.id);
-        if (nuevoPT && data.precio) {
-          await updateProductosTienda(tiendaId, [{ id: nuevoPT.id, precio: data.precio }]);
+        const nuevoPT = updated.find(
+          (p: IProductoTiendaV2) => p.productoId === nuevoProducto.id,
+        );
+        if (nuevoPT) {
+          await updateProductosTienda(tiendaId, [
+            { id: nuevoPT.id, precio: data.precio, ...extraFields },
+          ]);
         }
       } else {
-        await createProductoTienda(tiendaId, nuevoProducto.id, data.precio, data.costo);
+        const nuevoPT = await createProductoTienda(
+          tiendaId,
+          nuevoProducto.id,
+          data.precio,
+          data.costo,
+        );
+        if (nuevoPT?.id) {
+          await updateProductosTienda(tiendaId, [
+            { id: nuevoPT.id, ...extraFields },
+          ]);
+        }
       }
 
       showMessage("Producto creado", "success");
       setCreateProductOpen(false);
       await reload();
-    } catch {
-      showMessage("Error al crear el producto", "error");
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response
+        ?.data?.error;
+      showMessage(msg ?? "Error al crear el producto", "error");
     }
   };
 
@@ -255,9 +342,12 @@ export function useGestionInventario() {
           showMessage("Producto eliminado", "success");
           await reload();
         } catch {
-          showMessage("El producto no pudo ser eliminado. Verifique que tenga existencia 0.", "error");
+          showMessage(
+            "El producto no pudo ser eliminado. Verifique que tenga existencia 0.",
+            "error",
+          );
         }
-      }
+      },
     );
   };
 
@@ -267,10 +357,14 @@ export function useGestionInventario() {
     loading,
     filteredProductos,
 
-    searchTerm, setSearchTerm,
-    selectedCategorias, setSelectedCategorias,
-    stockFilter, setStockFilter,
-    expiryFilter, setExpiryFilter,
+    searchTerm,
+    setSearchTerm,
+    selectedCategorias,
+    setSelectedCategorias,
+    stockFilter,
+    setStockFilter,
+    expiryFilter,
+    setExpiryFilter,
 
     editTarget,
     openEdit: setEditTarget,

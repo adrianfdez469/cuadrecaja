@@ -24,6 +24,8 @@ import { IProductoTiendaV2 } from "@/schemas/producto";
 import { asociarCodigoProducto } from "@/services/productServise";
 import { normalizeSearch } from "@/utils/formatters";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+import { useAppContext } from "@/context/AppContext";
+import { convertToBase } from "@/lib/currency";
 
 interface AsociarCodigoDialogProps {
   open: boolean;
@@ -45,12 +47,13 @@ export function AsociarCodigoDialog({
     useState<IProductoTiendaV2 | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { tasasVigentes, monedaBase } = useAppContext();
 
   const resultados = useMemo(() => {
     if (!busqueda.trim()) return [];
     return productosTienda
       .filter((p) =>
-        normalizeSearch(p.producto.nombre).includes(normalizeSearch(busqueda))
+        normalizeSearch(p.producto.nombre).includes(normalizeSearch(busqueda)),
       )
       .slice(0, 8);
   }, [productosTienda, busqueda]);
@@ -157,9 +160,29 @@ export function AsociarCodigoDialog({
                   <ListItemText
                     primary={prod.producto.nombre}
                     secondary={
-                      <Box component="span" sx={{ display: "flex", flexDirection: "column", gap: 0.25, mt: 0.25 }}>
-                        <MultiCurrencyAmount amount={prod.precio} variant="compact" />
-                        <Typography variant="caption" color="text.secondary" component="span">
+                      <Box
+                        component="span"
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 0.25,
+                          mt: 0.25,
+                        }}
+                      >
+                        <MultiCurrencyAmount
+                          amount={convertToBase(
+                            prod.precio,
+                            prod.monedaPrecioCode ?? monedaBase,
+                            tasasVigentes,
+                            monedaBase,
+                          )}
+                          variant="compact"
+                        />
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          component="span"
+                        >
                           Stock: {prod.existencia}
                         </Typography>
                       </Box>

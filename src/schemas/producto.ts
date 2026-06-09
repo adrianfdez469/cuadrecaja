@@ -1,7 +1,7 @@
-import { z } from 'zod';
-import { categoriaSchema } from './categoria';
-import { proveedorSchema } from './proveedor';
-import { codigoProductoSchema } from './codigoProducto';
+import { z } from "zod";
+import { categoriaSchema } from "./categoria";
+import { proveedorSchema } from "./proveedor";
+import { codigoProductoSchema } from "./codigoProducto";
 
 const fraccionDeSchema = z.object({
   id: z.string().uuid(),
@@ -10,7 +10,7 @@ const fraccionDeSchema = z.object({
 
 export const productoSchema = z.object({
   id: z.string().uuid(),
-  nombre: z.string().min(1, 'El nombre es requerido'),
+  nombre: z.string().min(1, "El nombre es requerido"),
   descripcion: z.string(),
   categoriaId: z.string().uuid(),
   categoria: categoriaSchema,
@@ -45,6 +45,7 @@ export const productoVentaSchema = z.object({
   cantidad: z.number(),
   productId: z.string().uuid(),
   price: z.number(),
+  monedaPrecioCode: z.string().nullable().optional(),
 });
 
 export const productoTiendaV2Schema = z.object({
@@ -58,6 +59,8 @@ export const productoTiendaV2Schema = z.object({
   producto: productoSchema,
   productoId: z.string().uuid(),
   fechaVencimiento: z.string().nullable().optional(),
+  monedaCostoCode: z.string().nullable().optional(),
+  monedaPrecioCode: z.string().nullable().optional(),
 });
 
 // ─── Query params / response para movimiento service ────────────────────────
@@ -77,5 +80,7 @@ export type IProducto = z.infer<typeof productoSchema>;
 export type IProductoTienda = z.infer<typeof productoTiendaSchema>;
 export type IProductoVenta = z.infer<typeof productoVentaSchema>;
 export type IProductoTiendaV2 = z.infer<typeof productoTiendaV2Schema>;
-export type IProdTiendaQueryParams = z.infer<typeof prodTiendaQueryParamsSchema>;
+export type IProdTiendaQueryParams = z.infer<
+  typeof prodTiendaQueryParamsSchema
+>;
 export type IProdTiendaResponse = z.infer<typeof prodTiendaResponseSchema>;

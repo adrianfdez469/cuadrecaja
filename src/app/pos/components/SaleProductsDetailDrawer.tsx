@@ -1,5 +1,8 @@
 import React from "react";
 import { Sale } from "@/store/salesStore";
+import { useAppContext } from "@/context/AppContext";
+import { convertToBase } from "@/lib/currency";
+import { IProductoTiendaV2 } from "@/schemas/producto";
 import { Close, Delete } from "@mui/icons-material";
 import {
   Box,
@@ -23,17 +26,35 @@ interface SaleProductsDetailDrawerProps {
   allowDelete: boolean;
   onDeleteProduct: (product: Sale["productos"][0]) => Promise<void>;
   disableAll?: boolean;
+  productosTienda?: IProductoTiendaV2[];
 }
 
-export const SaleProductsDetailDrawer: React.FC<SaleProductsDetailDrawerProps> = ({
+export const SaleProductsDetailDrawer: React.FC<
+  SaleProductsDetailDrawerProps
+> = ({
   open,
   onClose,
   sale,
   allowDelete,
   onDeleteProduct,
   disableAll = false,
+  productosTienda,
 }) => {
+  const { tasasVigentes, monedaBase } = useAppContext();
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
+
+  const totalConvertido = sale.productos.reduce((sum, product) => {
+    const moneda =
+      product.monedaPrecioCode ??
+      productosTienda?.find((p) => p.id === product.productoTiendaId)
+        ?.monedaPrecioCode ??
+      monedaBase;
+    return (
+      sum +
+      convertToBase(product.price, moneda, tasasVigentes, monedaBase) *
+        product.cantidad
+    );
+  }, 0);
 
   const handleDelete = async (product: Sale["productos"][0]) => {
     const key = product.ventaProductoId ?? product.productoTiendaId;
@@ -57,7 +78,13 @@ export const SaleProductsDetailDrawer: React.FC<SaleProductsDetailDrawerProps> =
           maxHeight: "80vh",
         }}
       >
-        <Box display="flex" flexDirection="row" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box
+          display="flex"
+          flexDirection="row"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={2}
+        >
           <Typography variant="h6">Detalle de venta</Typography>
           <IconButton onClick={onClose} color="default">
             <Close />
@@ -68,30 +95,64 @@ export const SaleProductsDetailDrawer: React.FC<SaleProductsDetailDrawerProps> =
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell><strong>Producto</strong></TableCell>
-                <TableCell align="center"><strong>Cantidad</strong></TableCell>
-                <TableCell align="right"><strong>Precio</strong></TableCell>
-                <TableCell align="right"><strong>Total</strong></TableCell>
-                {allowDelete && <TableCell align="center"><strong>Acciones</strong></TableCell>}
+                <TableCell>
+                  <strong>Producto</strong>
+                </TableCell>
+                <TableCell align="center">
+                  <strong>Cantidad</strong>
+                </TableCell>
+                <TableCell align="right">
+                  <strong>Precio</strong>
+                </TableCell>
+                <TableCell align="right">
+                  <strong>Total</strong>
+                </TableCell>
+                {allowDelete && (
+                  <TableCell align="center">
+                    <strong>Acciones</strong>
+                  </TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
               {sale.productos.map((product, index) => {
-                const totalLinea = product.price * product.cantidad;
-                const key = product.ventaProductoId ?? `${product.productoTiendaId}-${index}`;
+                const moneda =
+                  product.monedaPrecioCode ??
+                  productosTienda?.find(
+                    (p) => p.id === product.productoTiendaId,
+                  )?.monedaPrecioCode ??
+                  monedaBase;
+                const precioBase = convertToBase(
+                  product.price,
+                  moneda,
+                  tasasVigentes,
+                  monedaBase,
+                );
+                const totalLinea = precioBase * product.cantidad;
+                const key =
+                  product.ventaProductoId ??
+                  `${product.productoTiendaId}-${index}`;
                 const isDeleting = deletingId === key;
                 return (
                   <TableRow key={key} hover>
                     <TableCell>{product.name}</TableCell>
                     <TableCell align="center">{product.cantidad}</TableCell>
-                    <TableCell align="right">${product.price?.toFixed(2)}</TableCell>
-                    <TableCell align="right">${totalLinea.toFixed(2)}</TableCell>
+                    <TableCell align="right">
+                      ${precioBase?.toFixed(2)}
+                    </TableCell>
+                    <TableCell align="right">
+                      ${totalLinea.toFixed(2)}
+                    </TableCell>
                     {allowDelete && (
                       <TableCell align="center">
                         <IconButton
                           size="small"
                           color="error"
-                          disabled={disableAll || isDeleting || sale.productos.length <= 1}
+                          disabled={
+                            disableAll ||
+                            isDeleting ||
+                            sale.productos.length <= 1
+                          }
                           onClick={() => handleDelete(product)}
                           aria-label="Eliminar producto"
                         >
@@ -111,7 +172,9 @@ export const SaleProductsDetailDrawer: React.FC<SaleProductsDetailDrawerProps> =
                   <Typography fontWeight="bold">Total</Typography>
                 </TableCell>
                 <TableCell align="right">
-                  <Typography fontWeight="bold">${sale.total.toFixed(2)}</Typography>
+                  <Typography fontWeight="bold">
+                    ${totalConvertido.toFixed(2)}
+                  </Typography>
                 </TableCell>
                 {allowDelete && <TableCell />}
               </TableRow>

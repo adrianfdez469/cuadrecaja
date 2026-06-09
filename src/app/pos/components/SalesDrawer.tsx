@@ -28,13 +28,20 @@ import { FC, useEffect, useState, Fragment } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { SaleProductsDetailDrawer } from "./SaleProductsDetailDrawer";
-import { createSell, getSells, removeSell, removeProductFromSale } from "@/services/sellService";
+import {
+  createSell,
+  getSells,
+  removeSell,
+  removeProductFromSale,
+} from "@/services/sellService";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useAppContext } from "@/context/AppContext";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import { usePermisos } from "@/utils/permisos_front";
-import {formatDateTime} from "@/utils/formatters";
+import { formatDateTime } from "@/utils/formatters";
+import { IProductoTiendaV2 } from "@/schemas/producto";
+import { convertToBase } from "@/lib/currency";
 
 interface IProps {
   showSales: boolean;
@@ -42,9 +49,17 @@ interface IProps {
   handleClose: () => void;
   reloadProdsAndCategories: () => void;
   incrementarCantidades: (id: string, nuevaCantidad: number) => void;
+  productosTienda?: IProductoTiendaV2[];
 }
 
-export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reloadProdsAndCategories, incrementarCantidades }) => {
+export const SalesDrawer: FC<IProps> = ({
+  showSales,
+  period,
+  handleClose,
+  reloadProdsAndCategories,
+  incrementarCantidades,
+  productosTienda,
+}) => {
   const {
     sales,
     markSynced,
@@ -61,8 +76,8 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const [offline, setOffline] = useState(false);
-  const { user } = useAppContext();
-  const { verificarPermiso } = usePermisos()
+  const { user, tasasVigentes, monedaBase } = useAppContext();
+  const { verificarPermiso } = usePermisos();
 
   const handleSelectViewSale = (sale) => {
     setSelectedSale(sale);
@@ -88,7 +103,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
           syncObj.createdAt, // 🆕 Usar timestamp de la venta
           syncObj.wasOffline, // 🆕 Usar estado offline de la venta
           syncObj.syncAttempts, // 🆕 Enviar intentos de sincronización
-          syncObj.discountCodes // 🆕 Reenviar códigos de descuento si existen
+          syncObj.discountCodes, // 🆕 Reenviar códigos de descuento si existen
         );
         markSynced(syncObj.identifier, ventaDb.id);
         setOffline(false);
@@ -97,17 +112,20 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
         console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
 
         // Manejo mejorado de errores
-        if (error.message?.includes('TIMEOUT_ERROR')) {
+        if (error.message?.includes("TIMEOUT_ERROR")) {
           markSyncError(syncObj.identifier);
-          showMessage("Timeout al sincronizar venta - se reintentará automáticamente", "warning");
-        } else if (error.message?.includes('NETWORK_ERROR')) {
+          showMessage(
+            "Timeout al sincronizar venta - se reintentará automáticamente",
+            "warning",
+          );
+        } else if (error.message?.includes("NETWORK_ERROR")) {
           markSyncError(syncObj.identifier);
           showMessage("Error de red al sincronizar venta", "warning");
           setOffline(true);
-        } else if (error.message?.includes('SERVER_ERROR')) {
+        } else if (error.message?.includes("SERVER_ERROR")) {
           markSyncError(syncObj.identifier);
           showMessage("Error del servidor al sincronizar venta", "error");
-        } else if (error.message?.includes('CLIENT_ERROR')) {
+        } else if (error.message?.includes("CLIENT_ERROR")) {
           markSyncError(syncObj.identifier);
           showMessage("Error en los datos de la venta", "error");
         } else {
@@ -138,7 +156,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
         syncObj.createdAt, // 🆕 Usar timestamp de la venta
         syncObj.wasOffline, // 🆕 Usar estado offline de la venta
         syncObj.syncAttempts, // 🆕 Enviar intentos de sincronización
-        syncObj.discountCodes // 🆕 Reenviar códigos de descuento si existen
+        syncObj.discountCodes, // 🆕 Reenviar códigos de descuento si existen
       );
       markSynced(syncObj.identifier, ventaDb.id);
       setOffline(false);
@@ -147,17 +165,20 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
       console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
 
       // Manejo mejorado de errores
-      if (error.message?.includes('TIMEOUT_ERROR')) {
+      if (error.message?.includes("TIMEOUT_ERROR")) {
         markSyncError(syncObj.identifier);
-        showMessage("Timeout al sincronizar venta - se reintentará automáticamente", "warning");
-      } else if (error.message?.includes('NETWORK_ERROR')) {
+        showMessage(
+          "Timeout al sincronizar venta - se reintentará automáticamente",
+          "warning",
+        );
+      } else if (error.message?.includes("NETWORK_ERROR")) {
         markSyncError(syncObj.identifier);
         showMessage("Error de red al sincronizar venta", "warning");
         setOffline(true);
-      } else if (error.message?.includes('SERVER_ERROR')) {
+      } else if (error.message?.includes("SERVER_ERROR")) {
         markSyncError(syncObj.identifier);
         showMessage("Error del servidor al sincronizar venta", "error");
-      } else if (error.message?.includes('CLIENT_ERROR')) {
+      } else if (error.message?.includes("CLIENT_ERROR")) {
         markSyncError(syncObj.identifier);
         showMessage("Error en los datos de la venta", "error");
       } else {
@@ -176,14 +197,18 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
       async () => {
         try {
           setDisableAll(true);
-          if (selectedSale.synced && selectedSale.dbId && product.ventaProductoId) {
+          if (
+            selectedSale.synced &&
+            selectedSale.dbId &&
+            product.ventaProductoId
+          ) {
             const tiendaId = user.localActual?.id;
             if (!tiendaId) throw new Error("No hay tienda seleccionada");
             await removeProductFromSale(
               tiendaId,
               period.id,
               selectedSale.dbId,
-              product.ventaProductoId
+              product.ventaProductoId,
             );
           }
           removeProductFromSaleStore(
@@ -191,12 +216,12 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
             product.productoTiendaId,
             product.productId,
             product.cantidad,
-            product.ventaProductoId
+            product.ventaProductoId,
           );
           incrementarCantidades(product.productoTiendaId, product.cantidad);
-          const updatedSale = useSalesStore.getState().sales.find(
-            (s) => s.identifier === selectedSale.identifier
-          );
+          const updatedSale = useSalesStore
+            .getState()
+            .sales.find((s) => s.identifier === selectedSale.identifier);
           if (updatedSale?.productos.length === 0) {
             setShowProducts(false);
             setSelectedSale(undefined);
@@ -211,7 +236,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
         } finally {
           setDisableAll(false);
         }
-      }
+      },
     );
   };
 
@@ -225,7 +250,6 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
             // eliminar de las ventas en backend
             const tiendaId = user.localActual.id;
             await removeSell(tiendaId, period.id, sale.dbId, user.id);
-
           }
 
           // eliminar de las ventas y los productos en el storage
@@ -244,7 +268,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
             showMessage(
               "La venta no puedo ser eliminada por error de conexión",
               "warning",
-              error
+              error,
             );
           } else {
             showMessage("La venta no puedo ser eliminada", "error", error);
@@ -252,7 +276,7 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
         } finally {
           setDisableAll(false);
         }
-      }
+      },
     );
   };
 
@@ -275,7 +299,9 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
           usuarioId: venta.usuarioId,
           dbId: venta.id,
           // 🆕 USAR CAMPOS DE LA BASE DE DATOS
-          createdAt: venta.frontendCreatedAt ? new Date(venta.frontendCreatedAt).getTime() : new Date(venta.createdAt).getTime(),
+          createdAt: venta.frontendCreatedAt
+            ? new Date(venta.frontendCreatedAt).getTime()
+            : new Date(venta.createdAt).getTime(),
           wasOffline: venta.wasOffline || false,
           syncAttempts: venta.syncAttempts || 0, // 🆕 Preservar intentos de la base de datos
           productos: venta.productos.map((p) => {
@@ -299,7 +325,11 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
         setOffline(true);
         showMessage("Ocurrió un error de red al sincronizar", "warning", error);
       } else {
-        showMessage("Ocurrió un error al sincrinozar los datos con el servidor", 'error', error);
+        showMessage(
+          "Ocurrió un error al sincrinozar los datos con el servidor",
+          "error",
+          error,
+        );
       }
     } finally {
       setDisableAll(false);
@@ -309,14 +339,17 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
   const formatSaleInfo = (sale: Sale) => {
     const createdDate = formatDateTime(sale.createdAt);
     // 🆕 Mostrar intentos solo si la venta no está sincronizada o si tiene intentos
-    const syncAttemptsText = sale.syncAttempts > 0 ? ` (${sale.syncAttempts} intentos)` : '';
-    const offlineText = sale.wasOffline ? ' - Creada offline' : ' - Creada online';
+    const syncAttemptsText =
+      sale.syncAttempts > 0 ? ` (${sale.syncAttempts} intentos)` : "";
+    const offlineText = sale.wasOffline
+      ? " - Creada offline"
+      : " - Creada online";
 
     return {
       date: createdDate.toLocaleString(),
       status: `${sale.syncState}${syncAttemptsText}${offlineText}`,
       total: `$${sale.total.toFixed(2)}`,
-      products: sale.productos.length
+      products: sale.productos.length,
     };
   };
 
@@ -351,23 +384,20 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
             {sales.length > 0 ? (
               <Chip
                 label={offline ? `Desconectado` : "Conectado!"}
-                onDelete={() => { }}
+                onDelete={() => {}}
                 deleteIcon={offline ? <WifiOff /> : <Wifi />}
                 color={offline ? "warning" : "success"}
               />
             ) : (
               <Box />
             )}
-            <IconButton
-              onClick={handleClose}
-              color="default"
-            >
+            <IconButton onClick={handleClose} color="default">
               <Close />
             </IconButton>
           </Box>
 
           {/* Contenido Scrollable */}
-          <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+          <Box sx={{ flexGrow: 1, overflowY: "auto" }}>
             {sales.filter((s) => !s.synced).length > 0 && (
               <Box
                 sx={{ mt: 2, mb: 1 }}
@@ -392,8 +422,12 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell><b>Estado</b></TableCell>
-                    <TableCell><b>Fecha</b></TableCell>
+                    <TableCell>
+                      <b>Estado</b>
+                    </TableCell>
+                    <TableCell>
+                      <b>Fecha</b>
+                    </TableCell>
                     <TableCell align="right">
                       <b>Efectivo</b>
                     </TableCell>
@@ -403,7 +437,9 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
                     <TableCell align="right">
                       <b>Total</b>
                     </TableCell>
-                    <TableCell><b>Acciones</b></TableCell>
+                    <TableCell>
+                      <b>Acciones</b>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -415,36 +451,81 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
                     })
                     .map((s) => {
                       const saleInfo = formatSaleInfo(s);
+                      const totalConvertido = s.productos.reduce((sum, p) => {
+                        const moneda =
+                          p.monedaPrecioCode ??
+                          productosTienda?.find(
+                            (pt) => pt.id === p.productoTiendaId,
+                          )?.monedaPrecioCode ??
+                          monedaBase;
+                        return (
+                          sum +
+                          convertToBase(
+                            p.price,
+                            moneda,
+                            tasasVigentes,
+                            monedaBase,
+                          ) *
+                            p.cantidad
+                        );
+                      }, 0);
                       return (
                         <Fragment key={s.identifier}>
                           <TableRow sx={{ borderColor: "Highlight" }}>
                             <TableCell>
-                              <Box display={"flex"} flexDirection={"column"} gap={0.5}>
+                              <Box
+                                display={"flex"}
+                                flexDirection={"column"}
+                                gap={0.5}
+                              >
                                 <Box display="flex" alignItems="center" gap={1}>
                                   {s.synced ? (
                                     <Sync fontSize="small" color="success" />
                                   ) : (
-                                    <SyncDisabled fontSize="small" color="warning" />
+                                    <SyncDisabled
+                                      fontSize="small"
+                                      color="warning"
+                                    />
                                   )}
-                                  <Typography variant="caption" color="text.secondary">
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
                                     {saleInfo.status}
                                   </Typography>
                                 </Box>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   {saleInfo.products} productos
                                 </Typography>
                               </Box>
                             </TableCell>
                             <TableCell>
-                              <Typography variant="body2">{saleInfo.date}</Typography>
+                              <Typography variant="body2">
+                                {saleInfo.date}
+                              </Typography>
                             </TableCell>
-                            <TableCell align="right">${s.totalcash}</TableCell>
-                            <TableCell align="right">${s.totaltransfer}</TableCell>
                             <TableCell align="right">
-                              <Typography variant="h6">${s.total}</Typography>
+                              ${s.totalcash.toFixed(2)}
+                            </TableCell>
+                            <TableCell align="right">
+                              ${s.totaltransfer.toFixed(2)}
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="h6">
+                                ${totalConvertido.toFixed(2)}
+                              </Typography>
                             </TableCell>
                             <TableCell>
-                              <Box width={"100%"} display={"flex"} flexDirection={"row"} justifyContent={"space-around"} alignItems={"center"}>
+                              <Box
+                                width={"100%"}
+                                display={"flex"}
+                                flexDirection={"row"}
+                                justifyContent={"space-around"}
+                                alignItems={"center"}
+                              >
                                 <IconButton
                                   aria-label="view"
                                   color="default"
@@ -467,12 +548,16 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
                                   </IconButton>
                                 )}
 
-                                {verificarPermiso("operaciones.pos-venta.cancelarventa") && (
+                                {verificarPermiso(
+                                  "operaciones.pos-venta.cancelarventa",
+                                ) && (
                                   <IconButton
                                     aria-label="delete"
                                     color="error"
                                     onClick={() => handleDeleteOne(s)}
-                                    disabled={disableAll || (offline && s.synced)}
+                                    disabled={
+                                      disableAll || (offline && s.synced)
+                                    }
                                   >
                                     <DeleteIcon />
                                   </IconButton>
@@ -493,11 +578,15 @@ export const SalesDrawer: FC<IProps> = ({ showSales, period, handleClose, reload
       {selectedSale && (
         <SaleProductsDetailDrawer
           open={showProducts}
-          onClose={() => { setShowProducts(false); setSelectedSale(undefined); }}
+          onClose={() => {
+            setShowProducts(false);
+            setSelectedSale(undefined);
+          }}
           sale={selectedSale}
           allowDelete={verificarPermiso("operaciones.pos-venta.cancelarventa")}
           onDeleteProduct={handleDeleteProductFromSale}
           disableAll={disableAll}
+          productosTienda={productosTienda}
         />
       )}
 

@@ -3,18 +3,29 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { gastoAplicaEnFecha } from "@/utils/gastos";
+import type { ITasaSnapshot } from "@/schemas/tasaCambio";
+import { convertToBase } from "@/lib/currency";
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: Promise<{ cierreId: string }> }
+  { params }: { params: Promise<{ cierreId: string }> },
 ) {
   try {
     const { cierreId } = await params;
     const session = await getSession();
     const user = session.user;
 
-    if (!verificarPermisoUsuario(user.permisos, "operaciones.cierre.cerrar", user.rol)) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+    if (
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.cierre.cerrar",
+        user.rol,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 },
+      );
     }
 
     const cierre = await prisma.cierrePeriodo.findFirst({
@@ -28,22 +39,51 @@ export async function POST(
       },
     });
     if (!cierre) {
-      return NextResponse.json({ error: "Cierre no encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Cierre no encontrado" },
+        { status: 404 },
+      );
     }
     if (cierre.fechaFin) {
-      return NextResponse.json({ error: "El período ya está cerrado" }, { status: 400 });
+      return NextResponse.json(
+        { error: "El período ya está cerrado" },
+        { status: 400 },
+      );
     }
 
-    // Calcular totales actuales del período (igual que close/route.ts)
+    const tienda = await prisma.tienda.findUnique({
+      where: { id: cierre.tiendaId },
+      select: { negocio: { select: { monedaBase: true } } },
+    });
+    const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
+
+    // Calcular totales actuales del período — igual que cierre/[cierreId]/route.ts
     let totalVentas = 0;
     let totalGanancia = 0;
 
     for (const venta of cierre.ventas) {
-      totalVentas += venta.total;
+      const tasas = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+      let ventaBruta = 0;
+
       for (const vp of venta.productos) {
-        const ganancia = (vp.precio - vp.costo) * vp.cantidad;
-        totalGanancia += ganancia;
+        const precioBase = convertToBase(
+          vp.precio,
+          vp.monedaPrecioCode ?? monedaBase,
+          tasas,
+          monedaBase,
+        );
+        const costoBase = convertToBase(
+          vp.costo,
+          vp.monedaCostoCode ?? monedaBase,
+          tasas,
+          monedaBase,
+        );
+        ventaBruta += vp.cantidad * precioBase;
+        totalGanancia += vp.cantidad * (precioBase - costoBase);
       }
+
+      const descuento = Number(venta.discountTotal ?? 0);
+      totalVentas += Math.max(0, ventaBruta - descuento);
     }
 
     // Obtener gastos configurados para la tienda
@@ -93,8 +133,14 @@ export async function POST(
       orderBy: { createdAt: "asc" },
     });
 
-    const totalGastosRecurrentes = gastosRecurrentes.reduce((s, g) => s + g.montoCalculado, 0);
-    const totalGastosAdHoc = gastosAdHoc.reduce((s, g) => s + g.montoCalculado, 0);
+    const totalGastosRecurrentes = gastosRecurrentes.reduce(
+      (s, g) => s + g.montoCalculado,
+      0,
+    );
+    const totalGastosAdHoc = gastosAdHoc.reduce(
+      (s, g) => s + g.montoCalculado,
+      0,
+    );
     const totalGastos = totalGastosRecurrentes + totalGastosAdHoc;
     const totalGananciaFinal = totalGanancia - totalGastos;
 
@@ -109,6 +155,9 @@ export async function POST(
     });
   } catch (error) {
     console.error("Error al calcular preview de gastos:", error);
-    return NextResponse.json({ error: "Error al calcular preview" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al calcular preview" },
+      { status: 500 },
+    );
   }
 }
