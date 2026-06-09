@@ -19,8 +19,14 @@ import {
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { IGastoCierre } from "@/schemas/gastos";
-import { IGastosPreviewResponse, previewGastosCierre, applyGastosCierre } from "@/services/gastoService";
+import {
+  IGastosPreviewResponse,
+  previewGastosCierre,
+  applyGastosCierre,
+} from "@/services/gastoService";
 import { TIPO_CALCULO_LABELS, RECURRENCIA_LABELS } from "@/constants/gastos";
+import { useAppContext } from "@/context/AppContext";
+import { convertToBase } from "@/lib/currency";
 
 interface Props {
   open: boolean;
@@ -29,7 +35,12 @@ interface Props {
   onConfirm: () => Promise<void>;
 }
 
-export default function GastosCierreReviewDialog({ open, cierreId, onClose, onConfirm }: Props) {
+export default function GastosCierreReviewDialog({
+  open,
+  cierreId,
+  onClose,
+  onConfirm,
+}: Props) {
   const [preview, setPreview] = useState<IGastosPreviewResponse | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -45,13 +56,17 @@ export default function GastosCierreReviewDialog({ open, cierreId, onClose, onCo
         .then((data) => {
           setPreview(data);
           // Seleccionar todos los recurrentes por defecto
-          setSelectedIds(new Set(
-            data.gastosRecurrentes
-              .filter((g) => g.gastoTiendaId)
-              .map((g) => g.gastoTiendaId as string)
-          ));
+          setSelectedIds(
+            new Set(
+              data.gastosRecurrentes
+                .filter((g) => g.gastoTiendaId)
+                .map((g) => g.gastoTiendaId as string),
+            ),
+          );
         })
-        .catch(() => setError("No se pudo cargar el resumen de gastos. Intenta de nuevo."))
+        .catch(() =>
+          setError("No se pudo cargar el resumen de gastos. Intenta de nuevo."),
+        )
         .finally(() => setLoadingPreview(false));
     }
   }, [open, cierreId]);
@@ -65,15 +80,29 @@ export default function GastosCierreReviewDialog({ open, cierreId, onClose, onCo
     });
   };
 
-  const gastosSeleccionados = preview?.gastosRecurrentes.filter(
-    (g) => g.gastoTiendaId && selectedIds.has(g.gastoTiendaId)
-  ) ?? [];
+  const { tasasVigentes, monedaBase } = useAppContext();
+
+  const gastosSeleccionados =
+    preview?.gastosRecurrentes.filter(
+      (g) => g.gastoTiendaId && selectedIds.has(g.gastoTiendaId),
+    ) ?? [];
 
   const totalSeleccionado =
     gastosSeleccionados.reduce((s, g) => s + g.montoCalculado, 0) +
-    (preview?.gastosAdHoc.reduce((s, g) => s + g.montoCalculado, 0) ?? 0);
+    (preview?.gastosAdHoc.reduce(
+      (s, g) =>
+        s +
+        convertToBase(
+          g.montoCalculado,
+          g.monedaCode ?? monedaBase,
+          tasasVigentes,
+          monedaBase,
+        ),
+      0,
+    ) ?? 0);
 
-  const gananciaFinalEstimada = (preview?.totalGanancia ?? 0) - totalSeleccionado;
+  const gananciaFinalEstimada =
+    (preview?.totalGanancia ?? 0) - totalSeleccionado;
   const esNegativa = gananciaFinalEstimada < 0;
 
   const handleConfirm = async () => {
@@ -103,21 +132,31 @@ export default function GastosCierreReviewDialog({ open, cierreId, onClose, onCo
           </Box>
         )}
 
-        {error && <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert>}
+        {error && (
+          <Alert severity="error" sx={{ mt: 1 }}>
+            {error}
+          </Alert>
+        )}
 
         {preview && !loadingPreview && (
           <Stack spacing={2} mt={0.5}>
             {/* Gastos recurrentes */}
             <Box>
               <Box display="flex" alignItems="center" gap={0.5} mb={1}>
-                <Typography variant="subtitle2">Gastos recurrentes que aplican hoy</Typography>
+                <Typography variant="subtitle2">
+                  Gastos recurrentes que aplican hoy
+                </Typography>
                 <Tooltip title="Los gastos mensuales/anuales se aplican cuando el cierre ocurre en el día configurado. Puedes desmarcar cualquiera si no deseas aplicarlo.">
                   <InfoOutlinedIcon fontSize="small" color="action" />
                 </Tooltip>
               </Box>
 
               {preview.gastosRecurrentes.length === 0 ? (
-                <Typography variant="body2" color="text.secondary" sx={{ pl: 1 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ pl: 1 }}
+                >
                   Ningún gasto recurrente aplica para el día de hoy.
                 </Typography>
               ) : (
@@ -128,20 +167,40 @@ export default function GastosCierreReviewDialog({ open, cierreId, onClose, onCo
                       control={
                         <Checkbox
                           size="small"
-                          checked={g.gastoTiendaId ? selectedIds.has(g.gastoTiendaId) : false}
-                          onChange={() => g.gastoTiendaId && toggleGasto(g.gastoTiendaId)}
+                          checked={
+                            g.gastoTiendaId
+                              ? selectedIds.has(g.gastoTiendaId)
+                              : false
+                          }
+                          onChange={() =>
+                            g.gastoTiendaId && toggleGasto(g.gastoTiendaId)
+                          }
                         />
                       }
                       label={
-                        <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          width="100%"
+                        >
                           <Box>
                             <Typography variant="body2">{g.nombre}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {g.categoria} · {RECURRENCIA_LABELS[g.recurrencia]}
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {g.categoria} ·{" "}
+                              {RECURRENCIA_LABELS[g.recurrencia]}
                               {g.motivoAplica ? ` · ${g.motivoAplica}` : ""}
                             </Typography>
                           </Box>
-                          <Typography variant="body2" color="error.main" fontWeight="bold" ml={2}>
+                          <Typography
+                            variant="body2"
+                            color="error.main"
+                            fontWeight="bold"
+                            ml={2}
+                          >
                             -${g.montoCalculado.toFixed(2)}
                           </Typography>
                         </Box>
@@ -156,7 +215,9 @@ export default function GastosCierreReviewDialog({ open, cierreId, onClose, onCo
             {/* Gastos ad-hoc */}
             {preview.gastosAdHoc.length > 0 && (
               <Box>
-                <Typography variant="subtitle2" mb={1}>Gastos ad-hoc del período</Typography>
+                <Typography variant="subtitle2" mb={1}>
+                  Gastos ad-hoc del período
+                </Typography>
                 <Stack spacing={0.5}>
                   {preview.gastosAdHoc.map((g: IGastoCierre) => (
                     <Box
@@ -172,7 +233,11 @@ export default function GastosCierreReviewDialog({ open, cierreId, onClose, onCo
                           {g.categoria} · {TIPO_CALCULO_LABELS[g.tipoCalculo]}
                         </Typography>
                       </Box>
-                      <Typography variant="body2" color="error.main" fontWeight="bold">
+                      <Typography
+                        variant="body2"
+                        color="error.main"
+                        fontWeight="bold"
+                      >
                         -${g.montoCalculado.toFixed(2)}
                       </Typography>
                     </Box>
@@ -184,7 +249,8 @@ export default function GastosCierreReviewDialog({ open, cierreId, onClose, onCo
             {preview.gastosNoAplican.length > 0 && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Gastos activos que no aplican hoy: {preview.gastosNoAplican.map((g) => g.nombre).join(", ")}
+                  Gastos activos que no aplican hoy:{" "}
+                  {preview.gastosNoAplican.map((g) => g.nombre).join(", ")}
                 </Typography>
               </Box>
             )}
@@ -194,19 +260,35 @@ export default function GastosCierreReviewDialog({ open, cierreId, onClose, onCo
             {/* Resumen financiero */}
             <Stack spacing={0.5}>
               <Box display="flex" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">Total ventas:</Typography>
-                <Typography variant="body2">${preview.totalVentas.toFixed(2)}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Total ventas:
+                </Typography>
+                <Typography variant="body2">
+                  ${preview.totalVentas.toFixed(2)}
+                </Typography>
               </Box>
               <Box display="flex" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">Ganancia bruta:</Typography>
-                <Typography variant="body2">${preview.totalGanancia.toFixed(2)}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Ganancia bruta:
+                </Typography>
+                <Typography variant="body2">
+                  ${preview.totalGanancia.toFixed(2)}
+                </Typography>
               </Box>
               <Box display="flex" justifyContent="space-between">
-                <Typography variant="body2" color="error.main">Total gastos:</Typography>
-                <Typography variant="body2" color="error.main">-${totalSeleccionado.toFixed(2)}</Typography>
+                <Typography variant="body2" color="error.main">
+                  Total gastos:
+                </Typography>
+                <Typography variant="body2" color="error.main">
+                  -${totalSeleccionado.toFixed(2)}
+                </Typography>
               </Box>
               <Divider />
-              <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+              >
                 <Typography variant="subtitle2">Ganancia neta:</Typography>
                 <Typography
                   variant="subtitle2"
@@ -220,7 +302,8 @@ export default function GastosCierreReviewDialog({ open, cierreId, onClose, onCo
 
             {esNegativa && (
               <Alert severity="warning">
-                La ganancia neta es negativa. Los gastos superan las ganancias del período.
+                La ganancia neta es negativa. Los gastos superan las ganancias
+                del período.
               </Alert>
             )}
           </Stack>

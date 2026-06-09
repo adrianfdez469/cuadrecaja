@@ -177,6 +177,23 @@ export default function GastoAdHocDialog({
 
           {tipoCalculo === "MONTO_FIJO" ? (
             <>
+              {(monedasActivas?.length ?? 0) > 1 && (
+                  <FormControl fullWidth>
+                    <InputLabel>Moneda del gasto</InputLabel>
+                    <Select
+                        value={monedaCode ?? monedaBase ?? ""}
+                        label="Moneda del gasto"
+                        onChange={(e) => setMonedaCode(e.target.value || null)}
+                    >
+                      {monedasActivas!.map((m) => (
+                          <MenuItem key={m.monedaCode} value={m.monedaCode}>
+                            {m.moneda?.nombre ?? m.monedaCode}
+                            {m.monedaCode === (monedaBase ?? "") && " (base)"}
+                          </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+              )}
               <TextField
                 label="Monto"
                 type="number"
@@ -196,23 +213,7 @@ export default function GastoAdHocDialog({
                 inputProps={{ min: 0, step: "0.01" }}
                 fullWidth
               />
-              {(monedasActivas?.length ?? 0) > 1 && (
-                <FormControl fullWidth>
-                  <InputLabel>Moneda del gasto</InputLabel>
-                  <Select
-                    value={monedaCode ?? monedaBase ?? ""}
-                    label="Moneda del gasto"
-                    onChange={(e) => setMonedaCode(e.target.value || null)}
-                  >
-                    {monedasActivas!.map((m) => (
-                      <MenuItem key={m.monedaCode} value={m.monedaCode}>
-                        {m.moneda?.nombre ?? m.monedaCode}
-                        {m.monedaCode === (monedaBase ?? "") && " (base)"}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
+
             </>
           ) : (
             <>
