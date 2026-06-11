@@ -649,23 +649,19 @@ const PaymentModal: FC<IProps> = ({
                         </InputAdornment>
                       }
                       label="Efectivo"
-                      value={isBase ? pago.cash : pago.cash || ""}
-                      type={isBase ? undefined : "number"}
+                      value={pago.cash || ""}
+                      type="number"
                       onChange={(e) => {
                         const bdActive = isBase
                           ? showBreakdown
                           : (showPayBreakdown[moneda] ?? false);
                         if (bdActive) return;
-                        if (isBase) {
-                          const v = e.target.value;
-                          if (moneyRegex.test(v))
-                            updatePago(moneda, { cash: Number(v) });
-                          else if (v === "") updatePago(moneda, { cash: 0 });
-                        } else {
-                          updatePago(moneda, {
-                            cash: parseFloat(e.target.value) || 0,
-                          });
-                        }
+
+                        const v = e.target.value;
+                        if (moneyRegex.test(v))
+                          updatePago(moneda, { cash: Number(v) });
+                        else if (v === "") updatePago(moneda, { cash: 0 });
+
                       }}
                       onMouseDown={(e) => {
                         if (e.button !== 0) return;
@@ -803,8 +799,8 @@ const PaymentModal: FC<IProps> = ({
                       </InputAdornment>
                     }
                     label="Transferencia"
-                    value={isBase ? pago.transfer : pago.transfer || ""}
-                    type={isBase ? undefined : "number"}
+                    value={pago.transfer || ""}
+                    type={"number"}
                     onMouseDown={(e) => {
                       if (e.button !== 0) return;
                       const inp = (
