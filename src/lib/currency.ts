@@ -1,9 +1,9 @@
-import type { ITasaSnapshot, ITasaCambio } from '@/schemas/tasaCambio';
-import type { IPagoLinea, IVueltoLinea } from '@/schemas/pago';
+import type { ITasaSnapshot, ITasaCambio } from "@/schemas/tasaCambio";
+import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 
 // CUP is the universal anchor — always 1. Rates are always expressed as "1 X = Y CUP".
 const cupTasa = (code: string, tasas: ITasaSnapshot): number =>
-  code === 'CUP' ? 1 : (tasas[code] ?? 1);
+  code === "CUP" ? 1 : (tasas[code] ?? 1);
 
 /**
  * Builds a tasa snapshot from the latest TasaCambio records per moneda.
@@ -11,12 +11,12 @@ const cupTasa = (code: string, tasas: ITasaSnapshot): number =>
  * All rates are expressed as: 1 <code> = <tasa> CUP.
  */
 export function buildTasaSnapshot(
-  tasasCambio: Pick<ITasaCambio, 'monedaCode' | 'tasa' | 'createdAt'>[],
+  tasasCambio: Pick<ITasaCambio, "monedaCode" | "tasa" | "createdAt">[],
 ): ITasaSnapshot {
   const latest: Record<string, { tasa: number; createdAt: Date }> = {};
 
   for (const t of tasasCambio) {
-    if (t.monedaCode === 'CUP') continue;
+    if (t.monedaCode === "CUP") continue;
     const prev = latest[t.monedaCode];
     if (!prev || t.createdAt > prev.createdAt) {
       latest[t.monedaCode] = { tasa: t.tasa, createdAt: t.createdAt };
@@ -38,7 +38,7 @@ export function convertToBase(
   monto: number,
   moneda: string,
   tasas: ITasaSnapshot,
-  monedaBase = 'CUP',
+  monedaBase = "CUP",
 ): number {
   return (monto * cupTasa(moneda, tasas)) / cupTasa(monedaBase, tasas);
 }
@@ -51,7 +51,7 @@ export function convertFromBase(
   montoBase: number,
   moneda: string,
   tasas: ITasaSnapshot,
-  monedaBase = 'CUP',
+  monedaBase = "CUP",
 ): number {
   const tasa = cupTasa(moneda, tasas);
   if (tasa === 0) return 0;
@@ -76,32 +76,47 @@ export function calcularVuelto(
   );
 
   const vueltoTotalBase = totalPagadoBase - totalBase;
-  if (vueltoTotalBase <= 0) return [];
+  if (vueltoTotalBase < 0.01) return [];
 
   const result: IVueltoLinea[] = [];
 
   if (monedaCobro !== monedaBase) {
-    const vueltoEnMonedaCobroRaw = convertFromBase(vueltoTotalBase, monedaCobro, tasas, monedaBase);
-    const denomsOrdenadas = (denominaciones[monedaCobro] ?? []).slice().sort((a, b) => b - a);
+    const vueltoEnMonedaCobroRaw = convertFromBase(
+      vueltoTotalBase,
+      monedaCobro,
+      tasas,
+      monedaBase,
+    );
+    const denomsOrdenadas = (denominaciones[monedaCobro] ?? [])
+      .slice()
+      .sort((a, b) => b - a);
     const denomMin = denomsOrdenadas.at(-1) ?? 1;
-    const vueltoEnMonedaCobro = Math.floor(vueltoEnMonedaCobroRaw / denomMin) * denomMin;
+    const vueltoEnMonedaCobro =
+      Math.floor(vueltoEnMonedaCobroRaw / denomMin) * denomMin;
 
     if (vueltoEnMonedaCobro > 0) {
       result.push({ moneda: monedaCobro, monto: vueltoEnMonedaCobro });
     }
 
-    const restoBase = vueltoTotalBase - convertToBase(vueltoEnMonedaCobro, monedaCobro, tasas, monedaBase);
+    const restoBase =
+      vueltoTotalBase -
+      convertToBase(vueltoEnMonedaCobro, monedaCobro, tasas, monedaBase);
 
     if (restoBase > 0.005) {
-      const denomsBase = (denominaciones[monedaBase] ?? []).slice().sort((a, b) => b - a);
+      const denomsBase = (denominaciones[monedaBase] ?? [])
+        .slice()
+        .sort((a, b) => b - a);
       const denomMinBase = denomsBase.at(-1) ?? 1;
       const vueltoEnBase = Math.ceil(restoBase / denomMinBase) * denomMinBase;
       result.push({ moneda: monedaBase, monto: vueltoEnBase });
     }
   } else {
-    const denomsBase = (denominaciones[monedaBase] ?? []).slice().sort((a, b) => b - a);
+    const denomsBase = (denominaciones[monedaBase] ?? [])
+      .slice()
+      .sort((a, b) => b - a);
     const denomMinBase = denomsBase.at(-1) ?? 1;
-    const vueltoEnBase = Math.ceil(vueltoTotalBase / denomMinBase) * denomMinBase;
+    const vueltoEnBase =
+      Math.ceil(vueltoTotalBase / denomMinBase) * denomMinBase;
     if (vueltoEnBase > 0) {
       result.push({ moneda: monedaBase, monto: vueltoEnBase });
     }
@@ -119,7 +134,7 @@ export function formatMoneda(
   simbolo: string,
   decimales = 2,
 ): string {
-  return `${simbolo}${monto.toLocaleString('es-ES', {
+  return `${simbolo}${monto.toLocaleString("es-ES", {
     minimumFractionDigits: decimales,
     maximumFractionDigits: decimales,
   })}`;

@@ -661,7 +661,6 @@ const PaymentModal: FC<IProps> = ({
                         if (moneyRegex.test(v))
                           updatePago(moneda, { cash: Number(v) });
                         else if (v === "") updatePago(moneda, { cash: 0 });
-
                       }}
                       onMouseDown={(e) => {
                         if (e.button !== 0) return;
