@@ -1,4 +1,6 @@
 import { IProductoVenta } from "@/schemas/producto";
+import { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
+import { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -22,13 +24,18 @@ export interface Sale {
   syncState: "synced" | "syncing" | "not_synced" | "sync_err";
   transferDestinationId?: string;
   syncStartedAt?: number; // Timestamp cuando comenzó la sincronización
-  
+
   // 🆕 NUEVOS CAMPOS
   createdAt: number; // Timestamp exacto de creación de la venta
   wasOffline: boolean; // Si la venta se creó sin conexión
   syncAttempts: number; // Contador de intentos de sincronización
   // 🆕 Códigos de descuento aplicados en la venta (para sincronización)
   discountCodes?: string[];
+  // Multimoneda — se persisten para poder reenviar en sync offline
+  monedaCobro?: string;
+  pagosDetalle?: IPagoLinea[];
+  vueltoDetalle?: IVueltoLinea[];
+  tasaSnapshot?: ITasaSnapshot;
 }
 
 export interface Products {
@@ -51,7 +58,7 @@ interface SalesState {
     productId: string,
     cantidad: number,
     ventaProductoId?: string,
-    productIndex?: number
+    productIndex?: number,
   ) => void;
   clearSales: () => void;
   synchronizeSales: (sales: Sale[]) => void;
@@ -65,17 +72,13 @@ export const useSalesStore = create<SalesState>()(
       productos: [],
       addSale: (sale) =>
         set((state) => {
-         
-          
           const stateProds = state.productos;
-          
-          
+
           const prodsToAdd: Products[] = [];
-          
+
           sale.productos.forEach((prod) => {
-            
             const index = state.productos.findIndex(
-              (stProd) => stProd.id === prod.productId
+              (stProd) => stProd.id === prod.productId,
             );
             if (index >= 0) {
               stateProds[index].cantVendida += prod.cantidad;
@@ -89,14 +92,17 @@ export const useSalesStore = create<SalesState>()(
           });
           return {
             fullySynced: false,
-            sales: [...state.sales, { 
-              ...sale, 
-              synced: false,
-              // 🆕 VALORES POR DEFECTO PARA NUEVOS CAMPOS
-              createdAt: sale.createdAt || Date.now(),
-              wasOffline: sale.wasOffline || false,
-              syncAttempts: 0
-            }],
+            sales: [
+              ...state.sales,
+              {
+                ...sale,
+                synced: false,
+                // 🆕 VALORES POR DEFECTO PARA NUEVOS CAMPOS
+                createdAt: sale.createdAt || Date.now(),
+                wasOffline: sale.wasOffline || false,
+                syncAttempts: 0,
+              },
+            ],
             productos: [...stateProds, ...prodsToAdd],
           };
         }),
@@ -104,12 +110,12 @@ export const useSalesStore = create<SalesState>()(
         set((state) => ({
           sales: state.sales.map((sale) => {
             if (sale.identifier === id) {
-              return { 
-                ...sale, 
-                synced: true, 
-                syncState: "synced", 
+              return {
+                ...sale,
+                synced: true,
+                syncState: "synced",
                 dbId: idDb,
-                syncStartedAt: undefined // Limpiar timestamp
+                syncStartedAt: undefined, // Limpiar timestamp
                 // 🆕 NO limpiar syncAttempts - se mantiene para guardar en DB
               };
             }
@@ -120,11 +126,11 @@ export const useSalesStore = create<SalesState>()(
         set((state) => ({
           sales: state.sales.map((sale) => {
             if (sale.identifier === id) {
-              return { 
-                ...sale, 
-                synced: false, 
+              return {
+                ...sale,
+                synced: false,
                 syncState: "not_synced",
-                syncStartedAt: undefined // Limpiar timestamp
+                syncStartedAt: undefined, // Limpiar timestamp
               };
             }
             return sale;
@@ -134,12 +140,12 @@ export const useSalesStore = create<SalesState>()(
         set((state) => ({
           sales: state.sales.map((sale) => {
             if (sale.identifier === id) {
-              return { 
-                ...sale, 
-                synced: false, 
+              return {
+                ...sale,
+                synced: false,
                 syncState: "syncing",
                 syncStartedAt: Date.now(), // Registrar cuando comenzó la sincronización
-                syncAttempts: sale.syncAttempts + 1 // 🆕 Incrementar contador de intentos
+                syncAttempts: sale.syncAttempts + 1, // 🆕 Incrementar contador de intentos
               };
             }
             return sale;
@@ -154,7 +160,7 @@ export const useSalesStore = create<SalesState>()(
           const prods = state.productos
             .map((prod) => {
               const removePr = saleToRemove?.productos.find(
-                (removePr) => removePr.productId === prod.id
+                (removePr) => removePr.productId === prod.id,
               );
               if (removePr) {
                 return {
@@ -177,7 +183,7 @@ export const useSalesStore = create<SalesState>()(
         productId: string,
         cantidad: number,
         ventaProductoId?: string,
-        productIndexParam?: number
+        productIndexParam?: number,
       ) =>
         set((state) => {
           const sale = state.sales.find((s) => s.identifier === saleIdentifier);
@@ -185,19 +191,26 @@ export const useSalesStore = create<SalesState>()(
 
           let productIndex: number;
           if (ventaProductoId) {
-            productIndex = sale.productos.findIndex((p) => p.ventaProductoId === ventaProductoId);
+            productIndex = sale.productos.findIndex(
+              (p) => p.ventaProductoId === ventaProductoId,
+            );
           } else if (typeof productIndexParam === "number") {
             productIndex = productIndexParam;
           } else {
             productIndex = sale.productos.findIndex(
-              (p) => p.productoTiendaId === productoTiendaId && p.productId === productId
+              (p) =>
+                p.productoTiendaId === productoTiendaId &&
+                p.productId === productId,
             );
           }
           if (productIndex === -1) return state;
 
           const productToRemove = sale.productos[productIndex];
-          const newProductos = sale.productos.filter((_, i) => i !== productIndex);
-          const montoProducto = productToRemove.price * productToRemove.cantidad;
+          const newProductos = sale.productos.filter(
+            (_, i) => i !== productIndex,
+          );
+          const montoProducto =
+            productToRemove.price * productToRemove.cantidad;
 
           const newSales = state.sales.map((s) => {
             if (s.identifier !== saleIdentifier) return s;
@@ -209,18 +222,22 @@ export const useSalesStore = create<SalesState>()(
             return updated;
           });
 
-          const prods = state.productos.map((prod) => {
-            if (prod.id === productId) {
-              return { ...prod, cantVendida: prod.cantVendida - productToRemove.cantidad };
-            }
-            return prod;
-          }).filter((p) => p.cantVendida > 0);
+          const prods = state.productos
+            .map((prod) => {
+              if (prod.id === productId) {
+                return {
+                  ...prod,
+                  cantVendida: prod.cantVendida - productToRemove.cantidad,
+                };
+              }
+              return prod;
+            })
+            .filter((p) => p.cantVendida > 0);
 
           return { ...state, sales: newSales, productos: prods };
         }),
       synchronizeSales: (sales: Sale[]) =>
         set((state) => {
-
           const salesToKeep = state.sales
             .filter((s) => !sales.find((s2) => s2.identifier === s.identifier))
             .filter((s) => !s.synced);
@@ -232,7 +249,7 @@ export const useSalesStore = create<SalesState>()(
           newSales.forEach((sale) => {
             sale.productos.forEach((prod) => {
               const index = prods.findIndex(
-                (stProd) => stProd.id === prod.productId
+                (stProd) => stProd.id === prod.productId,
               );
               if (index >= 0) {
                 prods[index].cantVendida += prod.cantidad;
@@ -256,25 +273,30 @@ export const useSalesStore = create<SalesState>()(
         const state = get();
         const now = Date.now();
         const TIMEOUT_DURATION = 60000; // 60 segundos de timeout
-        
-        const hasTimeouts = state.sales.some(sale => 
-          sale.syncState === "syncing" && 
-          sale.syncStartedAt && 
-          (now - sale.syncStartedAt) > TIMEOUT_DURATION
+
+        const hasTimeouts = state.sales.some(
+          (sale) =>
+            sale.syncState === "syncing" &&
+            sale.syncStartedAt &&
+            now - sale.syncStartedAt > TIMEOUT_DURATION,
         );
-        
+
         if (hasTimeouts) {
           set((state) => ({
             sales: state.sales.map((sale) => {
-              if (sale.syncState === "syncing" && 
-                  sale.syncStartedAt && 
-                  (now - sale.syncStartedAt) > TIMEOUT_DURATION) {
-                console.warn(`⚠️ Timeout detectado para venta ${sale.identifier}, marcando como error`);
-                return { 
-                  ...sale, 
-                  synced: false, 
+              if (
+                sale.syncState === "syncing" &&
+                sale.syncStartedAt &&
+                now - sale.syncStartedAt > TIMEOUT_DURATION
+              ) {
+                console.warn(
+                  `⚠️ Timeout detectado para venta ${sale.identifier}, marcando como error`,
+                );
+                return {
+                  ...sale,
+                  synced: false,
                   syncState: "sync_err",
-                  syncStartedAt: undefined
+                  syncStartedAt: undefined,
                 };
               }
               return sale;
@@ -285,6 +307,6 @@ export const useSalesStore = create<SalesState>()(
     }),
     {
       name: "sales-storage", // nombre de la clave en localStorage
-    }
-  )
+    },
+  ),
 );
