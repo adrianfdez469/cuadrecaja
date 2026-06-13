@@ -363,6 +363,14 @@ export default function POSInterface() {
     for (const sale of salesNotSynced) {
       try {
         markSyncing(sale.identifier); // Marcar como sincronizando
+        const multimonedaSync = sale.pagosDetalle
+          ? {
+              monedaCobro: sale.monedaCobro ?? "CUP",
+              pagosDetalle: sale.pagosDetalle,
+              vueltoDetalle: sale.vueltoDetalle ?? [],
+              tasaSnapshot: sale.tasaSnapshot ?? {},
+            }
+          : undefined;
         const ventaDb = await createSell(
           sale.tiendaId,
           sale.cierreId,
@@ -377,6 +385,7 @@ export default function POSInterface() {
           sale.wasOffline, // 🆕 Usar estado offline de la venta
           sale.syncAttempts, // 🆕 Enviar intentos de sincronización
           sale.discountCodes, // 🆕 Reenviar códigos de descuento si existen
+          multimonedaSync,
         );
         markSynced(sale.identifier, ventaDb.id);
         syncedCount++;
@@ -610,6 +619,13 @@ export default function POSInterface() {
           ...(discountCodes && discountCodes.length > 0
             ? { discountCodes }
             : {}),
+          // Multimoneda — persistir para reenviar en sync offline
+          ...(multimoneda && {
+            monedaCobro: multimoneda.monedaCobro,
+            pagosDetalle: multimoneda.pagosDetalle,
+            vueltoDetalle: multimoneda.vueltoDetalle,
+            tasaSnapshot: multimoneda.tasaSnapshot,
+          }),
         });
 
         // 3. Actualizar inventario local (incluyendo desagregaciones)

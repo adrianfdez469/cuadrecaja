@@ -90,6 +90,14 @@ export const SalesDrawer: FC<IProps> = ({
     for (const syncObj of salesToSync) {
       try {
         markSyncing(syncObj.identifier);
+        const multimonedaSyncAll = syncObj.pagosDetalle
+          ? {
+              monedaCobro: syncObj.monedaCobro ?? "CUP",
+              pagosDetalle: syncObj.pagosDetalle,
+              vueltoDetalle: syncObj.vueltoDetalle ?? [],
+              tasaSnapshot: syncObj.tasaSnapshot ?? {},
+            }
+          : undefined;
         const ventaDb = await createSell(
           syncObj.tiendaId,
           syncObj.cierreId,
@@ -104,6 +112,7 @@ export const SalesDrawer: FC<IProps> = ({
           syncObj.wasOffline, // 🆕 Usar estado offline de la venta
           syncObj.syncAttempts, // 🆕 Enviar intentos de sincronización
           syncObj.discountCodes, // 🆕 Reenviar códigos de descuento si existen
+          multimonedaSyncAll,
         );
         markSynced(syncObj.identifier, ventaDb.id);
         setOffline(false);
@@ -143,6 +152,14 @@ export const SalesDrawer: FC<IProps> = ({
     const syncObj = sales.find((s) => s.identifier === sale.identifier);
     try {
       markSyncing(syncObj.identifier);
+      const multimonedaSyncOne = syncObj.pagosDetalle
+        ? {
+            monedaCobro: syncObj.monedaCobro ?? "CUP",
+            pagosDetalle: syncObj.pagosDetalle,
+            vueltoDetalle: syncObj.vueltoDetalle ?? [],
+            tasaSnapshot: syncObj.tasaSnapshot ?? {},
+          }
+        : undefined;
       const ventaDb = await createSell(
         syncObj.tiendaId,
         syncObj.cierreId,
@@ -157,6 +174,7 @@ export const SalesDrawer: FC<IProps> = ({
         syncObj.wasOffline, // 🆕 Usar estado offline de la venta
         syncObj.syncAttempts, // 🆕 Enviar intentos de sincronización
         syncObj.discountCodes, // 🆕 Reenviar códigos de descuento si existen
+        multimonedaSyncOne,
       );
       markSynced(syncObj.identifier, ventaDb.id);
       setOffline(false);
