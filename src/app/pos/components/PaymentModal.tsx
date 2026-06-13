@@ -120,6 +120,7 @@ const PaymentModal: FC<IProps> = ({
   const [payBreakdownKeys, setPayBreakdownKeys] = useState<
     Record<string, number>
   >({});
+  const [showTransfer, setShowTransfer] = useState<Record<string, boolean>>({});
   const [addPayAnchor, setAddPayAnchor] = useState<null | HTMLElement>(null);
 
   const monedas = Object.keys(pagosMap);
@@ -412,6 +413,10 @@ const PaymentModal: FC<IProps> = ({
     });
   };
 
+  const toggleTransfer = (moneda: string) => {
+    setShowTransfer((prev) => ({ ...prev, [moneda]: !prev[moneda] }));
+  };
+
   const handleToggleBreakdown = () => {
     if (!showBreakdown) {
       setBreakdownResetKey((k) => k + 1);
@@ -461,6 +466,7 @@ const PaymentModal: FC<IProps> = ({
     setBreakdownResetKey((k) => k + 1);
     setShowPayBreakdown({});
     setPayBreakdownKeys({});
+    setShowTransfer({});
     onClose();
   };
 
@@ -648,6 +654,24 @@ const PaymentModal: FC<IProps> = ({
                           <AttachMoneyIcon />
                         </InputAdornment>
                       }
+                      endAdornment={
+                        admiteTransfer ? (
+                          <InputAdornment position="end">
+                            <IconButton
+                              edge="end"
+                              size="small"
+                              onClick={() => toggleTransfer(moneda)}
+                              title={
+                                (showTransfer[moneda] ?? false)
+                                  ? "Ocultar transferencia"
+                                  : "Mostrar transferencia"
+                              }
+                            >
+                              <CreditCardIcon fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        ) : undefined
+                      }
                       label="Efectivo"
                       value={pago.cash || ""}
                       type="number"
@@ -787,81 +811,90 @@ const PaymentModal: FC<IProps> = ({
                 </>
               )}
 
-              {/* Transferencia */}
+              {/* Transferencia (Collapse bajo Efectivo) */}
               {admiteTransfer && (
-                <FormControl fullWidth sx={{ mt: admiteEfectivo ? 2 : 0 }}>
-                  <InputLabel>Transferencia</InputLabel>
-                  <OutlinedInput
-                    startAdornment={
-                      <InputAdornment position="start">
-                        <CreditCardIcon />
-                      </InputAdornment>
-                    }
-                    label="Transferencia"
-                    value={pago.transfer || ""}
-                    type={"number"}
-                    onMouseDown={(e) => {
-                      if (e.button !== 0) return;
-                      const inp = (
-                        e.currentTarget as HTMLElement
-                      ).querySelector("input");
-                      if (inp) setTimeout(() => inp.select(), 0);
-                    }}
-                    onChange={(e) => {
-                      if (isBase) {
-                        const v = e.target.value;
-                        if (moneyRegex.test(v)) {
-                          const newTransfer = Number(v);
-                          const newCash = parseFloat(
-                            Math.max(
+                <Collapse in={showTransfer[moneda] ?? false}>
+                  <Box sx={{ mt: 1 }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Transferencia</InputLabel>
+                      <OutlinedInput
+                        startAdornment={
+                          <InputAdornment position="start">
+                            <CreditCardIcon />
+                          </InputAdornment>
+                        }
+                        label="Transferencia"
+                        value={pago.transfer || ""}
+                        type={"number"}
+                        onMouseDown={(e) => {
+                          if (e.button !== 0) return;
+                          const inp = (
+                            e.currentTarget as HTMLElement
+                          ).querySelector("input");
+                          if (inp) setTimeout(() => inp.select(), 0);
+                        }}
+                        onChange={(e) => {
+                          if (isBase) {
+                            const v = e.target.value;
+                            if (moneyRegex.test(v)) {
+                              const newTransfer = Number(v);
+                              const newCash = parseFloat(
+                                Math.max(
+                                  0,
+                                  pago.cash + pago.transfer - newTransfer,
+                                ).toFixed(2),
+                              );
+                              updatePago(moneda, {
+                                transfer: newTransfer,
+                                cash: newCash,
+                              });
+                            } else if (v === "") {
+                              const total = parseFloat(
+                                (pago.cash + pago.transfer).toFixed(2),
+                              );
+                              updatePago(moneda, {
+                                transfer: 0,
+                                cash: total,
+                              });
+                            }
+                          } else {
+                            const newTransfer = parseFloat(e.target.value) || 0;
+                            const newCash = Math.max(
                               0,
                               pago.cash + pago.transfer - newTransfer,
-                            ).toFixed(2),
-                          );
-                          updatePago(moneda, {
-                            transfer: newTransfer,
-                            cash: newCash,
-                          });
-                        } else if (v === "") {
-                          const total = parseFloat(
-                            (pago.cash + pago.transfer).toFixed(2),
-                          );
-                          updatePago(moneda, { transfer: 0, cash: total });
-                        }
-                      } else {
-                        const newTransfer = parseFloat(e.target.value) || 0;
-                        const newCash = Math.max(
-                          0,
-                          pago.cash + pago.transfer - newTransfer,
-                        );
-                        updatePago(moneda, {
-                          transfer: newTransfer,
-                          cash: newCash,
-                        });
-                      }
-                    }}
-                    inputProps={{ inputMode: "decimal" }}
-                  />
-                </FormControl>
-              )}
+                            );
+                            updatePago(moneda, {
+                              transfer: newTransfer,
+                              cash: newCash,
+                            });
+                          }
+                        }}
+                        inputProps={{ inputMode: "decimal" }}
+                      />
+                    </FormControl>
 
-              {/* Transfer destination */}
-              {pago.transfer > 0 && transferDestinations.length > 0 && (
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Destino</InputLabel>
-                  <Select
-                    value={pago.transferDestId}
-                    onChange={(e) =>
-                      updatePago(moneda, { transferDestId: e.target.value })
-                    }
-                  >
-                    {transferDestinations.map((d) => (
-                      <MenuItem key={d.id} value={d.id}>
-                        {d.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                    {/* Transfer destination */}
+                    {pago.transfer > 0 && transferDestinations.length > 0 && (
+                      <FormControl fullWidth margin="normal">
+                        <InputLabel>Destino</InputLabel>
+                        <Select
+                          value={pago.transferDestId}
+                          onChange={(e) =>
+                            updatePago(moneda, {
+                              transferDestId: e.target.value,
+                            })
+                          }
+                        >
+                          {transferDestinations.map((d) => (
+                            <MenuItem key={d.id} value={d.id}>
+                              {d.nombre}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  </Box>
+                </Collapse>
               )}
 
               {/* Equivalente en base */}
