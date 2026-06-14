@@ -218,15 +218,6 @@ const PaymentModal: FC<IProps> = ({
     {},
   );
 
-  const vueltoDistBase = useMemo(
-    () =>
-      Object.entries(vueltoMap).reduce(
-        (s, [m, amt]) => s + convertToBase(amt, m, tasasVigentes, monedaBase),
-        0,
-      ),
-    [vueltoMap, tasasVigentes, monedaBase],
-  );
-
   // Currencies eligible for change: any supported currency with denominations not yet in vueltoMap
   const monedasEligiblesVuelto = useMemo(
     () =>
@@ -245,12 +236,9 @@ const PaymentModal: FC<IProps> = ({
     }
     if (vueltoLocked) return;
 
-    const mainCurrency = Object.entries(pagosMap)
-      .filter(([, p]) => p.cash > 0)
-      .map(([m, p]) => ({
-        moneda: m,
-        base: convertToBase(p.cash, m, tasasVigentes, monedaBase),
-      }))
+    const mainCurrency = pagosLinea
+      .filter((p) => p.tipo === "cash")
+      .map((p) => ({ moneda: p.moneda, base: p.equivalenteBase }))
       .sort((a, b) => b.base - a.base)[0]?.moneda;
 
     if (!mainCurrency) {
@@ -258,41 +246,9 @@ const PaymentModal: FC<IProps> = ({
       return;
     }
 
-    const lineas: IPagoLinea[] = Object.entries(pagosMap).flatMap(
-      ([moneda, { cash, transfer, transferDestId }]) => {
-        const arr: IPagoLinea[] = [];
-        if (cash > 0)
-          arr.push({
-            tipo: "cash",
-            moneda,
-            monto: cash,
-            equivalenteBase: convertToBase(
-              cash,
-              moneda,
-              tasasVigentes,
-              monedaBase,
-            ),
-          });
-        if (transfer > 0)
-          arr.push({
-            tipo: "transfer",
-            moneda,
-            monto: transfer,
-            equivalenteBase: convertToBase(
-              transfer,
-              moneda,
-              tasasVigentes,
-              monedaBase,
-            ),
-            transferDestinationId: transferDestId,
-          });
-        return arr;
-      },
-    );
-
     const dv = calcularVuelto(
       finalTotal,
-      lineas,
+      pagosLinea,
       mainCurrency,
       monedaBase,
       tasasVigentes,
@@ -307,7 +263,7 @@ const PaymentModal: FC<IProps> = ({
     totalPagado,
     finalTotal,
     monedaBase,
-    pagosMap,
+    pagosLinea,
     tasasVigentes,
     denominaciones,
   ]);
@@ -446,14 +402,17 @@ const PaymentModal: FC<IProps> = ({
 
   const addVueltoMoneda = (moneda: string) => {
     setVueltoLocked(true);
-    const rem = Math.max(0, vueltoTotalBase - vueltoDistBase);
-    const suggested =
-      rem > 0
-        ? parseFloat(
-            convertFromBase(rem, moneda, tasasVigentes, monedaBase).toFixed(2),
-          )
-        : 0;
-    setVueltoMap((prev) => ({ ...prev, [moneda]: suggested }));
+    const dv = calcularVuelto(
+      finalTotal,
+      pagosLinea,
+      moneda,
+      monedaBase,
+      tasasVigentes,
+      denominaciones,
+    );
+    const newMap: Record<string, number> = {};
+    for (const v of dv) if (v.monto > 0) newMap[v.moneda] = v.monto;
+    setVueltoMap(newMap);
     setAddVueltoAnchor(null);
   };
 
