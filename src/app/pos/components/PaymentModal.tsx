@@ -904,7 +904,7 @@ const PaymentModal: FC<IProps> = ({
         )}
 
         {/* ── Change section ── */}
-        {!falta && vueltoTotalBase >= 0.01 && (
+        {!falta && vueltoTotalBase >= 0.0001 && (
           <>
             <Divider sx={{ my: 2 }} />
 
