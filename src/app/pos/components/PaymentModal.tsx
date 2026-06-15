@@ -203,7 +203,7 @@ const PaymentModal: FC<IProps> = ({
   const falta = Math.round(totalPagado * 100) < Math.round(finalTotal * 100);
   const vueltoTotalBase = Math.max(
     0,
-    parseFloat((totalPagado - finalTotal).toFixed(2)),
+    totalPagado - finalTotal,
   );
 
   // ─── Change distribution ───────────────────────────────────────────────────
@@ -956,7 +956,7 @@ const PaymentModal: FC<IProps> = ({
                 Cambio a dar
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {vueltoTotalBase.toFixed(2)} {monedaBase} equiv
+                {vueltoTotalBase.toFixed(4)} {monedaBase} equiv
               </Typography>
             </Stack>
 
