@@ -201,10 +201,7 @@ const PaymentModal: FC<IProps> = ({
   );
 
   const falta = Math.round(totalPagado * 100) < Math.round(finalTotal * 100);
-  const vueltoTotalBase = Math.max(
-    0,
-    totalPagado - finalTotal,
-  );
+  const vueltoTotalBase = Math.max(0, totalPagado - finalTotal);
 
   // ─── Change distribution ───────────────────────────────────────────────────
   const [vueltoMap, setVueltoMap] = useState<Record<string, number>>({});
@@ -216,6 +213,15 @@ const PaymentModal: FC<IProps> = ({
   // Net cash in drawer per currency (from previous sales in current period)
   const [drawerBalance, setDrawerBalance] = useState<Record<string, number>>(
     {},
+  );
+
+  const vueltoDistBase = useMemo(
+    () =>
+      Object.entries(vueltoMap).reduce(
+        (s, [m, amt]) => s + convertToBase(amt, m, tasasVigentes, monedaBase),
+        0,
+      ),
+    [vueltoMap, tasasVigentes, monedaBase],
   );
 
   // Currencies eligible for change: any supported currency with denominations not yet in vueltoMap
@@ -402,17 +408,14 @@ const PaymentModal: FC<IProps> = ({
 
   const addVueltoMoneda = (moneda: string) => {
     setVueltoLocked(true);
-    const dv = calcularVuelto(
-      finalTotal,
-      pagosLinea,
-      moneda,
-      monedaBase,
-      tasasVigentes,
-      denominaciones,
-    );
-    const newMap: Record<string, number> = {};
-    for (const v of dv) if (v.monto > 0) newMap[v.moneda] = v.monto;
-    setVueltoMap(newMap);
+    const rem = Math.max(0, vueltoTotalBase - vueltoDistBase);
+    const suggested =
+      rem > 0
+        ? parseFloat(
+            convertFromBase(rem, moneda, tasasVigentes, monedaBase).toFixed(2),
+          )
+        : 0;
+    setVueltoMap((prev) => ({ ...prev, [moneda]: suggested }));
     setAddVueltoAnchor(null);
   };
 
