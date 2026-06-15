@@ -1089,6 +1089,7 @@ export default function POSInterface() {
           overflow: "auto",
           height: "100%", // Use parent height
           p: 0,
+          position: "relative",
         }}
       >
         {/* Barra superior con información del sistema - posicionada debajo del menú */}
@@ -1293,7 +1294,7 @@ export default function POSInterface() {
             </Box>
           ))}
         </Box>
-        {selectedCategory && !openCart && (
+        {selectedCategory && (!openCart || isCartPinned) && (
           <ProductModal
             open={showProducts}
             productosTienda={productosTienda.filter(
@@ -1303,6 +1304,7 @@ export default function POSInterface() {
             category={selectedCategory}
             closeModal={() => setShowProducts(false)}
             openCart={() => setOpenCart(true)}
+            isCartPinned={isCartPinned}
           />
         )}
 
@@ -1392,7 +1394,7 @@ export default function POSInterface() {
             position: "fixed",
             bottom: 60,
             left: 0,
-            right: 0,
+            right: isCartPinned && !isMobile ? getCartWidth() : 0,
             p: 1,
             zIndex: 1200,
             background:
@@ -1728,6 +1730,7 @@ export default function POSInterface() {
             overflow: "hidden",
             borderLeft: "1px solid rgba(0,0,0,0.1)",
             backgroundColor: "background.paper",
+            zIndex: 1201,
           }}
         >
           <CartContent
