@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Box,
-  Grid,
-  Typography,
-  Modal,
-  Fab,
-} from "@mui/material";
+import { Box, Grid, Typography, Modal, Fab } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { QuantityDialog } from "./QuantityDialog";
@@ -21,6 +15,7 @@ interface ProductModalProps {
   allProductosTienda?: IProductoTiendaV2[];
   category: { id: string; nombre: string; color: string } | null;
   openCart: () => void;
+  isCartPinned?: boolean;
 }
 
 export function ProductModal({
@@ -30,8 +25,10 @@ export function ProductModal({
   allProductosTienda,
   category,
   openCart,
+  isCartPinned,
 }: ProductModalProps) {
-  const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
+  const [selectedProduct, setSelectedProduct] =
+    useState<IProductoTiendaV2 | null>(null);
 
   const allProducts = allProductosTienda || productosTienda;
 
@@ -53,66 +50,96 @@ export function ProductModal({
     ? calcularDisponibilidadReal(selectedProduct, allProducts).maxPorTransaccion
     : 0;
 
+  const content = (
+    <Box
+      sx={{
+        width: "100%",
+        height: "100%",
+        bgcolor: "background.paper",
+        p: { xs: 2, sm: 3 },
+        pt: { xs: "calc(16px + env(safe-area-inset-top))", sm: 3 },
+        pb: { xs: "calc(16px + env(safe-area-inset-bottom))", sm: 3 },
+        borderRadius: isCartPinned ? 0 : { xs: 0, sm: 2 },
+        overflow: "auto",
+        position: "relative",
+        boxSizing: "border-box",
+      }}
+    >
+      <Box
+        display="flex"
+        flexDirection="row"
+        alignItems="flex-start"
+        justifyContent="space-between"
+      >
+        <Typography variant="h4" mb={2} textAlign="left">
+          {category ? category.nombre : ""}
+        </Typography>
+        <Fab
+          size="small"
+          aria-label="Cerrar"
+          onClick={closeModal}
+          sx={{
+            position: "absolute",
+            top: { xs: "calc(16px + env(safe-area-inset-top))", sm: 16 },
+            right: { xs: "calc(16px + env(safe-area-inset-right))", sm: 16 },
+            zIndex: 10,
+          }}
+        >
+          <CloseIcon />
+        </Fab>
+      </Box>
+
+      <Grid container spacing={1.5}>
+        {productosTienda.map((productoTienda) => (
+          <Grid item xs={12} sm={6} md={4} lg={3} key={productoTienda.id}>
+            <PosProductItemLayout
+              productoTienda={productoTienda}
+              allProductosTienda={allProducts}
+              showDescription
+              onClick={() => handleProductClick(productoTienda)}
+              sx={{ height: "100%" }}
+            />
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  );
+
   return (
     <>
-      <Modal
-        open={open}
-        onClose={closeModal}
-        sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-      >
-        <Box
+      {isCartPinned ? (
+        open && (
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 101,
+              overflow: "hidden",
+            }}
+          >
+            {content}
+          </Box>
+        )
+      ) : (
+        <Modal
+          open={open}
+          onClose={closeModal}
           sx={{
-            width: { xs: "100vw", sm: "95vw" },
-            height: { xs: "100dvh", sm: "95vh" },
-            bgcolor: "white",
-            p: { xs: 2, sm: 3 },
-            pt: { xs: "calc(16px + env(safe-area-inset-top))", sm: 3 },
-            pb: { xs: "calc(16px + env(safe-area-inset-bottom))", sm: 3 },
-            borderRadius: { xs: 0, sm: 2 },
-            overflow: "auto",
-            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
-          flexDirection={"column"}
         >
           <Box
-            display={"flex"}
-            flexDirection={"row"}
-            alignItems={"flex-start"}
-            justifyContent={"space-between"}
+            sx={{
+              width: { xs: "100vw", sm: "95vw" },
+              height: { xs: "100dvh", sm: "95vh" },
+            }}
           >
-            <Typography variant="h4" mb={2} textAlign="left">
-              {category ? category.nombre : ""}
-            </Typography>
-            <Fab
-              size="small"
-              aria-label="Cerrar"
-              onClick={closeModal}
-              sx={{
-                position: "fixed",
-                top: { xs: "calc(16px + env(safe-area-inset-top))", sm: 20 },
-                right: { xs: "calc(16px + env(safe-area-inset-right))", sm: 20 },
-                zIndex: 10,
-              }}
-            >
-              <CloseIcon />
-            </Fab>
+            {content}
           </Box>
-
-          <Grid container spacing={1.5}>
-            {productosTienda.map((productoTienda) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={productoTienda.id}>
-                <PosProductItemLayout
-                  productoTienda={productoTienda}
-                  allProductosTienda={allProducts}
-                  showDescription
-                  onClick={() => handleProductClick(productoTienda)}
-                  sx={{ height: "100%" }}
-                />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      </Modal>
+        </Modal>
+      )}
 
       <QuantityDialog
         productoTienda={selectedProduct}
