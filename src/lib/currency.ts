@@ -75,7 +75,7 @@ export function calcularVuelto(
     0,
   );
   const vueltoTotalBase = totalPagadoBase - totalBase;
-  if (vueltoTotalBase < 0.01) return [];
+  if (vueltoTotalBase < 0.0001) return [];
 
   const result: IVueltoLinea[] = [];
 
@@ -101,7 +101,7 @@ export function calcularVuelto(
       vueltoTotalBase -
       convertToBase(vueltoEnMonedaCobro, monedaCobro, tasas, monedaBase);
 
-    if (restoBase > 0.005) {
+    if (restoBase > 0.0001) {
       const denomsBase = (denominaciones[monedaBase] ?? [])
         .slice()
         .sort((a, b) => b - a);
