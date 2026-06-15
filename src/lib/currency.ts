@@ -74,7 +74,6 @@ export function calcularVuelto(
     (sum, p) => sum + convertToBase(p.monto, p.moneda, tasas, monedaBase),
     0,
   );
-
   const vueltoTotalBase = totalPagadoBase - totalBase;
   if (vueltoTotalBase < 0.01) return [];
 
@@ -92,7 +91,7 @@ export function calcularVuelto(
       .sort((a, b) => b - a);
     const denomMin = denomsOrdenadas.at(-1) ?? 1;
     const vueltoEnMonedaCobro =
-      Math.floor(vueltoEnMonedaCobroRaw / denomMin) * denomMin;
+      Math.round(vueltoEnMonedaCobroRaw / denomMin) * denomMin;
 
     if (vueltoEnMonedaCobro > 0) {
       result.push({ moneda: monedaCobro, monto: vueltoEnMonedaCobro });
