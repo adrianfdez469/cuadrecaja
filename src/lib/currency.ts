@@ -74,7 +74,6 @@ export function calcularVuelto(
     (sum, p) => sum + convertToBase(p.monto, p.moneda, tasas, monedaBase),
     0,
   );
-  debugger;
   const vueltoTotalBase = totalPagadoBase - totalBase;
   if (vueltoTotalBase < 0.01) return [];
 
