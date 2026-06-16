@@ -34,6 +34,7 @@ import {
   AccountBalance,
   ShoppingCart,
   Delete,
+  CurrencyExchange,
 } from "@mui/icons-material";
 import { IVenta } from "@/schemas/venta";
 import { formatDate, formatTimeShort } from "@/utils/formatters";
@@ -302,6 +303,117 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
             </Grid>
           </CardContent>
         </Card>
+
+        {/* Detalle de pago, vuelto y tasa de cambio de la venta */}
+        {(venta.pagosDetalle?.length ||
+          venta.vueltoDetalle?.length ||
+          venta.tasaSnapshot) && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography
+                variant="h6"
+                gutterBottom
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+              >
+                <CurrencyExchange />
+                Detalle de Pago y Tasa de Cambio
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              {venta.monedaCobro && (
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Moneda de cobro: <strong>{venta.monedaCobro}</strong>
+                </Typography>
+              )}
+
+              {!!venta.pagosDetalle?.length && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Pagos recibidos
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {venta.pagosDetalle.map((pago, idx) => (
+                      <Box
+                        key={idx}
+                        display="flex"
+                        justifyContent="space-between"
+                        sx={{
+                          py: 0.5,
+                          px: 1,
+                          borderRadius: 1,
+                          bgcolor: "action.hover",
+                        }}
+                      >
+                        <Typography variant="body2">
+                          {pago.tipo === "cash" ? "Efectivo" : "Transferencia"}{" "}
+                          ({pago.moneda})
+                        </Typography>
+                        <Typography variant="body2" fontWeight="medium">
+                          {formatMoneda(pago.monto, "", 2)} {pago.moneda}
+                          {pago.moneda !== monedaBase &&
+                            ` (${formatBase(pago.equivalenteBase)})`}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {!!venta.vueltoDetalle?.length && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Vuelto entregado
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {venta.vueltoDetalle.map((vuelto, idx) => (
+                      <Box
+                        key={idx}
+                        display="flex"
+                        justifyContent="space-between"
+                        sx={{
+                          py: 0.5,
+                          px: 1,
+                          borderRadius: 1,
+                          bgcolor: "warning.50",
+                        }}
+                      >
+                        <Typography variant="body2">Vuelto</Typography>
+                        <Typography
+                          variant="body2"
+                          fontWeight="medium"
+                          color="warning.main"
+                        >
+                          {formatMoneda(vuelto.monto, "", 2)} {vuelto.moneda}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {!!venta.tasaSnapshot &&
+                Object.keys(venta.tasaSnapshot).length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Tasas de cambio vigentes al momento de la venta
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {Object.entries(venta.tasaSnapshot).map(
+                        ([moneda, tasa]) => (
+                          <Chip
+                            key={moneda}
+                            label={`1 ${moneda} = ${formatMoneda(tasa, "", 2)} ${monedaBase}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        ),
+                      )}
+                    </Stack>
+                  </Box>
+                )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Lista de productos */}
         <Card>

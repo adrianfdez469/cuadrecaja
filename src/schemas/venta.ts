@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { usuarioSchema } from "./usuario";
+import { pagoLineaSchema, vueltoLineaSchema } from "./pago";
+import { tasaSnapshotSchema } from "./tasaCambio";
 
 export const ventaProductoSchema = z.object({
   id: z.string().uuid(),
@@ -51,6 +53,11 @@ export const ventaSchema = z.object({
   transferDestination: z
     .object({ id: z.string(), nombre: z.string() })
     .optional(),
+  // Multimoneda — snapshot de la venta al momento de cobrarla
+  monedaCobro: z.string().optional(),
+  pagosDetalle: z.array(pagoLineaSchema).optional(),
+  vueltoDetalle: z.array(vueltoLineaSchema).optional(),
+  tasaSnapshot: tasaSnapshotSchema.optional(),
 });
 
 export type IVenta = z.infer<typeof ventaSchema>;

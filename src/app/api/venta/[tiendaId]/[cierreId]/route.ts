@@ -619,6 +619,14 @@ export async function GET(
       transferDestinationId: venta.transferDestinationId ?? undefined,
       transferDestination: venta.transferDestination ?? undefined,
       syncId: venta.syncId,
+      monedaCobro: venta.monedaCobro ?? undefined,
+      pagosDetalle:
+        (venta.pagosDetalle as unknown as IVenta["pagosDetalle"]) ?? undefined,
+      vueltoDetalle:
+        (venta.vueltoDetalle as unknown as IVenta["vueltoDetalle"]) ??
+        undefined,
+      tasaSnapshot:
+        (venta.tasaSnapshot as unknown as IVenta["tasaSnapshot"]) ?? undefined,
     }));
 
     return NextResponse.json(ventas);
