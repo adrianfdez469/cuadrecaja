@@ -60,6 +60,7 @@ export interface CreateProductData {
 
 export interface ChangeQtyOptions {
   costoUnitario?: number;
+  monedaCompra?: string;
   motivo?: string;
 }
 
@@ -72,7 +73,7 @@ function getDiasHastaVencimiento(fechaVencimiento: string): number {
 }
 
 export function useGestionInventario() {
-  const { user, loadingContext } = useAppContext();
+  const { user, loadingContext, monedaBase, tasasVigentes } = useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
 
@@ -252,6 +253,10 @@ export function useGestionInventario() {
               costoUnitario: options.costoUnitario ?? producto.costo,
               costoTotal:
                 (options.costoUnitario ?? producto.costo) * Math.abs(delta),
+              monedaCompra: options.monedaCompra ?? monedaBase,
+              monedaOriginal: options.monedaCompra ?? monedaBase,
+              montoOriginal: options.costoUnitario ?? producto.costo,
+              tasaUsada: tasasVigentes[options.monedaCompra ?? monedaBase] ?? 1,
             }),
           },
         ],
