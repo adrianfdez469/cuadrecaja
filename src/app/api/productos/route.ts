@@ -102,7 +102,10 @@ export async function POST(req: Request) {
           unidadesPorFraccion: fraccion.unidadesPorFraccion,
         }),
         codigosProducto: {
-          create: (codigosProducto || []).map((codigo: string) => ({ codigo })),
+          create: (codigosProducto || []).map((codigo: string) => ({
+            codigo,
+            negocioId: user.negocio.id,
+          })),
         },
       },
       include: {
@@ -118,7 +121,7 @@ export async function POST(req: Request) {
       error.code === "P2002"
     ) {
       return NextResponse.json(
-        { error: "Ya existe un producto con ese nombre en este negocio" },
+        { error: "Ya existe un producto o código duplicado en este negocio" },
         { status: 409 },
       );
     }

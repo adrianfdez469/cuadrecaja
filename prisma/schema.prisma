@@ -66,6 +66,7 @@ model Negocio {
   negociosMoneda      NegocioMoneda[]
   tasasCambio         TasaCambio[]
   historialMonedaBase HistorialMonedaBase[]
+  codigosProducto     CodigoProducto[]
 }
 
 model Promoter {
@@ -317,9 +318,13 @@ model Producto {
 
 model CodigoProducto {
   id         String   @id @default(uuid())
-  codigo     String   @unique
+  codigo     String
   producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
   productoId String
+  negocio    Negocio  @relation(fields: [negocioId], references: [id])
+  negocioId  String
+
+  @@unique([codigo, negocioId])
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Producto y Tienda.

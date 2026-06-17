@@ -65,7 +65,12 @@ export async function POST(
     }
 
     const codigoExistente = await prisma.codigoProducto.findUnique({
-      where: { codigo: codigoNormalizado },
+      where: {
+        codigo_negocioId: {
+          codigo: codigoNormalizado,
+          negocioId: user.negocio.id,
+        },
+      },
     });
 
     if (codigoExistente) {
@@ -76,7 +81,11 @@ export async function POST(
     }
 
     const nuevoCodigo = await prisma.codigoProducto.create({
-      data: { codigo: codigoNormalizado, productoId: id },
+      data: {
+        codigo: codigoNormalizado,
+        productoId: id,
+        negocioId: user.negocio.id,
+      },
     });
 
 

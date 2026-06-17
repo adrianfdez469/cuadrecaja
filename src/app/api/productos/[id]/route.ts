@@ -138,9 +138,14 @@ export async function PUT(
       // Agregar los nuevos
       for (const codigo of codigosProducto) {
         await prisma.codigoProducto.upsert({
-          where: { codigo },
+          where: {
+            codigo_negocioId: {
+              codigo,
+              negocioId: user.negocio.id,
+            },
+          },
           update: { productoId: id },
-          create: { codigo, productoId: id },
+          create: { codigo, productoId: id, negocioId: user.negocio.id },
         });
       }
     }
