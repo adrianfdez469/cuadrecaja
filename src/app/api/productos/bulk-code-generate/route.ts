@@ -18,12 +18,13 @@ export async function POST(req: NextRequest) {
     const { codes } = await req.json();
 
     if (!codes || !Array.isArray(codes) || codes.length === 0) {
-      return NextResponse.json({ error: "Entrada inválida" }, { status: 400 });
+      return NextResponse.json({ error: "Entrada inv?lida" }, { status: 400 });
     }
 
-    // Obtener todos los códigos existentes para evitar duplicados
+    // Obtener todos los c?digos existentes para evitar duplicados
     const existingCodes = await prisma.codigoProducto.findMany({
-      select: { codigo: true }
+      where: { negocioId: user.negocio.id },
+      select: { codigo: true },
     });
     const codesSet = new Set(existingCodes.map(c => c.codigo));
 
@@ -53,27 +54,28 @@ export async function POST(req: NextRequest) {
 
         let codigoToSave = codigo;
 
-        // Si no se proporciona código, generar uno automáticamente
+        // Si no se proporciona c?digo, generar uno autom?ticamente
         if (!codigoToSave) {
           try {
             codigoToSave = generateEAN13(codesSet);
-            codesSet.add(codigoToSave); // Agregar al set para evitar duplicados en la misma operación
+            codesSet.add(codigoToSave); // Agregar al set para evitar duplicados en la misma operaci?n
           } catch (error) {
-            console.error("Error al generar código:", error);
+            console.error("Error al generar c?digo:", error);
             errors.push({
               productoId,
-              error: "No se pudo generar un código único"
+              error: "No se pudo generar un c?digo ?nico"
             });
             continue;
           }
         }
 
-        // Crear el código
+        // Crear el c?digo
         const nuevoCodigo = await prisma.codigoProducto.create({
           data: {
             codigo: codigoToSave,
-            productoId
-          }
+            productoId,
+            negocioId: user.negocio.id,
+          },
         });
 
         results.push({
@@ -84,16 +86,16 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         console.error(`Error procesando producto ${productoId}:`, error);
         
-        // Manejar error de código duplicado
+        // Manejar error de c?digo duplicado
         if (error.code === 'P2002') {
           errors.push({
             productoId,
-            error: "El código ya existe"
+            error: "El c?digo ya existe"
           });
         } else {
           errors.push({
             productoId,
-            error: "Error al generar el código"
+            error: "Error al generar el c?digo"
           });
         }
       }
@@ -110,7 +112,7 @@ export async function POST(req: NextRequest) {
     }, { status: 200 });
 
   } catch (error) {
-    console.error("Error al generar códigos:", error);
+    console.error("Error al generar c?digos:", error);
     return NextResponse.json(
       { error: "Error interno del servidor" },
       { status: 500 }

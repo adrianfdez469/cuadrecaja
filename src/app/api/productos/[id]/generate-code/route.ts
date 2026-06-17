@@ -37,7 +37,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!codigoToSave) {
       // Obtener todos los códigos existentes
       const existingCodes = await prisma.codigoProducto.findMany({
-        select: { codigo: true }
+        where: { negocioId: user.negocio.id },
+        select: { codigo: true },
       });
       const codesSet = new Set(existingCodes.map(c => c.codigo));
       
@@ -56,8 +57,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const nuevoCodigo = await prisma.codigoProducto.create({
       data: {
         codigo: codigoToSave,
-        productoId: id
-      }
+        productoId: id,
+        negocioId: user.negocio.id,
+      },
     });
 
     return NextResponse.json(nuevoCodigo, { status: 201 });
