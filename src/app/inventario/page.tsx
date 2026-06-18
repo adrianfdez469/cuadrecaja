@@ -38,14 +38,17 @@ import EventBusyIcon from "@mui/icons-material/EventBusy";
 import AlarmIcon from "@mui/icons-material/Alarm";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import { getProductosVenta, updateProductosTienda } from "@/services/costoPrecioServices";
+import {
+  getProductosVenta,
+  updateProductosTienda,
+} from "@/services/costoPrecioServices";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { exportInventoryToWord } from "@/utils/wordExport";
 import { exportInventarioToExcel } from "@/utils/excelExport";
 import { ProductMovementsModal } from "./components/ProductMovementsModal";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
-import { formatCurrency, formatNumber } from '@/utils/formatters';
+import { formatCurrency, formatNumber } from "@/utils/formatters";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 
@@ -54,34 +57,40 @@ export default function InventarioPage() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState<IProductoTiendaV2 | null>(null);
+  const [selectedProduct, setSelectedProduct] =
+    useState<IProductoTiendaV2 | null>(null);
   const [movementsModalOpen, setMovementsModalOpen] = useState(false);
   const [soloConVencimiento, setSoloConVencimiento] = useState(false);
   // Edición inline de fecha de vencimiento
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
-  const [editingProduct, setEditingProduct] = useState<IProductoTiendaV2 | null>(null);
+  const [editingProduct, setEditingProduct] =
+    useState<IProductoTiendaV2 | null>(null);
   const [editingFecha, setEditingFecha] = useState<Dayjs | null>(null);
   const [savingFecha, setSavingFecha] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const { user, loadingContext } = useAppContext();
+  const { user, loadingContext, tasasVigentes, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
 
   const fetchProductos = async () => {
     try {
       setLoading(true);
       const data = await getProductosVenta(user.localActual.id);
-      setProductos(data.map(productoTienda => {
-        return {
-          ...productoTienda,
-          producto: {
-            ...productoTienda.producto,
-            nombre: productoTienda.proveedor ? `${productoTienda.producto.nombre} - ${productoTienda.proveedor.nombre}` : productoTienda.producto.nombre
-          }
-        };
-      }));
+      setProductos(
+        data.map((productoTienda) => {
+          return {
+            ...productoTienda,
+            producto: {
+              ...productoTienda.producto,
+              nombre: productoTienda.proveedor
+                ? `${productoTienda.producto.nombre} - ${productoTienda.proveedor.nombre}`
+                : productoTienda.producto.nombre,
+            },
+          };
+        }),
+      );
     } catch (error) {
       console.error("Error al obtener productos", error);
       showMessage("Error al cargar el inventario", "error");
@@ -99,9 +108,11 @@ export default function InventarioPage() {
   const handleExportToWord = async () => {
     try {
       setExporting(true);
-      
-      const productosParaExportar = productos.filter(producto => producto.precio > 0);
-      
+
+      const productosParaExportar = productos.filter(
+        (producto) => producto.precio > 0,
+      );
+
       if (productosParaExportar.length === 0) {
         showMessage("No hay productos con precio para exportar", "warning");
         return;
@@ -110,10 +121,13 @@ export default function InventarioPage() {
       await exportInventoryToWord({
         productos: productosParaExportar,
         tiendaNombre: user.localActual.nombre,
-        fecha: new Date()
+        fecha: new Date(),
       });
 
-      showMessage(`Inventario exportado exitosamente (${productosParaExportar.length} productos)`, "success");
+      showMessage(
+        `Inventario exportado exitosamente (${productosParaExportar.length} productos)`,
+        "success",
+      );
     } catch (error) {
       console.error("Error al exportar inventario:", error);
       showMessage("Error al exportar el inventario", "error");
@@ -125,9 +139,11 @@ export default function InventarioPage() {
   const handleExportToExcel = async () => {
     try {
       setExporting(true);
-      
-      const productosParaExportar = productos.filter(producto => producto.precio > 0);
-      
+
+      const productosParaExportar = productos.filter(
+        (producto) => producto.precio > 0,
+      );
+
       if (productosParaExportar.length === 0) {
         showMessage("No hay productos con precio para exportar", "warning");
         return;
@@ -136,10 +152,15 @@ export default function InventarioPage() {
       await exportInventarioToExcel({
         productos: productosParaExportar,
         tiendaNombre: user.localActual.nombre,
-        fecha: new Date()
+        fecha: new Date(),
+        monedaBase,
+        tasasVigentes,
       });
 
-      showMessage(`Inventario exportado a Excel exitosamente (${productosParaExportar.length} productos)`, "success");
+      showMessage(
+        `Inventario exportado a Excel exitosamente (${productosParaExportar.length} productos)`,
+        "success",
+      );
     } catch (error) {
       console.error("Error al exportar inventario a Excel:", error);
       showMessage("Error al exportar el inventario a Excel", "error");
@@ -159,20 +180,30 @@ export default function InventarioPage() {
   };
 
   const filteredProductos = productos.filter((producto) => {
-    const matchesSearch = producto.producto.nombre.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesVencimiento = !soloConVencimiento || (() => {
-      if (!producto.fechaVencimiento) return false;
-      const dias = Math.ceil((new Date(producto.fechaVencimiento).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
-      return dias <= 30;
-    })();
+    const matchesSearch = producto.producto.nombre
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesVencimiento =
+      !soloConVencimiento ||
+      (() => {
+        if (!producto.fechaVencimiento) return false;
+        const dias = Math.ceil(
+          (new Date(producto.fechaVencimiento).getTime() - Date.now()) /
+            (24 * 60 * 60 * 1000),
+        );
+        return dias <= 30;
+      })();
     return matchesSearch && matchesVencimiento;
   });
 
   // Cálculos para estadísticas
   const totalProductos = productos.length;
-  const productosConStock = productos.filter(p => p.existencia > 0).length;
-  const productosSinStock = productos.filter(p => p.existencia <= 0).length;
-  const valorTotalInventario = productos.reduce((total, p) => total + (p.existencia * p.costo), 0);
+  const productosConStock = productos.filter((p) => p.existencia > 0).length;
+  const productosSinStock = productos.filter((p) => p.existencia <= 0).length;
+  const valorTotalInventario = productos.reduce(
+    (total, p) => total + p.existencia * p.costo,
+    0,
+  );
 
   const getStockChip = (existencia: number) => {
     if (existencia <= 0) {
@@ -184,21 +215,36 @@ export default function InventarioPage() {
     }
   };
 
-  const getVencimientoInfo = (fechaVencimiento?: string | null): { label: string; color: "error" | "warning" | "default"; dias: number } | null => {
+  const getVencimientoInfo = (
+    fechaVencimiento?: string | null,
+  ): {
+    label: string;
+    color: "error" | "warning" | "default";
+    dias: number;
+  } | null => {
     if (!fechaVencimiento) return null;
     const ahora = new Date();
     const fecha = new Date(fechaVencimiento);
-    const dias = Math.ceil((fecha.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
-    if (dias <= 0) return { label: `Vencido (${Math.abs(dias)}d)`, color: "error", dias };
+    const dias = Math.ceil(
+      (fecha.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000),
+    );
+    if (dias <= 0)
+      return { label: `Vencido (${Math.abs(dias)}d)`, color: "error", dias };
     if (dias <= 7) return { label: `Vence en ${dias}d`, color: "error", dias };
-    if (dias <= 15) return { label: `Vence en ${dias}d`, color: "warning", dias };
+    if (dias <= 15)
+      return { label: `Vence en ${dias}d`, color: "warning", dias };
     return { label: `Vence en ${dias}d`, color: "warning", dias };
   };
 
-  const handleOpenFechaEditor = (e: React.MouseEvent<HTMLElement>, producto: IProductoTiendaV2) => {
+  const handleOpenFechaEditor = (
+    e: React.MouseEvent<HTMLElement>,
+    producto: IProductoTiendaV2,
+  ) => {
     e.stopPropagation();
     setEditingProduct(producto);
-    setEditingFecha(producto.fechaVencimiento ? dayjs(producto.fechaVencimiento) : null);
+    setEditingFecha(
+      producto.fechaVencimiento ? dayjs(producto.fechaVencimiento) : null,
+    );
     setPopoverAnchor(e.currentTarget);
   };
 
@@ -212,12 +258,22 @@ export default function InventarioPage() {
     if (!editingProduct) return;
     try {
       setSavingFecha(true);
-      await updateProductosTienda(user.localActual.id, [{ id: editingProduct.id, fechaVencimiento: nuevaFecha ? nuevaFecha.toISOString() : null }]);
-      setProductos(prev => prev.map(p =>
-        p.id === editingProduct.id
-          ? { ...p, fechaVencimiento: nuevaFecha ? nuevaFecha.toISOString() : null }
-          : p
-      ));
+      await updateProductosTienda(user.localActual.id, [
+        {
+          id: editingProduct.id,
+          fechaVencimiento: nuevaFecha ? nuevaFecha.toISOString() : null,
+        },
+      ]);
+      setProductos((prev) =>
+        prev.map((p) =>
+          p.id === editingProduct.id
+            ? {
+                ...p,
+                fechaVencimiento: nuevaFecha ? nuevaFecha.toISOString() : null,
+              }
+            : p,
+        ),
+      );
       showMessage("Fecha de vencimiento actualizada", "success");
       handleCloseFechaEditor();
     } catch {
@@ -228,14 +284,22 @@ export default function InventarioPage() {
   };
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Inventario' }
+    { label: "Inicio", href: "/home" },
+    { label: "Inventario" },
   ];
 
   const headerActions = (
-    <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
+    <Stack
+      direction={isMobile ? "column" : "row"}
+      spacing={1}
+      sx={{ width: isMobile ? "100%" : "auto" }}
+    >
       <Tooltip title="Actualizar inventario">
-        <IconButton onClick={fetchProductos} disabled={loading} size={isMobile ? "small" : "medium"}>
+        <IconButton
+          onClick={fetchProductos}
+          disabled={loading}
+          size={isMobile ? "small" : "medium"}
+        >
           <RefreshIcon />
         </IconButton>
       </Tooltip>
@@ -263,8 +327,18 @@ export default function InventarioPage() {
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode, value: string, label: string, color: string }) => (
-    <Card sx={{ height: '100%' }}>
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    color: string;
+  }) => (
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -272,10 +346,10 @@ export default function InventarioPage() {
               p: isMobile ? 1 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 40 : 48,
               minHeight: isMobile ? 40 : 48,
             }}
@@ -283,23 +357,23 @@ export default function InventarioPage() {
             {icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "h5" : "h4"} 
+            <Typography
+              variant={isMobile ? "h5" : "h4"}
               fontWeight="bold"
-              sx={{ 
-                fontSize: isMobile ? '1.25rem' : '2rem',
+              sx={{
+                fontSize: isMobile ? "1.25rem" : "2rem",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
             </Typography>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
-                fontSize: isMobile ? '0.75rem' : '0.875rem',
-                lineHeight: 1.2
+              sx={{
+                fontSize: isMobile ? "0.75rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
@@ -313,7 +387,9 @@ export default function InventarioPage() {
   return (
     <PageContainer
       title="Inventario"
-      subtitle={!isMobile ? "Gestión y control de productos en stock" : undefined}
+      subtitle={
+        !isMobile ? "Gestión y control de productos en stock" : undefined
+      }
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
@@ -358,9 +434,13 @@ export default function InventarioPage() {
       </Grid>
 
       {/* Tabla de productos */}
-      <ContentCard 
+      <ContentCard
         title="Lista de Productos"
-        subtitle={!isMobile ? "Haz clic en cualquier producto para ver su historial de movimientos" : undefined}
+        subtitle={
+          !isMobile
+            ? "Haz clic en cualquier producto para ver su historial de movimientos"
+            : undefined
+        }
         headerActions={
           <Stack direction="row" spacing={1} alignItems="center">
             <TextField
@@ -377,15 +457,21 @@ export default function InventarioPage() {
               }}
               sx={{
                 minWidth: isMobile ? 150 : 250,
-                maxWidth: isMobile ? 200 : 'none'
+                maxWidth: isMobile ? 200 : "none",
               }}
             />
-            <Tooltip title={soloConVencimiento ? "Mostrar todos los productos" : "Ver solo próximos a vencer"}>
+            <Tooltip
+              title={
+                soloConVencimiento
+                  ? "Mostrar todos los productos"
+                  : "Ver solo próximos a vencer"
+              }
+            >
               <IconButton
                 size="small"
                 color={soloConVencimiento ? "warning" : "default"}
-                onClick={() => setSoloConVencimiento(v => !v)}
-                sx={soloConVencimiento ? { bgcolor: 'warning.50' } : {}}
+                onClick={() => setSoloConVencimiento((v) => !v)}
+                sx={soloConVencimiento ? { bgcolor: "warning.50" } : {}}
               >
                 <AlarmIcon />
               </IconButton>
@@ -399,46 +485,72 @@ export default function InventarioPage() {
           // Vista móvil con cards
           <Box sx={{ p: 2 }}>
             {loading ? (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
+              <Box sx={{ textAlign: "center", py: 8 }}>
                 <CircularProgress />
                 <Typography variant="body2" sx={{ mt: 2 }}>
                   Cargando inventario...
                 </Typography>
               </Box>
             ) : filteredProductos.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <InventoryIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+              <Box sx={{ textAlign: "center", py: 8 }}>
+                <InventoryIcon
+                  sx={{ fontSize: 48, color: "text.secondary", mb: 2 }}
+                />
                 <Typography variant="h6" color="text.secondary">
-                  {searchTerm ? 'No se encontraron productos' : 'No hay productos en el inventario'}
+                  {searchTerm
+                    ? "No se encontraron productos"
+                    : "No hay productos en el inventario"}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Agrega productos para comenzar'}
+                  {searchTerm
+                    ? "Intenta con otros términos de búsqueda"
+                    : "Agrega productos para comenzar"}
                 </Typography>
               </Box>
             ) : (
               <Stack spacing={2}>
                 {filteredProductos.map((producto) => (
-                  <Card 
+                  <Card
                     key={producto.id}
                     onClick={() => handleRowClick(producto)}
                     sx={{
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
                       },
                     }}
                   >
                     <CardContent sx={{ p: 2 }}>
                       <Stack spacing={2}>
-                        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                          <Typography variant="subtitle1" fontWeight="medium" sx={{ flex: 1, pr: 1 }}>
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="flex-start"
+                        >
+                          <Typography
+                            variant="subtitle1"
+                            fontWeight="medium"
+                            sx={{ flex: 1, pr: 1 }}
+                          >
                             {producto.producto.nombre}
                           </Typography>
-                          <Stack direction="row" spacing={0.5} alignItems="center">
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            alignItems="center"
+                          >
                             {getStockChip(producto.existencia)}
                             {(() => {
-                              const info = getVencimientoInfo(producto.fechaVencimiento);
-                              return info ? <Chip label={info.label} color={info.color} size="small" /> : null;
+                              const info = getVencimientoInfo(
+                                producto.fechaVencimiento,
+                              );
+                              return info ? (
+                                <Chip
+                                  label={info.label}
+                                  color={info.color}
+                                  size="small"
+                                />
+                              ) : null;
                             })()}
                           </Stack>
                         </Box>
@@ -447,30 +559,44 @@ export default function InventarioPage() {
                             size="small"
                             startIcon={<EditCalendarIcon fontSize="small" />}
                             onClick={(e) => handleOpenFechaEditor(e, producto)}
-                            color={producto.fechaVencimiento ? "warning" : "inherit"}
-                            sx={{ mt: 0.5, textTransform: 'none', fontSize: '0.75rem' }}
+                            color={
+                              producto.fechaVencimiento ? "warning" : "inherit"
+                            }
+                            sx={{
+                              mt: 0.5,
+                              textTransform: "none",
+                              fontSize: "0.75rem",
+                            }}
                           >
                             {producto.fechaVencimiento
-                              ? `Vence: ${dayjs(producto.fechaVencimiento).format('DD/MM/YYYY')}`
-                              : 'Agregar vencimiento'}
+                              ? `Vence: ${dayjs(producto.fechaVencimiento).format("DD/MM/YYYY")}`
+                              : "Agregar vencimiento"}
                           </Button>
                         </Box>
-                        
+
                         <Grid container spacing={2}>
                           <Grid item xs={4}>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
                               Existencia
                             </Typography>
                             <Typography
                               variant="body2"
                               fontWeight="bold"
-                              color={producto.existencia <= 0 ? "error" : "inherit"}
+                              color={
+                                producto.existencia <= 0 ? "error" : "inherit"
+                              }
                             >
                               {formatNumber(producto.existencia)}
                             </Typography>
                           </Grid>
                           <Grid item xs={4}>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
                               Costo
                             </Typography>
                             <Typography variant="body2" fontWeight="medium">
@@ -478,11 +604,16 @@ export default function InventarioPage() {
                             </Typography>
                           </Grid>
                           <Grid item xs={4}>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
                               Valor Stock
                             </Typography>
                             <Typography variant="body2" fontWeight="medium">
-                              {formatCurrency(producto.existencia * producto.costo)}
+                              {formatCurrency(
+                                producto.existencia * producto.costo,
+                              )}
                             </Typography>
                           </Grid>
                         </Grid>
@@ -511,7 +642,11 @@ export default function InventarioPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell align="center" colSpan={isTablet ? 6 : 7} sx={{ py: 8 }}>
+                    <TableCell
+                      align="center"
+                      colSpan={isTablet ? 6 : 7}
+                      sx={{ py: 8 }}
+                    >
                       <CircularProgress />
                       <Typography variant="body2" sx={{ mt: 2 }}>
                         Cargando inventario...
@@ -520,28 +655,38 @@ export default function InventarioPage() {
                   </TableRow>
                 ) : filteredProductos.length === 0 ? (
                   <TableRow>
-                    <TableCell align="center" colSpan={isTablet ? 6 : 7} sx={{ py: 8 }}>
-                      <InventoryIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                    <TableCell
+                      align="center"
+                      colSpan={isTablet ? 6 : 7}
+                      sx={{ py: 8 }}
+                    >
+                      <InventoryIcon
+                        sx={{ fontSize: 48, color: "text.secondary", mb: 2 }}
+                      />
                       <Typography variant="h6" color="text.secondary">
-                        {searchTerm ? 'No se encontraron productos' : 'No hay productos en el inventario'}
+                        {searchTerm
+                          ? "No se encontraron productos"
+                          : "No hay productos en el inventario"}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Agrega productos para comenzar'}
+                        {searchTerm
+                          ? "Intenta con otros términos de búsqueda"
+                          : "Agrega productos para comenzar"}
                       </Typography>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredProductos.map((producto) => (
-                    <TableRow 
+                    <TableRow
                       key={producto.id}
                       onClick={() => handleRowClick(producto)}
                       sx={{
-                        cursor: 'pointer',
-                        '&:hover': {
-                          backgroundColor: 'action.hover',
+                        cursor: "pointer",
+                        "&:hover": {
+                          backgroundColor: "action.hover",
                         },
-                        '&:nth-of-type(odd)': {
-                          backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                        "&:nth-of-type(odd)": {
+                          backgroundColor: "rgba(0, 0, 0, 0.02)",
                         },
                       }}
                     >
@@ -557,7 +702,9 @@ export default function InventarioPage() {
                         <Typography
                           variant="body2"
                           color={producto.existencia <= 0 ? "error" : "inherit"}
-                          fontWeight={producto.existencia <= 0 ? "bold" : "normal"}
+                          fontWeight={
+                            producto.existencia <= 0 ? "bold" : "normal"
+                          }
                         >
                           {formatNumber(producto.existencia)}
                         </Typography>
@@ -579,18 +726,48 @@ export default function InventarioPage() {
                           {formatCurrency(producto.existencia * producto.costo)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center" onClick={(e) => e.stopPropagation()}>
-                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
+                      <TableCell
+                        align="center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          justifyContent="center"
+                          spacing={0.5}
+                        >
                           {(() => {
-                            const info = getVencimientoInfo(producto.fechaVencimiento);
+                            const info = getVencimientoInfo(
+                              producto.fechaVencimiento,
+                            );
                             return info ? (
-                              <Chip label={info.label} color={info.color} size="small" />
+                              <Chip
+                                label={info.label}
+                                color={info.color}
+                                size="small"
+                              />
                             ) : (
-                              <Typography variant="caption" color="text.disabled">—</Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.disabled"
+                              >
+                                —
+                              </Typography>
                             );
                           })()}
-                          <Tooltip title={producto.fechaVencimiento ? "Editar fecha" : "Agregar fecha"}>
-                            <IconButton size="small" onClick={(e) => handleOpenFechaEditor(e, producto)}>
+                          <Tooltip
+                            title={
+                              producto.fechaVencimiento
+                                ? "Editar fecha"
+                                : "Agregar fecha"
+                            }
+                          >
+                            <IconButton
+                              size="small"
+                              onClick={(e) =>
+                                handleOpenFechaEditor(e, producto)
+                              }
+                            >
                               <EditCalendarIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
@@ -610,17 +787,25 @@ export default function InventarioPage() {
         open={Boolean(popoverAnchor)}
         anchorEl={popoverAnchor}
         onClose={handleCloseFechaEditor}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        transformOrigin={{ vertical: "top", horizontal: "center" }}
         ref={popoverRef}
       >
-        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 280 }}>
+        <Box
+          sx={{
+            p: 2,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            minWidth: 280,
+          }}
+        >
           <Typography variant="subtitle2">Fecha de vencimiento</Typography>
           <DatePicker
             label="Fecha"
             value={editingFecha}
             onChange={(val) => setEditingFecha(val)}
-            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+            slotProps={{ textField: { size: "small", fullWidth: true } }}
           />
           <Stack direction="row" spacing={1} justifyContent="flex-end">
             {editingProduct?.fechaVencimiento && (
@@ -634,7 +819,11 @@ export default function InventarioPage() {
                 Quitar fecha
               </Button>
             )}
-            <Button size="small" onClick={handleCloseFechaEditor} disabled={savingFecha}>
+            <Button
+              size="small"
+              onClick={handleCloseFechaEditor}
+              disabled={savingFecha}
+            >
               Cancelar
             </Button>
             <Button
@@ -643,7 +832,7 @@ export default function InventarioPage() {
               onClick={() => handleSaveFecha(editingFecha)}
               disabled={savingFecha}
             >
-              {savingFecha ? <CircularProgress size={16} /> : 'Guardar'}
+              {savingFecha ? <CircularProgress size={16} /> : "Guardar"}
             </Button>
           </Stack>
         </Box>
@@ -657,4 +846,4 @@ export default function InventarioPage() {
       />
     </PageContainer>
   );
-} 
+}
