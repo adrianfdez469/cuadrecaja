@@ -82,6 +82,10 @@ import {
   TOUR_POS_VENTA,
 } from "@/features/onboarding/constants";
 import { shouldDeferPosPeriodPrompt, shouldDeferPosBackgroundOperations } from "@/features/onboarding/utils/posOnboardingPeriod";
+import {
+  isPosTopToolbarTourTarget,
+  scrollPosTourTargetIntoView,
+} from "@/features/onboarding/utils/onboardingNavigation";
 import { getTourById } from "@/features/onboarding/tours/primerosPasos";
 
 export default function POSInterface() {
@@ -113,6 +117,7 @@ export default function POSInterface() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchAnchorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const posScrollRef = useRef<HTMLDivElement>(null);
   const [searchPanelLayout, setSearchPanelLayout] = useState({
     bottom: 80,
     maxHeight: 300,
@@ -226,6 +231,9 @@ export default function POSInterface() {
     if (!step) return false;
     return !(step.spotlightClicks ?? false);
   });
+  const onboardingRun = useOnboardingStore((s) => s.run);
+  const onboardingStepIndex = useOnboardingStore((s) => s.stepIndex);
+  const activeStepDefinitions = useOnboardingStore((s) => s.activeStepDefinitions);
 
   const [asociarCodigoOpen, setAsociarCodigoOpen] = useState(false);
   const [codigoNoEncontrado, setCodigoNoEncontrado] = useState<string>("");
@@ -234,6 +242,23 @@ export default function POSInterface() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
+
+  useEffect(() => {
+    if (!onboardingRun || !isMobile) return;
+    const step = activeStepDefinitions[onboardingStepIndex];
+    if (!step) return;
+
+    const { target } = step;
+    const needsPosScroll =
+      isPosTopToolbarTourTarget(target) ||
+      target.includes("pos-category-first");
+
+    if (!needsPosScroll) return;
+
+    scrollPosTourTargetIntoView(posScrollRef.current, target, () => {
+      useOnboardingStore.getState().bumpLayoutNonce();
+    });
+  }, [onboardingRun, onboardingStepIndex, activeStepDefinitions, isMobile]);
 
   // Calcular ancho del carrito según la pantalla
   const getCartWidth = () => {
@@ -1190,6 +1215,7 @@ export default function POSInterface() {
       }}
     >
       <Box
+        ref={posScrollRef}
         sx={{
           flex: isCartPinned ? "1" : "none",
           width: getMainContentWidth(),

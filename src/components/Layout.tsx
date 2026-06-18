@@ -284,15 +284,6 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         useOnboardingStore.getState().bumpLayoutNonce(),
       );
     }
-    if (
-      step.target.includes("pos-toolbar-") ||
-      step.target.includes("pos-category-first")
-    ) {
-      window.setTimeout(
-        () => useOnboardingStore.getState().bumpLayoutNonce(),
-        200
-      );
-    }
   }, [onboardingRun, onboardingStepIndex, activeStepDefinitions]);
 
   const toolbarInteractionSx = (tourAttr?: string) => {

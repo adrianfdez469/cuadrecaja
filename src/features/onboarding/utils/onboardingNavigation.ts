@@ -43,4 +43,53 @@ export function isNavDrawerTourSelector(target: string): boolean {
   );
 }
 
+/** Barra superior del POS (período → conexión), excluye escáner en barra inferior */
+export function isPosTopToolbarTourTarget(target: string): boolean {
+  return (
+    target.includes("pos-toolbar-") &&
+    !target.includes("pos-toolbar-scanner")
+  );
+}
+
+const POS_TOUR_SCROLL_SETTLE_MS = 360;
+
+/**
+ * Desplaza el contenedor scroll del POS para que el objetivo del tour quede visible
+ * bajo la barra global de la app (evita scrollIntoView del documento).
+ */
+export function scrollPosTourTargetIntoView(
+  scrollContainer: HTMLElement | null,
+  targetSelector: string,
+  onDone?: () => void,
+): void {
+  if (!scrollContainer) {
+    onDone?.();
+    return;
+  }
+
+  window.setTimeout(() => {
+    if (isPosTopToolbarTourTarget(targetSelector)) {
+      scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      const el = document.querySelector(targetSelector);
+      if (el instanceof HTMLElement) {
+        const containerTop = scrollContainer.getBoundingClientRect().top;
+        const elTop = el.getBoundingClientRect().top;
+        const nextTop = elTop - containerTop + scrollContainer.scrollTop - 12;
+        scrollContainer.scrollTo({
+          top: Math.max(0, nextTop),
+          behavior: "smooth",
+        });
+      }
+    }
+
+    window.setTimeout(() => {
+      window.requestAnimationFrame(() => {
+        window.dispatchEvent(new Event("resize"));
+        onDone?.();
+      });
+    }, POS_TOUR_SCROLL_SETTLE_MS);
+  }, 120);
+}
+
 export { NAV_DRAWER_TARGET_SELECTORS };

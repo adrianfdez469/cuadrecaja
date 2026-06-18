@@ -10,6 +10,7 @@ import { fetchLastPeriod } from "@/services/cierrePeriodService";
 import { ONBOARDING_PROMPT_POS_PERIOD_EVENT, TOUR_POS_VENTA } from "../constants";
 import { buildJoyrideSteps } from "../utils/buildJoyrideSteps";
 import { usesFixedMobileTooltip } from "../utils/onboardingMobileTooltip";
+import { isPosTopToolbarTourTarget } from "../utils/onboardingNavigation";
 import {
   getOnboardingJoyrideOptions,
   getOnboardingJoyrideStyles,
@@ -224,11 +225,14 @@ export function OnboardingJoyride() {
   }
 
   const isBodyStep = stepDef?.target === "body";
+  const stepTarget =
+    typeof stepDef?.target === "string" ? stepDef.target : "";
   const isFixedMobileStep = Boolean(
-    stepDef?.target &&
-      typeof stepDef.target === "string" &&
-      usesFixedMobileTooltip(stepDef.target),
+    stepTarget && usesFixedMobileTooltip(stepTarget),
   );
+  const useJoyrideAutoScroll =
+    !isMobile ||
+    (isFixedMobileStep && !isPosTopToolbarTourTarget(stepTarget));
   const shouldRunJoyride = isBodyStep || targetReady;
 
   return (
@@ -238,7 +242,7 @@ export function OnboardingJoyride() {
       run={shouldRunJoyride}
       stepIndex={stepIndex}
       continuous
-      scrollToFirstStep={!isMobile || isFixedMobileStep}
+      scrollToFirstStep={useJoyrideAutoScroll}
       locale={stepLocale}
       options={joyrideOptions}
       styles={joyrideStyles}
