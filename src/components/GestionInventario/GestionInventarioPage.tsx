@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
@@ -14,10 +15,18 @@ import { ChangeQtyDialog } from "./dialogs/ChangeQtyDialog";
 import { CreateMovimientoDialog } from "./dialogs/CreateMovimientoDialog";
 import { CreateProductDialog } from "./dialogs/CreateProductDialog";
 import { ProductMovementsModal } from "@/app/inventario/components/ProductMovementsModal";
+import ImportarExcelDialog from "@/app/movimientos/components/importExcelDialog";
+import { exportInventarioToExcel } from "@/utils/excelExport";
+import { useAppContext } from "@/context/AppContext";
+import { useMessageContext } from "@/context/MessageContext";
 
 export function GestionInventarioPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const { user, monedaBase, tasasVigentes } = useAppContext();
+  const { showMessage } = useMessageContext();
+  const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const {
     categorias,
@@ -25,16 +34,30 @@ export function GestionInventarioPage() {
     filteredProductos,
     productos,
 
-    searchTerm, setSearchTerm,
-    selectedCategorias, setSelectedCategorias,
-    stockFilter, setStockFilter,
-    expiryFilter, setExpiryFilter,
+    searchTerm,
+    setSearchTerm,
+    selectedCategorias,
+    setSelectedCategorias,
+    stockFilter,
+    setStockFilter,
+    expiryFilter,
+    setExpiryFilter,
 
-    editTarget, openEdit, closeEdit,
-    changeQtyTarget, openChangeQty, closeChangeQty,
-    movementsTarget, openMovements, closeMovements,
-    createMovTarget, openCreateMov, closeCreateMov,
-    createProductOpen, openCreateProduct, closeCreateProduct,
+    editTarget,
+    openEdit,
+    closeEdit,
+    changeQtyTarget,
+    openChangeQty,
+    closeChangeQty,
+    movementsTarget,
+    openMovements,
+    closeMovements,
+    createMovTarget,
+    openCreateMov,
+    closeCreateMov,
+    createProductOpen,
+    openCreateProduct,
+    closeCreateProduct,
 
     handleEditSave,
     handleChangeQtySave,
@@ -46,6 +69,32 @@ export function GestionInventarioPage() {
     reload,
     tiendaId,
   } = useGestionInventario();
+
+  const handleExportExcel = async () => {
+    const productosParaExportar = productos.filter((p) => p.precio > 0);
+    if (productosParaExportar.length === 0) {
+      showMessage("No hay productos con precio para exportar", "warning");
+      return;
+    }
+    try {
+      setExporting(true);
+      await exportInventarioToExcel({
+        productos: productosParaExportar,
+        tiendaNombre: user.localActual.nombre,
+        fecha: new Date(),
+        monedaBase,
+        tasasVigentes,
+      });
+      showMessage(
+        `Inventario exportado (${productosParaExportar.length} productos)`,
+        "success",
+      );
+    } catch {
+      showMessage("Error al exportar el inventario", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <PageContainer title="Gestión de Unificada de Productos">
@@ -68,6 +117,9 @@ export function GestionInventarioPage() {
             onCreateProduct={openCreateProduct}
             onRefresh={reload}
             loading={loading}
+            onExportExcel={handleExportExcel}
+            onImportExcel={() => setImportOpen(true)}
+            exporting={exporting}
           />
         </Box>
 
@@ -106,7 +158,9 @@ export function GestionInventarioPage() {
         open={Boolean(changeQtyTarget)}
         producto={changeQtyTarget}
         onClose={closeChangeQty}
-        onSave={(newQty, options) => handleChangeQtySave(changeQtyTarget!, newQty, options)}
+        onSave={(newQty, options) =>
+          handleChangeQtySave(changeQtyTarget!, newQty, options)
+        }
       />
 
       <ProductMovementsModal
@@ -130,6 +184,12 @@ export function GestionInventarioPage() {
       />
 
       {ConfirmDialogComponent}
+
+      <ImportarExcelDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={reload}
+      />
     </PageContainer>
   );
 }
