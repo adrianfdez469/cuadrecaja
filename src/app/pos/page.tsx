@@ -74,6 +74,8 @@ import ResumenDiaModal from "@/app/pos/components/ResumenDiaModal";
 import FlagIcon from "@mui/icons-material/Flag";
 import { AsociarCodigoDialog } from "@/app/pos/components/AsociarCodigoDialog";
 import { usePermisos } from "@/utils/permisos_front";
+import { useHardwareScanner } from "@/hooks/useHardwareScanner";
+import { processClientDataFromQR } from "@/utils/scanner";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -174,6 +176,7 @@ export default function POSInterface() {
 
   // Referencia al scanner para poder reabrirlo
   const scannerRef = useRef<ProductProcessorDataRef>(null);
+  const hardwareScanHandlerRef = useRef<(data: IProcessedData) => void>(() => {});
 
   // Estado para prevenir múltiples sincronizaciones simultáneas (no para pagos)
   const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(
@@ -190,6 +193,22 @@ export default function POSInterface() {
 
   const [isCartPinned, setIsCartPinned] = useState(false);
 
+  useEffect(() => {
+    if (openCart && !isCartPinned) {
+      searchInputRef.current?.blur();
+      setIntentToSearch(false);
+      setShowSearchResults(false);
+    }
+  }, [openCart, isCartPinned]);
+
+  useEffect(() => {
+    if (showSyncView || resumenDiaOpen) {
+      searchInputRef.current?.blur();
+      setIntentToSearch(false);
+      setShowSearchResults(false);
+    }
+  }, [showSyncView, resumenDiaOpen]);
+
   const { verificarPermiso } = usePermisos();
   const puedeAsociarCodigo = verificarPermiso(
     "operaciones.pos-venta.asociar_codigo",
@@ -197,6 +216,7 @@ export default function POSInterface() {
 
   const [asociarCodigoOpen, setAsociarCodigoOpen] = useState(false);
   const [codigoNoEncontrado, setCodigoNoEncontrado] = useState<string>("");
+  const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -215,6 +235,20 @@ export default function POSInterface() {
     if (isTablet) return "calc(100% - 40vw)";
     return "calc(100% - 35vw)";
   };
+
+  const scannerEnabled =
+    !editingCartId &&
+    !intentToSearch &&
+    !paymentDialog &&
+    !asociarCodigoOpen &&
+    !selectedProduct &&
+    !cameraScannerOpen;
+
+  useHardwareScanner({
+    enabled: scannerEnabled,
+    onScan: (raw) =>
+      hardwareScanHandlerRef.current(processClientDataFromQR(raw)),
+  });
 
   // Función para reabrir el scanner solo si el producto vino de escaneo de cámara
   const reopenScannerIfNeeded = () => {
@@ -286,6 +320,7 @@ export default function POSInterface() {
       }
     }
   };
+  hardwareScanHandlerRef.current = handleHardwareScan;
 
   // Crear un Map/índice al cargar productos una sola vez
   const productCodeMap = useMemo(() => {
@@ -1602,18 +1637,8 @@ export default function POSInterface() {
                 onProcessedData={(data: IProcessedData) => {
                   if (data?.code) handleProductScan(data.code);
                 }}
-                onHardwareScan={handleHardwareScan}
-                keepFocus={
-                  editingCartId
-                    ? false
-                    : !(
-                        intentToSearch ||
-                        paymentDialog ||
-                        showSyncView ||
-                        openSpeedDial ||
-                        resumenDiaOpen
-                      )
-                }
+                enableHardwareScanner={false}
+                onCameraOpenChange={setCameraScannerOpen}
               />
               {scannerError && (
                 <Alert
@@ -1723,14 +1748,17 @@ export default function POSInterface() {
       {isCartPinned && (
         <Box
           sx={{
+            position: "fixed",
+            right: 0,
+            top: { xs: 56, sm: 64 },
             width: getCartWidth(),
             maxWidth: getCartWidth(),
             minWidth: "360px",
-            height: "100%", // Use parent height
+            height: { xs: "calc(100vh - 56px)", sm: "calc(100vh - 64px)" },
             overflow: "hidden",
             borderLeft: "1px solid rgba(0,0,0,0.1)",
             backgroundColor: "background.paper",
-            zIndex: 1201,
+            zIndex: (theme) => theme.zIndex.drawer + 1,
           }}
         >
           <CartContent

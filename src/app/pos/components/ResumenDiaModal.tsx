@@ -262,6 +262,10 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
     <Dialog
       open={open}
       onClose={onClose}
+      disableEnforceFocus
+      disableAutoFocus
+      disableRestoreFocus
+      sx={{ zIndex: (theme) => theme.zIndex.drawer - 1 }}
       fullScreen={isMobile}
       maxWidth="lg"
       fullWidth

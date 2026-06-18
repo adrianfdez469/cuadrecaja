@@ -379,7 +379,14 @@ export const SalesDrawer: FC<IProps> = ({
 
   return (
     <>
-      <Drawer anchor="bottom" open={showSales} onClose={handleClose}>
+      <Drawer
+        anchor="bottom"
+        open={showSales}
+        onClose={handleClose}
+        disableEnforceFocus
+        disableAutoFocus
+        disableRestoreFocus
+      >
         <Box
           sx={{
             width: "100vw",

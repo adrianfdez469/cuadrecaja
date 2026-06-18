@@ -24,6 +24,7 @@ type MobileQrScannerProps = {
   qrCodeSuccessCallback: QrcodeSuccessCallback;
   qrCodeErrorCallback?: QrcodeErrorCallback;
   buttonLabel?: string;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export interface MobileQrScannerRef {
@@ -31,7 +32,7 @@ export interface MobileQrScannerRef {
 }
 
 const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
-  ({ qrCodeSuccessCallback, qrCodeErrorCallback, buttonLabel }, ref) => {
+  ({ qrCodeSuccessCallback, qrCodeErrorCallback, buttonLabel, onOpenChange }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
@@ -52,6 +53,10 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
         audioService.resumeAudioContext();
       }
     }, [isOpen]);
+
+    useEffect(() => {
+      onOpenChange?.(isOpen);
+    }, [isOpen, onOpenChange]);
 
     useImperativeHandle(ref, () => ({
       openScanner: () => {
