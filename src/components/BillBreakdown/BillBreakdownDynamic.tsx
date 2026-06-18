@@ -50,7 +50,14 @@ const BillBreakdownDynamic: FC<Props> = ({
   const diff = targetAmount !== undefined ? total - targetAmount : null;
 
   return (
-    <Box sx={{ py: 1, maxWidth: 500, mx: "auto" }}>
+    <Box
+      sx={{
+        py: { xs: 0.5, sm: 1 },
+        width: "100%",
+        maxWidth: { xs: "100%", sm: 500 },
+        mx: "auto",
+      }}
+    >
       {denominations.map((d) => (
         <DenominationRow
           key={d}
@@ -67,7 +74,11 @@ const BillBreakdownDynamic: FC<Props> = ({
         mt={0.5}
         sx={{ borderTop: "1px solid", borderColor: "divider" }}
       >
-        <Typography variant="h5" fontWeight={600}>
+        <Typography
+          variant="h5"
+          fontWeight={600}
+          sx={{ fontSize: { xs: "1.1rem", sm: "1.5rem" } }}
+        >
           Total: {total.toFixed(2)}
         </Typography>
         {diff !== null && total > 0 && (
@@ -75,6 +86,7 @@ const BillBreakdownDynamic: FC<Props> = ({
             variant="body2"
             color={diff >= 0 ? "success.main" : "error.main"}
             fontWeight={500}
+            sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
           >
             {diff === 0
               ? "Exacto ✓"

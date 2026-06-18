@@ -14,11 +14,13 @@ export default function NumberSpinner({
   label,
   error,
   size = "medium",
+  compact = false,
   ...other
 }: BaseNumberField.Root.Props & {
   label?: React.ReactNode;
   size?: "small" | "medium";
   error?: boolean;
+  compact?: boolean;
 }) {
   let id = React.useId();
   if (idProp) {
@@ -38,7 +40,8 @@ export default function NumberSpinner({
           sx={{
             "& .MuiButton-root": {
               borderColor: "divider",
-              minWidth: 0,
+              minWidth: compact ? 28 : 0,
+              px: compact ? 0.5 : undefined,
               bgcolor: "action.hover",
               "&:not(.Mui-disabled)": {
                 color: "text.primary",
@@ -119,17 +122,23 @@ export default function NumberSpinner({
               slotProps={{
                 input: {
                   ...props,
-                  size:
-                    Math.max(
-                      (other.min?.toString() || "").length,
-                      state.inputValue.length || 1,
-                    ) + 1,
+                  size: Math.max(
+                    compact ? 4 : 1,
+                    (other.min?.toString() || "").length,
+                    state.inputValue.length || 1,
+                  ) + (compact ? 0 : 1),
                   sx: {
                     textAlign: "center",
+                    fontVariantNumeric: "tabular-nums",
+                    ...(compact && {
+                      minWidth: "4ch",
+                      fontSize: "0.8125rem",
+                      px: 0.5,
+                    }),
                   },
                 },
               }}
-              sx={{ pr: 0, borderRadius: 0, flex: 1 }}
+              sx={{ pr: 0, borderRadius: 0, flex: 1, minWidth: 0 }}
             />
           )}
         />

@@ -36,7 +36,11 @@ const BillBreakdownSummary: FC<Props> = ({ total, targetAmount, overLabel = 'Cam
         borderColor: 'divider',
       }}
     >
-      <Typography variant="h5" fontWeight={600}>
+      <Typography
+        variant="h5"
+        fontWeight={600}
+        sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}
+      >
         Total: {formatCurrency(total)}
       </Typography>
       {status && (
@@ -47,7 +51,10 @@ const BillBreakdownSummary: FC<Props> = ({ total, targetAmount, overLabel = 'Cam
           sx={{
             color: status.color,
             borderColor: status.color,
+            fontSize: { xs: '0.7rem', sm: '0.8125rem' },
+            maxWidth: { xs: '50%', sm: 'none' },
             '& .MuiChip-icon': { color: status.color },
+            '& .MuiChip-label': { px: { xs: 0.75, sm: 1.5 } },
           }}
           variant="outlined"
         />

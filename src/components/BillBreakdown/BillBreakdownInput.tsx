@@ -50,7 +50,14 @@ const BillBreakdownInput: FC<Props> = ({
   const total = denominations.reduce((acc, d) => acc + d * (counts[d] ?? 0), 0);
 
   return (
-    <Box sx={{ py: 1, maxWidth: 500, mx: "auto" }}>
+    <Box
+      sx={{
+        py: { xs: 0.5, sm: 1 },
+        width: "100%",
+        maxWidth: { xs: "100%", sm: 500 },
+        mx: "auto",
+      }}
+    >
       {denominations.map((d) => (
         <DenominationRow
           key={d}
