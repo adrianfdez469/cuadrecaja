@@ -1,23 +1,27 @@
-import { z } from 'zod';
-import { productoSchema } from './producto';
-import { proveedorSchema } from './proveedor';
+import { z } from "zod";
+import { productoSchema } from "./producto";
+import { proveedorSchema } from "./proveedor";
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 export const MovimientoTipoEnum = z.enum([
-  'COMPRA',
-  'VENTA',
-  'AJUSTE_ENTRADA',
-  'AJUSTE_SALIDA',
-  'TRASPASO_ENTRADA',
-  'TRASPASO_SALIDA',
-  'DESAGREGACION_BAJA',
-  'DESAGREGACION_ALTA',
-  'CONSIGNACION_ENTRADA',
-  'CONSIGNACION_DEVOLUCION',
+  "COMPRA",
+  "VENTA",
+  "AJUSTE_ENTRADA",
+  "AJUSTE_SALIDA",
+  "TRASPASO_ENTRADA",
+  "TRASPASO_SALIDA",
+  "DESAGREGACION_BAJA",
+  "DESAGREGACION_ALTA",
+  "CONSIGNACION_ENTRADA",
+  "CONSIGNACION_DEVOLUCION",
 ]);
 
-export const MovimientoStateEnum = z.enum(['PENDIENTE', 'APROBADO', 'RECHAZADO']);
+export const MovimientoStateEnum = z.enum([
+  "PENDIENTE",
+  "APROBADO",
+  "RECHAZADO",
+]);
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -40,10 +44,12 @@ export const movimientoSchema = z.object({
     producto: productoSchema,
     proveedor: proveedorSchema.optional(),
   }),
-  usuario: z.object({
-    id: z.string().uuid(),
-    nombre: z.string(),
-  }).optional(),
+  usuario: z
+    .object({
+      id: z.string().uuid(),
+      nombre: z.string(),
+    })
+    .optional(),
 });
 
 export const movimientoCreateSchema = z.object({
@@ -70,11 +76,14 @@ export const importDataSchema = z.object({
 
 export const importarItemsMovSchema = z.object({
   nombreProducto: z.string().min(1),
+  categoria: z.string().optional(),
   costo: z.number(),
   precio: z.number(),
   cantidad: z.number(),
   esConsignación: z.boolean().optional(),
   nombreProveedor: z.string().optional(),
+  monedaCostoCode: z.string().optional(),
+  monedaPrecioCode: z.string().optional(),
 });
 
 export const importarResponseSchema = z.object({
@@ -127,16 +136,16 @@ export const movimientoProductoEnviadoSchema = z.object({
 
 /** Backward-compatible TypeScript enum (consumed by enum syntax in UI code) */
 export enum MovimientoTipo {
-  COMPRA = 'COMPRA',
-  VENTA = 'VENTA',
-  TRASPASO_ENTRADA = 'TRASPASO_ENTRADA',
-  TRASPASO_SALIDA = 'TRASPASO_SALIDA',
-  AJUSTE_SALIDA = 'AJUSTE_SALIDA',
-  AJUSTE_ENTRADA = 'AJUSTE_ENTRADA',
-  DESAGREGACION_BAJA = 'DESAGREGACION_BAJA',
-  DESAGREGACION_ALTA = 'DESAGREGACION_ALTA',
-  CONSIGNACION_ENTRADA = 'CONSIGNACION_ENTRADA',
-  CONSIGNACION_DEVOLUCION = 'CONSIGNACION_DEVOLUCION',
+  COMPRA = "COMPRA",
+  VENTA = "VENTA",
+  TRASPASO_ENTRADA = "TRASPASO_ENTRADA",
+  TRASPASO_SALIDA = "TRASPASO_SALIDA",
+  AJUSTE_SALIDA = "AJUSTE_SALIDA",
+  AJUSTE_ENTRADA = "AJUSTE_ENTRADA",
+  DESAGREGACION_BAJA = "DESAGREGACION_BAJA",
+  DESAGREGACION_ALTA = "DESAGREGACION_ALTA",
+  CONSIGNACION_ENTRADA = "CONSIGNACION_ENTRADA",
+  CONSIGNACION_DEVOLUCION = "CONSIGNACION_DEVOLUCION",
 }
 
 export type ITipoMovimiento = z.infer<typeof MovimientoTipoEnum>;
@@ -146,4 +155,6 @@ export type IMovimientoData = z.infer<typeof movimientoDataSchema>;
 export type IImportData = z.infer<typeof importDataSchema>;
 export type IImportarItemsMov = z.infer<typeof importarItemsMovSchema>;
 export type IImportarResponse = z.infer<typeof importarResponseSchema>;
-export type IMovimientoProductoEnviado = z.infer<typeof movimientoProductoEnviadoSchema>;
+export type IMovimientoProductoEnviado = z.infer<
+  typeof movimientoProductoEnviadoSchema
+>;
