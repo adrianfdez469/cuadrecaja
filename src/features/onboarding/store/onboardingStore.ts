@@ -2,29 +2,46 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { ONBOARDING_STORAGE_KEY } from "../constants";
+import { ONBOARDING_STORAGE_KEY, TOUR_POS_VENTA } from "../constants";
 import { getChainById, getTourById } from "../tours/primerosPasos";
 import type {
+  IPosTourContext,
+  IUserOnboardingProgress,
+  IUserOnboardingSettings,
   OnboardingChainId,
   OnboardingEvent,
+  OnboardingStepDefinition,
   OnboardingTourId,
 } from "../types";
-
-export interface IUserOnboardingProgress {
-  completedTours: Record<string, boolean>;
-  completedChains: Record<string, boolean>;
-  /** El usuario cerró la guía voluntariamente (no equivale a completada) */
-  dismissedChains?: Record<string, boolean>;
-}
+import {
+  getNextRunnableTour,
+  migrateLegacyProgress,
+  normalizeOnboardingSettings,
+} from "../utils/onboardingSettings";
+import { resolveTourSteps } from "../utils/resolveTourSteps";
 
 const emptyProgress = (): IUserOnboardingProgress => ({
-  completedTours: {},
-  completedChains: {},
-  dismissedChains: {},
+  settings: { enabled: true, toursEnabled: {} },
 });
 
+function readUserSettings(progress: IUserOnboardingProgress): IUserOnboardingSettings {
+  if (progress.settings) {
+    return normalizeOnboardingSettings(progress.settings);
+  }
+  return migrateLegacyProgress(progress);
+}
+
+function computeActiveSteps(
+  tourId: OnboardingTourId | null,
+  posContext: IPosTourContext | null,
+): OnboardingStepDefinition[] {
+  if (!tourId) return [];
+  const tour = getTourById(tourId);
+  if (!tour) return [];
+  return resolveTourSteps(tour, posContext);
+}
+
 interface OnboardingState {
-  /** Progreso por usuario (id de Usuario) */
   userProgress: Record<string, IUserOnboardingProgress>;
   _hasHydrated: boolean;
   setHasHydrated: (value: boolean) => void;
@@ -32,30 +49,46 @@ interface OnboardingState {
   activeChainId: OnboardingChainId | null;
   activeTourId: OnboardingTourId | null;
   activeUserId: string | null;
+  activeStepDefinitions: OnboardingStepDefinition[];
   stepIndex: number;
   run: boolean;
   demoProductName: string | null;
   eligibleTourIds: OnboardingTourId[];
-  /** Fuerza recálculo de posición del tooltip (menú, acordeones, etc.) */
+  posTourContext: IPosTourContext | null;
+  pendingDismissNotice: boolean;
   layoutNonce: number;
 
   getProgress: (userId: string) => IUserOnboardingProgress;
-  isTourCompleted: (userId: string, tourId: string) => boolean;
-  isChainCompleted: (userId: string, chainId: string) => boolean;
-  isChainDismissed: (userId: string, chainId: string) => boolean;
+  getSettings: (userId: string) => IUserOnboardingSettings;
+  isTourEnabled: (userId: string, tourId: OnboardingTourId) => boolean;
+  isMasterEnabled: (userId: string) => boolean;
 
-  markTourCompleted: (userId: string, tourId: OnboardingTourId) => void;
-  markChainCompleted: (userId: string, chainId: OnboardingChainId) => void;
-  dismissActiveChain: (userId: string, chainId: OnboardingChainId) => void;
+  setMasterEnabled: (userId: string, enabled: boolean) => void;
+  setTourEnabled: (
+    userId: string,
+    tourId: OnboardingTourId,
+    enabled: boolean,
+  ) => void;
+  disableTour: (userId: string, tourId: OnboardingTourId) => void;
+
+  setPosTourContext: (context: IPosTourContext | null) => void;
+  clearPendingDismissNotice: () => void;
 
   startChain: (
     userId: string,
     chainId: OnboardingChainId,
-    eligibleTourIds: OnboardingTourId[]
+    eligibleTourIds: OnboardingTourId[],
+  ) => void;
+  startTour: (
+    userId: string,
+    chainId: OnboardingChainId,
+    tourId: OnboardingTourId,
+    eligibleTourIds: OnboardingTourId[],
   ) => void;
   setStepIndex: (index: number) => void;
   advanceStep: () => void;
   completeActiveTour: () => void;
+  dismissActiveTour: () => void;
   signalEvent: (event: OnboardingEvent) => void;
   bumpLayoutNonce: () => void;
   stopRun: () => void;
@@ -66,7 +99,6 @@ interface OnboardingState {
   canNavigateTo: (path: string) => boolean;
 }
 
-/** Selector reactivo: el Layout debe suscribirse a esto, no a la función isBlockingActive */
 export function selectIsOnboardingBlocking(state: {
   run: boolean;
   activeChainId: OnboardingChainId | null;
@@ -74,31 +106,6 @@ export function selectIsOnboardingBlocking(state: {
   if (!state.run || !state.activeChainId) return false;
   const chain = getChainById(state.activeChainId);
   return chain?.blocking ?? false;
-}
-
-/** Cierra el tour y desbloquea la aplicación */
-export function exitOnboardingTour(): void {
-  const state = useOnboardingStore.getState();
-  if (state.activeUserId && state.activeChainId) {
-    state.dismissActiveChain(state.activeUserId, state.activeChainId);
-  } else {
-    state.clearActiveSession();
-  }
-}
-
-function getNextIncompleteTour(
-  chainId: OnboardingChainId,
-  eligibleTourIds: OnboardingTourId[],
-  completedTours: Record<string, boolean>
-): OnboardingTourId | null {
-  const chain = getChainById(chainId);
-  if (!chain) return null;
-
-  for (const tourId of chain.tourIds) {
-    if (!eligibleTourIds.includes(tourId)) continue;
-    if (!completedTours[tourId]) return tourId;
-  }
-  return null;
 }
 
 export const useOnboardingStore = create<OnboardingState>()(
@@ -111,114 +118,115 @@ export const useOnboardingStore = create<OnboardingState>()(
       activeChainId: null,
       activeTourId: null,
       activeUserId: null,
+      activeStepDefinitions: [],
       stepIndex: 0,
       run: false,
       demoProductName: null,
       eligibleTourIds: [],
+      posTourContext: null,
+      pendingDismissNotice: false,
       layoutNonce: 0,
 
       getProgress: (userId) => get().userProgress[userId] ?? emptyProgress(),
 
-      isTourCompleted: (userId, tourId) =>
-        Boolean(get().getProgress(userId).completedTours[tourId]),
+      getSettings: (userId) => readUserSettings(get().getProgress(userId)),
 
-      isChainCompleted: (userId, chainId) =>
-        Boolean(get().getProgress(userId).completedChains[chainId]),
+      isTourEnabled: (userId, tourId) => {
+        const settings = get().getSettings(userId);
+        if (!settings.enabled) return false;
+        return settings.toursEnabled[tourId] !== false;
+      },
 
-      isChainDismissed: (userId, chainId) =>
-        Boolean(get().getProgress(userId).dismissedChains?.[chainId]),
+      isMasterEnabled: (userId) => get().getSettings(userId).enabled,
 
-      markTourCompleted: (userId, tourId) => {
+      setMasterEnabled: (userId, enabled) => {
         const current = get().getProgress(userId);
+        const settings = readUserSettings(current);
         set({
           userProgress: {
             ...get().userProgress,
-            [userId]: {
-              ...current,
-              completedTours: { ...current.completedTours, [tourId]: true },
-            },
+            [userId]: { settings: { ...settings, enabled } },
           },
         });
+        if (!enabled) get().clearActiveSession();
       },
 
-      markChainCompleted: (userId, chainId) => {
+      setTourEnabled: (userId, tourId, enabled) => {
         const current = get().getProgress(userId);
+        const settings = readUserSettings(current);
+        const toursEnabled = { ...settings.toursEnabled };
+
+        if (enabled) {
+          delete toursEnabled[tourId];
+        } else {
+          toursEnabled[tourId] = false;
+        }
+
         set({
           userProgress: {
             ...get().userProgress,
-            [userId]: {
-              ...current,
-              completedChains: { ...current.completedChains, [chainId]: true },
-            },
+            [userId]: { settings: { ...settings, toursEnabled } },
           },
-          activeChainId: null,
-          activeTourId: null,
-          activeUserId: null,
-          run: false,
-          stepIndex: 0,
+        });
+
+        if (!enabled && get().activeTourId === tourId) {
+          get().clearActiveSession();
+        }
+      },
+
+      disableTour: (userId, tourId) => {
+        get().setTourEnabled(userId, tourId, false);
+      },
+
+      setPosTourContext: (context) => {
+        const state = get();
+        const activeStepDefinitions = computeActiveSteps(
+          state.activeTourId,
+          context,
+        );
+        set({
+          posTourContext: context,
+          activeStepDefinitions,
+          stepIndex: Math.min(state.stepIndex, Math.max(activeStepDefinitions.length - 1, 0)),
+          layoutNonce: context?.loaded ? state.layoutNonce + 1 : state.layoutNonce,
         });
       },
 
-      dismissActiveChain: (userId, chainId) => {
-        const current = get().getProgress(userId);
-        set({
-          userProgress: {
-            ...get().userProgress,
-            [userId]: {
-              ...current,
-              dismissedChains: {
-                ...current.dismissedChains,
-                [chainId]: true,
-              },
-            },
-          },
-          activeChainId: null,
-          activeTourId: null,
-          activeUserId: null,
-          stepIndex: 0,
-          run: false,
-          demoProductName: null,
-          eligibleTourIds: [],
-        });
-      },
+      clearPendingDismissNotice: () => set({ pendingDismissNotice: false }),
 
       startChain: (userId, chainId, eligibleTourIds) => {
         if (!userId || eligibleTourIds.length === 0) return;
-        if (get().isChainCompleted(userId, chainId)) return;
-        if (get().isChainDismissed(userId, chainId)) return;
+        const settings = get().getSettings(userId);
+        const nextTour = getNextRunnableTour(chainId, eligibleTourIds, settings);
+        if (!nextTour) return;
+        get().startTour(userId, chainId, nextTour, eligibleTourIds);
+      },
 
-        const progress = get().getProgress(userId);
-        const nextTour = getNextIncompleteTour(
-          chainId,
-          eligibleTourIds,
-          progress.completedTours
-        );
-        if (!nextTour) {
-          get().markChainCompleted(userId, chainId);
-          return;
-        }
+      startTour: (userId, chainId, tourId, eligibleTourIds) => {
+        const posTourContext =
+          tourId === TOUR_POS_VENTA
+            ? { hasProducts: true, sampleProductName: null, loaded: false }
+            : null;
 
         set({
           activeChainId: chainId,
           activeUserId: userId,
           eligibleTourIds,
-          activeTourId: nextTour,
+          activeTourId: tourId,
+          activeStepDefinitions: computeActiveSteps(tourId, posTourContext),
           stepIndex: 0,
           run: true,
           demoProductName: null,
+          posTourContext,
         });
       },
 
       setStepIndex: (index) => set({ stepIndex: index }),
 
       advanceStep: () => {
-        const { activeTourId, stepIndex } = get();
-        if (!activeTourId) return;
-        const tour = getTourById(activeTourId);
-        if (!tour) return;
-
+        const { activeStepDefinitions, stepIndex } = get();
         const nextIndex = stepIndex + 1;
-        if (nextIndex >= tour.steps.length) {
+        if (nextIndex >= activeStepDefinitions.length) {
           get().completeActiveTour();
         } else {
           set({ stepIndex: nextIndex });
@@ -235,77 +243,41 @@ export const useOnboardingStore = create<OnboardingState>()(
         } = get();
         if (!activeTourId || !activeUserId) return;
 
-        set((state) => {
-          const current = state.userProgress[activeUserId] ?? emptyProgress();
-          const completedTours = {
-            ...current.completedTours,
-            [activeTourId]: true,
-          };
-          const userProgress = {
-            ...state.userProgress,
-            [activeUserId]: { ...current, completedTours },
-          };
+        get().disableTour(activeUserId, activeTourId);
 
-          if (!activeChainId) {
-            return {
-              userProgress,
-              run: false,
-              activeTourId: null,
-              activeUserId: null,
-              stepIndex: 0,
-              activeChainId: null,
-              eligibleTourIds: [],
-            };
-          }
+        if (!activeChainId) {
+          get().clearActiveSession();
+          return;
+        }
 
-          const nextTour = getNextIncompleteTour(
-            activeChainId,
-            eligibleTourIds,
-            completedTours
-          );
+        const settings = get().getSettings(activeUserId);
+        const nextTour = getNextRunnableTour(
+          activeChainId,
+          eligibleTourIds,
+          settings,
+        );
 
-          if (nextTour) {
-            return {
-              userProgress,
-              activeChainId,
-              activeUserId,
-              eligibleTourIds,
-              activeTourId: nextTour,
-              stepIndex: 0,
-              run: true,
-            };
-          }
+        if (nextTour) {
+          get().startTour(activeUserId, activeChainId, nextTour, eligibleTourIds);
+        } else {
+          get().clearActiveSession();
+        }
+      },
 
-          return {
-            userProgress: {
-              ...userProgress,
-              [activeUserId]: {
-                ...current,
-                completedTours,
-                completedChains: {
-                  ...current.completedChains,
-                  [activeChainId]: true,
-                },
-              },
-            },
-            activeChainId: null,
-            activeTourId: null,
-            activeUserId: null,
-            stepIndex: 0,
-            run: false,
-            eligibleTourIds: [],
-          };
-        });
+      dismissActiveTour: () => {
+        const { activeTourId, activeUserId } = get();
+        if (activeTourId && activeUserId) {
+          get().disableTour(activeUserId, activeTourId);
+        }
+        set({ pendingDismissNotice: true });
+        get().clearActiveSession();
       },
 
       signalEvent: (event) => {
         const state = get();
         if (!state.run || !state.activeTourId) return;
 
-        const tour = getTourById(state.activeTourId);
-        if (!tour) return;
-
-        const currentStep = tour.steps[state.stepIndex];
+        const currentStep = state.activeStepDefinitions[state.stepIndex];
         if (!currentStep?.advanceOnEvent) return;
         if (currentStep.advanceOnEvent !== event.type) return;
 
@@ -327,36 +299,33 @@ export const useOnboardingStore = create<OnboardingState>()(
           activeChainId: null,
           activeTourId: null,
           activeUserId: null,
+          activeStepDefinitions: [],
           stepIndex: 0,
           run: false,
           demoProductName: null,
           eligibleTourIds: [],
+          posTourContext: null,
         }),
 
       resetForDev: (userId) => {
+        const baseReset = {
+          activeChainId: null,
+          activeTourId: null,
+          activeUserId: null,
+          activeStepDefinitions: [],
+          stepIndex: 0,
+          run: false,
+          demoProductName: null,
+          eligibleTourIds: [],
+          posTourContext: null,
+          pendingDismissNotice: false,
+        };
+
         if (userId) {
           const { [userId]: _removed, ...rest } = get().userProgress;
-          set({
-            userProgress: rest,
-            activeChainId: null,
-            activeTourId: null,
-            activeUserId: null,
-            stepIndex: 0,
-            run: false,
-            demoProductName: null,
-            eligibleTourIds: [],
-          });
+          set({ userProgress: rest, ...baseReset });
         } else {
-          set({
-            userProgress: {},
-            activeChainId: null,
-            activeTourId: null,
-            activeUserId: null,
-            stepIndex: 0,
-            run: false,
-            demoProductName: null,
-            eligibleTourIds: [],
-          });
+          set({ userProgress: {}, ...baseReset });
         }
       },
 
@@ -365,11 +334,8 @@ export const useOnboardingStore = create<OnboardingState>()(
       canNavigateTo: (path) => {
         if (!get().isBlockingActive()) return true;
 
-        const { activeTourId, stepIndex } = get();
-        if (!activeTourId) return false;
-
-        const tour = getTourById(activeTourId);
-        const step = tour?.steps[stepIndex];
+        const state = get();
+        const step = state.activeStepDefinitions[state.stepIndex];
         if (!step) return false;
 
         if (step.advanceOnPathname && path.startsWith(step.advanceOnPathname)) {
@@ -378,39 +344,41 @@ export const useOnboardingStore = create<OnboardingState>()(
         if (step.pathname && path.startsWith(step.pathname)) {
           return true;
         }
-        if (path === "/home") return true;
+        if (path === "/home" || path === "/ayuda") return true;
 
         return false;
       },
     }),
     {
       name: ONBOARDING_STORAGE_KEY,
-      version: 2,
-      partialize: (state) => ({
-        userProgress: state.userProgress,
-      }),
+      version: 3,
+      partialize: (state) => ({ userProgress: state.userProgress }),
       migrate: (persisted: unknown) => {
         const legacy = persisted as {
-          completedTours?: Record<string, boolean>;
-          completedChains?: Record<string, boolean>;
           userProgress?: Record<string, IUserOnboardingProgress>;
-        } | undefined;
+        } | null;
 
-        if (legacy?.userProgress) {
-          return { userProgress: legacy.userProgress };
+        if (!legacy?.userProgress) return { userProgress: {} };
+
+        const userProgress: Record<string, IUserOnboardingProgress> = {};
+        for (const [userId, progress] of Object.entries(legacy.userProgress)) {
+          userProgress[userId] = progress.settings
+            ? { settings: normalizeOnboardingSettings(progress.settings) }
+            : { settings: migrateLegacyProgress(progress) };
         }
-
-        // Formato v1 global: no heredar a usuarios nuevos
-        return { userProgress: {} };
+        return { userProgress };
       },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
-    }
-  )
+    },
+  ),
 );
 
-/** Esperar hidratación de persist antes de decidir auto-inicio */
 export function useOnboardingHydrated(): boolean {
   return useOnboardingStore((s) => s._hasHydrated);
+}
+
+export function exitOnboardingTour(): void {
+  useOnboardingStore.getState().dismissActiveTour();
 }

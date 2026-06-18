@@ -4,6 +4,7 @@ import React, { createContext, useContext } from "react";
 import { AlertColor, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { SnackbarProvider, useSnackbar, closeSnackbar, SnackbarKey } from "notistack";
+import { ONBOARDING_JOYRIDE_Z_INDEX } from "@/features/onboarding/constants";
 
 const MessageContext = createContext<{
   showMessage: (text: string, severity: AlertColor, persistent?: boolean, id?: string) => void;
@@ -36,6 +37,7 @@ function MessageProviderInner({ children }: { children: React.ReactNode }) {
       persist: shouldPersist,
       autoHideDuration: shouldPersist ? null : 3000,
       preventDuplicate: !!id,
+      style: { zIndex: ONBOARDING_JOYRIDE_Z_INDEX + 10 },
     });
   };
 

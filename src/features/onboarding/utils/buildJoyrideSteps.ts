@@ -1,5 +1,9 @@
 import type { Step } from "react-joyride";
 import type { OnboardingStepDefinition } from "../types";
+import {
+  getMobileFixedTooltipPlacement,
+  getMobileFixedTooltipStepConfig,
+} from "./onboardingMobileTooltip";
 
 export interface BuildJoyrideStepsOptions {
   /** Etiqueta del botón en el paso final de creación de producto */
@@ -7,9 +11,7 @@ export interface BuildJoyrideStepsOptions {
 }
 
 function isPosFloatingTourTarget(target: string): boolean {
-  return (
-    target.includes("pos-search") || target.includes("pos-category-first")
-  );
+  return target.includes("pos-category-first");
 }
 
 function hasPrimaryButton(def: OnboardingStepDefinition): boolean {
@@ -25,6 +27,9 @@ export function buildJoyrideSteps(
 ): Step[] {
   return definitions.map((def, index) => {
     const isPosFloating = isPosFloatingTourTarget(def.target);
+    const mobileFixedPlacement = isMobile
+      ? getMobileFixedTooltipPlacement(def.target)
+      : null;
     const showBack =
       index > 0 &&
       Boolean(def.showNextButton || def.showStartButton || def.primaryButtonLabel);
@@ -32,17 +37,12 @@ export function buildJoyrideSteps(
     let placement =
       def.placement === "right" && isMobile ? "bottom" : (def.placement ?? "bottom");
 
-    // Popper/Dialog en móvil: tooltip centrado evita recortes y spotlight desalineado
     if (isMobile && isPosFloating) {
       placement = "center";
     }
 
-    return {
-      target: def.target,
-      title: def.title,
-      content: def.content,
-      placement,
-      ...(isMobile && isPosFloating
+    const mobilePosFloaterProps =
+      isMobile && isPosFloating
         ? {
             floaterProps: {
               options: {
@@ -53,7 +53,18 @@ export function buildJoyrideSteps(
               },
             },
           }
-        : {}),
+        : {};
+
+    const mobileFixedConfig = mobileFixedPlacement
+      ? getMobileFixedTooltipStepConfig(mobileFixedPlacement)
+      : null;
+
+    return {
+      target: def.target,
+      title: def.title,
+      content: def.content,
+      placement: mobileFixedConfig?.placement ?? placement,
+      ...(mobileFixedConfig ?? mobilePosFloaterProps),
       skipBeacon: true,
       buttons: hasPrimaryButton(def)
         ? showBack

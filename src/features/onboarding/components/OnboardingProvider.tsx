@@ -1,68 +1,83 @@
 "use client";
 
-import { useEffect } from "react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { TipoLocal } from "@/schemas/tienda";
 import { useAppContext } from "@/context/AppContext";
-import { usePermisos } from "@/utils/permisos_front";
-import { ONBOARDING_CHAIN_PRIMEROS_PASOS } from "../constants";
+import { useMessageContext } from "@/context/MessageContext";
+import { getProductosVenta } from "@/services/costoPrecioServices";
+import { ONBOARDING_CHAIN_PRIMEROS_PASOS, TOUR_POS_VENTA } from "../constants";
 import { useEligibleToursForChain } from "../hooks/useEligibleTours";
 import {
   selectIsOnboardingBlocking,
   useOnboardingHydrated,
   useOnboardingStore,
 } from "../store/onboardingStore";
-import { getTourById } from "../tours/primerosPasos";
 import { getMenuDataTourForAdvancePath } from "../utils/onboardingNavigation";
+import { normalizeOnboardingSettings } from "../utils/onboardingSettings";
 
 const OnboardingJoyride = dynamic(
   () =>
     import("./OnboardingJoyride").then((m) => ({ default: m.OnboardingJoyride })),
-  { ssr: false }
+  { ssr: false },
 );
 
+const DISMISS_NOTICE =
+  "Puedes reiniciar esta guía cuando quieras desde Ayuda → Primeros pasos.";
+
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { data: session, status: sessionStatus } = useSession();
   const { user, loadingContext, isAuth } = useAppContext();
-  const { permisos } = usePermisos();
+  const { showMessage } = useMessageContext();
   const eligibleTours = useEligibleToursForChain(ONBOARDING_CHAIN_PRIMEROS_PASOS);
   const hasHydrated = useOnboardingHydrated();
 
   const startChain = useOnboardingStore((s) => s.startChain);
-  const isChainCompleted = useOnboardingStore((s) => s.isChainCompleted);
-  const isChainDismissed = useOnboardingStore((s) => s.isChainDismissed);
   const clearActiveSession = useOnboardingStore((s) => s.clearActiveSession);
   const run = useOnboardingStore((s) => s.run);
   const activeUserId = useOnboardingStore((s) => s.activeUserId);
+  const activeTourId = useOnboardingStore((s) => s.activeTourId);
+  const posTourContext = useOnboardingStore((s) => s.posTourContext);
+  const setPosTourContext = useOnboardingStore((s) => s.setPosTourContext);
+  const pendingDismissNotice = useOnboardingStore((s) => s.pendingDismissNotice);
+  const clearPendingDismissNotice = useOnboardingStore(
+    (s) => s.clearPendingDismissNotice,
+  );
 
   const userId =
     user?.id ?? (session?.user as { id?: string } | undefined)?.id ?? null;
 
-  // Al cerrar sesión, limpiar tour activo
+  const rawSettings = useOnboardingStore((s) =>
+    userId ? s.userProgress[userId]?.settings : undefined,
+  );
+  const masterEnabled = normalizeOnboardingSettings(rawSettings).enabled;
+
   useEffect(() => {
-    if (sessionStatus === "unauthenticated") {
-      clearActiveSession();
-    }
+    if (sessionStatus === "unauthenticated") clearActiveSession();
   }, [sessionStatus, clearActiveSession]);
 
-  // Si cambia el usuario sin recargar la página, reiniciar sesión activa del tour
   useEffect(() => {
     if (!userId || !activeUserId) return;
-    if (activeUserId !== userId) {
-      clearActiveSession();
-    }
+    if (activeUserId !== userId) clearActiveSession();
   }, [userId, activeUserId, clearActiveSession]);
 
-  // Auto-inicio tras login
+  useEffect(() => {
+    if (!pendingDismissNotice) return;
+    showMessage(DISMISS_NOTICE, "info");
+    clearPendingDismissNotice();
+  }, [pendingDismissNotice, showMessage, clearPendingDismissNotice]);
+
   useEffect(() => {
     if (!hasHydrated) return;
     if (sessionStatus !== "authenticated") return;
     if (loadingContext || !isAuth || !userId) return;
     if (!user?.localActual) return;
     if (user.localActual.tipo !== TipoLocal.TIENDA) return;
-    if (isChainCompleted(userId, ONBOARDING_CHAIN_PRIMEROS_PASOS)) return;
-    if (isChainDismissed(userId, ONBOARDING_CHAIN_PRIMEROS_PASOS)) return;
+    if (pathname !== "/home") return;
+    if (!masterEnabled) return;
     if (eligibleTours.length === 0) return;
     if (run) return;
 
@@ -75,12 +90,71 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     userId,
     user?.localActual,
     user?.localActual?.tipo,
+    pathname,
+    masterEnabled,
+    rawSettings,
     eligibleTours,
-    permisos,
-    isChainCompleted,
-    isChainDismissed,
     startChain,
     run,
+  ]);
+
+  useEffect(() => {
+    if (!run || activeTourId !== TOUR_POS_VENTA) return;
+    if (posTourContext?.loaded) return;
+
+    const tiendaId = user?.localActual?.id;
+    if (!tiendaId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const raw = await getProductosVenta(tiendaId);
+        if (cancelled) return;
+
+        const withStock = (raw ?? []).filter(
+          (p: { existencia?: number; producto?: { nombre?: string } }) =>
+            (p.existencia ?? 0) > 0 && Boolean(p.producto?.nombre?.trim()),
+        );
+
+        if (withStock.length === 0) {
+          setPosTourContext({
+            hasProducts: false,
+            sampleProductName: null,
+            loaded: true,
+          });
+          return;
+        }
+
+        const pick = withStock[
+          Math.floor(Math.random() * withStock.length)
+        ] as { producto: { nombre: string } };
+
+        setPosTourContext({
+          hasProducts: true,
+          sampleProductName: pick.producto.nombre,
+          loaded: true,
+        });
+      } catch {
+        if (!cancelled) {
+          setPosTourContext({
+            hasProducts: false,
+            sampleProductName: null,
+            loaded: true,
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    run,
+    activeTourId,
+    posTourContext?.loaded,
+    user?.localActual?.id,
+    setPosTourContext,
   ]);
 
   return (
@@ -91,26 +165,21 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   );
 }
 
-/** Hook para Layout: navegación permitida durante onboarding bloqueante */
 export function useOnboardingNavigation() {
   const canNavigateTo = useOnboardingStore((s) => s.canNavigateTo);
   const isBlockingActive = useOnboardingStore(selectIsOnboardingBlocking);
-  const activeTourId = useOnboardingStore((s) => s.activeTourId);
+  const activeStepDefinitions = useOnboardingStore((s) => s.activeStepDefinitions);
   const stepIndex = useOnboardingStore((s) => s.stepIndex);
 
   const getCurrentStepTarget = (): string | null => {
-    if (!activeTourId) return null;
-    const tour = getTourById(activeTourId);
-    const step = tour?.steps[stepIndex];
+    const step = activeStepDefinitions[stepIndex];
     return step?.target ?? null;
   };
 
   const isTargetAllowed = (dataTourAttr: string | undefined): boolean => {
     if (!isBlockingActive) return true;
 
-    const tour = activeTourId ? getTourById(activeTourId) : undefined;
-    const step = tour?.steps[stepIndex];
-
+    const step = activeStepDefinitions[stepIndex];
     if (!dataTourAttr) return false;
 
     if (step?.advanceOnPathname) {
@@ -129,27 +198,19 @@ export function useOnboardingNavigation() {
     return currentTarget.includes(dataTourAttr);
   };
 
-  const isMenuItemAllowed = (dataTourAttr: string | undefined) =>
-    isTargetAllowed(dataTourAttr);
-
-  const isToolbarTargetAllowed = (dataTourAttr: string | undefined) =>
-    isTargetAllowed(dataTourAttr);
-
-  const isDrawerCloseAllowed = (): boolean => {
-    if (!isBlockingActive) return true;
-    const currentTarget = getCurrentStepTarget();
-    if (!currentTarget) return true;
-    return !(
-      currentTarget.includes("nav-gestion-inventario") ||
-      currentTarget.includes("nav-pos")
-    );
-  };
-
   return {
     isBlockingActive,
     canNavigateTo,
-    isMenuItemAllowed,
-    isToolbarTargetAllowed,
-    isDrawerCloseAllowed,
+    isMenuItemAllowed: isTargetAllowed,
+    isToolbarTargetAllowed: isTargetAllowed,
+    isDrawerCloseAllowed: (): boolean => {
+      if (!isBlockingActive) return true;
+      const currentTarget = getCurrentStepTarget();
+      if (!currentTarget) return true;
+      return !(
+        currentTarget.includes("nav-gestion-inventario") ||
+        currentTarget.includes("nav-pos")
+      );
+    },
   };
 }

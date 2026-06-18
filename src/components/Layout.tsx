@@ -83,7 +83,11 @@ import { TipoLocal } from "@/schemas/tienda";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { useOnboardingNavigation } from "@/features/onboarding";
 import { useOnboardingStore } from "@/features/onboarding/store/onboardingStore";
-import { getTourById } from "@/features/onboarding/tours/primerosPasos";
+import {
+  NAV_DRAWER_TARGET_SELECTORS,
+  scrollNavDrawerTargetIntoView,
+} from "@/features/onboarding/utils/onboardingNavigation";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import type { CSSProperties } from "react";
 import { usePermisos } from "@/utils/permisos_front";
 import { Avatar } from "@mui/material";
@@ -201,7 +205,16 @@ const RESUMEN_MENU_ITEMS = [
 ];
 
 const HELP_MENU_ITEMS = [
-  { label: "Descargar App", path: "/descargar", icon: <Android sx={{ mr: 2, color: 'success.main' }} />, permission: '*' },
+  {
+    label: "Ayuda",
+    path: "/ayuda",
+    icon: <HelpOutlineIcon sx={{ color: "primary.main", fontSize: 22 }} />,
+  },
+  {
+    label: "Descargar App",
+    path: "/descargar",
+    icon: <Android sx={{ mr: 2, color: "success.main" }} />,
+  },
 ];
 
 
@@ -238,29 +251,37 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     isDrawerCloseAllowed,
   } = useOnboardingNavigation();
   const onboardingRun = useOnboardingStore((s) => s.run);
-  const onboardingTourId = useOnboardingStore((s) => s.activeTourId);
   const onboardingStepIndex = useOnboardingStore((s) => s.stepIndex);
+  const activeStepDefinitions = useOnboardingStore((s) => s.activeStepDefinitions);
 
   useEffect(() => {
-    if (!onboardingRun || !onboardingTourId) return;
-    const tour = getTourById(onboardingTourId);
-    const step = tour?.steps[onboardingStepIndex];
+    if (!onboardingRun) return;
+    const step = activeStepDefinitions[onboardingStepIndex];
     if (!step) return;
 
     if (step.target.includes("nav-gestion-inventario")) {
-      setMenuState((prev) => ({ ...prev, configuracion: true }));
+      setMenuState({
+        operaciones: false,
+        resumenes: false,
+        configuracion: true,
+        administracion: false,
+      });
       setOpen(true);
-      window.setTimeout(
+      scrollNavDrawerTargetIntoView(
+        NAV_DRAWER_TARGET_SELECTORS.gestionInventario,
         () => useOnboardingStore.getState().bumpLayoutNonce(),
-        450
       );
     }
     if (step.target.includes("nav-pos")) {
-      setMenuState((prev) => ({ ...prev, operaciones: true }));
+      setMenuState({
+        operaciones: true,
+        resumenes: false,
+        configuracion: false,
+        administracion: false,
+      });
       setOpen(true);
-      window.setTimeout(
-        () => useOnboardingStore.getState().bumpLayoutNonce(),
-        450
+      scrollNavDrawerTargetIntoView(NAV_DRAWER_TARGET_SELECTORS.pos, () =>
+        useOnboardingStore.getState().bumpLayoutNonce(),
       );
     }
     if (
@@ -272,7 +293,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         200
       );
     }
-  }, [onboardingRun, onboardingTourId, onboardingStepIndex]);
+  }, [onboardingRun, onboardingStepIndex, activeStepDefinitions]);
 
   const toolbarInteractionSx = (tourAttr?: string) => {
     if (!isBlockingActive) return {};
@@ -288,8 +309,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     const store = useOnboardingStore.getState();
     if (!store.isBlockingActive() || !store.activeTourId) return;
 
-    const tour = getTourById(store.activeTourId);
-    const step = tour?.steps[store.stepIndex];
+    const step = store.activeStepDefinitions[store.stepIndex];
     if (!step?.target.includes("nav-menu-button")) return;
 
     window.setTimeout(() => {
@@ -919,6 +939,15 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     <Divider key="divider-local" sx={{ mx: 2, my: 1 }} />
                   ]
                 )}
+
+                <MenuItem onClick={() => { handleClose(); gotToPath("/ayuda"); }}>
+                  <HelpOutlineIcon sx={{ mr: 2, color: "primary.main" }} />
+                  <Typography variant="body2" fontWeight={500}>
+                    Ayuda
+                  </Typography>
+                </MenuItem>
+
+                <Divider sx={{ mx: 2, my: 1 }} />
 
                 <MenuItem onClick={() => { handleClose(); gotToPath('/descargar'); }}>
                   <Android sx={{ mr: 2, color: 'success.main' }} />

@@ -81,7 +81,7 @@ import {
   ONBOARDING_PROMPT_POS_PERIOD_EVENT,
   TOUR_POS_VENTA,
 } from "@/features/onboarding/constants";
-import { shouldDeferPosPeriodPrompt } from "@/features/onboarding/utils/posOnboardingPeriod";
+import { shouldDeferPosPeriodPrompt, shouldDeferPosBackgroundOperations } from "@/features/onboarding/utils/posOnboardingPeriod";
 import { getTourById } from "@/features/onboarding/tours/primerosPasos";
 
 export default function POSInterface() {
@@ -390,6 +390,8 @@ export default function POSInterface() {
   }
 
   const syncPendingSales = async () => {
+    if (shouldDeferPosBackgroundOperations(periodo)) return;
+
     const salesNotSynced = sales.filter(
       (sale) =>
         sale.syncState === "not_synced" &&
@@ -398,7 +400,10 @@ export default function POSInterface() {
 
     if (salesNotSynced.length === 0) return;
 
-    showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
+    const suppressToasts = shouldDeferPosBackgroundOperations(periodo);
+    if (!suppressToasts) {
+      showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
+    }
 
     // Marcar como "sincronizando" para evitar duplicados
     const newSyncingIds = new Set(syncingIdentifiers);
@@ -490,14 +495,14 @@ export default function POSInterface() {
       }
     }
 
-    if (errorCount > 0) {
+    if (!suppressToasts && errorCount > 0) {
       showMessage(
         `⚠️ ${errorCount} ventas no pudieron sincronizarse`,
         "warning",
       );
     }
 
-    if (syncedCount > 0) {
+    if (!suppressToasts && syncedCount > 0) {
       showMessage(
         `✅ ${syncedCount} ventas sincronizadas correctamente`,
         "success",
@@ -568,7 +573,12 @@ export default function POSInterface() {
       setCategories(categorias);
     } catch (error) {
       console.error("Error al obtener productos", error);
-      if (!silent) showMessage("Error al obtener productos", "error");
+      if (
+        !silent &&
+        !shouldDeferPosBackgroundOperations(periodo)
+      ) {
+        showMessage("Error al obtener productos", "error");
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -982,13 +992,15 @@ export default function POSInterface() {
 
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
+    if (shouldDeferPosBackgroundOperations(periodo)) return;
     // Solo sincronizar si:
     // 1. Acabamos de recuperar la conexión (isOnline es true)
     // 2. Hay ventas pendientes de sincronizar
-    // 3. El periodo está cargado
+    // 3. El periodo está abierto
     if (
       isOnline &&
       periodo &&
+      !periodo.fechaFin &&
       sales.some((sale) => sale.syncState === "not_synced")
     ) {
       // Pequeño delay para asegurar que la conexión esté estable
@@ -1032,7 +1044,9 @@ export default function POSInterface() {
           }
         } catch (error) {
           console.error(error);
-          showMessage("Ocurrió un erro intentando cargar le período", "error");
+          if (!shouldDeferPosPeriodPrompt()) {
+            showMessage("Ocurrió un erro intentando cargar le período", "error");
+          }
         } finally {
           setLoading(false);
         }
@@ -1072,10 +1086,12 @@ export default function POSInterface() {
   useEffect(() => {
     if (periodo) {
       fetchProductosAndCategories().catch(() => {
-        showMessage(
-          "Ocurrió un error intentando cargar las categorías",
-          "error",
-        );
+        if (!shouldDeferPosBackgroundOperations(periodo)) {
+          showMessage(
+            "Ocurrió un error intentando cargar las categorías",
+            "error",
+          );
+        }
       });
     }
   }, [periodo]);

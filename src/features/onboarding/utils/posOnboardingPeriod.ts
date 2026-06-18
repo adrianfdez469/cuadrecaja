@@ -2,6 +2,16 @@ import { TOUR_POS_VENTA } from "../constants";
 import { getTourById } from "../tours/primerosPasos";
 import { useOnboardingStore } from "../store/onboardingStore";
 
+interface IPeriodoLike {
+  fechaFin?: string | Date | null;
+}
+
+function getPosPeriodStepIndex(): number {
+  const tour = getTourById(TOUR_POS_VENTA);
+  if (!tour) return -1;
+  return tour.steps.findIndex((s) => s.onlyWhenNoOpenPeriod);
+}
+
 function getActivePosStep() {
   const state = useOnboardingStore.getState();
   if (!state.run || state.activeTourId !== TOUR_POS_VENTA) return null;
@@ -22,16 +32,32 @@ export function shouldBlockPosInteraction(): boolean {
   return !(step.spotlightClicks ?? false);
 }
 
-/** Durante el tour POS, el aviso de período lo muestra el paso intermedio (no al cargar) */
-export function shouldDeferPosPeriodPrompt(): boolean {
+function hasOpenPeriod(periodo?: IPeriodoLike | null): boolean {
+  return Boolean(periodo && !periodo.fechaFin);
+}
+
+/**
+ * Durante el tour POS, aplaza sync automática y toasts operativos hasta que
+ * el período esté abierto y se haya superado el paso de apertura.
+ */
+export function shouldDeferPosBackgroundOperations(
+  periodo?: IPeriodoLike | null,
+): boolean {
   const state = useOnboardingStore.getState();
   if (!state.run || state.activeTourId !== TOUR_POS_VENTA) return false;
 
-  const tour = getTourById(TOUR_POS_VENTA);
-  if (!tour) return false;
-
-  const periodStepIndex = tour.steps.findIndex((s) => s.onlyWhenNoOpenPeriod);
+  const periodStepIndex = getPosPeriodStepIndex();
   if (periodStepIndex < 0) return false;
 
-  return state.stepIndex < periodStepIndex;
+  if (state.stepIndex < periodStepIndex) return true;
+  if (state.stepIndex === periodStepIndex && !hasOpenPeriod(periodo)) {
+    return true;
+  }
+
+  return false;
+}
+
+/** Durante el tour POS, el aviso de período lo muestra el paso intermedio (no al cargar) */
+export function shouldDeferPosPeriodPrompt(): boolean {
+  return shouldDeferPosBackgroundOperations(null);
 }

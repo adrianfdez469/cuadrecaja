@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
+import { ONBOARDING_JOYRIDE_Z_INDEX } from "@/features/onboarding/constants";
 
 export interface IConfirmDialogTourAttrs {
   dialog?: string;
@@ -47,7 +48,11 @@ const useConfirmDialog = () => {
       open={open}
       onClose={onCancel}
       {...(tourAttrs?.dialog ? { "data-tour": tourAttrs.dialog } : {})}
-      sx={tourAttrs ? { zIndex: 10001 } : undefined}
+      sx={
+        tourAttrs
+          ? { zIndex: ONBOARDING_JOYRIDE_Z_INDEX + 5 }
+          : undefined
+      }
     >
       <DialogTitle>Confirmación</DialogTitle>
       <DialogContent>{message}</DialogContent>

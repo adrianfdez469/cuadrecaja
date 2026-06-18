@@ -8,6 +8,9 @@ import type { OnboardingChainDefinition, OnboardingTourDefinition } from "../typ
 
 export const tourGestionInventario: OnboardingTourDefinition = {
   id: TOUR_GESTION_INVENTARIO,
+  title: "Crear tu primer producto",
+  description:
+    "Aprende a dar de alta un producto con precio y stock en la gestión unificada.",
   permission: "configuracion.gestion-inventario.acceder",
   steps: [
     {
@@ -173,6 +176,9 @@ const posToolbarTourSteps: OnboardingTourDefinition["steps"] = [
 
 export const tourPosVenta: OnboardingTourDefinition = {
   id: TOUR_POS_VENTA,
+  title: "Tu primera venta en el POS",
+  description:
+    "Conoce la barra superior del punto de venta y aprende a buscar productos.",
   permission: "operaciones.pos-venta.acceder",
   steps: [
     {
@@ -219,20 +225,9 @@ export const tourPosVenta: OnboardingTourDefinition = {
     },
     ...posToolbarTourSteps,
     {
-      target: "body",
-      title: "Tu primera venta",
-      content:
-        "Busca un producto, selecciónalo y añade la cantidad al carrito. Puedes usar el buscador, las categorías o el escáner. Explora la pantalla a tu ritmo.",
-      pathname: "/pos",
-      placement: "center",
-      showNextButton: true,
-      spotlightClicks: false,
-    },
-    {
       target: '[data-tour="pos-search"]',
-      title: "Busca y vende",
-      content:
-        "Cuando completes la guía podrás buscar productos, elegirlos y añadir cantidades al carrito. Pulsa «Completar guía» para usar el POS con total libertad.",
+      title: "Buscador de productos",
+      content: "",
       pathname: "/pos",
       placement: "top",
       hideFooter: false,
@@ -240,6 +235,20 @@ export const tourPosVenta: OnboardingTourDefinition = {
       spotlightClicks: false,
       hideOverlay: true,
       isFixed: true,
+      posBranch: "with-products",
+      posContentKey: "search-guide",
+    },
+    {
+      target: "body",
+      title: "Sin productos para vender",
+      content: "",
+      pathname: "/pos",
+      placement: "center",
+      hideFooter: false,
+      primaryButtonLabel: "Entendido",
+      spotlightClicks: false,
+      posBranch: "no-products",
+      posContentKey: "no-products-block",
     },
   ],
 };

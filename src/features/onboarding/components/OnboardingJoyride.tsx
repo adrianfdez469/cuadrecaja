@@ -7,8 +7,9 @@ import { useMediaQuery, useTheme } from "@mui/material";
 import { usePermisos } from "@/utils/permisos_front";
 import { useAppContext } from "@/context/AppContext";
 import { fetchLastPeriod } from "@/services/cierrePeriodService";
-import { ONBOARDING_PROMPT_POS_PERIOD_EVENT } from "../constants";
+import { ONBOARDING_PROMPT_POS_PERIOD_EVENT, TOUR_POS_VENTA } from "../constants";
 import { buildJoyrideSteps } from "../utils/buildJoyrideSteps";
+import { usesFixedMobileTooltip } from "../utils/onboardingMobileTooltip";
 import {
   getOnboardingJoyrideOptions,
   getOnboardingJoyrideStyles,
@@ -40,13 +41,17 @@ export function OnboardingJoyride() {
   const activeTourId = useOnboardingStore((s) => s.activeTourId);
   const stepIndex = useOnboardingStore((s) => s.stepIndex);
   const layoutNonce = useOnboardingStore((s) => s.layoutNonce);
+  const activeStepDefinitions = useOnboardingStore((s) => s.activeStepDefinitions);
+  const posTourContext = useOnboardingStore((s) => s.posTourContext);
   const advanceStep = useOnboardingStore((s) => s.advanceStep);
   const setStepIndex = useOnboardingStore((s) => s.setStepIndex);
   const bumpLayoutNonce = useOnboardingStore((s) => s.bumpLayoutNonce);
   const completeActiveTour = useOnboardingStore((s) => s.completeActiveTour);
 
   const tour = activeTourId ? getTourById(activeTourId) : undefined;
-  const stepDef = tour?.steps[stepIndex];
+  const stepDef = activeStepDefinitions[stepIndex];
+  const posTourWaiting =
+    activeTourId === TOUR_POS_VENTA && !posTourContext?.loaded;
 
   const showBackButton = Boolean(
     stepIndex > 0 &&
@@ -61,10 +66,12 @@ export function OnboardingJoyride() {
 
   const steps = useMemo(
     () =>
-      tour
-        ? buildJoyrideSteps(tour.steps, isMobile, { productTablePrimaryLabel })
+      activeStepDefinitions.length > 0
+        ? buildJoyrideSteps(activeStepDefinitions, isMobile, {
+            productTablePrimaryLabel,
+          })
         : [],
-    [tour, isMobile, productTablePrimaryLabel]
+    [activeStepDefinitions, isMobile, productTablePrimaryLabel],
   );
 
   const stepLocale = useMemo(() => {
@@ -212,11 +219,16 @@ export function OnboardingJoyride() {
     advanceStep,
   ]);
 
-  if (!run || !tour || steps.length === 0) {
+  if (!run || !tour || steps.length === 0 || posTourWaiting) {
     return null;
   }
 
   const isBodyStep = stepDef?.target === "body";
+  const isFixedMobileStep = Boolean(
+    stepDef?.target &&
+      typeof stepDef.target === "string" &&
+      usesFixedMobileTooltip(stepDef.target),
+  );
   const shouldRunJoyride = isBodyStep || targetReady;
 
   return (
@@ -226,7 +238,7 @@ export function OnboardingJoyride() {
       run={shouldRunJoyride}
       stepIndex={stepIndex}
       continuous
-      scrollToFirstStep={!isMobile}
+      scrollToFirstStep={!isMobile || isFixedMobileStep}
       locale={stepLocale}
       options={joyrideOptions}
       styles={joyrideStyles}

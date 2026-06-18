@@ -78,5 +78,5 @@ export function getOnboardingJoyrideStyles(_theme: Theme): Partial<Styles> {
     buttonPrimary: {
       display: "none",
     },
-  };
+  } as Partial<Styles>;
 }

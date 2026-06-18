@@ -50,12 +50,34 @@ export interface OnboardingStepDefinition {
   primaryButtonLabel?: string;
   /** Solo si no hay período de caja abierto (tour POS) */
   onlyWhenNoOpenPeriod?: boolean;
+  posBranch?: "with-products" | "no-products";
+  posContentKey?: "search-guide" | "no-products-block";
 }
 
 export interface OnboardingTourDefinition {
   id: OnboardingTourId;
+  title: string;
+  description: string;
   permission: string;
   steps: OnboardingStepDefinition[];
+}
+
+export interface IUserOnboardingSettings {
+  enabled: boolean;
+  toursEnabled: Partial<Record<OnboardingTourId, boolean>>;
+}
+
+export interface IPosTourContext {
+  hasProducts: boolean;
+  sampleProductName: string | null;
+  loaded: boolean;
+}
+
+export interface IUserOnboardingProgress {
+  settings?: IUserOnboardingSettings;
+  completedTours?: Record<string, boolean>;
+  completedChains?: Record<string, boolean>;
+  dismissedChains?: Record<string, boolean>;
 }
 
 export interface OnboardingChainDefinition {

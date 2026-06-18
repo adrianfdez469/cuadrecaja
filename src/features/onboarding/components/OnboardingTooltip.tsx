@@ -1,10 +1,17 @@
 "use client";
 
 import CloseIcon from "@mui/icons-material/Close";
-import { Box, Button, Chip, IconButton, Typography } from "@mui/material";
+import { Box, Button, Chip, IconButton, Typography, useMediaQuery, useTheme } from "@mui/material";
 import type { MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import type { TooltipRenderProps } from "react-joyride";
+import { ONBOARDING_JOYRIDE_Z_INDEX } from "../constants";
 import { exitOnboardingTour } from "../store/onboardingStore";
+import {
+  getMobileFixedTooltipPlacement,
+  MOBILE_FIXED_TOOLTIP_BOTTOM,
+  MOBILE_FIXED_TOOLTIP_TOP,
+} from "../utils/onboardingMobileTooltip";
 
 /**
  * Tooltip del tour alineado al diseño MUI de Cuadre de Caja.
@@ -19,6 +26,14 @@ export function OnboardingTooltip({
   closeProps,
   tooltipProps,
 }: TooltipRenderProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const fixedMobilePlacement =
+    isMobile && typeof step.target === "string"
+      ? getMobileFixedTooltipPlacement(step.target)
+      : null;
+  const useFixedMobileTooltip = fixedMobilePlacement !== null;
+
   const showPrimary = step.buttons?.includes("primary");
   const showBack = step.buttons?.includes("back") && index > 0;
   const showClose = step.buttons?.includes("close");
@@ -35,9 +50,9 @@ export function OnboardingTooltip({
     exitOnboardingTour();
   };
 
-  return (
+  const tooltipBody = (
     <Box
-      {...tooltipProps}
+      {...(useFixedMobileTooltip ? {} : tooltipProps)}
       sx={{
         position: "relative",
         maxWidth: { xs: "min(380px, calc(100vw - 24px))", sm: 380 },
@@ -49,6 +64,32 @@ export function OnboardingTooltip({
           "0 20px 50px -12px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(226, 232, 240, 0.95)",
         overflow: "hidden",
         textAlign: "left",
+        ...(fixedMobilePlacement === "top"
+          ? {
+              position: "fixed",
+              top: MOBILE_FIXED_TOOLTIP_TOP,
+              left: 12,
+              right: 12,
+              width: "auto",
+              maxWidth: "none",
+              mx: 0,
+              zIndex: ONBOARDING_JOYRIDE_Z_INDEX + 3,
+              pointerEvents: "auto",
+            }
+          : {}),
+        ...(fixedMobilePlacement === "bottom"
+          ? {
+              position: "fixed",
+              bottom: MOBILE_FIXED_TOOLTIP_BOTTOM,
+              left: 12,
+              right: 12,
+              width: "auto",
+              maxWidth: "none",
+              mx: 0,
+              zIndex: ONBOARDING_JOYRIDE_Z_INDEX + 3,
+              pointerEvents: "auto",
+            }
+          : {}),
       }}
     >
       <Box
@@ -187,4 +228,10 @@ export function OnboardingTooltip({
       ) : null}
     </Box>
   );
+
+  if (useFixedMobileTooltip && typeof document !== "undefined") {
+    return createPortal(tooltipBody, document.body);
+  }
+
+  return tooltipBody;
 }
