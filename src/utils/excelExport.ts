@@ -104,9 +104,17 @@ export const exportProductosVendidosToExcel = async ({
             Proveedor: proveedorNombre,
           });
           return acc;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         },
-        {} as Record<string, any[]>,
+        {} as Record<
+          string,
+          {
+            Producto: string;
+            Vendidos: number;
+            Costo: number;
+            Total: number;
+            Proveedor: string;
+          }[]
+        >,
       );
 
     // Crear una hoja por cada proveedor
