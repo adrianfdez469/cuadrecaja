@@ -704,7 +704,7 @@ const PaymentModal: FC<IProps> = ({
                               border: "1px solid",
                               borderColor: "divider",
                               borderRadius: 1,
-                              px: 1.5,
+                              px: { xs: 0.5, sm: 1.5 },
                               pb: 1,
                             }}
                           >
@@ -752,7 +752,7 @@ const PaymentModal: FC<IProps> = ({
                                 border: "1px solid",
                                 borderColor: "divider",
                                 borderRadius: 1,
-                                px: 1.5,
+                                px: { xs: 0.5, sm: 1.5 },
                                 pb: 1,
                               }}
                             >
