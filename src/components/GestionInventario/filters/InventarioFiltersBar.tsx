@@ -16,16 +16,22 @@ import {
   IconButton,
   Tooltip,
   Collapse,
+  Menu,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
-import {useState, useRef, useMemo} from "react";
+import TableViewIcon from "@mui/icons-material/TableView";
+import UploadIcon from "@mui/icons-material/Upload";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { useState, useRef, useMemo } from "react";
 import { ICategory } from "@/schemas/categoria";
 import { StockFilter, ExpiryFilter } from "../hooks/useGestionInventario";
-import {uniqueBy} from "@/utils/arrayUtils";
+import { uniqueBy } from "@/utils/arrayUtils";
 
 interface InventarioFiltersBarProps {
   searchTerm: string;
@@ -40,6 +46,9 @@ interface InventarioFiltersBarProps {
   onCreateProduct: () => void;
   onRefresh: () => void;
   loading: boolean;
+  onExportExcel?: () => void;
+  onImportExcel?: () => void;
+  exporting?: boolean;
 }
 
 const STOCK_OPTIONS: { value: StockFilter; label: string }[] = [
@@ -58,9 +67,13 @@ const EXPIRY_OPTIONS: { value: ExpiryFilter; label: string }[] = [
 function hasActiveFilters(
   selectedCategorias: string[],
   stockFilter: StockFilter,
-  expiryFilter: ExpiryFilter
+  expiryFilter: ExpiryFilter,
 ) {
-  return selectedCategorias.length > 0 || stockFilter !== "todo" || expiryFilter !== "todos";
+  return (
+    selectedCategorias.length > 0 ||
+    stockFilter !== "todo" ||
+    expiryFilter !== "todos"
+  );
 }
 
 export function InventarioFiltersBar({
@@ -76,18 +89,35 @@ export function InventarioFiltersBar({
   onCreateProduct,
   onRefresh,
   loading,
+  onExportExcel,
+  onImportExcel,
+  exporting,
 }: InventarioFiltersBarProps) {
-  console.log({categorias})
-  const uniqueCategories =
-      useMemo(() => uniqueBy<ICategory>(categorias, "nombre", (current, candidate) => candidate.esGlobal === true), [categorias]);
+  console.log({ categorias });
+  const uniqueCategories = useMemo(
+    () =>
+      uniqueBy<ICategory>(
+        categorias,
+        "nombre",
+        (current, candidate) => candidate.esGlobal === true,
+      ),
+    [categorias],
+  );
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchRowRef = useRef<HTMLDivElement>(null);
 
-  const selectedCats = categorias.filter(c => selectedCategorias.includes(c.id));
-  const activeFilters = hasActiveFilters(selectedCategorias, stockFilter, expiryFilter);
+  const selectedCats = categorias.filter((c) =>
+    selectedCategorias.includes(c.id),
+  );
+  const activeFilters = hasActiveFilters(
+    selectedCategorias,
+    stockFilter,
+    expiryFilter,
+  );
 
   const handleClearFilters = () => {
     onSearchChange("");
@@ -99,15 +129,35 @@ export function InventarioFiltersBar({
   if (isMobile) {
     return (
       <Box display="flex" flexDirection="column" gap={1}>
-        <Box ref={searchRowRef} display="flex" gap={0.5} alignItems="center" sx={{ scrollMarginTop: "64px" }}>
+        <Box
+          ref={searchRowRef}
+          display="flex"
+          gap={0.5}
+          alignItems="center"
+          sx={{ scrollMarginTop: "64px" }}
+        >
           <TextField
             size="small"
             placeholder="Buscar..."
             value={searchTerm}
-            onChange={e => onSearchChange(e.target.value)}
+            onChange={(e) => onSearchChange(e.target.value)}
             inputRef={searchInputRef}
-            onFocus={() => searchRowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            onBlur={() => setTimeout(() => searchRowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 300)}
+            onFocus={() =>
+              searchRowRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              })
+            }
+            onBlur={() =>
+              setTimeout(
+                () =>
+                  searchRowRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  }),
+                300,
+              )
+            }
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -117,17 +167,13 @@ export function InventarioFiltersBar({
             }}
             sx={{ flex: 1 }}
           />
-          <IconButton
-              color="primary"
-              onClick={onCreateProduct}
-              size="small"
-          >
+          <IconButton color="primary" onClick={onCreateProduct} size="small">
             <AddIcon />
           </IconButton>
           <Tooltip title="Filtros avanzados">
             <IconButton
               size="small"
-              onClick={() => setFiltersOpen(v => !v)}
+              onClick={() => setFiltersOpen((v) => !v)}
               color={filtersOpen || activeFilters ? "primary" : "default"}
             >
               <FilterListIcon />
@@ -148,6 +194,52 @@ export function InventarioFiltersBar({
               <RefreshIcon />
             </IconButton>
           </Tooltip>
+          {(onExportExcel || onImportExcel) && (
+            <>
+              <Tooltip title="Más opciones">
+                <IconButton
+                  size="small"
+                  onClick={(e) => setMenuAnchor(e.currentTarget)}
+                >
+                  <MoreVertIcon />
+                </IconButton>
+              </Tooltip>
+              <Menu
+                anchorEl={menuAnchor}
+                open={Boolean(menuAnchor)}
+                onClose={() => setMenuAnchor(null)}
+              >
+                {onImportExcel && (
+                  <MenuItem
+                    onClick={() => {
+                      setMenuAnchor(null);
+                      onImportExcel();
+                    }}
+                    disabled={loading}
+                  >
+                    <ListItemIcon>
+                      <UploadIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Importar Excel</ListItemText>
+                  </MenuItem>
+                )}
+                {onExportExcel && (
+                  <MenuItem
+                    onClick={() => {
+                      setMenuAnchor(null);
+                      onExportExcel();
+                    }}
+                    disabled={exporting || loading}
+                  >
+                    <ListItemIcon>
+                      <TableViewIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Exportar Excel</ListItemText>
+                  </MenuItem>
+                )}
+              </Menu>
+            </>
+          )}
         </Box>
 
         {/* Filtros extra colapsables */}
@@ -160,8 +252,10 @@ export function InventarioFiltersBar({
               options={uniqueCategories}
               getOptionLabel={(o) => o.nombre}
               value={selectedCats}
-              onChange={(_, val) => onCategoriasChange(val.map(v => v.id))}
-              renderInput={(params) => <TextField  {...params} label="Categorías" />}
+              onChange={(_, val) => onCategoriasChange(val.map((v) => v.id))}
+              renderInput={(params) => (
+                <TextField {...params} label="Categorías" />
+              )}
               renderTags={(val, getTagProps) =>
                 val.map((opt, i) => (
                   <Chip
@@ -181,10 +275,12 @@ export function InventarioFiltersBar({
               <Select
                 label="Stock"
                 value={stockFilter}
-                onChange={e => onStockChange(e.target.value as StockFilter)}
+                onChange={(e) => onStockChange(e.target.value as StockFilter)}
               >
-                {STOCK_OPTIONS.map(o => (
-                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                {STOCK_OPTIONS.map((o) => (
+                  <MenuItem key={o.value} value={o.value}>
+                    {o.label}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -194,10 +290,12 @@ export function InventarioFiltersBar({
               <Select
                 label="Vencimiento"
                 value={expiryFilter}
-                onChange={e => onExpiryChange(e.target.value as ExpiryFilter)}
+                onChange={(e) => onExpiryChange(e.target.value as ExpiryFilter)}
               >
-                {EXPIRY_OPTIONS.map(o => (
-                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                {EXPIRY_OPTIONS.map((o) => (
+                  <MenuItem key={o.value} value={o.value}>
+                    {o.label}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -215,7 +313,7 @@ export function InventarioFiltersBar({
           size="small"
           placeholder="Buscar producto o categoría..."
           value={searchTerm}
-          onChange={e => onSearchChange(e.target.value)}
+          onChange={(e) => onSearchChange(e.target.value)}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -234,6 +332,30 @@ export function InventarioFiltersBar({
         >
           Nuevo producto
         </Button>
+        {onImportExcel && (
+          <Button
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            onClick={onImportExcel}
+            disabled={loading}
+            size="small"
+            sx={{ whiteSpace: "nowrap" }}
+          >
+            Importar Excel
+          </Button>
+        )}
+        {onExportExcel && (
+          <Button
+            variant="outlined"
+            startIcon={<TableViewIcon />}
+            onClick={onExportExcel}
+            disabled={exporting || loading}
+            size="small"
+            sx={{ whiteSpace: "nowrap" }}
+          >
+            {exporting ? "Exportando..." : "Exportar Excel"}
+          </Button>
+        )}
         <Tooltip title="Actualizar">
           <IconButton onClick={onRefresh} disabled={loading} size="small">
             <RefreshIcon />
@@ -256,10 +378,10 @@ export function InventarioFiltersBar({
           multiple
           size="small"
           options={categorias}
-          getOptionLabel={o => o.nombre}
+          getOptionLabel={(o) => o.nombre}
           value={selectedCats}
-          onChange={(_, val) => onCategoriasChange(val.map(v => v.id))}
-          renderInput={params => <TextField {...params} label="Categorías" />}
+          onChange={(_, val) => onCategoriasChange(val.map((v) => v.id))}
+          renderInput={(params) => <TextField {...params} label="Categorías" />}
           renderTags={(val, getTagProps) =>
             val.map((opt, i) => (
               <Chip
@@ -279,10 +401,12 @@ export function InventarioFiltersBar({
           <Select
             label="Stock"
             value={stockFilter}
-            onChange={e => onStockChange(e.target.value as StockFilter)}
+            onChange={(e) => onStockChange(e.target.value as StockFilter)}
           >
-            {STOCK_OPTIONS.map(o => (
-              <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+            {STOCK_OPTIONS.map((o) => (
+              <MenuItem key={o.value} value={o.value}>
+                {o.label}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -292,10 +416,12 @@ export function InventarioFiltersBar({
           <Select
             label="Vencimiento"
             value={expiryFilter}
-            onChange={e => onExpiryChange(e.target.value as ExpiryFilter)}
+            onChange={(e) => onExpiryChange(e.target.value as ExpiryFilter)}
           >
-            {EXPIRY_OPTIONS.map(o => (
-              <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+            {EXPIRY_OPTIONS.map((o) => (
+              <MenuItem key={o.value} value={o.value}>
+                {o.label}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
