@@ -8,6 +8,8 @@ type QrModuleScannerProps = {
   onHardwareScan?: (qrText: string) => void;
   keepFocus?: boolean;
   showInput?: boolean;
+  enableHardwareScanner?: boolean;
+  onCameraOpenChange?: (open: boolean) => void;
 };
 
 export interface QrModuleScannerRef {
@@ -15,7 +17,17 @@ export interface QrModuleScannerRef {
 }
 
 const QrModuleScanner = forwardRef<QrModuleScannerRef, QrModuleScannerProps>(
-  ({ onScan, onHardwareScan, keepFocus = true, showInput = false }, ref) => {
+  (
+    {
+      onScan,
+      onHardwareScan,
+      keepFocus = true,
+      showInput = false,
+      enableHardwareScanner = true,
+      onCameraOpenChange,
+    },
+    ref,
+  ) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mobileScannerRef = React.useRef<any>(null);
 
@@ -34,12 +46,18 @@ const QrModuleScanner = forwardRef<QrModuleScannerRef, QrModuleScannerProps>(
         gap={1} 
         width="100%" 
       >
-        <MobileQrScanner ref={mobileScannerRef} qrCodeSuccessCallback={onScan} />
-        <HardwareQrScanner
-          qrCodeSuccessCallback={onHardwareScan ? onHardwareScan : () => {}}
-          keepFocus={keepFocus}
-          showInput={showInput}
+        <MobileQrScanner
+          ref={mobileScannerRef}
+          qrCodeSuccessCallback={onScan}
+          onOpenChange={onCameraOpenChange}
         />
+        {enableHardwareScanner && (
+          <HardwareQrScanner
+            qrCodeSuccessCallback={onHardwareScan ? onHardwareScan : () => {}}
+            keepFocus={keepFocus}
+            showInput={showInput}
+          />
+        )}
       </Box>
     );
   }

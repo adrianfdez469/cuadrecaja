@@ -42,6 +42,10 @@ const CartDrawer: FC<IProps> = ({
         anchor="right"
         open={open}
         onClose={onClose}
+        disableEnforceFocus
+        disableAutoFocus
+        disableRestoreFocus
+        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
         PaperProps={{
           sx: {
             height: '100dvh',
