@@ -143,7 +143,6 @@ export default function POSInterface() {
     ITransferDestination[]
   >([]);
   const [intentToSearch, setIntentToSearch] = useState(false);
-  const [openSpeedDial, setOpenSpeedDial] = useState(false);
   const [resumenDiaOpen, setResumenDiaOpen] = useState(false);
   // Edición de nombre de carrito (píldora)
   const [editingCartId, setEditingCartId] = useState<string | null>(null);
@@ -851,12 +850,10 @@ export default function POSInterface() {
 
   const handleShowUserSales = () => {
     setShowUserSales(true);
-    setOpenSpeedDial(false);
   };
 
   const handleCloseSyncView = () => {
     setShowSyncView(false);
-    setOpenSpeedDial(false);
   };
   const handleSearch = (query: string) => {
     setSearchQuery(query);
