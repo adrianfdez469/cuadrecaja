@@ -188,7 +188,7 @@ export default function HeroSection() {
                                     transition: 'all 0.3s ease',
                                 }}
                             >
-                                Solicitar Demo
+                                Probar gratis
                             </Button>
 
                             <Button

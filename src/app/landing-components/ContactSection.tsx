@@ -13,10 +13,6 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Stack,
 } from '@mui/material';
 import {
@@ -28,17 +24,14 @@ import {
   // Store,
   CheckCircle,
 } from '@mui/icons-material';
-
-const MAX_LOCALES = 19;
+import { LANDING_ACTIVATION_TTL_LABEL } from '@/constants/onboarding';
 
 interface FormData {
   nombre: string;
   nombreNegocio: string;
   correo: string;
   telefono: string;
-  numeroLocales: number;
   referido: string;
-  mensaje: string;
 }
 
 const initialFormData: FormData = {
@@ -46,12 +39,8 @@ const initialFormData: FormData = {
   nombreNegocio: '',
   correo: '',
   telefono: '',
-  numeroLocales: 1,
   referido: '',
-  mensaje: '',
 };
-
-const opcionesNumeroLocales = Array.from({ length: MAX_LOCALES }, (_, i) => i + 1);
 
 export default function ContactSection() {
   const searchParams = useSearchParams();
@@ -119,14 +108,6 @@ export default function ContactSection() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.correo)) return false;
 
-    if (
-      !Number.isInteger(formData.numeroLocales) ||
-      formData.numeroLocales < 1 ||
-      formData.numeroLocales > MAX_LOCALES
-    ) {
-      return false;
-    }
-
     return true;
   };
 
@@ -135,9 +116,7 @@ export default function ContactSection() {
     
     if (!validateForm()) {
       setSubmitStatus('error');
-      setErrorMessage(
-        'Por favor, completa nombre, nombre del negocio, correo y el número de locales (entre 1 y 19).'
-      );
+      setErrorMessage('Por favor, completa nombre, nombre del negocio y un correo válido.');
       return;
     }
 
@@ -151,9 +130,8 @@ export default function ContactSection() {
       nombreNegocio: formData.nombreNegocio.trim(),
       correo: formData.correo.trim(),
       telefono: telefonoTrim ? normalizePhone(telefonoTrim) : '',
-      numeroLocales: formData.numeroLocales,
+      numeroLocales: 1,
       referido: formData.referido.trim().toUpperCase(),
-      mensaje: formData.mensaje,
     };
 
     try {
@@ -194,7 +172,7 @@ export default function ContactSection() {
       <Container maxWidth="lg">
         <Box sx={{ textAlign: 'center', mb: 8 }}>
           <Chip
-            label="📞 Contáctanos"
+            label="🚀 Prueba gratuita"
             sx={{
               bgcolor: 'rgba(78, 205, 196, 0.15)',
               color: '#6ee7de',
@@ -221,8 +199,8 @@ export default function ContactSection() {
               lineHeight: 1.6
             }}
           >
-            Completa el formulario y uno de nuestros especialistas se contactará contigo 
-            para programar una demo personalizada
+            Completa el formulario y recibirás un enlace de activación en tu correo
+            para empezar tu prueba gratuita
           </Typography>
         </Box>
 
@@ -268,7 +246,7 @@ export default function ContactSection() {
               }}
             >
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3, color: 'rgba(255,255,255,0.95)' }}>
-                Solicita tu Demo Gratuita
+                Activar prueba gratuita
               </Typography>
 
               {submitStatus === 'success' && (
@@ -277,7 +255,7 @@ export default function ContactSection() {
                   sx={{ mb: 3 }}
                   icon={<CheckCircle />}
                 >
-                  ¡Listo! Revisa tu correo electrónico: te llegará un enlace de activación válido por 30 minutos
+                  ¡Listo! Revisa tu correo electrónico: te llegará un enlace de activación válido por {LANDING_ACTIVATION_TTL_LABEL}
                   desde <strong>adrianfdez469@gmail.com</strong> (correo personal del desarrollador).
                   Si no lo ves, revisa la carpeta de spam.
                 </Alert>
@@ -344,29 +322,6 @@ export default function ContactSection() {
                     />
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth required>
-                      <InputLabel id="numero-locales-label">Número de locales</InputLabel>
-                      <Select
-                        labelId="numero-locales-label"
-                        value={formData.numeroLocales}
-                        label="Número de locales"
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            numeroLocales: Number(e.target.value),
-                          }))
-                        }
-                      >
-                        {opcionesNumeroLocales.map((n) => (
-                          <MenuItem key={n} value={n}>
-                            {n}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  
                   <Grid item xs={12}>
                     <TextField
                       fullWidth
@@ -377,18 +332,6 @@ export default function ContactSection() {
                     />
                   </Grid>
 
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Mensaje (Opcional)"
-                      multiline
-                      rows={3}
-                      value={formData.mensaje}
-                      onChange={handleInputChange('mensaje')}
-                      placeholder="Cuéntanos más sobre tu negocio y tus necesidades..."
-                    />
-                  </Grid>
-                  
                   <Grid item xs={12}>
                     <Button
                       type="submit"
@@ -410,7 +353,7 @@ export default function ContactSection() {
                         },
                       }}
                     >
-                      {isSubmitting ? 'Enviando...' : 'Solicitar Demo Gratuita'}
+                      {isSubmitting ? 'Enviando...' : 'Probar gratis'}
                     </Button>
                   </Grid>
                 </Grid>
@@ -525,22 +468,10 @@ export default function ContactSection() {
               {/* Benefits */}
               <Card sx={{ p: 3, bgcolor: 'rgba(78, 205, 196, 0.12)', border: '1px solid rgba(78, 205, 196, 0.3)', color: 'white' }}>
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                  ¿Qué Incluye tu Demo?
+                  ¿Qué incluye tu prueba?
                 </Typography>
                 
                 <Stack spacing={1}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <CheckCircle sx={{ mr: 1, fontSize: 20, color: TEAL }} />
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                      Análisis de tus necesidades específicas
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <CheckCircle sx={{ mr: 1, fontSize: 20, color: TEAL }} />
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                      Propuesta de plan personalizada
-                    </Typography>
-                  </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <CheckCircle sx={{ mr: 1, fontSize: 20, color: TEAL }} />
                     <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
@@ -550,7 +481,13 @@ export default function ContactSection() {
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <CheckCircle sx={{ mr: 1, fontSize: 20, color: TEAL }} />
                     <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                      Capacitación inicial sin costo
+                      Acceso completo al POS y gestión de inventario
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <CheckCircle sx={{ mr: 1, fontSize: 20, color: TEAL }} />
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                      Activación inmediata por correo electrónico
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -565,10 +502,10 @@ export default function ContactSection() {
               {/* Response Time */}
               <Card sx={{ p: 3, textAlign: 'center', bgcolor: 'rgba(78, 205, 196, 0.15)', border: '1px solid rgba(78, 205, 196, 0.35)' }}>
                 <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, color: '#6ee7de' }}>
-                  &lt; 24h
+                  {LANDING_ACTIVATION_TTL_LABEL}
                 </Typography>
                 <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                  Tiempo promedio de respuesta
+                  Validez del enlace de activación
                 </Typography>
               </Card>
             </Stack>

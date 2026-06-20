@@ -11,7 +11,7 @@ export const landingContactFormSchema = z.object({
   nombreNegocio: z.string().trim().min(1, 'Nombre del negocio requerido'),
   correo: z.string().trim().email('El correo no es válido').toLowerCase(),
   telefono: z.string().optional().default(''),
-  numeroLocales: z.coerce.number().int().min(1).max(19),
+  numeroLocales: z.coerce.number().int().min(1).max(19).optional().default(1),
   mensaje: z.string().optional().default(''),
   referido: z
     .string()
