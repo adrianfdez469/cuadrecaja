@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
 import { captureReferralForNewBusiness } from '@/lib/referrals/captureReferral';
+import { seedDemoCatalogForTienda } from '@/lib/onboarding/seedDemoCatalogForTienda';
 import {
   getLandingRegistrationConflict,
   LandingRegistrationConflictError,
@@ -16,12 +17,14 @@ export interface IOnboardingInput {
   /** Cantidad de tiendas a crear (1–19). */
   numeroLocales: number;
   referido?: string;
+  incluirProductosPrueba: boolean;
 }
 
 export interface IOnboardingResult {
   usuario: string;
   passwordTemporal: string;
   negocio: string;
+  incluirProductosPrueba: boolean;
 }
 
 function generarPasswordTemporal(): string {
@@ -107,11 +110,16 @@ export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboa
       promoterCode: input.referido,
       creatorEmail: correo,
     });
+
+    if (input.incluirProductosPrueba) {
+      await seedDemoCatalogForTienda(tx, negocio.id, tiendas[0].id);
+    }
   });
 
   return {
     usuario: correo,
     passwordTemporal,
     negocio: nombreNegocio,
+    incluirProductosPrueba: input.incluirProductosPrueba,
   };
 }

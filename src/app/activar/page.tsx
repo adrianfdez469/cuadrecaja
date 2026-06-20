@@ -40,6 +40,7 @@ interface Credentials {
   usuario: string;
   passwordTemporal: string;
   negocio: string;
+  incluirProductosPrueba?: boolean;
 }
 
 const TEAL = '#4ECDC4';
@@ -231,6 +232,9 @@ function ActivarContent() {
               'Período de prueba gratuita de 7 días',
               'Acceso completo a todas las funcionalidades',
               'Una tienda preconfigurada lista para usar',
+              ...(credentials.incluirProductosPrueba
+                ? ['Inventario de ejemplo precargado en tu tienda Principal']
+                : []),
               'Soporte directo con el equipo de desarrollo',
               'Pasados los 7 días podrás contratar el plan que mejor se adapte a tu negocio',
             ].map((item) => (

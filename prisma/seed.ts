@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { seedDemoCatalogForTienda } from '../src/lib/onboarding/seedDemoCatalogForTienda';
 
 const prisma = new PrismaClient();
 
@@ -339,71 +340,9 @@ async function main() {
       console.log('  - Usuario vendedor ya existe');
     }
 
-    // ── 5. Categorías ─────────────────────────────────────────────────
-    const categoriasData = [
-      { nombre: 'Bebidas', color: '#2196F3' },
-      { nombre: 'Snacks', color: '#FF9800' },
-      { nombre: 'Lácteos', color: '#4CAF50' },
-      { nombre: 'Aseo Personal', color: '#9C27B0' },
-    ];
-    const categoriasMap: Record<string, string> = {};
-    let categoriasCreadas = 0;
-    for (const cat of categoriasData) {
-      let categoria = await prisma.categoria.findFirst({ where: { nombre: cat.nombre, negocioId } });
-      if (!categoria) {
-        categoria = await prisma.categoria.create({ data: { ...cat, negocioId } });
-        categoriasCreadas++;
-      }
-      categoriasMap[cat.nombre] = categoria.id;
-    }
-    console.log(`  ✓ Categorías (${categoriasCreadas} creadas, ${categoriasData.length - categoriasCreadas} existentes)`);
-
-    // ── 6. Productos y stock ──────────────────────────────────────────
-    const productosData = [
-      { nombre: 'Agua Mineral 500ml', descripcion: 'Agua mineral natural', categoria: 'Bebidas', costo: 0.50, precio: 1.00, existencia: 50 },
-      { nombre: 'Refresco Cola 355ml', descripcion: 'Refresco sabor cola en lata', categoria: 'Bebidas', costo: 0.80, precio: 1.50, existencia: 30 },
-      { nombre: 'Jugo de Naranja 1L', descripcion: 'Jugo 100% natural de naranja', categoria: 'Bebidas', costo: 1.20, precio: 2.50, existencia: 20 },
-      { nombre: 'Papas Fritas', descripcion: 'Papas fritas en bolsa 50g', categoria: 'Snacks', costo: 0.60, precio: 1.25, existencia: 40 },
-      { nombre: 'Galletas Oreo', descripcion: 'Galletas Oreo pack 154g', categoria: 'Snacks', costo: 1.00, precio: 2.00, existencia: 25 },
-      { nombre: 'Chocolate Barra', descripcion: 'Chocolate con leche 100g', categoria: 'Snacks', costo: 0.90, precio: 1.75, existencia: 18 },
-      { nombre: 'Leche Entera 1L', descripcion: 'Leche entera pasteurizada', categoria: 'Lácteos', costo: 1.20, precio: 2.50, existencia: 20 },
-      { nombre: 'Yogur Natural 200g', descripcion: 'Yogur natural sin azúcar', categoria: 'Lácteos', costo: 0.90, precio: 1.75, existencia: 15 },
-      { nombre: 'Queso Fresco 250g', descripcion: 'Queso fresco artesanal', categoria: 'Lácteos', costo: 2.00, precio: 4.00, existencia: 12 },
-      { nombre: 'Jabón de Baño', descripcion: 'Jabón de baño barra 90g', categoria: 'Aseo Personal', costo: 0.70, precio: 1.50, existencia: 35 },
-      { nombre: 'Shampoo 400ml', descripcion: 'Shampoo para todo tipo de cabello', categoria: 'Aseo Personal', costo: 2.50, precio: 5.00, existencia: 10 },
-      { nombre: 'Pasta Dental 75ml', descripcion: 'Pasta dental con flúor', categoria: 'Aseo Personal', costo: 1.00, precio: 2.00, existencia: 22 },
-    ];
-
-    let productosCreados = 0;
-    for (const p of productosData) {
-      let producto = await prisma.producto.findFirst({ where: { nombre: p.nombre, negocioId } });
-      if (!producto) {
-        producto = await prisma.producto.create({
-          data: {
-            nombre: p.nombre,
-            descripcion: p.descripcion,
-            categoriaId: categoriasMap[p.categoria],
-            negocioId,
-          },
-        });
-        productosCreados++;
-      }
-      const existeEnTienda = await prisma.productoTienda.findFirst({
-        where: { productoId: producto.id, tiendaId: tienda.id },
-      });
-      if (!existeEnTienda) {
-        await prisma.productoTienda.create({
-          data: {
-            productoId: producto.id,
-            tiendaId: tienda.id,
-            costo: p.costo,
-            precio: p.precio,
-            existencia: p.existencia,
-          },
-        });
-      }
-    }
-    console.log(`  ✓ Productos (${productosCreados} creados, ${productosData.length - productosCreados} existentes)`);
+    // ── 5–6. Categorías y productos demo ───────────────────────────────
+    await seedDemoCatalogForTienda(prisma, negocioId, tienda.id);
+    console.log('  ✓ Catálogo demo (categorías y productos)');
 
     // ── 7. Destinos de transferencia ──────────────────────────────────
     const transferDestsData = [

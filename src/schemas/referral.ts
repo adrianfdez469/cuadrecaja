@@ -22,6 +22,7 @@ export const landingContactFormSchema = z.object({
     .refine((val) => !val || REFERRAL_PROMO_CODE_REGEX.test(val), {
       message: 'El código de referido no tiene un formato válido.',
     }),
+  incluirProductosPrueba: z.boolean(),
 });
 
 export const activationTokenPayloadSchema = z.object({
@@ -39,6 +40,7 @@ export const activationTokenPayloadSchema = z.object({
     .refine((val) => !val || REFERRAL_PROMO_CODE_REGEX.test(val), {
       message: 'El código de referido no tiene un formato válido.',
     }),
+  incluirProductosPrueba: z.boolean().optional().default(false),
 });
 
 export const promoterActivationTokenSchema = z.object({

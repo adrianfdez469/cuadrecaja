@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       numeroLocales: 1,
       mensaje: body.mensaje ?? '',
       referido: referidoNormalizado,
+      incluirProductosPrueba: body.incluirProductosPrueba,
       timestamp: new Date().toISOString(),
       source: 'landing-page',
     };
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
           telefono: payload.telefono,
           numeroLocales: payload.numeroLocales,
           referido: payload.referido,
+          incluirProductosPrueba: payload.incluirProductosPrueba,
         },
         activationSecret,
         { expiresIn: LANDING_ACTIVATION_JWT_EXPIRES_IN }
