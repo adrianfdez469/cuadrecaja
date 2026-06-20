@@ -123,6 +123,7 @@ Objeto `payload` de negocio más campos extra:
 | `numeroLocales` | number | 1–19. |
 | `mensaje` | string | Mensaje opcional. |
 | `referido` | string | Código `PRM-XXXX` o vacío. |
+| `incluirProductosPrueba` | boolean | Si el usuario pidió catálogo demo en la tienda Principal. |
 | `timestamp` | string | ISO 8601. |
 | `source` | string | `landing-page`. |
 | `token` | string \| null | JWT de activación de negocio (48 h; ver `src/constants/onboarding.ts`). |

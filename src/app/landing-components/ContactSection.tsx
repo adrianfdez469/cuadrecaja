@@ -14,6 +14,11 @@ import {
   CircularProgress,
   Alert,
   Stack,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Radio,
+  RadioGroup,
 } from '@mui/material';
 import {
   Phone,
@@ -88,6 +93,7 @@ export default function ContactSection() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [incluirProductosPrueba, setIncluirProductosPrueba] = useState<boolean | null>(null);
 
   const handleInputChange = (field: keyof FormData) => (
     event: React.ChangeEvent<HTMLInputElement | { value: unknown }>
@@ -108,6 +114,8 @@ export default function ContactSection() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.correo)) return false;
 
+    if (incluirProductosPrueba === null) return false;
+
     return true;
   };
 
@@ -116,7 +124,11 @@ export default function ContactSection() {
     
     if (!validateForm()) {
       setSubmitStatus('error');
-      setErrorMessage('Por favor, completa nombre, nombre del negocio y un correo válido.');
+      setErrorMessage(
+        incluirProductosPrueba === null
+          ? 'Indica si deseas incluir productos de ejemplo en tu tienda Principal.'
+          : 'Por favor, completa nombre, nombre del negocio y un correo válido.'
+      );
       return;
     }
 
@@ -132,6 +144,7 @@ export default function ContactSection() {
       telefono: telefonoTrim ? normalizePhone(telefonoTrim) : '',
       numeroLocales: 1,
       referido: formData.referido.trim().toUpperCase(),
+      incluirProductosPrueba: incluirProductosPrueba as boolean,
     };
 
     try {
@@ -148,6 +161,7 @@ export default function ContactSection() {
       if (response.ok) {
         setSubmitStatus('success');
         setFormData(initialFormData);
+        setIncluirProductosPrueba(null);
       } else {
         setSubmitStatus('error');
         setErrorMessage(
@@ -333,12 +347,52 @@ export default function ContactSection() {
                   </Grid>
 
                   <Grid item xs={12}>
+                    <FormControl
+                      component="fieldset"
+                      required
+                      sx={{
+                        width: '100%',
+                        '& .MuiFormLabel-root': { color: 'rgba(255,255,255,0.7)' },
+                        '& .MuiFormLabel-root.Mui-focused': { color: TEAL },
+                        '& .MuiFormControlLabel-label': { color: 'rgba(255,255,255,0.9)' },
+                      }}
+                    >
+                      <FormLabel component="legend">
+                        ¿Incluir productos de ejemplo en tu tienda Principal?
+                      </FormLabel>
+                      <RadioGroup
+                        value={
+                          incluirProductosPrueba === null
+                            ? ''
+                            : incluirProductosPrueba
+                              ? 'yes'
+                              : 'no'
+                        }
+                        onChange={(event) =>
+                          setIncluirProductosPrueba(event.target.value === 'yes')
+                        }
+                      >
+                        <FormControlLabel
+                          value="yes"
+                          control={<Radio sx={{ color: TEAL, '&.Mui-checked': { color: TEAL } }} />}
+                          label="Sí, incluir 12 productos de ejemplo con stock y precios"
+                        />
+                        <FormControlLabel
+                          value="no"
+                          control={<Radio sx={{ color: TEAL, '&.Mui-checked': { color: TEAL } }} />}
+                          label="No, empezar con inventario vacío"
+                        />
+                      </RadioGroup>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12}>
                     <Button
                       type="submit"
                       variant="contained"
                       size="large"
                       fullWidth
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || incluirProductosPrueba === null}
                       startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <Send />}
                       sx={{
                         py: 1.5,

@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
     }
 
     const parsedPayload = activationTokenPayloadSchema.parse(payload);
-    const { nombre, nombreNegocio, correo, telefono, referido } = parsedPayload;
+    const { nombre, nombreNegocio, correo, telefono, referido, incluirProductosPrueba } =
+      parsedPayload;
 
     if (!nombre?.trim() || !correo?.trim() || !nombreNegocio?.trim()) {
       return NextResponse.json({ error: 'El enlace de activación no contiene información válida.' }, { status: 400 });
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
       telefono: typeof telefono === 'string' ? telefono : '',
       numeroLocales,
       referido,
+      incluirProductosPrueba,
     });
 
     return NextResponse.json(resultado, { status: 201 });
