@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { ZodError } from 'zod';
 import { landingContactFormSchema } from '@/schemas/referral';
+import { LANDING_ACTIVATION_JWT_EXPIRES_IN } from '@/constants/onboarding';
 import {
   getLandingRegistrationConflict,
   landingConflictMessage,
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
       nombreNegocio: body.nombreNegocio.trim(),
       correo: body.correo.trim(),
       telefono: telefonoNormalizado,
-      numeroLocales: body.numeroLocales,
+      numeroLocales: 1,
       mensaje: body.mensaje ?? '',
       referido: referidoNormalizado,
       timestamp: new Date().toISOString(),
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
           referido: payload.referido,
         },
         activationSecret,
-        { expiresIn: '30m' }
+        { expiresIn: LANDING_ACTIVATION_JWT_EXPIRES_IN }
       );
       const appUrl = [
         request.nextUrl.origin,

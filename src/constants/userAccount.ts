@@ -1,8 +1,11 @@
 /** JWT de invitación (varios enlaces válidos hasta expirar). */
-export const USER_ACCOUNT_JWT_INVITE_EXPIRES_IN = "4h" as const;
+export const USER_ACCOUNT_JWT_INVITE_EXPIRES_IN = "48h" as const;
 
 /** JWT de restablecimiento de contraseña (olvidé mi contraseña). */
-export const USER_ACCOUNT_JWT_RESET_EXPIRES_IN = "1h" as const;
+export const USER_ACCOUNT_JWT_RESET_EXPIRES_IN = "24h" as const;
+
+/** JWT de confirmación de cambio de correo. */
+export const USER_ACCOUNT_JWT_EMAIL_CHANGE_EXPIRES_IN = "24h" as const;
 
 /** Clave sessionStorage compartida con la página de login (prefill tras activación). */
 export const LOGIN_CREDENTIALS_SESSION_KEY = "prefill_login_credentials";

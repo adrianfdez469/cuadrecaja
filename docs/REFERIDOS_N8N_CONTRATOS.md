@@ -125,7 +125,7 @@ Objeto `payload` de negocio más campos extra:
 | `referido` | string | Código `PRM-XXXX` o vacío. |
 | `timestamp` | string | ISO 8601. |
 | `source` | string | `landing-page`. |
-| `token` | string \| null | JWT de activación de negocio (30 min). |
+| `token` | string \| null | JWT de activación de negocio (48 h; ver `src/constants/onboarding.ts`). |
 | `activationUrl` | string \| null | URL `.../activar?token=...` |
 
 **Errores:**

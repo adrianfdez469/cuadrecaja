@@ -152,7 +152,7 @@ Rutas habituales: **`/olvide-contrasena`**, **`/restablecer-contrasena`** (con `
 
 ## “El enlace de activación ha expirado” (negocio nuevo)
 
-**Qué es:** En **`/activar`**, el token de alta puede tener **vigencia corta** (la pantalla menciona **30 minutos** en un mensaje de error).
+**Qué es:** En **`/activar`**, el token de alta tiene vigencia de **48 horas** (la pantalla lo indica en un mensaje de error si expiró).
 
 **Qué hacer:** Pedir un **nuevo enlace** de registro a quien te dio de alta.
 

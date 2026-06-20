@@ -402,7 +402,7 @@ export default function PromotorDashboardClient({ data }: { data: IPromoterDashb
           </Box>
 
           <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: 'rgba(255,255,255,0.45)' }}>
-            Quien abra el enlace llegará a la página principal con el campo de referido rellenado al solicitar la demo.
+            Quien abra el enlace llegará a la página principal con el campo de referido rellenado al activar su prueba gratuita.
             También puedes compartir solo el código para que lo introduzcan al darse de alta.
           </Typography>
         </Card>

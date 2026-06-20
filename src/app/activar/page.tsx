@@ -25,6 +25,7 @@ import {
   WarningAmber,
 } from '@mui/icons-material';
 import { LOGIN_CREDENTIALS_SESSION_KEY } from '@/constants/userAccount';
+import { LANDING_ACTIVATION_TTL_LABEL } from '@/constants/onboarding';
 
 type ActivationState =
   | 'loading'
@@ -268,7 +269,7 @@ function ActivarContent() {
     error_expired: {
       icon: <AccessTime sx={{ fontSize: 56, color: '#ffa726' }} />,
       title: 'Enlace expirado',
-      chip: 'El enlace era válido por 30 minutos',
+      chip: `El enlace era válido por ${LANDING_ACTIVATION_TTL_LABEL}`,
     },
     error_used: {
       icon: <CheckCircle sx={{ fontSize: 56, color: TEAL }} />,

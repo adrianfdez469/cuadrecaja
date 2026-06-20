@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   USER_ACCOUNT_JWT_INVITE_EXPIRES_IN,
   USER_ACCOUNT_JWT_RESET_EXPIRES_IN,
+  USER_ACCOUNT_JWT_EMAIL_CHANGE_EXPIRES_IN,
 } from "@/constants/userAccount";
 
 const basePayloadSchema = z.object({
@@ -90,6 +91,6 @@ export function signUserEmailChangeToken(input: {
       newEmail: input.newEmail,
     },
     secret,
-    { expiresIn: USER_ACCOUNT_JWT_INVITE_EXPIRES_IN }
+    { expiresIn: USER_ACCOUNT_JWT_EMAIL_CHANGE_EXPIRES_IN }
   );
 }

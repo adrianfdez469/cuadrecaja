@@ -287,7 +287,7 @@ export default function PricingSection() {
                         },
                       }}
                     >
-                      {plan.recomendado ? 'Comenzar Ahora' : 'Solicitar Demo'}
+                      {plan.recomendado ? 'Comenzar Ahora' : 'Probar gratis'}
                     </Button>
                   </CardContent>
                 </Card>
