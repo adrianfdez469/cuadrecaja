@@ -139,27 +139,92 @@ export function OnboardingJoyride() {
     }
 
     setTargetReady(false);
-    let attempts = 0;
-    const maxAttempts = stepDef.hideOverlay ? 80 : 50;
 
-    const check = () => {
-      const el = document.querySelector(stepDef.target);
-      const visible =
-        el &&
-        (stepDef.hideOverlay ||
-          (el as HTMLElement).getBoundingClientRect().width > 0);
-      if (visible) {
-        setTargetReady(true);
-        return;
-      }
-      attempts += 1;
-      if (attempts < maxAttempts) {
-        timer = window.setTimeout(check, 150);
-      }
+    // El spotlight de react-joyride solo recalcula su recorte ante scroll/resize/
+    // ResizeObserver del propio target, no ante movimientos provocados por
+    // transiciones de ancestros (Drawer, Dialog, Accordion) ni navegación.
+    // Por eso esperamos a que el rect del objetivo deje de cambiar durante varios
+    // frames antes de mostrar el paso: así Joyride mide la posición ya estable.
+    const selector = stepDef.target;
+    const allowZeroSize = Boolean(stepDef.hideOverlay);
+    const maxWaitMs = stepDef.hideOverlay ? 8000 : 6000;
+    const requiredStableFrames = 3;
+    const initialDelayMs = stepDef.hideOverlay ? 150 : 60;
+
+    let cancelled = false;
+    let rafId = 0;
+    let timerId = 0;
+    const startedAt =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    let lastRect: DOMRect | null = null;
+    let stableFrames = 0;
+
+    const now = () =>
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+
+    const sameRect = (a: DOMRect | null, b: DOMRect | null) =>
+      Boolean(
+        a &&
+          b &&
+          Math.abs(a.top - b.top) < 0.5 &&
+          Math.abs(a.left - b.left) < 0.5 &&
+          Math.abs(a.width - b.width) < 0.5 &&
+          Math.abs(a.height - b.height) < 0.5,
+      );
+
+    const reveal = () => {
+      if (cancelled) return;
+      setTargetReady(true);
+      // Un último nudge para que el overlay recompute con la posición final.
+      window.requestAnimationFrame(() => {
+        if (!cancelled) window.dispatchEvent(new Event("resize"));
+      });
     };
 
-    let timer = window.setTimeout(check, stepDef.hideOverlay ? 200 : 100);
-    return () => window.clearTimeout(timer);
+    const tick = () => {
+      if (cancelled) return;
+      const elapsed = now() - startedAt;
+      const el = document.querySelector(selector) as HTMLElement | null;
+
+      if (!el) {
+        if (elapsed > maxWaitMs) return; // objetivo inexistente: no mostramos
+        rafId = window.requestAnimationFrame(tick);
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      const measurable = allowZeroSize || (rect.width > 0 && rect.height > 0);
+
+      if (!measurable) {
+        if (elapsed > maxWaitMs) return;
+        rafId = window.requestAnimationFrame(tick);
+        return;
+      }
+
+      if (sameRect(rect, lastRect)) {
+        stableFrames += 1;
+      } else {
+        stableFrames = 0;
+        lastRect = rect;
+      }
+
+      if (stableFrames >= requiredStableFrames || elapsed > maxWaitMs) {
+        reveal();
+        return;
+      }
+
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    timerId = window.setTimeout(() => {
+      rafId = window.requestAnimationFrame(tick);
+    }, initialDelayMs);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+      window.cancelAnimationFrame(rafId);
+    };
   }, [run, stepDef, pathname, stepIndex, layoutNonce]);
 
   useEffect(() => {
@@ -237,7 +302,7 @@ export function OnboardingJoyride() {
 
   return (
     <Joyride
-      key={`${activeTourId}-${stepIndex}-${layoutNonce}-${isMobile}`}
+      key={`${activeTourId}-${stepIndex}-${isMobile}`}
       steps={steps}
       run={shouldRunJoyride}
       stepIndex={stepIndex}

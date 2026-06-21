@@ -254,7 +254,7 @@ async function main() {
     });
     if (!tienda) {
       tienda = await prisma.tienda.create({
-        data: { nombre: 'Tienda Principal', negocioId },
+        data: { nombre: 'Tienda Principal', negocioId, tipo: 'TIENDA' },
       });
       console.log('  ✓ Tienda Principal');
     } else {

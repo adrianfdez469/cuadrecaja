@@ -26,7 +26,10 @@ export function scrollNavDrawerTargetIntoView(
       el.scrollIntoView({
         block: "center",
         inline: "nearest",
-        behavior: "smooth",
+        // Instantáneo: el detector de estabilidad de OnboardingJoyride muestra el
+        // paso cuando el target deja de moverse. Un scroll suave alargaría ese
+        // movimiento y haría que el spotlight se midiera a mitad de animación.
+        behavior: "auto",
       });
     }
     window.requestAnimationFrame(() => {
@@ -69,7 +72,7 @@ export function scrollPosTourTargetIntoView(
 
   window.setTimeout(() => {
     if (isPosTopToolbarTourTarget(targetSelector)) {
-      scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+      scrollContainer.scrollTo({ top: 0, behavior: "auto" });
     } else {
       const el = document.querySelector(targetSelector);
       if (el instanceof HTMLElement) {
@@ -78,7 +81,7 @@ export function scrollPosTourTargetIntoView(
         const nextTop = elTop - containerTop + scrollContainer.scrollTop - 12;
         scrollContainer.scrollTo({
           top: Math.max(0, nextTop),
-          behavior: "smooth",
+          behavior: "auto",
         });
       }
     }
