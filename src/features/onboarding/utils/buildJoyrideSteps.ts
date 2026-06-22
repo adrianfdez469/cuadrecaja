@@ -3,7 +3,9 @@ import type { OnboardingStepDefinition } from "../types";
 import {
   getMobileFixedTooltipPlacement,
   getMobileFixedTooltipStepConfig,
+  usesFixedMobileTooltip,
 } from "./onboardingMobileTooltip";
+import { isPosTopToolbarTourTarget } from "./onboardingNavigation";
 
 export interface BuildJoyrideStepsOptions {
   /** Etiqueta del botón en el paso final de creación de producto */
@@ -12,6 +14,20 @@ export interface BuildJoyrideStepsOptions {
 
 function isPosFloatingTourTarget(target: string): boolean {
   return target.includes("pos-category-first");
+}
+
+/**
+ * En móvil, el desplazamiento de estos pasos lo gestiona el contenedor del POS
+ * o del drawer. Dejamos que react-joyride NO haga scroll de la ventana, porque
+ * coloca el objetivo bajo la barra superior fija y reposiciona el layout al
+ * avanzar de paso.
+ */
+function shouldSkipJoyrideScroll(target: string, isMobile: boolean): boolean {
+  if (!isMobile) return false;
+  if (isPosTopToolbarTourTarget(target)) return true;
+  if (target.includes("pos-category-first")) return true;
+  // Pasos con tooltip fijo (drawer, buscador, escáner) gestionan su propia vista
+  return usesFixedMobileTooltip(target);
 }
 
 function hasPrimaryButton(def: OnboardingStepDefinition): boolean {
@@ -77,6 +93,7 @@ export function buildJoyrideSteps(
       dismissKeyAction: "close" as const,
       hideOverlay: def.hideOverlay ?? false,
       isFixed: def.isFixed ?? def.hideOverlay ?? false,
+      skipScroll: shouldSkipJoyrideScroll(def.target, isMobile),
       locale: (() => {
         if (def.primaryButtonLabel) {
           return { next: def.primaryButtonLabel, last: def.primaryButtonLabel };
