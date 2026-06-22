@@ -19,6 +19,7 @@ import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { ICategory } from "@/schemas/categoria";
 import { normalizeSearch } from "@/utils/formatters";
+import { useOnboardingStore } from "@/features/onboarding";
 
 export type StockFilter = "todo" | "en_stock" | "bajo_stock" | "sin_stock";
 export type ExpiryFilter = "todos" | "proximos" | "vencidos";
@@ -329,6 +330,10 @@ export function useGestionInventario() {
       }
 
       showMessage("Producto creado", "success");
+      useOnboardingStore.getState().signalEvent({
+        type: "product_created",
+        productName: data.nombre,
+      });
       setCreateProductOpen(false);
       await reload();
     } catch (e: unknown) {

@@ -167,7 +167,12 @@ export function InventarioFiltersBar({
             }}
             sx={{ flex: 1 }}
           />
-          <IconButton color="primary" onClick={onCreateProduct} size="small">
+          <IconButton
+            color="primary"
+            data-tour="gi-create-btn"
+            onClick={onCreateProduct}
+            size="small"
+          >
             <AddIcon />
           </IconButton>
           <Tooltip title="Filtros avanzados">
@@ -326,6 +331,7 @@ export function InventarioFiltersBar({
         <Button
           variant="contained"
           startIcon={<AddIcon />}
+          data-tour="gi-create-btn"
           onClick={onCreateProduct}
           size="small"
           sx={{ whiteSpace: "nowrap" }}

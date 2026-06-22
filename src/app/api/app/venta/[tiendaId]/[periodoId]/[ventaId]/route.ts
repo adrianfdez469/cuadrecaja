@@ -4,6 +4,7 @@ import { MovimientoTipo } from '@prisma/client';
 import { isMovimientoBaja } from '@/utils/tipoMovimiento';
 import { getSessionFromRequest } from '@/utils/authFromRequest';
 import { verificarPermisoUsuario } from '@/utils/permisos_back';
+import { mapMultimonedaFields } from '@/lib/ventaMapper';
 
 /**
  * DELETE /api/app/venta/[tiendaId]/[periodoId]/[ventaId]
@@ -185,6 +186,7 @@ export async function GET(
             productoTiendaId: true,
             precio: true,
             costo: true,
+            monedaPrecioCode: true,
             producto: {
               select: {
                 proveedor: {
@@ -241,11 +243,13 @@ export async function GET(
           cantidad: p.cantidad,
           precio: p.precio,
           costo: p.costo,
+          monedaPrecioCode: p.monedaPrecioCode ?? undefined,
           nombre: p.producto.proveedor
             ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}`
             : p.producto?.producto?.nombre ?? undefined,
           proveedor: p.producto.proveedor
         })),
+        ...mapMultimonedaFields(venta),
         appliedDiscounts: (venta.appliedDiscounts || []).map((ad) => ({
           id: ad.id,
           discountRuleId: ad.discountRuleId,

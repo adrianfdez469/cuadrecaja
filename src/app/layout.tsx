@@ -7,6 +7,7 @@ import Layout from "@/components/Layout";
 import { AppProvider } from "@/context/AppContext";
 import { SessionProvider } from "next-auth/react";
 import { MessageProvider } from "@/context/MessageContext";
+import { OnboardingProvider } from "@/features/onboarding";
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { usePathname } from "next/navigation";
@@ -34,8 +35,10 @@ export default function RootLayout({
             <ThemeProvider theme={theme}>
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <MessageProvider>
-                  <CssBaseline />
-                  <LayoutWrapper>{children}</LayoutWrapper>
+                  <OnboardingProvider>
+                    <CssBaseline />
+                    <LayoutWrapper>{children}</LayoutWrapper>
+                  </OnboardingProvider>
                 </MessageProvider>
               </LocalizationProvider>
             </ThemeProvider>

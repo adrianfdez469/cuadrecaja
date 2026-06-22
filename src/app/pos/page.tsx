@@ -76,6 +76,17 @@ import { AsociarCodigoDialog } from "@/app/pos/components/AsociarCodigoDialog";
 import { usePermisos } from "@/utils/permisos_front";
 import { useHardwareScanner } from "@/hooks/useHardwareScanner";
 import { processClientDataFromQR } from "@/utils/scanner";
+import { useOnboardingStore } from "@/features/onboarding/store/onboardingStore";
+import {
+  ONBOARDING_PROMPT_POS_PERIOD_EVENT,
+  TOUR_POS_VENTA,
+} from "@/features/onboarding/constants";
+import { shouldDeferPosPeriodPrompt, shouldDeferPosBackgroundOperations } from "@/features/onboarding/utils/posOnboardingPeriod";
+import {
+  isPosTopToolbarTourTarget,
+  scrollPosTourTargetIntoView,
+} from "@/features/onboarding/utils/onboardingNavigation";
+import { getTourById } from "@/features/onboarding/tours/primerosPasos";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -106,6 +117,7 @@ export default function POSInterface() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchAnchorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const posScrollRef = useRef<HTMLDivElement>(null);
   const [searchPanelLayout, setSearchPanelLayout] = useState({
     bottom: 80,
     maxHeight: 300,
@@ -213,6 +225,16 @@ export default function POSInterface() {
     "operaciones.pos-venta.asociar_codigo",
   );
 
+  const posOnboardingBlocksInteraction = useOnboardingStore((s) => {
+    if (!s.run || s.activeTourId !== TOUR_POS_VENTA) return false;
+    const step = getTourById(TOUR_POS_VENTA)?.steps[s.stepIndex];
+    if (!step) return false;
+    return !(step.spotlightClicks ?? false);
+  });
+  const onboardingRun = useOnboardingStore((s) => s.run);
+  const onboardingStepIndex = useOnboardingStore((s) => s.stepIndex);
+  const activeStepDefinitions = useOnboardingStore((s) => s.activeStepDefinitions);
+
   const [asociarCodigoOpen, setAsociarCodigoOpen] = useState(false);
   const [codigoNoEncontrado, setCodigoNoEncontrado] = useState<string>("");
   const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
@@ -220,6 +242,23 @@ export default function POSInterface() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
+
+  useEffect(() => {
+    if (!onboardingRun || !isMobile) return;
+    const step = activeStepDefinitions[onboardingStepIndex];
+    if (!step) return;
+
+    const { target } = step;
+    const needsPosScroll =
+      isPosTopToolbarTourTarget(target) ||
+      target.includes("pos-category-first");
+
+    if (!needsPosScroll) return;
+
+    scrollPosTourTargetIntoView(posScrollRef.current, target, () => {
+      useOnboardingStore.getState().bumpLayoutNonce();
+    });
+  }, [onboardingRun, onboardingStepIndex, activeStepDefinitions, isMobile]);
 
   // Calcular ancho del carrito según la pantalla
   const getCartWidth = () => {
@@ -376,6 +415,8 @@ export default function POSInterface() {
   }
 
   const syncPendingSales = async () => {
+    if (shouldDeferPosBackgroundOperations(periodo)) return;
+
     const salesNotSynced = sales.filter(
       (sale) =>
         sale.syncState === "not_synced" &&
@@ -384,7 +425,10 @@ export default function POSInterface() {
 
     if (salesNotSynced.length === 0) return;
 
-    showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
+    const suppressToasts = shouldDeferPosBackgroundOperations(periodo);
+    if (!suppressToasts) {
+      showMessage(`Sincronizando ${salesNotSynced.length} ventas...`, "info");
+    }
 
     // Marcar como "sincronizando" para evitar duplicados
     const newSyncingIds = new Set(syncingIdentifiers);
@@ -476,14 +520,14 @@ export default function POSInterface() {
       }
     }
 
-    if (errorCount > 0) {
+    if (!suppressToasts && errorCount > 0) {
       showMessage(
         `⚠️ ${errorCount} ventas no pudieron sincronizarse`,
         "warning",
       );
     }
 
-    if (syncedCount > 0) {
+    if (!suppressToasts && syncedCount > 0) {
       showMessage(
         `✅ ${syncedCount} ventas sincronizadas correctamente`,
         "success",
@@ -554,10 +598,55 @@ export default function POSInterface() {
       setCategories(categorias);
     } catch (error) {
       console.error("Error al obtener productos", error);
-      if (!silent) showMessage("Error al obtener productos", "error");
+      if (
+        !silent &&
+        !shouldDeferPosBackgroundOperations(periodo)
+      ) {
+        showMessage("Error al obtener productos", "error");
+      }
     } finally {
       if (!silent) setLoading(false);
     }
+  };
+
+  const promptOpenPeriod = (onboardingMode: boolean) => {
+    const message =
+      "No existe un período abierto. ¿Desea abrir un nuevo período?";
+
+    confirmDialog(
+      message,
+      () =>
+        openPeriod(user.localActual.id).then((newPeriod) => {
+          setPeriodo(newPeriod);
+          void fetchProductosAndCategories();
+          if (onboardingMode) {
+            const store = useOnboardingStore.getState();
+            store.signalEvent({ type: "period_opened" });
+            store.bumpLayoutNonce();
+          }
+        }),
+      () => {
+        if (onboardingMode) {
+          showMessage(
+            "Abre un período con «Sí» para continuar la guía del POS",
+            "warning",
+          );
+        } else {
+          showMessage(
+            "No puede comenzar a vender si no tiene un período abierto",
+            "warning",
+          );
+          gotToPath("/home");
+        }
+      },
+      onboardingMode
+        ? {
+            dialog: "pos-period-dialog",
+            confirm: "pos-period-confirm",
+            cancel: "pos-period-cancel",
+          }
+        : undefined,
+    );
   };
 
   const incrementarCantidades = (id: string, cantidad: number) => {
@@ -928,13 +1017,15 @@ export default function POSInterface() {
 
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
+    if (shouldDeferPosBackgroundOperations(periodo)) return;
     // Solo sincronizar si:
     // 1. Acabamos de recuperar la conexión (isOnline es true)
     // 2. Hay ventas pendientes de sincronizar
-    // 3. El periodo está cargado
+    // 3. El periodo está abierto
     if (
       isOnline &&
       periodo &&
+      !periodo.fechaFin &&
       sales.some((sale) => sale.syncState === "not_synced")
     ) {
       // Pequeño delay para asegurar que la conexión esté estable
@@ -969,41 +1060,48 @@ export default function POSInterface() {
           setTransferDestinations(data);
 
           const lastPeriod = await fetchLastPeriod(user.localActual.id);
-          let message = "";
           if (!lastPeriod || lastPeriod.fechaFin) {
-            message =
-              "No existe un período abierto. Desea abrir un nuevo período?";
-          }
-          if (!lastPeriod || lastPeriod.fechaFin) {
-            // Mostrar un mensaje
-            confirmDialog(
-              message,
-              () => {
-                openPeriod(user.localActual.id).then((newPeriod) => {
-                  setPeriodo(newPeriod);
-                  return fetchProductosAndCategories();
-                });
-              },
-              () => {
-                showMessage(
-                  "No puede comenzar a vender si no tiene un período abierto",
-                  "warning",
-                );
-                gotToPath("/home");
-              },
-            );
+            if (!shouldDeferPosPeriodPrompt()) {
+              promptOpenPeriod(false);
+            }
           } else {
             setPeriodo(lastPeriod);
           }
         } catch (error) {
           console.error(error);
-          showMessage("Ocurrió un erro intentando cargar le período", "error");
+          if (!shouldDeferPosPeriodPrompt()) {
+            showMessage("Ocurrió un erro intentando cargar le período", "error");
+          }
         } finally {
           setLoading(false);
         }
       }
     })();
   }, [loadingContext]);
+
+  useEffect(() => {
+    const onOnboardingPeriodPrompt = () => {
+      if (periodo && !periodo.fechaFin) {
+        const store = useOnboardingStore.getState();
+        store.signalEvent({ type: "period_opened" });
+        store.bumpLayoutNonce();
+        return;
+      }
+      promptOpenPeriod(true);
+      useOnboardingStore.getState().bumpLayoutNonce();
+    };
+
+    window.addEventListener(
+      ONBOARDING_PROMPT_POS_PERIOD_EVENT,
+      onOnboardingPeriodPrompt,
+    );
+    return () => {
+      window.removeEventListener(
+        ONBOARDING_PROMPT_POS_PERIOD_EVENT,
+        onOnboardingPeriodPrompt,
+      );
+    };
+  }, [periodo, user.localActual?.id]);
 
   // Activar audio context cuando se carga la página
   useEffect(() => {
@@ -1013,10 +1111,12 @@ export default function POSInterface() {
   useEffect(() => {
     if (periodo) {
       fetchProductosAndCategories().catch(() => {
-        showMessage(
-          "Ocurrió un error intentando cargar las categorías",
-          "error",
-        );
+        if (!shouldDeferPosBackgroundOperations(periodo)) {
+          showMessage(
+            "Ocurrió un error intentando cargar las categorías",
+            "error",
+          );
+        }
       });
     }
   }, [periodo]);
@@ -1115,6 +1215,7 @@ export default function POSInterface() {
       }}
     >
       <Box
+        ref={posScrollRef}
         sx={{
           flex: isCartPinned ? "1" : "none",
           width: getMainContentWidth(),
@@ -1122,6 +1223,9 @@ export default function POSInterface() {
           height: "100%", // Use parent height
           p: 0,
           position: "relative",
+          ...(posOnboardingBlocksInteraction
+            ? { pointerEvents: "none", userSelect: "none" }
+            : {}),
         }}
       >
         {/* Barra superior con información del sistema - posicionada debajo del menú */}
@@ -1144,7 +1248,12 @@ export default function POSInterface() {
             mb: 1,
           }}
         >
-          <PeriodoBadge periodo={periodo} isMobile={isMobile} />
+          <Box
+            data-tour="pos-toolbar-periodo"
+            sx={{ display: "flex", alignItems: "center", minHeight: 32 }}
+          >
+            <PeriodoBadge periodo={periodo} isMobile={isMobile} />
+          </Box>
 
           <Box
             display="flex"
@@ -1154,7 +1263,11 @@ export default function POSInterface() {
           >
             <RefreshButton onRefresh={handleRefresh} />
             <Tooltip title="Punto de partida">
-              <IconButton size="small" onClick={() => setResumenDiaOpen(true)}>
+              <IconButton
+                size="small"
+                data-tour="pos-toolbar-punto-partida"
+                onClick={() => setResumenDiaOpen(true)}
+              >
                 <FlagIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -1192,9 +1305,12 @@ export default function POSInterface() {
             zIndex: 1,
           }}
         >
-          {categories.map((category) => (
+          {categories.map((category, categoryIndex) => (
             <Box
               key={category.id}
+              {...(categoryIndex === 0
+                ? { "data-tour": "pos-category-first" }
+                : {})}
               onClick={() => handleOpenProducts(category)}
               sx={{
                 position: "relative",
@@ -1571,6 +1687,7 @@ export default function POSInterface() {
         {/* Buscador flotante */}
         <Box
           ref={searchAnchorRef}
+          data-tour="pos-search"
           sx={{
             position: "fixed",
             bottom: 0,
@@ -1628,7 +1745,7 @@ export default function POSInterface() {
                 },
               }}
             />
-            <Grid size={{ xs: 7, sm: 10 }}>
+            <Grid size={{ xs: 7, sm: 10 }} data-tour="pos-toolbar-scanner">
               <ProductProcessorData
                 ref={scannerRef}
                 onProcessedData={(data: IProcessedData) => {

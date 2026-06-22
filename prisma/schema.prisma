@@ -182,7 +182,7 @@ model Tienda {
   productos ProductoTienda[] // Relación con los productos que vende el local
   ventas    Venta[] // Relación con las ventas realizadas en el local
   cierres   CierrePeriodo[]
-  tipo      String           @default("tienda")
+  tipo      String           @default("TIENDA")
 
   // Relaciones inversas para MovimientoStock con nombres específicos
   movimientosOrigen  MovimientoStock[] @relation("MovimientoStockOrigen")

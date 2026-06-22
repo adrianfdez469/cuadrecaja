@@ -8,6 +8,8 @@ export const negocioSchema = z.object({
   userlimit: z.number().int(),
   productlimit: z.number().int(),
   planId: z.string().uuid().nullable().optional(),
+  monedaBase: z.string().optional(),
+  monedaFuerte: z.string().optional(),
   creadoPorActivacionLanding: z.boolean().optional(),
 });
 

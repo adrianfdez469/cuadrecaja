@@ -4,8 +4,9 @@ import { Prisma } from "@prisma/client";
 import { getSessionFromRequest } from "@/utils/authFromRequest";
 import { applyDiscountsForSale } from "@/lib/discounts";
 import { IVenta } from "@/schemas/venta";
-import { pagosDetalleSchema, vueltoDetalleSchema } from "@/schemas/pago";
+import { pagosDetalleAppSchema, vueltoDetalleSchema } from "@/schemas/pago";
 import { tasaSnapshotSchema } from "@/schemas/tasaCambio";
+import { mapVentaToIVenta } from "@/lib/ventaMapper";
 
 // Tipos auxiliares
 interface IncomingProduct {
@@ -23,6 +24,8 @@ interface ProductoExistenteSelect {
   existencia: number;
   costo: number;
   precio: number;
+  monedaCostoCode: string | null;
+  monedaPrecioCode: string | null;
   proveedorId: string | null;
   producto: { permiteDecimal: boolean };
 }
@@ -90,9 +93,12 @@ export async function POST(
     }
 
     // Validar campos multimoneda
-    if (!pagosDetalleSchema.min(1).safeParse(pagosDetalle).success) {
+    if (!pagosDetalleAppSchema.safeParse(pagosDetalle).success) {
       return NextResponse.json(
-        { error: "pagosDetalle es requerido y debe contener al menos un pago" },
+        {
+          error:
+            "pagosDetalle es requerido y debe contener al menos un pago válido (transfer requiere transferDestinationId)",
+        },
         { status: 400 },
       );
     }
@@ -182,6 +188,8 @@ export async function POST(
           existencia: true,
           costo: true,
           precio: true,
+          monedaCostoCode: true,
+          monedaPrecioCode: true,
           proveedorId: true,
           producto: {
             select: { permiteDecimal: true },
@@ -261,6 +269,8 @@ export async function POST(
               cantidad: p.cantidad,
               costo: p.costo,
               precio: p.precio,
+              monedaCostoCode: p.monedaCostoCode ?? null,
+              monedaPrecioCode: p.monedaPrecioCode ?? null,
             })),
           },
           ...(transferDestinationId &&
@@ -537,6 +547,7 @@ export async function GET(
             productoTiendaId: true,
             precio: true,
             costo: true,
+            monedaPrecioCode: true,
             producto: {
               select: {
                 proveedor: {
@@ -569,47 +580,7 @@ export async function GET(
       },
     });
 
-    const ventas: IVenta[] = ventasPrisma.map((venta) => ({
-      id: venta.id,
-      createdAt: venta.createdAt,
-      total: venta.total,
-      totalcash: venta.totalcash,
-      totaltransfer: venta.totaltransfer,
-      discountTotal: Number(venta.discountTotal ?? 0),
-      tiendaId: venta.tiendaId,
-      usuarioId: venta.usuarioId,
-      cierrePeriodoId: venta.cierrePeriodoId,
-      usuario: {
-        id: venta.usuario.id,
-        nombre: venta.usuario.nombre,
-        usuario: "",
-        rol: "",
-      },
-      productos: venta.productos.map((p) => ({
-        id: p.producto.producto.id,
-        ventaId: venta.id,
-        productoTiendaId: p.productoTiendaId,
-        cantidad: p.cantidad,
-        name: p.producto.proveedor
-          ? `${p.producto?.producto?.nombre} - ${p.producto.proveedor.nombre}`
-          : (p.producto?.producto?.nombre ?? undefined),
-        price: p.precio ?? undefined,
-      })),
-      appliedDiscounts: (venta.appliedDiscounts || []).map((ad) => ({
-        id: ad.id,
-        discountRuleId: ad.discountRuleId,
-        ventaId: ad.ventaId,
-        amount: ad.amount,
-        productsAffected: ad.productsAffected as unknown as
-          | { productoTiendaId: string; cantidad: number }[]
-          | undefined,
-        createdAt: ad.createdAt,
-        ruleName: ad.discountRule?.name,
-      })),
-      syncId: venta.syncId,
-      transferDestinationId: venta.transferDestinationId ?? undefined,
-      transferDestination: venta.transferDestination ?? undefined,
-    }));
+    const ventas: IVenta[] = ventasPrisma.map(mapVentaToIVenta);
 
     return NextResponse.json({
       success: true,

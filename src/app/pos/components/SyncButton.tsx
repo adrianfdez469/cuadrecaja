@@ -19,7 +19,7 @@ function PosStatusToolBar({
 
   return (
       <Stack direction="row" spacing={0.1}>
-        <IconButton onClick={handleShowSyncView}>
+        <IconButton onClick={handleShowSyncView} data-tour="pos-toolbar-sync">
           {sales.filter((s) => !s.synced).length > 0 ? (
               <Badge badgeContent={sales.filter((s) => !s.synced).length} color="secondary">
                 <SyncProblemIcon/>
@@ -28,7 +28,7 @@ function PosStatusToolBar({
               <SyncIcon/>
           )}
         </IconButton>
-        <IconButton onClick={handleShowUserSales}>
+        <IconButton onClick={handleShowUserSales} data-tour="pos-toolbar-mis-ventas">
           <PointOfSaleIcon/>
         </IconButton>
       </Stack>

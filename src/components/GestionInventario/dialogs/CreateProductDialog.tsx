@@ -35,6 +35,12 @@ import HardwareQrScanner from "@/components/ProductProcessorData/HardwareQrScann
 import MobileQrScanner from "@/components/ProductProcessorData/MobileQrScanner";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase, convertFromBase } from "@/lib/currency";
+import {
+  PRODUCTO_PRUEBA_SUGERENCIAS,
+  selectIsOnboardingBlocking,
+  useOnboardingProductDemo,
+  useOnboardingStore,
+} from "@/features/onboarding";
 
 interface Props {
   open: boolean;
@@ -57,6 +63,23 @@ function generateTempColor(): string {
   return colors[Math.floor(Math.random() * colors.length)];
 }
 
+function resolveCategoriaDemo(categorias: ICategory[]): {
+  catValue: CatOption | null;
+  catInputValue: string;
+} {
+  const nombreCat = PRODUCTO_PRUEBA_SUGERENCIAS.categoria;
+  const existente = categorias.find(
+    (c) => c.nombre.toLowerCase() === nombreCat.toLowerCase(),
+  );
+  if (existente) {
+    return { catValue: existente, catInputValue: existente.nombre };
+  }
+  return {
+    catValue: { inputValue: nombreCat, nombre: nombreCat, id: "" },
+    catInputValue: nombreCat,
+  };
+}
+
 export function CreateProductDialog({
   open,
   categorias,
@@ -64,6 +87,9 @@ export function CreateProductDialog({
   onSave,
 }: Props) {
   const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
+  const isDemoMode = useOnboardingProductDemo();
+  const isBlocking = useOnboardingStore(selectIsOnboardingBlocking);
+  const tourRunning = useOnboardingStore((s) => s.run);
 
   const monedasDisponibles = useMemo(() => {
     const lista = [monedaBase];
@@ -94,26 +120,66 @@ export function CreateProductDialog({
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const applyDemoValues = () => {
+    const { catValue: cat, catInputValue: catInput } =
+      resolveCategoriaDemo(categorias);
+    setNombre(PRODUCTO_PRUEBA_SUGERENCIAS.nombre);
+    setDescripcion("");
+    setCatValue(cat);
+    setCatInputValue(catInput);
+    setPrecio(PRODUCTO_PRUEBA_SUGERENCIAS.precio);
+    setMonedaPrecioCode(null);
+    setCosto(PRODUCTO_PRUEBA_SUGERENCIAS.costo);
+    setMonedaCostoCode(null);
+    setFechaVencimiento(null);
+    setCantidadInicial(PRODUCTO_PRUEBA_SUGERENCIAS.cantidadInicial);
+    setPermiteDecimal(false);
+    setEsFraccion(false);
+    setSelectedFraccion(null);
+    setFraccionValue(null);
+    setCodigosProducto([]);
+    setSubmitted(false);
+  };
+
+  const resetForm = () => {
+    setNombre("");
+    setDescripcion("");
+    setCatValue(null);
+    setCatInputValue("");
+    setPrecio("");
+    setMonedaPrecioCode(null);
+    setCosto("");
+    setMonedaCostoCode(null);
+    setFechaVencimiento(null);
+    setCantidadInicial("");
+    setPermiteDecimal(false);
+    setEsFraccion(false);
+    setSelectedFraccion(null);
+    setFraccionValue(null);
+    setCodigosProducto([]);
+    setSubmitted(false);
+  };
+
   useEffect(() => {
-    if (open) {
-      setNombre("");
-      setDescripcion("");
-      setCatValue(null);
-      setCatInputValue("");
-      setPrecio("");
-      setMonedaPrecioCode(null);
-      setCosto("");
-      setMonedaCostoCode(null);
-      setFechaVencimiento(null);
-      setCantidadInicial("");
-      setPermiteDecimal(false);
-      setEsFraccion(false);
-      setSelectedFraccion(null);
-      setFraccionValue(null);
-      setCodigosProducto([]);
-      setSubmitted(false);
+    if (!open) return;
+
+    if (isDemoMode) {
+      applyDemoValues();
+      const timer = window.setTimeout(() => {
+        const store = useOnboardingStore.getState();
+        store.signalEvent({ type: "dialog_demo_ready" });
+        store.bumpLayoutNonce();
+      }, 250);
+      return () => window.clearTimeout(timer);
     }
-  }, [open]);
+
+    resetForm();
+  }, [open, isDemoMode]);
+
+  useEffect(() => {
+    if (!open || !isDemoMode) return;
+    applyDemoValues();
+  }, [open, isDemoMode, categorias]);
 
   useEffect(() => {
     if (esFraccion && productos.length === 0) {
@@ -243,10 +309,27 @@ export function CreateProductDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog
+      open={open}
+      onClose={() => {
+        if (tourRunning && isBlocking) return;
+        onClose();
+      }}
+      fullWidth
+      maxWidth="sm"
+      PaperProps={{
+        sx: isDemoMode ? { zIndex: 10001 } : undefined,
+      }}
+    >
       <DialogTitle>Nuevo producto</DialogTitle>
       <DialogContent>
-        <Box display="flex" flexDirection="column" gap={2} pt={1}>
+        <Box
+          data-tour="gi-create-dialog"
+          display="flex"
+          flexDirection="column"
+          gap={2}
+          pt={1}
+        >
           <TextField
             label="Nombre"
             value={nombre}
@@ -531,10 +614,14 @@ export function CreateProductDialog({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={saving}>
+        <Button
+          onClick={onClose}
+          disabled={saving || (tourRunning && isBlocking)}
+        >
           Cancelar
         </Button>
         <Button
+          data-tour="gi-create-save-btn"
           onClick={handleSave}
           variant="contained"
           disabled={saving}

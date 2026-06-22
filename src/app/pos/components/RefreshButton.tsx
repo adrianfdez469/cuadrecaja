@@ -32,7 +32,12 @@ export default function RefreshButton({ onRefresh }: Props) {
 
   return (
     <Tooltip title="Actualizar datos">
-      <IconButton onClick={handleClick} size="medium" color="inherit">
+      <IconButton
+        onClick={handleClick}
+        size="medium"
+        color="inherit"
+        data-tour="pos-toolbar-refresh"
+      >
         <Sync
           sx={{
             transition: "transform 0.8s ease",

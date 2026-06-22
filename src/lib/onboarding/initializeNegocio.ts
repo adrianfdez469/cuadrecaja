@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
+import { TipoLocal } from '@/schemas/tienda';
 import { captureReferralForNewBusiness } from '@/lib/referrals/captureReferral';
 import { seedDemoCatalogForTienda } from '@/lib/onboarding/seedDemoCatalogForTienda';
 import {
@@ -72,7 +73,7 @@ export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboa
         data: {
           nombre: nombreTienda,
           negocioId: negocio.id,
-          tipo: 'tienda',
+          tipo: TipoLocal.TIENDA,
         },
       });
       tiendas.push(t);

@@ -81,6 +81,14 @@ import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import GroupsIcon from '@mui/icons-material/Groups';
 import { TipoLocal } from "@/schemas/tienda";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
+import { useOnboardingNavigation } from "@/features/onboarding";
+import { useOnboardingStore } from "@/features/onboarding/store/onboardingStore";
+import {
+  NAV_DRAWER_TARGET_SELECTORS,
+  scrollNavDrawerTargetIntoView,
+} from "@/features/onboarding/utils/onboardingNavigation";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import type { CSSProperties } from "react";
 import { usePermisos } from "@/utils/permisos_front";
 import { Avatar } from "@mui/material";
 import LocalOffer from "@mui/icons-material/LocalOffer";
@@ -197,7 +205,16 @@ const RESUMEN_MENU_ITEMS = [
 ];
 
 const HELP_MENU_ITEMS = [
-  { label: "Descargar App", path: "/descargar", icon: <Android sx={{ mr: 2, color: 'success.main' }} />, permission: '*' },
+  {
+    label: "Ayuda",
+    path: "/ayuda",
+    icon: <HelpOutlineIcon sx={{ color: "primary.main", fontSize: 22 }} />,
+  },
+  {
+    label: "Descargar App",
+    path: "/descargar",
+    icon: <Android sx={{ mr: 2, color: "success.main" }} />,
+  },
 ];
 
 
@@ -225,7 +242,90 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     administracion: false,
     configuracion: false
   });
-  const { verificarPermiso } = usePermisos()
+  const { verificarPermiso } = usePermisos();
+  const {
+    isBlockingActive,
+    canNavigateTo,
+    isMenuItemAllowed,
+    isToolbarTargetAllowed,
+    isDrawerCloseAllowed,
+  } = useOnboardingNavigation();
+  const onboardingRun = useOnboardingStore((s) => s.run);
+  const onboardingStepIndex = useOnboardingStore((s) => s.stepIndex);
+  const activeStepDefinitions = useOnboardingStore((s) => s.activeStepDefinitions);
+
+  useEffect(() => {
+    if (!onboardingRun) return;
+    const step = activeStepDefinitions[onboardingStepIndex];
+    if (!step) return;
+
+    if (step.target.includes("nav-gestion-inventario")) {
+      setMenuState({
+        operaciones: false,
+        resumenes: false,
+        configuracion: true,
+        administracion: false,
+      });
+      setOpen(true);
+      scrollNavDrawerTargetIntoView(
+        NAV_DRAWER_TARGET_SELECTORS.gestionInventario,
+        () => useOnboardingStore.getState().bumpLayoutNonce(),
+      );
+    }
+    if (step.target.includes("nav-pos")) {
+      setMenuState({
+        operaciones: true,
+        resumenes: false,
+        configuracion: false,
+        administracion: false,
+      });
+      setOpen(true);
+      scrollNavDrawerTargetIntoView(NAV_DRAWER_TARGET_SELECTORS.pos, () =>
+        useOnboardingStore.getState().bumpLayoutNonce(),
+      );
+    }
+  }, [onboardingRun, onboardingStepIndex, activeStepDefinitions]);
+
+  const toolbarInteractionSx = (tourAttr?: string) => {
+    if (!isBlockingActive) return {};
+    const allowed = isToolbarTargetAllowed(tourAttr);
+    return {
+      pointerEvents: (allowed ? "auto" : "none") as CSSProperties["pointerEvents"],
+      opacity: allowed ? 1 : 0.45,
+    };
+  };
+
+  const handleOpenNavDrawer = () => {
+    setOpen(true);
+    const store = useOnboardingStore.getState();
+    if (!store.isBlockingActive() || !store.activeTourId) return;
+
+    const step = store.activeStepDefinitions[store.stepIndex];
+    if (!step?.target.includes("nav-menu-button")) return;
+
+    window.setTimeout(() => {
+      store.signalEvent({ type: "drawer_opened" });
+      store.bumpLayoutNonce();
+    }, 320);
+  };
+
+  const navigateIfAllowed = (path: string) => {
+    if (!canNavigateTo(path)) return;
+    gotToPath(path);
+  };
+
+  const getMenuTourAttr = (path: string): string | undefined => {
+    if (path === "/configuracion/gestion-inventario") return "nav-gestion-inventario";
+    if (path === "/pos") return "nav-pos";
+    return undefined;
+  };
+
+  const handleMenuNavigate = (path: string) => {
+    const tourAttr = getMenuTourAttr(path);
+    if (isBlockingActive && tourAttr && !isMenuItemAllowed(tourAttr)) return;
+    navigateIfAllowed(path);
+    setOpen(false);
+  };
 
   // Estados para cambio de contraseña
   const [openChangePassword, setOpenChangePassword] = useState(false);
@@ -614,7 +714,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           color: '#1a202c',
           borderBottom: '1px solid #e2e8f0',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-          zIndex: (theme) => theme.zIndex.drawer - 1
+          zIndex: (theme) =>
+            isBlockingActive ? theme.zIndex.appBar : theme.zIndex.drawer - 1,
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
@@ -643,9 +744,11 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               edge="start"
               color="inherit"
               aria-label="menu"
-              onClick={() => setOpen(true)}
+              data-tour="nav-menu-button"
+              onClick={handleOpenNavDrawer}
               sx={{
                 mr: { xs: 0, sm: 2 },
+                ...toolbarInteractionSx("nav-menu-button"),
                 '&:hover': {
                   backgroundColor: 'rgba(25, 118, 210, 0.08)',
                 }
@@ -660,8 +763,11 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               display="flex"
               alignItems="center"
               gap={0.5}
-              sx={{ cursor: 'pointer' }}
-              onClick={() => gotToPath('/home')}
+              sx={{
+                cursor: isBlockingActive ? "default" : "pointer",
+                ...toolbarInteractionSx(),
+              }}
+              onClick={() => navigateIfAllowed("/home")}
             >
               <StoreIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
               <Typography variant="body2" fontWeight={700}>
@@ -680,7 +786,13 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   size="small"
                   variant="outlined"
                   icon={<MonetizationOnIcon style={{ fontSize: 14 }} />}
-                  sx={{ fontWeight: 700, fontSize: '0.7rem', borderColor: 'primary.main', color: 'primary.main' }}
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '0.7rem',
+                    borderColor: 'primary.main',
+                    color: 'primary.main',
+                    ...toolbarInteractionSx(),
+                  }}
                 />
               )}
 
@@ -690,9 +802,12 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 aria-label="cuenta del usuario actual"
                 aria-controls="menu-appbar"
                 aria-haspopup="true"
-                onClick={handleMenu}
+                onClick={(e) => {
+                  if (isBlockingActive) return;
+                  handleMenu(e);
+                }}
                 sx={{
-                  // border: '2px solid transparent',
+                  ...toolbarInteractionSx(),
                   '&:hover': {
                     borderColor: 'primary.main',
                     backgroundColor: 'rgba(25, 118, 210, 0.08)',
@@ -816,6 +931,15 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   ]
                 )}
 
+                <MenuItem onClick={() => { handleClose(); gotToPath("/ayuda"); }}>
+                  <HelpOutlineIcon sx={{ mr: 2, color: "primary.main" }} />
+                  <Typography variant="body2" fontWeight={500}>
+                    Ayuda
+                  </Typography>
+                </MenuItem>
+
+                <Divider sx={{ mx: 2, my: 1 }} />
+
                 <MenuItem onClick={() => { handleClose(); gotToPath('/descargar'); }}>
                   <Android sx={{ mr: 2, color: 'success.main' }} />
                   <Typography variant="body2" fontWeight={500}>
@@ -860,7 +984,13 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
           <Drawer
             anchor="left"
             open={open}
-            onClose={() => setOpen(false)}
+            onClose={() => {
+              if (!isDrawerCloseAllowed()) return;
+              setOpen(false);
+            }}
+            ModalProps={{
+              sx: { zIndex: (theme) => theme.zIndex.drawer },
+            }}
             PaperProps={{
               sx: {
                 width: 280,
@@ -908,10 +1038,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                           {getMainMenuItemsByLocalType(user.localActual.tipo, 'operaciones', user).map((item) => (
                             <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
                               <ListItemButton
-                                onClick={() => {
-                                  gotToPath(item.path);
-                                  setOpen(false);
-                                }}
+                                {...(getMenuTourAttr(item.path)
+                                  ? { "data-tour": getMenuTourAttr(item.path) }
+                                  : {})}
+                                onClick={() => handleMenuNavigate(item.path)}
                                 sx={{
                                   borderRadius: 2,
                                   py: 1.5,
@@ -952,10 +1082,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                           {getMainMenuItemsByLocalType(user.localActual?.tipo || '', 'resumen', user).map((item) => (
                             <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
                               <ListItemButton
-                                onClick={() => {
-                                  gotToPath(item.path);
-                                  setOpen(false);
-                                }}
+                                onClick={() => handleMenuNavigate(item.path)}
                                 sx={{
                                   borderRadius: 2,
                                   py: 1.5,
@@ -1000,10 +1127,10 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                                   .map((item) => (
                                       <ListItem key={item.label} disablePadding sx={{ px: 2, mb: 0.5 }}>
                                         <ListItemButton
-                                            onClick={() => {
-                                              gotToPath(item.path);
-                                              setOpen(false);
-                                            }}
+                                            {...(getMenuTourAttr(item.path)
+                                              ? { "data-tour": getMenuTourAttr(item.path) }
+                                              : {})}
+                                            onClick={() => handleMenuNavigate(item.path)}
                                             sx={{
                                               borderRadius: 2,
                                               py: 1.5,

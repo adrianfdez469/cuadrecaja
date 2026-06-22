@@ -17,7 +17,10 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
 | **ALTO** | Login: nuevos errores 403 (cuenta pendiente, sin rol) | No |
 | **MEDIO** | `negocio.planId` en auth; límites desde plan (`-1` = ilimitado) | No |
 | **MEDIO** | `codigos[]` sin `tipo`, con `productoId` | No* |
-| **NUEVO** | Tasas vía `GET /api/negocio/{negocioId}/tasas-cambio` (fuera de `/api/app`) | Requerido para multimoneda |
+| **NUEVO** | `GET /api/app/monedas/{negocioId}` y `GET /api/app/tasas-cambio/{negocioId}` | Requerido para multimoneda |
+| **MEDIO** | Auth: `negocio.monedaBase` y `negocio.monedaFuerte` | No |
+| **MEDIO** | Productos: `monedaPrecioCode` | No |
+| **MEDIO** | GET ventas: devuelve `pagosDetalle`, `vueltoDetalle`, `monedaCobro`, `tasaSnapshot` | No |
 
 \* Rompe solo si la app parseaba `codigos.tipo` como obligatorio.
 
@@ -28,7 +31,7 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
 | Concepto | Valor en la app |
 |----------|-----------------|
 | Base URL app | `{SERVER}/api/app` (`lib/core/constants/api_constants.dart`) |
-| Tasas de cambio | `{SERVER}/api/negocio/{negocioId}/tasas-cambio` (mismo JWT, **no** bajo `/api/app`) |
+| Monedas y tasas | `{SERVER}/api/app/monedas/{negocioId}` · `{SERVER}/api/app/tasas-cambio/{negocioId}` |
 | Auth | `Authorization: Bearer <token>` en todas las peticiones excepto login |
 | Content-Type | `application/json` |
 | Timeout | 30 s connect / 30 s receive |
@@ -44,16 +47,17 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
 | 1 | POST | `/auth/login` | ✅ | +2 errores 403 |
 | 2 | POST | `/auth/refresh` | ✅ | `negocio.planId` |
 | 3 | POST | `/auth/cambiar-tienda` | ✅ | `negocio.planId` |
-| 4 | GET | `/productos/{tiendaId}` | ✅ | `codigos` sin `tipo` |
+| 4 | GET | `/productos/{tiendaId}` | ✅ | `monedaPrecioCode`, `codigos` sin `tipo` |
 | 5 | POST | `/productos/agregar-codigo/{productoId}` | ✅ | +`success` en body |
 | 6 | GET | `/periodo/{tiendaId}/actual` | ✅ | — |
 | 7 | POST | `/periodo/{tiendaId}/abrir` | ✅ | — |
 | 8 | POST | `/venta/{tiendaId}/{periodoId}` | ✅ | **+multimoneda obligatorio** |
-| 9 | GET | `/venta/{tiendaId}/{periodoId}` | ✅ | — |
+| 9 | GET | `/venta/{tiendaId}/{periodoId}` | ✅ | +campos multimoneda |
 | 10 | DELETE | `/venta/{tiendaId}/{periodoId}/{ventaId}` | ✅ | — |
 | 11 | GET | `/transfer-destinations/{tiendaId}` | ✅ | — |
 | 12 | GET | `/resumen-dia/{tiendaId}` | ✅ | — |
-| **13** | GET | `/api/negocio/{negocioId}/tasas-cambio` | ✅ **nuevo** | Fuera de base `/api/app` |
+| **13** | GET | `/monedas/{negocioId}` | ✅ **nuevo** | Cache offline multimoneda |
+| **14** | GET | `/tasas-cambio/{negocioId}` | ✅ **nuevo** | Cache offline tasas vigentes |
 | — | GET | `/venta/{tiendaId}/{periodoId}/{ventaId}` | ⚠️ Definido, no usado en UI | — |
 | — | POST | `/descuentos/preview` | ❌ Solo constante, sin uso | — |
 
@@ -85,6 +89,8 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
       "nombre": "string",
       "limitTime": "ISO8601",
       "planId": "uuid",
+      "monedaBase": "string (ej. CUP)",
+      "monedaFuerte": "string (ej. USD)",
       "userlimit": "number (-1 = ilimitado)",
       "locallimit": "number (-1 = ilimitado)",
       "productlimit": "number (-1 = ilimitado)"
@@ -134,43 +140,71 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
 
 ---
 
-## 2. Tasas de cambio (nuevo flujo v2)
+## 2. Monedas y tasas de cambio (cache offline)
 
-### GET `/api/negocio/{negocioId}/tasas-cambio`
+### GET `/monedas/{negocioId}`
 
-**Nota:** Esta ruta **no** está bajo `/api/app`. Usa el mismo JWT de la app.
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
+**Headers:** `Authorization: Bearer <token>`
 
 **Path:** `negocioId` = `user.negocio.id` del login.
 
 **Espera (200):**
 ```json
 {
-  "tasas": [
+  "monedas": [
     {
       "id": "uuid",
-      "monedaCode": "USD",
-      "tasa": 120,
-      "createdAt": "ISO8601",
-      "creadoPor": { "id": "uuid", "nombre": "string" }
+      "negocioId": "uuid",
+      "monedaCode": "CUP",
+      "admiteEfectivo": true,
+      "admiteTransferencia": true,
+      "activo": true,
+      "moneda": {
+        "code": "CUP",
+        "nombre": "Peso Cubano",
+        "simbolo": "$",
+        "activo": true,
+        "denominaciones": [
+          { "id": "uuid", "monedaCode": "CUP", "valor": 1000, "activo": true, "orden": 10 }
+        ]
+      }
     }
-  ],
-  "vigentes": { "USD": 120, "MLC": 75 },
-  "monedaBase": "CUP"
+  ]
+}
+```
+
+**Reglas:** solo monedas activas del negocio (incluida moneda base); denominaciones activas ordenadas `orden` desc; `denominaciones: []` si no hay billetes configurados.
+
+**Errores:** 401 `No autenticado` · 403 `No autorizado` · 404 `Negocio no encontrado`
+
+---
+
+### GET `/tasas-cambio/{negocioId}`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Path:** `negocioId` = `user.negocio.id` del login.
+
+**Espera (200):**
+```json
+{
+  "monedaBase": "CUP",
+  "vigentes": { "USD": 400, "EUR": 450 },
+  "actualizadoEn": "2026-06-21T12:00:00.000Z"
 }
 ```
 
 **Reglas de negocio:**
 
 - `vigentes` es el objeto a enviar como `tasaSnapshot` en ventas.
-- **CUP** es ancla universal (= 1); no aparece en `vigentes`.
-- Cachear al arranque (tras login) y refrescar periódicamente o antes de cobrar.
+- Cada entrada: 1 unidad de `{monedaCode}` = `vigentes[monedaCode]` unidades de `monedaBase`.
+- `monedaBase` no aparece en `vigentes`; solo tasas `> 0`.
+- `actualizadoEn` (opcional): fecha de la tasa más reciente; útil para decidir refresh en sync periódico.
+- Cachear al arranque (tras login) junto con monedas y refrescar periódicamente o antes de cobrar.
 
-**Archivos sugeridos:** `tasas_remote_datasource.dart`, `tasa_snapshot_model.dart`, provider de tasas, integración en `sync_service.dart` y `payment_modal.dart`
+**Errores:** 401 `No autenticado` · 403 `No autorizado` · 404 `Negocio no encontrado`
+
+**Archivos sugeridos:** `monedas_remote_datasource.dart`, `tasas_remote_datasource.dart`, `tasa_snapshot_model.dart`, provider de tasas, integración en `sync_service.dart` y `payment_modal.dart`
 
 ---
 
@@ -198,6 +232,7 @@ La app puede ignorar `success` y `total` (compatible con v1).
 | `nombre` | string | UI | — |
 | `descripcion` | string? | UI | — |
 | `precio` | number | Ventas | **Omitido** si usuario es proveedor |
+| `monedaPrecioCode` | string \| null | Conversión a moneda base | **Nuevo**; `null` = moneda base del negocio |
 | `costo` | number | Cache | — |
 | `existencia` | number | Stock offline | — |
 | `permiteDecimal` | bool | Validación local | — |
@@ -308,7 +343,7 @@ Si `periodo == null` → app interpreta "sin período".
 
 | Campo | Regla |
 |-------|-------|
-| `pagosDetalle` | Array con **≥ 1** pago |
+| `pagosDetalle` | Array con **≥ 1** pago; transfer requiere `transferDestinationId` |
 | `vueltoDetalle` | Array obligatorio; `[]` si no hay vuelto |
 | `tasaSnapshot` | Objeto obligatorio; `{}` válido si negocio solo usa CUP |
 | `monedaCobro` | Moneda principal del cobro (ej. `"CUP"`) |
@@ -401,7 +436,7 @@ Existentes (sin cambio de texto):
 
 **Espera:** `{ "success": true, "ventas": [ ... ], "total": N }`
 
-**Campos de venta parseados:** `id`, `createdAt`, `total`, `totalcash`, `totaltransfer`, `discountTotal`, `tiendaId`, `usuarioId`, `cierrePeriodoId`, `syncId`, `wasOffline`, `frontendCreatedAt`, `usuario.nombre`, `productos[]`, `transferDestination` o `transferDestinationId`.
+**Campos de venta parseados:** `id`, `createdAt`, `total`, `totalcash`, `totaltransfer`, `discountTotal`, `tiendaId`, `usuarioId`, `cierrePeriodoId`, `syncId`, `wasOffline`, `frontendCreatedAt`, `usuario.nombre`, `productos[]` (incl. `monedaPrecioCode`), `transferDestination` o `transferDestinationId`, **`monedaCobro`**, **`pagosDetalle`**, **`vueltoDetalle`**, **`tasaSnapshot`**.
 
 **NO parsea:** `appliedDiscounts`, `success`, `total`.
 
@@ -459,7 +494,8 @@ Existentes (sin cambio de texto):
 
 ```
 Login
-  → GET tasas-cambio (negocioId)              ← NUEVO v2
+  → GET monedas/{negocioId}                        ← NUEVO v2
+  → GET tasas-cambio/{negocioId}                   ← NUEVO v2
   → Cargar productos + período + destinos transferencia
   → Si período cerrado: abrir período
   → POS: ventas offline-first con syncId + multimoneda
@@ -469,7 +505,7 @@ Login
 
 | Flujo | Dependencias API |
 |-------|------------------|
-| Arranque POS | login/refresh, **GET tasas-cambio**, GET productos, GET período, GET transfer-destinations |
+| Arranque POS | login/refresh, **GET monedas**, **GET tasas-cambio**, GET productos, GET período, GET transfer-destinations |
 | Venta offline | POST venta (idempotencia syncId + **pagosDetalle/vueltoDetalle/tasaSnapshot**) |
 | Historial ventas | GET ventas del período |
 | Cancelar venta | DELETE venta |
@@ -493,14 +529,15 @@ Login
 ## Checklist implementación Flutter (v2)
 
 ```
-[ ] Modelos: PagoLinea, VueltoLinea, TasaSnapshot, TasasVigentesResponse
-[ ] Servicio: GET /api/negocio/{id}/tasas-cambio (cache local)
+[ ] Modelos: PagoLinea, VueltoLinea, TasaSnapshot, MonedasResponse, TasasVigentesResponse
+[ ] Servicio: GET /monedas/{negocioId} y GET /tasas-cambio/{negocioId} (cache local)
 [ ] VentaLocalModel.toApiJson(): monedaCobro, pagosDetalle, vueltoDetalle, tasaSnapshot
 [ ] PaymentModal: generar pagosDetalle desde cash/transfer (o UI multimoneda completa)
 [ ] sync_service: migrar ventas pendientes sin multimoneda (payload CUP-only)
-[ ] sync_error_messages.dart: 3 mensajes nuevos multimoneda
+[ ] sync_error_messages.dart: mensajes multimoneda (pagosDetalle, vueltoDetalle, tasaSnapshot)
+[ ] auth: parsear negocio.monedaBase y negocio.monedaFuerte
 [ ] auth: manejar 403 activación pendiente / sin rol
-[ ] producto_model: quitar codigos.tipo, añadir codigos.productoId
+[ ] producto_model: monedaPrecioCode; quitar codigos.tipo, añadir codigos.productoId
 [ ] Login negocio: parsear planId (opcional)
 ```
 
