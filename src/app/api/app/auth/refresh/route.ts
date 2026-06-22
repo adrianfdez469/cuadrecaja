@@ -5,6 +5,7 @@ import { getSessionFromRequest } from '@/utils/authFromRequest';
 import { getPermisosUsuario } from '@/utils/getPermisosUsuario';
 import { getRolUsuario } from '@/utils/getRolUsuario';
 import { corsHeaders } from '@/middleware/cors';
+import { buildNegocioParaApp } from '@/lib/appAuth';
 
 /**
  * OPTIONS: preflight CORS.
@@ -50,6 +51,8 @@ export async function POST(request: NextRequest) {
             nombre: true,
             limitTime: true,
             planId: true,
+            monedaBase: true,
+            monedaFuerte: true,
             plan: { select: { limiteLocales: true, limiteUsuarios: true, limiteProductos: true } }
           }
         }
@@ -98,15 +101,7 @@ export async function POST(request: NextRequest) {
       rol = await getRolUsuario(user.id, localActualResuelto?.id || null);
     }
 
-    const negocioParaToken = {
-      id: user.negocio.id,
-      nombre: user.negocio.nombre,
-      limitTime: user.negocio.limitTime,
-      planId: user.negocio.planId,
-      locallimit: user.negocio.plan?.limiteLocales ?? -1,
-      userlimit: user.negocio.plan?.limiteUsuarios ?? -1,
-      productlimit: user.negocio.plan?.limiteProductos ?? -1,
-    };
+    const negocioParaToken = buildNegocioParaApp(user.negocio);
 
     // Generar nuevo token JWT con la misma estructura que la respuesta (locales reducidos)
     const token = jwt.sign(

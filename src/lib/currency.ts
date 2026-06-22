@@ -30,6 +30,46 @@ export function buildTasaSnapshot(
   return snapshot;
 }
 
+export type ITasaSnapshotMeta = {
+  vigentes: ITasaSnapshot;
+  actualizadoEn: string | null;
+};
+
+/**
+ * Builds vigentes snapshot plus the most recent createdAt among included rates.
+ * Filters out monedaBase and non-positive rates for app consumption.
+ */
+export function buildTasaSnapshotWithMeta(
+  tasasCambio: Pick<ITasaCambio, "monedaCode" | "tasa" | "createdAt">[],
+  monedaBase: string,
+): ITasaSnapshotMeta {
+  const latest: Record<string, { tasa: number; createdAt: Date }> = {};
+
+  for (const t of tasasCambio) {
+    if (t.monedaCode === "CUP" || t.monedaCode === monedaBase) continue;
+    const prev = latest[t.monedaCode];
+    if (!prev || t.createdAt > prev.createdAt) {
+      latest[t.monedaCode] = { tasa: t.tasa, createdAt: t.createdAt };
+    }
+  }
+
+  const vigentes: ITasaSnapshot = {};
+  let maxCreatedAt: Date | null = null;
+
+  for (const [code, { tasa, createdAt }] of Object.entries(latest)) {
+    if (tasa <= 0) continue;
+    vigentes[code] = tasa;
+    if (!maxCreatedAt || createdAt > maxCreatedAt) {
+      maxCreatedAt = createdAt;
+    }
+  }
+
+  return {
+    vigentes,
+    actualizadoEn: maxCreatedAt?.toISOString() ?? null,
+  };
+}
+
 /**
  * Converts monto in moneda → monedaBase, routing through CUP as the anchor.
  * Default monedaBase = 'CUP' (pure CUP conversion).

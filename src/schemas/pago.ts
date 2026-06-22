@@ -16,6 +16,22 @@ export const vueltoLineaSchema = z.object({
 export const pagosDetalleSchema = z.array(pagoLineaSchema);
 export const vueltoDetalleSchema = z.array(vueltoLineaSchema);
 
+/** Validación app: requiere transferDestinationId en líneas transfer con monto > 0 */
+export const pagosDetalleAppSchema = pagosDetalleSchema.min(1).superRefine(
+  (pagos, ctx) => {
+    pagos.forEach((p, i) => {
+      if (p.tipo === "transfer" && p.monto > 0 && !p.transferDestinationId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "transferDestinationId es requerido para pagos por transferencia",
+          path: [i, "transferDestinationId"],
+        });
+      }
+    });
+  },
+);
+
 export const resumenMonedaCierreSchema = z.object({
   id: z.string().uuid(),
   cierrePeriodoId: z.string().uuid(),

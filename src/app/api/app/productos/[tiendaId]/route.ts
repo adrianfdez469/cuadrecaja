@@ -93,6 +93,7 @@ export async function GET(
       descripcion: pt.producto.descripcion,
       precio: pt.precio,
       costo: pt.costo,
+      monedaPrecioCode: pt.monedaPrecioCode ?? null,
       existencia: pt.existencia,
       permiteDecimal: pt.producto.permiteDecimal,
       categoria: pt.producto.categoria ? {
