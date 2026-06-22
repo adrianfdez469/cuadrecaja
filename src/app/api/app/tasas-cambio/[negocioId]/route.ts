@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromRequest } from "@/utils/authFromRequest";
 import { assertNegocioAccess } from "@/lib/appNegocioAccess";
-import { buildTasaSnapshotWithMeta } from "@/lib/currency";
+import {
+  buildTasaSnapshot,
+  buildTasaSnapshotWithMeta,
+} from "@/lib/currency";
 
 /**
  * GET /api/app/tasas-cambio/[negocioId]
@@ -43,10 +46,13 @@ export async function GET(
       tasas,
       monedaBase,
     );
+    // Tasas completas ancladas en CUP (incluye moneda base) para conversiones en POS.
+    const tasasCup = buildTasaSnapshot(tasas);
 
     return NextResponse.json({
       monedaBase,
       vigentes,
+      tasasCup,
       ...(actualizadoEn && { actualizadoEn }),
     });
   } catch (error) {
