@@ -87,6 +87,11 @@ import {
   scrollPosTourTargetIntoView,
 } from "@/features/onboarding/utils/onboardingNavigation";
 import { getTourById } from "@/features/onboarding/tours/primerosPasos";
+import { usePrintOnSale } from "@/features/printing/hooks/usePrintOnSale";
+import { usePrintContext, usePrinter } from "@/features/printing/hooks/usePrinter";
+import { PrintQueueIndicator } from "@/features/printing/components/PrintQueueIndicator";
+import { PrinterSetupSheet } from "@/features/printing/components/PrinterSetupSheet";
+import { Sale } from "@/store/salesStore";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
@@ -224,6 +229,17 @@ export default function POSInterface() {
   const puedeAsociarCodigo = verificarPermiso(
     "operaciones.pos-venta.asociar_codigo",
   );
+  const puedeImprimir = verificarPermiso("operaciones.pos-venta.imprimir");
+  const { triggerPrint } = usePrintOnSale();
+  const printContext = usePrintContext();
+  const { prefetchTemplate } = usePrinter(user?.localActual?.id);
+  const [printerSetupOpen, setPrinterSetupOpen] = useState(false);
+
+  useEffect(() => {
+    if (user?.localActual?.id && puedeImprimir) {
+      void prefetchTemplate();
+    }
+  }, [user?.localActual?.id, puedeImprimir, prefetchTemplate]);
 
   const posOnboardingBlocksInteraction = useOnboardingStore((s) => {
     if (!s.run || s.activeTourId !== TOUR_POS_VENTA) return false;
@@ -717,13 +733,7 @@ export default function POSInterface() {
 
         const cash = total - totalTransfer;
 
-        // 1. INMEDIATAMENTE: Eliminar carrito activo (y su píldora), cerrar modal y drawer
-        removeActiveCart();
-        setPaymentDialog(false);
-        setOpenCart(false);
-
-        // 2. Agregar la venta al store local
-        addSale({
+        const newSale: Sale = {
           identifier: identifier,
           cierreId: cierreId,
           tiendaId: tiendaId,
@@ -733,23 +743,37 @@ export default function POSInterface() {
           productos: data,
           usuarioId: user.id,
           syncState: "not_synced",
-          // 🆕 NUEVOS CAMPOS
-          createdAt: Date.now(), // Timestamp exacto de creación
-          wasOffline: !isOnline, // Si se creó sin conexión
-          syncAttempts: 0, // Inicializar contador
+          synced: false,
+          createdAt: Date.now(),
+          wasOffline: !isOnline,
+          syncAttempts: 0,
           ...(totalTransfer > 0 && { transferDestinationId }),
-          // Guardar los códigos para sincronización (tipado correcto)
           ...(discountCodes && discountCodes.length > 0
             ? { discountCodes }
             : {}),
-          // Multimoneda — persistir para reenviar en sync offline
           ...(multimoneda && {
             monedaCobro: multimoneda.monedaCobro,
             pagosDetalle: multimoneda.pagosDetalle,
             vueltoDetalle: multimoneda.vueltoDetalle,
             tasaSnapshot: multimoneda.tasaSnapshot,
           }),
-        });
+        };
+
+        // 1. INMEDIATAMENTE: Eliminar carrito activo (y su píldora), cerrar modal y drawer
+        removeActiveCart();
+        setPaymentDialog(false);
+        setOpenCart(false);
+
+        // 2. Agregar la venta al store local
+        addSale(newSale);
+
+        if (puedeImprimir && printContext) {
+          triggerPrint({
+            sale: newSale,
+            tiendaId,
+            context: printContext,
+          });
+        }
 
         // 3. Actualizar inventario local (incluyendo desagregaciones)
         // Primero, identificar qué productos necesitan desagregación
@@ -1275,6 +1299,12 @@ export default function POSInterface() {
               handleShowSyncView={handleShowSyncView}
               handleShowUserSales={handleShowUserSales}
             />
+            {puedeImprimir && user?.localActual?.id && (
+              <PrintQueueIndicator
+                tiendaId={user.localActual.id}
+                onOpenSetup={() => setPrinterSetupOpen(true)}
+              />
+            )}
             <ConnectionStatus isOnline={isOnline} />
           </Box>
         </Box>
@@ -1529,6 +1559,14 @@ export default function POSInterface() {
           incrementarCantidades={incrementarCantidades}
           productosTienda={productosTienda}
         />
+
+        {puedeImprimir && user?.localActual?.id && (
+          <PrinterSetupSheet
+            open={printerSetupOpen}
+            onClose={() => setPrinterSetupOpen(false)}
+            tiendaId={user.localActual.id}
+          />
+        )}
 
         <ShoppingCartComponent
           openCart={openCart}

@@ -7,6 +7,7 @@ import {
   Wifi,
   WifiOff,
   SyncDisabled,
+  Print,
 } from "@mui/icons-material";
 import {
   Box,
@@ -42,6 +43,7 @@ import { usePermisos } from "@/utils/permisos_front";
 import { formatDateTime } from "@/utils/formatters";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { convertToBase } from "@/lib/currency";
+import { usePrinter } from "@/features/printing/hooks/usePrinter";
 
 interface IProps {
   showSales: boolean;
@@ -78,6 +80,8 @@ export const SalesDrawer: FC<IProps> = ({
   const [offline, setOffline] = useState(false);
   const { user, tasasVigentes, monedaBase } = useAppContext();
   const { verificarPermiso } = usePermisos();
+  const { reprintSale } = usePrinter(user?.localActual?.id);
+  const puedeImprimir = verificarPermiso("operaciones.pos-venta.imprimir");
 
   const handleSelectViewSale = (sale) => {
     setSelectedSale(sale);
@@ -354,6 +358,19 @@ export const SalesDrawer: FC<IProps> = ({
     }
   };
 
+  const handleReprint = async (sale: Sale) => {
+    if (!puedeImprimir) return;
+    try {
+      await reprintSale(sale);
+      showMessage("Ticket enviado a impresión", "success");
+    } catch (error) {
+      showMessage(
+        error instanceof Error ? error.message : "Error al reimprimir",
+        "error",
+      );
+    }
+  };
+
   const formatSaleInfo = (sale: Sale) => {
     const createdDate = formatDateTime(sale.createdAt);
     // 🆕 Mostrar intentos solo si la venta no está sincronizada o si tiene intentos
@@ -559,6 +576,17 @@ export const SalesDrawer: FC<IProps> = ({
                                 >
                                   <VisibilityIcon />
                                 </IconButton>
+
+                                {puedeImprimir && (
+                                  <IconButton
+                                    aria-label="reprint"
+                                    color="default"
+                                    onClick={() => handleReprint(s)}
+                                    disabled={disableAll}
+                                  >
+                                    <Print />
+                                  </IconButton>
+                                )}
 
                                 {s.syncState === "syncing" ? (
                                   <CircularProgress size="24px" />
