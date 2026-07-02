@@ -13,6 +13,8 @@ import {
 import { TICKET_FOOTER_URL } from "@/constants/ticket";
 import { ITicketPayload } from "../types/ITicketData";
 import { ticketPayloadToTextLines } from "../lib/escpos/encoder";
+import { printHtmlSilently } from "../lib/printHtmlSilently";
+import { buildTicketPrintHtml } from "../lib/ticketPrintHtml";
 
 interface TicketPreviewDialogProps {
   open: boolean;
@@ -29,17 +31,7 @@ export const TicketPreviewDialog: React.FC<TicketPreviewDialogProps> = ({
 
   const handlePrint = () => {
     if (!payload) return;
-    const html = `
-      <!DOCTYPE html><html><head><title>Ticket</title>
-      <style>body{font-family:monospace;font-size:12px;margin:8px;width:58mm}
-      pre{margin:0;white-space:pre-wrap}</style></head>
-      <body><pre>${lines.map((l) => l.replace(/</g, "&lt;")).join("\n")}</pre>
-      <script>window.onload=()=>window.print()</script></body></html>`;
-    const win = window.open("", "_blank", "width=320,height=600");
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-    }
+    void printHtmlSilently(buildTicketPrintHtml(lines));
   };
 
   return (

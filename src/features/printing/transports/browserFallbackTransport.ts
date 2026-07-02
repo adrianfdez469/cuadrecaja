@@ -1,5 +1,7 @@
 import { IPrintTransport } from "./IPrintTransport";
 import { ticketPayloadToTextLines } from "../lib/escpos/encoder";
+import { printHtmlSilently } from "../lib/printHtmlSilently";
+import { buildTicketPrintHtml } from "../lib/ticketPrintHtml";
 import { ITicketPayload } from "../types/ITicketData";
 
 let lastPreviewPayload: ITicketPayload | null = null;
@@ -36,22 +38,7 @@ export class BrowserFallbackTransport implements IPrintTransport {
 
     lastPreviewPayload = this.payload;
     const lines = ticketPayloadToTextLines(this.payload);
-    const html = `
-      <!DOCTYPE html>
-      <html><head><title>Ticket</title>
-      <style>
-        body { font-family: monospace; font-size: 12px; margin: 8px; width: 58mm; }
-        pre { margin: 0; white-space: pre-wrap; }
-      </style></head>
-      <body><pre>${lines.map((l) => l.replace(/</g, "&lt;")).join("\n")}</pre>
-      <script>window.onload = () => { window.print(); }</script>
-      </body></html>`;
-
-    const win = window.open("", "_blank", "width=320,height=600");
-    if (!win) {
-      throw new Error("No se pudo abrir ventana de impresión. Permita ventanas emergentes.");
-    }
-    win.document.write(html);
-    win.document.close();
+    const html = buildTicketPrintHtml(lines);
+    await printHtmlSilently(html);
   }
 }
