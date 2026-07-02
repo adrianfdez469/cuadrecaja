@@ -33,7 +33,7 @@ export const usePrintDeviceStore = create<PrintDeviceState>()(
         if (transportType === "bluetooth") {
           connection = { deviceId: "", deviceName: "" };
         } else if (transportType === "usb_serial") {
-          connection = { configured: false };
+          connection = { configured: false, baudRate: undefined };
         } else if (transportType === "network") {
           connection = { host: "", port: 9100 };
         } else {

@@ -9,6 +9,15 @@ import { usePrintTemplateCache } from "../store/printTemplateCache";
 import { IPrintSaleContext } from "../types/ITicketData";
 import { createTransport } from "../transports/createTransport";
 import { BrowserFallbackTransport } from "../transports/browserFallbackTransport";
+import { mapSerialError } from "../lib/serialPortManager";
+
+function wrapPrintError(error: unknown, transportType: string): Error {
+  if (transportType === "usb_serial") {
+    return new Error(mapSerialError(error));
+  }
+  if (error instanceof Error) return error;
+  return new Error("Error al imprimir ticket");
+}
 
 async function resolvePlantilla(tiendaId: string) {
   const cache = usePrintTemplateCache.getState();
@@ -35,9 +44,13 @@ async function printPayload(
   const bytes = encodeTicketToEscPos(payload);
   const copies = Math.max(1, config.copias);
 
-  await transport.connect();
-  for (let i = 0; i < copies; i++) {
-    await transport.print(bytes);
+  try {
+    await transport.connect();
+    for (let i = 0; i < copies; i++) {
+      await transport.print(bytes);
+    }
+  } catch (error) {
+    throw wrapPrintError(error, config.transportType);
   }
 }
 
@@ -67,8 +80,10 @@ export const printService = {
       );
       if (pending) queue.markDone(pending.id);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Error al imprimir ticket";
+      const message = wrapPrintError(
+        error,
+        deviceStore.getConfigForTienda(tiendaId).transportType,
+      ).message;
       const jobId = queue.enqueue({
         saleIdentifier: sale.identifier,
         tiendaId,
@@ -142,8 +157,11 @@ export const printService = {
         queue.markDone(job.id);
         printed++;
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Error al reimprimir";
+        const message = wrapPrintError(
+          error,
+          usePrintDeviceStore.getState().getConfigForTienda(tiendaId)
+            .transportType,
+        ).message;
         if (job.attempts >= PRINT_QUEUE_MAX_ATTEMPTS) {
           queue.markFailed(job.id, message);
         } else {

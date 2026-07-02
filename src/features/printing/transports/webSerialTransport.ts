@@ -1,50 +1,47 @@
+import { DEFAULT_SERIAL_BAUD_RATE } from "@/constants/ticket";
+import { IPrintDeviceConfig } from "../types/IPrinterConfig";
 import { IPrintTransport } from "./IPrintTransport";
+import {
+  ISerialPortHint,
+  serialPortManager,
+} from "../lib/serialPortManager";
 
-const DEFAULT_BAUD = 9600;
+function getSerialOptions(config: IPrintDeviceConfig): {
+  baudRate: number;
+  portHint?: ISerialPortHint;
+} {
+  const conn = config.connection;
+  if (!("configured" in conn)) {
+    return { baudRate: DEFAULT_SERIAL_BAUD_RATE };
+  }
+
+  return {
+    baudRate: conn.baudRate ?? DEFAULT_SERIAL_BAUD_RATE,
+    portHint: conn.portHint,
+  };
+}
 
 export class WebSerialTransport implements IPrintTransport {
   type = "usb_serial" as const;
-  private port: SerialPort | null = null;
+
+  constructor(private readonly config: IPrintDeviceConfig) {}
 
   isConnected(): boolean {
-    return !!this.port?.readable && !!this.port?.writable;
+    return serialPortManager.isOpen();
   }
 
   async connect(): Promise<void> {
-    if (!navigator.serial) {
-      throw new Error("Web Serial no disponible en este navegador");
-    }
-
-    if (this.isConnected()) return;
-
-    const port = await navigator.serial.requestPort();
-    await port.open({ baudRate: DEFAULT_BAUD });
-    this.port = port;
+    const { baudRate, portHint } = getSerialOptions(this.config);
+    await serialPortManager.ensureOpen({ baudRate, portHint });
   }
 
   async disconnect(): Promise<void> {
-    if (this.port) {
-      await this.port.close();
-      this.port = null;
-    }
+    await serialPortManager.release();
   }
 
   async print(data: Uint8Array): Promise<void> {
-    if (!this.port?.writable) {
-      await this.connect();
-    }
-    if (!this.port?.writable) {
-      throw new Error("Puerto serial no conectado");
-    }
-
-    const writer = this.port.writable.getWriter();
-    try {
-      const chunkSize = 512;
-      for (let i = 0; i < data.length; i += chunkSize) {
-        await writer.write(data.slice(i, i + chunkSize));
-      }
-    } finally {
-      writer.releaseLock();
-    }
+    const { baudRate, portHint } = getSerialOptions(this.config);
+    await serialPortManager.ensureOpen({ baudRate, portHint });
+    await serialPortManager.write(data);
   }
 }

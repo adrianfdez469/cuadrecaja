@@ -36,10 +36,24 @@ interface Bluetooth {
   requestDevice(options?: RequestDeviceOptions): Promise<BluetoothDevice>;
 }
 
+interface SerialPortInfo {
+  usbVendorId?: number;
+  usbProductId?: number;
+}
+
+interface SerialPortOpenOptions {
+  baudRate: number;
+  dataBits?: 7 | 8;
+  stopBits?: 1 | 2;
+  parity?: "none" | "even" | "odd";
+  flowControl?: "none" | "hardware";
+}
+
 interface SerialPort {
   readable: ReadableStream<Uint8Array> | null;
   writable: WritableStream<Uint8Array> | null;
-  open(options: { baudRate: number }): Promise<void>;
+  getInfo(): SerialPortInfo;
+  open(options: SerialPortOpenOptions): Promise<void>;
   close(): Promise<void>;
 }
 

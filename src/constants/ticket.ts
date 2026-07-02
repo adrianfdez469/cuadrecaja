@@ -25,6 +25,11 @@ export const TICKET_STOP_WORDS = new Set([
 export const PRINT_QUEUE_MAX_ATTEMPTS = 3;
 
 /** Claves de persistencia local */
-export const PRINT_DEVICE_STORAGE_KEY = "print-device:v1";
+export const PRINT_DEVICE_STORAGE_KEY = "print-device:v2";
 export const PRINT_TEMPLATE_CACHE_KEY = "print-template-cache:v1";
 export const PRINT_QUEUE_STORAGE_KEY = "print-queue:v1";
+
+/** Velocidades serie a probar en el asistente de detección (baud) */
+export const SERIAL_BAUD_RATES = [9600, 19200, 38400, 115200] as const;
+
+export const DEFAULT_SERIAL_BAUD_RATE = 9600;

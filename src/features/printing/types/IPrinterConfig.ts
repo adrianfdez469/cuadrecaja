@@ -6,9 +6,15 @@ export interface IBluetoothConnection {
 }
 
 export interface IUsbSerialConnection {
-  /** Indicador de que el puerto fue configurado (no se puede persistir el handle) */
   configured: boolean;
-  label?: string;
+  baudRate?: number;
+  portHint?: {
+    usbVendorId?: number;
+    usbProductId?: number;
+    grantedIndex?: number;
+    lastPortCount?: number;
+  };
+  lastPortCount?: number;
 }
 
 export interface INetworkConnection {

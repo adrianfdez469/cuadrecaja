@@ -20,7 +20,7 @@ export function createTransport(
         config.connection as Extract<IPrinterConnection, { deviceId: string }>,
       );
     case "usb_serial":
-      return new WebSerialTransport();
+      return new WebSerialTransport(config);
     case "network":
       return new NetworkTransport(
         config.connection as Extract<IPrinterConnection, { host: string }>,
