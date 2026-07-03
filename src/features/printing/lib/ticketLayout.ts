@@ -54,7 +54,9 @@ export function formatTasaLine(moneda: string, tasas: ITasaSnapshot): string {
 
 const PRICE_GAP = 2;
 const CONTINUATION_INDENT = 3;
-const UNIT_PRICE_INDENT = "  ";
+/** Espacios entre el precio unitario y el borde derecho (no alinear con el subtotal). */
+const UNIT_PRICE_RIGHT_GAP = 4;
+const ELLIPSIS = "...";
 
 export function getPriceColumnWidth(amounts: number[]): number {
   let maxLen = 4;
@@ -64,6 +66,12 @@ export function getPriceColumnWidth(amounts: number[]): number {
   return maxLen + PRICE_GAP;
 }
 
+/**
+ * Cada producto ocupa exactamente 2 líneas:
+ * 1) cantidad + nombre + subtotal (alineado al borde derecho)
+ * 2) continuación del nombre (si cabe) + precio unitario, con UNIT_PRICE_RIGHT_GAP
+ *    espacios desde el último dígito del precio hasta el borde derecho
+ */
 export function wrapProductBlock(
   qty: number,
   nombre: string,
@@ -72,30 +80,46 @@ export function wrapProductBlock(
   width: number,
   priceColWidth: number,
 ): string[] {
-  const lines: string[] = [];
   const qtyPrefix = `${qty} `;
-  const nameAreaFirst = width - priceColWidth - qtyPrefix.length;
-  const nameAreaCont = width - priceColWidth - CONTINUATION_INDENT;
+  const nameAreaFirst = Math.max(1, width - priceColWidth - qtyPrefix.length);
+  const subtotalStr = formatTicketAmount(subtotal);
+  const unitPriceStr = formatTicketAmount(precioUnit);
+  // Precio unitario + margen derecho (no alinear con el subtotal de la línea 1)
+  const unitPriceWithGap =
+    unitPriceStr + " ".repeat(UNIT_PRICE_RIGHT_GAP);
 
   let remaining = nombre.trim();
-  const subtotalStr = formatTicketAmount(subtotal);
-
+  let line1Name: string;
   if (remaining.length <= nameAreaFirst) {
-    lines.push(padLine(qtyPrefix + remaining, subtotalStr, width));
+    line1Name = remaining;
+    remaining = "";
   } else {
-    const firstPart = remaining.slice(0, nameAreaFirst);
-    lines.push(padLine(qtyPrefix + firstPart, subtotalStr, width));
+    line1Name = remaining.slice(0, nameAreaFirst);
     remaining = remaining.slice(nameAreaFirst);
+  }
 
-    while (remaining.length > 0) {
-      const chunk = remaining.slice(0, nameAreaCont);
-      lines.push(`${" ".repeat(CONTINUATION_INDENT)}${chunk}`);
-      remaining = remaining.slice(nameAreaCont);
+  const line1 = padLine(qtyPrefix + line1Name, subtotalStr, width);
+
+  const maxLeftLen = Math.max(0, width - unitPriceWithGap.length - 1);
+  const maxNameOnLine2 = Math.max(0, maxLeftLen - CONTINUATION_INDENT);
+
+  let line2Left = "";
+  if (remaining.length > 0 && maxNameOnLine2 > 0) {
+    const indent = " ".repeat(CONTINUATION_INDENT);
+    if (remaining.length <= maxNameOnLine2) {
+      line2Left = indent + remaining;
+    } else if (maxNameOnLine2 <= ELLIPSIS.length) {
+      line2Left = indent + ELLIPSIS.slice(0, maxNameOnLine2);
+    } else {
+      line2Left =
+        indent +
+        remaining.slice(0, maxNameOnLine2 - ELLIPSIS.length) +
+        ELLIPSIS;
     }
   }
 
-  lines.push(`${UNIT_PRICE_INDENT}${formatTicketAmount(precioUnit)}`);
-  return lines;
+  const line2 = padLine(line2Left, unitPriceWithGap, width);
+  return [line1, line2];
 }
 
 export function formatRenderedLine(
