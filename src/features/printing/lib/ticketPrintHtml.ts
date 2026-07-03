@@ -1,3 +1,4 @@
+import { TICKET_FEED_LINE_HEIGHT_MM } from "@/constants/ticket";
 import { ITicketRenderedLine } from "../types/ITicketData";
 import {
   formatRenderedLine,
@@ -17,6 +18,11 @@ function renderTextLineHtml(
   return `<div class="${className}">${text}</div>`;
 }
 
+/** Punto visible + altura fija: el driver Windows no avanza papel en zonas vacías. */
+function renderFeedLineHtml(): string {
+  return `<div class="feed-line">.</div>`;
+}
+
 /** HTML para imprimir ticket con texto y QR en el orden correcto */
 export function buildTicketPrintHtmlFromRendered(
   rendered: ITicketRenderedLine[],
@@ -29,6 +35,9 @@ export function buildTicketPrintHtmlFromRendered(
       if (line.kind === "qr") {
         if (!qrDataUrl) return "";
         return `<div class="qr-wrap"><img src="${qrDataUrl}" alt="QR Cuadre de Caja" /></div>`;
+      }
+      if (line.kind === "feed") {
+        return renderFeedLineHtml();
       }
       return renderTextLineHtml(line, width);
     })
@@ -68,6 +77,15 @@ export function buildTicketPrintHtmlFromRendered(
   }
   .line.bold {
     font-weight: 700;
+  }
+  .feed-line {
+    display: block;
+    height: ${TICKET_FEED_LINE_HEIGHT_MM}mm;
+    min-height: ${TICKET_FEED_LINE_HEIGHT_MM}mm;
+    line-height: ${TICKET_FEED_LINE_HEIGHT_MM}mm;
+    text-align: center;
+    font-size: 10px;
+    overflow: hidden;
   }
   .qr-wrap {
     text-align: center;

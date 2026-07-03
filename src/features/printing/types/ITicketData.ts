@@ -53,4 +53,12 @@ export interface ITicketQrLine {
   align: "center";
 }
 
-export type ITicketRenderedLine = ITicketTextLine | ITicketQrLine;
+/** Avance de papel: fuerza altura en impresión navegador (el driver ignora filas vacías). */
+export interface ITicketFeedLine {
+  kind: "feed";
+}
+
+export type ITicketRenderedLine =
+  | ITicketTextLine
+  | ITicketQrLine
+  | ITicketFeedLine;

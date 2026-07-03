@@ -27,9 +27,9 @@ function blankLine(): ITicketRenderedLine {
   return { kind: "text", text: "", align: "left" };
 }
 
-/** Renglón de avance de papel (altura de línea normal, no spacer compacto). */
+/** Avance de papel con marca visible (el spooler Windows recorta el vacío). */
 function feedLine(): ITicketRenderedLine {
-  return { kind: "text", text: "\u00A0", align: "left" };
+  return { kind: "feed" };
 }
 
 function center(text: string): ITicketRenderedLine {

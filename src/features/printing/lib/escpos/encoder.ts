@@ -53,6 +53,15 @@ export function encodeTicketToEscPos(payload: ITicketPayload): Uint8Array {
       continue;
     }
 
+    if (row.kind === "feed") {
+      if (currentAlign !== "center") {
+        currentAlign = "center";
+        parts.push(cmd(ESC, 0x61, 0x01));
+      }
+      parts.push(line("."));
+      continue;
+    }
+
     if (row.align !== currentAlign) {
       currentAlign = row.align;
       parts.push(cmd(ESC, 0x61, currentAlign === "center" ? 0x01 : 0x00));

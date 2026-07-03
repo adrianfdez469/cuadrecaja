@@ -71,6 +71,25 @@ export const TicketPreviewContent: React.FC<TicketPreviewContentProps> = ({
           );
         }
 
+        if (line.kind === "feed") {
+          return (
+            <Typography
+              key={i}
+              component="div"
+              variant="body2"
+              sx={{
+                fontFamily: "inherit",
+                fontSize: "inherit",
+                minHeight: "1.2em",
+                textAlign: "center",
+                color: "text.disabled",
+              }}
+            >
+              .
+            </Typography>
+          );
+        }
+
         const { text: rawText, bold } = stripBoldMarkers(line.text);
         const text = formatRenderedLine(rawText, line.align, width);
         return (
