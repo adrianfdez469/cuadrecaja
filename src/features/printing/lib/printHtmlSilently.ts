@@ -1,5 +1,8 @@
+import { TICKET_PRINT_ROOT_ID } from "./ticketPrintHtml";
+
 const CLEANUP_FALLBACK_MS = 3000;
 const PX_PER_MM = 96 / 25.4;
+const HEIGHT_BUFFER_MM = 1;
 
 export interface IPrintHtmlSilentlyOptions {
   paperWidthMm?: 58 | 80;
@@ -24,11 +27,21 @@ function waitForImages(doc: Document): Promise<void> {
   ).then(() => undefined);
 }
 
-function applyMeasuredPageSize(doc: Document, paperWidthMm: number): void {
-  const heightMm = Math.max(
-    40,
-    Math.ceil(doc.body.scrollHeight / PX_PER_MM) + 2,
+function measureTicketHeightMm(doc: Document): number {
+  const root =
+    doc.getElementById(TICKET_PRINT_ROOT_ID) ?? doc.body;
+
+  const heightPx = Math.ceil(
+    Math.max(root.scrollHeight, root.offsetHeight, root.clientHeight),
   );
+
+  return Math.max(25, Math.ceil(heightPx / PX_PER_MM) + HEIGHT_BUFFER_MM);
+}
+
+function applyMeasuredPageSize(doc: Document, paperWidthMm: number): number {
+  const heightMm = measureTicketHeightMm(doc);
+  const widthIn = (paperWidthMm / 25.4).toFixed(4);
+  const heightIn = (heightMm / 25.4).toFixed(4);
 
   doc.querySelector("style[data-ticket-print]")?.remove();
 
@@ -36,22 +49,50 @@ function applyMeasuredPageSize(doc: Document, paperWidthMm: number): void {
   style.setAttribute("data-ticket-print", "1");
   style.textContent = `
     @page {
-      size: ${paperWidthMm}mm ${heightMm}mm;
+      size: ${widthIn}in ${heightIn}in;
       margin: 0;
     }
     @media print {
-      html, body {
-        margin: 0 !important;
-        padding: 2mm !important;
+      html {
         width: ${paperWidthMm}mm !important;
-        max-width: ${paperWidthMm}mm !important;
-        height: auto !important;
-        min-height: 0 !important;
+        height: ${heightMm}mm !important;
+        max-height: ${heightMm}mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+      }
+      body {
+        width: ${paperWidthMm}mm !important;
+        height: ${heightMm}mm !important;
+        max-height: ${heightMm}mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+      }
+      #${TICKET_PRINT_ROOT_ID} {
+        width: ${paperWidthMm}mm !important;
+        max-height: ${heightMm}mm !important;
         overflow: hidden !important;
       }
     }
   `;
   doc.head.appendChild(style);
+
+  return heightMm;
+}
+
+function iframeLayoutStyle(paperWidthMm: number): string {
+  const widthPx = Math.round(paperWidthMm * PX_PER_MM);
+  return [
+    "position:fixed",
+    "left:-10000px",
+    "top:0",
+    `width:${widthPx}px`,
+    "height:auto",
+    "border:0",
+    "visibility:hidden",
+    "overflow:hidden",
+  ].join(";");
 }
 
 /**
@@ -72,8 +113,7 @@ export function printHtmlSilently(
 
     const iframe = document.createElement("iframe");
     iframe.setAttribute("aria-hidden", "true");
-    iframe.style.cssText =
-      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+    iframe.style.cssText = iframeLayoutStyle(paperWidthMm);
 
     let cleaned = false;
     const cleanup = () => {

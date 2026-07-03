@@ -385,7 +385,8 @@ export const PrinterSetupSheet: React.FC<PrinterSetupSheetProps> = ({
                 </strong>{" "}
                 y la URL de la app. En «Propiedades de impresora» configure el
                 papel en rollo <strong>58 mm</strong> o <strong>80 mm</strong>{" "}
-                (no A4) para evitar espacio en blanco al final del ticket.
+                (no A4) y longitud <strong>automática / según contenido</strong>{" "}
+                en preferencias de impresora para evitar papel en blanco al final.
               </Alert>
               <Typography variant="caption" color="text.secondary">
                 Ejemplo: chrome.exe --kiosk-printing --disable-print-preview

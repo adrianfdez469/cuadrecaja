@@ -4,30 +4,17 @@ import {
   stripBoldMarkers,
 } from "./ticketLayout";
 
-const LINE_HEIGHT_MM = 3.3;
-const QR_BLOCK_MM = 28;
-const PAGE_PADDING_MM = 6;
-
-export function estimateTicketPageHeightMm(
-  rendered: ITicketRenderedLine[],
-  hasQrImage: boolean,
-): number {
-  let mm = PAGE_PADDING_MM;
-  for (const line of rendered) {
-    if (line.kind === "qr") {
-      if (hasQrImage) mm += QR_BLOCK_MM;
-      continue;
-    }
-    mm += LINE_HEIGHT_MM;
-  }
-  return Math.max(45, Math.ceil(mm));
-}
-
-function renderTextLineHtml(line: ITicketRenderedLine & { kind: "text" }, width: number): string {
+function renderTextLineHtml(
+  line: ITicketRenderedLine & { kind: "text" },
+  width: number,
+): string {
   const { text: rawText, bold } = stripBoldMarkers(line.text);
+  if (!rawText.trim()) {
+    return `<div class="line spacer"></div>`;
+  }
   const text = formatRenderedLine(rawText, line.align, width).replace(/</g, "&lt;");
   const className = bold ? "line bold" : "line";
-  return `<div class="${className}">${text || "&nbsp;"}</div>`;
+  return `<div class="${className}">${text}</div>`;
 }
 
 /** HTML para imprimir ticket con texto y QR en el orden correcto */
@@ -37,8 +24,6 @@ export function buildTicketPrintHtmlFromRendered(
   anchoPapel: 58 | 80 = 58,
   qrDataUrl?: string,
 ): string {
-  const pageHeightMm = estimateTicketPageHeightMm(rendered, !!qrDataUrl);
-
   const body = rendered
     .map((line) => {
       if (line.kind === "qr") {
@@ -54,11 +39,7 @@ export function buildTicketPrintHtmlFromRendered(
 <meta charset="utf-8" />
 <title>Ticket</title>
 <style>
-  @page {
-    size: ${anchoPapel}mm ${pageHeightMm}mm;
-    margin: 0;
-  }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     margin: 0;
     padding: 0;
@@ -67,24 +48,30 @@ export function buildTicketPrintHtmlFromRendered(
     height: auto;
     min-height: 0;
   }
-  body {
+  #ticket-root {
+    width: ${anchoPapel}mm;
+    max-width: ${anchoPapel}mm;
+    padding: 1mm 1.5mm 1mm;
     font-family: "Courier New", Courier, monospace;
     font-size: 11px;
-    line-height: 1.2;
-    padding: 2mm;
+    line-height: 1.15;
   }
   .line {
     white-space: pre;
     overflow: hidden;
-    margin: 0;
-    padding: 0;
+    line-height: 1.15;
+  }
+  .line.spacer {
+    height: 3px;
+    line-height: 3px;
+    font-size: 3px;
   }
   .line.bold {
     font-weight: 700;
   }
   .qr-wrap {
     text-align: center;
-    margin: 2px 0;
+    margin: 1px 0;
     line-height: 0;
   }
   .qr-wrap img {
@@ -92,21 +79,10 @@ export function buildTicketPrintHtmlFromRendered(
     height: 22mm;
     image-rendering: pixelated;
   }
-  @media print {
-    html, body {
-      margin: 0 !important;
-      padding: 2mm !important;
-      width: ${anchoPapel}mm !important;
-      max-width: ${anchoPapel}mm !important;
-      height: auto !important;
-      min-height: 0 !important;
-      overflow: hidden !important;
-    }
-    .line {
-      page-break-inside: avoid;
-    }
-  }
 </style>
 </head>
-<body>${body}</body></html>`;
+<body><div id="ticket-root">${body}</div></body></html>`;
 }
+
+/** ID del contenedor medido antes de imprimir (debe coincidir con el HTML generado). */
+export const TICKET_PRINT_ROOT_ID = "ticket-root";
