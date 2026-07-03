@@ -13,6 +13,17 @@ export const TICKET_CHARS_PER_LINE: Record<58 | 80, number> = {
   80: 48,
 };
 
+/**
+ * Líneas en blanco fijas al inicio del ticket (margen superior / feed).
+ */
+export const TICKET_FEED_LEADING_LINES = 2;
+
+/**
+ * Líneas en blanco fijas al final del ticket para que el pie salga
+ * completo de la impresora (avance de papel / feed).
+ */
+export const TICKET_FEED_BLANK_LINES = 7;
+
 /** Stop words omitidas al compactar nombres de productos */
 export const TICKET_STOP_WORDS = new Set([
   "de",

@@ -1,4 +1,6 @@
 import {
+  TICKET_FEED_BLANK_LINES,
+  TICKET_FEED_LEADING_LINES,
   TICKET_FOOTER_URL,
   TICKET_MARKETING_QR_LABEL,
   TICKET_MARKETING_URL,
@@ -23,6 +25,11 @@ const DEFAULT_PIE = "GRACIAS POR SU COMPRA";
 
 function blankLine(): ITicketRenderedLine {
   return { kind: "text", text: "", align: "left" };
+}
+
+/** Renglón de avance de papel (altura de línea normal, no spacer compacto). */
+function feedLine(): ITicketRenderedLine {
+  return { kind: "text", text: "\u00A0", align: "left" };
 }
 
 function center(text: string): ITicketRenderedLine {
@@ -97,6 +104,10 @@ export function buildTicketLines(payload: ITicketPayload): ITicketRenderedLine[]
   const width = getCharsPerLine(ancho);
   const tasas = payload.tasaSnapshot ?? {};
   const lines: ITicketRenderedLine[] = [];
+
+  for (let i = 0; i < TICKET_FEED_LEADING_LINES; i++) {
+    lines.push(feedLine());
+  }
 
   lines.push(left(fullSeparator(width, "=")));
 
@@ -204,6 +215,10 @@ export function buildTicketLines(payload: ITicketPayload): ITicketRenderedLine[]
   lines.push(center(TICKET_FOOTER_URL));
   lines.push(blankLine());
   lines.push(left(fullSeparator(width, "=")));
+
+  for (let i = 0; i < TICKET_FEED_BLANK_LINES; i++) {
+    lines.push(feedLine());
+  }
 
   return lines;
 }
