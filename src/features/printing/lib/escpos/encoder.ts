@@ -4,7 +4,7 @@ import {
   ticketLinesToStrings,
 } from "../buildTicketLines";
 import { encodeQrEscPos } from "./qrEncoder";
-import { getCharsPerLine } from "../ticketLayout";
+import { getCharsPerLine, stripBoldMarkers } from "../ticketLayout";
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -58,10 +58,14 @@ export function encodeTicketToEscPos(payload: ITicketPayload): Uint8Array {
       parts.push(cmd(ESC, 0x61, currentAlign === "center" ? 0x01 : 0x00));
     }
 
+    const { text: plainText } = stripBoldMarkers(row.text);
     const text =
       row.align === "center"
-        ? row.text.slice(0, width)
-        : ticketLinesToStrings([row], width)[0] ?? row.text;
+        ? plainText.slice(0, width)
+        : ticketLinesToStrings(
+            [{ ...row, text: plainText }],
+            width,
+          )[0] ?? plainText;
 
     parts.push(line(text));
   }

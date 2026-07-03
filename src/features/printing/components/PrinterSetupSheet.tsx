@@ -278,8 +278,8 @@ export const PrinterSetupSheet: React.FC<PrinterSetupSheetProps> = ({
                 <Wifi fontSize="small" sx={{ mr: 1 }} /> Red / Wi‑Fi
               </MenuItem>
               <MenuItem value="browser">
-                <Language fontSize="small" sx={{ mr: 1 }} /> Navegador (vista
-                previa)
+                <Language fontSize="small" sx={{ mr: 1 }} /> Impresora Windows
+                (navegador)
               </MenuItem>
             </Select>
           </FormControl>
@@ -372,6 +372,25 @@ export const PrinterSetupSheet: React.FC<PrinterSetupSheetProps> = ({
               <Button variant="outlined" onClick={handleSaveNetwork}>
                 Guardar IP
               </Button>
+            </Stack>
+          )}
+
+          {config.transportType === "browser" && (
+            <Stack spacing={1} sx={{ mb: 2 }}>
+              <Alert severity="info">
+                Para imprimir sin diálogo en Windows, abra el POS con Chrome o
+                Edge usando{" "}
+                <strong>
+                  --kiosk-printing --disable-print-preview
+                </strong>{" "}
+                y la URL de la app. En «Propiedades de impresora» configure el
+                papel en rollo <strong>58 mm</strong> o <strong>80 mm</strong>{" "}
+                (no A4) para evitar espacio en blanco al final del ticket.
+              </Alert>
+              <Typography variant="caption" color="text.secondary">
+                Ejemplo: chrome.exe --kiosk-printing --disable-print-preview
+                --app=https://cuadrecaja.ventario.cloud
+              </Typography>
             </Stack>
           )}
 

@@ -49,6 +49,6 @@ export class BrowserFallbackTransport implements IPrintTransport {
       ancho,
       qrDataUrl,
     );
-    await printHtmlSilently(html);
+    await printHtmlSilently(html, { paperWidthMm: ancho });
   }
 }

@@ -106,3 +106,10 @@ export function formatRenderedLine(
   if (!text) return "";
   return align === "center" ? centerLine(text, width) : text;
 }
+
+/** Convierte marcadores `** texto **` usados en encabezados del ticket */
+export function stripBoldMarkers(text: string): { text: string; bold: boolean } {
+  const match = text.match(/^\*\*\s*(.+?)\s*\*\*$/);
+  if (match) return { text: match[1], bold: true };
+  return { text, bold: false };
+}

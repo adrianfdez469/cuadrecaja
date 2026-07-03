@@ -63,19 +63,24 @@ function buildPaymentLines(payload: ITicketPayload, width: number): ITicketRende
     }
   }
 
-  if (payload.vueltoDetalle?.length) {
-    for (const v of payload.vueltoDetalle) {
-      if (v.monto > 0) {
-        lines.push(
-          left(
-            padLine(
-              `Devuelto ${v.moneda}`,
-              formatTicketAmount(v.monto),
-              width,
-            ),
-          ),
-        );
-      }
+  const hasPayments =
+    (payload.pagosDetalle?.length ?? 0) > 0 ||
+    payload.totalCash > 0 ||
+    payload.totalTransfer > 0;
+
+  const vueltoItems =
+    payload.vueltoDetalle?.filter((v) => v.monto > 0) ?? [];
+
+  if (vueltoItems.length > 0) {
+    if (hasPayments) {
+      lines.push(left(fullSeparator(width, "-")));
+    }
+    for (const v of vueltoItems) {
+      lines.push(
+        left(
+          padLine(`Devuelto ${v.moneda}`, formatTicketAmount(v.monto), width),
+        ),
+      );
     }
   }
 

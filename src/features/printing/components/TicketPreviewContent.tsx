@@ -4,7 +4,11 @@ import React, { useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { ITicketPayload } from "../types/ITicketData";
 import { buildTicketLines } from "../lib/buildTicketLines";
-import { formatRenderedLine, getCharsPerLine } from "../lib/ticketLayout";
+import {
+  formatRenderedLine,
+  getCharsPerLine,
+  stripBoldMarkers,
+} from "../lib/ticketLayout";
 import { generateTicketMarketingQrDataUrl } from "../lib/generateTicketMarketingQr";
 
 interface TicketPreviewContentProps {
@@ -67,13 +71,19 @@ export const TicketPreviewContent: React.FC<TicketPreviewContentProps> = ({
           );
         }
 
-        const text = formatRenderedLine(line.text, line.align, width);
+        const { text: rawText, bold } = stripBoldMarkers(line.text);
+        const text = formatRenderedLine(rawText, line.align, width);
         return (
           <Typography
             key={i}
             component="div"
             variant="body2"
-            sx={{ fontFamily: "inherit", fontSize: "inherit", minHeight: "1.25em" }}
+            sx={{
+              fontFamily: "inherit",
+              fontSize: "inherit",
+              minHeight: "1.2em",
+              fontWeight: bold ? 700 : 400,
+            }}
           >
             {text || "\u00A0"}
           </Typography>

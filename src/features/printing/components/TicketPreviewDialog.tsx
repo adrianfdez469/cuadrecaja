@@ -54,6 +54,7 @@ export const TicketPreviewDialog: React.FC<TicketPreviewDialogProps> = ({
         ancho,
         qrDataUrl ?? undefined,
       ),
+      { paperWidthMm: ancho },
     );
   };
 
