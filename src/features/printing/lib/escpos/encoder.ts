@@ -4,7 +4,11 @@ import {
   ticketLinesToStrings,
 } from "../buildTicketLines";
 import { encodeQrEscPos } from "./qrEncoder";
-import { getCharsPerLine, stripBoldMarkers } from "../ticketLayout";
+import {
+  formatFeedLine,
+  getCharsPerLine,
+  stripBoldMarkers,
+} from "../ticketLayout";
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -54,11 +58,11 @@ export function encodeTicketToEscPos(payload: ITicketPayload): Uint8Array {
     }
 
     if (row.kind === "feed") {
-      if (currentAlign !== "center") {
-        currentAlign = "center";
-        parts.push(cmd(ESC, 0x61, 0x01));
+      if (currentAlign !== "left") {
+        currentAlign = "left";
+        parts.push(cmd(ESC, 0x61, 0x00));
       }
-      parts.push(line("."));
+      parts.push(line(formatFeedLine(width)));
       continue;
     }
 

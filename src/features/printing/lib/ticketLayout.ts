@@ -131,6 +131,11 @@ export function formatRenderedLine(
   return align === "center" ? centerLine(text, width) : text;
 }
 
+/** Puntos de avance de papel en ambos bordes (simétrico). */
+export function formatFeedLine(width: number): string {
+  return padLine(".", ".", width);
+}
+
 /** Convierte marcadores `** texto **` usados en encabezados del ticket */
 export function stripBoldMarkers(text: string): { text: string; bold: boolean } {
   const match = text.match(/^\*\*\s*(.+?)\s*\*\*$/);

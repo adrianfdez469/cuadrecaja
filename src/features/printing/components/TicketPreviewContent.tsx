@@ -5,6 +5,7 @@ import { Box, Typography } from "@mui/material";
 import { ITicketPayload } from "../types/ITicketData";
 import { buildTicketLines } from "../lib/buildTicketLines";
 import {
+  formatFeedLine,
   formatRenderedLine,
   getCharsPerLine,
   stripBoldMarkers,
@@ -81,11 +82,11 @@ export const TicketPreviewContent: React.FC<TicketPreviewContentProps> = ({
                 fontFamily: "inherit",
                 fontSize: "inherit",
                 minHeight: "1.2em",
-                textAlign: "center",
+                whiteSpace: "pre",
                 color: "text.disabled",
               }}
             >
-              .
+              {formatFeedLine(width)}
             </Typography>
           );
         }
