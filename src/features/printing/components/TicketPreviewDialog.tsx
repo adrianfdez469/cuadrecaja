@@ -1,20 +1,20 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
-  Box,
-  Typography,
 } from "@mui/material";
-import { TICKET_FOOTER_URL } from "@/constants/ticket";
 import { ITicketPayload } from "../types/ITicketData";
-import { ticketPayloadToTextLines } from "../lib/escpos/encoder";
+import { buildTicketLines } from "../lib/buildTicketLines";
 import { printHtmlSilently } from "../lib/printHtmlSilently";
-import { buildTicketPrintHtml } from "../lib/ticketPrintHtml";
+import { buildTicketPrintHtmlFromRendered } from "../lib/ticketPrintHtml";
+import { generateTicketMarketingQrDataUrl } from "../lib/generateTicketMarketingQr";
+import { getCharsPerLine } from "../lib/ticketLayout";
+import { TicketPreviewContent } from "./TicketPreviewContent";
 
 interface TicketPreviewDialogProps {
   open: boolean;
@@ -27,46 +27,43 @@ export const TicketPreviewDialog: React.FC<TicketPreviewDialogProps> = ({
   onClose,
   payload,
 }) => {
-  const lines = payload ? ticketPayloadToTextLines(payload) : [];
+  const ancho = payload
+    ? ((payload.plantilla.anchoPapel === 80 ? 80 : 58) as 58 | 80)
+    : 58;
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    void generateTicketMarketingQrDataUrl().then((url) => {
+      if (active) setQrDataUrl(url);
+    });
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   const handlePrint = () => {
     if (!payload) return;
-    void printHtmlSilently(buildTicketPrintHtml(lines));
+    const width = getCharsPerLine(ancho);
+    const rendered = buildTicketLines(payload);
+    void printHtmlSilently(
+      buildTicketPrintHtmlFromRendered(
+        rendered,
+        width,
+        ancho,
+        qrDataUrl ?? undefined,
+      ),
+    );
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>Vista previa del ticket</DialogTitle>
       <DialogContent>
-        <Box
-          sx={{
-            bgcolor: "grey.100",
-            p: 1.5,
-            borderRadius: 1,
-            fontFamily: "monospace",
-            fontSize: 12,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {lines.length > 0 ? (
-            lines.map((line, i) => (
-              <Typography key={i} component="div" variant="body2" sx={{ fontFamily: "inherit" }}>
-                {line}
-              </Typography>
-            ))
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              Sin datos de ticket
-            </Typography>
-          )}
-          <Typography
-            component="div"
-            variant="body2"
-            sx={{ fontFamily: "inherit", mt: 1, textAlign: "center" }}
-          >
-            {TICKET_FOOTER_URL}
-          </Typography>
-        </Box>
+        {payload ? (
+          <TicketPreviewContent payload={payload} />
+        ) : null}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cerrar</Button>

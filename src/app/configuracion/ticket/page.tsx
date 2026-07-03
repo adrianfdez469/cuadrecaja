@@ -15,6 +15,7 @@ import {
   TextField,
   Typography,
   Alert,
+  Divider,
 } from "@mui/material";
 import { Save, Receipt } from "@mui/icons-material";
 import { PageContainer } from "@/components/PageContainer";
@@ -32,9 +33,9 @@ import {
 } from "@/schemas/ticketPlantilla";
 import { TICKET_FOOTER_URL } from "@/constants/ticket";
 import { buildTicketPayload } from "@/features/printing/lib/buildTicketPayload";
-import { ticketPayloadToTextLines } from "@/features/printing/lib/escpos/encoder";
 import { usePrintTemplateCache } from "@/features/printing/store/printTemplateCache";
 import { TicketPreviewDialog } from "@/features/printing/components/TicketPreviewDialog";
+import { TicketPreviewContent } from "@/features/printing/components/TicketPreviewContent";
 import { Sale } from "@/store/salesStore";
 
 const SAMPLE_SALE: Sale = {
@@ -42,15 +43,15 @@ const SAMPLE_SALE: Sale = {
   tiendaId: "",
   cierreId: "preview",
   usuarioId: "preview",
-  total: 325,
-  totalcash: 275,
+  total: 315,
+  totalcash: 265,
   totaltransfer: 50,
   productos: [
     {
-      cantidad: 2,
+      cantidad: 3,
       productoTiendaId: "pt1",
       productId: "p1",
-      name: "Pasta de Dientes Artesanal Caribe Bello",
+      name: "PRODUCTO LARGO NOMBRE QUE CONTINUA AQUI",
       price: 75,
     },
     {
@@ -58,7 +59,7 @@ const SAMPLE_SALE: Sale = {
       productoTiendaId: "pt2",
       productId: "p2",
       name: "Refresco Cola 2L",
-      price: 175,
+      price: 100,
     },
   ],
   synced: true,
@@ -67,6 +68,15 @@ const SAMPLE_SALE: Sale = {
   wasOffline: false,
   syncAttempts: 0,
   discountCodes: ["PROMO10"],
+  discountTotal: 10,
+  monedaCobro: "CUP",
+  tasaSnapshot: { USD: 120 },
+  pagosDetalle: [
+    { tipo: "cash", moneda: "USD", monto: 2, equivalenteBase: 240 },
+    { tipo: "cash", moneda: "CUP", monto: 25, equivalenteBase: 25 },
+    { tipo: "transfer", moneda: "CUP", monto: 50, equivalenteBase: 50 },
+  ],
+  vueltoDetalle: [{ moneda: "CUP", monto: 10 }],
 };
 
 export default function TicketConfigPage() {
@@ -97,11 +107,14 @@ export default function TicketConfigPage() {
     try {
       const data = await getTicketPlantilla(tiendaId);
       setForm({
-        encabezado: data.encabezado,
         pie: data.pie,
+        mostrarNegocio: data.mostrarNegocio ?? true,
+        mostrarTienda: data.mostrarTienda ?? true,
         mostrarCajero: data.mostrarCajero,
         mostrarDescuentos: data.mostrarDescuentos,
         mostrarMultimoneda: data.mostrarMultimoneda,
+        mostrarTasas: data.mostrarTasas ?? false,
+        mostrarTotalesSecundarios: data.mostrarTotalesSecundarios ?? true,
         anchoPapel: data.anchoPapel === 80 ? 80 : 58,
         logoUrl: data.logoUrl,
       });
@@ -129,25 +142,22 @@ export default function TicketConfigPage() {
 
   const previewPayload = useMemo(() => {
     if (!user?.localActual) return null;
+    const base = monedaBase ?? user.negocio.monedaBase ?? "CUP";
     const plantilla = {
       tiendaId: tiendaId ?? "",
       ...form,
     };
     return buildTicketPayload(
-      { ...SAMPLE_SALE, tiendaId: tiendaId ?? "" },
+      { ...SAMPLE_SALE, tiendaId: tiendaId ?? "", monedaCobro: base },
       plantilla,
       {
         tiendaNombre: user.localActual.nombre,
         negocioNombre: user.negocio.nombre,
         cajeroNombre: user.nombre,
-        monedaBase: monedaBase ?? user.negocio.monedaBase ?? "CUP",
+        monedaBase: base,
       },
     );
   }, [form, user, tiendaId, monedaBase]);
-
-  const inlinePreview = previewPayload
-    ? ticketPayloadToTextLines(previewPayload)
-    : [];
 
   if (!canEdit) {
     return (
@@ -177,27 +187,60 @@ export default function TicketConfigPage() {
           </Box>
         ) : (
           <Stack spacing={2}>
-            <TextField
-              label="Encabezado"
-              value={form.encabezado ?? ""}
-              onChange={(e) => setForm({ ...form, encabezado: e.target.value || null })}
-              multiline
-              minRows={2}
-              helperText="Máx. 2 líneas en el ticket impreso"
-              fullWidth
+            <Typography variant="subtitle2" color="text.secondary">
+              Cabecera del ticket
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.mostrarNegocio}
+                  onChange={(e) =>
+                    setForm({ ...form, mostrarNegocio: e.target.checked })
+                  }
+                />
+              }
+              label="Mostrar nombre del negocio"
             />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.mostrarTienda}
+                  onChange={(e) =>
+                    setForm({ ...form, mostrarTienda: e.target.checked })
+                  }
+                />
+              }
+              label="Mostrar nombre de la tienda"
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.mostrarCajero}
+                  onChange={(e) =>
+                    setForm({ ...form, mostrarCajero: e.target.checked })
+                  }
+                />
+              }
+              label="Mostrar cajero"
+            />
+
+            <Divider />
+
             <TextField
               label="Pie personalizado"
               value={form.pie ?? ""}
               onChange={(e) => setForm({ ...form, pie: e.target.value || null })}
               multiline
               minRows={2}
+              placeholder="GRACIAS POR SU COMPRA"
+              helperText="Si está vacío se usa el texto predeterminado"
               fullWidth
             />
             <Alert severity="info" icon={<Receipt fontSize="small" />}>
               Al final de todo ticket se imprimirá siempre:{" "}
               <strong>{TICKET_FOOTER_URL}</strong>
             </Alert>
+
             <FormControl fullWidth size="small">
               <InputLabel>Ancho de papel</InputLabel>
               <Select
@@ -214,16 +257,20 @@ export default function TicketConfigPage() {
                 <MenuItem value={80}>80 mm</MenuItem>
               </Select>
             </FormControl>
+
+            <Typography variant="subtitle2" color="text.secondary">
+              Contenido opcional
+            </Typography>
             <FormControlLabel
               control={
                 <Switch
-                  checked={form.mostrarCajero}
+                  checked={form.mostrarTasas}
                   onChange={(e) =>
-                    setForm({ ...form, mostrarCajero: e.target.checked })
+                    setForm({ ...form, mostrarTasas: e.target.checked })
                   }
                 />
               }
-              label="Mostrar cajero"
+              label="Mostrar tasas de cambio (solo monedas usadas en la venta)"
             />
             <FormControlLabel
               control={
@@ -245,36 +292,28 @@ export default function TicketConfigPage() {
                   }
                 />
               }
-              label="Mostrar desglose multimoneda"
+              label="Mostrar pagos y vuelto por moneda"
             />
-            <TextField
-              label="URL del logo (opcional)"
-              value={form.logoUrl ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, logoUrl: e.target.value || null })
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.mostrarTotalesSecundarios}
+                  onChange={(e) =>
+                    setForm({ ...form, mostrarTotalesSecundarios: e.target.checked })
+                  }
+                />
               }
-              fullWidth
-              size="small"
+              label="Mostrar totales en monedas secundarias"
             />
 
-            <Box
-              sx={{
-                bgcolor: "grey.100",
-                p: 1.5,
-                borderRadius: 1,
-                fontFamily: "monospace",
-                fontSize: 12,
-              }}
-            >
-              <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-                Vista previa compacta
-              </Typography>
-              {inlinePreview.map((line, i) => (
-                <Typography key={i} variant="body2" sx={{ fontFamily: "inherit" }}>
-                  {line}
+            {previewPayload ? (
+              <Box>
+                <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                  Vista previa compacta
                 </Typography>
-              ))}
-            </Box>
+                <TicketPreviewContent payload={previewPayload} />
+              </Box>
+            ) : null}
 
             <Stack direction="row" spacing={1}>
               <Button

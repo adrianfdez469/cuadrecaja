@@ -1,5 +1,11 @@
-/** URL fija al pie de todo ticket — no configurable por el negocio */
-export const TICKET_FOOTER_URL = "https://cuadrecaja.ventario.cloud";
+/** Texto fijo al pie de todo ticket — no configurable por el negocio */
+export const TICKET_FOOTER_URL = "cuadrecaja.ventario.cloud";
+
+/** URL completa para QR de marketing al pie del ticket */
+export const TICKET_MARKETING_URL = "https://cuadrecaja.ventario.cloud";
+
+/** Leyenda bajo el QR de marketing */
+export const TICKET_MARKETING_QR_LABEL = "Sistema de ventas e inventario";
 
 /** Caracteres por línea según ancho de papel térmico (fuente monospace) */
 export const TICKET_CHARS_PER_LINE: Record<58 | 80, number> = {

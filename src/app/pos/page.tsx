@@ -756,6 +756,9 @@ export default function POSInterface() {
             pagosDetalle: multimoneda.pagosDetalle,
             vueltoDetalle: multimoneda.vueltoDetalle,
             tasaSnapshot: multimoneda.tasaSnapshot,
+            ...(multimoneda.discountTotal != null && multimoneda.discountTotal > 0
+              ? { discountTotal: multimoneda.discountTotal }
+              : {}),
           }),
         };
 
