@@ -18,6 +18,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
@@ -135,10 +136,22 @@ export default function DashboardResumenPage() {
   };
 
   useEffect(() => {
-    if (!loadingContext && user?.localActual) {
-      fetchDashboardMetrics();
+    if (loadingContext || !user?.localActual) return;
+    // En "personalizado" solo se dispara cuando ambas fechas están definidas
+    if (
+      filters.periodo === "personalizado" &&
+      (!filters.fechaInicio || !filters.fechaFin)
+    ) {
+      return;
     }
-  }, [loadingContext, user?.localActual?.id]); // Solo se dispara al cambiar de tienda o cargar inicialmente
+    fetchDashboardMetrics();
+  }, [
+    loadingContext,
+    user?.localActual?.id,
+    filters.periodo,
+    filters.fechaInicio,
+    filters.fechaFin,
+  ]); // Se dispara al cambiar de tienda o al cambiar cualquier filtro
 
   const handleFilterChange = (key: keyof FilterOptions, value: string) => {
     setFilters((prev) => {
@@ -220,127 +233,6 @@ export default function DashboardResumenPage() {
     { label: "Resumen del Negocio" },
   ];
 
-  const headerActions = (
-    <Stack
-      direction={{ xs: "column", md: "row" }}
-      spacing={1.5}
-      alignItems={{ xs: "stretch", md: "center" }}
-      sx={{
-        width: "100%",
-        justifyContent: "flex-end",
-        mt: { xs: 1, sm: 0 },
-      }}
-    >
-      {hasMultipleCurrencies && (
-        <FormControl size="small" sx={{ minWidth: 90 }}>
-          <Select
-            value={displayCurrency}
-            onChange={(e) => setDisplayCurrency(e.target.value)}
-            displayEmpty
-          >
-            {availableCurrencies.map((c) => (
-              <MenuItem key={c} value={c}>
-                {c}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      )}
-
-      <TasasBanner tasas={tasasVigentes} sx={{ mb: 2 }} />
-
-      <ToggleButtonGroup
-        value={filters.periodo}
-        exclusive
-        onChange={(_, value) => value && handleFilterChange("periodo", value)}
-        size="small"
-        color="primary"
-        sx={{
-          bgcolor: "background.paper",
-          boxShadow: 1,
-          "& .MuiToggleButton-root": {
-            flex: 1, // En móvil se expanden equitativamente
-            px: { xs: 1, sm: 2 },
-            py: 0.75,
-            fontSize: { xs: "0.7rem", sm: "0.8125rem", md: "0.875rem" },
-            whiteSpace: "nowrap",
-          },
-        }}
-      >
-        <ToggleButton value="dia">
-          <Today sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
-          Día
-        </ToggleButton>
-        <ToggleButton value="semana">
-          <ShowChart sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
-          {!isMobile && "Semana"}
-          {isMobile && "Sem."}
-        </ToggleButton>
-        <ToggleButton value="mes">
-          <CalendarMonth sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
-          Mes
-        </ToggleButton>
-        <ToggleButton value="anio">
-          <CalendarMonth sx={{ mr: 1, fontSize: 18 }} />
-          Año
-        </ToggleButton>
-        <ToggleButton value="personalizado">
-          <DateRange sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
-          {isMobile ? "Pers." : "Personalizado"}
-        </ToggleButton>
-      </ToggleButtonGroup>
-
-      {filters.periodo === "personalizado" && (
-        <Stack direction="row" spacing={1} alignItems="center">
-          <DatePicker
-            label="Desde"
-            value={filters.fechaInicio}
-            onChange={(d) =>
-              setFilters((prev) => ({ ...prev, fechaInicio: d }))
-            }
-            slotProps={{ textField: { fullWidth: true, size: "small" } }}
-          />
-          <DatePicker
-            label="Hasta"
-            value={filters.fechaFin}
-            onChange={(d) => setFilters((prev) => ({ ...prev, fechaFin: d }))}
-            slotProps={{ textField: { fullWidth: true, size: "small" } }}
-          />
-        </Stack>
-      )}
-
-      <IconButton
-        onClick={handleRefresh}
-        disabled={
-          loading ||
-          (filters.periodo === "personalizado" && !filters.fechaInicio)
-        }
-        color="primary"
-        sx={{
-          bgcolor: "primary.main",
-          color: "white",
-          borderRadius: 1,
-          "&:hover": { bgcolor: "primary.dark" },
-          "&.Mui-disabled": { bgcolor: "action.disabledBackground" },
-          height: 40,
-          px: { xs: 2, sm: 3 },
-          display: "flex",
-          gap: 1,
-          width: { xs: "100%", md: "auto" },
-          boxShadow: 2,
-        }}
-      >
-        <Refresh sx={{ fontSize: 20 }} />
-        <Typography
-          variant="button"
-          sx={{ fontWeight: "bold", fontSize: "0.875rem" }}
-        >
-          Aplicar
-        </Typography>
-      </IconButton>
-    </Stack>
-  );
-
   return (
     <PageContainer
       title="Resumen del Negocio"
@@ -348,9 +240,243 @@ export default function DashboardResumenPage() {
         !isMobile ? `Métricas clave de ${user.localActual.nombre}` : undefined
       }
       breadcrumbs={breadcrumbs}
-      headerActions={headerActions}
       maxWidth="xl"
     >
+      {isMobile ? (
+        // Mobile: layout original (columna única), sin botón "Aplicar" manual —
+        // los filtros disparan fetchDashboardMetrics solos vía el useEffect de arriba.
+        <Stack spacing={1.5} alignItems="stretch" sx={{ width: "100%", mb: 3 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            {hasMultipleCurrencies && (
+              <FormControl size="small" sx={{ minWidth: 90 }}>
+                <Select
+                  value={displayCurrency}
+                  onChange={(e) => setDisplayCurrency(e.target.value)}
+                  displayEmpty
+                >
+                  {availableCurrencies.map((c) => (
+                    <MenuItem key={c} value={c}>
+                      {c}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            <Tooltip title="Actualizar datos">
+              <IconButton
+                onClick={handleRefresh}
+                disabled={
+                  loading ||
+                  (filters.periodo === "personalizado" &&
+                    (!filters.fechaInicio || !filters.fechaFin))
+                }
+                color="primary"
+                size="small"
+              >
+                <Refresh />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+
+          <TasasBanner tasas={tasasVigentes} />
+
+          <ToggleButtonGroup
+            value={filters.periodo}
+            exclusive
+            onChange={(_, value) =>
+              value && handleFilterChange("periodo", value)
+            }
+            size="small"
+            color="primary"
+            sx={{
+              bgcolor: "background.paper",
+              boxShadow: 1,
+              "& .MuiToggleButton-root": {
+                flex: 1, // En móvil se expanden equitativamente
+                px: 1,
+                py: 0.75,
+                fontSize: "0.7rem",
+                whiteSpace: "nowrap",
+              },
+            }}
+          >
+            <ToggleButton value="dia">
+              <Today sx={{ mr: 0.5, fontSize: 18 }} />
+              Día
+            </ToggleButton>
+            <ToggleButton value="semana">
+              <ShowChart sx={{ mr: 0.5, fontSize: 18 }} />
+              Sem.
+            </ToggleButton>
+            <ToggleButton value="mes">
+              <CalendarMonth sx={{ mr: 0.5, fontSize: 18 }} />
+              Mes
+            </ToggleButton>
+            <ToggleButton value="anio">
+              <CalendarMonth sx={{ mr: 0.5, fontSize: 18 }} />
+              Año
+            </ToggleButton>
+            <ToggleButton value="personalizado">
+              <DateRange sx={{ mr: 0.5, fontSize: 18 }} />
+              Pers.
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          {filters.periodo === "personalizado" && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <DatePicker
+                label="Desde"
+                value={filters.fechaInicio}
+                onChange={(d) =>
+                  setFilters((prev) => ({ ...prev, fechaInicio: d }))
+                }
+                slotProps={{ textField: { fullWidth: true, size: "small" } }}
+              />
+              <DatePicker
+                label="Hasta"
+                value={filters.fechaFin}
+                onChange={(d) =>
+                  setFilters((prev) => ({ ...prev, fechaFin: d }))
+                }
+                slotProps={{ textField: { fullWidth: true, size: "small" } }}
+              />
+            </Stack>
+          )}
+        </Stack>
+      ) : (
+        // Desktop: título en su fila (arriba), filtros repartidos en filas propias.
+        <Stack spacing={1.5} alignItems="flex-start" sx={{ mb: 3 }}>
+          <Stack
+            direction="row"
+            flexWrap="wrap"
+            useFlexGap
+            spacing={1}
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ width: "100%" }}
+          >
+            <TasasBanner tasas={tasasVigentes} />
+
+            <Stack direction="row" spacing={1} alignItems="center">
+              {hasMultipleCurrencies && (
+                <FormControl size="small" sx={{ minWidth: 90 }}>
+                  <Select
+                    value={displayCurrency}
+                    onChange={(e) => setDisplayCurrency(e.target.value)}
+                    displayEmpty
+                  >
+                    {availableCurrencies.map((c) => (
+                      <MenuItem key={c} value={c}>
+                        {c}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
+              <Tooltip title="Actualizar datos">
+                <IconButton
+                  onClick={handleRefresh}
+                  disabled={
+                    loading ||
+                    (filters.periodo === "personalizado" &&
+                      (!filters.fechaInicio || !filters.fechaFin))
+                  }
+                  color="primary"
+                >
+                  <Refresh />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </Stack>
+
+          <Stack
+            direction="row"
+            flexWrap="wrap"
+            useFlexGap
+            spacing={1}
+            alignItems="center"
+          >
+            <ToggleButtonGroup
+              value={filters.periodo}
+              exclusive
+              onChange={(_, value) =>
+                value && handleFilterChange("periodo", value)
+              }
+              size="small"
+              color="primary"
+              sx={{
+                bgcolor: "background.paper",
+                boxShadow: 1,
+                "& .MuiToggleButton-root": {
+                  px: 2,
+                  py: 0.75,
+                  fontSize: "0.875rem",
+                  whiteSpace: "nowrap",
+                },
+              }}
+            >
+              <ToggleButton value="dia">
+                <Today sx={{ mr: 1, fontSize: 18 }} />
+                Día
+              </ToggleButton>
+              <ToggleButton value="semana">
+                <ShowChart sx={{ mr: 1, fontSize: 18 }} />
+                Semana
+              </ToggleButton>
+              <ToggleButton value="mes">
+                <CalendarMonth sx={{ mr: 1, fontSize: 18 }} />
+                Mes
+              </ToggleButton>
+              <ToggleButton value="anio">
+                <CalendarMonth sx={{ mr: 1, fontSize: 18 }} />
+                Año
+              </ToggleButton>
+              <ToggleButton value="personalizado">
+                <DateRange sx={{ mr: 1, fontSize: 18 }} />
+                Personalizado
+              </ToggleButton>
+            </ToggleButtonGroup>
+
+            {filters.periodo === "personalizado" && (
+              <Stack
+                direction="row"
+                flexWrap="wrap"
+                spacing={1}
+                alignItems="center"
+              >
+                <DatePicker
+                  label="Desde"
+                  value={filters.fechaInicio}
+                  onChange={(d) =>
+                    setFilters((prev) => ({ ...prev, fechaInicio: d }))
+                  }
+                  slotProps={{
+                    textField: { size: "small", sx: { width: 160 } },
+                  }}
+                />
+                <DatePicker
+                  label="Hasta"
+                  value={filters.fechaFin}
+                  onChange={(d) =>
+                    setFilters((prev) => ({ ...prev, fechaFin: d }))
+                  }
+                  slotProps={{
+                    textField: { size: "small", sx: { width: 160 } },
+                  }}
+                />
+              </Stack>
+            )}
+          </Stack>
+        </Stack>
+      )}
+
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
@@ -388,13 +514,6 @@ export default function DashboardResumenPage() {
 
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <MetricCard
-                title="Unidades vendidas"
-                value={formatNumber(metrics.ventas.unidadesVendidas)}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
                 title="Ganancia estimada"
                 value={fmtS(
                   metrics.ventas.gananciaFinal ?? metrics.ventas.gananciaTotal,
@@ -413,8 +532,8 @@ export default function DashboardResumenPage() {
 
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <MetricCard
-                title="Productos c/ stock"
-                value={formatNumber(metrics.ventas.productosActivos)}
+                title="Unidades vendidas"
+                value={formatNumber(metrics.ventas.unidadesVendidas)}
               />
             </Grid>
           </Grid>
