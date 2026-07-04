@@ -18,12 +18,19 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
   useMediaQuery,
-  useTheme
+  useTheme,
 } from "@mui/material";
-import { CalendarMonth, Refresh, Today, DateRange, ShowChart } from "@mui/icons-material";
-import { BarChart } from '@mui/x-charts/BarChart';
+import {
+  CalendarMonth,
+  Refresh,
+  Today,
+  DateRange,
+  ShowChart,
+} from "@mui/icons-material";
+import { BarChart } from "@mui/x-charts/BarChart";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { useAppContext } from "@/context/AppContext";
@@ -42,6 +49,8 @@ interface DashboardResumenMetrics {
     totalPeriodo: number;
     unidadesVendidas: number;
     gananciaTotal: number;
+    totalGastos: number;
+    gananciaFinal: number;
     productosActivos: number;
   };
   topProductos: {
@@ -63,36 +72,44 @@ interface DashboardResumenMetrics {
 }
 
 interface FilterOptions {
-  periodo: 'dia' | 'semana' | 'mes' | 'anio' | 'personalizado';
+  periodo: "dia" | "semana" | "mes" | "anio" | "personalizado";
   fechaInicio?: Dayjs | null;
   fechaFin?: Dayjs | null;
 }
 
 export default function DashboardResumenPage() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const [metrics, setMetrics] = useState<DashboardResumenMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterOptions>({
-    periodo: 'mes',
+    periodo: "mes",
     fechaInicio: null,
-    fechaFin: null
+    fechaFin: null,
   });
 
-  const { user, loadingContext, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
+  const { user, loadingContext, monedasNegocio, tasasVigentes, monedaBase } =
+    useAppContext();
   const { showMessage } = useMessageContext();
 
   const [displayCurrency, setDisplayCurrency] = useState<string>(monedaBase);
-  useEffect(() => { setDisplayCurrency(monedaBase); }, [monedaBase]);
+  useEffect(() => {
+    setDisplayCurrency(monedaBase);
+  }, [monedaBase]);
 
   const availableCurrencies = [
     monedaBase,
-    ...monedasNegocio.filter(m => m.activo && m.monedaCode !== monedaBase).map(m => m.monedaCode),
+    ...monedasNegocio
+      .filter((m) => m.activo && m.monedaCode !== monedaBase)
+      .map((m) => m.monedaCode),
   ];
   const hasMultipleCurrencies = availableCurrencies.length > 1;
-  const fmtS = (amt: number) => formatCurrency(convertFromBase(amt, displayCurrency, tasasVigentes, monedaBase));
+  const fmtS = (amt: number) =>
+    formatCurrency(
+      convertFromBase(amt, displayCurrency, tasasVigentes, monedaBase),
+    );
 
   // Función para obtener las métricas del dashboard
   const fetchDashboardMetrics = async () => {
@@ -104,7 +121,10 @@ export default function DashboardResumenPage() {
         throw new Error("No hay tienda seleccionada");
       }
 
-      const data = await getDashboardResumen(user.localActual.id, filters as unknown as Record<string, unknown>);
+      const data = await getDashboardResumen(
+        user.localActual.id,
+        filters as unknown as Record<string, unknown>,
+      );
       setMetrics(data);
     } catch (error) {
       console.error("Error al obtener métricas del dashboard:", error);
@@ -116,21 +136,33 @@ export default function DashboardResumenPage() {
   };
 
   useEffect(() => {
-    if (!loadingContext && user?.localActual) {
-      fetchDashboardMetrics();
+    if (loadingContext || !user?.localActual) return;
+    // En "personalizado" solo se dispara cuando ambas fechas están definidas
+    if (
+      filters.periodo === "personalizado" &&
+      (!filters.fechaInicio || !filters.fechaFin)
+    ) {
+      return;
     }
-  }, [loadingContext, user?.localActual?.id]); // Solo se dispara al cambiar de tienda o cargar inicialmente
+    fetchDashboardMetrics();
+  }, [
+    loadingContext,
+    user?.localActual?.id,
+    filters.periodo,
+    filters.fechaInicio,
+    filters.fechaFin,
+  ]); // Se dispara al cambiar de tienda o al cambiar cualquier filtro
 
   const handleFilterChange = (key: keyof FilterOptions, value: string) => {
-    setFilters(prev => {
+    setFilters((prev) => {
       const newFilters = {
         ...prev,
-        [key]: value
+        [key]: value,
       };
 
       // Si cambia a personalizado y no hay fechas, poner hoy por defecto
-      if (key === 'periodo' && value === 'personalizado' && !prev.fechaInicio) {
-        const today = new Date().toISOString().split('T')[0];
+      if (key === "periodo" && value === "personalizado" && !prev.fechaInicio) {
+        const today = new Date().toISOString().split("T")[0];
         newFilters.fechaInicio = dayjs(today);
         newFilters.fechaFin = dayjs(today);
       }
@@ -144,14 +176,8 @@ export default function DashboardResumenPage() {
   };
 
   // Componente para tarjetas de métricas
-  const MetricCard = ({
-    title,
-    value,
-  }: {
-    title: string;
-    value: string;
-  }) => (
-    <Card sx={{ height: '100%', position: 'relative', overflow: 'visible' }}>
+  const MetricCard = ({ title, value }: { title: string; value: string }) => (
+    <Card sx={{ height: "100%", position: "relative", overflow: "visible" }}>
       <CardContent sx={{ p: 2 }}>
         <Stack spacing={1.5}>
           <Typography
@@ -172,7 +198,12 @@ export default function DashboardResumenPage() {
 
   if (loadingContext) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="60vh"
+      >
         <CircularProgress size="3rem" />
         <Typography variant="body1" sx={{ mt: 2, ml: 2 }}>
           Cargando dashboard...
@@ -185,7 +216,10 @@ export default function DashboardResumenPage() {
     return (
       <PageContainer
         title="Resumen del Negocio"
-        breadcrumbs={[{ label: 'Inicio', href: '/home' }, { label: 'Resumen del Negocio' }]}
+        breadcrumbs={[
+          { label: "Inicio", href: "/home" },
+          { label: "Resumen del Negocio" },
+        ]}
       >
         <Alert severity="warning">
           Selecciona una tienda para ver las métricas del dashboard
@@ -195,123 +229,254 @@ export default function DashboardResumenPage() {
   }
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Resumen del Negocio' }
+    { label: "Inicio", href: "/home" },
+    { label: "Resumen del Negocio" },
   ];
-
-  const headerActions = (
-    <Stack
-      direction={{ xs: 'column', md: 'row' }}
-      spacing={1.5}
-      alignItems={{ xs: 'stretch', md: 'center' }}
-      sx={{
-        width: '100%',
-        justifyContent: 'flex-end',
-        mt: { xs: 1, sm: 0 }
-      }}
-    >
-      {hasMultipleCurrencies && (
-        <FormControl size="small" sx={{ minWidth: 90 }}>
-          <Select value={displayCurrency} onChange={e => setDisplayCurrency(e.target.value)} displayEmpty>
-            {availableCurrencies.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-          </Select>
-        </FormControl>
-      )}
-
-      <TasasBanner tasas={tasasVigentes} sx={{ mb: 2 }} />
-
-      <ToggleButtonGroup
-        value={filters.periodo}
-        exclusive
-        onChange={(_, value) => value && handleFilterChange('periodo', value)}
-        size="small"
-        color="primary"
-        sx={{
-          bgcolor: 'background.paper',
-          boxShadow: 1,
-          '& .MuiToggleButton-root': {
-            flex: 1, // En móvil se expanden equitativamente
-            px: { xs: 1, sm: 2 },
-            py: 0.75,
-            fontSize: { xs: '0.7rem', sm: '0.8125rem', md: '0.875rem' },
-            whiteSpace: 'nowrap'
-          }
-        }}
-      >
-        <ToggleButton value="dia">
-          <Today sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
-          Día
-        </ToggleButton>
-        <ToggleButton value="semana">
-          <ShowChart sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
-          {!isMobile && "Semana"}
-          {isMobile && "Sem."}
-        </ToggleButton>
-        <ToggleButton value="mes">
-          <CalendarMonth sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
-          Mes
-        </ToggleButton>
-        <ToggleButton value="anio">
-          <CalendarMonth sx={{ mr: 1, fontSize: 18 }} />
-          Año
-        </ToggleButton>
-        <ToggleButton value="personalizado">
-          <DateRange sx={{ mr: { xs: 0.5, sm: 1 }, fontSize: 18 }} />
-          {isMobile ? "Pers." : "Personalizado"}
-        </ToggleButton>
-      </ToggleButtonGroup>
-
-      {filters.periodo === 'personalizado' && (
-        <Stack direction="row" spacing={1} alignItems="center">
-          <DatePicker
-            label="Desde"
-            value={filters.fechaInicio}
-            onChange={(d) => setFilters(prev => ({ ...prev, fechaInicio: d }))}
-            slotProps={{ textField: { fullWidth: true, size: "small" } }}
-          />
-          <DatePicker
-            label="Hasta"
-            value={filters.fechaFin}
-            onChange={(d) => setFilters(prev => ({ ...prev, fechaFin: d }))}
-            slotProps={{ textField: { fullWidth: true, size: "small" } }}
-          />
-        </Stack>
-      )}
-
-      <IconButton
-        onClick={handleRefresh}
-        disabled={loading || (filters.periodo === 'personalizado' && !filters.fechaInicio)}
-        color="primary"
-        sx={{
-          bgcolor: 'primary.main',
-          color: 'white',
-          borderRadius: 1,
-          '&:hover': { bgcolor: 'primary.dark' },
-          '&.Mui-disabled': { bgcolor: 'action.disabledBackground' },
-          height: 40,
-          px: { xs: 2, sm: 3 },
-          display: 'flex',
-          gap: 1,
-          width: { xs: '100%', md: 'auto' },
-          boxShadow: 2
-        }}
-      >
-        <Refresh sx={{ fontSize: 20 }} />
-        <Typography variant="button" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>
-          Aplicar
-        </Typography>
-      </IconButton>
-    </Stack>
-  );
 
   return (
     <PageContainer
       title="Resumen del Negocio"
-      subtitle={!isMobile ? `Métricas clave de ${user.localActual.nombre}` : undefined}
+      subtitle={
+        !isMobile ? `Métricas clave de ${user.localActual.nombre}` : undefined
+      }
       breadcrumbs={breadcrumbs}
-      headerActions={headerActions}
       maxWidth="xl"
     >
+      {isMobile ? (
+        // Mobile: layout original (columna única), sin botón "Aplicar" manual —
+        // los filtros disparan fetchDashboardMetrics solos vía el useEffect de arriba.
+        <Stack spacing={1.5} alignItems="stretch" sx={{ width: "100%", mb: 3 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            {hasMultipleCurrencies && (
+              <FormControl size="small" sx={{ minWidth: 90 }}>
+                <Select
+                  value={displayCurrency}
+                  onChange={(e) => setDisplayCurrency(e.target.value)}
+                  displayEmpty
+                >
+                  {availableCurrencies.map((c) => (
+                    <MenuItem key={c} value={c}>
+                      {c}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            <Tooltip title="Actualizar datos">
+              <IconButton
+                onClick={handleRefresh}
+                disabled={
+                  loading ||
+                  (filters.periodo === "personalizado" &&
+                    (!filters.fechaInicio || !filters.fechaFin))
+                }
+                color="primary"
+                size="small"
+              >
+                <Refresh />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+
+          <TasasBanner tasas={tasasVigentes} />
+
+          <ToggleButtonGroup
+            value={filters.periodo}
+            exclusive
+            onChange={(_, value) =>
+              value && handleFilterChange("periodo", value)
+            }
+            size="small"
+            color="primary"
+            sx={{
+              bgcolor: "background.paper",
+              boxShadow: 1,
+              "& .MuiToggleButton-root": {
+                flex: 1, // En móvil se expanden equitativamente
+                px: 1,
+                py: 0.75,
+                fontSize: "0.7rem",
+                whiteSpace: "nowrap",
+              },
+            }}
+          >
+            <ToggleButton value="dia">
+              <Today sx={{ mr: 0.5, fontSize: 18 }} />
+              Día
+            </ToggleButton>
+            <ToggleButton value="semana">
+              <ShowChart sx={{ mr: 0.5, fontSize: 18 }} />
+              Sem.
+            </ToggleButton>
+            <ToggleButton value="mes">
+              <CalendarMonth sx={{ mr: 0.5, fontSize: 18 }} />
+              Mes
+            </ToggleButton>
+            <ToggleButton value="anio">
+              <CalendarMonth sx={{ mr: 0.5, fontSize: 18 }} />
+              Año
+            </ToggleButton>
+            <ToggleButton value="personalizado">
+              <DateRange sx={{ mr: 0.5, fontSize: 18 }} />
+              Pers.
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          {filters.periodo === "personalizado" && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <DatePicker
+                label="Desde"
+                value={filters.fechaInicio}
+                onChange={(d) =>
+                  setFilters((prev) => ({ ...prev, fechaInicio: d }))
+                }
+                slotProps={{ textField: { fullWidth: true, size: "small" } }}
+              />
+              <DatePicker
+                label="Hasta"
+                value={filters.fechaFin}
+                onChange={(d) =>
+                  setFilters((prev) => ({ ...prev, fechaFin: d }))
+                }
+                slotProps={{ textField: { fullWidth: true, size: "small" } }}
+              />
+            </Stack>
+          )}
+        </Stack>
+      ) : (
+        // Desktop: título en su fila (arriba), filtros repartidos en filas propias.
+        <Stack spacing={1.5} alignItems="flex-start" sx={{ mb: 3 }}>
+          <Stack
+            direction="row"
+            flexWrap="wrap"
+            useFlexGap
+            spacing={1}
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ width: "100%" }}
+          >
+            <TasasBanner tasas={tasasVigentes} />
+
+            <Stack direction="row" spacing={1} alignItems="center">
+              {hasMultipleCurrencies && (
+                <FormControl size="small" sx={{ minWidth: 90 }}>
+                  <Select
+                    value={displayCurrency}
+                    onChange={(e) => setDisplayCurrency(e.target.value)}
+                    displayEmpty
+                  >
+                    {availableCurrencies.map((c) => (
+                      <MenuItem key={c} value={c}>
+                        {c}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
+              <Tooltip title="Actualizar datos">
+                <IconButton
+                  onClick={handleRefresh}
+                  disabled={
+                    loading ||
+                    (filters.periodo === "personalizado" &&
+                      (!filters.fechaInicio || !filters.fechaFin))
+                  }
+                  color="primary"
+                >
+                  <Refresh />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </Stack>
+
+          <Stack
+            direction="row"
+            flexWrap="wrap"
+            useFlexGap
+            spacing={1}
+            alignItems="center"
+          >
+            <ToggleButtonGroup
+              value={filters.periodo}
+              exclusive
+              onChange={(_, value) =>
+                value && handleFilterChange("periodo", value)
+              }
+              size="small"
+              color="primary"
+              sx={{
+                bgcolor: "background.paper",
+                boxShadow: 1,
+                "& .MuiToggleButton-root": {
+                  px: 2,
+                  py: 0.75,
+                  fontSize: "0.875rem",
+                  whiteSpace: "nowrap",
+                },
+              }}
+            >
+              <ToggleButton value="dia">
+                <Today sx={{ mr: 1, fontSize: 18 }} />
+                Día
+              </ToggleButton>
+              <ToggleButton value="semana">
+                <ShowChart sx={{ mr: 1, fontSize: 18 }} />
+                Semana
+              </ToggleButton>
+              <ToggleButton value="mes">
+                <CalendarMonth sx={{ mr: 1, fontSize: 18 }} />
+                Mes
+              </ToggleButton>
+              <ToggleButton value="anio">
+                <CalendarMonth sx={{ mr: 1, fontSize: 18 }} />
+                Año
+              </ToggleButton>
+              <ToggleButton value="personalizado">
+                <DateRange sx={{ mr: 1, fontSize: 18 }} />
+                Personalizado
+              </ToggleButton>
+            </ToggleButtonGroup>
+
+            {filters.periodo === "personalizado" && (
+              <Stack
+                direction="row"
+                flexWrap="wrap"
+                spacing={1}
+                alignItems="center"
+              >
+                <DatePicker
+                  label="Desde"
+                  value={filters.fechaInicio}
+                  onChange={(d) =>
+                    setFilters((prev) => ({ ...prev, fechaInicio: d }))
+                  }
+                  slotProps={{
+                    textField: { size: "small", sx: { width: 160 } },
+                  }}
+                />
+                <DatePicker
+                  label="Hasta"
+                  value={filters.fechaFin}
+                  onChange={(d) =>
+                    setFilters((prev) => ({ ...prev, fechaFin: d }))
+                  }
+                  slotProps={{
+                    textField: { size: "small", sx: { width: 160 } },
+                  }}
+                />
+              </Stack>
+            )}
+          </Stack>
+        </Stack>
+      )}
+
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
@@ -319,7 +484,12 @@ export default function DashboardResumenPage() {
       )}
 
       {loading ? (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="400px"
+        >
           <CircularProgress />
           <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
             Cargando métricas...
@@ -331,29 +501,39 @@ export default function DashboardResumenPage() {
           <Grid container columnSpacing={3}>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <MetricCard
-                title={filters.periodo === 'dia' ? "Ventas de hoy" : filters.periodo === 'mes' ? "Ventas del mes" : "Ventas del período"}
+                title={
+                  filters.periodo === "dia"
+                    ? "Ventas de hoy"
+                    : filters.periodo === "mes"
+                      ? "Ventas del mes"
+                      : "Ventas del período"
+                }
                 value={fmtS(metrics.ventas.totalPeriodo)}
               />
             </Grid>
 
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <MetricCard
+                title="Ganancia estimada"
+                value={fmtS(
+                  metrics.ventas.gananciaFinal ?? metrics.ventas.gananciaTotal,
+                )}
+              />
+            </Grid>
+
+            {(metrics.ventas.totalGastos || 0) > 0 && (
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <MetricCard
+                  title="Gastos"
+                  value={fmtS(metrics.ventas.totalGastos)}
+                />
+              </Grid>
+            )}
+
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <MetricCard
                 title="Unidades vendidas"
                 value={formatNumber(metrics.ventas.unidadesVendidas)}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
-                title="Ganancia estimada"
-                value={fmtS(metrics.ventas.gananciaTotal)}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <MetricCard
-                title="Productos c/ stock"
-                value={formatNumber(metrics.ventas.productosActivos)}
               />
             </Grid>
           </Grid>
@@ -368,14 +548,26 @@ export default function DashboardResumenPage() {
                     Top 10 productos más vendidos
                   </Typography>
                   {metrics.topProductos.length > 0 ? (
-                    <Box sx={{ width: '100%' }}>
+                    <Box sx={{ width: "100%" }}>
                       <BarChart
                         dataset={metrics.topProductos}
                         layout="horizontal"
-                        yAxis={[{ scaleType: 'band', dataKey: 'nombre', width: 160 }]}
-                        xAxis={[{ valueFormatter: (value) => formatNumber(value) }]}
-                        series={[{ dataKey: 'unidades', label: 'Unidades vendidas', valueFormatter: (value) => formatNumber(value) }]}
-                        barLabel={(item) => item.value != null ? formatNumber(item.value) : null}
+                        yAxis={[
+                          { scaleType: "band", dataKey: "nombre", width: 160 },
+                        ]}
+                        xAxis={[
+                          { valueFormatter: (value) => formatNumber(value) },
+                        ]}
+                        series={[
+                          {
+                            dataKey: "unidades",
+                            label: "Unidades vendidas",
+                            valueFormatter: (value) => formatNumber(value),
+                          },
+                        ]}
+                        barLabel={(item) =>
+                          item.value != null ? formatNumber(item.value) : null
+                        }
                         height={350}
                         margin={{ top: 10, bottom: 20, left: 10, right: 10 }}
                       />
@@ -395,14 +587,24 @@ export default function DashboardResumenPage() {
                     Top 10 por ganancia generada
                   </Typography>
                   {metrics.topGanancias.length > 0 ? (
-                    <Box sx={{ width: '100%' }}>
+                    <Box sx={{ width: "100%" }}>
                       <BarChart
                         dataset={metrics.topGanancias}
                         layout="horizontal"
-                        yAxis={[{ scaleType: 'band', dataKey: 'nombre', width: 160 }]}
+                        yAxis={[
+                          { scaleType: "band", dataKey: "nombre", width: 160 },
+                        ]}
                         xAxis={[{ valueFormatter: (value) => fmtS(value) }]}
-                        series={[{ dataKey: 'ganancia', label: 'Ganancia', valueFormatter: (value) => fmtS(value) }]}
-                        barLabel={(item) => item.value != null ? fmtS(item.value) : null}
+                        series={[
+                          {
+                            dataKey: "ganancia",
+                            label: "Ganancia",
+                            valueFormatter: (value) => fmtS(value),
+                          },
+                        ]}
+                        barLabel={(item) =>
+                          item.value != null ? fmtS(item.value) : null
+                        }
                         height={350}
                         margin={{ top: 10, bottom: 20, left: 10, right: 10 }}
                       />
@@ -430,12 +632,16 @@ export default function DashboardResumenPage() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {metrics.productosMenosVendidos.map((producto, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{producto.nombre}</TableCell>
-                            <TableCell align="right">{formatNumber(producto.unidades)}</TableCell>
-                          </TableRow>
-                        ))}
+                        {metrics.productosMenosVendidos.map(
+                          (producto, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{producto.nombre}</TableCell>
+                              <TableCell align="right">
+                                {formatNumber(producto.unidades)}
+                              </TableCell>
+                            </TableRow>
+                          ),
+                        )}
                       </TableBody>
                     </Table>
                   </TableContainer>
@@ -459,12 +665,16 @@ export default function DashboardResumenPage() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {metrics.productosMenosRentables.map((producto, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{producto.nombre}</TableCell>
-                            <TableCell align="right">{producto.rentabilidad}%</TableCell>
-                          </TableRow>
-                        ))}
+                        {metrics.productosMenosRentables.map(
+                          (producto, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{producto.nombre}</TableCell>
+                              <TableCell align="right">
+                                {producto.rentabilidad}%
+                              </TableCell>
+                            </TableRow>
+                          ),
+                        )}
                       </TableBody>
                     </Table>
                   </TableContainer>
@@ -474,9 +684,7 @@ export default function DashboardResumenPage() {
           </Grid>
         </Stack>
       ) : (
-        <Alert severity="info">
-          No hay datos disponibles para mostrar
-        </Alert>
+        <Alert severity="info">No hay datos disponibles para mostrar</Alert>
       )}
     </PageContainer>
   );
