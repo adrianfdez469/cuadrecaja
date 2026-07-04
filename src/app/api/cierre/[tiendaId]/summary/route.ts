@@ -40,8 +40,7 @@ export async function GET(
     });
     const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
 
-    const filtros = {
-      tiendaId: tiendaId,
+    const filtrosPeriodo = {
       ...(fechaInicio && {
         fechaInicio: { gte: new Date(fechaInicio).toISOString() },
       }),
@@ -50,16 +49,15 @@ export async function GET(
         : { fechaFin: { not: null } }),
     };
 
+    const filtros = {
+      tiendaId: tiendaId,
+      ...filtrosPeriodo,
+    };
+
     const flitrosVentas = {
       tiendaId: tiendaId,
       totaltransfer: { gt: 0 },
-      cierrePeriodo: {
-        fechaFin: { not: null },
-      },
-      createdAt: {
-        ...(fechaInicio && { gte: new Date(fechaInicio).toISOString() }),
-        ...(fechaFin && { lte: nextDayToEndDate.toISOString() }),
-      },
+      cierrePeriodo: filtrosPeriodo,
     };
 
     const cierres = await prisma.cierrePeriodo.findMany({
@@ -218,14 +216,11 @@ export async function GET(
     }
 
     // Agregados globales — bruto y descuentos en moneda base
+    // Mismo alcance que `filtros`: ventas de los cierres del rango (todas las páginas)
     const ventasParaTotales = await prisma.venta.findMany({
       where: {
         tiendaId,
-        cierrePeriodo: { fechaFin: { not: null } },
-        createdAt: {
-          ...(fechaInicio && { gte: new Date(fechaInicio).toISOString() }),
-          ...(fechaFin && { lte: nextDayToEndDate.toISOString() }),
-        },
+        cierrePeriodo: filtrosPeriodo,
       },
       select: {
         discountTotal: true,
@@ -262,21 +257,45 @@ export async function GET(
       sumTotalVentasBrutas - sumTotalDescuentos,
     );
 
-    const sumTotalGananciasPropiasNet = cierresConMontos.reduce(
-      (acc, c) => acc + Number(c.totalGananciasPropias || 0),
+    // Ganancias netas de descuento a nivel GLOBAL (todas las páginas del rango),
+    // prorrateando los descuentos por bucket Propias/Consignación — mismo
+    // criterio que el cálculo por cierre de arriba.
+    const gananciasPropiasGlobal = totales._sum.totalGananciasPropias ?? 0;
+    const gananciasConsigGlobal = totales._sum.totalGananciasConsignacion ?? 0;
+    const ventasPropiasGlobal = totales._sum.totalVentasPropias ?? 0;
+    const ventasConsigGlobal = totales._sum.totalVentasConsignacion ?? 0;
+
+    let descuentoPropiasGlobal = 0;
+    let descuentoConsigGlobal = 0;
+    if (sumTotalVentasBrutas > 0 && sumTotalDescuentos > 0) {
+      const ratioPropias = Math.max(
+        0,
+        Math.min(1, ventasPropiasGlobal / sumTotalVentasBrutas),
+      );
+      const ratioConsig = Math.max(
+        0,
+        Math.min(1, ventasConsigGlobal / sumTotalVentasBrutas),
+      );
+      descuentoPropiasGlobal = sumTotalDescuentos * ratioPropias;
+      descuentoConsigGlobal = sumTotalDescuentos * ratioConsig;
+    }
+
+    const sumTotalGananciasPropiasNet = Math.max(
       0,
+      gananciasPropiasGlobal - descuentoPropiasGlobal,
     );
-    const sumTotalGananciasConsigNet = cierresConMontos.reduce(
-      (acc, c) => acc + Number(c.totalGananciasConsignacion || 0),
+    const sumTotalGananciasConsigNet = Math.max(
       0,
+      gananciasConsigGlobal - descuentoConsigGlobal,
     );
-    const sumTotalGananciaNet = cierresConMontos.reduce(
-      (acc, c) => acc + Number(c.totalGanancia || 0),
-      0,
-    );
+    const sumTotalGananciaNet =
+      sumTotalGananciasPropiasNet + sumTotalGananciasConsigNet;
+
     // Global aggregates from DB — these cover ALL pages, not just the current one
     const sumTotalGastos = totales._sum.totalGastos ?? 0;
-    const sumTotalGananciaFinal = totales._sum.totalGananciaFinal ?? 0;
+    // Ganancia final neta de descuentos y gastos (el valor almacenado en
+    // CierrePeriodo.totalGananciaFinal no netea descuentos)
+    const sumTotalGananciaFinal = sumTotalGananciaNet - sumTotalGastos;
 
     return NextResponse.json({
       cierres: cierresConMontos as unknown as ISummaryCierre["cierres"],
