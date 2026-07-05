@@ -36,6 +36,7 @@ export interface Sale {
   pagosDetalle?: IPagoLinea[];
   vueltoDetalle?: IVueltoLinea[];
   tasaSnapshot?: ITasaSnapshot;
+  discountTotal?: number;
 }
 
 export interface Products {

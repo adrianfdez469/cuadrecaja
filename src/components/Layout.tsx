@@ -168,6 +168,12 @@ const CONFIGURATION_MENU_ITEMS = [
     permission: 'configuracion.destinostransferencia.acceder'
   },
   {
+    label: "Ticket de venta",
+    path: "/configuracion/ticket",
+    icon: Receipt,
+    permission: 'configuracion.ticket.editar'
+  },
+  {
     label: "Monedas del negocio",
     path: "/configuracion/monedas-negocio",
     icon: MonetizationOnIcon,
