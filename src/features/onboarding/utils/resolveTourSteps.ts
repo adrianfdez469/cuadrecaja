@@ -28,6 +28,16 @@ function resolvePosStepContent(
   }
 }
 
+function shouldIncludePosStep(
+  step: OnboardingStepDefinition,
+  ctx: IPosTourContext,
+): boolean {
+  if (step.onlyWhenCanPrint) {
+    return ctx.loaded && ctx.canPrint;
+  }
+  return true;
+}
+
 export function resolveTourSteps(
   tour: OnboardingTourDefinition,
   posContext: IPosTourContext | null,
@@ -39,10 +49,13 @@ export function resolveTourSteps(
   const ctx: IPosTourContext = posContext ?? {
     hasProducts: true,
     sampleProductName: null,
+    canPrint: false,
     loaded: false,
   };
 
-  const baseSteps = tour.steps.filter((s) => !s.posBranch);
+  const baseSteps = tour.steps
+    .filter((s) => !s.posBranch)
+    .filter((s) => shouldIncludePosStep(s, ctx));
 
   if (!ctx.loaded) {
     return baseSteps;

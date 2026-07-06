@@ -50,6 +50,8 @@ export interface OnboardingStepDefinition {
   primaryButtonLabel?: string;
   /** Solo si no hay período de caja abierto (tour POS) */
   onlyWhenNoOpenPeriod?: boolean;
+  /** Solo si el usuario puede imprimir tickets desde el POS */
+  onlyWhenCanPrint?: boolean;
   posBranch?: "with-products" | "no-products";
   posContentKey?: "search-guide" | "no-products-block";
 }
@@ -70,6 +72,7 @@ export interface IUserOnboardingSettings {
 export interface IPosTourContext {
   hasProducts: boolean;
   sampleProductName: string | null;
+  canPrint: boolean;
   loaded: boolean;
 }
 

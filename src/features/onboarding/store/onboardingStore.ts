@@ -205,7 +205,12 @@ export const useOnboardingStore = create<OnboardingState>()(
       startTour: (userId, chainId, tourId, eligibleTourIds) => {
         const posTourContext =
           tourId === TOUR_POS_VENTA
-            ? { hasProducts: true, sampleProductName: null, loaded: false }
+            ? {
+                hasProducts: true,
+                sampleProductName: null,
+                canPrint: false,
+                loaded: false,
+              }
             : null;
 
         set({

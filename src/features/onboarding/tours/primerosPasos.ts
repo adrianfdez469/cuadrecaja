@@ -146,6 +146,17 @@ const posToolbarTourSteps: OnboardingTourDefinition["steps"] = [
     spotlightClicks: false,
   },
   {
+    target: '[data-tour="pos-toolbar-printer"]',
+    title: "Impresora de tickets",
+    content:
+      "Configura aquí la impresora térmica para imprimir tickets al cobrar. Puedes conectarla por USB, Bluetooth o red, activar la impresión automática y reenviar tickets pendientes si alguna impresión falló.",
+    pathname: "/pos",
+    placement: "bottom",
+    showNextButton: true,
+    spotlightClicks: false,
+    onlyWhenCanPrint: true,
+  },
+  {
     target: '[data-tour="pos-toolbar-connection"]',
     title: "Estado de conexión",
     content:
