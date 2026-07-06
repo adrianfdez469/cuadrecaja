@@ -191,6 +191,8 @@ model Tienda {
   // Destinos de transferencia para esta tienda
   transferDestinations TransferDestinations[]
 
+  ticketPlantilla TicketPlantilla?
+
   negocio   Negocio @relation(fields: [negocioId], references: [id])
   negocioId String  @default("")
 
@@ -199,6 +201,24 @@ model Tienda {
 
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
+}
+
+model TicketPlantilla {
+  id                          String   @id @default(uuid())
+  tiendaId                    String   @unique
+  tienda                      Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  encabezado                  String?
+  pie                         String?
+  mostrarNegocio              Boolean  @default(true)
+  mostrarTienda               Boolean  @default(true)
+  mostrarCajero               Boolean  @default(true)
+  mostrarDescuentos           Boolean  @default(true)
+  mostrarMultimoneda          Boolean  @default(true)
+  mostrarTasas                Boolean  @default(false)
+  mostrarTotalesSecundarios   Boolean  @default(true)
+  anchoPapel                  Int      @default(58)
+  logoUrl                     String?
+  updatedAt                   DateTime @updatedAt
 }
 
 // Representa un usuario que puede estar vinculado a múltiples tiendas.
