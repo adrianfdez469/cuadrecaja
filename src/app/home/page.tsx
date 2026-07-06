@@ -268,12 +268,6 @@ const HomePage = () => {
 
   const configOptions = [
     {
-      title: "Productos",
-      icon: <ShoppingCart />,
-      path: "/configuracion/productos",
-      permission: "configuracion.productos.acceder",
-    },
-    {
       title: "Categorías",
       icon: <BarChart />,
       path: "/configuracion/categorias",

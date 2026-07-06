@@ -44,7 +44,6 @@ import MenuIcon from "@mui/icons-material/Menu";
 import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
 import StoreIcon from "@mui/icons-material/Store";
 import CategoryIcon from "@mui/icons-material/Category";
-import ChangeHistoryIcon from "@mui/icons-material/ChangeHistory";
 import { useAppContext } from "@/context/AppContext";
 import {
   AccountBalanceWallet,
@@ -155,12 +154,6 @@ const CONFIGURATION_MENU_ITEMS = [
     path: "/configuracion/categorias",
     icon: CategoryIcon,
     permission: "configuracion.categorias.acceder",
-  },
-  {
-    label: "Productos",
-    path: "/configuracion/productos",
-    icon: ChangeHistoryIcon,
-    permission: "configuracion.productos.acceder",
   },
   {
     label: "Plantillas de Gastos",
