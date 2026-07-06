@@ -87,7 +87,7 @@ export async function POST(
     if (
       !verificarPermisoUsuario(
         user.permisos,
-        "operaciones.gestion-inventario.acceder",
+        "operaciones.inventario.acceder",
         user.rol,
       )
     ) {
@@ -145,7 +145,7 @@ export async function PUT(
       ) &&
       !verificarPermisoUsuario(
         user.permisos,
-        "operaciones.gestion-inventario.acceder",
+        "operaciones.inventario.acceder",
         user.rol,
       )
     ) {

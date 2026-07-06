@@ -116,7 +116,7 @@ export function GestionInventarioPage() {
   }, [createProductOpen, signalEvent]);
 
   return (
-    <PageContainer title="Gestión de Unificada de Productos">
+    <PageContainer title="Inventario">
       {tiendaId && <GestionInventarioAlerts tiendaId={tiendaId} />}
 
       <InventarioStatsRow productos={productos} />

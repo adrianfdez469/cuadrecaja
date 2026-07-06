@@ -15,7 +15,7 @@ import {
   Avatar,
   IconButton,
   Divider,
-  Alert
+  Alert,
 } from "@mui/material";
 import {
   Storefront,
@@ -32,7 +32,7 @@ import {
   Security,
   CalendarMonth,
   Backup,
-  WorkspacePremium
+  WorkspacePremium,
 } from "@mui/icons-material";
 import { useMessageContext } from "@/context/MessageContext";
 import { useRouter } from "next/navigation";
@@ -83,38 +83,40 @@ const HomePage = () => {
   const handleGenerateBackup = async () => {
     try {
       setGeneratingBackup(true);
-      showMessage('Generando backup de la base de datos...', 'info');
+      showMessage("Generando backup de la base de datos...", "info");
 
-      const response = await fetch('/api/backup/generate', {
-        method: 'POST',
+      const response = await fetch("/api/backup/generate", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Error al generar backup');
+        throw new Error(data.error || "Error al generar backup");
       }
 
-      showMessage('Backup generado exitosamente', 'success');
+      showMessage("Backup generado exitosamente", "success");
     } catch (error) {
-      console.error('Error al generar backup:', error);
-      showMessage(`Error al generar backup: ${error instanceof Error ? error.message : 'Error desconocido'}`, 'error');
+      console.error("Error al generar backup:", error);
+      showMessage(
+        `Error al generar backup: ${error instanceof Error ? error.message : "Error desconocido"}`,
+        "error",
+      );
     } finally {
       setGeneratingBackup(false);
     }
   };
 
   useEffect(() => {
-
     const fetchNegocioStats = async () => {
       setLoadingNegocioStats(true);
       const stats = await getNegocioStats();
       setNegocioStats(stats);
       setLoadingNegocioStats(false);
-    }
+    };
     fetchNegocioStats();
   }, [user?.negocio?.id]);
 
@@ -143,20 +145,20 @@ const HomePage = () => {
           elevation={0}
           sx={{
             p: 4,
-            textAlign: 'center',
-            backgroundColor: 'background.paper',
+            textAlign: "center",
+            backgroundColor: "background.paper",
             borderRadius: 3,
-            border: '1px solid',
-            borderColor: 'divider'
+            border: "1px solid",
+            borderColor: "divider",
           }}
         >
           <Avatar
             sx={{
               width: 80,
               height: 80,
-              mx: 'auto',
+              mx: "auto",
               mb: 3,
-              bgcolor: 'primary.main'
+              bgcolor: "primary.main",
             }}
           >
             <Store fontSize="large" />
@@ -166,9 +168,14 @@ const HomePage = () => {
             ¡Bienvenido a Cuadre de Caja!
           </Typography>
 
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 500, mx: 'auto' }}>
-            Para comenzar a usar el sistema, necesitas tener al menos un local asociada a tu usuario.
-            Contacta al administrador para que configure tu acceso.
+          <Typography
+            variant="body1"
+            color="text.secondary"
+            sx={{ mb: 3, maxWidth: 500, mx: "auto" }}
+          >
+            Para comenzar a usar el sistema, necesitas tener al menos un local
+            asociada a tu usuario. Contacta al administrador para que configure
+            tu acceso.
           </Typography>
 
           <Alert severity="info" sx={{ mb: 3 }}>
@@ -181,7 +188,7 @@ const HomePage = () => {
             variant="contained"
             size="large"
             startIcon={<Settings />}
-            onClick={() => handleNavigate('/configuracion')}
+            onClick={() => handleNavigate("/configuracion")}
             sx={{ minWidth: 200 }}
           >
             Ir a Configuración
@@ -210,16 +217,16 @@ const HomePage = () => {
       color: "primary",
       path: "/pos",
       gradient: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-      permission: 'operaciones.pos-venta.acceder'
+      permission: "operaciones.pos-venta.acceder",
     },
     {
       title: "Inventario",
-      description: "Consultar stock y existencias",
+      description: "Gestionar productos, stock y precios",
       icon: <Inventory fontSize="large" />,
       color: "success",
       path: "/inventario",
       gradient: "linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)",
-      permission: 'recuperaciones.inventario.acceder'
+      permission: "operaciones.inventario.acceder",
     },
     {
       title: "Ventas",
@@ -228,7 +235,7 @@ const HomePage = () => {
       color: "secondary",
       path: "/ventas",
       gradient: "linear-gradient(135deg, #dc004e 0%, #9a0036 100%)",
-      permission: 'operaciones.ventas.acceder'
+      permission: "operaciones.ventas.acceder",
     },
     {
       title: "Movimientos",
@@ -237,7 +244,7 @@ const HomePage = () => {
       color: "info",
       path: "/movimientos",
       gradient: "linear-gradient(135deg, #0288d1 0%, #01579b 100%)",
-      permission: 'operaciones.movimientos.acceder'
+      permission: "operaciones.movimientos.acceder",
     },
     {
       title: "Cierre de Caja",
@@ -246,7 +253,7 @@ const HomePage = () => {
       color: "warning",
       path: "/cierre",
       gradient: "linear-gradient(135deg, #ed6c02 0%, #e65100 100%)",
-      permission: 'operaciones.cierre.acceder'
+      permission: "operaciones.cierre.acceder",
     },
     {
       title: "Resumen Cierres",
@@ -255,8 +262,8 @@ const HomePage = () => {
       color: "default",
       path: "/resumen_cierre",
       gradient: "linear-gradient(135deg, #757575 0%, #424242 100%)",
-      permission: 'recuperaciones.resumencierres.acceder'
-    }
+      permission: "recuperaciones.resumencierres.acceder",
+    },
   ];
 
   const configOptions = [
@@ -264,70 +271,72 @@ const HomePage = () => {
       title: "Productos",
       icon: <ShoppingCart />,
       path: "/configuracion/productos",
-      permission: 'configuracion.productos.acceder'
+      permission: "configuracion.productos.acceder",
     },
     {
       title: "Categorías",
       icon: <BarChart />,
       path: "/configuracion/categorias",
-      permission: 'configuracion.categorias.acceder'
+      permission: "configuracion.categorias.acceder",
     },
     {
       title: "Locales",
       icon: <Store />,
       path: "/configuracion/locales",
-      permission: 'configuracion.locales.acceder'
+      permission: "configuracion.locales.acceder",
     },
     {
       title: "Usuarios",
       icon: <Person />,
       path: "/configuracion/usuarios",
-      permission: 'configuracion.usuarios.acceder'
+      permission: "configuracion.usuarios.acceder",
     },
     {
       title: "Roles",
       icon: <Security />,
       path: "/configuracion/roles",
-      permission: 'configuracion.roles.acceder'
+      permission: "configuracion.roles.acceder",
     },
     {
       title: "Planes",
       icon: <WorkspacePremium />,
       path: "/configuracion/planes-admin",
-      permission: 'SUPER_ADMIN_ONLY'
-    }
+      permission: "SUPER_ADMIN_ONLY",
+    },
   ];
 
-
   const getQuickAction = (localType: string) => {
-    return quickActions.filter(item => {
-      if (//user.permisos.includes(item.permission)
-        verificarPermiso(item.permission)
-        || user.rol === 'SUPER_ADMIN') {
+    return quickActions.filter((item) => {
+      if (
+        //user.permisos.includes(item.permission)
+        verificarPermiso(item.permission) ||
+        user.rol === "SUPER_ADMIN"
+      ) {
         if (localType === TipoLocal.ALMACEN) {
           return !excludeOnWarehouse.includes(item.path);
         }
         return true;
       }
-    })
+    });
   };
 
   const getConfigOptions = () => {
-    return configOptions.filter(item => {
-      if (item.permission === 'SUPER_ADMIN_ONLY') return user.rol === 'SUPER_ADMIN';
-      if (//user.permisos.includes(item.permission)
-        verificarPermiso(item.permission)
-        || user.rol === 'SUPER_ADMIN') {
+    return configOptions.filter((item) => {
+      if (item.permission === "SUPER_ADMIN_ONLY")
+        return user.rol === "SUPER_ADMIN";
+      if (
+        //user.permisos.includes(item.permission)
+        verificarPermiso(item.permission) ||
+        user.rol === "SUPER_ADMIN"
+      ) {
         return true;
       }
-    })
-  }
+    });
+  };
 
   const getTipoLocalText = (tipoLocal: string) => {
-    return tipoLocal === TipoLocal.ALMACEN ? 'Alamcén' : 'Tienda';
-  }
-
-
+    return tipoLocal === TipoLocal.ALMACEN ? "Alamcén" : "Tienda";
+  };
 
   return (
     <Container maxWidth="xl" sx={{ py: 2 }}>
@@ -347,11 +356,11 @@ const HomePage = () => {
               gutterBottom
               sx={{
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #1976d2 0%, #dc004e 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
+                background: "linear-gradient(135deg, #1976d2 0%, #dc004e 100%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem" },
               }}
             >
               Panel de Control
@@ -361,151 +370,190 @@ const HomePage = () => {
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, width: { xs: '100%', md: 'auto' } }}>
-          <Paper
-            elevation={0}
+          <Box
             sx={{
-              p: 2,
-              bgcolor: 'primary.main',
-              color: 'white',
-              borderRadius: 2,
-              minWidth: { xs: '100%', md: 200 },
-              boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              gap: 2,
+              width: { xs: "100%", md: "auto" },
             }}
           >
-            <Typography
-              variant="h6"
+            <Paper
+              elevation={0}
               sx={{
-                color: 'rgba(255, 255, 255, 0.95)',
-                fontWeight: 600,
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-                display: 'flex',
-                flexDirection: 'row',
-                alignContent: 'center',
-                justifyItems: 'center',
-                alignItems: 'center'
+                p: 2,
+                bgcolor: "primary.main",
+                color: "white",
+                borderRadius: 2,
+                minWidth: { xs: "100%", md: 200 },
+                boxShadow: "0 2px 8px rgba(25, 118, 210, 0.2)",
               }}
             >
-              {`${getTipoLocalText(user.localActual.tipo)}: ${user.localActual.nombre}`}
-
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'rgba(255, 255, 255, 0.92)',
-                fontWeight: 400,
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-              }}
-            >
-              {user.negocio?.nombre}
-            </Typography>
-          </Paper>
+              <Typography
+                variant="h6"
+                sx={{
+                  color: "rgba(255, 255, 255, 0.95)",
+                  fontWeight: 600,
+                  textShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
+                  display: "flex",
+                  flexDirection: "row",
+                  alignContent: "center",
+                  justifyItems: "center",
+                  alignItems: "center",
+                }}
+              >
+                {`${getTipoLocalText(user.localActual.tipo)}: ${user.localActual.nombre}`}
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "rgba(255, 255, 255, 0.92)",
+                  fontWeight: 400,
+                  textShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
+                }}
+              >
+                {user.negocio?.nombre}
+              </Typography>
+            </Paper>
 
             {/* Botón de Backup - Solo SUPER_ADMIN */}
-            {user.rol === 'SUPER_ADMIN' && (
+            {user.rol === "SUPER_ADMIN" && (
               <Button
                 variant="contained"
                 color="warning"
-                startIcon={generatingBackup ? <CircularProgress size={20} color="inherit" /> : <Backup />}
+                startIcon={
+                  generatingBackup ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    <Backup />
+                  )
+                }
                 onClick={handleGenerateBackup}
                 disabled={generatingBackup}
                 sx={{
-                  height: 'fit-content',
-                  alignSelf: { xs: 'stretch', md: 'center' },
+                  height: "fit-content",
+                  alignSelf: { xs: "stretch", md: "center" },
                   px: 3,
                   py: 1.5,
                   fontWeight: 600,
-                  textTransform: 'none',
-                  boxShadow: '0 2px 8px rgba(237, 108, 2, 0.3)',
-                  '&:hover': {
-                    boxShadow: '0 4px 12px rgba(237, 108, 2, 0.4)',
-                    transform: 'translateY(-2px)',
+                  textTransform: "none",
+                  boxShadow: "0 2px 8px rgba(237, 108, 2, 0.3)",
+                  "&:hover": {
+                    boxShadow: "0 4px 12px rgba(237, 108, 2, 0.4)",
+                    transform: "translateY(-2px)",
                   },
-                  '&:disabled': {
-                    bgcolor: 'warning.light',
-                    color: 'white',
+                  "&:disabled": {
+                    bgcolor: "warning.light",
+                    color: "white",
                   },
-                  transition: 'all 0.3s ease',
+                  transition: "all 0.3s ease",
                 }}
               >
-                {generatingBackup ? 'Generando Backup...' : 'Generar Backup BD'}
+                {generatingBackup ? "Generando Backup..." : "Generar Backup BD"}
               </Button>
             )}
           </Box>
         </Box>
 
         <Divider sx={{ my: 1 }} />
-        {loadingNegocioStats ? <CircularProgress size="20px" /> : (
-        <Box
-          display="flex"
-          flexDirection={{ xs: "column", sm: "row" }}
-          flexWrap="wrap"
-          gap={{ xs: 1, sm: 1, md: 2 }}
-          alignItems={{ xs: "stretch", sm: "center" }}
-        >
-          <Chip
-            label={`Productos: ${negocioStats?.productos.actual} / ${ negocioStats?.productos.limite === -1 ? '∞' : negocioStats?.productos.limite} (${negocioStats?.productos.porcentaje}%)`}
-            icon={<ShoppingCart />}
-            color={negocioStats?.productos.porcentaje <= 0 ? 'error' : negocioStats?.productos.porcentaje <= 10 ? 'warning' : 'success'}
-            size="small"
-            variant="outlined"
-            sx={{ 
-              borderColor: 'primary.main', 
-              color: 'primary.main', 
-              fontWeight: 500,
-              minWidth: { xs: 'auto', sm: 'fit-content' },
-              justifyContent: { xs: 'flex-start', sm: 'center' }
-            }}
-          />
-          <Chip
-            label={`Usuarios: ${negocioStats?.usuarios.actual} / ${ negocioStats?.usuarios.limite === -1 ? '∞' : negocioStats?.usuarios.limite} (${negocioStats?.usuarios.porcentaje}%)`}
-            icon={<Person />}
-            color={negocioStats?.usuarios.porcentaje <= 0 ? 'error' : negocioStats?.usuarios.porcentaje <= 3 ? 'warning' : 'success'}
-            size="small"
-            variant="outlined"
-            sx={{ 
-              borderColor: 'primary.main', 
-              color: 'primary.main', 
-              fontWeight: 500,
-              minWidth: { xs: 'auto', sm: 'fit-content' },
-              justifyContent: { xs: 'flex-start', sm: 'center' }
-            }}
-          />
-          <Chip
-            label={`Tiendas: ${negocioStats?.tiendas.actual} / ${ negocioStats?.tiendas.limite === -1 ? '∞' : negocioStats?.tiendas.limite} (${negocioStats?.tiendas.porcentaje}%)`}
-            icon={<Store />}
-            color={negocioStats?.tiendas.porcentaje <= 0 ? 'error' : negocioStats?.tiendas.porcentaje <= 30 ? 'warning' : 'success'}
-            size="small"
-            variant="outlined"
-            sx={{ 
-              borderColor: 'primary.main', 
-              color: 'primary.main', 
-              fontWeight: 500,
-              minWidth: { xs: 'auto', sm: 'fit-content' },
-              justifyContent: { xs: 'flex-start', sm: 'center' }
-            }}
-          />
-          <Chip
-            label={`Fecha de vencimiento: ${formatDate(negocioStats?.fechaVencimiento)} - ${negocioStats?.diasRestantes} días restantes`}
-            icon={<CalendarMonth />}
-            color={negocioStats?.diasRestantes <= 0 ? 'error' : negocioStats?.diasRestantes <= 7 ? 'warning' : 'success'}
-            size="small"
-            variant="outlined"
-            sx={{ 
-              borderColor: 'primary.main', 
-              color: 'primary.main', 
-              fontWeight: 500,
-              minWidth: { xs: 'auto', sm: 'fit-content' },
-              justifyContent: { xs: 'flex-start', sm: 'center' }
-            }}
-          />
-        </Box>)}
+        {loadingNegocioStats ? (
+          <CircularProgress size="20px" />
+        ) : (
+          <Box
+            display="flex"
+            flexDirection={{ xs: "column", sm: "row" }}
+            flexWrap="wrap"
+            gap={{ xs: 1, sm: 1, md: 2 }}
+            alignItems={{ xs: "stretch", sm: "center" }}
+          >
+            <Chip
+              label={`Productos: ${negocioStats?.productos.actual} / ${negocioStats?.productos.limite === -1 ? "∞" : negocioStats?.productos.limite} (${negocioStats?.productos.porcentaje}%)`}
+              icon={<ShoppingCart />}
+              color={
+                negocioStats?.productos.porcentaje <= 0
+                  ? "error"
+                  : negocioStats?.productos.porcentaje <= 10
+                    ? "warning"
+                    : "success"
+              }
+              size="small"
+              variant="outlined"
+              sx={{
+                borderColor: "primary.main",
+                color: "primary.main",
+                fontWeight: 500,
+                minWidth: { xs: "auto", sm: "fit-content" },
+                justifyContent: { xs: "flex-start", sm: "center" },
+              }}
+            />
+            <Chip
+              label={`Usuarios: ${negocioStats?.usuarios.actual} / ${negocioStats?.usuarios.limite === -1 ? "∞" : negocioStats?.usuarios.limite} (${negocioStats?.usuarios.porcentaje}%)`}
+              icon={<Person />}
+              color={
+                negocioStats?.usuarios.porcentaje <= 0
+                  ? "error"
+                  : negocioStats?.usuarios.porcentaje <= 3
+                    ? "warning"
+                    : "success"
+              }
+              size="small"
+              variant="outlined"
+              sx={{
+                borderColor: "primary.main",
+                color: "primary.main",
+                fontWeight: 500,
+                minWidth: { xs: "auto", sm: "fit-content" },
+                justifyContent: { xs: "flex-start", sm: "center" },
+              }}
+            />
+            <Chip
+              label={`Tiendas: ${negocioStats?.tiendas.actual} / ${negocioStats?.tiendas.limite === -1 ? "∞" : negocioStats?.tiendas.limite} (${negocioStats?.tiendas.porcentaje}%)`}
+              icon={<Store />}
+              color={
+                negocioStats?.tiendas.porcentaje <= 0
+                  ? "error"
+                  : negocioStats?.tiendas.porcentaje <= 30
+                    ? "warning"
+                    : "success"
+              }
+              size="small"
+              variant="outlined"
+              sx={{
+                borderColor: "primary.main",
+                color: "primary.main",
+                fontWeight: 500,
+                minWidth: { xs: "auto", sm: "fit-content" },
+                justifyContent: { xs: "flex-start", sm: "center" },
+              }}
+            />
+            <Chip
+              label={`Fecha de vencimiento: ${formatDate(negocioStats?.fechaVencimiento)} - ${negocioStats?.diasRestantes} días restantes`}
+              icon={<CalendarMonth />}
+              color={
+                negocioStats?.diasRestantes <= 0
+                  ? "error"
+                  : negocioStats?.diasRestantes <= 7
+                    ? "warning"
+                    : "success"
+              }
+              size="small"
+              variant="outlined"
+              sx={{
+                borderColor: "primary.main",
+                color: "primary.main",
+                fontWeight: 500,
+                minWidth: { xs: "auto", sm: "fit-content" },
+                justifyContent: { xs: "flex-start", sm: "center" },
+              }}
+            />
+          </Box>
+        )}
         <Divider sx={{ my: 1 }} />
       </Box>
 
       {/* Widget de Notificaciones */}
       <Box sx={{ mb: 3 }}>
-        {user.rol === 'SUPER_ADMIN' && <SuspensionSummary />}
+        {user.rol === "SUPER_ADMIN" && <SuspensionSummary />}
         <SubscriptionWarning />
         <ExpiringProductsAlert tiendaId={user.localActual.id} />
         <NotificationsWidget maxNotifications={5} showBadge={true} />
@@ -518,27 +566,26 @@ const HomePage = () => {
         </Typography>
 
         <Grid container spacing={3}>
-
           {getQuickAction(user.localActual.tipo).map((action, index) => (
             <Grid item xs={12} sm={6} md={4} key={index}>
               <Card
                 sx={{
-                  height: '100%',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 12px 24px rgba(0, 0, 0, 0.15)',
+                  height: "100%",
+                  cursor: "pointer",
+                  position: "relative",
+                  overflow: "hidden",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: "0 12px 24px rgba(0, 0, 0, 0.15)",
                   },
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                 }}
                 onClick={() => handleNavigate(action.path)}
               >
                 {/* Fondo con gradiente */}
                 <Box
                   sx={{
-                    position: 'absolute',
+                    position: "absolute",
                     top: 0,
                     left: 0,
                     right: 0,
@@ -563,7 +610,11 @@ const HomePage = () => {
                       <Typography variant="h6" gutterBottom fontWeight={600}>
                         {action.title}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 2 }}
+                      >
                         {action.description}
                       </Typography>
 
@@ -572,9 +623,9 @@ const HomePage = () => {
                         size="small"
                         variant="outlined"
                         sx={{
-                          borderColor: 'primary.main',
-                          color: 'primary.main',
-                          fontWeight: 500
+                          borderColor: "primary.main",
+                          color: "primary.main",
+                          fontWeight: 500,
                         }}
                       />
                     </Box>
@@ -588,9 +639,13 @@ const HomePage = () => {
 
       {/* Configuración */}
       <Box>
-        {getConfigOptions().length > 0 &&
+        {getConfigOptions().length > 0 && (
           <>
-            <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
+            <Typography
+              variant="h5"
+              gutterBottom
+              sx={{ mb: 3, fontWeight: 600 }}
+            >
               Configuración del Sistema
             </Typography>
 
@@ -599,13 +654,13 @@ const HomePage = () => {
                 <Grid item xs={6} sm={3} key={index}>
                   <Card
                     sx={{
-                      cursor: 'pointer',
-                      textAlign: 'center',
+                      cursor: "pointer",
+                      textAlign: "center",
                       p: 2,
-                      '&:hover': {
-                        bgcolor: 'action.hover',
+                      "&:hover": {
+                        bgcolor: "action.hover",
                       },
-                      transition: 'all 0.2s ease',
+                      transition: "all 0.2s ease",
                     }}
                     onClick={() => handleNavigate(option.path)}
                   >
@@ -613,11 +668,11 @@ const HomePage = () => {
                       size="large"
                       sx={{
                         mb: 1,
-                        bgcolor: 'primary.light',
-                        color: 'white',
-                        '&:hover': {
-                          bgcolor: 'primary.main',
-                        }
+                        bgcolor: "primary.light",
+                        color: "white",
+                        "&:hover": {
+                          bgcolor: "primary.main",
+                        },
                       }}
                     >
                       {option.icon}
@@ -630,10 +685,8 @@ const HomePage = () => {
               ))}
             </Grid>
           </>
-        }
+        )}
       </Box>
-
-      
     </Container>
   );
 };

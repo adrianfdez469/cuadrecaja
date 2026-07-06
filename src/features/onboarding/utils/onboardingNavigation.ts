@@ -1,7 +1,9 @@
 /** Atributo data-tour del ítem de menú asociado a una ruta de avance del tour */
-export function getMenuDataTourForAdvancePath(path: string): string | undefined {
+export function getMenuDataTourForAdvancePath(
+  path: string,
+): string | undefined {
   if (path.startsWith("/pos")) return "nav-pos";
-  if (path.startsWith("/configuracion/gestion-inventario")) {
+  if (path.startsWith("/inventario")) {
     return "nav-gestion-inventario";
   }
   return undefined;
@@ -41,16 +43,14 @@ export function scrollNavDrawerTargetIntoView(
 
 export function isNavDrawerTourSelector(target: string): boolean {
   return (
-    target.includes("nav-gestion-inventario") ||
-    target.includes("nav-pos")
+    target.includes("nav-gestion-inventario") || target.includes("nav-pos")
   );
 }
 
 /** Barra superior del POS (período → conexión), excluye escáner en barra inferior */
 export function isPosTopToolbarTourTarget(target: string): boolean {
   return (
-    target.includes("pos-toolbar-") &&
-    !target.includes("pos-toolbar-scanner")
+    target.includes("pos-toolbar-") && !target.includes("pos-toolbar-scanner")
   );
 }
 
