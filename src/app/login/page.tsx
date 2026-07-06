@@ -19,16 +19,16 @@ import {
   Avatar,
   Link,
 } from "@mui/material";
-import { 
-  Visibility, 
-  VisibilityOff, 
-  Person, 
+import {
+  Visibility,
+  VisibilityOff,
+  Person,
   Lock,
   Store,
   Login as LoginIcon,
   Warning,
   WhatsApp,
-  Email
+  Email,
 } from "@mui/icons-material";
 import {
   LOGIN_CREDENTIALS_SESSION_KEY,
@@ -61,8 +61,11 @@ export default function LoginPage() {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if(e.target.name === "usuario") {
-      setCredentials({ ...credentials, [e.target.name]: e.target.value.trim().toLowerCase() });
+    if (e.target.name === "usuario") {
+      setCredentials({
+        ...credentials,
+        [e.target.name]: e.target.value.trim().toLowerCase(),
+      });
     } else {
       setCredentials({ ...credentials, [e.target.name]: e.target.value });
     }
@@ -85,7 +88,7 @@ export default function LoginPage() {
         // Detectar si es error de suscripción expirada
         if (result.error.includes("SUBSCRIPTION_EXPIRED")) {
           setError("SUBSCRIPTION_EXPIRED");
-        } 
+        }
         // Detectar si es error de usuario sin configurar
         else if (result.error.includes("USUARIO_SIN_CONFIGURAR")) {
           // Extraer el mensaje completo del error
@@ -94,17 +97,17 @@ export default function LoginPage() {
         } else if (result.error.includes("USUARIO_PENDIENTE_VERIFICACION")) {
           const mensajeError = result.error.split(": ")[1] || result.error;
           setError(`USUARIO_PENDIENTE_VERIFICACION: ${mensajeError}`);
-        }
-        else {
+        } else {
           setError("Credenciales inválidas. Verifica tu usuario y contraseña.");
         }
-      } else {
-        // Éxito - NextAuth manejará la redirección automáticamente
+        setLoading(false);
       }
+      // Éxito: se deja loading=true, AppContext detectará la sesión y redirigirá.
+      // Si se apagara aquí, el botón se reactivaría durante el instante
+      // en que useSession aún no refleja el nuevo estado autenticado.
     } catch (err) {
       console.error(err);
       setError("Error de conexión. Intenta nuevamente.");
-    } finally {
       setLoading(false);
     }
   };
@@ -151,12 +154,12 @@ export default function LoginPage() {
                   right: 0,
                   bottom: 0,
                   background: "rgba(0, 0, 0, 0.2)",
-                  zIndex: 1
+                  zIndex: 1,
                 },
                 "& > *": {
                   position: "relative",
-                  zIndex: 2
-                }
+                  zIndex: 2,
+                },
               }}
             >
               <Avatar
@@ -167,34 +170,36 @@ export default function LoginPage() {
                   mb: 2,
                   backgroundColor: "rgba(255, 255, 255, 0.25)",
                   backdropFilter: "blur(10px)",
-                  border: "2px solid rgba(255, 255, 255, 0.3)"
+                  border: "2px solid rgba(255, 255, 255, 0.3)",
                 }}
               >
                 <Store fontSize="large" sx={{ color: "white" }} />
               </Avatar>
-              
+
               <Typography
                 variant="h4"
                 fontWeight={700}
                 gutterBottom
                 sx={{
-                  textShadow: "0 3px 6px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.7)",
+                  textShadow:
+                    "0 3px 6px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.7)",
                   color: "#ffffff",
                   fontSize: { xs: "1.75rem", sm: "2.125rem" },
-                  letterSpacing: "0.5px"
+                  letterSpacing: "0.5px",
                 }}
               >
                 Cuadre de Caja
               </Typography>
-              
+
               <Typography
                 variant="body1"
                 sx={{
-                  textShadow: "0 2px 4px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.7)",
+                  textShadow:
+                    "0 2px 4px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.7)",
                   fontSize: "1.1rem",
                   color: "#ffffff",
                   fontWeight: 500,
-                  letterSpacing: "0.3px"
+                  letterSpacing: "0.3px",
                 }}
               >
                 Sistema de Punto de Venta
@@ -293,60 +298,78 @@ export default function LoginPage() {
                 {error && (
                   <>
                     {error.startsWith("USUARIO_SIN_CONFIGURAR:") ? (
-                      <Alert 
-                        severity="warning" 
+                      <Alert
+                        severity="warning"
                         icon={<Warning />}
-                        sx={{ 
+                        sx={{
                           mb: 3,
                           borderRadius: 2,
                           "& .MuiAlert-message": {
-                            width: "100%"
-                          }
+                            width: "100%",
+                          },
                         }}
                       >
-                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight={600}
+                          gutterBottom
+                        >
                           Usuario Sin Configurar
                         </Typography>
                         <Typography variant="body2" sx={{ mb: 2 }}>
                           {error.split(": ")[1]}
                         </Typography>
-                        
-                        <Box 
-                          sx={{ 
-                            mt: 2, 
-                            pt: 2, 
-                            borderTop: '1px solid rgba(237, 108, 2, 0.2)'
+
+                        <Box
+                          sx={{
+                            mt: 2,
+                            pt: 2,
+                            borderTop: "1px solid rgba(237, 108, 2, 0.2)",
                           }}
                         >
-                          <Typography variant="body2" fontWeight={600} gutterBottom>
-                            Para completar tu configuración, contacta al administrador:
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            gutterBottom
+                          >
+                            Para completar tu configuración, contacta al
+                            administrador:
                           </Typography>
-                          
+
                           {/* WhatsApp Links */}
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                              mb: 2,
+                            }}
+                          >
                             <Box
                               component="a"
                               href="https://wa.me/5354319958?text=Hola%2C%20mi%20usuario%20no%20est%C3%A1%20completamente%20configurado%20en%20Cuadre%20de%20Caja.%20%C2%BFPodr%C3%ADan%20ayudarme%3F"
                               target="_blank"
                               rel="noopener noreferrer"
                               sx={{
-                                display: 'flex',
-                                alignItems: 'center',
+                                display: "flex",
+                                alignItems: "center",
                                 gap: 1,
                                 p: 1,
                                 pl: 1.5,
                                 borderRadius: 1,
-                                textDecoration: 'none',
-                                color: 'inherit',
-                                backgroundColor: 'rgba(237, 108, 2, 0.08)',
-                                transition: 'all 0.2s',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(237, 108, 2, 0.15)',
-                                  transform: 'translateX(4px)'
-                                }
+                                textDecoration: "none",
+                                color: "inherit",
+                                backgroundColor: "rgba(237, 108, 2, 0.08)",
+                                transition: "all 0.2s",
+                                "&:hover": {
+                                  backgroundColor: "rgba(237, 108, 2, 0.15)",
+                                  transform: "translateX(4px)",
+                                },
                               }}
                             >
-                              <WhatsApp sx={{ fontSize: 18, color: '#25D366' }} />
+                              <WhatsApp
+                                sx={{ fontSize: 18, color: "#25D366" }}
+                              />
                               <Typography variant="body2" fontWeight={500}>
                                 +53 5 4319958
                               </Typography>
@@ -357,23 +380,25 @@ export default function LoginPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                               sx={{
-                                display: 'flex',
-                                alignItems: 'center',
+                                display: "flex",
+                                alignItems: "center",
                                 gap: 1,
                                 p: 1,
                                 pl: 1.5,
                                 borderRadius: 1,
-                                textDecoration: 'none',
-                                color: 'inherit',
-                                backgroundColor: 'rgba(237, 108, 2, 0.08)',
-                                transition: 'all 0.2s',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(237, 108, 2, 0.15)',
-                                  transform: 'translateX(4px)'
-                                }
+                                textDecoration: "none",
+                                color: "inherit",
+                                backgroundColor: "rgba(237, 108, 2, 0.08)",
+                                transition: "all 0.2s",
+                                "&:hover": {
+                                  backgroundColor: "rgba(237, 108, 2, 0.15)",
+                                  transform: "translateX(4px)",
+                                },
                               }}
                             >
-                              <WhatsApp sx={{ fontSize: 18, color: '#25D366' }} />
+                              <WhatsApp
+                                sx={{ fontSize: 18, color: "#25D366" }}
+                              />
                               <Typography variant="body2" fontWeight={500}>
                                 +53 53334449
                               </Typography>
@@ -385,23 +410,25 @@ export default function LoginPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                               sx={{
-                                display: 'flex',
-                                alignItems: 'center',
+                                display: "flex",
+                                alignItems: "center",
                                 gap: 1,
                                 p: 1,
                                 pl: 1.5,
                                 borderRadius: 1,
-                                textDecoration: 'none',
-                                color: 'inherit',
-                                backgroundColor: 'rgba(237, 108, 2, 0.08)',
-                                transition: 'all 0.2s',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(237, 108, 2, 0.15)',
-                                  transform: 'translateX(4px)'
-                                }
+                                textDecoration: "none",
+                                color: "inherit",
+                                backgroundColor: "rgba(237, 108, 2, 0.08)",
+                                transition: "all 0.2s",
+                                "&:hover": {
+                                  backgroundColor: "rgba(237, 108, 2, 0.15)",
+                                  transform: "translateX(4px)",
+                                },
                               }}
                             >
-                              <WhatsApp sx={{ fontSize: 18, color: '#25D366' }} />
+                              <WhatsApp
+                                sx={{ fontSize: 18, color: "#25D366" }}
+                              />
                               <Typography variant="body2" fontWeight={500}>
                                 +598 97728107
                               </Typography>
@@ -409,8 +436,17 @@ export default function LoginPage() {
                           </Box>
 
                           {/* Email */}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: 1.5 }}>
-                            <Email sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                              pl: 1.5,
+                            }}
+                          >
+                            <Email
+                              sx={{ fontSize: 16, color: "text.secondary" }}
+                            />
                             <Typography variant="body2" color="text.secondary">
                               adrianfdez469@gmail.com
                             </Typography>
@@ -426,66 +462,92 @@ export default function LoginPage() {
                           "& .MuiAlert-message": { width: "100%" },
                         }}
                       >
-                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight={600}
+                          gutterBottom
+                        >
                           Cuenta pendiente de activación
                         </Typography>
                         <Typography variant="body2">
                           {error.split(": ").slice(1).join(": ")}
                         </Typography>
-                        <Typography variant="body2" sx={{ mt: 1.5 }} color="text.secondary">
-                          Si no encuentras el correo, pide a un administrador que reenvíe la invitación.
+                        <Typography
+                          variant="body2"
+                          sx={{ mt: 1.5 }}
+                          color="text.secondary"
+                        >
+                          Si no encuentras el correo, pide a un administrador
+                          que reenvíe la invitación.
                         </Typography>
                       </Alert>
                     ) : error === "SUBSCRIPTION_EXPIRED" ? (
-                      <Alert 
-                        severity="error" 
+                      <Alert
+                        severity="error"
                         icon={<Warning />}
-                        sx={{ 
+                        sx={{
                           mb: 3,
                           borderRadius: 2,
                           "& .MuiAlert-message": {
-                            width: "100%"
-                          }
+                            width: "100%",
+                          },
                         }}
                       >
-                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight={600}
+                          gutterBottom
+                        >
                           Suscripción Expirada
                         </Typography>
                         <Typography variant="body2" sx={{ mb: 2 }}>
-                          La suscripción de su negocio ha expirado. No puede acceder al sistema hasta que se renueve la suscripción.
+                          La suscripción de su negocio ha expirado. No puede
+                          acceder al sistema hasta que se renueve la
+                          suscripción.
                         </Typography>
-                        
-                        <Box 
-                          sx={{ 
-                            mt: 2, 
-                            pt: 2, 
-                            borderTop: '1px solid rgba(211, 47, 47, 0.2)'
+
+                        <Box
+                          sx={{
+                            mt: 2,
+                            pt: 2,
+                            borderTop: "1px solid rgba(211, 47, 47, 0.2)",
                           }}
                         >
-                          <Typography variant="body2" fontWeight={600} gutterBottom>
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            gutterBottom
+                          >
                             Para renovar, contacte a:
                           </Typography>
-                          
+
                           {/* WhatsApp Links */}
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                              mb: 2,
+                            }}
+                          >
                             <Box
                               component="a"
                               href="https://wa.me/5354319958?text=Hola%2C%20necesito%20renovar%20la%20suscripci%C3%B3n%20de%20mi%20negocio%20en%20Cuadre%20de%20Caja.%20%C2%BFPodr%C3%ADan%20ayudarme%3F"
                               target="_blank"
                               rel="noopener noreferrer"
                               sx={{
-                                display: 'flex',
-                                alignItems: 'center',
+                                display: "flex",
+                                alignItems: "center",
                                 gap: 1,
-                                color: '#25D366',
-                                textDecoration: 'none',
-                                padding: '6px 12px',
+                                color: "#25D366",
+                                textDecoration: "none",
+                                padding: "6px 12px",
                                 borderRadius: 1,
-                                transition: 'all 0.2s',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(37, 211, 102, 0.08)',
-                                  transform: 'translateX(2px)'
-                                }
+                                transition: "all 0.2s",
+                                "&:hover": {
+                                  backgroundColor: "rgba(37, 211, 102, 0.08)",
+                                  transform: "translateX(2px)",
+                                },
                               }}
                             >
                               <WhatsApp sx={{ fontSize: 18 }} />
@@ -499,18 +561,18 @@ export default function LoginPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                               sx={{
-                                display: 'flex',
-                                alignItems: 'center',
+                                display: "flex",
+                                alignItems: "center",
                                 gap: 1,
-                                color: '#25D366',
-                                textDecoration: 'none',
-                                padding: '6px 12px',
+                                color: "#25D366",
+                                textDecoration: "none",
+                                padding: "6px 12px",
                                 borderRadius: 1,
-                                transition: 'all 0.2s',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(37, 211, 102, 0.08)',
-                                  transform: 'translateX(2px)'
-                                }
+                                transition: "all 0.2s",
+                                "&:hover": {
+                                  backgroundColor: "rgba(37, 211, 102, 0.08)",
+                                  transform: "translateX(2px)",
+                                },
                               }}
                             >
                               <WhatsApp sx={{ fontSize: 18 }} />
@@ -518,25 +580,25 @@ export default function LoginPage() {
                                 +53 53334449
                               </Typography>
                             </Box>
-                            
+
                             <Box
                               component="a"
                               href="https://wa.me/59897728107?text=Hola%2C%20necesito%20renovar%20la%20suscripci%C3%B3n%20de%20mi%20negocio%20en%20Cuadre%20de%20Caja.%20%C2%BFPodr%C3%ADan%20ayudarme%3F"
                               target="_blank"
                               rel="noopener noreferrer"
                               sx={{
-                                display: 'flex',
-                                alignItems: 'center',
+                                display: "flex",
+                                alignItems: "center",
                                 gap: 1,
-                                color: '#25D366',
-                                textDecoration: 'none',
-                                padding: '6px 12px',
+                                color: "#25D366",
+                                textDecoration: "none",
+                                padding: "6px 12px",
                                 borderRadius: 1,
-                                transition: 'all 0.2s',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(37, 211, 102, 0.08)',
-                                  transform: 'translateX(2px)'
-                                }
+                                transition: "all 0.2s",
+                                "&:hover": {
+                                  backgroundColor: "rgba(37, 211, 102, 0.08)",
+                                  transform: "translateX(2px)",
+                                },
                               }}
                             >
                               <WhatsApp sx={{ fontSize: 18 }} />
@@ -548,24 +610,29 @@ export default function LoginPage() {
                         </Box>
                       </Alert>
                     ) : (
-                  <Alert 
-                    severity="error" 
-                    sx={{ 
-                      mb: 3,
-                      borderRadius: 2,
-                      "& .MuiAlert-message": {
-                        fontSize: "0.875rem",
-                      }
-                    }}
-                  >
-                    {error}
-                  </Alert>
+                      <Alert
+                        severity="error"
+                        sx={{
+                          mb: 3,
+                          borderRadius: 2,
+                          "& .MuiAlert-message": {
+                            fontSize: "0.875rem",
+                          },
+                        }}
+                      >
+                        {error}
+                      </Alert>
                     )}
                   </>
                 )}
 
                 <Box sx={{ textAlign: "right", mb: 2 }}>
-                  <Link component={NextLink} href={OLVIDE_CONTRASEÑA_PATH} variant="body2" underline="hover">
+                  <Link
+                    component={NextLink}
+                    href={OLVIDE_CONTRASEÑA_PATH}
+                    variant="body2"
+                    underline="hover"
+                  >
                     ¿Olvidaste tu contraseña?
                   </Link>
                 </Box>
@@ -575,17 +642,23 @@ export default function LoginPage() {
                   fullWidth
                   variant="contained"
                   size="large"
-                  disabled={loading || !credentials.usuario || !credentials.password}
-                  startIcon={loading ? <CircularProgress size={20} /> : <LoginIcon />}
+                  disabled={
+                    loading || !credentials.usuario || !credentials.password
+                  }
+                  startIcon={
+                    loading ? <CircularProgress size={20} /> : <LoginIcon />
+                  }
                   sx={{
                     py: 1.5,
                     fontSize: "1rem",
                     fontWeight: 600,
                     borderRadius: 2,
                     textTransform: "none",
-                    background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+                    background:
+                      "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)",
+                      background:
+                        "linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)",
                       transform: "translateY(-1px)",
                       boxShadow: "0 6px 20px rgba(25, 118, 210, 0.4)",
                     },

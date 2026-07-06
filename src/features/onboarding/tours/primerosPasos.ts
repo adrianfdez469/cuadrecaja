@@ -4,14 +4,17 @@ import {
   TOUR_GESTION_INVENTARIO,
   TOUR_POS_VENTA,
 } from "../constants";
-import type { OnboardingChainDefinition, OnboardingTourDefinition } from "../types";
+import type {
+  OnboardingChainDefinition,
+  OnboardingTourDefinition,
+} from "../types";
 
 export const tourGestionInventario: OnboardingTourDefinition = {
   id: TOUR_GESTION_INVENTARIO,
   title: "Crear tu primer producto",
   description:
-    "Aprende a dar de alta un producto con precio y stock en la gestión unificada.",
-  permission: "configuracion.gestion-inventario.acceder",
+    "Aprende a dar de alta un producto con precio y stock en Inventario.",
+  permission: "operaciones.inventario.acceder",
   steps: [
     {
       target: "body",
@@ -34,19 +37,19 @@ export const tourGestionInventario: OnboardingTourDefinition = {
     },
     {
       target: '[data-tour="nav-gestion-inventario"]',
-      title: "Gestión de productos",
+      title: "Inventario",
       content:
-        "Entra en Configuración → Gestión Unificada de Productos. Ahí creas productos con precio y stock para esta tienda.",
+        "Está en Operaciones. Pulsa aquí para crear productos con precio y stock en esta tienda.",
       placement: "right",
       hideFooter: true,
       spotlightClicks: true,
-      advanceOnPathname: "/configuracion/gestion-inventario",
+      advanceOnPathname: "/inventario",
     },
     {
       target: '[data-tour="gi-create-btn"]',
       title: "Nuevo producto",
       content: "Pulsa para abrir el formulario de alta.",
-      pathname: "/configuracion/gestion-inventario",
+      pathname: "/inventario",
       placement: "bottom",
       hideFooter: true,
       spotlightClicks: true,
@@ -57,7 +60,7 @@ export const tourGestionInventario: OnboardingTourDefinition = {
       title: "Producto de prueba",
       content:
         "Los campos ya vienen con datos de ejemplo. Revísalos y pulsa «Crear producto» cuando estés listo.",
-      pathname: "/configuracion/gestion-inventario",
+      pathname: "/inventario",
       placement: "center",
       hideFooter: true,
       spotlightClicks: true,
@@ -69,7 +72,7 @@ export const tourGestionInventario: OnboardingTourDefinition = {
       target: '[data-tour="gi-create-save-btn"]',
       title: "Guardar producto",
       content: "Pulsa aquí para crear el producto en esta tienda.",
-      pathname: "/configuracion/gestion-inventario",
+      pathname: "/inventario",
       placement: "top",
       hideFooter: true,
       spotlightClicks: true,
@@ -81,7 +84,7 @@ export const tourGestionInventario: OnboardingTourDefinition = {
       target: '[data-tour="gi-product-table"]',
       title: "Producto listo",
       content: `Si ves «${PRODUCTO_PRUEBA_NOMBRE}» en la lista, el producto ya está en esta tienda. Pulsa continuar para seguir con la guía.`,
-      pathname: "/configuracion/gestion-inventario",
+      pathname: "/inventario",
       placement: "top",
       hideFooter: false,
       showStartButton: true,
@@ -143,6 +146,17 @@ const posToolbarTourSteps: OnboardingTourDefinition["steps"] = [
     spotlightClicks: false,
   },
   {
+    target: '[data-tour="pos-toolbar-printer"]',
+    title: "Impresora de tickets",
+    content:
+      "Configura aquí la impresora térmica para imprimir tickets al cobrar. Puedes conectarla por USB, Bluetooth o red, activar la impresión automática y reenviar tickets pendientes si alguna impresión falló.",
+    pathname: "/pos",
+    placement: "bottom",
+    showNextButton: true,
+    spotlightClicks: false,
+    onlyWhenCanPrint: true,
+  },
+  {
     target: '[data-tour="pos-toolbar-connection"]',
     title: "Estado de conexión",
     content:
@@ -152,16 +166,16 @@ const posToolbarTourSteps: OnboardingTourDefinition["steps"] = [
     showNextButton: true,
     spotlightClicks: false,
   },
-    {
-      target: '[data-tour="pos-toolbar-scanner"]',
-      title: "Escanear códigos",
-      content:
-        "Usa la cámara para QR o la pistola de códigos de barras para agregar productos al carrito más rápido.",
-      pathname: "/pos",
-      placement: "top",
-      showNextButton: true,
-      spotlightClicks: false,
-    },
+  {
+    target: '[data-tour="pos-toolbar-scanner"]',
+    title: "Escanear códigos",
+    content:
+      "Usa la cámara para QR o la pistola de códigos de barras para agregar productos al carrito más rápido.",
+    pathname: "/pos",
+    placement: "top",
+    showNextButton: true,
+    spotlightClicks: false,
+  },
   {
     target: '[data-tour="pos-category-first"]',
     title: "Categorías de productos",
@@ -271,6 +285,8 @@ export function getTourById(id: string): OnboardingTourDefinition | undefined {
   return ONBOARDING_TOURS.find((t) => t.id === id);
 }
 
-export function getChainById(id: string): OnboardingChainDefinition | undefined {
+export function getChainById(
+  id: string,
+): OnboardingChainDefinition | undefined {
   return ONBOARDING_CHAINS.find((c) => c.id === id);
 }

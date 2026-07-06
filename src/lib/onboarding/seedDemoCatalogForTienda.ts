@@ -1,5 +1,5 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
-import { DEMO_CATEGORIAS, DEMO_PRODUCTOS } from '@/constants/demoCatalog';
+import type { Prisma, PrismaClient } from "@prisma/client";
+import { DEMO_CATEGORIAS, DEMO_PRODUCTOS } from "@/constants/demoCatalog";
 
 type DemoCatalogClient = PrismaClient | Prisma.TransactionClient;
 
@@ -38,7 +38,7 @@ export async function seedDemoCatalogForTienda(
     }
 
     const existeEnTienda = await client.productoTienda.findFirst({
-      where: { productoId: producto.id, tiendaId },
+      where: { productoId: producto.id, tiendaId, deletedAt: null },
     });
     if (!existeEnTienda) {
       await client.productoTienda.create({

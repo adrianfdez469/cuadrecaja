@@ -3,7 +3,112 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import { CreateMoviento } from "@/lib/movimiento";
 
+const MOTIVO_ELIMINACION = "Eliminación de producto";
+
+// Monto pendiente de liquidar con el proveedor (consignatario) para este
+// producto en esta tienda: suma de ProductoProveedorLiquidacion sin liquidar.
+async function getMontoPendiente(
+  proveedorId: string,
+  productoId: string,
+  tiendaId: string,
+): Promise<number> {
+  const pendiente = await prisma.productoProveedorLiquidacion.aggregate({
+    _sum: { monto: true },
+    where: {
+      proveedorId,
+      productoId,
+      liquidatedAt: null,
+      cierre: { tiendaId },
+    },
+  });
+  return pendiente._sum.monto ?? 0;
+}
+
+// Info del producto para confirmación de eliminación (GET)
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await getSession();
+    const user = session.user;
+
+    if (
+      !verificarPermisoUsuario(
+        user.permisos,
+        "configuracion.productos.acceder",
+        user.rol,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 },
+      );
+    }
+    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const currentTiendaId = searchParams.get("tiendaId");
+    const productoTiendaId = searchParams.get("productoTiendaId");
+
+    if (!id) {
+      return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+    }
+
+    const producto = await prisma.producto.findUnique({
+      where: { id, negocioId: user.negocio.id, deletedAt: null },
+    });
+
+    if (!producto) {
+      return NextResponse.json(
+        { error: "Producto no encontrado" },
+        { status: 404 },
+      );
+    }
+
+    const productosTienda = await prisma.productoTienda.findMany({
+      where: { productoId: id, deletedAt: null },
+      include: {
+        tienda: { select: { nombre: true } },
+        proveedor: { select: { nombre: true } },
+      },
+    });
+
+    const stores = await Promise.all(
+      productosTienda.map(async (pt) => ({
+        tiendaId: pt.tiendaId,
+        tiendaNombre: pt.tienda.nombre,
+        existencia: pt.existencia,
+        esConsignacion: !!pt.proveedorId,
+        proveedorNombre: pt.proveedor?.nombre ?? null,
+        isCurrentTienda: productoTiendaId
+          ? pt.id === productoTiendaId
+          : pt.tiendaId === currentTiendaId,
+        montoPendiente: pt.proveedorId
+          ? await getMontoPendiente(pt.proveedorId, id, pt.tiendaId)
+          : null,
+      })),
+    );
+
+    return NextResponse.json({
+      id: producto.id,
+      nombre: producto.nombre,
+      stores,
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Error al obtener el producto" },
+      { status: 500 },
+    );
+  }
+}
+
+// Elimina el producto solo de la tienda actual: registra el ajuste de salida
+// si tenía existencia, y marca esa fila de ProductoTienda como eliminada. El
+// Producto maestro y las demás tiendas no se ven afectados — salvo que esta
+// fuera la última tienda activa, en cuyo caso también se libera el Producto.
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -25,12 +130,17 @@ export async function DELETE(
       );
     }
     const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const tiendaId = searchParams.get("tiendaId");
+    const productoTiendaId = searchParams.get("productoTiendaId");
 
-    if (!id) {
-      return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+    if (!id || !tiendaId) {
+      return NextResponse.json(
+        { error: "ID y tiendaId requeridos" },
+        { status: 400 },
+      );
     }
 
-    // Verificar si el producto existe antes de eliminarlo
     const producto = await prisma.producto.findUnique({
       where: { id, negocioId: user.negocio.id, deletedAt: null },
     });
@@ -42,31 +152,80 @@ export async function DELETE(
       );
     }
 
-    // Verificar que no tenga stock en ninguna tienda
-    const conStock = await prisma.productoTienda.findFirst({
-      where: { productoId: id, existencia: { gt: 0 } },
+    // Si se especifica la fila exacta (caso normal, viene de GestionInventario),
+    // se usa para desambiguar entre la fila propia y las de consignación del
+    // mismo producto/tienda. Sin ella (caller legacy) solo se permite tocar la
+    // fila propia — nunca una consignación sin desambiguación explícita.
+    const productoTienda = await prisma.productoTienda.findFirst({
+      where: productoTiendaId
+        ? { id: productoTiendaId, productoId: id, tiendaId, deletedAt: null }
+        : { productoId: id, tiendaId, proveedorId: null, deletedAt: null },
     });
-    if (conStock) {
+
+    if (!productoTienda) {
       return NextResponse.json(
-        {
-          error:
-            "El producto tiene existencias en una o más tiendas. Ajusta el stock a 0 antes de eliminar.",
-        },
-        { status: 400 },
+        { error: "El producto no está presente en esta tienda" },
+        { status: 404 },
       );
     }
 
-    // Soft delete: marcar como eliminado y liberar el nombre único
-    await prisma.producto.update({
-      where: { id },
-      data: {
-        deletedAt: new Date(),
-        nombre: `${producto.nombre}_ELIMINADO_${Date.now()}`,
-      },
+    if (productoTienda.proveedorId) {
+      const montoPendiente = await getMontoPendiente(
+        productoTienda.proveedorId,
+        id,
+        tiendaId,
+      );
+      if (montoPendiente > 0) {
+        return NextResponse.json(
+          {
+            error: `No se puede eliminar: hay ${montoPendiente.toFixed(2)} pendiente de liquidar con este proveedor para este producto.`,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
+    if (productoTienda.existencia > 0) {
+      await CreateMoviento(
+        {
+          tipo: productoTienda.proveedorId
+            ? "CONSIGNACION_DEVOLUCION"
+            : "AJUSTE_SALIDA",
+          tiendaId,
+          usuarioId: user.id,
+          motivo: MOTIVO_ELIMINACION,
+          ...(productoTienda.proveedorId && {
+            proveedorId: productoTienda.proveedorId,
+          }),
+        },
+        [{ productoId: id, cantidad: productoTienda.existencia }],
+      );
+    }
+
+    await prisma.productoTienda.update({
+      where: { id: productoTienda.id },
+      data: { deletedAt: new Date() },
     });
 
+    // Si ya no queda ninguna tienda activa para este producto, liberar
+    // también el Producto maestro (mismo patrón de soft delete + renombrado
+    // para liberar el nombre único por negocio).
+    const tiendasActivasRestantes = await prisma.productoTienda.count({
+      where: { productoId: id, deletedAt: null },
+    });
+
+    if (tiendasActivasRestantes === 0) {
+      await prisma.producto.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          nombre: `${producto.nombre}_ELIMINADO_${Date.now()}`,
+        },
+      });
+    }
+
     return NextResponse.json(
-      { message: "Producto eliminado correctamente" },
+      { message: "Producto eliminado de esta tienda" },
       { status: 200 },
     );
   } catch (error) {

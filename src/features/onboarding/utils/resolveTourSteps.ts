@@ -21,11 +21,21 @@ function resolvePosStepContent(
       return {
         ...step,
         content:
-          "No hay productos con stock disponible para vender en esta tienda. Añade productos desde Gestión de inventario (o pide a un administrador) y vuelve a activar esta guía en Ayuda.",
+          "No hay productos con stock disponible para vender en esta tienda. Añade productos desde Inventario (Operaciones) o pide a un administrador, y vuelve a activar esta guía en Ayuda.",
       };
     default:
       return step;
   }
+}
+
+function shouldIncludePosStep(
+  step: OnboardingStepDefinition,
+  ctx: IPosTourContext,
+): boolean {
+  if (step.onlyWhenCanPrint) {
+    return ctx.loaded && ctx.canPrint;
+  }
+  return true;
 }
 
 export function resolveTourSteps(
@@ -39,10 +49,13 @@ export function resolveTourSteps(
   const ctx: IPosTourContext = posContext ?? {
     hasProducts: true,
     sampleProductName: null,
+    canPrint: false,
     loaded: false,
   };
 
-  const baseSteps = tour.steps.filter((s) => !s.posBranch);
+  const baseSteps = tour.steps
+    .filter((s) => !s.posBranch)
+    .filter((s) => shouldIncludePosStep(s, ctx));
 
   if (!ctx.loaded) {
     return baseSteps;

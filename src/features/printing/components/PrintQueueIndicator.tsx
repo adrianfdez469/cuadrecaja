@@ -45,7 +45,12 @@ export const PrintQueueIndicator: React.FC<PrintQueueIndicatorProps> = ({
           : "Configurar impresora"
       }
     >
-      <IconButton onClick={handleClick} color="inherit" size="small">
+      <IconButton
+        onClick={handleClick}
+        color="inherit"
+        size="small"
+        data-tour="pos-toolbar-printer"
+      >
         <Badge badgeContent={pendingCount} color="error">
           {flushing ? (
             <CircularProgress size={20} color="inherit" />

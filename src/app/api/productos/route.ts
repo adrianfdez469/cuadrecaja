@@ -1,14 +1,31 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
-// Obtener todos los productos (Accesible para todos)
-export async function GET() {
+// Obtener todos los productos (Accesible para todos). Acepta ?text= para
+// búsqueda por nombre (tolerante a tildes/mayúsculas), usada como autocomplete
+// al crear un producto para detectar coincidencias en otras tiendas del negocio.
+export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
     const user = session.user;
+
+    const { searchParams } = new URL(req.url);
+    const text = searchParams.get("text") || "";
+
+    let textFilterIds: string[] | undefined;
+    if (text) {
+      const pattern = `%${text.trim().replace(/\s+/g, " ")}%`;
+      const rows = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Producto"
+        WHERE "negocioId" = ${user.negocio.id}
+          AND "deletedAt" IS NULL
+          AND unaccent(lower(nombre)) LIKE unaccent(lower(${pattern}))
+      `;
+      textFilterIds = rows.map((r) => r.id);
+    }
 
     const productos = await prisma.producto.findMany({
       include: {
@@ -33,7 +50,9 @@ export async function GET() {
       where: {
         negocioId: user.negocio.id,
         deletedAt: null,
+        ...(textFilterIds && { id: { in: textFilterIds } }),
       },
+      ...(text && { take: 20 }),
     });
     return NextResponse.json(productos);
   } catch (error) {

@@ -21,6 +21,7 @@ import { IProductoTiendaV2 } from "@/schemas/producto";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import { getRentabilidad } from "./rentabilidad";
+import { generateProductCodesPDF } from "@/utils/productCodesPdf";
 
 interface Props {
   productos: IProductoTiendaV2[];
@@ -109,6 +110,17 @@ function ActionsMenu({
           }}
         >
           Historial movimientos
+        </MenuItem>
+        <MenuItem
+          onClick={async () => {
+            setAnchor(null);
+            await generateProductCodesPDF(
+              producto.producto.nombre,
+              producto.producto.codigosProducto,
+            );
+          }}
+        >
+          Descargar códigos PDF
         </MenuItem>
         <MenuItem
           onClick={() => {

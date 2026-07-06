@@ -375,6 +375,8 @@ model ProductoTienda {
   // Fecha de vencimiento del lote más próximo a vencer en esta tienda
   fechaVencimiento DateTime?
 
+  deletedAt DateTime? // null = activo, fecha = soft delete (eliminado solo de esta tienda)
+
   // Llave de unicidad compuesta: un producto por tienda y proveedor
   // Esto permite que el mismo producto tenga diferentes existencias por proveedor
   //@@unique([tiendaId, productoId, proveedorId])

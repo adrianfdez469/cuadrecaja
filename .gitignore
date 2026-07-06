@@ -45,3 +45,6 @@ next-env.d.ts
 /tools/limpiar-negocio/dist/
 /tools/procesar-excel/dist/
 /.idea/
+
+#claude agent memory
+/.claude/agent-memory/

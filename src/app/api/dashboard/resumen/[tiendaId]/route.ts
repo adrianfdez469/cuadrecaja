@@ -316,6 +316,7 @@ export async function GET(
         existencia: {
           gt: 0,
         },
+        deletedAt: null,
       },
     });
 

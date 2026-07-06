@@ -34,6 +34,7 @@ export async function GET(
     const productosTienda = await prisma.productoTienda.findMany({
       where: {
         tiendaId: tiendaId,
+        deletedAt: null,
         producto: { deletedAt: null },
       },
       include: {
@@ -86,7 +87,7 @@ export async function POST(
     if (
       !verificarPermisoUsuario(
         user.permisos,
-        "operaciones.gestion-inventario.acceder",
+        "operaciones.inventario.acceder",
         user.rol,
       )
     ) {
@@ -94,6 +95,13 @@ export async function POST(
         { error: "Acceso no autorizado" },
         { status: 403 },
       );
+    }
+
+    const existente = await prisma.productoTienda.findFirst({
+      where: { tiendaId, productoId, proveedorId: null, deletedAt: null },
+    });
+    if (existente) {
+      return NextResponse.json(existente, { status: 200 });
     }
 
     const productoTienda = await prisma.productoTienda.create({
@@ -137,7 +145,7 @@ export async function PUT(
       ) &&
       !verificarPermisoUsuario(
         user.permisos,
-        "operaciones.gestion-inventario.acceder",
+        "operaciones.inventario.acceder",
         user.rol,
       )
     ) {

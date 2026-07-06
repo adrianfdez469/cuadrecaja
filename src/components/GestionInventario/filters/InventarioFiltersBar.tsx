@@ -27,6 +27,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
 import TableViewIcon from "@mui/icons-material/TableView";
 import UploadIcon from "@mui/icons-material/Upload";
+import PrintIcon from "@mui/icons-material/Print";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useState, useRef, useMemo } from "react";
 import { ICategory } from "@/schemas/categoria";
@@ -48,6 +49,7 @@ interface InventarioFiltersBarProps {
   loading: boolean;
   onExportExcel?: () => void;
   onImportExcel?: () => void;
+  onPrintLabels?: () => void;
   exporting?: boolean;
 }
 
@@ -91,6 +93,7 @@ export function InventarioFiltersBar({
   loading,
   onExportExcel,
   onImportExcel,
+  onPrintLabels,
   exporting,
 }: InventarioFiltersBarProps) {
   console.log({ categorias });
@@ -199,7 +202,7 @@ export function InventarioFiltersBar({
               <RefreshIcon />
             </IconButton>
           </Tooltip>
-          {(onExportExcel || onImportExcel) && (
+          {(onExportExcel || onImportExcel || onPrintLabels) && (
             <>
               <Tooltip title="Más opciones">
                 <IconButton
@@ -240,6 +243,19 @@ export function InventarioFiltersBar({
                       <TableViewIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText>Exportar Excel</ListItemText>
+                  </MenuItem>
+                )}
+                {onPrintLabels && (
+                  <MenuItem
+                    onClick={() => {
+                      setMenuAnchor(null);
+                      onPrintLabels();
+                    }}
+                  >
+                    <ListItemIcon>
+                      <PrintIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Imprimir etiquetas</ListItemText>
                   </MenuItem>
                 )}
               </Menu>
@@ -360,6 +376,18 @@ export function InventarioFiltersBar({
             sx={{ whiteSpace: "nowrap" }}
           >
             {exporting ? "Exportando..." : "Exportar Excel"}
+          </Button>
+        )}
+        {onPrintLabels && (
+          <Button
+            variant="outlined"
+            startIcon={<PrintIcon />}
+            onClick={onPrintLabels}
+            disabled={loading}
+            size="small"
+            sx={{ whiteSpace: "nowrap" }}
+          >
+            Etiquetas
           </Button>
         )}
         <Tooltip title="Actualizar">

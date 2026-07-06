@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { TipoLocal } from "@/schemas/tienda";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
+import { usePermisos } from "@/utils/permisos_front";
 import { getProductosVenta } from "@/services/costoPrecioServices";
 import { ONBOARDING_CHAIN_PRIMEROS_PASOS, TOUR_POS_VENTA } from "../constants";
 import { useEligibleToursForChain } from "../hooks/useEligibleTours";
@@ -32,6 +33,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const { data: session, status: sessionStatus } = useSession();
   const { user, loadingContext, isAuth } = useAppContext();
   const { showMessage } = useMessageContext();
+  const { verificarPermiso } = usePermisos();
   const eligibleTours = useEligibleToursForChain(ONBOARDING_CHAIN_PRIMEROS_PASOS);
   const hasHydrated = useOnboardingHydrated();
 
@@ -105,6 +107,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     const tiendaId = user?.localActual?.id;
     if (!tiendaId) return;
 
+    const canPrint = verificarPermiso("operaciones.pos-venta.imprimir");
     let cancelled = false;
 
     (async () => {
@@ -121,6 +124,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           setPosTourContext({
             hasProducts: false,
             sampleProductName: null,
+            canPrint,
             loaded: true,
           });
           return;
@@ -133,6 +137,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         setPosTourContext({
           hasProducts: true,
           sampleProductName: pick.producto.nombre,
+          canPrint,
           loaded: true,
         });
       } catch {
@@ -140,6 +145,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           setPosTourContext({
             hasProducts: false,
             sampleProductName: null,
+            canPrint,
             loaded: true,
           });
         }
@@ -155,6 +161,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     posTourContext?.loaded,
     user?.localActual?.id,
     setPosTourContext,
+    verificarPermiso,
   ]);
 
   return (
