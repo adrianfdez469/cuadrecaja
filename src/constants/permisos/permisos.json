@@ -35,6 +35,9 @@
   "configuracion.destinostransferencia.acceder": {
     "descripcion": "Permite realizar configuraciones de destinos de transferencia"
   },
+  "configuracion.ticket.editar": {
+    "descripcion": "Permite configurar la plantilla de tickets por tienda"
+  },
   "configuracion.roles.acceder": {
     "descripcion": "Permite realizar configuraciones de roles"
   },
@@ -70,6 +73,9 @@
   },
   "operaciones.pos-venta.asociar_codigo": {
     "descripcion": "Permite asociar un código de barras desconocido a un producto existente desde el POS"
+  },
+  "operaciones.pos-venta.imprimir": {
+    "descripcion": "Permite imprimir y reimprimir tickets de venta desde el POS"
   },
   "operaciones.ventas.acceder": {
     "descripcion": "Permite acceder a la interfaz de ventas"

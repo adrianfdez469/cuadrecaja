@@ -2,6 +2,7 @@ export const permisosTemplates = {
   vendedor: [
     "operaciones.pos-venta.acceder",
     "operaciones.pos-venta.cancelarventa",
+    "operaciones.pos-venta.imprimir",
     "operaciones.cierre.acceder",
     "operaciones.cierre.cerrar",
     "operaciones.movimientos.acceder",
@@ -33,6 +34,7 @@ export const permisosTemplates = {
     "configuracion.descuentos.acceder",
     "configuracion.descuentos.preview",
     "configuracion.destinostransferencia.acceder",
+    "configuracion.ticket.editar",
     "configuracion.roles.acceder",
     "configuracion.roles.escribir",
     "recuperaciones.dashboard.acceder",
@@ -45,6 +47,7 @@ export const permisosTemplates = {
     "operaciones.pos-venta.cancelarventa",
     "operaciones.pos-venta.gananciascostos",
     "operaciones.pos-venta.asociar_codigo",
+    "operaciones.pos-venta.imprimir",
     "operaciones.ventas.acceder",
     "operaciones.ventas.eliminar",
     "operaciones.conformarprecios.acceder",

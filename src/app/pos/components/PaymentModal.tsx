@@ -47,6 +47,7 @@ export interface IMultimonedaExtras {
   pagosDetalle: IPagoLinea[];
   vueltoDetalle: IVueltoLinea[];
   tasaSnapshot: ITasaSnapshot;
+  discountTotal?: number;
 }
 
 interface IProps {
@@ -461,6 +462,7 @@ const PaymentModal: FC<IProps> = ({
         pagosDetalle: pagosArr,
         vueltoDetalle: vueltoArr,
         tasaSnapshot: tasasVigentes,
+        ...(discountTotal > 0 ? { discountTotal } : {}),
       };
       makePay(
         finalTotal,

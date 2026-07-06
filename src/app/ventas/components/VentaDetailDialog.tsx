@@ -35,12 +35,17 @@ import {
   ShoppingCart,
   Delete,
   CurrencyExchange,
+  Print,
 } from "@mui/icons-material";
 import { IVenta } from "@/schemas/venta";
 import { formatDate, formatTimeShort } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase, formatMoneda } from "@/lib/currency";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+import { usePermisos } from "@/utils/permisos_front";
+import { usePrinter } from "@/features/printing/hooks/usePrinter";
+import { ventaToSale } from "@/features/printing/lib/ventaToSale";
+import { useMessageContext } from "@/context/MessageContext";
 
 interface VentaDetailDialogProps {
   open: boolean;
@@ -62,6 +67,10 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { monedaBase, tasasVigentes } = useAppContext();
+  const { verificarPermiso } = usePermisos();
+  const { reprintSale } = usePrinter(venta?.tiendaId);
+  const { showMessage } = useMessageContext();
+  const puedeImprimir = verificarPermiso("operaciones.pos-venta.imprimir");
 
   if (!venta) return null;
 
@@ -723,6 +732,25 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
       </DialogContent>
 
       <DialogActions sx={{ p: 2 }}>
+        {puedeImprimir && (
+          <Button
+            startIcon={<Print />}
+            onClick={async () => {
+              try {
+                await reprintSale(ventaToSale(venta));
+                showMessage("Ticket enviado a impresión", "success");
+              } catch (error) {
+                showMessage(
+                  error instanceof Error ? error.message : "Error al reimprimir",
+                  "error",
+                );
+              }
+            }}
+            variant="outlined"
+          >
+            Reimprimir ticket
+          </Button>
+        )}
         <Button onClick={onClose} variant="contained" fullWidth={isMobile}>
           Cerrar
         </Button>
