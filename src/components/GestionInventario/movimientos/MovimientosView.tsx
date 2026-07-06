@@ -398,11 +398,6 @@ export default function MovimientosView() {
     );
   }
 
-  const breadcrumbs = [
-    { label: "Inicio", href: "/home" },
-    { label: "Movimientos" },
-  ];
-
   const handleImportExcel = () => {
     setImportDialogOpen(true);
   };
@@ -551,7 +546,6 @@ export default function MovimientosView() {
       subtitle={
         !isMobile ? "Historial de entradas y salidas de inventario" : undefined
       }
-      // breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
     >
