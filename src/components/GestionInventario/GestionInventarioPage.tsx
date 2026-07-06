@@ -15,6 +15,7 @@ import { EditProductDialog } from "./dialogs/EditProductDialog";
 import { ChangeQtyDialog } from "./dialogs/ChangeQtyDialog";
 import { CreateMovimientoDialog } from "./dialogs/CreateMovimientoDialog";
 import { CreateProductDialog } from "./dialogs/CreateProductDialog";
+import { DeleteProductDialog } from "./dialogs/DeleteProductDialog";
 import { ProductMovementsModal } from "@/app/inventario/components/ProductMovementsModal";
 import ImportarExcelDialog from "@/app/movimientos/components/importExcelDialog";
 import { exportInventarioToExcel } from "@/utils/excelExport";
@@ -60,13 +61,18 @@ export function GestionInventarioPage() {
     openCreateProduct,
     closeCreateProduct,
 
+    deleteTarget,
+    deleteInfo,
+    deleteInfoLoading,
+    closeDeleteProduct,
+    confirmDeleteProduct,
+
     handleEditSave,
     handleChangeQtySave,
     handleCreateProduct,
     handleDeleteProduct,
     handleMovimientoCreated,
 
-    ConfirmDialogComponent,
     reload,
     tiendaId,
   } = useGestionInventario();
@@ -116,49 +122,49 @@ export function GestionInventarioPage() {
       <InventarioStatsRow productos={productos} />
 
       <Box data-tour="gi-product-table">
-      <ContentCard>
-        <Box mb={2}>
-          <InventarioFiltersBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            categorias={categorias}
-            selectedCategorias={selectedCategorias}
-            onCategoriasChange={setSelectedCategorias}
-            expiryFilter={expiryFilter}
-            onExpiryChange={setExpiryFilter}
-            stockFilter={stockFilter}
-            onStockChange={setStockFilter}
-            onCreateProduct={openCreateProduct}
-            onRefresh={reload}
-            loading={loading}
-            onExportExcel={handleExportExcel}
-            onImportExcel={() => setImportOpen(true)}
-            exporting={exporting}
-          />
-        </Box>
+        <ContentCard>
+          <Box mb={2}>
+            <InventarioFiltersBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              categorias={categorias}
+              selectedCategorias={selectedCategorias}
+              onCategoriasChange={setSelectedCategorias}
+              expiryFilter={expiryFilter}
+              onExpiryChange={setExpiryFilter}
+              stockFilter={stockFilter}
+              onStockChange={setStockFilter}
+              onCreateProduct={openCreateProduct}
+              onRefresh={reload}
+              loading={loading}
+              onExportExcel={handleExportExcel}
+              onImportExcel={() => setImportOpen(true)}
+              exporting={exporting}
+            />
+          </Box>
 
-        {isMobile ? (
-          <InventarioMobileList
-            productos={filteredProductos}
-            loading={loading}
-            onEdit={openEdit}
-            onChangeQty={openChangeQty}
-            onViewMovements={openMovements}
-            onCreateMov={openCreateMov}
-            onDelete={handleDeleteProduct}
-          />
-        ) : (
-          <InventarioTable
-            productos={filteredProductos}
-            loading={loading}
-            onEdit={openEdit}
-            onChangeQty={openChangeQty}
-            onViewMovements={openMovements}
-            onCreateMov={openCreateMov}
-            onDelete={handleDeleteProduct}
-          />
-        )}
-      </ContentCard>
+          {isMobile ? (
+            <InventarioMobileList
+              productos={filteredProductos}
+              loading={loading}
+              onEdit={openEdit}
+              onChangeQty={openChangeQty}
+              onViewMovements={openMovements}
+              onCreateMov={openCreateMov}
+              onDelete={handleDeleteProduct}
+            />
+          ) : (
+            <InventarioTable
+              productos={filteredProductos}
+              loading={loading}
+              onEdit={openEdit}
+              onChangeQty={openChangeQty}
+              onViewMovements={openMovements}
+              onCreateMov={openCreateMov}
+              onDelete={handleDeleteProduct}
+            />
+          )}
+        </ContentCard>
       </Box>
 
       <EditProductDialog
@@ -198,7 +204,13 @@ export function GestionInventarioPage() {
         onSave={handleCreateProduct}
       />
 
-      {ConfirmDialogComponent}
+      <DeleteProductDialog
+        open={Boolean(deleteTarget)}
+        info={deleteInfo}
+        loading={deleteInfoLoading}
+        onClose={closeDeleteProduct}
+        onConfirm={confirmDeleteProduct}
+      />
 
       <ImportarExcelDialog
         open={importOpen}

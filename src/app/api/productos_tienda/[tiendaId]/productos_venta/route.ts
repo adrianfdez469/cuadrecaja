@@ -3,7 +3,10 @@ import { getSession } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 // Obtener todos los productos (Accesible para todos)
-export async function GET(req: NextRequest, { params }: { params: Promise<{ tiendaId: string }> }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ tiendaId: string }> },
+) {
   try {
     const { tiendaId } = await params;
 
@@ -13,46 +16,49 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
     // Verificar si el usuario está asociado a un proveedor
     const proveedores = await prisma.proveedor.findMany({
       where: {
-        usuarioId: user.id
-      }
+        usuarioId: user.id,
+      },
     });
-    
-    const filter: {proveedor?: {id: {in: string[]}}} = {};
-    if(proveedores.length > 0) {
+
+    const filter: { proveedor?: { id: { in: string[] } } } = {};
+    if (proveedores.length > 0) {
       // Solo mostrar los productos de los proveedores asociados al usuario
       filter.proveedor = {
         id: {
-          in: proveedores.map(proveedor => proveedor.id)
-        }
-      }
+          in: proveedores.map((proveedor) => proveedor.id),
+        },
+      };
     }
 
     const productosTienda = await prisma.productoTienda.findMany({
       where: {
         tiendaId: tiendaId,
+        deletedAt: null,
         producto: { deletedAt: null },
-        ...filter
+        ...filter,
       },
       include: {
         producto: {
           include: {
             categoria: true,
             codigosProducto: true,
-          }
+          },
         },
-        proveedor: true
+        proveedor: true,
       },
-      omit:{precio: proveedores.length > 0},
+      omit: { precio: proveedores.length > 0 },
       orderBy: {
         producto: {
-          nombre: 'asc'
-        }
-      }
+          nombre: "asc",
+        },
+      },
     });
 
-    const result = productosTienda.map(pt => ({
+    const result = productosTienda.map((pt) => ({
       ...pt,
-      fechaVencimiento: pt.fechaVencimiento ? pt.fechaVencimiento.toISOString() : null
+      fechaVencimiento: pt.fechaVencimiento
+        ? pt.fechaVencimiento.toISOString()
+        : null,
     }));
 
     return NextResponse.json(result);
@@ -60,7 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
     console.error(error);
     return NextResponse.json(
       { error: "Error al obtener productos" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
     const tiendaId = searchParams.get("tiendaId");
 
     if (!tiendaId) {
-      return NextResponse.json({ error: "tiendaId requerido" }, { status: 400 });
+      return NextResponse.json(
+        { error: "tiendaId requerido" },
+        { status: 400 },
+      );
     }
 
     const ahora = new Date();
@@ -23,24 +26,31 @@ export async function GET(req: NextRequest) {
       where: {
         tiendaId,
         fechaVencimiento: { not: null, lte: en30Dias },
-        producto: { deletedAt: null }
+        deletedAt: null,
+        producto: { deletedAt: null },
       },
       include: {
         producto: {
-          include: { categoria: true, codigosProducto: true }
+          include: { categoria: true, codigosProducto: true },
         },
-        proveedor: true
+        proveedor: true,
       },
-      orderBy: { fechaVencimiento: "asc" }
+      orderBy: { fechaVencimiento: "asc" },
     });
 
-    const serialized = productosTienda.map(pt => ({
+    const serialized = productosTienda.map((pt) => ({
       ...pt,
-      fechaVencimiento: pt.fechaVencimiento ? pt.fechaVencimiento.toISOString() : null
+      fechaVencimiento: pt.fechaVencimiento
+        ? pt.fechaVencimiento.toISOString()
+        : null,
     }));
 
-    const vencidos = serialized.filter(pt => new Date(pt.fechaVencimiento) <= ahora);
-    const porVencer = serialized.filter(pt => new Date(pt.fechaVencimiento) > ahora);
+    const vencidos = serialized.filter(
+      (pt) => new Date(pt.fechaVencimiento) <= ahora,
+    );
+    const porVencer = serialized.filter(
+      (pt) => new Date(pt.fechaVencimiento) > ahora,
+    );
 
     return NextResponse.json({ vencidos, porVencer });
   } catch (error) {

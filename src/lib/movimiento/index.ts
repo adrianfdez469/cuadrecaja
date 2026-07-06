@@ -52,6 +52,7 @@ export const CreateMoviento = async (data, items) => {
           tiendaId,
           productoId,
           proveedorId: itemProveedorId || proveedorId || null,
+          deletedAt: null,
         },
       });
 

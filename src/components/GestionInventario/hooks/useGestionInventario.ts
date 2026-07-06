@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import useConfirmDialog from "@/components/confirmDialog";
 import {
   getProductosVenta,
   updateProductosTienda,
@@ -14,9 +13,10 @@ import {
   createProduct,
   editProduct,
   deleteProduct,
+  getProductDeleteInfo,
 } from "@/services/productServise";
 import { cretateBatchMovimientos } from "@/services/movimientoService";
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IProductoDeleteInfo, IProductoTiendaV2 } from "@/schemas/producto";
 import { ICategory } from "@/schemas/categoria";
 import { normalizeSearch } from "@/utils/formatters";
 import { useOnboardingStore } from "@/features/onboarding";
@@ -57,6 +57,9 @@ export interface CreateProductData {
   fraccionDeId?: string | null;
   unidadesPorFraccion?: number | null;
   codigosProducto: string[];
+  // Si está presente, se vincula a este Producto existente (de otra tienda)
+  // en vez de crear uno nuevo — solo se crea la fila ProductoTienda.
+  productoExistenteId?: string | null;
 }
 
 export interface ChangeQtyOptions {
@@ -76,7 +79,6 @@ function getDiasHastaVencimiento(fechaVencimiento: string): number {
 export function useGestionInventario() {
   const { user, loadingContext, monedaBase, tasasVigentes } = useAppContext();
   const { showMessage } = useMessageContext();
-  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
 
   const [productos, setProductos] = useState<IProductoTiendaV2[]>([]);
   const [categorias, setCategorias] = useState<ICategory[]>([]);
@@ -97,6 +99,13 @@ export function useGestionInventario() {
   const [createMovTarget, setCreateMovTarget] =
     useState<IProductoTiendaV2 | null>(null);
   const [createProductOpen, setCreateProductOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<IProductoTiendaV2 | null>(
+    null,
+  );
+  const [deleteInfo, setDeleteInfo] = useState<IProductoDeleteInfo | null>(
+    null,
+  );
+  const [deleteInfoLoading, setDeleteInfoLoading] = useState(false);
 
   const tiendaId = user?.localActual?.id;
 
@@ -271,65 +280,90 @@ export function useGestionInventario() {
     }
   };
 
+  const attachProductoToTienda = async (
+    productoId: string,
+    data: Pick<
+      CreateProductData,
+      | "costo"
+      | "precio"
+      | "cantidadInicial"
+      | "monedaPrecioCode"
+      | "monedaCostoCode"
+      | "fechaVencimiento"
+    >,
+  ) => {
+    const extraFields = {
+      monedaPrecioCode: data.monedaPrecioCode,
+      monedaCostoCode: data.monedaCostoCode,
+      fechaVencimiento: data.fechaVencimiento,
+    };
+
+    if (data.cantidadInicial > 0) {
+      await cretateBatchMovimientos(
+        { tipo: "COMPRA", tiendaId, usuarioId: user.id },
+        [
+          {
+            productoId,
+            cantidad: data.cantidadInicial,
+            costoUnitario: data.costo,
+            costoTotal: data.costo * data.cantidadInicial,
+          },
+        ],
+      );
+      const updated = await getProductosVenta(tiendaId);
+      const nuevoPT = updated.find(
+        (p: IProductoTiendaV2) => p.productoId === productoId,
+      );
+      if (nuevoPT) {
+        await updateProductosTienda(tiendaId, [
+          { id: nuevoPT.id, precio: data.precio, ...extraFields },
+        ]);
+      }
+    } else {
+      const nuevoPT = await createProductoTienda(
+        tiendaId,
+        productoId,
+        data.precio,
+        data.costo,
+      );
+      if (nuevoPT?.id) {
+        await updateProductosTienda(tiendaId, [
+          { id: nuevoPT.id, ...extraFields },
+        ]);
+      }
+    }
+  };
+
   const handleCreateProduct = async (data: CreateProductData) => {
     try {
-      const categoriaId = await resolveCategoria(data);
-      const nuevoProducto = await createProduct(
-        data.nombre,
-        data.descripcion,
-        categoriaId,
-        data.fraccionDeId
-          ? {
-              fraccionDeId: data.fraccionDeId,
-              unidadesPorFraccion: data.unidadesPorFraccion ?? undefined,
-            }
-          : undefined,
-        data.codigosProducto.filter(Boolean),
-        data.permiteDecimal,
-      );
+      let productoId = data.productoExistenteId;
 
-      const extraFields = {
-        monedaPrecioCode: data.monedaPrecioCode,
-        monedaCostoCode: data.monedaCostoCode,
-        fechaVencimiento: data.fechaVencimiento,
-      };
-
-      if (data.cantidadInicial > 0) {
-        await cretateBatchMovimientos(
-          { tipo: "COMPRA", tiendaId, usuarioId: user.id },
-          [
-            {
-              productoId: nuevoProducto.id,
-              cantidad: data.cantidadInicial,
-              costoUnitario: data.costo,
-              costoTotal: data.costo * data.cantidadInicial,
-            },
-          ],
+      if (!productoId) {
+        const categoriaId = await resolveCategoria(data);
+        const nuevoProducto = await createProduct(
+          data.nombre,
+          data.descripcion,
+          categoriaId,
+          data.fraccionDeId
+            ? {
+                fraccionDeId: data.fraccionDeId,
+                unidadesPorFraccion: data.unidadesPorFraccion ?? undefined,
+              }
+            : undefined,
+          data.codigosProducto.filter(Boolean),
+          data.permiteDecimal,
         );
-        const updated = await getProductosVenta(tiendaId);
-        const nuevoPT = updated.find(
-          (p: IProductoTiendaV2) => p.productoId === nuevoProducto.id,
-        );
-        if (nuevoPT) {
-          await updateProductosTienda(tiendaId, [
-            { id: nuevoPT.id, precio: data.precio, ...extraFields },
-          ]);
-        }
-      } else {
-        const nuevoPT = await createProductoTienda(
-          tiendaId,
-          nuevoProducto.id,
-          data.precio,
-          data.costo,
-        );
-        if (nuevoPT?.id) {
-          await updateProductosTienda(tiendaId, [
-            { id: nuevoPT.id, ...extraFields },
-          ]);
-        }
+        productoId = nuevoProducto.id;
       }
 
-      showMessage("Producto creado", "success");
+      await attachProductoToTienda(productoId, data);
+
+      showMessage(
+        data.productoExistenteId
+          ? "Producto agregado a esta tienda"
+          : "Producto creado",
+        "success",
+      );
       useOnboardingStore.getState().signalEvent({
         type: "product_created",
         productName: data.nombre,
@@ -343,22 +377,42 @@ export function useGestionInventario() {
     }
   };
 
-  const handleDeleteProduct = (producto: IProductoTiendaV2) => {
-    confirmDialog(
-      `¿Eliminar "${producto.producto.nombre}"? Esta acción no se puede deshacer. El producto debe tener existencia 0.`,
-      async () => {
-        try {
-          await deleteProduct(producto.productoId);
-          showMessage("Producto eliminado", "success");
-          await reload();
-        } catch {
-          showMessage(
-            "El producto no pudo ser eliminado. Verifique que tenga existencia 0.",
-            "error",
-          );
-        }
-      },
-    );
+  const handleDeleteProduct = async (producto: IProductoTiendaV2) => {
+    setDeleteTarget(producto);
+    setDeleteInfo(null);
+    setDeleteInfoLoading(true);
+    try {
+      const info = await getProductDeleteInfo(
+        producto.productoId,
+        tiendaId,
+        producto.id,
+      );
+      setDeleteInfo(info);
+    } catch {
+      showMessage("Error al cargar la información del producto", "error");
+      setDeleteTarget(null);
+    } finally {
+      setDeleteInfoLoading(false);
+    }
+  };
+
+  const closeDeleteProduct = () => {
+    setDeleteTarget(null);
+    setDeleteInfo(null);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteProduct(deleteTarget.productoId, tiendaId, deleteTarget.id);
+      showMessage("Producto eliminado", "success");
+      closeDeleteProduct();
+      await reload();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response
+        ?.data?.error;
+      showMessage(msg ?? "El producto no pudo ser eliminado.", "error");
+    }
   };
 
   return {
@@ -396,13 +450,18 @@ export function useGestionInventario() {
     openCreateProduct: () => setCreateProductOpen(true),
     closeCreateProduct: () => setCreateProductOpen(false),
 
+    deleteTarget,
+    deleteInfo,
+    deleteInfoLoading,
+    closeDeleteProduct,
+    confirmDeleteProduct,
+
     handleEditSave,
     handleChangeQtySave,
     handleCreateProduct,
     handleDeleteProduct,
     handleMovimientoCreated: reload,
 
-    ConfirmDialogComponent,
     reload,
     tiendaId,
   };

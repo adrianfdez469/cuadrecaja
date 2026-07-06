@@ -63,6 +63,24 @@ export const productoTiendaV2Schema = z.object({
   monedaPrecioCode: z.string().nullable().optional(),
 });
 
+// ─── Info para confirmación de eliminación ───────────────────────────────────
+
+export const productoDeleteStoreInfoSchema = z.object({
+  tiendaId: z.string().uuid(),
+  tiendaNombre: z.string(),
+  existencia: z.number(),
+  esConsignacion: z.boolean(),
+  proveedorNombre: z.string().nullable().optional(),
+  isCurrentTienda: z.boolean().optional(),
+  montoPendiente: z.number().nullable().optional(),
+});
+
+export const productoDeleteInfoSchema = z.object({
+  id: z.string().uuid(),
+  nombre: z.string(),
+  stores: z.array(productoDeleteStoreInfoSchema),
+});
+
 // ─── Query params / response para movimiento service ────────────────────────
 
 export const prodTiendaQueryParamsSchema = z.object({
@@ -84,3 +102,7 @@ export type IProdTiendaQueryParams = z.infer<
   typeof prodTiendaQueryParamsSchema
 >;
 export type IProdTiendaResponse = z.infer<typeof prodTiendaResponseSchema>;
+export type IProductoDeleteStoreInfo = z.infer<
+  typeof productoDeleteStoreInfoSchema
+>;
+export type IProductoDeleteInfo = z.infer<typeof productoDeleteInfoSchema>;

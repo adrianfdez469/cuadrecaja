@@ -6,8 +6,8 @@ export interface NotificationData {
   descripcion: string;
   fechaInicio: Date;
   fechaFin: Date;
-  nivelImportancia: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
-  tipo: 'ALERTA' | 'NOTIFICACION' | 'PROMOCION' | 'MENSAJE';
+  nivelImportancia: "BAJA" | "MEDIA" | "ALTA" | "CRITICA";
+  tipo: "ALERTA" | "NOTIFICACION" | "PROMOCION" | "MENSAJE";
   negociosDestino?: string;
   usuariosDestino?: string;
 }
@@ -28,13 +28,13 @@ export class NotificationService {
           tipo: data.tipo,
           negociosDestino: data.negociosDestino || "",
           usuariosDestino: data.usuariosDestino || "",
-          leidoPor: ""
-        }
+          leidoPor: "",
+        },
       });
 
       return notificacion;
     } catch (error) {
-      console.error('Error al crear notificación automática:', error);
+      console.error("Error al crear notificación automática:", error);
       throw error;
     }
   }
@@ -45,11 +45,11 @@ export class NotificationService {
   static async findExistingNotification(titulo: string, negocioId?: string) {
     const whereClause: Prisma.NotificacionWhereInput = {
       titulo: {
-        contains: titulo
+        contains: titulo,
       },
       fechaFin: {
-        gte: new Date()
-      }
+        gte: new Date(),
+      },
     };
 
     if (negocioId) {
@@ -57,27 +57,30 @@ export class NotificationService {
     }
 
     return await prisma.notificacion.findFirst({
-      where: whereClause
+      where: whereClause,
     });
   }
 
   /**
    * Actualizar notificación existente y marcar como no leída
    */
-  static async updateNotification(notificationId: string, data: Partial<NotificationData>) {
+  static async updateNotification(
+    notificationId: string,
+    data: Partial<NotificationData>,
+  ) {
     try {
       const notificacion = await prisma.notificacion.update({
         where: { id: notificationId },
         data: {
           ...data,
           leidoPor: "", // Marcar como no leída por todos
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
 
       return notificacion;
     } catch (error) {
-      console.error('Error al actualizar notificación:', error);
+      console.error("Error al actualizar notificación:", error);
       throw error;
     }
   }
@@ -88,11 +91,10 @@ export class NotificationService {
   static async deleteNotification(notificationId: string) {
     try {
       await prisma.notificacion.delete({
-        where: { id: notificationId }
+        where: { id: notificationId },
       });
-
     } catch (error) {
-      console.error('Error al eliminar notificación:', error);
+      console.error("Error al eliminar notificación:", error);
       throw error;
     }
   }
@@ -111,9 +113,9 @@ export class NotificationService {
           where: {
             limitTime: {
               gte: ahora,
-              lte: sieteDias
-            }
-          }
+              lte: sieteDias,
+            },
+          },
         });
 
         for (const negocio of negociosExpirando) {
@@ -122,7 +124,7 @@ export class NotificationService {
       } else {
         // Procesar negocio específico
         const negocio = await prisma.negocio.findUnique({
-          where: { id: negocioId }
+          where: { id: negocioId },
         });
 
         if (negocio) {
@@ -131,7 +133,7 @@ export class NotificationService {
         }
       }
     } catch (error) {
-      console.error('Error al verificar expiración de suscripciones:', error);
+      console.error("Error al verificar expiración de suscripciones:", error);
     }
   }
 
@@ -140,22 +142,29 @@ export class NotificationService {
    */
   private static async processSubscriptionExpiration(negocio: Negocio) {
     const ahora = new Date();
-    const diasRestantes = Math.ceil((negocio.limitTime.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
-    
+    const diasRestantes = Math.ceil(
+      (negocio.limitTime.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000),
+    );
+
     // Determinar nivel de importancia basado en días restantes
-    let nivelImportancia: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA' = 'BAJA';
-    if (diasRestantes <= 1) nivelImportancia = 'CRITICA';
-    else if (diasRestantes <= 3) nivelImportancia = 'ALTA';
-    else if (diasRestantes <= 7) nivelImportancia = 'MEDIA';
+    let nivelImportancia: "BAJA" | "MEDIA" | "ALTA" | "CRITICA" = "BAJA";
+    if (diasRestantes <= 1) nivelImportancia = "CRITICA";
+    else if (diasRestantes <= 3) nivelImportancia = "ALTA";
+    else if (diasRestantes <= 7) nivelImportancia = "MEDIA";
 
     const titulo = `Expiración de suscripción - ${negocio.nombre}`;
-    const descripcion = `La suscripción del negocio "${negocio.nombre}" expira en ${diasRestantes} día${diasRestantes !== 1 ? 's' : ''}. Por favor, renueva la suscripción para evitar interrupciones en el servicio.`;
-    const fechaFin = new Date(negocio.limitTime.getTime() + 24 * 60 * 60 * 1000);
+    const descripcion = `La suscripción del negocio "${negocio.nombre}" expira en ${diasRestantes} día${diasRestantes !== 1 ? "s" : ""}. Por favor, renueva la suscripción para evitar interrupciones en el servicio.`;
+    const fechaFin = new Date(
+      negocio.limitTime.getTime() + 24 * 60 * 60 * 1000,
+    );
 
     // Verificar si la notificación es válida
     if (diasRestantes > 7) {
       // Si faltan más de 7 días, eliminar notificación si existe
-      const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
+      const notificacionExistente = await this.findExistingNotification(
+        titulo,
+        negocio.id,
+      );
       if (notificacionExistente) {
         await this.deleteNotification(notificacionExistente.id);
       }
@@ -163,7 +172,10 @@ export class NotificationService {
     }
 
     // Buscar notificación existente
-    const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
+    const notificacionExistente = await this.findExistingNotification(
+      titulo,
+      negocio.id,
+    );
 
     if (!notificacionExistente) {
       // Crear nueva notificación
@@ -173,12 +185,12 @@ export class NotificationService {
         fechaInicio: ahora,
         fechaFin,
         nivelImportancia,
-        tipo: 'ALERTA',
-        negociosDestino: negocio.id
+        tipo: "ALERTA",
+        negociosDestino: negocio.id,
       });
     } else {
       // Verificar si el contenido ha cambiado
-      const contenidoCambiado = 
+      const contenidoCambiado =
         notificacionExistente.descripcion !== descripcion ||
         notificacionExistente.nivelImportancia !== nivelImportancia ||
         notificacionExistente.fechaFin.getTime() !== fechaFin.getTime();
@@ -188,7 +200,7 @@ export class NotificationService {
         await this.updateNotification(notificacionExistente.id, {
           descripcion,
           nivelImportancia,
-          fechaFin
+          fechaFin,
         });
       }
     }
@@ -204,8 +216,8 @@ export class NotificationService {
         const negocios = await prisma.negocio.findMany({
           include: {
             productos: true,
-            plan: true
-          }
+            plan: true,
+          },
         });
 
         for (const negocio of negocios) {
@@ -217,8 +229,8 @@ export class NotificationService {
           where: { id: negocioId },
           include: {
             productos: true,
-            plan: true
-          }
+            plan: true,
+          },
         });
 
         if (negocio) {
@@ -227,34 +239,44 @@ export class NotificationService {
         }
       }
     } catch (error) {
-      console.error('Error al verificar límites de productos:', error);
+      console.error("Error al verificar límites de productos:", error);
     }
   }
 
   /**
    * Procesar límites de productos para un negocio específico
    */
-  private static async processProductLimits(negocio: Negocio & { productos: Producto[]; plan: Plan | null }) {
+  private static async processProductLimits(
+    negocio: Negocio & { productos: Producto[]; plan: Plan | null },
+  ) {
     const productlimit = negocio.plan?.limiteProductos ?? -1;
     if (productlimit === -1) {
       // Sin límite, eliminar notificación si existe
       const titulo = `Límite de productos - ${negocio.nombre}`;
-      const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
+      const notificacionExistente = await this.findExistingNotification(
+        titulo,
+        negocio.id,
+      );
       if (notificacionExistente) {
         await this.deleteNotification(notificacionExistente.id);
       }
       return;
     }
 
-    const porcentajeUsado = Math.round((negocio.productos.length / productlimit) * 100);
+    const porcentajeUsado = Math.round(
+      (negocio.productos.length / productlimit) * 100,
+    );
     const titulo = `Límite de productos - ${negocio.nombre}`;
     const descripcion = `El negocio "${negocio.nombre}" ha alcanzado el ${porcentajeUsado}% de su límite de productos (${negocio.productos.length}/${productlimit}). Considera actualizar tu plan para agregar más productos.`;
-    const nivelImportancia = porcentajeUsado >= 95 ? 'ALTA' : 'MEDIA';
+    const nivelImportancia = porcentajeUsado >= 95 ? "ALTA" : "MEDIA";
 
     // Verificar si la notificación es válida
     if (porcentajeUsado < 90) {
       // Si está por debajo del 90%, eliminar notificación si existe
-      const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
+      const notificacionExistente = await this.findExistingNotification(
+        titulo,
+        negocio.id,
+      );
       if (notificacionExistente) {
         await this.deleteNotification(notificacionExistente.id);
       }
@@ -262,7 +284,10 @@ export class NotificationService {
     }
 
     // Buscar notificación existente
-    const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
+    const notificacionExistente = await this.findExistingNotification(
+      titulo,
+      negocio.id,
+    );
 
     if (!notificacionExistente) {
       // Crear nueva notificación
@@ -272,12 +297,12 @@ export class NotificationService {
         fechaInicio: new Date(),
         fechaFin: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días
         nivelImportancia,
-        tipo: 'NOTIFICACION',
-        negociosDestino: negocio.id
+        tipo: "NOTIFICACION",
+        negociosDestino: negocio.id,
       });
     } else {
       // Verificar si el contenido ha cambiado
-      const contenidoCambiado = 
+      const contenidoCambiado =
         notificacionExistente.descripcion !== descripcion ||
         notificacionExistente.nivelImportancia !== nivelImportancia;
 
@@ -285,7 +310,7 @@ export class NotificationService {
         // Actualizar notificación y marcar como no leída
         await this.updateNotification(notificacionExistente.id, {
           descripcion,
-          nivelImportancia
+          nivelImportancia,
         });
       }
     }
@@ -301,8 +326,8 @@ export class NotificationService {
         const negocios = await prisma.negocio.findMany({
           include: {
             usuarios: true,
-            plan: true
-          }
+            plan: true,
+          },
         });
 
         for (const negocio of negocios) {
@@ -315,11 +340,11 @@ export class NotificationService {
           include: {
             usuarios: {
               where: {
-                rol: null
-              }
+                rol: null,
+              },
             },
-            plan: true
-          }
+            plan: true,
+          },
         });
 
         if (negocio) {
@@ -328,34 +353,44 @@ export class NotificationService {
         }
       }
     } catch (error) {
-      console.error('Error al verificar límites de usuarios:', error);
+      console.error("Error al verificar límites de usuarios:", error);
     }
   }
 
   /**
    * Procesar límites de usuarios para un negocio específico
    */
-  private static async processUserLimits(negocio: Negocio & { usuarios: Usuario[]; plan: Plan | null }) {
+  private static async processUserLimits(
+    negocio: Negocio & { usuarios: Usuario[]; plan: Plan | null },
+  ) {
     const userlimit = negocio.plan?.limiteUsuarios ?? -1;
     if (userlimit === -1) {
       // Sin límite, eliminar notificación si existe
       const titulo = `Límite de usuarios - ${negocio.nombre}`;
-      const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
+      const notificacionExistente = await this.findExistingNotification(
+        titulo,
+        negocio.id,
+      );
       if (notificacionExistente) {
         await this.deleteNotification(notificacionExistente.id);
       }
       return;
     }
 
-    const porcentajeUsado = Math.round((negocio.usuarios.length / userlimit) * 100);
+    const porcentajeUsado = Math.round(
+      (negocio.usuarios.length / userlimit) * 100,
+    );
     const titulo = `Límite de usuarios - ${negocio.nombre}`;
     const descripcion = `El negocio "${negocio.nombre}" ha alcanzado el ${porcentajeUsado}% de su límite de usuarios (${negocio.usuarios.length}/${userlimit}). Considera actualizar tu plan para agregar más usuarios.`;
-    const nivelImportancia = porcentajeUsado >= 95 ? 'ALTA' : 'MEDIA';
+    const nivelImportancia = porcentajeUsado >= 95 ? "ALTA" : "MEDIA";
 
     // Verificar si la notificación es válida
     if (porcentajeUsado < 90) {
       // Si está por debajo del 90%, eliminar notificación si existe
-      const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
+      const notificacionExistente = await this.findExistingNotification(
+        titulo,
+        negocio.id,
+      );
       if (notificacionExistente) {
         await this.deleteNotification(notificacionExistente.id);
       }
@@ -363,7 +398,10 @@ export class NotificationService {
     }
 
     // Buscar notificación existente
-    const notificacionExistente = await this.findExistingNotification(titulo, negocio.id);
+    const notificacionExistente = await this.findExistingNotification(
+      titulo,
+      negocio.id,
+    );
 
     if (!notificacionExistente) {
       // Crear nueva notificación
@@ -373,12 +411,12 @@ export class NotificationService {
         fechaInicio: new Date(),
         fechaFin: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días
         nivelImportancia,
-        tipo: 'NOTIFICACION',
-        negociosDestino: negocio.id
+        tipo: "NOTIFICACION",
+        negociosDestino: negocio.id,
       });
     } else {
       // Verificar si el contenido ha cambiado
-      const contenidoCambiado = 
+      const contenidoCambiado =
         notificacionExistente.descripcion !== descripcion ||
         notificacionExistente.nivelImportancia !== nivelImportancia;
 
@@ -386,7 +424,7 @@ export class NotificationService {
         // Actualizar notificación y marcar como no leída
         await this.updateNotification(notificacionExistente.id, {
           descripcion,
-          nivelImportancia
+          nivelImportancia,
         });
       }
     }
@@ -398,7 +436,7 @@ export class NotificationService {
   static async deleteExpiredNotifications() {
     const now = new Date();
     await prisma.notificacion.deleteMany({
-      where: { fechaFin: { lt: now } }
+      where: { fechaFin: { lt: now } },
     });
   }
 
@@ -410,19 +448,18 @@ export class NotificationService {
       const ahora = new Date();
       const en30Dias = new Date(ahora.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-      const whereNegocio = negocioId
-        ? { tienda: { negocioId } }
-        : {};
+      const whereNegocio = negocioId ? { tienda: { negocioId } } : {};
 
       const productosTienda = await prisma.productoTienda.findMany({
         where: {
           ...whereNegocio,
-          fechaVencimiento: { not: null, lte: en30Dias }
+          fechaVencimiento: { not: null, lte: en30Dias },
+          deletedAt: null,
         },
         include: {
           producto: { select: { nombre: true } },
-          tienda: { select: { id: true, nombre: true, negocioId: true } }
-        }
+          tienda: { select: { id: true, nombre: true, negocioId: true } },
+        },
       });
 
       // Agrupar por tienda
@@ -438,39 +475,51 @@ export class NotificationService {
         const negId = tienda.negocioId;
 
         const niveles: Array<{
-          nivel: 'CRITICA' | 'ALTA' | 'MEDIA' | 'BAJA';
+          nivel: "CRITICA" | "ALTA" | "MEDIA" | "BAJA";
           label: string;
         }> = [
-          { nivel: 'CRITICA', label: 'VENCIDOS' },
-          { nivel: 'ALTA',    label: 'vencen en ≤7 días' },
-          { nivel: 'MEDIA',   label: 'vencen en ≤15 días' },
-          { nivel: 'BAJA',    label: 'vencen en ≤30 días' },
+          { nivel: "CRITICA", label: "VENCIDOS" },
+          { nivel: "ALTA", label: "vencen en ≤7 días" },
+          { nivel: "MEDIA", label: "vencen en ≤15 días" },
+          { nivel: "BAJA", label: "vencen en ≤30 días" },
         ];
 
         for (const { nivel, label } of niveles) {
-          const grupo = items.filter(pt => {
-            const dias = Math.ceil((pt.fechaVencimiento.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
-            if (nivel === 'CRITICA') return dias <= 0;
-            if (nivel === 'ALTA')   return dias > 0 && dias <= 7;
-            if (nivel === 'MEDIA')  return dias > 7 && dias <= 15;
+          const grupo = items.filter((pt) => {
+            const dias = Math.ceil(
+              (pt.fechaVencimiento.getTime() - ahora.getTime()) /
+                (24 * 60 * 60 * 1000),
+            );
+            if (nivel === "CRITICA") return dias <= 0;
+            if (nivel === "ALTA") return dias > 0 && dias <= 7;
+            if (nivel === "MEDIA") return dias > 7 && dias <= 15;
             return dias > 15 && dias <= 30;
           });
 
           const titulo = `Vencimiento de productos — ${tienda.nombre} (${label})`;
 
           if (grupo.length === 0) {
-            const existente = await this.findExistingNotification(titulo, negId);
+            const existente = await this.findExistingNotification(
+              titulo,
+              negId,
+            );
             if (existente) await this.deleteNotification(existente.id);
             continue;
           }
 
           const listaProductos = grupo
-            .map(pt => {
-              const dias = Math.ceil((pt.fechaVencimiento.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000));
-              const diasTexto = dias <= 0 ? `vencido hace ${Math.abs(dias)} día(s)` : `vence en ${dias} día(s)`;
+            .map((pt) => {
+              const dias = Math.ceil(
+                (pt.fechaVencimiento.getTime() - ahora.getTime()) /
+                  (24 * 60 * 60 * 1000),
+              );
+              const diasTexto =
+                dias <= 0
+                  ? `vencido hace ${Math.abs(dias)} día(s)`
+                  : `vence en ${dias} día(s)`;
               return `• ${pt.producto.nombre} (${diasTexto})`;
             })
-            .join('\n');
+            .join("\n");
 
           const descripcion = `${grupo.length} producto(s) ${label} en la tienda "${tienda.nombre}":\n${listaProductos}`;
           const fechaFin = new Date(ahora.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -484,21 +533,25 @@ export class NotificationService {
               fechaInicio: ahora,
               fechaFin,
               nivelImportancia: nivel,
-              tipo: 'ALERTA',
-              negociosDestino: negId
+              tipo: "ALERTA",
+              negociosDestino: negId,
             });
           } else {
             const contenidoCambiado =
               existente.descripcion !== descripcion ||
               existente.nivelImportancia !== nivel;
             if (contenidoCambiado) {
-              await this.updateNotification(existente.id, { descripcion, nivelImportancia: nivel, fechaFin });
+              await this.updateNotification(existente.id, {
+                descripcion,
+                nivelImportancia: nivel,
+                fechaFin,
+              });
             }
           }
         }
       }
     } catch (error) {
-      console.error('Error al verificar vencimiento de productos:', error);
+      console.error("Error al verificar vencimiento de productos:", error);
     }
   }
 
@@ -506,14 +559,12 @@ export class NotificationService {
    * Ejecutar todas las verificaciones automáticas
    */
   static async runAutomaticChecks(negocioId?: string) {
-
     await Promise.all([
       this.checkSubscriptionExpiration(negocioId),
       this.checkProductLimits(negocioId),
       this.checkUserLimits(negocioId),
       this.checkProductExpiration(negocioId),
-      this.deleteExpiredNotifications()
+      this.deleteExpiredNotifications(),
     ]);
-
   }
 }

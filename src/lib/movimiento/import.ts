@@ -609,6 +609,7 @@ const procesarLoteProductos = async (
           productoId: producto.id,
           tiendaId: data.localId,
           proveedorId: proveedorId || null,
+          deletedAt: null,
         },
       });
       if (existeProductoTienda) {

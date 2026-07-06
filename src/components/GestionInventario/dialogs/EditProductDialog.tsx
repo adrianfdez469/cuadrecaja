@@ -304,44 +304,6 @@ export function EditProductDialog({
             )}
           />
 
-          {/* Precio + moneda */}
-          <Box display="flex" gap={1} alignItems="flex-start">
-            {monedasDisponibles.length > 1 && (
-              <FormControl size="small" sx={{ minWidth: 90 }}>
-                <InputLabel>Moneda</InputLabel>
-                <Select
-                  label="Moneda"
-                  value={precioMonedaEfectiva}
-                  onChange={(e) => handlePrecioMonedaChange(e.target.value)}
-                >
-                  {monedasDisponibles.map((code) => (
-                    <MenuItem key={code} value={code}>
-                      {code}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            <TextField
-              label={`Precio (${precioMonedaEfectiva})`}
-              value={precio}
-              onChange={(e) => setPrecio(e.target.value)}
-              size="small"
-              inputProps={{ inputMode: "decimal" }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">$</InputAdornment>
-                ),
-              }}
-              helperText={
-                precioEnBase !== null
-                  ? `≈ ${precioEnBase.toFixed(2)} ${monedaBase}`
-                  : undefined
-              }
-              sx={{ flex: 1 }}
-            />
-          </Box>
-
           {/* Costo + moneda */}
           <Box display="flex" gap={1} alignItems="flex-start">
             {monedasDisponibles.length > 1 && (
@@ -378,6 +340,44 @@ export function EditProductDialog({
               }
               sx={{ flex: 1 }}
             />
+
+            {/* Precio + moneda */}
+            <Box display="flex" gap={1} alignItems="flex-start">
+              {monedasDisponibles.length > 1 && (
+                  <FormControl size="small" sx={{ minWidth: 90 }}>
+                    <InputLabel>Moneda</InputLabel>
+                    <Select
+                        label="Moneda"
+                        value={precioMonedaEfectiva}
+                        onChange={(e) => handlePrecioMonedaChange(e.target.value)}
+                    >
+                      {monedasDisponibles.map((code) => (
+                          <MenuItem key={code} value={code}>
+                            {code}
+                          </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+              )}
+              <TextField
+                  label={`Precio (${precioMonedaEfectiva})`}
+                  value={precio}
+                  onChange={(e) => setPrecio(e.target.value)}
+                  size="small"
+                  inputProps={{ inputMode: "decimal" }}
+                  InputProps={{
+                    startAdornment: (
+                        <InputAdornment position="start">$</InputAdornment>
+                    ),
+                  }}
+                  helperText={
+                    precioEnBase !== null
+                        ? `≈ ${precioEnBase.toFixed(2)} ${monedaBase}`
+                        : undefined
+                  }
+                  sx={{ flex: 1 }}
+              />
+            </Box>
           </Box>
 
           {warnCostoMayorPrecio && (

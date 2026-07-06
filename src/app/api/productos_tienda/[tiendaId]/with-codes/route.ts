@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ tiendaId: string }> }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ tiendaId: string }> },
+) {
   try {
     const { tiendaId } = await params;
 
@@ -9,9 +12,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
       where: {
         tiendaId: tiendaId,
         precio: {
-          gt: 0 // Solo productos con precio mayor a 0
+          gt: 0, // Solo productos con precio mayor a 0
         },
-        producto: { deletedAt: null }
+        deletedAt: null,
+        producto: { deletedAt: null },
       },
       include: {
         producto: {
@@ -22,28 +26,28 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
               select: {
                 nombre: true,
                 color: true,
-              }
+              },
             },
             codigosProducto: {
               select: {
                 id: true,
                 codigo: true,
-              }
-            }
-          }
+              },
+            },
+          },
         },
         proveedor: {
           select: {
             id: true,
-            nombre: true
-          }
-        }
+            nombre: true,
+          },
+        },
       },
       orderBy: {
         producto: {
-          nombre: 'asc'
-        }
-      }
+          nombre: "asc",
+        },
+      },
     });
 
     return NextResponse.json(productosTienda);
@@ -51,7 +55,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tien
     console.error("Error al obtener productos con códigos:", error);
     return NextResponse.json(
       { error: "Error al obtener productos" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-} 
+}

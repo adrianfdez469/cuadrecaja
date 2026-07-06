@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
@@ -120,6 +121,13 @@ export function CreateProductDialog({
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // Vínculo a un producto existente (de otra tienda) encontrado por nombre
+  const [productoVinculado, setProductoVinculado] = useState<IProducto | null>(
+    null,
+  );
+  const [opcionesNombre, setOpcionesNombre] = useState<IProducto[]>([]);
+  const [buscandoNombre, setBuscandoNombre] = useState(false);
+
   const applyDemoValues = () => {
     const { catValue: cat, catInputValue: catInput } =
       resolveCategoriaDemo(categorias);
@@ -139,6 +147,7 @@ export function CreateProductDialog({
     setFraccionValue(null);
     setCodigosProducto([]);
     setSubmitted(false);
+    setProductoVinculado(null);
   };
 
   const resetForm = () => {
@@ -158,6 +167,7 @@ export function CreateProductDialog({
     setFraccionValue(null);
     setCodigosProducto([]);
     setSubmitted(false);
+    setProductoVinculado(null);
   };
 
   useEffect(() => {
@@ -186,6 +196,50 @@ export function CreateProductDialog({
       fetchProducts().then(setProductos);
     }
   }, [esFraccion]);
+
+  // Búsqueda con debounce: mientras se escribe el nombre, se busca en todo el
+  // negocio para detectar si el producto ya existe en otra tienda.
+  useEffect(() => {
+    if (!open || productoVinculado) {
+      setOpcionesNombre([]);
+      return;
+    }
+    const texto = nombre.trim();
+    if (!texto) {
+      setOpcionesNombre([]);
+      return;
+    }
+    setBuscandoNombre(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetchProducts(texto);
+        setOpcionesNombre(res);
+      } finally {
+        setBuscandoNombre(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [nombre, open, productoVinculado]);
+
+  const vincularProducto = (producto: IProducto) => {
+    setProductoVinculado(producto);
+    setNombre(producto.nombre);
+    setDescripcion(producto.descripcion);
+    setCatValue(producto.categoria);
+    setCatInputValue(producto.categoria?.nombre ?? "");
+    setPermiteDecimal(!!producto.permiteDecimal);
+    setCodigosProducto(producto.codigosProducto.map((c) => c.codigo));
+    setOpcionesNombre([]);
+  };
+
+  const desvincularProducto = () => {
+    setProductoVinculado(null);
+    setDescripcion("");
+    setCatValue(null);
+    setCatInputValue("");
+    setPermiteDecimal(false);
+    setCodigosProducto([]);
+  };
 
   const handlePrecioMonedaChange = (nuevaMoneda: string) => {
     const monedaActual = monedaPrecioCode ?? monedaBase;
@@ -274,6 +328,30 @@ export function CreateProductDialog({
     if (!canSave) return;
     setSaving(true);
     try {
+      const camposComunes = {
+        precio: parseFloat(precio) || 0,
+        monedaPrecioCode,
+        costo: parseFloat(costo) || 0,
+        monedaCostoCode,
+        fechaVencimiento: fechaVencimiento
+          ? fechaVencimiento.toISOString()
+          : null,
+        cantidadInicial: parseFloat(cantidadInicial.replace(",", ".")) || 0,
+      };
+
+      if (productoVinculado) {
+        await onSave({
+          nombre: productoVinculado.nombre,
+          descripcion: productoVinculado.descripcion,
+          categoriaId: productoVinculado.categoriaId,
+          permiteDecimal: !!productoVinculado.permiteDecimal,
+          codigosProducto: [],
+          productoExistenteId: productoVinculado.id,
+          ...camposComunes,
+        });
+        return;
+      }
+
       const typedText = catInputValue.trim();
       const isExistingCat =
         catValue &&
@@ -289,19 +367,12 @@ export function CreateProductDialog({
           newCategoriaName: newCatName,
           newCategoriaColor: generateTempColor(),
         }),
-        precio: parseFloat(precio) || 0,
-        monedaPrecioCode,
-        costo: parseFloat(costo) || 0,
-        monedaCostoCode,
-        fechaVencimiento: fechaVencimiento
-          ? fechaVencimiento.toISOString()
-          : null,
-        cantidadInicial: parseFloat(cantidadInicial.replace(",", ".")) || 0,
         permiteDecimal,
         fraccionDeId:
           esFraccion && selectedFraccion ? selectedFraccion.id : null,
         unidadesPorFraccion: esFraccion && fraccionValue ? fraccionValue : null,
         codigosProducto: codigosProducto.filter(Boolean),
+        ...camposComunes,
       });
     } finally {
       setSaving(false);
@@ -330,109 +401,167 @@ export function CreateProductDialog({
           gap={2}
           pt={1}
         >
-          <TextField
-            label="Nombre"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            size="small"
-            required
-            fullWidth
-            autoFocus
-            error={!!nombreError}
-            helperText={nombreError}
-          />
-          <TextField
-            label="Descripción"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            size="small"
-            fullWidth
-          />
-
           <Autocomplete
-            value={catValue}
-            inputValue={catInputValue}
+            freeSolo
+            disabled={!!productoVinculado}
+            inputValue={nombre}
+            onInputChange={(_, val) => setNombre(val)}
             onChange={(_, val) => {
-              if (typeof val === "string") {
-                setCatValue({ inputValue: val, nombre: val, id: "" });
-              } else {
-                setCatValue(val);
-              }
+              if (val && typeof val !== "string") vincularProducto(val);
             }}
-            onInputChange={(_, val) => setCatInputValue(val)}
-            options={categorias}
-            getOptionLabel={(opt) => {
-              if (typeof opt === "string") return opt;
-              if ("inputValue" in opt) return opt.inputValue;
-              return opt.nombre;
-            }}
-            isOptionEqualToValue={(opt, val) =>
-              (opt as ICategory).id === (val as ICategory).id
+            options={opcionesNombre}
+            filterOptions={(opts) => opts}
+            loading={buscandoNombre}
+            getOptionLabel={(opt) =>
+              typeof opt === "string" ? opt : opt.nombre
             }
             renderOption={(props, opt) => (
-              <li {...props} key={(opt as ICategory).id}>
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Box
-                    sx={{
-                      width: 14,
-                      height: 14,
-                      borderRadius: "3px",
-                      bgcolor: (opt as ICategory).color,
-                    }}
-                  />
-                  {opt.nombre}
+              <li {...props} key={opt.id}>
+                <Box display="flex" flexDirection="column">
+                  <Typography variant="body2">{opt.nombre}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {opt.categoria?.nombre} · ya existe en otra tienda
+                  </Typography>
                 </Box>
               </li>
             )}
-            freeSolo
-            selectOnFocus
             renderInput={(params) => (
               <TextField
                 {...params}
-                label="Categoría"
+                label="Nombre"
                 size="small"
                 required
-                error={!!catError}
-                helperText={catError}
+                fullWidth
+                autoFocus
+                error={!!nombreError}
+                helperText={nombreError}
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {buscandoNombre && (
+                        <CircularProgress color="inherit" size={16} />
+                      )}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
               />
             )}
           />
 
+          {productoVinculado && (
+            <Alert
+              severity="info"
+              action={
+                <Tooltip title="Usar otro nombre">
+                  <IconButton size="small" onClick={desvincularProducto}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              }
+            >
+              Este producto ya existe en el negocio. Se usará el mismo producto
+              — solo se configurará precio, costo y stock para esta tienda.
+            </Alert>
+          )}
+
+          {!productoVinculado && (
+            <>
+              <TextField
+                label="Descripción"
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                size="small"
+                fullWidth
+              />
+
+              <Autocomplete
+                value={catValue}
+                inputValue={catInputValue}
+                onChange={(_, val) => {
+                  if (typeof val === "string") {
+                    setCatValue({ inputValue: val, nombre: val, id: "" });
+                  } else {
+                    setCatValue(val);
+                  }
+                }}
+                onInputChange={(_, val) => setCatInputValue(val)}
+                options={categorias}
+                getOptionLabel={(opt) => {
+                  if (typeof opt === "string") return opt;
+                  if ("inputValue" in opt) return opt.inputValue;
+                  return opt.nombre;
+                }}
+                isOptionEqualToValue={(opt, val) =>
+                  (opt as ICategory).id === (val as ICategory).id
+                }
+                renderOption={(props, opt) => (
+                  <li {...props} key={(opt as ICategory).id}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Box
+                        sx={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: "3px",
+                          bgcolor: (opt as ICategory).color,
+                        }}
+                      />
+                      {opt.nombre}
+                    </Box>
+                  </li>
+                )}
+                freeSolo
+                selectOnFocus
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Categoría"
+                    size="small"
+                    required
+                    error={!!catError}
+                    helperText={catError}
+                  />
+                )}
+              />
+            </>
+          )}
+
           {/* Costo + moneda */}
           <Box display="flex" gap={1} alignItems="flex-start">
             {monedasDisponibles.length > 1 && (
-                <FormControl size="small" sx={{ minWidth: 90 }}>
-                  <InputLabel>Moneda</InputLabel>
-                  <Select
-                      label="Moneda"
-                      value={costoMonedaEfectiva}
-                      onChange={(e) => handleCostoMonedaChange(e.target.value)}
-                  >
-                    {monedasDisponibles.map((code) => (
-                        <MenuItem key={code} value={code}>
-                          {code}
-                        </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+              <FormControl size="small" sx={{ minWidth: 90 }}>
+                <InputLabel>Moneda</InputLabel>
+                <Select
+                  label="Moneda"
+                  value={costoMonedaEfectiva}
+                  onChange={(e) => handleCostoMonedaChange(e.target.value)}
+                >
+                  {monedasDisponibles.map((code) => (
+                    <MenuItem key={code} value={code}>
+                      {code}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             )}
             <TextField
-                label={`Costo (${costoMonedaEfectiva})`}
-                value={costo}
-                onChange={(e) => setCosto(e.target.value)}
-                size="small"
-                inputProps={{ inputMode: "decimal" }}
-                InputProps={{
-                  startAdornment: (
-                      <InputAdornment position="start">$</InputAdornment>
-                  ),
-                }}
-                helperText={
-                  costoEnBase !== null
-                      ? `≈ ${costoEnBase.toFixed(2)} ${monedaBase}`
-                      : undefined
-                }
-                sx={{ flex: 1 }}
+              label={`Costo (${costoMonedaEfectiva})`}
+              value={costo}
+              onChange={(e) => setCosto(e.target.value)}
+              size="small"
+              inputProps={{ inputMode: "decimal" }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">$</InputAdornment>
+                ),
+              }}
+              helperText={
+                costoEnBase !== null
+                  ? `≈ ${costoEnBase.toFixed(2)} ${monedaBase}`
+                  : undefined
+              }
+              sx={{ flex: 1 }}
             />
           </Box>
 
@@ -481,13 +610,6 @@ export function CreateProductDialog({
             </Alert>
           )}
 
-          <DatePicker
-            label="Fecha de vencimiento"
-            value={fechaVencimiento}
-            onChange={(val) => setFechaVencimiento(val)}
-            slotProps={{ textField: { size: "small", fullWidth: true } }}
-          />
-
           <TextField
             label="Cantidad inicial (opcional)"
             value={cantidadInicial}
@@ -501,116 +623,134 @@ export function CreateProductDialog({
             }
           />
 
+          <DatePicker
+            label="Fecha de vencimiento"
+            value={fechaVencimiento}
+            onChange={(val) => setFechaVencimiento(val)}
+            slotProps={{ textField: { size: "small", fullWidth: true } }}
+          />
+
           {warnCantidadCero && (
             <Alert severity="warning" sx={{ py: 0.5 }}>
               El producto quedará con stock 0 y no aparecerá en el POS de venta.
             </Alert>
           )}
 
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={permiteDecimal}
-                onChange={(e) => setPermiteDecimal(e.target.checked)}
-                size="small"
-              />
-            }
-            label="Permite cantidades decimales"
-          />
-
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={esFraccion}
-                onChange={(e) => setEsFraccion(e.target.checked)}
-                size="small"
-              />
-            }
-            label="Es fracción de otro producto"
-          />
-
-          {esFraccion && (
-            <Box
-              display="flex"
-              gap={2}
-              flexDirection={{ xs: "column", sm: "row" }}
-            >
-              <FormControl size="small" fullWidth sx={{ flex: 1 }}>
-                <InputLabel>Producto base</InputLabel>
-                <Select
-                  label="Producto base"
-                  value={selectedFraccion?.id ?? ""}
-                  onChange={(e) =>
-                    setSelectedFraccion(
-                      productos.find((p) => p.id === e.target.value) ?? null,
-                    )
-                  }
-                >
-                  {productos.map((p) => (
-                    <MenuItem key={p.id} value={p.id}>
-                      {p.nombre}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField
-                label="Unidades por fracción"
-                value={fraccionValue ?? ""}
-                onChange={(e) =>
-                  setFraccionValue(parseInt(e.target.value) || null)
-                }
-                size="small"
-                sx={{ flex: 1 }}
-                inputProps={{ inputMode: "numeric" }}
-              />
-            </Box>
-          )}
-
-          <Box>
-            <Box display="flex" alignItems="center" mb={1}>
-              <Typography variant="body2" fontWeight={600}>
-                Códigos de producto
-              </Typography>
-              <Tooltip title="Agregar código">
-                <IconButton
-                  size="small"
-                  onClick={handleAddCodigo}
-                  sx={{ ml: 1 }}
-                >
-                  <AddIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Box>
-            {codigosProducto.map((codigo, idx) => (
-              <Box key={idx} display="flex" alignItems="center" mb={1} gap={1}>
-                <HardwareQrScanner
-                  qrCodeSuccessCallback={(qrText) =>
-                    handleCodigoChange(idx, qrText)
-                  }
-                  showInput
-                  style={{ width: "100%" }}
-                  value={codigo}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    handleCodigoChange(idx, e.target.value)
-                  }
-                  keepFocus={false}
-                />
-                <MobileQrScanner
-                  qrCodeSuccessCallback={(qrText) =>
-                    handleCodigoChange(idx, qrText)
-                  }
-                />
-                <Tooltip title="Eliminar código">
-                  <IconButton
-                    onClick={() => handleRemoveCodigo(idx)}
+          {!productoVinculado && (
+            <>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={permiteDecimal}
+                    onChange={(e) => setPermiteDecimal(e.target.checked)}
                     size="small"
+                  />
+                }
+                label="Permite cantidades decimales"
+              />
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={esFraccion}
+                    onChange={(e) => setEsFraccion(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label="Es fracción de otro producto"
+              />
+
+              {esFraccion && (
+                <Box
+                  display="flex"
+                  gap={2}
+                  flexDirection={{ xs: "column", sm: "row" }}
+                >
+                  <FormControl size="small" fullWidth sx={{ flex: 1 }}>
+                    <InputLabel>Producto base</InputLabel>
+                    <Select
+                      label="Producto base"
+                      value={selectedFraccion?.id ?? ""}
+                      onChange={(e) =>
+                        setSelectedFraccion(
+                          productos.find((p) => p.id === e.target.value) ??
+                            null,
+                        )
+                      }
+                    >
+                      {productos.map((p) => (
+                        <MenuItem key={p.id} value={p.id}>
+                          {p.nombre}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    label="Unidades por fracción"
+                    value={fraccionValue ?? ""}
+                    onChange={(e) =>
+                      setFraccionValue(parseInt(e.target.value) || null)
+                    }
+                    size="small"
+                    sx={{ flex: 1 }}
+                    inputProps={{ inputMode: "numeric" }}
+                  />
+                </Box>
+              )}
+
+              <Box>
+                <Box display="flex" alignItems="center" mb={1}>
+                  <Typography variant="body2" fontWeight={600}>
+                    Códigos de producto
+                  </Typography>
+                  <Tooltip title="Agregar código">
+                    <IconButton
+                      size="small"
+                      onClick={handleAddCodigo}
+                      sx={{ ml: 1 }}
+                    >
+                      <AddIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+                {codigosProducto.map((codigo, idx) => (
+                  <Box
+                    key={idx}
+                    display="flex"
+                    alignItems="center"
+                    mb={1}
+                    gap={1}
                   >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                    <HardwareQrScanner
+                      qrCodeSuccessCallback={(qrText) =>
+                        handleCodigoChange(idx, qrText)
+                      }
+                      showInput
+                      style={{ width: "100%" }}
+                      value={codigo}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        handleCodigoChange(idx, e.target.value)
+                      }
+                      keepFocus={false}
+                    />
+                    <MobileQrScanner
+                      qrCodeSuccessCallback={(qrText) =>
+                        handleCodigoChange(idx, qrText)
+                      }
+                    />
+                    <Tooltip title="Eliminar código">
+                      <IconButton
+                        onClick={() => handleRemoveCodigo(idx)}
+                        size="small"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
               </Box>
-            ))}
-          </Box>
+            </>
+          )}
         </Box>
       </DialogContent>
       <DialogActions>

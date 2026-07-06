@@ -24,11 +24,11 @@ import {
   useTheme,
   useMediaQuery,
   Collapse,
-  Divider
+  Divider,
 } from "@mui/material";
-import { 
-  Delete, 
-  Edit, 
+import {
+  Delete,
+  Edit,
   Add,
   ShoppingCart,
   Category,
@@ -49,6 +49,7 @@ import {
 } from "@/services/productServise";
 import { IProducto } from "@/schemas/producto";
 import { useMessageContext } from "@/context/MessageContext";
+import { useAppContext } from "@/context/AppContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
@@ -57,7 +58,7 @@ import LimitDialog from "@/components/LimitDialog";
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import bwipjs from "bwip-js";
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 
 export default function ProductList() {
   const [products, setProducts] = useState<IProducto[]>([]);
@@ -69,9 +70,10 @@ export default function ProductList() {
   const [limitDialog, setLimitDialog] = useState(false);
   const { showMessage } = useMessageContext();
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
-  
+  const { user } = useAppContext();
+
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     loadProducts();
@@ -91,7 +93,7 @@ export default function ProductList() {
   };
 
   const handleOpen = (prodEdit?: IProducto) => {
-    if(prodEdit){
+    if (prodEdit) {
       setEditingProd(prodEdit);
     } else {
       setOpen(true);
@@ -109,43 +111,62 @@ export default function ProductList() {
     categoriaId: string,
     fraccion?: { fraccionDeId?: string; unidadesPorFraccion?: number },
     codigoProducto?: string[],
-    permiteDecimal?: boolean
+    permiteDecimal?: boolean,
   ) => {
     try {
       if (editingProd) {
-        await editProduct(editingProd.id, nombre, descripcion, categoriaId, fraccion, codigoProducto, permiteDecimal);
-        showMessage('Producto actualizado exitosamente', 'success');
+        await editProduct(
+          editingProd.id,
+          nombre,
+          descripcion,
+          categoriaId,
+          fraccion,
+          codigoProducto,
+          permiteDecimal,
+        );
+        showMessage("Producto actualizado exitosamente", "success");
       } else {
-        await createProduct(nombre, descripcion, categoriaId, fraccion, codigoProducto, permiteDecimal);
-        showMessage('Producto creado exitosamente', 'success');
+        await createProduct(
+          nombre,
+          descripcion,
+          categoriaId,
+          fraccion,
+          codigoProducto,
+          permiteDecimal,
+        );
+        showMessage("Producto creado exitosamente", "success");
       }
       await loadProducts();
       handleClose();
     } catch (error) {
       console.error("Error al guardar producto:", error);
-      
+
       // Manejar específicamente el error de límite de productos
-      if (error.response?.status === 400 && 
-          error.response?.data?.error?.includes("Límite de productos excedido")) {
+      if (
+        error.response?.status === 400 &&
+        error.response?.data?.error?.includes("Límite de productos excedido")
+      ) {
         setLimitDialog(true);
       } else {
         showMessage(
-          error.response?.data?.error || 'Error al guardar el producto', 
-          'error'
+          error.response?.data?.error || "Error al guardar el producto",
+          "error",
         );
       }
     }
   };
 
   const handleDelete = async (id: string) => {
-    confirmDialog('¿Está seguro que desea eliminar el producto?', async () => {
+    confirmDialog("¿Está seguro que desea eliminar el producto?", async () => {
       try {
-        await deleteProduct(id);
-        showMessage('Producto eliminado', 'success');
+        await deleteProduct(id, user.localActual.id);
+        showMessage("Producto eliminado", "success");
       } catch (error) {
         console.error(error);
-        const msg = error.response?.data?.error || 'Error al intentar eliminar el producto';
-        showMessage(msg, 'error');
+        const msg =
+          error.response?.data?.error ||
+          "Error al intentar eliminar el producto";
+        showMessage(msg, "error");
       } finally {
         await loadProducts();
       }
@@ -154,22 +175,27 @@ export default function ProductList() {
 
   const normalizedSearch = normalizeSearch(searchTerm);
 
-  const filteredProducts = products.filter((product) =>
-    normalizeSearch(product.nombre).includes(normalizedSearch) ||
-    normalizeSearch(product.descripcion ?? '').includes(normalizedSearch) ||
-    normalizeSearch(product.categoria?.nombre ?? '').includes(normalizedSearch)
+  const filteredProducts = products.filter(
+    (product) =>
+      normalizeSearch(product.nombre).includes(normalizedSearch) ||
+      normalizeSearch(product.descripcion ?? "").includes(normalizedSearch) ||
+      normalizeSearch(product.categoria?.nombre ?? "").includes(
+        normalizedSearch,
+      ),
   );
 
   // Cálculos para estadísticas
   const totalProductos = products.length;
-  const productosConCategoria = products.filter(p => p.categoria).length;
-  const productosSinCategoria = products.filter(p => !p.categoria).length;
-  const productosConFraccion = products.filter(p => p.fraccionDe && p.unidadesPorFraccion).length;
+  const productosConCategoria = products.filter((p) => p.categoria).length;
+  const productosSinCategoria = products.filter((p) => !p.categoria).length;
+  const productosConFraccion = products.filter(
+    (p) => p.fraccionDe && p.unidadesPorFraccion,
+  ).length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Configuración', href: '/configuracion' },
-    { label: 'Productos' }
+    { label: "Inicio", href: "/home" },
+    { label: "Configuración", href: "/configuracion" },
+    { label: "Productos" },
   ];
 
   const headerActions = (
@@ -180,8 +206,15 @@ export default function ProductList() {
         </IconButton>
       </Tooltip>
       {isMobile && (
-        <Tooltip title={statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"}>
-          <IconButton onClick={() => setStatsExpanded(!statsExpanded)} size="small">
+        <Tooltip
+          title={
+            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
+          }
+        >
+          <IconButton
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            size="small"
+          >
             {statsExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Tooltip>
@@ -198,8 +231,18 @@ export default function ProductList() {
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode, value: string, label: string, color: string }) => (
-    <Card sx={{ height: '100%' }}>
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    color: string;
+  }) => (
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -207,39 +250,38 @@ export default function ProductList() {
               p: isMobile ? 0.75 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 32 : 48,
               minHeight: isMobile ? 32 : 48,
             }}
           >
-            {React.isValidElement(icon) 
-              ? React.cloneElement(icon, { 
-                  fontSize: isMobile ? "small" : "large" 
+            {React.isValidElement(icon)
+              ? React.cloneElement(icon, {
+                  fontSize: isMobile ? "small" : "large",
                 } as Record<string, unknown>)
-              : icon
-            }
+              : icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "subtitle1" : "h4"} 
+            <Typography
+              variant={isMobile ? "subtitle1" : "h4"}
               fontWeight="bold"
-              sx={{ 
-                fontSize: isMobile ? '1rem' : '2rem',
+              sx={{
+                fontSize: isMobile ? "1rem" : "2rem",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
             </Typography>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
-                fontSize: isMobile ? '0.6875rem' : '0.875rem',
-                lineHeight: 1.2
+              sx={{
+                fontSize: isMobile ? "0.6875rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
@@ -256,7 +298,11 @@ export default function ProductList() {
 
   // --- PDF GENERATION UTILITY ---
   async function generateProductCodesPDF(product: IProducto) {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'A4' });
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "A4",
+    });
     const padding = 24;
     const codeHeight = 60;
     const qrSize = 60;
@@ -264,33 +310,36 @@ export default function ProductList() {
 
     for (const codigo of product.codigosProducto) {
       // Barcode as PNG (bwip-js to canvas, then to dataURL)
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       try {
         bwipjs.toCanvas(canvas, {
-          bcid: 'code128',
+          bcid: "code128",
           text: codigo.codigo,
           scale: 2,
           height: codeHeight,
           includetext: true,
-          textxalign: 'center',
+          textxalign: "center",
         });
       } catch (e) {
         console.error(e);
         // fallback: skip this code
         continue;
       }
-      const barcodeDataUrl = canvas.toDataURL('image/png');
+      const barcodeDataUrl = canvas.toDataURL("image/png");
 
       // QR as PNG (qrcode toDataURL)
-      const qrDataUrl = await QRCode.toDataURL(codigo.codigo, { width: qrSize, margin: 0 });
+      const qrDataUrl = await QRCode.toDataURL(codigo.codigo, {
+        width: qrSize,
+        margin: 0,
+      });
 
       // Draw barcode
-      doc.addImage(barcodeDataUrl, 'PNG', padding, y, 180, codeHeight + 20);
+      doc.addImage(barcodeDataUrl, "PNG", padding, y, 180, codeHeight + 20);
       // Draw QR
-      doc.addImage(qrDataUrl, 'PNG', padding + 200, y, qrSize, qrSize);
+      doc.addImage(qrDataUrl, "PNG", padding + 200, y, qrSize, qrSize);
       // Draw code text
       doc.setFontSize(12);
-      doc.text(codigo.codigo, padding + 200 + qrSize + 16, y + qrSize/2 + 8);
+      doc.text(codigo.codigo, padding + 200 + qrSize + 16, y + qrSize / 2 + 8);
       // Space for cutting
       y += Math.max(codeHeight + 32, qrSize + 32);
       if (y > 750) {
@@ -298,12 +347,17 @@ export default function ProductList() {
         y = padding;
       }
     }
-    doc.save(`codigos_${product.nombre.replace(/\s+/g, '_')}.pdf`);
+    doc.save(`codigos_${product.nombre.replace(/\s+/g, "_")}.pdf`);
   }
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <CircularProgress />
         <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
           Cargando productos...
@@ -315,7 +369,11 @@ export default function ProductList() {
   return (
     <PageContainer
       title="Gestión de Productos"
-      subtitle={!isMobile ? "Administra el catálogo de productos de tu negocio" : undefined}
+      subtitle={
+        !isMobile
+          ? "Administra el catálogo de productos de tu negocio"
+          : undefined
+      }
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
@@ -399,9 +457,11 @@ export default function ProductList() {
       )}
 
       {/* Lista de productos */}
-      <ContentCard 
+      <ContentCard
         title="Catálogo de Productos"
-        subtitle={!isMobile ? "Haz clic en cualquier producto para editarlo" : undefined}
+        subtitle={
+          !isMobile ? "Haz clic en cualquier producto para editarlo" : undefined
+        }
         headerActions={
           <TextField
             size="small"
@@ -415,9 +475,9 @@ export default function ProductList() {
                 </InputAdornment>
               ),
             }}
-            sx={{ 
+            sx={{
               minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : 'none'
+              maxWidth: isMobile ? 200 : "none",
             }}
           />
         }
@@ -426,13 +486,19 @@ export default function ProductList() {
       >
         {filteredProducts.length === 0 ? (
           <Box sx={{ p: 2 }}>
-            <Box sx={{ textAlign: 'center', py: 8 }}>
-              <ShoppingCart sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+            <Box sx={{ textAlign: "center", py: 8 }}>
+              <ShoppingCart
+                sx={{ fontSize: 48, color: "text.secondary", mb: 2 }}
+              />
               <Typography variant="h6" color="text.secondary">
-                {searchTerm ? 'No se encontraron productos' : 'No hay productos registrados'}
+                {searchTerm
+                  ? "No se encontraron productos"
+                  : "No hay productos registrados"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Agrega productos para comenzar a gestionar tu catálogo'}
+                {searchTerm
+                  ? "Intenta con otros términos de búsqueda"
+                  : "Agrega productos para comenzar a gestionar tu catálogo"}
               </Typography>
             </Box>
           </Box>
@@ -441,31 +507,43 @@ export default function ProductList() {
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
               {filteredProducts.map((product) => (
-                <Card 
+                <Card
                   key={product.id}
                   onClick={() => handleOpen(product)}
                   sx={{
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
+                    cursor: "pointer",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
                     <Stack spacing={1.5}>
-                      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="flex-start"
+                      >
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                          <Typography
+                            variant="subtitle2"
+                            fontWeight="medium"
+                            sx={{ fontSize: "0.875rem" }}
+                          >
                             {product.nombre}
                           </Typography>
                           {product.descripcion && (
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ fontSize: "0.6875rem" }}
+                            >
                               {product.descripcion}
                             </Typography>
                           )}
                         </Box>
                         {product.fraccionDe && product.unidadesPorFraccion && (
-                          <Chip 
+                          <Chip
                             label={`${product.fraccionDe.nombre} - ${product.unidadesPorFraccion} unidades`}
                             size="small"
                             color="info"
@@ -473,8 +551,12 @@ export default function ProductList() {
                           />
                         )}
                       </Box>
-                      
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
+
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
                         <Box display="flex" flexWrap="wrap" gap={0.5}>
                           {product.categoria ? (
                             <Chip
@@ -482,18 +564,18 @@ export default function ProductList() {
                               size="small"
                               sx={{
                                 bgcolor: product.categoria.color,
-                                color: 'white',
-                                fontWeight: 'medium',
-                                fontSize: '0.6875rem',
-                                height: 20
+                                color: "white",
+                                fontWeight: "medium",
+                                fontSize: "0.6875rem",
+                                height: 20,
                               }}
                             />
                           ) : (
-                            <Chip 
-                              label="Sin categoría" 
-                              size="small" 
+                            <Chip
+                              label="Sin categoría"
+                              size="small"
                               variant="outlined"
-                              sx={{ fontSize: '0.6875rem', height: 20 }}
+                              sx={{ fontSize: "0.6875rem", height: 20 }}
                             />
                           )}
                         </Box>
@@ -529,16 +611,16 @@ export default function ProductList() {
               </TableHead>
               <TableBody>
                 {filteredProducts.map((product) => (
-                  <TableRow 
+                  <TableRow
                     key={product.id}
                     onClick={() => handleOpen(product)}
                     sx={{
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
                       },
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      "&:nth-of-type(odd)": {
+                        backgroundColor: "rgba(0, 0, 0, 0.02)",
                       },
                     }}
                   >
@@ -549,7 +631,7 @@ export default function ProductList() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
-                        {product.descripcion || '-'}
+                        {product.descripcion || "-"}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -559,25 +641,21 @@ export default function ProductList() {
                           size="small"
                           sx={{
                             bgcolor: product.categoria.color,
-                            color: 'white',
-                            fontWeight: 'medium'
+                            color: "white",
+                            fontWeight: "medium",
                           }}
                         />
                       ) : (
-                        <Chip 
-                          label="Sin categoría" 
-                          size="small" 
+                        <Chip
+                          label="Sin categoría"
+                          size="small"
                           variant="outlined"
                         />
                       )}
                     </TableCell>
                     <TableCell align="center">
                       {product.fraccionDe && product.unidadesPorFraccion ? (
-                        <Chip 
-                          label="Sí" 
-                          size="small" 
-                          color="info"
-                        />
+                        <Chip label="Sí" size="small" color="info" />
                       ) : (
                         <Typography variant="body2" color="text.secondary">
                           No
@@ -585,7 +663,11 @@ export default function ProductList() {
                       )}
                     </TableCell>
                     <TableCell align="center">
-                      <Stack direction="row" spacing={0.5} justifyContent="center">
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        justifyContent="center"
+                      >
                         <Tooltip title="Editar producto">
                           <IconButton
                             onClick={(e) => {
@@ -631,16 +713,16 @@ export default function ProductList() {
           </TableContainer>
         )}
       </ContentCard>
-      
+
       {/* Dialog para crear/editar producto */}
-      {(open || !!editingProd) && 
+      {(open || !!editingProd) && (
         <ProductoForm
           open={true}
           editingProd={editingProd || undefined}
           handleClose={handleClose}
           handleSave={handleSave}
         />
-      }
+      )}
 
       {ConfirmDialogComponent}
 
