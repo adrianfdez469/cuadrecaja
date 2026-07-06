@@ -49,19 +49,24 @@ import {
 } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
-import { AddMovimientoDialog } from "./components/addMovimientoDialog";
+import { AddMovimientoDialog } from "./addMovimientoDialog";
 import { useAppContext } from "@/context/AppContext";
-import { cretateBatchMovimientos, findMovimientos, getMovimientosProductosEnviados, rejectMovimiento } from "@/services/movimientoService";
+import {
+  cretateBatchMovimientos,
+  findMovimientos,
+  getMovimientosProductosEnviados,
+  rejectMovimiento,
+} from "@/services/movimientoService";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { ITipoMovimiento, MovimientoTipoEnum } from "@/schemas/movimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
-import { formatNumber, formatDateTime } from '@/utils/formatters';
-import ImportarExcelDialog from "./components/importExcelDialog";
+import { formatNumber, formatDateTime } from "@/utils/formatters";
+import ImportarExcelDialog from "./importExcelDialog";
 import {
   IProductoDisponible,
   OperacionTipo,
-  ProductSelectionModal
+  ProductSelectionModal,
 } from "@/components/ProductcSelectionModal/ProductSelectionModal";
 import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
 import { useMessageContext } from "@/context/MessageContext";
@@ -69,21 +74,21 @@ import { useMessageContext } from "@/context/MessageContext";
 const PAGE_SIZE = 20;
 
 const TIPO_LABELS: Record<ITipoMovimiento, string> = {
-  COMPRA: 'Compra',
-  VENTA: 'Venta',
-  AJUSTE_ENTRADA: 'Ajuste Entrada',
-  AJUSTE_SALIDA: 'Ajuste Salida',
-  TRASPASO_ENTRADA: 'Traspaso Entrada',
-  TRASPASO_SALIDA: 'Traspaso Salida',
-  DESAGREGACION_BAJA: 'Desagregación Baja',
-  DESAGREGACION_ALTA: 'Desagregación Alta',
-  CONSIGNACION_ENTRADA: 'Consignación Entrada',
-  CONSIGNACION_DEVOLUCION: 'Consignación Devolución',
+  COMPRA: "Compra",
+  VENTA: "Venta",
+  AJUSTE_ENTRADA: "Ajuste Entrada",
+  AJUSTE_SALIDA: "Ajuste Salida",
+  TRASPASO_ENTRADA: "Traspaso Entrada",
+  TRASPASO_SALIDA: "Traspaso Salida",
+  DESAGREGACION_BAJA: "Desagregación Baja",
+  DESAGREGACION_ALTA: "Desagregación Alta",
+  CONSIGNACION_ENTRADA: "Consignación Entrada",
+  CONSIGNACION_DEVOLUCION: "Consignación Devolución",
 };
 
 const TODOS_TIPOS = MovimientoTipoEnum.options;
 
-export default function MovimientosPage() {
+export default function MovimientosView() {
   const [movimientos, setMovimientos] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -97,14 +102,14 @@ export default function MovimientosPage() {
   const [fechaInicio, setFechaInicio] = useState<Dayjs | null>(null);
   const [fechaFin, setFechaFin] = useState<Dayjs | null>(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const { showMessage } = useMessageContext()
-  
+  const { showMessage } = useMessageContext();
+
   // 🆕 Estados para paginación mejorada
   const [totalMovimientos, setTotalMovimientos] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMoreData, setHasMoreData] = useState(true);
   const [searchInputValue, setSearchInputValue] = useState(""); // 🆕 Valor del input no controlado
-  
+
   const {
     isOpen: pendienteRecepcionDialogOpen,
     operacion: pendienteRecepcionOperacion,
@@ -112,23 +117,34 @@ export default function MovimientosPage() {
     closeModal: pendienteRecepcionCloseModal,
     handleConfirm: pendienteRecepcionHandleConfirm,
     setOnConfirm: pendienteRecepcionSetOnConfirm,
-
   } = useProductSelectionModal();
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-  const disabledCleanFilter = !(searchTerm || searchInputValue || tipoFilter.length > 0 || fechaInicio || fechaFin) || loadingData;
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
+  const disabledCleanFilter =
+    !(
+      searchTerm ||
+      searchInputValue ||
+      tipoFilter.length > 0 ||
+      fechaInicio ||
+      fechaFin
+    ) || loadingData;
 
   const [skip, setSkip] = useState(0);
 
-  const handleReject = async (producto: IProductoDisponible, motivo: string) => {
+  const handleReject = async (
+    producto: IProductoDisponible,
+    motivo: string,
+  ) => {
     try {
       if (!producto.movimientoOrigenId) return;
       await rejectMovimiento(producto.movimientoOrigenId, motivo);
       showMessage("Entrada rechazada correctamente", "success");
       // Actualizar el contador de pendientes
-      const nuevosPendientes = await getMovimientosProductosEnviados(user.localActual.id);
+      const nuevosPendientes = await getMovimientosProductosEnviados(
+        user.localActual.id,
+      );
       setPendienteRecepcion(nuevosPendientes || []);
     } catch (error) {
       console.error("Error al rechazar producto:", error);
@@ -142,15 +158,16 @@ export default function MovimientosPage() {
     searchFilter = searchTerm,
     tipoParam: ITipoMovimiento[] = tipoFilter,
     inicioParam: Dayjs | null = fechaInicio,
-    finParam: Dayjs | null = fechaFin
+    finParam: Dayjs | null = fechaFin,
   ) => {
     try {
       setLoadingData(true);
       const tiendaId = user.localActual.id;
 
-      const intervalo = (inicioParam || finParam)
-        ? { fechaInicio: inicioParam?.toDate(), fechaFin: finParam?.toDate() }
-        : undefined;
+      const intervalo =
+        inicioParam || finParam
+          ? { fechaInicio: inicioParam?.toDate(), fechaFin: finParam?.toDate() }
+          : undefined;
 
       const result = await findMovimientos(
         tiendaId,
@@ -159,13 +176,15 @@ export default function MovimientosPage() {
         undefined,
         tipoParam.length > 0 ? tipoParam : undefined,
         intervalo,
-        searchFilter
+        searchFilter,
       );
-      
+
       setMovimientos(result?.data || []);
       setTotalMovimientos(result?.total || 0);
-      setHasMoreData((result?.data?.length || 0) === PAGE_SIZE && (nuevoSkip + PAGE_SIZE) < (result?.total || 0));
-      
+      setHasMoreData(
+        (result?.data?.length || 0) === PAGE_SIZE &&
+          nuevoSkip + PAGE_SIZE < (result?.total || 0),
+      );
     } catch (error) {
       console.error("Error al cargar movimientos:", error);
       setMovimientos([]);
@@ -203,13 +222,13 @@ export default function MovimientosPage() {
 
     setPendienteRecepcion(result || []);
 
-    if(result.length > 0){
+    if (result.length > 0) {
       pendienteRecepcionSetOnConfirm((prods) => {
         // Crear documento de tipo TRASPASO_ENTRADA con los productos
         crearMovimientosRecepción(prods);
-      })
+      });
     }
-  }
+  };
 
   const crearMovimientosRecepción = async (prods) => {
     setLoadingData(true);
@@ -223,31 +242,33 @@ export default function MovimientosPage() {
           usuarioId: user.id,
         },
         prods.map((item) => {
-
           return {
             cantidad: item.cantidad,
             productoId: item.productoId,
             costoUnitario: item.costo,
             costoTotal: item.costoTotal,
-            ...(item.proveedor && {proveedorId: item.proveedor.id}),
-            movimientoOrigenId: item.movimientoOrigenId
+            ...(item.proveedor && { proveedorId: item.proveedor.id }),
+            movimientoOrigenId: item.movimientoOrigenId,
           };
-        })
+        }),
       );
 
       fetchMovimientos(0);
       fecthPendientesRecep();
-
     } catch (error) {
       console.error(error);
       showMessage("No se pudo crear los movimientos de entrada", "error");
     } finally {
       setLoadingData(false);
     }
-  }
+  };
 
-  const loadPendientesRecep = async (_operacion: OperacionTipo, _take: number, _skip: number, _filter?: { categoriaId?: string, text?: string}): Promise<IProductoDisponible[]> => {
-    
+  const loadPendientesRecep = async (
+    _operacion: OperacionTipo,
+    _take: number,
+    _skip: number,
+    _filter?: { categoriaId?: string; text?: string },
+  ): Promise<IProductoDisponible[]> => {
     return pendienteRecepcion.map((item) => {
       return {
         productoId: item.productoTienda.productoId,
@@ -262,10 +283,10 @@ export default function MovimientosPage() {
         proveedor: item.productoTienda?.proveedor,
         permiteDecimal: item.permiteDecimal,
         movimientoOrigenId: item.movimientoOrigenId,
-        codigosProducto: item.productoTienda?.producto?.codigosProducto
-      }
+        codigosProducto: item.productoTienda?.producto?.codigosProducto,
+      };
     });
-  }
+  };
 
   useEffect(() => {
     (async () => {
@@ -315,13 +336,24 @@ export default function MovimientosPage() {
   };
 
   // Cálculos para estadísticas
-  const movimientosEntrada = movimientos.filter(m => !isMovimientoBaja(m.tipo)).length;
-  const movimientosSalida = movimientos.filter(m => isMovimientoBaja(m.tipo)).length;
-  const productosAfectados = [...new Set(movimientos.map(m => m.productoTiendaId))].length;
+  const movimientosEntrada = movimientos.filter(
+    (m) => !isMovimientoBaja(m.tipo),
+  ).length;
+  const movimientosSalida = movimientos.filter((m) =>
+    isMovimientoBaja(m.tipo),
+  ).length;
+  const productosAfectados = [
+    ...new Set(movimientos.map((m) => m.productoTiendaId)),
+  ].length;
 
   if (loadingContext || loadingData) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <CircularProgress />
         <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
           Cargando movimientos...
@@ -335,8 +367,8 @@ export default function MovimientosPage() {
       <PageContainer
         title="Movimientos de Stock"
         breadcrumbs={[
-          { label: 'Inicio', href: '/home' },
-          { label: 'Movimientos' }
+          { label: "Inicio", href: "/home" },
+          { label: "Movimientos" },
         ]}
       >
         <Alert severity="warning" sx={{ mb: 3 }}>
@@ -344,10 +376,12 @@ export default function MovimientosPage() {
             No hay tienda seleccionada
           </Typography>
           <Typography variant="body1" gutterBottom>
-            Para ver y gestionar los movimientos de stock, necesitas tener una tienda seleccionada como tienda actual.
+            Para ver y gestionar los movimientos de stock, necesitas tener una
+            tienda seleccionada como tienda actual.
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Si no tienes ninguna tienda creada, primero debes crear una desde la configuración.
+            Si no tienes ninguna tienda creada, primero debes crear una desde la
+            configuración.
           </Typography>
           <Box mt={2}>
             <Button
@@ -365,8 +399,8 @@ export default function MovimientosPage() {
   }
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Movimientos' }
+    { label: "Inicio", href: "/home" },
+    { label: "Movimientos" },
   ];
 
   const handleImportExcel = () => {
@@ -376,28 +410,41 @@ export default function MovimientosPage() {
   const headerActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">
       <Tooltip title="Actualizar movimientos">
-        <IconButton onClick={() => fetchMovimientos(skip)} disabled={loadingData} size="small">
+        <IconButton
+          onClick={() => fetchMovimientos(skip)}
+          disabled={loadingData}
+          size="small"
+        >
           <Refresh />
         </IconButton>
       </Tooltip>
       {isMobile && (
-        <Tooltip title={statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"}>
-          <IconButton onClick={() => setStatsExpanded(!statsExpanded)} size="small">
+        <Tooltip
+          title={
+            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
+          }
+        >
+          <IconButton
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            size="small"
+          >
             {statsExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Tooltip>
       )}
-      
-      {pendienteRecepcion.length > 0 &&
+
+      {pendienteRecepcion.length > 0 && (
         <Tooltip title="Productos pendientes por recepcionar">
-          <IconButton size="small" onClick={() => pendienteRecepcionOpenModal('ENTRADA')}>
+          <IconButton
+            size="small"
+            onClick={() => pendienteRecepcionOpenModal("ENTRADA")}
+          >
             <Badge badgeContent={pendienteRecepcion.length} color="error">
               <Message />
             </Badge>
           </IconButton>
         </Tooltip>
-      }
-
+      )}
 
       <Button
         variant="contained"
@@ -408,7 +455,8 @@ export default function MovimientosPage() {
       >
         {isMobile ? "Crear" : "Crear Movimiento"}
       </Button>
-      {((movimientos.length === 0 && !searchTerm) || user.rol === 'SUPER_ADMIN') &&
+      {((movimientos.length === 0 && !searchTerm) ||
+        user.rol === "SUPER_ADMIN") && (
         <Button
           variant="contained"
           startIcon={!isMobile ? <Dock /> : undefined}
@@ -418,13 +466,23 @@ export default function MovimientosPage() {
         >
           {isMobile ? "Importar" : "Importar Excel"}
         </Button>
-      }
+      )}
     </Stack>
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode, value: string, label: string, color: string }) => (
-    <Card sx={{ height: '100%' }}>
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    color: string;
+  }) => (
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -432,29 +490,28 @@ export default function MovimientosPage() {
               p: isMobile ? 0.75 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 32 : 48,
               minHeight: isMobile ? 32 : 48,
             }}
           >
             {React.isValidElement(icon)
               ? React.cloneElement(icon, {
-                fontSize: isMobile ? "small" : "large"
-              } as Record<string, unknown>)
-              : icon
-            }
+                  fontSize: isMobile ? "small" : "large",
+                } as Record<string, unknown>)
+              : icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography
               variant={isMobile ? "subtitle1" : "h4"}
               fontWeight="bold"
               sx={{
-                fontSize: isMobile ? '1rem' : '2rem',
+                fontSize: isMobile ? "1rem" : "2rem",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
@@ -463,8 +520,8 @@ export default function MovimientosPage() {
               variant="body2"
               color="text.secondary"
               sx={{
-                fontSize: isMobile ? '0.6875rem' : '0.875rem',
-                lineHeight: 1.2
+                fontSize: isMobile ? "0.6875rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
@@ -483,7 +540,7 @@ export default function MovimientosPage() {
         size="small"
         color={isBaja ? "error" : "success"}
         variant="filled"
-        sx={{ fontWeight: 'medium' }}
+        sx={{ fontWeight: "medium" }}
       />
     );
   };
@@ -491,8 +548,10 @@ export default function MovimientosPage() {
   return (
     <PageContainer
       title="Movimientos de Stock"
-      subtitle={!isMobile ? "Historial de entradas y salidas de inventario" : undefined}
-      breadcrumbs={breadcrumbs}
+      subtitle={
+        !isMobile ? "Historial de entradas y salidas de inventario" : undefined
+      }
+      // breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
     >
@@ -577,7 +636,11 @@ export default function MovimientosPage() {
       {/* Lista de movimientos */}
       <ContentCard
         title="Historial de Movimientos"
-        subtitle={!isMobile ? "Registro detallado de todas las transacciones de inventario" : undefined}
+        subtitle={
+          !isMobile
+            ? "Registro detallado de todas las transacciones de inventario"
+            : undefined
+        }
         headerActions={
           <Stack direction="row" spacing={1} alignItems="center">
             <TextField
@@ -585,7 +648,9 @@ export default function MovimientosPage() {
               placeholder={isMobile ? "Buscar..." : "Buscar movimiento..."}
               value={searchInputValue}
               onChange={(e) => handleInputChange(e.target.value)}
-              onKeyPress={(e) => { if (e.key === 'Enter') handleFilter(); }}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") handleFilter();
+              }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -593,13 +658,22 @@ export default function MovimientosPage() {
                   </InputAdornment>
                 ),
               }}
-              sx={{ minWidth: isMobile ? 120 : 200, maxWidth: isMobile ? 150 : 250 }}
+              sx={{
+                minWidth: isMobile ? 120 : 200,
+                maxWidth: isMobile ? 150 : 250,
+              }}
             />
-            <Tooltip title={filtersExpanded ? "Ocultar filtros" : "Más filtros"}>
+            <Tooltip
+              title={filtersExpanded ? "Ocultar filtros" : "Más filtros"}
+            >
               <IconButton
                 size="small"
-                onClick={() => setFiltersExpanded(v => !v)}
-                color={tipoFilter.length > 0 || fechaInicio || fechaFin ? "primary" : "default"}
+                onClick={() => setFiltersExpanded((v) => !v)}
+                color={
+                  tipoFilter.length > 0 || fechaInicio || fechaFin
+                    ? "primary"
+                    : "default"
+                }
               >
                 {filtersExpanded ? <ExpandLess /> : <FilterAlt />}
               </IconButton>
@@ -609,24 +683,23 @@ export default function MovimientosPage() {
               size="small"
               onClick={handleFilter}
               disabled={loadingData}
-              sx={{ minWidth: 'auto', px: 2 }}
+              sx={{ minWidth: "auto", px: 2 }}
             >
               Filtrar
             </Button>
 
-              <Tooltip title="Limpiar todos los filtros">
-                <Button
-                    size="small" onClick={handleClearSearch}
-                    disabled={disabledCleanFilter}
-                >
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    <CleaningServices fontSize="small" />
-                    <span>Limpiar filtros</span>
-                  </Stack>
-
-                </Button>
-              </Tooltip>
-
+            <Tooltip title="Limpiar todos los filtros">
+              <Button
+                size="small"
+                onClick={handleClearSearch}
+                disabled={disabledCleanFilter}
+              >
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <CleaningServices fontSize="small" />
+                  <span>Limpiar filtros</span>
+                </Stack>
+              </Button>
+            </Tooltip>
           </Stack>
         }
         noPadding
@@ -635,16 +708,27 @@ export default function MovimientosPage() {
         {/* Panel de filtros adicionales */}
         <Collapse in={filtersExpanded}>
           <Box sx={{ px: isMobile ? 1.5 : 3, pt: 2, pb: 2 }}>
-            <Stack direction={isMobile ? "column" : "row"} spacing={2} alignItems={isMobile ? "stretch" : "flex-end"}>
-              <FormControl size="small" sx={{ minWidth: 220, maxWidth: isMobile ? '100%' : 320 }}>
+            <Stack
+              direction={isMobile ? "column" : "row"}
+              spacing={2}
+              alignItems={isMobile ? "stretch" : "flex-end"}
+            >
+              <FormControl
+                size="small"
+                sx={{ minWidth: 220, maxWidth: isMobile ? "100%" : 320 }}
+              >
                 <InputLabel>Tipo de movimiento</InputLabel>
                 <Select
                   multiple
                   value={tipoFilter}
                   label="Tipo de movimiento"
-                  onChange={(e) => setTipoFilter(e.target.value as ITipoMovimiento[])}
+                  onChange={(e) =>
+                    setTipoFilter(e.target.value as ITipoMovimiento[])
+                  }
                   renderValue={(selected) =>
-                    (selected as ITipoMovimiento[]).map(t => TIPO_LABELS[t]).join(", ")
+                    (selected as ITipoMovimiento[])
+                      .map((t) => TIPO_LABELS[t])
+                      .join(", ")
                   }
                 >
                   {TODOS_TIPOS.map((tipo) => (
@@ -660,8 +744,11 @@ export default function MovimientosPage() {
                 onChange={(val) => setFechaInicio(val)}
                 maxDate={fechaFin ?? dayjs()}
                 slotProps={{
-                  textField: { size: "small", sx: { maxWidth: isMobile ? '100%' : 180 } },
-                  actionBar: { actions: ['clear'] },
+                  textField: {
+                    size: "small",
+                    sx: { maxWidth: isMobile ? "100%" : 180 },
+                  },
+                  actionBar: { actions: ["clear"] },
                 }}
               />
               <DatePicker
@@ -671,8 +758,11 @@ export default function MovimientosPage() {
                 minDate={fechaInicio ?? undefined}
                 maxDate={dayjs()}
                 slotProps={{
-                  textField: { size: "small", sx: { maxWidth: isMobile ? '100%' : 180 } },
-                  actionBar: { actions: ['clear'] },
+                  textField: {
+                    size: "small",
+                    sx: { maxWidth: isMobile ? "100%" : 180 },
+                  },
+                  actionBar: { actions: ["clear"] },
                 }}
               />
             </Stack>
@@ -684,21 +774,31 @@ export default function MovimientosPage() {
           <Box sx={{ p: 2 }}>
             <Alert severity="info" sx={{ mt: 2 }}>
               <Typography variant="h6" gutterBottom>
-                {searchTerm ? 'No se encontraron movimientos' : 'No hay movimientos de stock registrados'}
+                {searchTerm
+                  ? "No se encontraron movimientos"
+                  : "No hay movimientos de stock registrados"}
               </Typography>
               <Typography variant="body1" gutterBottom>
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Los movimientos de stock se crean automáticamente cuando:'}
+                {searchTerm
+                  ? "Intenta con otros términos de búsqueda"
+                  : "Los movimientos de stock se crean automáticamente cuando:"}
               </Typography>
               {!searchTerm && (
                 <Typography variant="body2" component="div">
-                  • Se realizan ventas desde el POS<br />
-                  • Se agregan productos al inventario<br />
-                  • Se realizan ajustes manuales<br />
-                  • Se hacen traspasos entre tiendas
+                  • Se realizan ventas desde el POS
+                  <br />
+                  • Se agregan productos al inventario
+                  <br />
+                  • Se realizan ajustes manuales
+                  <br />• Se hacen traspasos entre tiendas
                 </Typography>
               )}
               {!searchTerm && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
                   {`También puedes crear movimientos manuales usando el botón \"Crear Movimiento\".`}
                 </Typography>
               )}
@@ -712,58 +812,103 @@ export default function MovimientosPage() {
                 <Card
                   key={i}
                   sx={{
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
+                    "&:hover": {
+                      backgroundColor: "action.hover",
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
                     <Stack spacing={1}>
-                      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="flex-start"
+                      >
                         <Typography
                           variant="subtitle2"
                           fontWeight="medium"
                           sx={{
                             flex: 1,
                             pr: 1,
-                            fontSize: '0.875rem',
-                            lineHeight: 1.2
+                            fontSize: "0.875rem",
+                            lineHeight: 1.2,
                           }}
                         >
                           {movimiento.proveedor?.nombre
                             ? `${movimiento.productoTienda?.producto?.nombre} - ${movimiento.proveedor.nombre}`
-                            : movimiento.productoTienda?.producto?.nombre || 'Producto no encontrado'}
+                            : movimiento.productoTienda?.producto?.nombre ||
+                              "Producto no encontrado"}
                         </Typography>
                         {getMovimientoChip(movimiento.tipo)}
                       </Box>
 
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
                         <Box display="flex" alignItems="center" gap={1}>
                           <Typography
                             variant="body2"
                             fontWeight="bold"
-                            color={isMovimientoBaja(movimiento.tipo) ? 'error.main' : 'success.main'}
-                            sx={{ fontSize: '0.8125rem' }}
+                            color={
+                              isMovimientoBaja(movimiento.tipo)
+                                ? "error.main"
+                                : "success.main"
+                            }
+                            sx={{ fontSize: "0.8125rem" }}
                           >
-                            {isMovimientoBaja(movimiento.tipo) ? '-' : '+'}{Math.abs(movimiento.cantidad)}
+                            {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
+                            {Math.abs(movimiento.cantidad)}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontSize: "0.6875rem" }}
+                          >
                             unidades
                           </Typography>
                         </Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
-                          {formatDateTime(movimiento.fecha).split(' • ')[0]}
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontSize: "0.6875rem" }}
+                        >
+                          {formatDateTime(movimiento.fecha).split(" • ")[0]}
                         </Typography>
                       </Box>
                       {movimiento?.motivo && (
-                        <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.6875rem' }}>
-                          Motivo: <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}> {movimiento.motivo}</Typography>
+                        <Typography
+                          variant="subtitle2"
+                          gutterBottom
+                          sx={{ fontSize: "0.6875rem" }}
+                        >
+                          Motivo:{" "}
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontSize: "0.6875rem" }}
+                          >
+                            {" "}
+                            {movimiento.motivo}
+                          </Typography>
                         </Typography>
                       )}
 
                       {movimiento.usuario?.nombre && (
-                        <Typography variant="subtitle2" sx={{ fontSize: '0.6875rem' }}>
-                          Por: <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}> {movimiento.usuario.nombre}</Typography>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{ fontSize: "0.6875rem" }}
+                        >
+                          Por:{" "}
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontSize: "0.6875rem" }}
+                          >
+                            {" "}
+                            {movimiento.usuario.nombre}
+                          </Typography>
                         </Typography>
                       )}
                     </Stack>
@@ -791,8 +936,8 @@ export default function MovimientosPage() {
                   <TableRow
                     key={i}
                     sx={{
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      "&:nth-of-type(odd)": {
+                        backgroundColor: "rgba(0, 0, 0, 0.02)",
                       },
                     }}
                   >
@@ -801,33 +946,34 @@ export default function MovimientosPage() {
                         {formatDateTime(movimiento.fecha)}
                       </Typography>
                     </TableCell>
-                    <TableCell>
-                      {getMovimientoChip(movimiento.tipo)}
-                    </TableCell>
+                    <TableCell>{getMovimientoChip(movimiento.tipo)}</TableCell>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
                         {movimiento.proveedor?.nombre
                           ? `${movimiento.productoTienda?.producto?.nombre} - ${movimiento.proveedor.nombre}`
-                          : movimiento.productoTienda?.producto?.nombre || 'Producto no encontrado'}
-
+                          : movimiento.productoTienda?.producto?.nombre ||
+                            "Producto no encontrado"}
                       </Typography>
                     </TableCell>
-                    <TableCell>
-                      {movimiento.motivo}
-                    </TableCell>
+                    <TableCell>{movimiento.motivo}</TableCell>
                     <TableCell align="center">
                       <Typography
                         variant="body2"
                         fontWeight="bold"
-                        color={isMovimientoBaja(movimiento.tipo) ? 'error.main' : 'success.main'}
+                        color={
+                          isMovimientoBaja(movimiento.tipo)
+                            ? "error.main"
+                            : "success.main"
+                        }
                       >
-                        {isMovimientoBaja(movimiento.tipo) ? '-' : '+'}{Math.abs(movimiento.cantidad)}
+                        {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
+                        {Math.abs(movimiento.cantidad)}
                       </Typography>
                     </TableCell>
                     {!isTablet && (
                       <TableCell>
                         <Typography variant="body2">
-                          {movimiento.usuario?.nombre || 'Sistema'}
+                          {movimiento.usuario?.nombre || "Sistema"}
                         </Typography>
                       </TableCell>
                     )}
@@ -840,8 +986,13 @@ export default function MovimientosPage() {
 
         {/* Paginación */}
         {movimientos.length > 0 && (
-          <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-            <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+          <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider" }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              justifyContent="center"
+              alignItems="center"
+            >
               <Button
                 variant="outlined"
                 size="small"
@@ -859,7 +1010,9 @@ export default function MovimientosPage() {
                 Anterior
               </Button>
               <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
-                Mostrando {skip + 1} - {Math.min(skip + movimientos.length, totalMovimientos)} de {totalMovimientos} movimientos
+                Mostrando {skip + 1} -{" "}
+                {Math.min(skip + movimientos.length, totalMovimientos)} de{" "}
+                {totalMovimientos} movimientos
               </Typography>
               <Button
                 variant="outlined"
@@ -870,9 +1023,23 @@ export default function MovimientosPage() {
                 Siguiente
               </Button>
             </Stack>
-            {(searchTerm || tipoFilter.length > 0 || fechaInicio || fechaFin) && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
-                Filtros activos:{searchTerm ? ` "${searchTerm}"` : ''}{tipoFilter.length > 0 ? ` · ${tipoFilter.map(t => TIPO_LABELS[t]).join(", ")}` : ''}{fechaInicio ? ` · desde ${fechaInicio.format('DD/MM/YYYY')}` : ''}{fechaFin ? ` · hasta ${fechaFin.format('DD/MM/YYYY')}` : ''}
+            {(searchTerm ||
+              tipoFilter.length > 0 ||
+              fechaInicio ||
+              fechaFin) && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", textAlign: "center", mt: 1 }}
+              >
+                Filtros activos:{searchTerm ? ` "${searchTerm}"` : ""}
+                {tipoFilter.length > 0
+                  ? ` · ${tipoFilter.map((t) => TIPO_LABELS[t]).join(", ")}`
+                  : ""}
+                {fechaInicio
+                  ? ` · desde ${fechaInicio.format("DD/MM/YYYY")}`
+                  : ""}
+                {fechaFin ? ` · hasta ${fechaFin.format("DD/MM/YYYY")}` : ""}
               </Typography>
             )}
           </Box>
@@ -899,7 +1066,7 @@ export default function MovimientosPage() {
           onClose={pendienteRecepcionCloseModal}
           loadProductos={loadPendientesRecep}
           operacion={pendienteRecepcionOperacion}
-          iTipoMovimiento={'TRASPASO_ENTRADA'}
+          iTipoMovimiento={"TRASPASO_ENTRADA"}
           onConfirm={pendienteRecepcionHandleConfirm}
           onReject={handleReject}
         />

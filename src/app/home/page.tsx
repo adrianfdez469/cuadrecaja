@@ -20,7 +20,6 @@ import {
 import {
   Storefront,
   Inventory,
-  TrendingUp,
   AccountBalanceWallet,
   Receipt,
   BarChart,
@@ -236,15 +235,6 @@ const HomePage = () => {
       path: "/ventas",
       gradient: "linear-gradient(135deg, #dc004e 0%, #9a0036 100%)",
       permission: "operaciones.ventas.acceder",
-    },
-    {
-      title: "Movimientos",
-      description: "Historial de movimientos de inventario",
-      icon: <TrendingUp fontSize="large" />,
-      color: "info",
-      path: "/movimientos",
-      gradient: "linear-gradient(135deg, #0288d1 0%, #01579b 100%)",
-      permission: "operaciones.movimientos.acceder",
     },
     {
       title: "Cierre de Caja",
