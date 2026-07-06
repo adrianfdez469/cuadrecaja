@@ -327,9 +327,9 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
 
     if (step.target.includes("nav-gestion-inventario")) {
       setMenuState({
-        operaciones: false,
+        operaciones: true,
         resumenes: false,
-        configuracion: true,
+        configuracion: false,
         administracion: false,
       });
       setOpen(true);

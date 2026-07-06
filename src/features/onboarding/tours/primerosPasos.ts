@@ -37,9 +37,9 @@ export const tourGestionInventario: OnboardingTourDefinition = {
     },
     {
       target: '[data-tour="nav-gestion-inventario"]',
-      title: "Gestión de productos",
+      title: "Inventario",
       content:
-        "Entra en Operaciones → Inventario. Ahí creas productos con precio y stock para esta tienda.",
+        "Está en Operaciones. Pulsa aquí para crear productos con precio y stock en esta tienda.",
       placement: "right",
       hideFooter: true,
       spotlightClicks: true,

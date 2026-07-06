@@ -21,7 +21,7 @@ function resolvePosStepContent(
       return {
         ...step,
         content:
-          "No hay productos con stock disponible para vender en esta tienda. Añade productos desde Gestión de inventario (o pide a un administrador) y vuelve a activar esta guía en Ayuda.",
+          "No hay productos con stock disponible para vender en esta tienda. Añade productos desde Inventario (Operaciones) o pide a un administrador, y vuelve a activar esta guía en Ayuda.",
       };
     default:
       return step;
