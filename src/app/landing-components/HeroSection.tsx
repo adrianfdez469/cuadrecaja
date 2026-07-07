@@ -11,6 +11,7 @@ import {
     useMediaQuery,
     Chip,
     Stack,
+    CircularProgress,
 } from '@mui/material';
 import {
     TrendingUp,
@@ -21,13 +22,12 @@ import {
     AttachMoney,
     Print,
 } from '@mui/icons-material';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useLandingNavigation } from '@/hooks/useLandingNavigation';
 
 export default function HeroSection() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const router = useRouter();
+    const { navigateTo, isNavigatingTo, isNavigating } = useLandingNavigation();
 
     const scrollToContact = () => {
         const contactSection = document.getElementById('contact-section');
@@ -37,7 +37,15 @@ export default function HeroSection() {
     };
 
     const handleGoToLogin = () => {
-        router.push('/login');
+        navigateTo('/login');
+    };
+
+    const handleGoToDescargar = () => {
+        navigateTo('/descargar');
+    };
+
+    const handleGoToPromotor = () => {
+        navigateTo('/promotor/registro');
     };
 
     return (
@@ -137,11 +145,15 @@ export default function HeroSection() {
 
                         <Stack direction={isMobile ? "column" : "row"} spacing={2} alignItems="stretch">
                             <Button
-                                component={Link}
-                                href="/promotor/registro"
                                 variant="contained"
                                 size="large"
-                                startIcon={<CardGiftcard />}
+                                disabled={isNavigating}
+                                onClick={handleGoToPromotor}
+                                startIcon={
+                                    isNavigatingTo('/promotor/registro')
+                                        ? <CircularProgress size={20} color="inherit" />
+                                        : <CardGiftcard />
+                                }
                                 sx={{
                                     background: 'linear-gradient(135deg, #ff8a65 0%, #ff6b35 42%, #e85d04 100%)',
                                     color: '#fff',
@@ -164,7 +176,7 @@ export default function HeroSection() {
                                     transition: 'all 0.3s ease',
                                 }}
                             >
-                                Ser promotor — gana refiriendo
+                                {isNavigatingTo('/promotor/registro') ? 'Cargando...' : 'Ser promotor — gana refiriendo'}
                             </Button>
                             <Button
                                 variant="contained"
@@ -194,8 +206,13 @@ export default function HeroSection() {
                             <Button
                                 variant="outlined"
                                 size="large"
-                                startIcon={<Android />}
-                                onClick={() => router.push('/descargar')}
+                                disabled={isNavigating}
+                                onClick={handleGoToDescargar}
+                                startIcon={
+                                    isNavigatingTo('/descargar')
+                                        ? <CircularProgress size={20} color="inherit" />
+                                        : <Android />
+                                }
                                 sx={{
                                     borderColor: 'rgba(255,255,255,0.7)',
                                     color: 'white',
@@ -212,14 +229,19 @@ export default function HeroSection() {
                                     transition: 'all 0.3s ease',
                                 }}
                             >
-                                Descargar App (Android)
+                                {isNavigatingTo('/descargar') ? 'Cargando...' : 'Descargar App (Android)'}
                             </Button>
 
                             <Button
                                 variant="outlined"
                                 size="large"
-                                startIcon={<LoginIcon />}
+                                disabled={isNavigating}
                                 onClick={handleGoToLogin}
+                                startIcon={
+                                    isNavigatingTo('/login')
+                                        ? <CircularProgress size={20} color="inherit" />
+                                        : <LoginIcon />
+                                }
                                 sx={{
                                     borderColor: 'rgba(255,255,255,0.35)',
                                     color: 'rgba(255,255,255,0.95)',
@@ -236,7 +258,7 @@ export default function HeroSection() {
                                     transition: 'all 0.3s ease',
                                 }}
                             >
-                                Iniciar Sesión
+                                {isNavigatingTo('/login') ? 'Cargando...' : 'Iniciar Sesión'}
                             </Button>
                         </Stack>
                     </Grid>

@@ -18,8 +18,7 @@ import {
   Login as LoginIcon,
   CardGiftcard as CardGiftcardIcon,
 } from '@mui/icons-material';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+
 import HeroSection from './landing-components/HeroSection';
 import FeaturesSection from './landing-components/FeaturesSection';
 import BenefitsSection from './landing-components/BenefitsSection';
@@ -27,12 +26,21 @@ import PricingSection from './landing-components/PricingSection';
 import ContactSection from './landing-components/ContactSection';
 // import ChatbotWidget from './landing-components/ChatbotWidget';
 import Logo from '@/components/Logo';
+import { useLandingNavigation } from '@/hooks/useLandingNavigation';
 
 export default function LandingPage() {
-  const router = useRouter();
+  const { navigateTo, isNavigatingTo, isNavigating } = useLandingNavigation();
 
   const handleGoToLogin = () => {
-    router.push('/login');
+    navigateTo('/login');
+  };
+
+  const handleGoToPromotor = () => {
+    navigateTo('/promotor/registro');
+  };
+
+  const handleGoToDescargar = () => {
+    navigateTo('/descargar');
   };
 
   return (
@@ -81,10 +89,14 @@ export default function LandingPage() {
             }}
           >
             <Button
-              component={Link}
-              href="/promotor/registro"
               variant="contained"
-              startIcon={<CardGiftcardIcon />}
+              disabled={isNavigating}
+              onClick={handleGoToPromotor}
+              startIcon={
+                isNavigatingTo('/promotor/registro')
+                  ? <CircularProgress size={18} color="inherit" />
+                  : <CardGiftcardIcon />
+              }
               sx={{
                 background: 'linear-gradient(135deg, #ff8a65 0%, #ff6b35 45%, #e85d04 100%)',
                 color: '#fff',
@@ -110,13 +122,20 @@ export default function LandingPage() {
               }}
             >
               <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
-                Gana con referidos
+                {isNavigatingTo('/promotor/registro') ? 'Cargando...' : 'Gana con referidos'}
               </Box>
-              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Promotores</Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                {isNavigatingTo('/promotor/registro') ? 'Cargando...' : 'Promotores'}
+              </Box>
             </Button>
             <Button
               variant="contained"
-              startIcon={<LoginIcon />}
+              disabled={isNavigating}
+              startIcon={
+                isNavigatingTo('/login')
+                  ? <CircularProgress size={18} color="inherit" />
+                  : <LoginIcon />
+              }
               onClick={handleGoToLogin}
               sx={{
                 bgcolor: '#4ECDC4',
@@ -138,7 +157,7 @@ export default function LandingPage() {
                 '& .MuiButton-startIcon': { mr: { xs: 0.5, sm: 1 } },
               }}
             >
-              Iniciar Sesión
+              {isNavigatingTo('/login') ? 'Cargando...' : 'Iniciar Sesión'}
             </Button>
           </Box>
         </Toolbar>
@@ -232,18 +251,28 @@ export default function LandingPage() {
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Reportes que puedes sacar en Word o Excel</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Control de qué hace cada usuario por tienda</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• App para usar en celular o tablet</Typography>
-              <Typography
-                variant="body2"
+              <Button
+                variant="text"
+                disabled={isNavigating}
+                onClick={handleGoToDescargar}
+                startIcon={
+                  isNavigatingTo('/descargar')
+                    ? <CircularProgress size={14} sx={{ color: 'secondary.light' }} />
+                    : undefined
+                }
                 sx={{
+                  p: 0,
+                  minWidth: 0,
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
                   color: 'secondary.light',
                   fontWeight: 'bold',
-                  cursor: 'pointer',
-                  '&:hover': { textDecoration: 'underline' }
+                  fontSize: 'body2.fontSize',
+                  '&:hover': { textDecoration: 'underline', bgcolor: 'transparent' },
                 }}
-                onClick={() => router.push('/descargar')}
               >
-                • Descargar app para Android
-              </Typography>
+                {isNavigatingTo('/descargar') ? 'Cargando...' : '• Descargar app para Android'}
+              </Button>
             </Grid>
           </Grid>
           <Divider sx={{ my: 3, bgcolor: 'rgba(255,255,255,0.08)' }} />
