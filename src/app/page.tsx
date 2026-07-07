@@ -185,7 +185,7 @@ export default function LandingPage() {
                 Cuadre de Caja
               </Typography>
               <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
-                Cuadre de Caja es un sistema para llevar las ventas, el inventario y el cierre de caja de tu negocio. Sirve para un solo local o para varios; las ventas pueden hacerse sin conexión y se sincronizan solas. Te ayuda a saber cuánto vendes y cuánto ganas. Pensado para pequeños y medianos negocios.
+                Cuadre de Caja es un sistema para llevar las ventas, el inventario y el cierre de caja de tu negocio. Cobra en varias monedas, imprime tickets de venta y gestiona productos e inventario en un solo lugar. Sirve para un solo local o para varios; las ventas pueden hacerse sin conexión y se sincronizan solas. Te ayuda a saber cuánto vendes y cuánto ganas.
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -219,13 +219,16 @@ export default function LandingPage() {
                 Funcionalidades
               </Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Ventas sin conexión (se sincronizan al volver el internet)</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Cobro en varias monedas con tasas de cambio</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Impresión de tickets de venta personalizables</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Gestión unificada de productos e inventario</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Varios locales o negocios en un solo sistema</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Cierre de caja y resumen por día o período</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Descuentos y promociones que tú configuras</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Cálculo automático de si ganas o pierdes por producto</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Productos en consignación y cuenta para el proveedor</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Análisis de variación de precios de compra</Typography>
-              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Códigos por producto, etiquetas e impresión; escaneo con pistola o cámara</Typography>
+              <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Códigos por producto, etiquetas de producto e impresión; escaneo con pistola o cámara</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Reportes que puedes sacar en Word o Excel</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• Control de qué hace cada usuario por tienda</Typography>
               <Typography variant="body2" sx={{ mb: 0.5, color: 'rgba(255,255,255,0.8)' }}>• App para usar en celular o tablet</Typography>

@@ -14,12 +14,12 @@ import {
 } from '@mui/material';
 import {
     TrendingUp,
-    Store,
-    Speed,
     Login as LoginIcon,
     Android,
     Email,
     CardGiftcard,
+    AttachMoney,
+    Print,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -70,8 +70,8 @@ export default function HeroSection() {
             },
         }}>
             <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-                <Grid container spacing={4} alignItems="center">
-                    <Grid item xs={12} md={6}>
+                <Grid container spacing={4} justifyContent="center">
+                    <Grid item xs={12} md={10} lg={8}>
                         <Box sx={{ mb: 3 }}>
                             <Chip
                                 label="🚀 Sistema de ventas e inventario para tu negocio"
@@ -111,19 +111,19 @@ export default function HeroSection() {
                                 color: 'white'
                             }}
                         >
-                            Lleva las ventas, el inventario y el cierre de caja de tu negocio en un solo lugar. Las ventas (el flujo crítico) pueden hacerse sin conexión y se sincronizan solas cuando vuelva el internet; el resto del sistema usa conexión. Te muestra al instante cuánto vendiste y cuánto ganaste.
+                            Lleva las ventas, el inventario y el cierre de caja de tu negocio en un solo lugar. Cobra en varias monedas, imprime tickets y gestiona productos e inventario desde una pantalla unificada. Las ventas pueden hacerse sin conexión y se sincronizan solas cuando vuelva el internet. Te muestra al instante cuánto vendiste y cuánto ganaste.
                         </Typography>
 
                         <Stack direction="row" spacing={2} sx={{ mb: 4 }} flexWrap="wrap" useFlexGap>
                             <Chip
-                                icon={<Store />}
-                                label="Varios locales en un solo sistema"
+                                icon={<AttachMoney />}
+                                label="Cobra en varias monedas"
                                 size="small"
                                 sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.12)' }}
                             />
                             <Chip
-                                icon={<Speed />}
-                                label="Usa la app en el celular o tablet"
+                                icon={<Print />}
+                                label="Tickets al cobrar"
                                 size="small"
                                 sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.12)' }}
                             />
@@ -239,70 +239,6 @@ export default function HeroSection() {
                                 Iniciar Sesión
                             </Button>
                         </Stack>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                        <Box
-                            sx={{
-                                position: 'relative',
-                                textAlign: 'center',
-                                '&::before': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    top: '50%',
-                                    left: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    width: 320,
-                                    height: 320,
-                                    background: 'radial-gradient(circle, rgba(78, 205, 196, 0.12) 0%, transparent 65%)',
-                                    borderRadius: '50%',
-                                },
-                            }}
-                        >
-                            <Box
-                                sx={{
-                                    position: 'relative',
-                                    zIndex: 2,
-                                    bgcolor: 'rgba(255,255,255,0.04)',
-                                    backdropFilter: 'blur(16px)',
-                                    borderRadius: 3,
-                                    p: 4,
-                                    border: '1px solid rgba(255,255,255,0.08)',
-                                    maxWidth: 400,
-                                    mx: 'auto',
-                                    boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
-                                }}
-                            >
-                                <Typography variant="h4" sx={{ mb: 2, fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                                    📊 Dashboard
-                                </Typography>
-                                <Typography variant="body1" sx={{ mb: 3, color: 'rgba(255,255,255,0.7)' }}>
-                                    Métricas en tiempo real de tu negocio
-                                </Typography>
-
-                                <Box sx={{ textAlign: 'left' }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Ventas Hoy</Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#6ee7de' }}>
-                                            $2,450,000
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Productos Vendidos</Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#6ee7de' }}>
-                                            127
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Ganancia</Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#6ee7de' }}>
-
-                                            $850,000
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </Box>
-                        </Box>
                     </Grid>
                 </Grid>
             </Container>

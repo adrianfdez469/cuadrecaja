@@ -56,7 +56,7 @@ const benefits = [
   {
     icon: MonetizationOn,
     title: 'Saber si ganas o pierdes',
-    description: 'El sistema calcula solito el costo promedio de lo que vendes. Así ves si cada producto te deja ganancia y puedes tomar mejores decisiones. Vendes productos desagregados (por unidad, kilo o porción) y el sistema se encarga de mover las cantidades automáticamente.',
+    description: 'El sistema calcula solito el costo promedio de lo que vendes. Así ves si cada producto te deja ganancia y puedes tomar mejores decisiones. Vendes productos desagregados (por unidad, kilo o porción) y el inventario unificado actualiza costos y stock al registrar movimientos.',
     stats: 'Cálculos automáticos',
     color: '#FF9800',
     features: [
@@ -94,7 +94,10 @@ const problemsSolved = [
   'Haces conteos manuales con papel o planillas',
   'Revisas o registras todo en Excel y se pierde el tiempo',
   'No puedes acceder a la información desde tu casa cuando quieras, solo con tu teléfono',
-  'No puedes ver cómo van las ventas del día si estás de vacaciones con tu familia'
+  'No puedes ver cómo van las ventas del día si estás de vacaciones con tu familia',
+  'Cobras en dólares y en moneda local y al cerrar caja no cuadra',
+  'No entregas comprobante al cliente después de cobrar',
+  'Tienes el catálogo en un lado y el stock en otro; pierdes tiempo saltando pantallas',
 ];
 
 const TEAL = '#4ECDC4';

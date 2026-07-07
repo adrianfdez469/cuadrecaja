@@ -10,7 +10,6 @@ import {
   CardContent,
   Avatar,
   Stack,
-  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -32,6 +31,8 @@ import {
   Handshake,
   ShowChart,
   QrCode2,
+  AttachMoney,
+  Print,
 } from '@mui/icons-material';
 
 const features = [
@@ -39,7 +40,7 @@ const features = [
     icon: ShoppingCart,
     title: 'Vender sin depender del internet',
     description: 'El flujo de ventas (lo crítico) puede usarse sin conexión; se guardan solas y se sincronizan cuando vuelva el internet. Pantalla pensada para tocar y buscar productos rápidamente.',
-    details: ['Búsqueda instantánea', 'Efectivo y transferencia', 'Ventas pendientes hasta sincronizar'],
+    details: ['Búsqueda instantánea', 'Efectivo, transferencia y varias monedas', 'Ventas pendientes hasta sincronizar'],
     color: '#FF6B35',
     modalContent: {
       detail: 'Solo el proceso de venta (cobrar, agregar productos al carrito, registrar el pago) está disponible sin conexión. Si se cae el internet, puedes seguir vendiendo: cada venta se guarda en el dispositivo y, al recuperar la conexión, se sube sola al sistema. Así no pierdes ventas por fallos de red. El resto de funciones (ver reportes, modificar inventario, configurar productos) requiere internet.',
@@ -60,29 +61,51 @@ const features = [
   {
     icon: Receipt,
     title: 'Cierre de caja y resumen del día',
-    description: 'Abre y cierra tu caja por día o por turno. Al cerrar ves cuánto vendiste, cuánto entró en efectivo, cuánto por transferencia y cuánto ganaste (tuyo y de productos en consignación).',
-    details: ['Resumen por período', 'Totales y ganancias', 'Historial de cierres'],
+    description: 'Abre y cierra tu caja por día o por turno. Al cerrar ves cuánto vendiste, cuánto entró en efectivo, cuánto por transferencia, el desglose por moneda y cuánto ganaste (tuyo y de productos en consignación).',
+    details: ['Resumen por período', 'Totales por moneda y ganancias', 'Historial de cierres'],
     color: '#5C6BC0',
     modalContent: {
-      detail: 'Antes de empezar a vender abres un período de caja; al terminar el día o el turno lo cierras. En el cierre ves el total vendido, cuánto fue en efectivo, cuánto en transferencia, descuentos aplicados y la ganancia (separando productos propios y en consignación). Todo queda registrado para consultas y reportes posteriores.',
-      examples: ['Ejemplo: cierras a las 22:00 y ves "Ventas $150.000, Efectivo $90.000, Transferencia $60.000, Ganancia propia $25.000, Consignación $8.000".', 'Puedes revisar cierres de días anteriores para comparar o llevar el control.'],
+      detail: 'Antes de empezar a vender abres un período de caja; al terminar el día o el turno lo cierras. En el cierre ves el total vendido, cuánto fue en efectivo, cuánto en transferencia, el desglose por cada moneda si cobras en varias, descuentos aplicados y la ganancia (separando productos propios y en consignación). Todo queda registrado para consultas y reportes posteriores.',
+      examples: ['Ejemplo: cierras a las 22:00 y ves "Ventas $150.000, Efectivo $90.000, Transferencia $60.000, USD $120, Ganancia propia $25.000, Consignación $8.000".', 'Puedes revisar cierres de días anteriores para comparar o llevar el control.'],
+    },
+  },
+  {
+    icon: AttachMoney,
+    title: 'Cobra en varias monedas',
+    description: 'Cobra en más de una moneda en la misma venta: mezcla efectivo y transferencia, configura las tasas de cambio y al cerrar caja ves cuánto entró en cada moneda para cuadrar sin confusiones.',
+    details: ['Varias monedas en la misma venta', 'Tasas de cambio configurables', 'Totales por moneda en el cierre'],
+    color: '#F9A825',
+    modalContent: {
+      detail: 'Si tu negocio cobra en moneda local y en dólares (u otras monedas), el sistema te permite registrar pagos en cada una dentro de la misma venta. Defines las tasas de cambio y el sistema convierte los totales para el resumen. Al cerrar caja ves el desglose por moneda, además de efectivo y transferencia, para que cuadres la caja con claridad.',
+      examples: ['Ejemplo: el cliente paga $50 en efectivo en dólares y el resto en moneda local; al cerrar ves cuánto entró en cada moneda.', 'Configuras la tasa del día y el sistema calcula los equivalentes en el cierre y en los tickets de venta.'],
+    },
+  },
+  {
+    icon: Print,
+    title: 'Tickets de venta al cobrar',
+    description: 'Imprime un comprobante al finalizar cada venta. Personaliza encabezado, pie y qué datos mostrar por tienda; incluye descuentos y desglose multimoneda si aplica. Es distinto de las etiquetas de producto.',
+    details: ['Plantilla por tienda', 'Impresión al cobrar', 'Comprobante para el cliente'],
+    color: '#78909C',
+    modalContent: {
+      detail: 'Al confirmar una venta puedes imprimir automáticamente el ticket para el cliente. Configuras la plantilla por tienda: nombre del negocio, pie de página, si mostrar descuentos, cajero y desglose por moneda. Funciona con impresoras térmicas comunes. Esto es el comprobante de la venta, no las etiquetas con código y precio que pegas en los productos del mostrador.',
+      examples: ['Ejemplo: al cobrar, la impresora entrega el ticket con productos, total, descuentos y en qué monedas pagó el cliente.', 'Personalizas el pie del ticket con un mensaje de agradecimiento o datos de contacto de tu negocio.'],
     },
   },
   {
     icon: Inventory,
-    title: 'Control de inventario y costos',
-    description: 'El sistema lleva solito el costo promedio de lo que vendes, así sabes si ganas o pierdes con cada producto. Incluye productos que se venden por unidad, por kilo o por porción.',
-    details: ['Cálculo automático de ganancia', 'Productos por unidad, kilo o porción', 'Stock en tiempo real'],
+    title: 'Productos e inventario en un solo lugar',
+    description: 'Crea y edita productos, ve el stock por tienda y registra compras, ajustes y traspasos sin saltar entre pantallas. El costo promedio y los productos por unidad, kilo o porción quedan integrados.',
+    details: ['Catálogo y stock juntos', 'Movimientos desde la misma pantalla', 'Importar y exportar Excel'],
     color: '#45B7D1',
     modalContent: {
-      detail: 'Cada producto puede tener un costo de compra; el sistema calcula el costo promedio ponderado (CPP) cuando registras entradas (compra, traspaso, etc.). Así sabes cuánto te costó en promedio cada unidad y si el precio de venta te deja ganancia. Puedes definir productos que se venden por unidad, por peso (kilo) o por porción (fracción), y el sistema ajusta el stock y el costo en consecuencia.',
-      examples: ['Ejemplo: compras 20 unidades a $5 y luego 10 a $6; el sistema calcula un costo promedio; al vender ves la ganancia por producto.', 'Producto "Queso": vendes por kilo o por porción; al registrar la venta el stock se descuenta según la cantidad.'],
+      detail: 'La gestión unificada reúne en una sola pantalla el catálogo de productos y el control de inventario que antes estaba repartido. En la pestaña de productos ves stock, precios y costos; en la de movimientos registras compras, ajustes y traspasos. El sistema calcula el costo promedio al registrar entradas y actualiza el stock al vender o mover productos. Puedes importar y exportar Excel sin salir de ahí.',
+      examples: ['Ejemplo: creas un producto, ajustas el stock y registras una compra desde la misma sección, sin ir a otra pantalla.', 'Exportas el inventario a Excel para revisarlo o compartirlo con tu contador.'],
     },
   },
   {
     icon: QrCode2,
     title: 'Códigos, etiquetas y escaneo',
-    description: 'Genera códigos por producto e imprime etiquetas con precio. Escanea con pistola o con la cámara del celular; al escanear se agrega el producto al carrito de ventas. Puedes generar tus propios códigos, imprimir el PDF y pegarlos en el mostrador.',
+    description: 'Genera códigos por producto e imprime etiquetas de producto con precio (no es el ticket de venta). Escanea con pistola o con la cámara del celular; al escanear se agrega el producto al carrito. Puedes generar tus propios códigos, imprimir el PDF y pegarlos en el mostrador.',
     details: ['Códigos por producto e impresión de etiquetas', 'Escaneo con pistola o cámara', 'PDF con códigos y precios para pegar en productos'],
     color: '#2E7D32',
     modalContent: {
@@ -169,17 +192,6 @@ export default function FeaturesSection() {
     <Box sx={{ py: 10, bgcolor: '#1e2433', position: 'relative' }}>
       <Container maxWidth="lg">
         <Box sx={{ textAlign: 'center', mb: 8 }}>
-          <Chip
-            label="✨ Funcionalidades"
-            sx={{
-              bgcolor: 'rgba(78, 205, 196, 0.15)',
-              color: TEAL_LIGHT,
-              border: '1px solid rgba(78, 205, 196, 0.35)',
-              mb: 2,
-              px: 2,
-              fontWeight: 600,
-            }}
-          />
           <Typography 
             variant="h3" 
             component="h2" 
@@ -197,7 +209,7 @@ export default function FeaturesSection() {
               lineHeight: 1.6
             }}
           >
-            Todo lo que necesitas para vender, controlar stock y saber cuánto ganas. Si tienes un solo local o varios, hay un plan para ti.
+            Vende en varias monedas, imprime tickets y lleva productos e inventario unificados. Todo lo que necesitas para controlar stock y saber cuánto ganas, con un solo local o varios.
           </Typography>
         </Box>
 

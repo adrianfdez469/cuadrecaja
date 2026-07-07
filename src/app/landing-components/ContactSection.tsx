@@ -535,7 +535,7 @@ export default function ContactSection() {
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <CheckCircle sx={{ mr: 1, fontSize: 20, color: TEAL }} />
                     <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                      Acceso completo al POS y gestión de inventario
+                      POS con multimoneda, tickets de venta y gestión unificada de productos e inventario
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
