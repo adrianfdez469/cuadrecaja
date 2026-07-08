@@ -302,6 +302,12 @@ export const SalesDrawer: FC<IProps> = ({
     );
   };
 
+  const handleDeleteSaleFromDetail = async (sale: Sale) => {
+    await handleDeleteOne(sale);
+    setShowProducts(false);
+    setSelectedSale(undefined);
+  };
+
   const reloadSales = async () => {
     try {
       setDisableAll(true);
@@ -326,6 +332,12 @@ export const SalesDrawer: FC<IProps> = ({
             : new Date(venta.createdAt).getTime(),
           wasOffline: venta.wasOffline || false,
           syncAttempts: venta.syncAttempts || 0, // 🆕 Preservar intentos de la base de datos
+          // Multimoneda — necesarios para el guard de "eliminar producto individual"
+          // (bloqueado cuando la venta tiene más de un pago registrado)
+          monedaCobro: venta.monedaCobro,
+          pagosDetalle: venta.pagosDetalle,
+          vueltoDetalle: venta.vueltoDetalle,
+          tasaSnapshot: venta.tasaSnapshot,
           productos: venta.productos.map((p) => {
             return {
               name: p.name,
@@ -638,6 +650,7 @@ export const SalesDrawer: FC<IProps> = ({
           sale={selectedSale}
           allowDelete={verificarPermiso("operaciones.pos-venta.cancelarventa")}
           onDeleteProduct={handleDeleteProductFromSale}
+          onDeleteSale={handleDeleteSaleFromDetail}
           disableAll={disableAll}
           productosTienda={productosTienda}
         />

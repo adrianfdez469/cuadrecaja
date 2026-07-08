@@ -180,7 +180,10 @@ const Ventas = () => {
           showMessage("Producto eliminado de la venta", "success");
         } catch (error) {
           console.error(error);
-          showMessage("No se pudo eliminar el producto de la venta", "error");
+          const msg =
+            (error as { response?: { data?: { error?: string } } })?.response
+              ?.data?.error || "No se pudo eliminar el producto de la venta";
+          showMessage(msg, "error");
         } finally {
           setDeletingVentaProductoId(null);
           const data = await loadData();
@@ -724,6 +727,7 @@ const Ventas = () => {
             verificarPermiso("operaciones.ventas.eliminar"))
         }
         onDeleteProduct={handleDeleteProductoFromVenta}
+        onDeleteSale={handleCancelVenta}
       />
 
       {ConfirmDialogComponent}

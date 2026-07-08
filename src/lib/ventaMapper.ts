@@ -71,6 +71,7 @@ export function mapVentaToIVenta(venta: VentaPrismaRow): IVenta {
     },
     productos: venta.productos.map((p) => ({
       id: p.producto.producto.id,
+      ventaProductoId: p.id,
       ventaId: venta.id,
       productoTiendaId: p.productoTiendaId,
       cantidad: p.cantidad,
@@ -84,8 +85,7 @@ export function mapVentaToIVenta(venta: VentaPrismaRow): IVenta {
       ventaId: ad.ventaId,
       amount: ad.amount,
       productsAffected: ad.productsAffected as
-        | { productoTiendaId: string; cantidad: number }[]
-        | undefined,
+        { productoTiendaId: string; cantidad: number }[] | undefined,
       createdAt: ad.createdAt,
       ruleName: ad.discountRule?.name,
     })),
@@ -93,23 +93,19 @@ export function mapVentaToIVenta(venta: VentaPrismaRow): IVenta {
     transferDestinationId: venta.transferDestinationId ?? undefined,
     transferDestination: venta.transferDestination ?? undefined,
     monedaCobro: venta.monedaCobro ?? undefined,
-    pagosDetalle:
-      (venta.pagosDetalle as IVenta["pagosDetalle"]) ?? undefined,
+    pagosDetalle: (venta.pagosDetalle as IVenta["pagosDetalle"]) ?? undefined,
     vueltoDetalle:
       (venta.vueltoDetalle as IVenta["vueltoDetalle"]) ?? undefined,
-    tasaSnapshot:
-      (venta.tasaSnapshot as IVenta["tasaSnapshot"]) ?? undefined,
+    tasaSnapshot: (venta.tasaSnapshot as IVenta["tasaSnapshot"]) ?? undefined,
   };
 }
 
 export function mapMultimonedaFields(venta: VentaPrismaRow) {
   return {
     monedaCobro: venta.monedaCobro ?? undefined,
-    pagosDetalle:
-      (venta.pagosDetalle as IVenta["pagosDetalle"]) ?? undefined,
+    pagosDetalle: (venta.pagosDetalle as IVenta["pagosDetalle"]) ?? undefined,
     vueltoDetalle:
       (venta.vueltoDetalle as IVenta["vueltoDetalle"]) ?? undefined,
-    tasaSnapshot:
-      (venta.tasaSnapshot as IVenta["tasaSnapshot"]) ?? undefined,
+    tasaSnapshot: (venta.tasaSnapshot as IVenta["tasaSnapshot"]) ?? undefined,
   };
 }
