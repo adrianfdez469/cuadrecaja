@@ -20,6 +20,7 @@ import {
   Button,
   ButtonGroup,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
 import {
   Close,
@@ -34,12 +35,12 @@ import { useAppContext } from "@/context/AppContext";
 import { usePermisos } from "@/utils/permisos_front";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
-import { removeProductFromSale } from "@/services/sellService";
+import { removeProductFromSale, removeSell } from "@/services/sellService";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import { ITransferDestination } from "@/schemas/transferDestination";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { formatDateTime } from "@/utils/formatters";
-import { convertToBase } from "@/lib/currency";
+import { convertToBase, pagadaConUnSoloPago } from "@/lib/currency";
 
 interface IProps {
   showUserSales: boolean;
@@ -49,6 +50,9 @@ interface IProps {
   transferDestinations?: ITransferDestination[];
   productosTienda?: IProductoTiendaV2[];
 }
+
+const TOOLTIP_MULTIPLES_PAGOS =
+  "No se puede eliminar un producto de una venta con más de un pago registrado (varias monedas, o efectivo y transferencia combinados)";
 
 interface ProductoDataHistorial {
   nombre: string;
@@ -62,6 +66,58 @@ interface ProductoDataHistorial {
   productIndex: number;
 }
 
+interface DeleteAccionCellProps {
+  prodHist: ProductoDataHistorial;
+  deleteKey: string | null;
+  deletingKey: string | null;
+  deletingSaleId: string | null;
+  onDeleteProduct: (producto: ProductoDataHistorial) => void;
+  onDeleteSale: (sale: Sale) => void;
+}
+
+/** Celda de acción "eliminar" reutilizada en las tablas de Consignación y Propios. */
+const DeleteAccionCell: React.FC<DeleteAccionCellProps> = ({
+  prodHist,
+  deleteKey,
+  deletingKey,
+  deletingSaleId,
+  onDeleteProduct,
+  onDeleteSale,
+}) => {
+  const isLastProduct = prodHist.sale.productos.length <= 1;
+  const blockedByMultiplesPagos =
+    !isLastProduct && !pagadaConUnSoloPago(prodHist.sale.pagosDetalle);
+  const isDeletingRow =
+    deletingKey === deleteKey ||
+    deletingSaleId === (prodHist.sale.dbId ?? prodHist.sale.identifier);
+
+  return (
+    <TableCell align="center">
+      <Tooltip title={blockedByMultiplesPagos ? TOOLTIP_MULTIPLES_PAGOS : ""}>
+        <span>
+          <IconButton
+            size="small"
+            color="error"
+            disabled={isDeletingRow || blockedByMultiplesPagos}
+            onClick={() =>
+              isLastProduct
+                ? onDeleteSale(prodHist.sale)
+                : onDeleteProduct(prodHist)
+            }
+            aria-label="Eliminar producto"
+          >
+            {isDeletingRow ? (
+              <CircularProgress size={20} />
+            ) : (
+              <Delete fontSize="small" />
+            )}
+          </IconButton>
+        </span>
+      </Tooltip>
+    </TableCell>
+  );
+};
+
 export const UserSalesDrawer: React.FC<IProps> = ({
   showUserSales,
   setShowUserSales,
@@ -70,8 +126,11 @@ export const UserSalesDrawer: React.FC<IProps> = ({
   transferDestinations,
   productosTienda,
 }) => {
-  const { sales, removeProductFromSale: removeProductFromSaleStore } =
-    useSalesStore();
+  const {
+    sales,
+    deleteSale,
+    removeProductFromSale: removeProductFromSaleStore,
+  } = useSalesStore();
   const { user, tasasVigentes, monedaBase } = useAppContext();
   const { verificarPermiso } = usePermisos();
   const { showMessage } = useMessageContext();
@@ -79,6 +138,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
   const [viewMode, setViewMode] = useState<"grouped" | "historical">("grouped");
   const [onlyOwnSales, setOnlyOwnSales] = useState(true);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
   const [transferExpanded, setTransferExpanded] = useState(false);
 
   const canDeleteProducts =
@@ -125,6 +185,35 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           showMessage("No se pudo eliminar el producto", "error", error);
         } finally {
           setDeletingKey(null);
+        }
+      },
+    );
+  };
+
+  const handleDeleteSale = (sale: Sale) => {
+    confirmDialog(
+      "¿Está seguro que desea eliminar la venta seleccionada?",
+      async () => {
+        setDeletingSaleId(sale.dbId ?? sale.identifier);
+        try {
+          if (sale.synced && sale.dbId && period && user?.localActual?.id) {
+            await removeSell(
+              user.localActual.id,
+              period.id,
+              sale.dbId,
+              user.id,
+            );
+          }
+          deleteSale(sale.identifier);
+          sale.productos.forEach((p) => {
+            incrementarCantidades?.(p.productoTiendaId, p.cantidad);
+          });
+          showMessage("La venta fue eliminada satisfactoriamente", "success");
+        } catch (error) {
+          console.error(error);
+          showMessage("La venta no pudo ser eliminada", "error", error);
+        } finally {
+          setDeletingSaleId(null);
         }
       },
     );
@@ -585,26 +674,14 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                                 />
                               </TableCell>
                               {canDeleteProducts && "sale" in prodHist && (
-                                <TableCell align="center">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    disabled={
-                                      deletingKey === deleteKey ||
-                                      prodHist.sale.productos.length <= 1
-                                    }
-                                    onClick={() =>
-                                      handleDeleteProduct(prodHist)
-                                    }
-                                    aria-label="Eliminar producto"
-                                  >
-                                    {deletingKey === deleteKey ? (
-                                      <CircularProgress size={20} />
-                                    ) : (
-                                      <Delete fontSize="small" />
-                                    )}
-                                  </IconButton>
-                                </TableCell>
+                                <DeleteAccionCell
+                                  prodHist={prodHist}
+                                  deleteKey={deleteKey}
+                                  deletingKey={deletingKey}
+                                  deletingSaleId={deletingSaleId}
+                                  onDeleteProduct={handleDeleteProduct}
+                                  onDeleteSale={handleDeleteSale}
+                                />
                               )}
                             </>
                           )}
@@ -725,26 +802,14 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                                 />
                               </TableCell>
                               {canDeleteProducts && "sale" in prodHist && (
-                                <TableCell align="center">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    disabled={
-                                      deletingKey === deleteKey ||
-                                      prodHist.sale.productos.length <= 1
-                                    }
-                                    onClick={() =>
-                                      handleDeleteProduct(prodHist)
-                                    }
-                                    aria-label="Eliminar producto"
-                                  >
-                                    {deletingKey === deleteKey ? (
-                                      <CircularProgress size={20} />
-                                    ) : (
-                                      <Delete fontSize="small" />
-                                    )}
-                                  </IconButton>
-                                </TableCell>
+                                <DeleteAccionCell
+                                  prodHist={prodHist}
+                                  deleteKey={deleteKey}
+                                  deletingKey={deletingKey}
+                                  deletingSaleId={deletingSaleId}
+                                  onDeleteProduct={handleDeleteProduct}
+                                  onDeleteSale={handleDeleteSale}
+                                />
                               )}
                             </>
                           )}

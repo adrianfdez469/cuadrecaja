@@ -1,7 +1,7 @@
 import React from "react";
 import { Sale } from "@/store/salesStore";
 import { useAppContext } from "@/context/AppContext";
-import { convertToBase } from "@/lib/currency";
+import { convertToBase, pagadaConUnSoloPago } from "@/lib/currency";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { Close, Delete } from "@mui/icons-material";
 import {
@@ -17,7 +17,11 @@ import {
   Paper,
   Typography,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
+
+const TOOLTIP_MULTIPLES_PAGOS =
+  "No se puede eliminar un producto de una venta con más de un pago registrado (varias monedas, o efectivo y transferencia combinados)";
 
 interface SaleProductsDetailDrawerProps {
   open: boolean;
@@ -25,6 +29,7 @@ interface SaleProductsDetailDrawerProps {
   sale: Sale;
   allowDelete: boolean;
   onDeleteProduct: (product: Sale["productos"][0]) => Promise<void>;
+  onDeleteSale: (sale: Sale) => Promise<void>;
   disableAll?: boolean;
   productosTienda?: IProductoTiendaV2[];
 }
@@ -37,11 +42,17 @@ export const SaleProductsDetailDrawer: React.FC<
   sale,
   allowDelete,
   onDeleteProduct,
+  onDeleteSale,
   disableAll = false,
   productosTienda,
 }) => {
   const { tasasVigentes, monedaBase } = useAppContext();
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [deletingSale, setDeletingSale] = React.useState(false);
+
+  const isLastProduct = sale.productos.length <= 1;
+  const blockedByMultiplesPagos =
+    !isLastProduct && !pagadaConUnSoloPago(sale.pagosDetalle);
 
   const totalConvertido = sale.productos.reduce((sum, product) => {
     const moneda =
@@ -57,6 +68,15 @@ export const SaleProductsDetailDrawer: React.FC<
   }, 0);
 
   const handleDelete = async (product: Sale["productos"][0]) => {
+    if (isLastProduct) {
+      setDeletingSale(true);
+      try {
+        await onDeleteSale(sale);
+      } finally {
+        setDeletingSale(false);
+      }
+      return;
+    }
     const key = product.ventaProductoId ?? product.productoTiendaId;
     setDeletingId(key);
     try {
@@ -145,23 +165,34 @@ export const SaleProductsDetailDrawer: React.FC<
                     </TableCell>
                     {allowDelete && (
                       <TableCell align="center">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          disabled={
-                            disableAll ||
-                            isDeleting ||
-                            sale.productos.length <= 1
+                        <Tooltip
+                          title={
+                            blockedByMultiplesPagos
+                              ? TOOLTIP_MULTIPLES_PAGOS
+                              : ""
                           }
-                          onClick={() => handleDelete(product)}
-                          aria-label="Eliminar producto"
                         >
-                          {isDeleting ? (
-                            <CircularProgress size={20} />
-                          ) : (
-                            <Delete fontSize="small" />
-                          )}
-                        </IconButton>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              disabled={
+                                disableAll ||
+                                isDeleting ||
+                                deletingSale ||
+                                blockedByMultiplesPagos
+                              }
+                              onClick={() => handleDelete(product)}
+                              aria-label="Eliminar producto"
+                            >
+                              {isDeleting || (isLastProduct && deletingSale) ? (
+                                <CircularProgress size={20} />
+                              ) : (
+                                <Delete fontSize="small" />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                       </TableCell>
                     )}
                   </TableRow>

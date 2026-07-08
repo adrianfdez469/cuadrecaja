@@ -178,3 +178,17 @@ export function formatMoneda(
     maximumFractionDigits: decimales,
   })}`;
 }
+
+/**
+ * True si la venta no tiene pagos registrados o tiene exactamente un pago
+ * (una sola moneda y una sola forma de pago: efectivo O transferencia, no ambas).
+ * Se usa para permitir/bloquear la eliminación de un producto individual de
+ * una venta ya pagada: con más de un pago no hay forma de saber de cuál
+ * descontar el monto del producto eliminado, así que directamente no se
+ * reparte nada — se ajusta el único pago existente.
+ */
+export function pagadaConUnSoloPago(
+  pagosDetalle?: Pick<IPagoLinea, "moneda">[] | null,
+): boolean {
+  return (pagosDetalle?.length ?? 0) <= 1;
+}

@@ -23,15 +23,13 @@ import {
   CircularProgress,
   useTheme,
   useMediaQuery,
+  Tooltip,
 } from "@mui/material";
 import {
   Close,
   Receipt,
   Person,
   CalendarToday,
-  AttachMoney,
-  CreditCard,
-  AccountBalance,
   ShoppingCart,
   Delete,
   CurrencyExchange,
@@ -40,8 +38,11 @@ import {
 import { IVenta } from "@/schemas/venta";
 import { formatDate, formatTimeShort } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
-import { convertToBase, formatMoneda } from "@/lib/currency";
-import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+import {
+  convertToBase,
+  formatMoneda,
+  pagadaConUnSoloPago,
+} from "@/lib/currency";
 import { usePermisos } from "@/utils/permisos_front";
 import { usePrinter } from "@/features/printing/hooks/usePrinter";
 import { ventaToSale } from "@/features/printing/lib/ventaToSale";
@@ -54,6 +55,7 @@ interface VentaDetailDialogProps {
   canDeleteProducts?: boolean;
   deletingVentaProductoId?: string | null;
   onDeleteProduct?: (venta: IVenta, ventaProductoId: string) => void;
+  onDeleteSale?: (venta: IVenta) => void;
 }
 
 const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
@@ -63,6 +65,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   canDeleteProducts = false,
   deletingVentaProductoId = null,
   onDeleteProduct,
+  onDeleteSale,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -75,6 +78,12 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   if (!venta) return null;
 
   const tasas = tasasVigentes;
+
+  const tooltipMultiplesPagos =
+    "No se puede eliminar un producto de una venta con más de un pago registrado (varias monedas, o efectivo y transferencia combinados)";
+  const isLastProduct = (venta.productos?.length || 0) <= 1;
+  const blockedByMultiplesPagos =
+    !isLastProduct && !pagadaConUnSoloPago(venta.pagosDetalle);
 
   // El precio de cada producto está en su monedaPrecioCode (snapshot). Lo convertimos a la
   // moneda base del negocio para poder sumar y comparar de forma homogénea.
@@ -221,98 +230,6 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
           </Grid>
         </Grid>
 
-        {/* Resumen de pagos */}
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography
-              variant="h6"
-              gutterBottom
-              sx={{ display: "flex", alignItems: "center", gap: 1 }}
-            >
-              <AttachMoney />
-              Resumen de Pagos
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
-                <Box
-                  sx={{
-                    textAlign: "center",
-                    p: 2,
-                    bgcolor: "success.50",
-                    borderRadius: 1,
-                  }}
-                >
-                  <CreditCard
-                    sx={{ fontSize: 32, color: "success.main", mb: 1 }}
-                  />
-                  <Typography variant="body2" color="text.secondary">
-                    Efectivo
-                  </Typography>
-                  {/* venta.totalcash ya está en moneda base */}
-                  <MultiCurrencyAmount
-                    amount={venta.totalcash}
-                    variant="emphasized"
-                    align="center"
-                    color="success.main"
-                  />
-                </Box>
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <Box
-                  sx={{
-                    textAlign: "center",
-                    p: 2,
-                    bgcolor: "info.50",
-                    borderRadius: 1,
-                  }}
-                >
-                  <AccountBalance
-                    sx={{ fontSize: 32, color: "info.main", mb: 1 }}
-                  />
-                  <Typography variant="body2" color="text.secondary">
-                    Transferencia
-                  </Typography>
-                  {/* venta.totaltransfer ya está en moneda base */}
-                  <MultiCurrencyAmount
-                    amount={venta.totaltransfer}
-                    variant="emphasized"
-                    align="center"
-                    color="info.main"
-                  />
-                </Box>
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <Box
-                  sx={{
-                    textAlign: "center",
-                    p: 2,
-                    bgcolor: "primary.50",
-                    borderRadius: 1,
-                  }}
-                >
-                  <AttachMoney
-                    sx={{ fontSize: 32, color: "primary.main", mb: 1 }}
-                  />
-                  <Typography variant="body2" color="text.secondary">
-                    Total
-                  </Typography>
-                  {/* venta.total ya está en moneda base */}
-                  <MultiCurrencyAmount
-                    amount={venta.total}
-                    variant="emphasized"
-                    align="center"
-                    color="primary.main"
-                  />
-                </Box>
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-
         {/* Detalle de pago, vuelto y tasa de cambio de la venta */}
         {(venta.pagosDetalle?.length ||
           venta.vueltoDetalle?.length ||
@@ -448,9 +365,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
               <Stack spacing={2}>
                 {productosBase.map((producto, index) => {
                   const canDeleteThis =
-                    canDeleteProducts &&
-                    !!producto.ventaProductoId &&
-                    (venta.productos?.length || 0) > 1;
+                    canDeleteProducts && !!producto.ventaProductoId;
                   const isDeleting =
                     deletingVentaProductoId === producto.ventaProductoId;
                   const traza = trazaOriginal(
@@ -481,24 +396,38 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                                 variant="outlined"
                               />
                               {canDeleteThis && (
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  disabled={isDeleting}
-                                  onClick={() =>
-                                    onDeleteProduct?.(
-                                      venta,
-                                      producto.ventaProductoId!,
-                                    )
+                                <Tooltip
+                                  title={
+                                    blockedByMultiplesPagos
+                                      ? tooltipMultiplesPagos
+                                      : ""
                                   }
-                                  aria-label="Eliminar producto"
                                 >
-                                  {isDeleting ? (
-                                    <CircularProgress size={18} />
-                                  ) : (
-                                    <Delete fontSize="small" />
-                                  )}
-                                </IconButton>
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      disabled={
+                                        isDeleting || blockedByMultiplesPagos
+                                      }
+                                      onClick={() =>
+                                        isLastProduct
+                                          ? onDeleteSale?.(venta)
+                                          : onDeleteProduct?.(
+                                              venta,
+                                              producto.ventaProductoId!,
+                                            )
+                                      }
+                                      aria-label="Eliminar producto"
+                                    >
+                                      {isDeleting ? (
+                                        <CircularProgress size={18} />
+                                      ) : (
+                                        <Delete fontSize="small" />
+                                      )}
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
                               )}
                             </Box>
                           </Box>
@@ -557,9 +486,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                   <TableBody>
                     {productosBase.map((producto, index) => {
                       const canDeleteThis =
-                        canDeleteProducts &&
-                        !!producto.ventaProductoId &&
-                        (venta.productos?.length || 0) > 1;
+                        canDeleteProducts && !!producto.ventaProductoId;
                       const isDeleting =
                         deletingVentaProductoId === producto.ventaProductoId;
                       const traza = trazaOriginal(
@@ -613,24 +540,38 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                           {canDeleteProducts && (
                             <TableCell align="center">
                               {canDeleteThis && (
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  disabled={isDeleting}
-                                  onClick={() =>
-                                    onDeleteProduct?.(
-                                      venta,
-                                      producto.ventaProductoId!,
-                                    )
+                                <Tooltip
+                                  title={
+                                    blockedByMultiplesPagos
+                                      ? tooltipMultiplesPagos
+                                      : ""
                                   }
-                                  aria-label="Eliminar producto"
                                 >
-                                  {isDeleting ? (
-                                    <CircularProgress size={18} />
-                                  ) : (
-                                    <Delete fontSize="small" />
-                                  )}
-                                </IconButton>
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      disabled={
+                                        isDeleting || blockedByMultiplesPagos
+                                      }
+                                      onClick={() =>
+                                        isLastProduct
+                                          ? onDeleteSale?.(venta)
+                                          : onDeleteProduct?.(
+                                              venta,
+                                              producto.ventaProductoId!,
+                                            )
+                                      }
+                                      aria-label="Eliminar producto"
+                                    >
+                                      {isDeleting ? (
+                                        <CircularProgress size={18} />
+                                      ) : (
+                                        <Delete fontSize="small" />
+                                      )}
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
                               )}
                             </TableCell>
                           )}
@@ -741,7 +682,9 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                 showMessage("Ticket enviado a impresión", "success");
               } catch (error) {
                 showMessage(
-                  error instanceof Error ? error.message : "Error al reimprimir",
+                  error instanceof Error
+                    ? error.message
+                    : "Error al reimprimir",
                   "error",
                 );
               }
