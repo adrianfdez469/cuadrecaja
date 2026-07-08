@@ -674,7 +674,16 @@ export default function LoginPage() {
               </form>
 
               {/* Footer informativo */}
-              <Box sx={{ mt: 4, textAlign: "center" }}>
+              <Box sx={{ mt: 4, textAlign: 'center' }}>
+                <Link
+                  component={NextLink}
+                  href="/"
+                  variant="body2"
+                  underline="hover"
+                  sx={{ display: 'block', mb: 1 }}
+                >
+                  Volver a la página principal
+                </Link>
                 <Typography variant="caption" color="text.secondary">
                   Versión 1.0 • Sistema de gestión comercial
                 </Typography>

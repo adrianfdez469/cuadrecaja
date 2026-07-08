@@ -26,10 +26,15 @@ import {
   Send,
   Business,
   Person,
-  // Store,
   CheckCircle,
+  ContactPhone,
 } from '@mui/icons-material';
 import { LANDING_ACTIVATION_TTL_LABEL } from '@/constants/onboarding';
+import {
+  LANDING_CTA_SECTION_ID,
+  LANDING_CONTACT_INFO_SECTION_ID,
+  scrollToLandingSection,
+} from '@/constants/landingContact';
 
 interface FormData {
   nombre: string;
@@ -182,7 +187,7 @@ export default function ContactSection() {
   const TEAL = '#4ECDC4';
 
   return (
-    <Box id="contact-section" sx={{ py: 10, bgcolor: '#252a3a' }}>
+    <Box id={LANDING_CTA_SECTION_ID} sx={{ py: 10, bgcolor: '#252a3a' }}>
       <Container maxWidth="lg">
         <Box sx={{ textAlign: 'center', mb: 8 }}>
           <Chip
@@ -421,103 +426,7 @@ export default function ContactSection() {
             </Card>
           </Grid>
 
-          {/* Contact Information */}
           <Grid item xs={12} md={6}>
-
-            {/* Contact Details */}
-            <Grid container spacing={1} mb={3}>
-              <Grid item xs={12} md={6}>
-                <Card sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                    Información de Contacto
-                  </Typography>
-
-                  <Stack spacing={2}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Phone sx={{ mr: 2, color: TEAL }} />
-                      <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                          +53 53334449
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                          Adrián Fernández - Desarrollador
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Phone sx={{ mr: 2, color: TEAL }} />
-                      <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                          +598 97728107
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                          Número alternativo
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Email sx={{ mr: 2, color: TEAL }} />
-                      <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                          adrianfdez469@gmail.com
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                          Contacto directo con el desarrollador
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Stack>
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Card sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                    Información de Contacto
-                  </Typography>
-
-                  <Stack spacing={2}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Phone sx={{ mr: 2, color: TEAL }} />
-                      <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                          +53 54319958
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                          Carlos Fernández - Desarrollador
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Phone sx={{ mr: 2, color: TEAL }} />
-                      <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                          No disponible
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                          Número alternativo
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Email sx={{ mr: 2, color: TEAL }} />
-                      <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                          olimac9010@gmail.com
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                          Contacto directo con el desarrollador
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Stack>
-                </Card>
-              </Grid>
-            </Grid>
-
             <Stack spacing={3}>
               {/* Benefits */}
               <Card sx={{ p: 3, bgcolor: 'rgba(78, 205, 196, 0.12)', border: '1px solid rgba(78, 205, 196, 0.3)', color: 'white' }}>
@@ -561,6 +470,39 @@ export default function ContactSection() {
                 <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.9)' }}>
                   Validez del enlace de activación
                 </Typography>
+              </Card>
+
+              <Card
+                sx={{
+                  p: 3,
+                  bgcolor: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  textAlign: 'center',
+                }}
+              >
+                <ContactPhone sx={{ fontSize: 40, color: TEAL, mb: 1 }} />
+                <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)', mb: 1 }}>
+                  ¿Prefieres hablar con nosotros?
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 2 }}>
+                  Teléfonos, correos y WhatsApp con mensaje listo para enviar.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  onClick={() => scrollToLandingSection(LANDING_CONTACT_INFO_SECTION_ID)}
+                  sx={{
+                    borderColor: 'rgba(78, 205, 196, 0.5)',
+                    color: '#6ee7de',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    '&:hover': {
+                      borderColor: TEAL,
+                      bgcolor: 'rgba(78, 205, 196, 0.08)',
+                    },
+                  }}
+                >
+                  Ver información de contacto
+                </Button>
               </Card>
             </Stack>
           </Grid>

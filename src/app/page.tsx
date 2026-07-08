@@ -11,10 +11,9 @@ import {
   Toolbar,
   Divider,
   CircularProgress,
+  Link,
 } from '@mui/material';
 import {
-  Phone,
-  Email,
   Login as LoginIcon,
   CardGiftcard as CardGiftcardIcon,
 } from '@mui/icons-material';
@@ -24,9 +23,11 @@ import FeaturesSection from './landing-components/FeaturesSection';
 import BenefitsSection from './landing-components/BenefitsSection';
 import PricingSection from './landing-components/PricingSection';
 import ContactSection from './landing-components/ContactSection';
+import ContactInfoSection from './landing-components/ContactInfoSection';
 // import ChatbotWidget from './landing-components/ChatbotWidget';
 import Logo from '@/components/Logo';
 import { useLandingNavigation } from '@/hooks/useLandingNavigation';
+import { LANDING_CONTACT_INFO_SECTION_ID, scrollToLandingSection } from '@/constants/landingContact';
 
 export default function LandingPage() {
   const { navigateTo, isNavigatingTo, isNavigating } = useLandingNavigation();
@@ -189,6 +190,8 @@ export default function LandingPage() {
         <ContactSection />
       </Suspense>
 
+      <ContactInfoSection />
+
       {/* Footer */}
       <Box sx={{
         bgcolor: '#1e2433',
@@ -211,27 +214,24 @@ export default function LandingPage() {
               <Typography variant="h6" gutterBottom sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 'bold' }}>
                 Contacto
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Phone sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>+53 53334449</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Phone sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>+598 97728107</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Phone sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>+53 54319958</Typography>
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Email sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>adrianfdez469@gmail.com</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Email sx={{ mr: 1, fontSize: 20, color: '#6ee7de' }} />
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>olimac9010@gmail.com</Typography>
-              </Box>
+              <Typography variant="body2" sx={{ mb: 1.5, color: 'rgba(255,255,255,0.7)' }}>
+                Teléfonos, correos y WhatsApp están en la sección de contacto.
+              </Typography>
+              <Link
+                component="button"
+                type="button"
+                variant="body2"
+                onClick={() => scrollToLandingSection(LANDING_CONTACT_INFO_SECTION_ID)}
+                sx={{
+                  color: '#6ee7de',
+                  fontWeight: 600,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  '&:hover': { textDecoration: 'underline' },
+                }}
+              >
+                Ir a información de contacto
+              </Link>
             </Grid>
             <Grid item xs={12} md={4}>
               <Typography variant="h6" gutterBottom sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 'bold' }}>
