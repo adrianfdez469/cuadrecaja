@@ -1,12 +1,14 @@
 import { google } from 'googleapis';
 
-const oauth2Client = new google.auth.OAuth2(
-    process.env.GMAIL_CLIENT_ID,
-    process.env.GMAIL_CLIENT_SECRET,
-    process.env.GMAIL_REDIRECT_URI
-);
+// const oauth2Client = new google.auth.OAuth2(
+//     process.env.GMAIL_CLIENT_ID,
+//     process.env.GMAIL_CLIENT_SECRET,
+//     process.env.GMAIL_REDIRECT_URI
+// );
 
-export async function GET(request: Request) {
+export async function GET(
+    //request: Request
+) {
 
     return Response.json({
         message: 'Gmail callback route',
