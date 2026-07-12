@@ -54,6 +54,9 @@ model Negocio {
   /// true si el negocio se creó al activar cuenta desde el formulario de la landing
   creadoPorActivacionLanding Boolean @default(false)
 
+  /// Cuándo se envió el aviso de purge por trial freemium landing vencido (null = aún no avisado)
+  avisoPurgeEnviadoAt DateTime?
+
   // Relación inversa para reglas de descuento
   discountRules    DiscountRule[]
   gastosPlantillas GastoPlantilla[]
@@ -171,6 +174,25 @@ model ReferralEventLog {
 
   @@index([entityType])
   @@index([eventType])
+  @@index([createdAt])
+}
+
+/// Contacto desacoplado (usuarios no activos: negocios eliminados, landing, etc.)
+model Lead {
+  id            String     @id @default(uuid())
+  nombre        String
+  email         String     @unique
+  telefono      String?
+  fuente        LeadFuente
+  estado        LeadEstado @default(NUEVO)
+  negocioNombre String?
+  notas         String?
+  metadata      Json?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([fuente])
+  @@index([estado])
   @@index([createdAt])
 }
 
@@ -925,4 +947,19 @@ enum ReferralEntityType {
 enum UsuarioEstadoCuenta {
   ACTIVO
   PENDIENTE_VERIFICACION
+}
+
+enum LeadFuente {
+  NEGOCIO_ELIMINADO
+  LANDING
+  CONTACTO
+  MANUAL
+  OTRO
+}
+
+enum LeadEstado {
+  NUEVO
+  CONTACTADO
+  CONVERTIDO
+  DESCARTADO
 }

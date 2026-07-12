@@ -1,0 +1,8 @@
+{
+    "crons": [
+      {
+        "path": "/api/crons/purge-expired-freemium-landing-business",
+        "schedule": "0 0 * * *"
+      }
+    ]
+  }

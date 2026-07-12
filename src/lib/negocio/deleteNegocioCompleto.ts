@@ -77,6 +77,11 @@ export async function deleteNegocioCompleto(negocioId: string): Promise<void> {
 
     await tx.rol.deleteMany({ where: { negocioId } });
 
+    // Multimoneda: TasaCambio e HistorialMonedaBase referencian Usuario sin cascade
+    await tx.tasaCambio.deleteMany({ where: { negocioId } });
+    await tx.historialMonedaBase.deleteMany({ where: { negocioId } });
+    await tx.negocioMoneda.deleteMany({ where: { negocioId } });
+
     await tx.usuario.updateMany({
       where: { negocioId },
       data: { localActualId: null },
