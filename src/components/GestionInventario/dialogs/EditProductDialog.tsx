@@ -340,6 +340,7 @@ export function EditProductDialog({
               }
               sx={{ flex: 1 }}
             />
+          </Box>
 
             {/* Precio + moneda */}
             <Box display="flex" gap={1} alignItems="flex-start">
@@ -378,7 +379,7 @@ export function EditProductDialog({
                   sx={{ flex: 1 }}
               />
             </Box>
-          </Box>
+
 
           {warnCostoMayorPrecio && (
             <Alert severity="warning" sx={{ py: 0.5 }}>
