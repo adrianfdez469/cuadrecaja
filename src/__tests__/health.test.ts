@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import type { IHealthResponse } from "@/schemas/health";
 import { healthResponseSchema } from "@/schemas/health";
 
@@ -388,7 +388,7 @@ describe("Database connectivity", () => {
       "Client not initialized",
     ];
 
-    for (const scenario of errorScenarios) {
+    for (const _ of errorScenarios) {
       // All should result in unhealthy response
       const response = createUnhealthyResponse();
       expect(response.success).toBe(false);
