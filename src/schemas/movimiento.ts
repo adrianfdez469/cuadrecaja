@@ -15,6 +15,8 @@ export const MovimientoTipoEnum = z.enum([
   "DESAGREGACION_ALTA",
   "CONSIGNACION_ENTRADA",
   "CONSIGNACION_DEVOLUCION",
+  "MERMA",
+  "DEVOLUCION_VENTA",
 ]);
 
 export const MovimientoStateEnum = z.enum([
@@ -22,6 +24,9 @@ export const MovimientoStateEnum = z.enum([
   "APROBADO",
   "RECHAZADO",
 ]);
+
+// Fuente de fondos de una compra de mercancía (solo aplica a tipo COMPRA)
+export const FormaPagoCompraEnum = z.enum(["EFECTIVO_CAJA", "EXTERNO"]);
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -36,6 +41,8 @@ export const movimientoSchema = z.object({
   costoAnterior: z.number().optional(),
   costoNuevo: z.number().optional(),
   existenciaAnterior: z.number().optional(),
+  formaPago: FormaPagoCompraEnum.optional(),
+  montoReembolso: z.number().optional(),
   productoTienda: z.object({
     id: z.string().uuid(),
     costo: z.number(),
@@ -57,6 +64,8 @@ export const movimientoCreateSchema = z.object({
   cantidad: z.number(),
   costoUnitario: z.number().optional(),
   costoTotal: z.number().optional(),
+  // Solo DEVOLUCION_VENTA: monto reembolsado al cliente, en moneda base
+  montoReembolso: z.number().optional(),
 });
 
 export const movimientoDataSchema = z.object({
@@ -66,6 +75,8 @@ export const movimientoDataSchema = z.object({
   referenciaId: z.string().optional(),
   motivo: z.string().optional(),
   proveedorId: z.string().uuid().optional(),
+  // Solo COMPRA: de dónde salió el dinero
+  formaPago: FormaPagoCompraEnum.optional(),
 });
 
 export const importDataSchema = z.object({
@@ -146,9 +157,12 @@ export enum MovimientoTipo {
   DESAGREGACION_ALTA = "DESAGREGACION_ALTA",
   CONSIGNACION_ENTRADA = "CONSIGNACION_ENTRADA",
   CONSIGNACION_DEVOLUCION = "CONSIGNACION_DEVOLUCION",
+  MERMA = "MERMA",
+  DEVOLUCION_VENTA = "DEVOLUCION_VENTA",
 }
 
 export type ITipoMovimiento = z.infer<typeof MovimientoTipoEnum>;
+export type IFormaPagoCompra = z.infer<typeof FormaPagoCompraEnum>;
 export type IMovimiento = z.infer<typeof movimientoSchema>;
 export type IMovimientoCreate = z.infer<typeof movimientoCreateSchema>;
 export type IMovimientoData = z.infer<typeof movimientoDataSchema>;

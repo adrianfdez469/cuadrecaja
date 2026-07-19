@@ -12,6 +12,8 @@ export interface DashboardResumenMetrics {
     unidadesVendidas: number;
     gananciaTotal: number;
     totalGastos: number;
+    totalMerma: number;
+    totalDevoluciones: number;
     gananciaFinal: number;
     productosActivos: number;
   };
@@ -320,13 +322,16 @@ export async function GET(
       },
     });
 
-    // Gastos de los cierres del rango (mismo alcance que las ventas)
+    // Gastos, merma y devoluciones de los cierres del rango (mismo alcance que las ventas)
     const gastosAgregados = await prisma.cierrePeriodo.aggregate({
-      _sum: { totalGastos: true },
+      _sum: { totalGastos: true, totalMerma: true, totalDevoluciones: true },
       where: filtroCierres,
     });
     const totalGastos = gastosAgregados._sum.totalGastos ?? 0;
-    const gananciaFinal = gananciaTotal - totalGastos;
+    const totalMerma = gastosAgregados._sum.totalMerma ?? 0;
+    const totalDevoluciones = gastosAgregados._sum.totalDevoluciones ?? 0;
+    const gananciaFinal =
+      gananciaTotal - totalGastos - totalMerma - totalDevoluciones;
 
     // Ordenar productos por unidades vendidas y ganancia
     const topProductos = Array.from(productosVendidosMap.values())
@@ -365,6 +370,8 @@ export async function GET(
         unidadesVendidas,
         gananciaTotal,
         totalGastos,
+        totalMerma,
+        totalDevoluciones,
         gananciaFinal,
         productosActivos,
       },

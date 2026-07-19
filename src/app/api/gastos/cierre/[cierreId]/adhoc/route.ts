@@ -58,6 +58,7 @@ export async function POST(
         nombre: parsed.data.nombre,
         categoria: parsed.data.categoria,
         tipoCalculo: parsed.data.tipoCalculo,
+        naturaleza: parsed.data.naturaleza,
         montoCalculado: parsed.data.montoCalculado,
         monto: parsed.data.monto ?? null,
         porcentaje: parsed.data.porcentaje ?? null,

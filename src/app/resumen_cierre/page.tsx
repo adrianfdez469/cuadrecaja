@@ -37,11 +37,30 @@ import { getResumenCierres } from "@/services/resumenCierreService";
 import { useAppContext } from "@/context/AppContext";
 import { ICierreData, ICierrePeriodo, ISummaryCierre } from "@/schemas/cierre";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { ITotales, TablaProductosCierre } from "@/components/tablaProductosCierre";
+import {
+  ITotales,
+  TablaProductosCierre,
+} from "@/components/tablaProductosCierre";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
-import { Close, AttachMoney, TrendingUp, TrendingDown, Assessment, Refresh, FilterList, ArrowForward, AccountBalance } from "@mui/icons-material";
+import {
+  Close,
+  AttachMoney,
+  TrendingUp,
+  TrendingDown,
+  Assessment,
+  Refresh,
+  FilterList,
+  ArrowForward,
+  AccountBalance,
+  ShoppingCart,
+  BrokenImage,
+  Undo,
+} from "@mui/icons-material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { fetchCierreData, fetchTasasAtClose } from "@/services/cierrePeriodService";
+import {
+  fetchCierreData,
+  fetchTasasAtClose,
+} from "@/services/cierrePeriodService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
@@ -66,9 +85,23 @@ export default function ResumenCierrePage() {
     transf: number;
     gastos: number;
     gananciaFinal: number;
-  }>({ inversion: 0, venta: 0, ganancia: 0, transf: 0, gastos: 0, gananciaFinal: 0 });
+  }>({
+    inversion: 0,
+    venta: 0,
+    ganancia: 0,
+    transf: 0,
+    gastos: 0,
+    gananciaFinal: 0,
+  });
   const [expandedTransfer, setExpandedTransfer] = useState(false);
-  const { user, loadingContext, gotToPath, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
+  const {
+    user,
+    loadingContext,
+    gotToPath,
+    monedasNegocio,
+    tasasVigentes,
+    monedaBase,
+  } = useAppContext();
 
   // Currency display state — defaults sync when context finishes loading
   const [displayCurrency, setDisplayCurrency] = useState<string>(monedaBase);
@@ -78,8 +111,10 @@ export default function ResumenCierrePage() {
     setDisplayCurrency(monedaBase);
     setDetailCurrency(monedaBase);
   }, [monedaBase]);
-  const [rateMode, setRateMode] = useState<'current' | 'historical'>('current');
-  const [historicalTasas, setHistoricalTasas] = useState<ITasaSnapshot | null>(null);
+  const [rateMode, setRateMode] = useState<"current" | "historical">("current");
+  const [historicalTasas, setHistoricalTasas] = useState<ITasaSnapshot | null>(
+    null,
+  );
   const [loadingHistorical, setLoadingHistorical] = useState(false);
 
   const [showProducts, setShowProducts] = useState(false);
@@ -91,27 +126,41 @@ export default function ResumenCierrePage() {
     totalGananciaFinal?: number;
   }>();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
   const { verificarPermiso } = usePermisos();
 
   // Derived: currencies available for display
   const availableCurrencies = [
     monedaBase,
-    ...monedasNegocio.filter(m => m.activo && m.monedaCode !== monedaBase).map(m => m.monedaCode),
+    ...monedasNegocio
+      .filter((m) => m.activo && m.monedaCode !== monedaBase)
+      .map((m) => m.monedaCode),
   ];
   const hasMultipleCurrencies = availableCurrencies.length > 1;
 
   // Formatters — all stored amounts are in monedaBase; format like the original but with conversion
-  const fmtS = (amt: number) => formatCurrency(convertFromBase(amt, displayCurrency, tasasVigentes, monedaBase));
-  const detailTasas: ITasaSnapshot = rateMode === 'historical' && historicalTasas ? historicalTasas : tasasVigentes;
-  const fmtD = (amt: number) => formatCurrency(convertFromBase(amt, detailCurrency, detailTasas, monedaBase));
+  const fmtS = (amt: number) =>
+    formatCurrency(
+      convertFromBase(amt, displayCurrency, tasasVigentes, monedaBase),
+    );
+  const detailTasas: ITasaSnapshot =
+    rateMode === "historical" && historicalTasas
+      ? historicalTasas
+      : tasasVigentes;
+  const fmtD = (amt: number) =>
+    formatCurrency(
+      convertFromBase(amt, detailCurrency, detailTasas, monedaBase),
+    );
 
-  const handleRateModeChange = async (mode: 'current' | 'historical') => {
-    if (mode === 'historical' && !historicalTasas && cierreProducData) {
+  const handleRateModeChange = async (mode: "current" | "historical") => {
+    if (mode === "historical" && !historicalTasas && cierreProducData) {
       setLoadingHistorical(true);
       try {
-        const tasas = await fetchTasasAtClose(user.localActual.id, cierreProducData.cierreId);
+        const tasas = await fetchTasasAtClose(
+          user.localActual.id,
+          cierreProducData.cierreId,
+        );
         setHistoricalTasas(tasas);
       } finally {
         setLoadingHistorical(false);
@@ -122,7 +171,7 @@ export default function ResumenCierrePage() {
 
   const handleCloseDetail = () => {
     setShowProducts(false);
-    setRateMode('current');
+    setRateMode("current");
     setHistoricalTasas(null);
   };
 
@@ -140,13 +189,13 @@ export default function ResumenCierrePage() {
           tiendaId,
           rowsPerPage,
           page * rowsPerPage,
-          intervalo
+          intervalo,
         );
       } else {
         dataResp = await getResumenCierres(
           tiendaId,
           rowsPerPage,
-          page * rowsPerPage
+          page * rowsPerPage,
         );
       }
       setData(dataResp);
@@ -161,8 +210,15 @@ export default function ResumenCierrePage() {
             acc.gananciaFinal += row.totalGananciaFinal ?? row.totalGanancia;
             return acc;
           },
-          { inversion: 0, venta: 0, ganancia: 0, transf: 0, gastos: 0, gananciaFinal: 0 }
-        )
+          {
+            inversion: 0,
+            venta: 0,
+            ganancia: 0,
+            transf: 0,
+            gastos: 0,
+            gananciaFinal: 0,
+          },
+        ),
       );
     } catch (error) {
       console.error("Error al cargar resumen de cierres:", error);
@@ -170,13 +226,12 @@ export default function ResumenCierrePage() {
       setLoading(false);
     }
   };
-  
 
   useEffect(() => {
     (async () => {
       if (!loadingContext) {
         setNoLocalActual(false);
-        
+
         // Validar que el usuario tenga una tienda actual
         if (!user.localActual || !user.localActual.id) {
           setNoLocalActual(true);
@@ -194,7 +249,7 @@ export default function ResumenCierrePage() {
   };
 
   const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
@@ -211,11 +266,21 @@ export default function ResumenCierrePage() {
   };
 
   // Componente para mostrar el desglose de transferencias
-  const TransferenciasDesglose = ({ transferencias }: { transferencias?: Array<{ destinationName: string, transferDestinationId: string, _sum: {totaltransfer: number} }> }) => {
+  const TransferenciasDesglose = ({
+    transferencias,
+  }: {
+    transferencias?: Array<{
+      destinationName: string;
+      transferDestinationId: string;
+      _sum: { totaltransfer: number };
+    }>;
+  }) => {
     if (!transferencias || transferencias.length === 0) {
       return (
-        <Box sx={{ textAlign: 'center', py: 2 }}>
-          <AccountBalance sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+        <Box sx={{ textAlign: "center", py: 2 }}>
+          <AccountBalance
+            sx={{ fontSize: 40, color: "text.disabled", mb: 1 }}
+          />
           <Typography variant="body2" color="text.secondary" fontStyle="italic">
             No hay transferencias registradas en este período
           </Typography>
@@ -223,19 +288,26 @@ export default function ResumenCierrePage() {
       );
     }
 
-    const totalTransferencias = transferencias.reduce((sum, t) => sum + t._sum.totaltransfer, 0);
+    const totalTransferencias = transferencias.reduce(
+      (sum, t) => sum + t._sum.totaltransfer,
+      0,
+    );
 
     return (
       <Box>
         <Box sx={{ mb: 2 }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
             <AccountBalance fontSize="small" color="primary" />
-            <Typography variant="subtitle2" fontWeight="bold" color="primary.main">
+            <Typography
+              variant="subtitle2"
+              fontWeight="bold"
+              color="primary.main"
+            >
               Desglose por destino
             </Typography>
           </Stack>
-          <Chip 
-            label={`${transferencias.length} ${transferencias.length === 1 ? 'destino' : 'destinos'}`}
+          <Chip
+            label={`${transferencias.length} ${transferencias.length === 1 ? "destino" : "destinos"}`}
             size="small"
             variant="outlined"
             color="primary"
@@ -244,35 +316,43 @@ export default function ResumenCierrePage() {
 
         <Stack spacing={1.5}>
           {transferencias.map((transferencia, index) => (
-            <Card key={index} variant="outlined" sx={{ 
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-              transition: 'all 0.2s',
-              '&:hover': {
-                borderColor: 'primary.light',
-                boxShadow: 1
-              }
-            }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            <Card
+              key={index}
+              variant="outlined"
+              sx={{
+                bgcolor: "background.paper",
+                border: "1px solid",
+                borderColor: "divider",
+                transition: "all 0.2s",
+                "&:hover": {
+                  borderColor: "primary.light",
+                  boxShadow: 1,
+                },
+              }}
+            >
+              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
                     <Box
                       sx={{
                         width: 8,
                         height: 8,
-                        borderRadius: '50%',
+                        borderRadius: "50%",
                         bgcolor: `hsl(${(index * 137.508) % 360}, 70%, 50%)`,
                         mr: 1.5,
-                        flexShrink: 0
+                        flexShrink: 0,
                       }}
                     />
-                    <Typography 
-                      variant="body2" 
+                    <Typography
+                      variant="body2"
                       fontWeight="medium"
-                      sx={{ 
-                        color: 'text.primary',
-                        fontSize: '0.875rem'
+                      sx={{
+                        color: "text.primary",
+                        fontSize: "0.875rem",
                       }}
                     >
                       {transferencia.destinationName}
@@ -280,24 +360,32 @@ export default function ResumenCierrePage() {
                   </Box>
 
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <ArrowForward fontSize="small" sx={{ color: 'text.disabled' }} />
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Typography 
-                        variant="body1" 
+                    <ArrowForward
+                      fontSize="small"
+                      sx={{ color: "text.disabled" }}
+                    />
+                    <Box sx={{ textAlign: "right" }}>
+                      <Typography
+                        variant="body1"
                         fontWeight="bold"
-                        sx={{ 
-                          color: 'success.main',
-                          fontSize: '1rem'
+                        sx={{
+                          color: "success.main",
+                          fontSize: "1rem",
                         }}
                       >
                         {fmtS(transferencia._sum.totaltransfer)}
                       </Typography>
-                      <Typography 
-                        variant="caption" 
+                      <Typography
+                        variant="caption"
                         color="text.secondary"
-                        sx={{ fontSize: '0.75rem' }}
+                        sx={{ fontSize: "0.75rem" }}
                       >
-                        {((transferencia._sum.totaltransfer / totalTransferencias) * 100).toFixed(1)}%
+                        {(
+                          (transferencia._sum.totaltransfer /
+                            totalTransferencias) *
+                          100
+                        ).toFixed(1)}
+                        %
                       </Typography>
                     </Box>
                   </Stack>
@@ -308,7 +396,7 @@ export default function ResumenCierrePage() {
         </Stack>
       </Box>
     );
-  }
+  };
 
   const handleViewMore = async (itemCierre: Omit<ICierrePeriodo, "tienda">) => {
     const tiendaId = user.localActual.id;
@@ -317,25 +405,22 @@ export default function ResumenCierrePage() {
     const totales = {
       totalCantidad: cierreData.productosVendidos.reduce(
         (acc, p) => acc + p.cantidad,
-        0
+        0,
       ),
       totalGanancia: cierreData.productosVendidos.reduce(
         (acc, p) => acc + p.ganancia,
-        0
+        0,
       ),
-      totalMonto: cierreData.productosVendidos.reduce(
-        (acc, p) => {
-          if(p.proveedor) {
-            return acc;
-          }
-          return acc + p.total
-        },
-        0
-      )
+      totalMonto: cierreData.productosVendidos.reduce((acc, p) => {
+        if (p.proveedor) {
+          return acc;
+        }
+        return acc + p.total;
+      }, 0),
     };
 
     setDetailCurrency(displayCurrency);
-    setRateMode('current');
+    setRateMode("current");
     setHistoricalTasas(null);
     setCierreProductData({
       cierreId: itemCierre.id,
@@ -351,8 +436,9 @@ export default function ResumenCierrePage() {
         totalVentasConsignacion: itemCierre.totalVentasConsignacion,
         totalGananciasPropias: itemCierre.totalGananciasPropias,
         totalGananciasConsignacion: itemCierre.totalGananciasConsignacion,
-        totalTransferenciasByDestination: cierreData.totalTransferenciasByDestination,
-        totalVentasPorUsuario: cierreData.totalVentasPorUsuario
+        totalTransferenciasByDestination:
+          cierreData.totalTransferenciasByDestination,
+        totalVentasPorUsuario: cierreData.totalVentasPorUsuario,
       },
       totales: totales,
       totalGastos: itemCierre.totalGastos,
@@ -362,13 +448,18 @@ export default function ResumenCierrePage() {
   };
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({ icon, value, label, color }: { 
-    icon: React.ReactNode, 
-    value: string, 
-    label: string, 
-    color: string 
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    color: string;
   }) => (
-    <Card sx={{ height: '100%' }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -376,10 +467,10 @@ export default function ResumenCierrePage() {
               p: isMobile ? 1 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 40 : 48,
               minHeight: isMobile ? 40 : 48,
             }}
@@ -387,23 +478,23 @@ export default function ResumenCierrePage() {
             {icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "h5" : "h4"} 
+            <Typography
+              variant={isMobile ? "h5" : "h4"}
               fontWeight="bold"
-              sx={{ 
-                fontSize: isMobile ? '1.25rem' : '2rem',
+              sx={{
+                fontSize: isMobile ? "1.25rem" : "2rem",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
             </Typography>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
-                fontSize: isMobile ? '0.75rem' : '0.875rem',
-                lineHeight: 1.2
+              sx={{
+                fontSize: isMobile ? "0.75rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
@@ -415,27 +506,39 @@ export default function ResumenCierrePage() {
   );
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Resumen de Cierres' }
+    { label: "Inicio", href: "/home" },
+    { label: "Resumen de Cierres" },
   ];
 
   const headerActions = (
-    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+    <Stack
+      direction="row"
+      spacing={1}
+      alignItems="center"
+      flexWrap="wrap"
+      justifyContent="flex-end"
+    >
       {hasMultipleCurrencies && (
         <FormControl size="small" sx={{ minWidth: 90 }}>
           <Select
             value={displayCurrency}
-            onChange={e => setDisplayCurrency(e.target.value)}
+            onChange={(e) => setDisplayCurrency(e.target.value)}
             displayEmpty
           >
-            {availableCurrencies.map(c => (
-              <MenuItem key={c} value={c}>{c}</MenuItem>
+            {availableCurrencies.map((c) => (
+              <MenuItem key={c} value={c}>
+                {c}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
       )}
       <Tooltip title="Actualizar datos">
-        <IconButton onClick={fetchData} disabled={loading} size={isMobile ? "small" : "medium"}>
+        <IconButton
+          onClick={fetchData}
+          disabled={loading}
+          size={isMobile ? "small" : "medium"}
+        >
           <Refresh />
         </IconButton>
       </Tooltip>
@@ -449,7 +552,12 @@ export default function ResumenCierrePage() {
         subtitle="Análisis histórico de períodos cerrados"
         breadcrumbs={breadcrumbs}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="200px"
+        >
           <CircularProgress />
           <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
             Cargando resumen de cierres...
@@ -471,10 +579,12 @@ export default function ResumenCierrePage() {
             No hay tienda seleccionada
           </Typography>
           <Typography variant="body1" gutterBottom>
-            Para ver el resumen de cierres, necesitas tener una tienda seleccionada como tienda actual.
+            Para ver el resumen de cierres, necesitas tener una tienda
+            seleccionada como tienda actual.
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Si no tienes ninguna tienda creada, primero debes crear una desde la configuración.
+            Si no tienes ninguna tienda creada, primero debes crear una desde la
+            configuración.
           </Typography>
           <Box mt={2}>
             <Button
@@ -485,10 +595,7 @@ export default function ResumenCierrePage() {
             >
               Ir a Configuración de Tiendas
             </Button>
-            <Button
-              variant="outlined"
-              onClick={() => gotToPath("/home")}
-            >
+            <Button variant="outlined" onClick={() => gotToPath("/home")}>
               Volver al Inicio
             </Button>
           </Box>
@@ -500,50 +607,68 @@ export default function ResumenCierrePage() {
   return (
     <PageContainer
       title="Resumen de Cierres"
-      subtitle={!isMobile ? "Análisis histórico y estadísticas de períodos cerrados" : undefined}
+      subtitle={
+        !isMobile
+          ? "Análisis histórico y estadísticas de períodos cerrados"
+          : undefined
+      }
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
     >
-
       <TasasBanner tasas={tasasVigentes} sx={{ mb: 2 }} />
 
       {/* Filtros */}
       <ContentCard
-          title="Filtros de Búsqueda"
-          subtitle={!isMobile ? "Filtra los cierres por rango de fechas" : undefined}
-          headerActions={
-            <Tooltip title="Limpiar filtros">
-              <IconButton onClick={handleLimpiarFiltrod} size={isMobile ? "small" : "medium"}>
-                <FilterList />
-              </IconButton>
-            </Tooltip>
-          }
-          spaceButton
+        title="Filtros de Búsqueda"
+        subtitle={
+          !isMobile ? "Filtra los cierres por rango de fechas" : undefined
+        }
+        headerActions={
+          <Tooltip title="Limpiar filtros">
+            <IconButton
+              onClick={handleLimpiarFiltrod}
+              size={isMobile ? "small" : "medium"}
+            >
+              <FilterList />
+            </IconButton>
+          </Tooltip>
+        }
+        spaceButton
       >
         <Grid container spacing={2}>
           <Grid item xs={12} md={5}>
             <DatePicker
-                label="Fecha inicio"
-                value={startDate}
-                onChange={(newValue) => setStartDate(newValue)}
-                slotProps={{ textField: { fullWidth: true, size: isMobile ? "small" : "medium" } }}
+              label="Fecha inicio"
+              value={startDate}
+              onChange={(newValue) => setStartDate(newValue)}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  size: isMobile ? "small" : "medium",
+                },
+              }}
             />
           </Grid>
           <Grid item xs={12} md={5}>
             <DatePicker
-                label="Fecha fin"
-                value={endDate}
-                onChange={(newValue) => setEndDate(newValue)}
-                slotProps={{ textField: { fullWidth: true, size: isMobile ? "small" : "medium" } }}
+              label="Fecha fin"
+              value={endDate}
+              onChange={(newValue) => setEndDate(newValue)}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  size: isMobile ? "small" : "medium",
+                },
+              }}
             />
           </Grid>
           <Grid item xs={12} md={2}>
             <Button
-                variant="outlined"
-                onClick={handleLimpiarFiltrod}
-                sx={{ height: isMobile ? "40px" : "56px", width: "100%" }}
-                size={isMobile ? "small" : "medium"}
+              variant="outlined"
+              onClick={handleLimpiarFiltrod}
+              sx={{ height: isMobile ? "40px" : "56px", width: "100%" }}
+              size={isMobile ? "small" : "medium"}
             >
               Limpiar
             </Button>
@@ -551,637 +676,954 @@ export default function ResumenCierrePage() {
         </Grid>
       </ContentCard>
 
-      {(!data || data.cierres.length === 0) && <EmptyData/>}
+      {(!data || data.cierres.length === 0) && <EmptyData />}
 
-
-      {(data && data.cierres.length > 0) &&
+      {data && data.cierres.length > 0 && (
         <>
           {/* Estadísticas generales */}
-            <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
-                <Grid item xs={12} sm={6} md={4}>
-                    <StatCard
-                        icon={<AttachMoney fontSize={"medium"} />}
-                        value={fmtS(data.sumTotalVentas)}
-                        label="Total Ventas"
-                        color="success.light"
-                    />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={4}>
-                    <StatCard
-                        icon={<TrendingUp fontSize={"medium"} />}
-                        value={fmtS(data.sumTotalGananciaFinal ?? data.sumTotalGanancia)}
-                        label="Ganancia Final"
-                        color="info.light"
-                    />
-                </Grid>
-
-                {/* Gastos totales del intervalo */}
-                {(data.sumTotalGastos || 0) > 0 && (
-                  <Grid item xs={12} sm={6} md={4}>
-                    <StatCard
-                      icon={<TrendingDown fontSize={"medium"} />}
-                      value={fmtS(data.sumTotalGastos || 0)}
-                      label="Total Gastos"
-                      color="error.light"
-                    />
-                  </Grid>
-                )}
-
-                <Grid item xs={12} sm={6} md={4}>
-                    <StatCard
-                        icon={<Assessment fontSize={"medium"} />}
-                        value={fmtS(data.sumTotalInversion)}
-                        label="Inversión Total"
-                        color="warning.light"
-                    />
-                </Grid>
-
-                {/* Ventas Brutas acumuladas (suma de precio*cantidad) */}
-                {typeof data.sumTotalVentasBrutas === 'number' && (
-                  <Grid item xs={12} sm={6} md={4}>
-                    <StatCard
-                      icon={<AttachMoney fontSize={"medium"} />}
-                      value={fmtS(data.sumTotalVentasBrutas || 0)}
-                      label="Total Ventas (Bruto)"
-                      color="success.light"
-                    />
-                  </Grid>
-                )}
-
-                {/* Total de Descuentos del intervalo */}
-                {typeof data.sumTotalDescuentos === 'number' && (data.sumTotalDescuentos || 0) > 0 && (
-                  <Grid item xs={12} sm={6} md={4}>
-                    <StatCard
-                      icon={<TrendingUp fontSize={"medium"} />}
-                      value={fmtS(data.sumTotalDescuentos || 0)}
-                      label="Descuentos (intervalo)"
-                      color="error.light"
-                    />
-                  </Grid>
-                )}
-
-                <Grid item xs={12} sm={6} md={4}>
-                    <Card sx={{ height: '100%' }}>
-                      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
-                        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-                          <Box
-                            sx={{
-                              p: isMobile ? 1 : 1.5,
-                              borderRadius: 2,
-                              bgcolor: "primary.light",
-                              color: 'white',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              minWidth: isMobile ? 40 : 48,
-                              minHeight: isMobile ? 40 : 48,
-                            }}
-                          >
-                            <Assessment fontSize={"medium"} />
-                          </Box>
-                          <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Typography 
-                              variant={isMobile ? "h5" : "h4"} 
-                              fontWeight="bold"
-                              sx={{ 
-                                fontSize: isMobile ? '1.25rem' : '2rem',
-                                lineHeight: 1.2,
-                                wordBreak: 'break-all'
-                              }}
-                            >
-                              {fmtS(data.sumTotalTransferencia)}
-                            </Typography>
-                            <Typography 
-                              variant="body2" 
-                              color="text.secondary"
-                              sx={{ 
-                                fontSize: isMobile ? '0.75rem' : '0.875rem',
-                                lineHeight: 1.2
-                              }}
-                            >
-                              Transferencias
-                            </Typography>
-                          </Box>
-                          <Tooltip title={expandedTransfer ? "Ocultar desglose" : "Ver desglose"}>
-                            <IconButton
-                              onClick={handleExpandTransferClick}
-                              aria-expanded={expandedTransfer}
-                              aria-label="mostrar desglose de transferencias"
-                              size={isMobile ? "small" : "medium"}
-                              sx={{
-                                transform: expandedTransfer ? 'rotate(180deg)' : 'rotate(0deg)',
-                                transition: theme.transitions.create('transform', {
-                                  duration: theme.transitions.duration.shortest,
-                                }),
-                                bgcolor: 'action.hover',
-                                '&:hover': {
-                                  bgcolor: 'action.selected',
-                                },
-                              }}
-                            >
-                              <ExpandMoreIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </CardContent>
-                      <Collapse in={expandedTransfer} timeout="auto" unmountOnExit>
-                        <CardContent sx={{ pt: 0 }}>
-                        <TransferenciasDesglose 
-                          transferencias={data.desgloseTransferencias}
-                        />
-                      </CardContent>
-                    </Collapse>
-                  </Card>
-                </Grid>
-
-              {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
-                <Grid item xs={12} sm={6} md={4}>
-                    <StatCard
-                        icon={<StoreIcon fontSize={"medium"} />}
-                        value={fmtS(data?.sumTotalVentasPropias || 0)}
-                        label="Ventas Propias"
-                        color="success.dark"
-                    />
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={4}>
-                    <StatCard
-                        icon={<HandshakeIcon fontSize={"medium"} />}
-                        value={fmtS(data?.sumTotalVentasConsignacion || 0)}
-                        label="Ventas Consignación"
-                        color="secondary.light"
-                    />
-                </Grid>
+          <Grid
+            container
+            spacing={isMobile ? 2 : 3}
+            sx={{ mb: isMobile ? 3 : 4 }}
+          >
+            <Grid item xs={12} sm={6} md={4}>
+              <StatCard
+                icon={<AttachMoney fontSize={"medium"} />}
+                value={fmtS(data.sumTotalVentas)}
+                label="Total Ventas"
+                color="success.light"
+              />
             </Grid>
 
-          {/* Tabla de cierres */}
-            <ContentCard
-                title="Historial de Cierres"
-                subtitle={!isMobile ? `${data.totalItems} períodos encontrados` : undefined}
-                noPadding
-                fullHeight
-            >
-              {isMobile ? (
-                  // Vista móvil con cards
-                  <Box sx={{ p: 2 }}>
-                    <Stack spacing={2}>
-                      {data.cierres.map((row) => (
-                          <Card
-                              key={row.id}
-                              sx={{
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  backgroundColor: 'action.hover',
-                                },
-                              }}
-                              onClick={() => handleViewMore(row)}
-                          >
-                            <CardContent sx={{ p: 2 }}>
-                              <Stack spacing={2}>
-                                <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                                  <Typography variant="subtitle1" fontWeight="medium">
-                                    {dayjs(row.fechaInicio).format("DD/MM/YYYY")} - {row.fechaFin ? dayjs(row.fechaFin).format("DD/MM/YYYY") : "Actual"}
-                                  </Typography>
-                                  <IconButton size="small" color="primary">
-                                    <ZoomInIcon fontSize="small" />
-                                  </IconButton>
-                                </Box>
+            <Grid item xs={12} sm={6} md={4}>
+              <StatCard
+                icon={<TrendingUp fontSize={"medium"} />}
+                value={fmtS(
+                  data.sumTotalGananciaFinal ?? data.sumTotalGanancia,
+                )}
+                label="Ganancia Final"
+                color="info.light"
+              />
+            </Grid>
 
-                                <Grid container spacing={2}>
-                                  <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Ventas
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight="medium" color="success.main">
-                                      {fmtS(row.totalVentas)}
-                                    </Typography>
-                                  </Grid>
-                                  {/* Bruto y Descuentos por cierre (si están disponibles) */}
-                                  {typeof row.totalVentasBrutas === 'number' && (
-                                    <Grid item xs={6}>
-                                      <Typography variant="caption" color="text.secondary">
-                                        Bruto
-                                      </Typography>
-                                      <Typography variant="body2" fontWeight="medium" color="success.main">
-                                        {fmtS(row.totalVentasBrutas || 0)}
-                                      </Typography>
-                                    </Grid>
-                                  )}
-                                  {typeof row.totalDescuentos === 'number' && (
-                                    <Grid item xs={6}>
-                                      <Typography variant="caption" color="text.secondary">
-                                        Descuentos
-                                      </Typography>
-                                      <Typography variant="body2" fontWeight="medium" color="error.main">
-                                        - {fmtS(row.totalDescuentos || 0)}
-                                      </Typography>
-                                    </Grid>
-                                  )}
-                                  {verificarPermiso("operaciones.cierre.gananciascostos") && (row.totalGastos || 0) > 0 && (
-                                    <Grid item xs={6}>
-                                      <Typography variant="caption" color="text.secondary">
-                                        Gastos
-                                      </Typography>
-                                      <Typography variant="body2" fontWeight="medium" color="error.main">
-                                        - {fmtS(row.totalGastos || 0)}
-                                      </Typography>
-                                    </Grid>
-                                  )}
-                                  <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Ganancia Final
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight="medium" color="info.main">
-                                      {fmtS(row.totalGananciaFinal ?? row.totalGanancia)}
-                                    </Typography>
-                                  </Grid>
-                                  <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Inversión
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight="medium">
-                                      {fmtS(row.totalInversion)}
-                                    </Typography>
-                                  </Grid>
-                                  <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Transferencias
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight="medium">
-                                      {fmtS(row.totalTransferencia)}
-                                    </Typography>
-                                  </Grid>
-                                  {/* NUEVAS FILAS PARA CONSIGNACIÓN */}
-                                  <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      <StoreIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
-                                      Ventas Propias
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight="medium" color="success.dark">
-                                      {fmtS(row.totalVentasPropias || 0)}
-                                    </Typography>
-                                  </Grid>
-                                  <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      <HandshakeIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
-                                      Ventas Consignación
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight="medium" color="secondary.main">
-                                      {fmtS(row.totalVentasConsignacion || 0)}
-                                    </Typography>
-                                  </Grid>
-                                </Grid>
-                              </Stack>
-                            </CardContent>
-                          </Card>
-                      ))}
-                    </Stack>
+            {/* Gastos totales del intervalo */}
+            {(data.sumTotalGastos || 0) > 0 && (
+              <Grid item xs={12} sm={6} md={4}>
+                <StatCard
+                  icon={<TrendingDown fontSize={"medium"} />}
+                  value={fmtS(data.sumTotalGastos || 0)}
+                  label="Total Gastos"
+                  color="error.light"
+                />
+              </Grid>
+            )}
 
-                    {/* Paginación móvil */}
-                    <Box sx={{ mt: 2 }}>
-                      <TablePagination
-                          component="div"
-                          count={data.totalItems}
-                          page={page}
-                          onPageChange={handleChangePage}
-                          rowsPerPage={rowsPerPage}
-                          onRowsPerPageChange={handleChangeRowsPerPage}
-                          rowsPerPageOptions={[10, 20, 50]}
-                          labelRowsPerPage="Filas por página:"
-                      />
-                    </Box>
-                  </Box>
-              ) : (
-                  // Vista desktop con tabla
-                  <TableContainer sx={{ flex: 1 }}>
-                    <Table stickyHeader size={isTablet ? "small" : "medium"}>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Inicio</TableCell>
-                          <TableCell>Fin</TableCell>
-                          <TableCell align="right">Inversión</TableCell>
-                          <TableCell align="right">Venta</TableCell>
-                          <TableCell align="right">Bruto</TableCell>
-                          <TableCell align="right">Descuentos</TableCell>
-                          {verificarPermiso("operaciones.cierre.gananciascostos") && (
-                            <TableCell align="right">Gastos</TableCell>
-                          )}
-                          <TableCell align="right">Transf</TableCell>
-                          <TableCell align="right">Gan. Final</TableCell>
-                          {/* NUEVAS COLUMNAS PARA CONSIGNACIÓN */}
-                          <TableCell align="right">
-                            <StoreIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
-                            V. Propias
-                          </TableCell>
-                          <TableCell align="right">
-                            <HandshakeIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
-                            V. Consignación
-                          </TableCell>
-                          <TableCell align="center">Acciones</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {data.cierres.map((row) => (
-                            <TableRow
-                                key={row.id}
-                                sx={{
-                                  '&:hover': {
-                                    backgroundColor: 'action.hover',
-                                  },
-                                  '&:nth-of-type(odd)': {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                                  },
-                                }}
-                            >
-                              <TableCell>
-                                <Typography variant="body2">
-                                  {dayjs(row.fechaInicio).format("DD/MM/YYYY")}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2">
-                                  {row.fechaFin ? dayjs(row.fechaFin).format("DD/MM/YYYY") : "Actual"}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="right">
-                                <Typography variant="body2">
-                                  {fmtS(row.totalInversion)}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="right">
-                                <Typography variant="body2" fontWeight="medium" color="success.main">
-                                  {fmtS(row.totalVentas)}
-                                </Typography>
-                              </TableCell>
-                              {/* Celdas para Bruto y Descuentos con fallbacks */}
-                              <TableCell align="right">
-                                <Typography variant="body2" color="text.secondary">
-                                  {typeof row.totalVentasBrutas === 'number' ? fmtS(row.totalVentasBrutas || 0) : '—'}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="right">
-                                <Typography variant="body2" color="error.main">
-                                  {typeof row.totalDescuentos === 'number' ? `- ${fmtS(row.totalDescuentos || 0)}` : '—'}
-                                </Typography>
-                              </TableCell>
-                              {verificarPermiso("operaciones.cierre.gananciascostos") && (
-                                <TableCell align="right">
-                                  <Typography variant="body2" color="error.main">
-                                    {(row.totalGastos || 0) > 0 ? `- ${fmtS(row.totalGastos || 0)}` : '—'}
-                                  </Typography>
-                                </TableCell>
-                              )}
-                              <TableCell align="right">
-                                <Typography variant="body2">
-                                  {fmtS(row.totalTransferencia)}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="right">
-                                <Typography variant="body2" fontWeight="medium" color="info.main">
-                                  {fmtS(row.totalGananciaFinal ?? row.totalGanancia)}
-                                </Typography>
-                              </TableCell>
-                              {/* NUEVAS COLUMNAS CON DATOS REALES */}
-                              <TableCell align="right">
-                                <Typography variant="body2" fontWeight="medium" color="success.dark">
-                                  {fmtS(row.totalVentasPropias || 0)}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="right">
-                                <Typography variant="body2" fontWeight="medium" color="secondary.main">
-                                  {fmtS(row.totalVentasConsignacion || 0)}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="center">
-                                <Tooltip title="Ver detalles">
-                                  <IconButton
-                                      onClick={() => handleViewMore(row)}
-                                      color="primary"
-                                      size="small"
-                                  >
-                                    <ZoomInIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              </TableCell>
-                            </TableRow>
-                        ))}
+            {/* Compras de mercancía pagadas con efectivo de caja — no afecta ganancia */}
+            {(data.sumTotalComprasCaja || 0) > 0 && (
+              <Grid item xs={12} sm={6} md={4}>
+                <StatCard
+                  icon={<ShoppingCart fontSize={"medium"} />}
+                  value={fmtS(data.sumTotalComprasCaja || 0)}
+                  label="Compras (efectivo de caja)"
+                  color="warning.light"
+                />
+              </Grid>
+            )}
 
-                        {/* Fila de totales */}
-                        <TableRow sx={{ bgcolor: 'action.hover', fontWeight: 'bold' }}>
-                          <TableCell colSpan={2}>
-                            <Typography variant="body2" fontWeight="bold">
-                              Totales
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold">
-                              {fmtS(totales.inversion)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold" color="success.main">
-                              {fmtS(totales.venta)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold" color="text.secondary">
-                              {fmtS(data?.sumTotalVentasBrutas || 0)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold" color="error.main">
-                              - {fmtS(data?.sumTotalDescuentos || 0)}
-                            </Typography>
-                          </TableCell>
-                          {verificarPermiso("operaciones.cierre.gananciascostos") && (
-                            <TableCell align="right">
-                              <Typography variant="body2" fontWeight="bold" color="error.main">
-                                {totales.gastos > 0 ? `- ${fmtS(totales.gastos)}` : '—'}
-                              </Typography>
-                            </TableCell>
-                          )}
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold">
-                              {fmtS(totales.transf)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold" color="info.main">
-                              {fmtS(totales.gananciaFinal)}
-                            </Typography>
-                          </TableCell>
-                          {/* NUEVOS TOTALES PARA CONSIGNACIÓN */}
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold" color="success.dark">
-                              {fmtS(data?.sumTotalVentasPropias || 0)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold" color="secondary.main">
-                              {fmtS(data?.sumTotalVentasConsignacion || 0)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell></TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+            {/* Merma — resta de ganancia, no de caja */}
+            {(data.sumTotalMerma || 0) > 0 && (
+              <Grid item xs={12} sm={6} md={4}>
+                <StatCard
+                  icon={<BrokenImage fontSize={"medium"} />}
+                  value={fmtS(data.sumTotalMerma || 0)}
+                  label="Merma"
+                  color="error.light"
+                />
+              </Grid>
+            )}
 
-                    {/* Paginación desktop */}
-                    <TablePagination
-                        component="div"
-                        count={data.totalItems}
-                        page={page}
-                        onPageChange={handleChangePage}
-                        rowsPerPage={rowsPerPage}
-                        onRowsPerPageChange={handleChangeRowsPerPage}
-                        rowsPerPageOptions={[10, 20, 50]}
-                        labelRowsPerPage="Filas por página:"
-                    />
-                  </TableContainer>
+            {/* Devoluciones de venta — resta de ganancia y de caja */}
+            {(data.sumTotalDevoluciones || 0) > 0 && (
+              <Grid item xs={12} sm={6} md={4}>
+                <StatCard
+                  icon={<Undo fontSize={"medium"} />}
+                  value={fmtS(data.sumTotalDevoluciones || 0)}
+                  label="Devoluciones de venta"
+                  color="error.light"
+                />
+              </Grid>
+            )}
+
+            <Grid item xs={12} sm={6} md={4}>
+              <StatCard
+                icon={<Assessment fontSize={"medium"} />}
+                value={fmtS(data.sumTotalInversion)}
+                label="Inversión Total"
+                color="warning.light"
+              />
+            </Grid>
+
+            {/* Ventas Brutas acumuladas (suma de precio*cantidad) */}
+            {typeof data.sumTotalVentasBrutas === "number" && (
+              <Grid item xs={12} sm={6} md={4}>
+                <StatCard
+                  icon={<AttachMoney fontSize={"medium"} />}
+                  value={fmtS(data.sumTotalVentasBrutas || 0)}
+                  label="Total Ventas (Bruto)"
+                  color="success.light"
+                />
+              </Grid>
+            )}
+
+            {/* Total de Descuentos del intervalo */}
+            {typeof data.sumTotalDescuentos === "number" &&
+              (data.sumTotalDescuentos || 0) > 0 && (
+                <Grid item xs={12} sm={6} md={4}>
+                  <StatCard
+                    icon={<TrendingUp fontSize={"medium"} />}
+                    value={fmtS(data.sumTotalDescuentos || 0)}
+                    label="Descuentos (intervalo)"
+                    color="error.light"
+                  />
+                </Grid>
               )}
-            </ContentCard>
+
+            <Grid item xs={12} sm={6} md={4}>
+              <Card sx={{ height: "100%" }}>
+                <CardContent sx={{ p: isMobile ? 1 : 3 }}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={isMobile ? 1 : 2}
+                  >
+                    <Box
+                      sx={{
+                        p: isMobile ? 1 : 1.5,
+                        borderRadius: 2,
+                        bgcolor: "primary.light",
+                        color: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: isMobile ? 40 : 48,
+                        minHeight: isMobile ? 40 : 48,
+                      }}
+                    >
+                      <Assessment fontSize={"medium"} />
+                    </Box>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography
+                        variant={isMobile ? "h5" : "h4"}
+                        fontWeight="bold"
+                        sx={{
+                          fontSize: isMobile ? "1.25rem" : "2rem",
+                          lineHeight: 1.2,
+                          wordBreak: "break-all",
+                        }}
+                      >
+                        {fmtS(data.sumTotalTransferencia)}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          fontSize: isMobile ? "0.75rem" : "0.875rem",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        Transferencias
+                      </Typography>
+                    </Box>
+                    <Tooltip
+                      title={
+                        expandedTransfer ? "Ocultar desglose" : "Ver desglose"
+                      }
+                    >
+                      <IconButton
+                        onClick={handleExpandTransferClick}
+                        aria-expanded={expandedTransfer}
+                        aria-label="mostrar desglose de transferencias"
+                        size={isMobile ? "small" : "medium"}
+                        sx={{
+                          transform: expandedTransfer
+                            ? "rotate(180deg)"
+                            : "rotate(0deg)",
+                          transition: theme.transitions.create("transform", {
+                            duration: theme.transitions.duration.shortest,
+                          }),
+                          bgcolor: "action.hover",
+                          "&:hover": {
+                            bgcolor: "action.selected",
+                          },
+                        }}
+                      >
+                        <ExpandMoreIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </CardContent>
+                <Collapse in={expandedTransfer} timeout="auto" unmountOnExit>
+                  <CardContent sx={{ pt: 0 }}>
+                    <TransferenciasDesglose
+                      transferencias={data.desgloseTransferencias}
+                    />
+                  </CardContent>
+                </Collapse>
+              </Card>
+            </Grid>
+
+            {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
+            <Grid item xs={12} sm={6} md={4}>
+              <StatCard
+                icon={<StoreIcon fontSize={"medium"} />}
+                value={fmtS(data?.sumTotalVentasPropias || 0)}
+                label="Ventas Propias"
+                color="success.dark"
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={4}>
+              <StatCard
+                icon={<HandshakeIcon fontSize={"medium"} />}
+                value={fmtS(data?.sumTotalVentasConsignacion || 0)}
+                label="Ventas Consignación"
+                color="secondary.light"
+              />
+            </Grid>
+          </Grid>
+
+          {/* Tabla de cierres */}
+          <ContentCard
+            title="Historial de Cierres"
+            subtitle={
+              !isMobile ? `${data.totalItems} períodos encontrados` : undefined
+            }
+            noPadding
+            fullHeight
+          >
+            {isMobile ? (
+              // Vista móvil con cards
+              <Box sx={{ p: 2 }}>
+                <Stack spacing={2}>
+                  {data.cierres.map((row) => (
+                    <Card
+                      key={row.id}
+                      sx={{
+                        cursor: "pointer",
+                        "&:hover": {
+                          backgroundColor: "action.hover",
+                        },
+                      }}
+                      onClick={() => handleViewMore(row)}
+                    >
+                      <CardContent sx={{ p: 2 }}>
+                        <Stack spacing={2}>
+                          <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            alignItems="flex-start"
+                          >
+                            <Typography variant="subtitle1" fontWeight="medium">
+                              {dayjs(row.fechaInicio).format("DD/MM/YYYY")} -{" "}
+                              {row.fechaFin
+                                ? dayjs(row.fechaFin).format("DD/MM/YYYY")
+                                : "Actual"}
+                            </Typography>
+                            <IconButton size="small" color="primary">
+                              <ZoomInIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+
+                          <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Ventas
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                fontWeight="medium"
+                                color="success.main"
+                              >
+                                {fmtS(row.totalVentas)}
+                              </Typography>
+                            </Grid>
+                            {/* Bruto y Descuentos por cierre (si están disponibles) */}
+                            {typeof row.totalVentasBrutas === "number" && (
+                              <Grid item xs={6}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Bruto
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="medium"
+                                  color="success.main"
+                                >
+                                  {fmtS(row.totalVentasBrutas || 0)}
+                                </Typography>
+                              </Grid>
+                            )}
+                            {typeof row.totalDescuentos === "number" && (
+                              <Grid item xs={6}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Descuentos
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="medium"
+                                  color="error.main"
+                                >
+                                  - {fmtS(row.totalDescuentos || 0)}
+                                </Typography>
+                              </Grid>
+                            )}
+                            {verificarPermiso(
+                              "operaciones.cierre.gananciascostos",
+                            ) &&
+                              (row.totalGastos || 0) > 0 && (
+                                <Grid item xs={6}>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    Gastos
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight="medium"
+                                    color="error.main"
+                                  >
+                                    - {fmtS(row.totalGastos || 0)}
+                                  </Typography>
+                                </Grid>
+                              )}
+                            {(row.totalComprasCaja || 0) > 0 && (
+                              <Grid item xs={6}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Compras (efectivo)
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="medium"
+                                  color="warning.main"
+                                >
+                                  - {fmtS(row.totalComprasCaja || 0)}
+                                </Typography>
+                              </Grid>
+                            )}
+                            {(row.totalMerma || 0) > 0 && (
+                              <Grid item xs={6}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Merma
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="medium"
+                                  color="error.main"
+                                >
+                                  - {fmtS(row.totalMerma || 0)}
+                                </Typography>
+                              </Grid>
+                            )}
+                            {(row.totalDevoluciones || 0) > 0 && (
+                              <Grid item xs={6}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Devoluciones
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="medium"
+                                  color="error.main"
+                                >
+                                  - {fmtS(row.totalDevoluciones || 0)}
+                                </Typography>
+                              </Grid>
+                            )}
+                            <Grid item xs={6}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Ganancia Final
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                fontWeight="medium"
+                                color="info.main"
+                              >
+                                {fmtS(
+                                  row.totalGananciaFinal ?? row.totalGanancia,
+                                )}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Inversión
+                              </Typography>
+                              <Typography variant="body2" fontWeight="medium">
+                                {fmtS(row.totalInversion)}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Transferencias
+                              </Typography>
+                              <Typography variant="body2" fontWeight="medium">
+                                {fmtS(row.totalTransferencia)}
+                              </Typography>
+                            </Grid>
+                            {/* NUEVAS FILAS PARA CONSIGNACIÓN */}
+                            <Grid item xs={6}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                <StoreIcon
+                                  fontSize="small"
+                                  sx={{ mr: 0.5, verticalAlign: "middle" }}
+                                />
+                                Ventas Propias
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                fontWeight="medium"
+                                color="success.dark"
+                              >
+                                {fmtS(row.totalVentasPropias || 0)}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                <HandshakeIcon
+                                  fontSize="small"
+                                  sx={{ mr: 0.5, verticalAlign: "middle" }}
+                                />
+                                Ventas Consignación
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                fontWeight="medium"
+                                color="secondary.main"
+                              >
+                                {fmtS(row.totalVentasConsignacion || 0)}
+                              </Typography>
+                            </Grid>
+                          </Grid>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+
+                {/* Paginación móvil */}
+                <Box sx={{ mt: 2 }}>
+                  <TablePagination
+                    component="div"
+                    count={data.totalItems}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    rowsPerPage={rowsPerPage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    rowsPerPageOptions={[10, 20, 50]}
+                    labelRowsPerPage="Filas por página:"
+                  />
+                </Box>
+              </Box>
+            ) : (
+              // Vista desktop con tabla
+              <TableContainer sx={{ flex: 1 }}>
+                <Table stickyHeader size={isTablet ? "small" : "medium"}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Inicio</TableCell>
+                      <TableCell>Fin</TableCell>
+                      <TableCell align="right">Inversión</TableCell>
+                      <TableCell align="right">Venta</TableCell>
+                      <TableCell align="right">Bruto</TableCell>
+                      <TableCell align="right">Descuentos</TableCell>
+                      {verificarPermiso(
+                        "operaciones.cierre.gananciascostos",
+                      ) && <TableCell align="right">Gastos</TableCell>}
+                      {verificarPermiso(
+                        "operaciones.cierre.gananciascostos",
+                      ) && <TableCell align="right">Merma+Dev.</TableCell>}
+                      <TableCell align="right">Transf</TableCell>
+                      <TableCell align="right">Gan. Final</TableCell>
+                      {/* NUEVAS COLUMNAS PARA CONSIGNACIÓN */}
+                      <TableCell align="right">
+                        <StoreIcon
+                          fontSize="small"
+                          sx={{ mr: 0.5, verticalAlign: "middle" }}
+                        />
+                        V. Propias
+                      </TableCell>
+                      <TableCell align="right">
+                        <HandshakeIcon
+                          fontSize="small"
+                          sx={{ mr: 0.5, verticalAlign: "middle" }}
+                        />
+                        V. Consignación
+                      </TableCell>
+                      <TableCell align="center">Acciones</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data.cierres.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        sx={{
+                          "&:hover": {
+                            backgroundColor: "action.hover",
+                          },
+                          "&:nth-of-type(odd)": {
+                            backgroundColor: "rgba(0, 0, 0, 0.02)",
+                          },
+                        }}
+                      >
+                        <TableCell>
+                          <Typography variant="body2">
+                            {dayjs(row.fechaInicio).format("DD/MM/YYYY")}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {row.fechaFin
+                              ? dayjs(row.fechaFin).format("DD/MM/YYYY")
+                              : "Actual"}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {fmtS(row.totalInversion)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            color="success.main"
+                          >
+                            {fmtS(row.totalVentas)}
+                          </Typography>
+                        </TableCell>
+                        {/* Celdas para Bruto y Descuentos con fallbacks */}
+                        <TableCell align="right">
+                          <Typography variant="body2" color="text.secondary">
+                            {typeof row.totalVentasBrutas === "number"
+                              ? fmtS(row.totalVentasBrutas || 0)
+                              : "—"}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" color="error.main">
+                            {typeof row.totalDescuentos === "number"
+                              ? `- ${fmtS(row.totalDescuentos || 0)}`
+                              : "—"}
+                          </Typography>
+                        </TableCell>
+                        {verificarPermiso(
+                          "operaciones.cierre.gananciascostos",
+                        ) && (
+                          <TableCell align="right">
+                            <Typography variant="body2" color="error.main">
+                              {(row.totalGastos || 0) > 0
+                                ? `- ${fmtS(row.totalGastos || 0)}`
+                                : "—"}
+                            </Typography>
+                          </TableCell>
+                        )}
+                        {verificarPermiso(
+                          "operaciones.cierre.gananciascostos",
+                        ) && (
+                          <TableCell align="right">
+                            <Typography variant="body2" color="error.main">
+                              {(row.totalMerma || 0) +
+                                (row.totalDevoluciones || 0) >
+                              0
+                                ? `- ${fmtS((row.totalMerma || 0) + (row.totalDevoluciones || 0))}`
+                                : "—"}
+                            </Typography>
+                          </TableCell>
+                        )}
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {fmtS(row.totalTransferencia)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            color="info.main"
+                          >
+                            {fmtS(row.totalGananciaFinal ?? row.totalGanancia)}
+                          </Typography>
+                        </TableCell>
+                        {/* NUEVAS COLUMNAS CON DATOS REALES */}
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            color="success.dark"
+                          >
+                            {fmtS(row.totalVentasPropias || 0)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            color="secondary.main"
+                          >
+                            {fmtS(row.totalVentasConsignacion || 0)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="Ver detalles">
+                            <IconButton
+                              onClick={() => handleViewMore(row)}
+                              color="primary"
+                              size="small"
+                            >
+                              <ZoomInIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+
+                    {/* Fila de totales */}
+                    <TableRow
+                      sx={{ bgcolor: "action.hover", fontWeight: "bold" }}
+                    >
+                      <TableCell colSpan={2}>
+                        <Typography variant="body2" fontWeight="bold">
+                          Totales
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight="bold">
+                          {fmtS(totales.inversion)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          fontWeight="bold"
+                          color="success.main"
+                        >
+                          {fmtS(totales.venta)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          fontWeight="bold"
+                          color="text.secondary"
+                        >
+                          {fmtS(data?.sumTotalVentasBrutas || 0)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          fontWeight="bold"
+                          color="error.main"
+                        >
+                          - {fmtS(data?.sumTotalDescuentos || 0)}
+                        </Typography>
+                      </TableCell>
+                      {verificarPermiso(
+                        "operaciones.cierre.gananciascostos",
+                      ) && (
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="bold"
+                            color="error.main"
+                          >
+                            {totales.gastos > 0
+                              ? `- ${fmtS(totales.gastos)}`
+                              : "—"}
+                          </Typography>
+                        </TableCell>
+                      )}
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight="bold">
+                          {fmtS(totales.transf)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          fontWeight="bold"
+                          color="info.main"
+                        >
+                          {fmtS(totales.gananciaFinal)}
+                        </Typography>
+                      </TableCell>
+                      {/* NUEVOS TOTALES PARA CONSIGNACIÓN */}
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          fontWeight="bold"
+                          color="success.dark"
+                        >
+                          {fmtS(data?.sumTotalVentasPropias || 0)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          fontWeight="bold"
+                          color="secondary.main"
+                        >
+                          {fmtS(data?.sumTotalVentasConsignacion || 0)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+
+                {/* Paginación desktop */}
+                <TablePagination
+                  component="div"
+                  count={data.totalItems}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                  rowsPerPageOptions={[10, 20, 50]}
+                  labelRowsPerPage="Filas por página:"
+                />
+              </TableContainer>
+            )}
+          </ContentCard>
 
           {/* Modal de productos */}
           {cierreProducData && (
-              <Drawer
-                  anchor="bottom"
-                  open={showProducts}
-                  onClose={() => setShowProducts(false)}
-                  PaperProps={{
-                    sx: {
-                      height: "100vh",
-                      maxHeight: "100vh",
-                      bgcolor: "background.default",
-                      overflow: "hidden",
-                    },
-                  }}
-                  disableScrollLock={true}
-                  keepMounted={false}
+            <Drawer
+              anchor="bottom"
+              open={showProducts}
+              onClose={() => setShowProducts(false)}
+              PaperProps={{
+                sx: {
+                  height: "100vh",
+                  maxHeight: "100vh",
+                  bgcolor: "background.default",
+                  overflow: "hidden",
+                },
+              }}
+              disableScrollLock={true}
+              keepMounted={false}
+            >
+              <Box
+                sx={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
+                }}
               >
+                {/* Header del modal */}
                 <Box
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                      overflow: "hidden",
-                    }}
+                  sx={{
+                    p: isMobile ? 1.5 : 2,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: "background.paper",
+                    flexShrink: 0,
+                    zIndex: 1,
+                  }}
                 >
-                  {/* Header del modal */}
-                  <Box
-                      sx={{
-                        p: isMobile ? 1.5 : 2,
-                        borderBottom: "1px solid",
-                        borderColor: "divider",
-                        bgcolor: "background.paper",
-                        flexShrink: 0,
-                        zIndex: 1,
-                      }}
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    flexWrap="wrap"
+                    gap={1}
                   >
-                    <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" gap={1}>
-                      <Typography variant={isMobile ? "h6" : "h5"} fontWeight="bold" sx={{ flex: 1, minWidth: 0 }}>
-                        Detalle del Cierre
-                      </Typography>
-                      <IconButton
-                          onClick={handleCloseDetail}
-                          size={isMobile ? "small" : "medium"}
-                          sx={{ bgcolor: "action.hover", "&:hover": { bgcolor: "action.selected" } }}
-                      >
-                        <Close />
-                      </IconButton>
-                    </Stack>
-                  </Box>
-
-                  {/* Contenido con scroll mejorado */}
-                  <Box
+                    <Typography
+                      variant={isMobile ? "h6" : "h5"}
+                      fontWeight="bold"
+                      sx={{ flex: 1, minWidth: 0 }}
+                    >
+                      Detalle del Cierre
+                    </Typography>
+                    <IconButton
+                      onClick={handleCloseDetail}
+                      size={isMobile ? "small" : "medium"}
                       sx={{
-                        flex: 1,
-                        overflow: "auto",
-                        p: isMobile ? 1.5 : 2,
-                        bgcolor: "background.default",
-                        WebkitOverflowScrolling: "touch",
-                        scrollBehavior: "smooth",
-                        minHeight: 0,
+                        bgcolor: "action.hover",
+                        "&:hover": { bgcolor: "action.selected" },
                       }}
+                    >
+                      <Close />
+                    </IconButton>
+                  </Stack>
+                </Box>
+
+                {/* Contenido con scroll mejorado */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    overflow: "auto",
+                    p: isMobile ? 1.5 : 2,
+                    bgcolor: "background.default",
+                    WebkitOverflowScrolling: "touch",
+                    scrollBehavior: "smooth",
+                    minHeight: 0,
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    flexWrap="wrap"
+                    gap={1}
+                    sx={{ mb: 2 }}
                   >
-                    <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
-                      {hasMultipleCurrencies && (
-                          <>
-                            <FormControl size="small" sx={{ minWidth: 90 }}>
-                              <Select
-                                  value={detailCurrency}
-                                  onChange={e => setDetailCurrency(e.target.value)}
-                              >
-                                {availableCurrencies.map(c => (
-                                    <MenuItem key={c} value={c}>{c}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
-                            <ToggleButtonGroup
-                                size="small"
-                                value={rateMode}
-                                exclusive
-                                onChange={(_, v) => v && handleRateModeChange(v)}
-                                disabled={loadingHistorical}
-                            >
-                              <ToggleButton value="current">Actual</ToggleButton>
-                              <ToggleButton value="historical">Al cierre</ToggleButton>
-                            </ToggleButtonGroup>
-                          </>
-                      )}
+                    {hasMultipleCurrencies && (
+                      <>
+                        <FormControl size="small" sx={{ minWidth: 90 }}>
+                          <Select
+                            value={detailCurrency}
+                            onChange={(e) => setDetailCurrency(e.target.value)}
+                          >
+                            {availableCurrencies.map((c) => (
+                              <MenuItem key={c} value={c}>
+                                {c}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <ToggleButtonGroup
+                          size="small"
+                          value={rateMode}
+                          exclusive
+                          onChange={(_, v) => v && handleRateModeChange(v)}
+                          disabled={loadingHistorical}
+                        >
+                          <ToggleButton value="current">Actual</ToggleButton>
+                          <ToggleButton value="historical">
+                            Al cierre
+                          </ToggleButton>
+                        </ToggleButtonGroup>
+                      </>
+                    )}
+                  </Stack>
+                  {/* Tasas aplicadas */}
+                  <TasasBanner
+                    tasas={detailTasas}
+                    historical={rateMode === "historical"}
+                    sx={{ mb: 2 }}
+                  />
 
-                    </Stack>
-                    {/* Tasas aplicadas */}
-                    <TasasBanner tasas={detailTasas} historical={rateMode === 'historical'} sx={{ mb: 2 }} />
-
-                    {/* Estadísticas del cierre específico */}
-                    <Grid container spacing={isMobile ? 1.5 : 3} sx={{ mb: isMobile ? 2 : 3 }}>
-                      <Grid item xs={6} sm={6} md={3}>
-                        <StatCard
-                            icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
-                            value={fmtD(cierreProducData.ciereData.totalVentas)}
-                            label="Total Ventas"
-                            color="success.light"
-                        />
-                      </Grid>
-
-                      <Grid item xs={6} sm={6} md={3}>
-                        <StatCard
-                            icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
-                            value={fmtD(
-                              cierreProducData.totalGananciaFinal ?? cierreProducData.ciereData.totalGanancia
-                            )}
-                            label="Ganancia Final"
-                            color="info.light"
-                        />
-                      </Grid>
-
-                      {/* Bruto y Descuentos del período */}
-                      <Grid item xs={6} sm={6} md={3}>
-                        <StatCard
-                          icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
-                          value={fmtD(cierreProducData.ciereData.totalVentasBrutas ?? 0)}
-                          label="Total Ventas (Bruto)"
-                          color="success.light"
-                        />
-                      </Grid>
-
-                      {(cierreProducData.ciereData.totalDescuentos ?? 0) > 0 && (
-                        <Grid item xs={6} sm={6} md={3}>
-                          <StatCard
-                            icon={<TrendingUp fontSize={isMobile ? "medium" : "large"} />}
-                            value={fmtD(cierreProducData.ciereData.totalDescuentos ?? 0)}
-                            label="Descuentos del Período"
-                            color="error.light"
+                  {/* Estadísticas del cierre específico */}
+                  <Grid
+                    container
+                    spacing={isMobile ? 1.5 : 3}
+                    sx={{ mb: isMobile ? 2 : 3 }}
+                  >
+                    <Grid item xs={6} sm={6} md={3}>
+                      <StatCard
+                        icon={
+                          <AttachMoney
+                            fontSize={isMobile ? "medium" : "large"}
                           />
-                        </Grid>
-                      )}
+                        }
+                        value={fmtD(cierreProducData.ciereData.totalVentas)}
+                        label="Total Ventas"
+                        color="success.light"
+                      />
+                    </Grid>
 
-                      {verificarPermiso("operaciones.cierre.gananciascostos") && (cierreProducData.totalGastos || 0) > 0 && (
+                    <Grid item xs={6} sm={6} md={3}>
+                      <StatCard
+                        icon={
+                          <TrendingUp
+                            fontSize={isMobile ? "medium" : "large"}
+                          />
+                        }
+                        value={fmtD(
+                          cierreProducData.totalGananciaFinal ??
+                            cierreProducData.ciereData.totalGanancia,
+                        )}
+                        label="Ganancia Final"
+                        color="info.light"
+                      />
+                    </Grid>
+
+                    {/* Bruto y Descuentos del período */}
+                    <Grid item xs={6} sm={6} md={3}>
+                      <StatCard
+                        icon={
+                          <AttachMoney
+                            fontSize={isMobile ? "medium" : "large"}
+                          />
+                        }
+                        value={fmtD(
+                          cierreProducData.ciereData.totalVentasBrutas ?? 0,
+                        )}
+                        label="Total Ventas (Bruto)"
+                        color="success.light"
+                      />
+                    </Grid>
+
+                    {(cierreProducData.ciereData.totalDescuentos ?? 0) > 0 && (
+                      <Grid item xs={6} sm={6} md={3}>
+                        <StatCard
+                          icon={
+                            <TrendingUp
+                              fontSize={isMobile ? "medium" : "large"}
+                            />
+                          }
+                          value={fmtD(
+                            cierreProducData.ciereData.totalDescuentos ?? 0,
+                          )}
+                          label="Descuentos del Período"
+                          color="error.light"
+                        />
+                      </Grid>
+                    )}
+
+                    {verificarPermiso("operaciones.cierre.gananciascostos") &&
+                      (cierreProducData.totalGastos || 0) > 0 && (
                         <Grid item xs={6} sm={6} md={3}>
                           <StatCard
-                            icon={<TrendingDown fontSize={isMobile ? "medium" : "large"} />}
+                            icon={
+                              <TrendingDown
+                                fontSize={isMobile ? "medium" : "large"}
+                              />
+                            }
                             value={fmtD(cierreProducData.totalGastos || 0)}
                             label="Gastos del Período"
                             color="error.light"
@@ -1189,101 +1631,172 @@ export default function ResumenCierrePage() {
                         </Grid>
                       )}
 
-                      <Grid item xs={6} sm={6} md={3}>
-                        <StatCard
-                            icon={<Assessment fontSize={isMobile ? "medium" : "large"} />}
-                            value={formatNumber(cierreProducData.totales.totalCantidad)}
-                            label="Productos Vendidos"
-                            color="primary.light"
-                        />
-                      </Grid>
-
-                      <Grid item xs={6} sm={6} md={3}>
-                        <StatCard
-                            icon={<AttachMoney fontSize={isMobile ? "medium" : "large"} />}
-                            value={fmtD(cierreProducData.ciereData.totalTransferencia)}
-                            label="Transferencias"
-                            color="warning.light"
-                        />
-                      </Grid>
+                    <Grid item xs={6} sm={6} md={3}>
+                      <StatCard
+                        icon={
+                          <Assessment
+                            fontSize={isMobile ? "medium" : "large"}
+                          />
+                        }
+                        value={formatNumber(
+                          cierreProducData.totales.totalCantidad,
+                        )}
+                        label="Productos Vendidos"
+                        color="primary.light"
+                      />
                     </Grid>
 
-                    {/* Desglose por moneda (multimoneda) */}
-                    {cierreProducData.ciereData.resumenMonedas && cierreProducData.ciereData.resumenMonedas.length > 0 && (
+                    <Grid item xs={6} sm={6} md={3}>
+                      <StatCard
+                        icon={
+                          <AttachMoney
+                            fontSize={isMobile ? "medium" : "large"}
+                          />
+                        }
+                        value={fmtD(
+                          cierreProducData.ciereData.totalTransferencia,
+                        )}
+                        label="Transferencias"
+                        color="warning.light"
+                      />
+                    </Grid>
+                  </Grid>
+
+                  {/* Desglose por moneda (multimoneda) */}
+                  {cierreProducData.ciereData.resumenMonedas &&
+                    cierreProducData.ciereData.resumenMonedas.length > 0 && (
                       <ContentCard
                         title="Desglose por Moneda"
-                        subtitle={!isMobile ? "Ingresos reales por moneda de cobro" : undefined}
+                        subtitle={
+                          !isMobile
+                            ? "Ingresos reales por moneda de cobro"
+                            : undefined
+                        }
                         fullHeight={false}
                       >
                         <Stack spacing={1.5}>
-                          {cierreProducData.ciereData.resumenMonedas.map((rm) => (
-                            <Card key={rm.monedaCode} variant="outlined">
-                              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                                <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                                  <Chip label={rm.monedaCode} size="small" color="primary" variant="outlined" />
-                                  <Typography variant="body2" color="text.secondary">
-                                    ≈ {fmtD(rm.equivalenteBase)}
-                                  </Typography>
-                                </Stack>
-                                <Stack direction="row" justifyContent="space-between">
-                                  <Typography variant="body2" color="text.secondary">Efectivo:</Typography>
-                                  <Typography variant="body2" fontWeight="medium">{rm.totalEfectivo.toFixed(2)} {rm.monedaCode}</Typography>
-                                </Stack>
-                                <Stack direction="row" justifyContent="space-between">
-                                  <Typography variant="body2" color="text.secondary">Transfer:</Typography>
-                                  <Typography variant="body2" fontWeight="medium">{rm.totalTransfer.toFixed(2)} {rm.monedaCode}</Typography>
-                                </Stack>
-                              </CardContent>
-                            </Card>
-                          ))}
+                          {cierreProducData.ciereData.resumenMonedas.map(
+                            (rm) => (
+                              <Card key={rm.monedaCode} variant="outlined">
+                                <CardContent
+                                  sx={{ p: 2, "&:last-child": { pb: 2 } }}
+                                >
+                                  <Stack
+                                    direction="row"
+                                    alignItems="center"
+                                    justifyContent="space-between"
+                                    mb={1}
+                                  >
+                                    <Chip
+                                      label={rm.monedaCode}
+                                      size="small"
+                                      color="primary"
+                                      variant="outlined"
+                                    />
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      ≈ {fmtD(rm.equivalenteBase)}
+                                    </Typography>
+                                  </Stack>
+                                  <Stack
+                                    direction="row"
+                                    justifyContent="space-between"
+                                  >
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      Efectivo:
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight="medium"
+                                    >
+                                      {rm.totalEfectivo.toFixed(2)}{" "}
+                                      {rm.monedaCode}
+                                    </Typography>
+                                  </Stack>
+                                  <Stack
+                                    direction="row"
+                                    justifyContent="space-between"
+                                  >
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      Transfer:
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight="medium"
+                                    >
+                                      {rm.totalTransfer.toFixed(2)}{" "}
+                                      {rm.monedaCode}
+                                    </Typography>
+                                  </Stack>
+                                </CardContent>
+                              </Card>
+                            ),
+                          )}
                         </Stack>
                       </ContentCard>
                     )}
 
-                    {/* Tabla de productos vendidos */}
-                    <ContentCard
-                        title="Productos Vendidos"
-                        subtitle={!isMobile ? `${cierreProducData.ciereData.productosVendidos.length} tipos de productos` : undefined}
-                        noPadding
-                        fullHeight={false}
-                    >
-                      <Box sx={{
+                  {/* Tabla de productos vendidos */}
+                  <ContentCard
+                    title="Productos Vendidos"
+                    subtitle={
+                      !isMobile
+                        ? `${cierreProducData.ciereData.productosVendidos.length} tipos de productos`
+                        : undefined
+                    }
+                    noPadding
+                    fullHeight={false}
+                  >
+                    <Box
+                      sx={{
                         overflow: "auto",
                         maxHeight: isMobile ? "60vh" : "70vh",
-                      }}>
-                        <TablaProductosCierre
-                            cierreData={cierreProducData.ciereData}
-                            totales={cierreProducData.totales}
-                            showOnlyCants={!verificarPermiso("operaciones.cierre.gananciascostos")}
-                            formatAmount={fmtD}
-                        />
-                      </Box>
-                    </ContentCard>
-                  </Box>
+                      }}
+                    >
+                      <TablaProductosCierre
+                        cierreData={cierreProducData.ciereData}
+                        totales={cierreProducData.totales}
+                        showOnlyCants={
+                          !verificarPermiso(
+                            "operaciones.cierre.gananciascostos",
+                          )
+                        }
+                        formatAmount={fmtD}
+                      />
+                    </Box>
+                  </ContentCard>
                 </Box>
-              </Drawer>
+              </Box>
+            </Drawer>
           )}
         </>
-
-      }
+      )}
     </PageContainer>
   );
 }
 
-function EmptyData (){
+function EmptyData() {
   return (
-      <Alert severity="info">
-        <Typography variant="h6" gutterBottom>
-          No hay cierres históricos disponibles
-        </Typography>
-        <Typography variant="body1" gutterBottom>
-          Una vez que realices tu primer cierre de caja, los resúmenes históricos
-          aparecerán aquí para que puedas analizar el desempeño de tu negocio.
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {`Los cierres se realizan desde la sección "Cierre de Caja" cuando terminas 
+    <Alert severity="info">
+      <Typography variant="h6" gutterBottom>
+        No hay cierres históricos disponibles
+      </Typography>
+      <Typography variant="body1" gutterBottom>
+        Una vez que realices tu primer cierre de caja, los resúmenes históricos
+        aparecerán aquí para que puedas analizar el desempeño de tu negocio.
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        {`Los cierres se realizan desde la sección "Cierre de Caja" cuando terminas 
             tu jornada de ventas.`}
-        </Typography>
-      </Alert>
-  )
+      </Typography>
+    </Alert>
+  );
 }

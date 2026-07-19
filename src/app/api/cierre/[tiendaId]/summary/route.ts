@@ -16,6 +16,9 @@ type CierreResumenExt = {
   totalVentasConsignacion?: number | null;
   totalGastos?: number | null;
   totalGananciaFinal?: number | null;
+  totalComprasCaja?: number | null;
+  totalMerma?: number | null;
+  totalDevoluciones?: number | null;
   totalVentasBrutas?: number;
   totalDescuentos?: number;
 } & Record<string, unknown>;
@@ -105,6 +108,9 @@ export async function GET(
         totalGananciasConsignacion: true,
         totalGastos: true,
         totalGananciaFinal: true,
+        totalComprasCaja: true,
+        totalMerma: true,
+        totalDevoluciones: true,
       },
       where: { ...filtros },
     });
@@ -199,7 +205,12 @@ export async function GET(
         );
 
         const totalGastos = Number((c as CierreResumenExt).totalGastos || 0);
-        const totalGananciaFinal = totalGananciaNeta - totalGastos;
+        const totalMerma = Number((c as CierreResumenExt).totalMerma || 0);
+        const totalDevoluciones = Number(
+          (c as CierreResumenExt).totalDevoluciones || 0,
+        );
+        const totalGananciaFinal =
+          totalGananciaNeta - totalGastos - totalMerma - totalDevoluciones;
 
         return {
           ...c,
@@ -293,9 +304,16 @@ export async function GET(
 
     // Global aggregates from DB — these cover ALL pages, not just the current one
     const sumTotalGastos = totales._sum.totalGastos ?? 0;
-    // Ganancia final neta de descuentos y gastos (el valor almacenado en
-    // CierrePeriodo.totalGananciaFinal no netea descuentos)
-    const sumTotalGananciaFinal = sumTotalGananciaNet - sumTotalGastos;
+    const sumTotalMerma = totales._sum.totalMerma ?? 0;
+    const sumTotalDevoluciones = totales._sum.totalDevoluciones ?? 0;
+    const sumTotalComprasCaja = totales._sum.totalComprasCaja ?? 0;
+    // Ganancia final neta de descuentos, gastos, merma y devoluciones (el valor
+    // almacenado en CierrePeriodo.totalGananciaFinal no netea descuentos)
+    const sumTotalGananciaFinal =
+      sumTotalGananciaNet -
+      sumTotalGastos -
+      sumTotalMerma -
+      sumTotalDevoluciones;
 
     return NextResponse.json({
       cierres: cierresConMontos as unknown as ISummaryCierre["cierres"],
@@ -311,6 +329,9 @@ export async function GET(
       sumTotalVentasBrutas,
       sumTotalDescuentos,
       sumTotalGastos,
+      sumTotalMerma,
+      sumTotalDevoluciones,
+      sumTotalComprasCaja,
       sumTotalGananciaFinal,
       totalItems: totalCierres,
     });

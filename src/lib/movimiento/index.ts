@@ -12,6 +12,7 @@ export const CreateMoviento = async (data, items) => {
     motivo,
     proveedorId,
     destinationId,
+    formaPago,
   } = data;
 
   // Fetch exchange rates once for the whole batch
@@ -43,6 +44,8 @@ export const CreateMoviento = async (data, items) => {
         monedaOriginal,
         montoOriginal,
         tasaUsada: tasaUsadaItem,
+        costoTotal: costoTotalOverride, // MERMA (opcional) y DEVOLUCION_VENTA (requerido): valor en moneda base
+        montoReembolso, // Solo DEVOLUCION_VENTA
       } = movimiento;
 
       // 1. Obtener el productoTienda existente
@@ -168,6 +171,26 @@ export const CreateMoviento = async (data, items) => {
         }
       }
 
+      // 2b. Valorización de MERMA / DEVOLUCION_VENTA (no participan del CPP)
+      let valorMermaODevolucion: number | undefined;
+      if (tipo === "MERMA") {
+        const costoVigente =
+          productoTiendaExistente?.costo ?? costoUnitario ?? 0;
+        // El costo del producto puede estar en una moneda distinta a monedaBase
+        // (monedaCostoCode) — convertir antes de valorizar la pérdida.
+        const costoVigenteBase = convertToBase(
+          costoVigente,
+          productoTiendaExistente?.monedaCostoCode ?? monedaBase,
+          tasas,
+          monedaBase,
+        );
+        valorMermaODevolucion =
+          costoTotalOverride ?? cantidad * costoVigenteBase;
+      } else if (tipo === "DEVOLUCION_VENTA") {
+        // Requerido: el llamador calcula el costo histórico de la venta original
+        valorMermaODevolucion = costoTotalOverride ?? 0;
+      }
+
       // 3. Actualizar productos fraccionados
       const productosFraccionados = await tx.producto.findMany({
         where: { fraccionDeId: productoId },
@@ -220,6 +243,9 @@ export const CreateMoviento = async (data, items) => {
             costoAnterior: calculoCPP.costoAnterior,
             costoNuevo: calculoCPP.costoNuevo,
           }),
+          ...(valorMermaODevolucion !== undefined && {
+            costoTotal: valorMermaODevolucion,
+          }),
 
           ...(referenciaId && { referenciaId }),
           ...(motivo && { motivo }),
@@ -232,6 +258,9 @@ export const CreateMoviento = async (data, items) => {
             montoOriginal,
             tasaUsada: tasaUsadaItem,
           }),
+          ...(tipo === "COMPRA" && formaPago && { formaPago }),
+          ...(tipo === "DEVOLUCION_VENTA" &&
+            montoReembolso !== undefined && { montoReembolso }),
         },
       });
 

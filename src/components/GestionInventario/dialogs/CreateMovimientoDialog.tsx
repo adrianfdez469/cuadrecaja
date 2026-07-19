@@ -28,6 +28,8 @@ import { getLocales } from "@/services/localesService";
 import { convertToBase } from "@/lib/currency";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
+import { FormaPagoCompraEnum } from "@/schemas/movimiento";
+import { FORMA_PAGO_COMPRA_LABELS } from "@/constants/formaPagoCompra";
 
 interface Props {
   open: boolean;
@@ -40,6 +42,7 @@ type TipoMovimiento =
   | "COMPRA"
   | "AJUSTE_ENTRADA"
   | "AJUSTE_SALIDA"
+  | "MERMA"
   | "CONSIGNACION_ENTRADA"
   | "CONSIGNACION_DEVOLUCION"
   | "TRASPASO_SALIDA";
@@ -52,6 +55,11 @@ const TIPOS_BASE: {
   { value: "COMPRA", label: "Compra (entrada con costo)", esEntrada: true },
   { value: "AJUSTE_ENTRADA", label: "Ajuste entrada", esEntrada: true },
   { value: "AJUSTE_SALIDA", label: "Ajuste salida", esEntrada: false },
+  {
+    value: "MERMA",
+    label: "Merma (pérdida real: rotura, vencimiento, robo)",
+    esEntrada: false,
+  },
   {
     value: "CONSIGNACION_ENTRADA",
     label: "Consignación entrada",
@@ -88,6 +96,8 @@ export function CreateMovimientoDialog({
   const [destinos, setDestinos] = useState<ILocal[]>([]);
   const [destinationId, setDestinationId] = useState<string>("");
   const [monedaCompra, setMonedaCompra] = useState<string>(monedaBase);
+  const [formaPago, setFormaPago] =
+    useState<(typeof FormaPagoCompraEnum.options)[number]>("EFECTIVO_CAJA");
   const [saving, setSaving] = useState(false);
 
   const monedasParaCompra = useMemo(() => {
@@ -110,6 +120,7 @@ export function CreateMovimientoDialog({
       setSelectedProveedor(producto.proveedor ?? null);
       setDestinationId("");
       setMonedaCompra(monedaBase);
+      setFormaPago("EFECTIVO_CAJA");
     }
   }, [open, producto, monedaBase]);
 
@@ -173,6 +184,7 @@ export function CreateMovimientoDialog({
           ...(esConsignacion &&
             selectedProveedor && { proveedorId: selectedProveedor.id }),
           ...(esTraspaso && { destinationId }),
+          ...(tipo === "COMPRA" && { formaPago }),
         },
         [
           {
@@ -189,7 +201,7 @@ export function CreateMovimientoDialog({
             ...(mostrarCosto &&
               costoRaw && {
                 monedaOriginal: monedaCompra,
-                montoOriginal: costoRaw,
+                montoOriginal: costoRaw * qty,
                 tasaUsada: tasasVigentes[monedaCompra] ?? 1,
               }),
           },
@@ -330,12 +342,43 @@ export function CreateMovimientoDialog({
             </FormControl>
           )}
 
+          {tipo === "COMPRA" && (
+            <FormControl size="small" fullWidth>
+              <InputLabel>Forma de pago</InputLabel>
+              <Select
+                label="Forma de pago"
+                value={formaPago}
+                onChange={(e) =>
+                  setFormaPago(
+                    e.target
+                      .value as (typeof FormaPagoCompraEnum.options)[number],
+                  )
+                }
+              >
+                {FormaPagoCompraEnum.options.map((opt) => (
+                  <MenuItem key={opt} value={opt}>
+                    {FORMA_PAGO_COMPRA_LABELS[opt]}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
           <TextField
             label="Motivo (opcional)"
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             size="small"
-            placeholder="Descripción del movimiento..."
+            placeholder={
+              tipo === "MERMA"
+                ? "Ej: se venció, se rompió, robo..."
+                : "Descripción del movimiento..."
+            }
+            helperText={
+              tipo === "MERMA"
+                ? "Se valoriza sola al costo vigente del producto — resta de la ganancia, no afecta la caja"
+                : undefined
+            }
           />
         </Box>
       </DialogContent>

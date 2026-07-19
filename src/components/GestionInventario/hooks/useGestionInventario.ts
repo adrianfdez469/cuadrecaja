@@ -265,7 +265,8 @@ export function useGestionInventario() {
                 (options.costoUnitario ?? producto.costo) * Math.abs(delta),
               monedaCompra: options.monedaCompra ?? monedaBase,
               monedaOriginal: options.monedaCompra ?? monedaBase,
-              montoOriginal: options.costoUnitario ?? producto.costo,
+              montoOriginal:
+                (options.costoUnitario ?? producto.costo) * Math.abs(delta),
               tasaUsada: tasasVigentes[options.monedaCompra ?? monedaBase] ?? 1,
             }),
           },

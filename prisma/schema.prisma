@@ -64,8 +64,8 @@ model Negocio {
   referredBy       Referral?        @relation("ReferredBusiness")
 
   // Multimoneda
-  monedaBase          String          @default("CUP")
-  monedaFuerte        String          @default("CUP")
+  monedaBase          String                @default("CUP")
+  monedaFuerte        String                @default("CUP")
   negociosMoneda      NegocioMoneda[]
   tasasCambio         TasaCambio[]
   historialMonedaBase HistorialMonedaBase[]
@@ -226,35 +226,35 @@ model Tienda {
 }
 
 model TicketPlantilla {
-  id                          String   @id @default(uuid())
-  tiendaId                    String   @unique
-  tienda                      Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
-  encabezado                  String?
-  pie                         String?
-  mostrarNegocio              Boolean  @default(true)
-  mostrarTienda               Boolean  @default(true)
-  mostrarCajero               Boolean  @default(true)
-  mostrarDescuentos           Boolean  @default(true)
-  mostrarMultimoneda          Boolean  @default(true)
-  mostrarTasas                Boolean  @default(false)
-  mostrarTotalesSecundarios   Boolean  @default(true)
-  anchoPapel                  Int      @default(58)
-  logoUrl                     String?
-  updatedAt                   DateTime @updatedAt
+  id                        String   @id @default(uuid())
+  tiendaId                  String   @unique
+  tienda                    Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  encabezado                String?
+  pie                       String?
+  mostrarNegocio            Boolean  @default(true)
+  mostrarTienda             Boolean  @default(true)
+  mostrarCajero             Boolean  @default(true)
+  mostrarDescuentos         Boolean  @default(true)
+  mostrarMultimoneda        Boolean  @default(true)
+  mostrarTasas              Boolean  @default(false)
+  mostrarTotalesSecundarios Boolean  @default(true)
+  anchoPapel                Int      @default(58)
+  logoUrl                   String?
+  updatedAt                 DateTime @updatedAt
 }
 
 // Representa un usuario que puede estar vinculado a múltiples tiendas.
 model Usuario {
-  id       String  @id @default(uuid())
-  nombre   String
-  usuario  String  @unique // Nombre de usuario único
+  id           String              @id @default(uuid())
+  nombre       String
+  usuario      String              @unique // Nombre de usuario único
   /// Nulo mientras el usuario está pendiente de definir contraseña (invitación por correo).
-  password       String?
-  estadoCuenta   UsuarioEstadoCuenta @default(ACTIVO)
-  rol      String? // Aqui solo se registrará si el usuario es superadministrador con el rol SUPER_ADMIN
+  password     String?
+  estadoCuenta UsuarioEstadoCuenta @default(ACTIVO)
+  rol          String? // Aqui solo se registrará si el usuario es superadministrador con el rol SUPER_ADMIN
 
   // tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
-  locales         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
+  locales             UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
   ventas              Venta[] // Un usuario puede realizar múltiples ventas
   MovimientoStock     MovimientoStock[]
   tasasCambio         TasaCambio[]
@@ -436,9 +436,9 @@ model Venta {
 
   // Multimoneda
   monedaCobro   String @default("CUP") // Moneda principal seleccionada por el cajero
-  pagosDetalle  Json?  // [{tipo, moneda, monto, equivalenteBase, transferDestinationId?}]
-  vueltoDetalle Json?  // [{moneda, monto}]
-  tasaSnapshot  Json?  // {USD: 120, MLC: 75} — tasas vigentes al momento de la venta
+  pagosDetalle  Json? // [{tipo, moneda, monto, equivalenteBase, transferDestinationId?}]
+  vueltoDetalle Json? // [{moneda, monto}]
+  tasaSnapshot  Json? // {USD: 120, MLC: 75} — tasas vigentes al momento de la venta
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Venta y ProductoTienda.
@@ -478,13 +478,20 @@ model CierrePeriodo {
 
   prodProveedoresLiquidacion ProductoProveedorLiquidacion[]
 
-  // Gastos aplicados en este cierre
+  // Gastos aplicados en este cierre (solo naturaleza OPERATIVO resta de totalGananciaFinal)
   totalGastos        Float         @default(0)
   totalGananciaFinal Float         @default(0)
   gastosCierre       GastoCierre[]
 
-  cashBreakdown      CashBreakdownCierre?
-  resumenMonedas     ResumenMonedaCierre[]
+  // Compra de mercancía pagada con efectivo de caja (formaPago = EFECTIVO_CAJA) — resta de caja, no de ganancia
+  totalComprasCaja  Float @default(0)
+  // Pérdida real de mercancía (MERMA), valorizada a costo — resta de ganancia, no de caja
+  totalMerma        Float @default(0)
+  // Devoluciones de venta reconocidas en este período (aunque la venta original sea de otro cierre) — resta de ganancia y de caja
+  totalDevoluciones Float @default(0)
+
+  cashBreakdown       CashBreakdownCierre?
+  resumenMonedas      ResumenMonedaCierre[]
   cashBreakdownMoneda CashBreakdownMoneda[]
 
   // Idices
@@ -509,7 +516,7 @@ model CashBreakdownMoneda {
   cierrePeriodo   CierrePeriodo @relation(fields: [cierrePeriodoId], references: [id], onDelete: Cascade)
   cierrePeriodoId String
   monedaCode      String
-  items           Json          // IBillCount[]
+  items           Json // IBillCount[]
   total           Float
   updatedAt       DateTime      @updatedAt
 
@@ -533,14 +540,21 @@ model MovimientoStock {
 
   // 🆕 CAMPOS PARA CPP
   costoUnitario Float? // Costo unitario de la compra (solo para COMPRA)
-  costoTotal    Float? // Costo total de la compra (cantidad * costoUnitario)
+  costoTotal    Float? // Costo total en moneda base: costo de la compra (COMPRA), valor perdido (MERMA), o costo de lo devuelto (DEVOLUCION_VENTA)
   costoAnterior Float? // Costo promedio ANTES de este movimiento
   costoNuevo    Float? // Costo promedio DESPUÉS de este movimiento (CPP calculado)
 
   // Multimoneda — solo para COMPRA; costoUnitario siempre se almacena en moneda base
   monedaOriginal String? // Moneda en que se pagó (ej. "USD")
-  montoOriginal  Float?  // Monto en esa moneda antes de convertir
-  tasaUsada      Float?  // Tasa empleada para convertir a moneda base
+  montoOriginal  Float? // Monto en esa moneda antes de convertir
+  tasaUsada      Float? // Tasa empleada para convertir a moneda base
+
+  // Solo para COMPRA: de dónde salió el dinero (ver FormaPagoCompra)
+  formaPago FormaPagoCompra?
+
+  // Solo para DEVOLUCION_VENTA: monto reembolsado al cliente, en moneda base (precio histórico × cantidad).
+  // La ganancia revertida se deriva como montoReembolso - costoTotal.
+  montoReembolso Float?
 
   usuario   Usuario? @relation(fields: [usuarioId], references: [id])
   usuarioId String?
@@ -703,6 +717,13 @@ enum RecurrenciaGasto {
   ANUAL
 }
 
+// OPERATIVO resta de ganancia y de caja; INVERSION resta solo de caja
+// (ej. compra de equipamiento/capital que no es mercancía)
+enum NaturalezaGasto {
+  OPERATIVO
+  INVERSION
+}
+
 model GastoPlantilla {
   id          String           @id @default(uuid())
   negocioId   String
@@ -710,6 +731,7 @@ model GastoPlantilla {
   nombre      String
   categoria   String
   tipoCalculo TipoCalculo
+  naturaleza  NaturalezaGasto  @default(OPERATIVO)
   recurrencia RecurrenciaGasto
   diaMes      Int? // 1-31, solo para MENSUAL
   mesAnio     Int? // 1-12, solo para ANUAL
@@ -734,6 +756,7 @@ model GastoTienda {
   nombre      String
   categoria   String
   tipoCalculo TipoCalculo
+  naturaleza  NaturalezaGasto  @default(OPERATIVO)
   monto       Float? // cuando tipoCalculo = MONTO_FIJO
   porcentaje  Float? // 0-100, cuando tipoCalculo = PORCENTAJE_*
   recurrencia RecurrenciaGasto
@@ -751,20 +774,21 @@ model GastoTienda {
 }
 
 model GastoCierre {
-  id             String        @id @default(uuid())
+  id             String          @id @default(uuid())
   cierreId       String
-  cierre         CierrePeriodo @relation(fields: [cierreId], references: [id])
+  cierre         CierrePeriodo   @relation(fields: [cierreId], references: [id])
   gastoTiendaId  String?
-  gastoTienda    GastoTienda?  @relation(fields: [gastoTiendaId], references: [id])
+  gastoTienda    GastoTienda?    @relation(fields: [gastoTiendaId], references: [id])
   nombre         String
   categoria      String
   tipoCalculo    TipoCalculo
+  naturaleza     NaturalezaGasto @default(OPERATIVO)
   montoCalculado Float
   monto          Float? // snapshot del monto al momento del cierre
   porcentaje     Float? // snapshot del porcentaje al momento del cierre
-  esAdHoc        Boolean       @default(false)
+  esAdHoc        Boolean         @default(false)
   monedaCode     String? // null = monedaBase; solo aplica a MONTO_FIJO
-  createdAt      DateTime      @default(now())
+  createdAt      DateTime        @default(now())
 
   @@index([cierreId])
   @@index([gastoTiendaId])
@@ -819,8 +843,8 @@ model TasaCambio {
   id          String   @id @default(uuid())
   negocioId   String
   negocio     Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
-  monedaCode  String   // Moneda origen (ej. "USD"); siempre contra monedaBase del negocio
-  tasa        Float    // Cuántas unidades de monedaBase por 1 unidad de esta moneda
+  monedaCode  String // Moneda origen (ej. "USD"); siempre contra monedaBase del negocio
+  tasa        Float // Cuántas unidades de monedaBase por 1 unidad de esta moneda
   creadoPorId String
   creadoPor   Usuario  @relation(fields: [creadoPorId], references: [id])
   createdAt   DateTime @default(now())
@@ -835,7 +859,7 @@ model HistorialMonedaBase {
   negocio        Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
   monedaAnterior String
   monedaNueva    String
-  tasaUsada      Float    // Tasa empleada para convertir precios y costos
+  tasaUsada      Float // Tasa empleada para convertir precios y costos
   creadoPorId    String
   creadoPor      Usuario  @relation(fields: [creadoPorId], references: [id])
   createdAt      DateTime @default(now())
@@ -868,6 +892,14 @@ enum MovimientoTipo {
   DESAGREGACION_ALTA
   CONSIGNACION_ENTRADA
   CONSIGNACION_DEVOLUCION
+  MERMA // Pérdida real de mercancía (rotura/vencimiento) — resta de ganancia, no toca caja
+  DEVOLUCION_VENTA // Cliente devuelve un producto vendido — resta de ganancia y de caja del período actual
+}
+
+// Fuente de fondos de una compra de mercancía (solo aplica a MovimientoStock.tipo = COMPRA)
+enum FormaPagoCompra {
+  EFECTIVO_CAJA // Sale de la caja del negocio — resta de ResumenMonedaCierre, no de la ganancia
+  EXTERNO // Banco, aporte propio, etc. — no toca la caja registradora
 }
 
 // Modelo para las notificaciones del sistema

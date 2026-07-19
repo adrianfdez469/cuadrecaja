@@ -122,6 +122,7 @@ export async function POST(
         nombre: g.nombre,
         categoria: g.categoria,
         tipoCalculo: g.tipoCalculo,
+        naturaleza: g.naturaleza,
         montoCalculado,
         monto: g.monto,
         porcentaje: g.porcentaje,
@@ -143,22 +144,24 @@ export async function POST(
       orderBy: { createdAt: "asc" },
     });
 
-    const totalGastosRecurrentes = gastosRecurrentes.reduce(
-      (s, g) => s + g.montoCalculado,
-      0,
-    );
+    // Solo naturaleza OPERATIVO resta de ganancia (INVERSION resta solo de caja)
+    const totalGastosRecurrentes = gastosRecurrentes
+      .filter((g) => g.naturaleza === "OPERATIVO")
+      .reduce((s, g) => s + g.montoCalculado, 0);
     // Ad-hoc gastos may be in a foreign currency — convert to base before summing
-    const totalGastosAdHoc = gastosAdHoc.reduce(
-      (s, g) =>
-        s +
-        convertToBase(
-          g.montoCalculado,
-          g.monedaCode ?? monedaBase,
-          tasasActuales,
-          monedaBase,
-        ),
-      0,
-    );
+    const totalGastosAdHoc = gastosAdHoc
+      .filter((g) => g.naturaleza === "OPERATIVO")
+      .reduce(
+        (s, g) =>
+          s +
+          convertToBase(
+            g.montoCalculado,
+            g.monedaCode ?? monedaBase,
+            tasasActuales,
+            monedaBase,
+          ),
+        0,
+      );
     const totalGastos = totalGastosRecurrentes + totalGastosAdHoc;
     const totalGananciaFinal = totalGanancia - totalGastos;
 

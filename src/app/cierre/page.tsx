@@ -16,7 +16,10 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  Collapse,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import {
   closePeriod,
   fetchCierreData,
@@ -26,7 +29,7 @@ import { fetchLastPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { ICierreData, ICierrePeriodo } from "@/schemas/cierre";
-import useConfirmDialog from "@/components/confirmDialog";
+import CerrarCajaConfirmDialog from "@/app/cierre/components/CerrarCajaConfirmDialog";
 import {
   ITotales,
   TablaProductosCierre,
@@ -35,7 +38,7 @@ import { useSalesStore } from "@/store/salesStore";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import PostAddIcon from "@mui/icons-material/PostAdd";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
@@ -44,13 +47,18 @@ import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import { formatDate, formatCurrency, formatNumber } from "@/utils/formatters";
 import { usePermisos } from "@/utils/permisos_front";
-import GastosCierreReviewDialog from "@/app/gastos/components/GastosCierreReviewDialog";
-import GastoCierreList from "@/app/gastos/components/GastoCierreList";
 import GastoAdHocDialog from "@/app/gastos/components/GastoAdHocDialog";
-import { createGastoAdHoc, getGastosTienda } from "@/services/gastoService";
+import {
+  createGastoAdHoc,
+  deleteGastoAdHoc,
+  getGastosTienda,
+  previewGastosCierre,
+  applyGastosCierre,
+} from "@/services/gastoService";
 import { IGastoAdHocCreate } from "@/schemas/gastos";
 import MonedaBreakdownRow from "@/app/cierre/components/MonedaBreakdownRow";
 import { DENOMINACIONES } from "@/constants/billDenominations";
+import DeduccionesList from "@/app/cierre/components/DeduccionesList";
 
 const CierreCajaPage = () => {
   const { user, loadingContext, gotToPath, monedasNegocio, monedaBase } =
@@ -67,10 +75,11 @@ const CierreCajaPage = () => {
   const [noPeriodFound, setNoPeriodFound] = useState(false);
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [isProcessingCierre, setIsProcessingCierre] = useState(false);
-  const [gastosReviewOpen, setGastosReviewOpen] = useState(false);
   const [adHocOpen, setAdHocOpen] = useState(false);
   const [categoriasGastos, setCategoriasGastos] = useState<string[]>([]);
-  const { ConfirmDialogComponent } = useConfirmDialog();
+  const [gananciaExpanded, setGananciaExpanded] = useState(false);
+  const [deletingGastoId, setDeletingGastoId] = useState<string | null>(null);
+  const [cerrarCajaDialogOpen, setCerrarCajaDialogOpen] = useState(false);
   const { clearSales, sales } = useSalesStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -83,7 +92,52 @@ const CierreCajaPage = () => {
     await getInitData();
   };
 
-  const handleCerrarCaja = async () => {
+  const handleDeleteGasto = async (gastoId: string) => {
+    if (!currentPeriod) return;
+    setDeletingGastoId(gastoId);
+    try {
+      await deleteGastoAdHoc(currentPeriod.id, gastoId);
+      showMessage("Gasto eliminado", "success");
+      await getInitData();
+    } catch {
+      showMessage("Error al eliminar el gasto", "error");
+    } finally {
+      setDeletingGastoId(null);
+    }
+  };
+
+  const handleConfirmarCierre = async () => {
+    if (!currentPeriod) return;
+    const localId = user.localActual.id;
+    setIsProcessingCierre(true);
+    try {
+      // Aplicar automáticamente los gastos recurrentes que correspondan hoy
+      // (ya se venían mostrando en las cards de resumen antes de llegar acá)
+      try {
+        const preview = await previewGastosCierre(currentPeriod.id);
+        if (preview.gastosRecurrentes.length > 0) {
+          await applyGastosCierre(currentPeriod.id, preview.gastosRecurrentes);
+        }
+      } catch (err) {
+        console.error("Error al aplicar gastos recurrentes:", err);
+      }
+
+      await closePeriod(localId, currentPeriod.id);
+      clearSales();
+
+      await openPeriod(localId);
+      showMessage("Cierre de caja realizado exitosamente", "success");
+      setCerrarCajaDialogOpen(false);
+    } catch (error) {
+      console.error(error);
+      showMessage("Ha ocurrido un error al realizar el cierre", "error");
+    } finally {
+      setIsProcessingCierre(false);
+      await getInitData();
+    }
+  };
+
+  const handleCerrarCaja = () => {
     if (isProcessingCierre) return;
 
     if (sales.filter((sale) => !sale.synced).length > 0) {
@@ -91,31 +145,10 @@ const CierreCajaPage = () => {
         "Debe sincronizar las ventas en la interfaz del pos de ventas",
         "warning",
       );
-    } else {
-      // Abrir el dialog de revisión de gastos antes de confirmar el cierre
-      setGastosReviewOpen(true);
+      return;
     }
-  };
 
-  const handleConfirmarCierre = async () => {
-    // Los gastos ya fueron aplicados por el GastosCierreReviewDialog antes de llamar aquí
-    const localId = user.localActual.id;
-    setIsProcessingCierre(true);
-    try {
-      await closePeriod(localId, currentPeriod.id);
-      clearSales();
-
-      await openPeriod(localId);
-      showMessage("Cierre de caja realizado exitosamente", "success");
-    } catch (error) {
-      console.error(error);
-      showMessage("Ha ocurrido un error al realizar el cierre", "error");
-      throw error;
-    } finally {
-      setIsProcessingCierre(false);
-      setGastosReviewOpen(false);
-      await getInitData();
-    }
+    setCerrarCajaDialogOpen(true);
   };
 
   const handleCreateFirstPeriod = async () => {
@@ -254,16 +287,6 @@ const CierreCajaPage = () => {
 
   const headerActions = (
     <Stack direction="row-reverse" spacing={1} sx={{ width: "100%" }}>
-      {canManageGastos && currentPeriod && !currentPeriod.fechaFin && (
-        <Tooltip title="Registrar gasto puntual del período">
-          <IconButton
-            onClick={() => setAdHocOpen(true)}
-            size={isMobile ? "small" : "medium"}
-          >
-            <ReceiptLongIcon />
-          </IconButton>
-        </Tooltip>
-      )}
       <Tooltip title="Actualizar datos">
         <IconButton
           onClick={getInitData}
@@ -273,6 +296,28 @@ const CierreCajaPage = () => {
           <RefreshIcon />
         </IconButton>
       </Tooltip>
+      {canManageGastos && currentPeriod && !currentPeriod.fechaFin && (
+        <Button
+          variant="outlined"
+          size={isMobile ? "small" : "medium"}
+          startIcon={<PostAddIcon />}
+          onClick={() => setAdHocOpen(true)}
+        >
+          {isMobile ? "Gasto" : "Agregar gasto"}
+        </Button>
+      )}
+      {verificarPermiso("operaciones.cierre.cerrar") &&
+        currentPeriod &&
+        !currentPeriod.fechaFin && (
+          <Button
+            variant="contained"
+            size={isMobile ? "small" : "medium"}
+            onClick={handleCerrarCaja}
+            disabled={isProcessingCierre}
+          >
+            {isProcessingCierre ? "Procesando..." : "Cerrar caja"}
+          </Button>
+        )}
     </Stack>
   );
 
@@ -431,16 +476,124 @@ const CierreCajaPage = () => {
               </Grid>
             )}
 
-          {verificarPermiso("operaciones.cierre.gananciascostos") && (
-            <Grid item xs={12} sm={6} md={4}>
-              <StatCard
-                icon={<TrendingUpIcon fontSize={"medium"} />}
-                value={formatCurrency(totales.totalGanancia)}
-                label="Ganancia Total"
-                color="info.light"
-              />
-            </Grid>
-          )}
+          {verificarPermiso("operaciones.cierre.gananciascostos") &&
+            (() => {
+              const gananciaDeducciones = cierreData.gananciaDeducciones || [];
+              const gananciaBruta = totales.totalGanancia;
+              const gananciaFinal =
+                typeof cierreData.totalGananciaFinal === "number"
+                  ? cierreData.totalGananciaFinal
+                  : gananciaBruta;
+              const hayDeducciones = gananciaDeducciones.length > 0;
+
+              return (
+                <Grid item xs={12} sm={6} md={4}>
+                  <Card sx={{ height: "100%" }}>
+                    <CardContent sx={{ p: isMobile ? 1 : 3 }}>
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={isMobile ? 1 : 2}
+                      >
+                        <Box
+                          sx={{
+                            p: isMobile ? 1 : 1.5,
+                            borderRadius: 2,
+                            bgcolor:
+                              gananciaFinal < 0 ? "error.light" : "info.light",
+                            color: "white",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minWidth: isMobile ? 40 : 48,
+                            minHeight: isMobile ? 40 : 48,
+                          }}
+                        >
+                          <TrendingUpIcon fontSize="medium" />
+                        </Box>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="baseline"
+                            flexWrap="wrap"
+                          >
+                            {hayDeducciones && (
+                              <Typography
+                                variant={isMobile ? "body1" : "h6"}
+                                sx={{
+                                  textDecoration: "line-through",
+                                  color: "text.disabled",
+                                }}
+                              >
+                                {formatCurrency(gananciaBruta)}
+                              </Typography>
+                            )}
+                            <Typography
+                              variant={isMobile ? "h5" : "h4"}
+                              fontWeight="bold"
+                              color={
+                                gananciaFinal < 0 ? "error.main" : undefined
+                              }
+                              sx={{
+                                fontSize: isMobile ? "1.25rem" : "2rem",
+                                lineHeight: 1.2,
+                                wordBreak: "break-all",
+                              }}
+                            >
+                              {formatCurrency(gananciaFinal)}
+                            </Typography>
+                          </Stack>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                              fontSize: isMobile ? "0.75rem" : "0.875rem",
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            Ganancia
+                          </Typography>
+                        </Box>
+                        {hayDeducciones && (
+                          <Tooltip
+                            title={
+                              gananciaExpanded
+                                ? "Ocultar detalle"
+                                : "Ver qué restó de la ganancia"
+                            }
+                          >
+                            <IconButton
+                              size="small"
+                              onClick={() => setGananciaExpanded((v) => !v)}
+                            >
+                              {gananciaExpanded ? (
+                                <ExpandLessIcon fontSize="small" />
+                              ) : (
+                                <ExpandMoreIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Stack>
+
+                      <Collapse in={gananciaExpanded}>
+                        <Divider sx={{ my: 1.5 }} />
+                        <DeduccionesList
+                          items={gananciaDeducciones}
+                          onDelete={
+                            canManageGastos && !currentPeriod.fechaFin
+                              ? handleDeleteGasto
+                              : undefined
+                          }
+                          deletingId={deletingGastoId}
+                        />
+                      </Collapse>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })()}
 
           {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
           <Grid item xs={12} sm={6} md={4}>
@@ -491,10 +644,23 @@ const CierreCajaPage = () => {
                     totalEfectivo={rm.totalEfectivo}
                     totalTransfer={rm.totalTransfer}
                     equivalenteBase={rm.equivalenteBase}
+                    totalEfectivoBruto={rm.totalEfectivoBruto}
+                    equivalenteBaseBruto={rm.equivalenteBaseBruto}
                     tiendaId={user?.localActual?.id ?? ""}
                     cierreId={currentPeriod.id}
                     isOpen={!currentPeriod.fechaFin}
                     denominations={denominations}
+                    deducciones={
+                      cierreData.cajaDeducciones?.[rm.monedaCode] || []
+                    }
+                    onDeleteGasto={
+                      verificarPermiso("operaciones.cierre.gananciascostos") &&
+                      canManageGastos &&
+                      !currentPeriod.fechaFin
+                        ? handleDeleteGasto
+                        : undefined
+                    }
+                    deletingGastoId={deletingGastoId}
                   />
                 );
               })}
@@ -503,42 +669,23 @@ const CierreCajaPage = () => {
         )}
 
         {/* Tabla de productos vendidos */}
-        <ContentCard
-          title="Detalle de Productos Vendidos"
-          subtitle={
-            !isMobile
-              ? "Resumen completo de las ventas del período actual"
-              : undefined
+        <TablaProductosCierre
+          cierreData={cierreData}
+          totales={totales}
+          showOnlyCants={
+            !verificarPermiso("operaciones.cierre.gananciascostos")
           }
-          noPadding
-          fullHeight
-        >
-          <TablaProductosCierre
-            cierreData={cierreData}
-            totales={totales}
-            handleCerrarCaja={
-              !verificarPermiso("operaciones.cierre.cerrar")
-                ? undefined
-                : handleCerrarCaja
-            }
-            showOnlyCants={
-              !verificarPermiso("operaciones.cierre.gananciascostos")
-            }
-            isProcessing={isProcessingCierre}
-          />
-        </ContentCard>
+          isProcessing={isProcessingCierre}
+        />
 
-        {verificarPermiso("operaciones.gastos.ver") && (
-          <Box mt={3}>
-            <GastoCierreList
-              cierreId={currentPeriod.id}
-              totalGanancia={totales.totalGanancia}
-              canDelete={canManageGastos && !currentPeriod.fechaFin}
-            />
-          </Box>
-        )}
-
-        {ConfirmDialogComponent}
+        <CerrarCajaConfirmDialog
+          open={cerrarCajaDialogOpen}
+          tiendaId={user.localActual.id}
+          cierreId={currentPeriod.id}
+          cierreData={cierreData}
+          onClose={() => setCerrarCajaDialogOpen(false)}
+          onConfirm={handleConfirmarCierre}
+        />
 
         {canManageGastos && (
           <GastoAdHocDialog
@@ -550,15 +697,6 @@ const CierreCajaPage = () => {
             monedaBase={monedaBase}
             onClose={() => setAdHocOpen(false)}
             onSave={handleSaveAdHoc}
-          />
-        )}
-
-        {currentPeriod && (
-          <GastosCierreReviewDialog
-            open={gastosReviewOpen}
-            cierreId={currentPeriod.id}
-            onClose={() => setGastosReviewOpen(false)}
-            onConfirm={handleConfirmarCierre}
           />
         )}
       </PageContainer>

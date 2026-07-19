@@ -34,7 +34,7 @@ import {
   getProductosTiendaParaNoEntrada,
 } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
-import { ITipoMovimiento } from "@/schemas/movimiento";
+import { ITipoMovimiento, FormaPagoCompraEnum } from "@/schemas/movimiento";
 import {
   TIPOS_MOVIMIENTO_MANUAL,
   TIPO_MOVIMIENTO_LABELS,
@@ -42,6 +42,7 @@ import {
   TIPO_MOVIMIENTO_EJEMPLOS,
   TIPO_MOVIMIENTO_COLORS,
 } from "@/constants/movimientos";
+import { FORMA_PAGO_COMPRA_LABELS } from "@/constants/formaPagoCompra";
 import { formatCurrency } from "@/utils/formatters";
 import { Add, Info } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -96,6 +97,7 @@ const getOperacion = (tipo: ITipoMovimiento): OperacionTipo => {
     case "DESAGREGACION_BAJA":
     case "TRASPASO_SALIDA":
     case "VENTA":
+    case "MERMA":
       return "SALIDA";
 
     default:
@@ -134,6 +136,8 @@ export const AddMovimientoDialog: FC<IProps> = ({
   const [destinations, setDestinations] = useState<ILocal[]>([]);
   const [destinationId, setDestinationId] = useState<string>("");
   const [monedaCompra, setMonedaCompra] = useState<string>(monedaBase);
+  const [formaPago, setFormaPago] =
+    useState<(typeof FormaPagoCompraEnum.options)[number]>("EFECTIVO_CAJA");
   const { verificarPermiso } = usePermisos();
 
   const monedasParaCompra = useMemo(() => {
@@ -209,6 +213,8 @@ export const AddMovimientoDialog: FC<IProps> = ({
         return verificarPermiso("operaciones.movimientos.crear.ajuste_salidas");
       case "COMPRA":
         return verificarPermiso("operaciones.movimientos.crear.compra");
+      case "MERMA":
+        return verificarPermiso("operaciones.movimientos.crear.merma");
       case "CONSIGNACION_DEVOLUCION":
         return verificarPermiso(
           "operaciones.movimientos.crear.consignacion_devolucion",
@@ -276,6 +282,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
       setMotivo("");
       setProveedor(null);
       setTipo("COMPRA");
+      setFormaPago("EFECTIVO_CAJA");
       setCreandoProveedor(false);
     }
   };
@@ -299,6 +306,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
           ...(tipo === "TRASPASO_SALIDA" && {
             destinationId: destinationId,
           }),
+          ...(tipo === "COMPRA" && { formaPago }),
         },
         itemsProductos.map((item) => {
           return {
@@ -325,7 +333,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
             ...(tipo === "COMPRA" &&
               item.costoUnitario && {
                 monedaOriginal: monedaCompra,
-                montoOriginal: item.costoUnitario,
+                montoOriginal: item.costoUnitario * item.cantidad,
                 tasaUsada: tasasVigentes[monedaCompra] ?? 1,
               }),
           };
@@ -658,17 +666,27 @@ export const AddMovimientoDialog: FC<IProps> = ({
             </Box>
           )}
 
-          {/* Campo de motivo para ajustes */}
-          {(tipo === "AJUSTE_ENTRADA" || tipo === "AJUSTE_SALIDA") && (
+          {/* Campo de motivo para ajustes y merma */}
+          {(tipo === "AJUSTE_ENTRADA" ||
+            tipo === "AJUSTE_SALIDA" ||
+            tipo === "MERMA") && (
             <TextField
               label="Motivo"
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               fullWidth
               margin="normal"
-              placeholder="Describe el motivo del ajuste..."
+              placeholder={
+                tipo === "MERMA"
+                  ? "Describe qué pasó (rotura, vencimiento, robo...)"
+                  : "Describe el motivo del ajuste..."
+              }
               size={isMobile ? "small" : "medium"}
-              helperText="Especifica la razón del ajuste (ej: productos vencidos, rotos, encontrados, etc.)"
+              helperText={
+                tipo === "MERMA"
+                  ? "Se valoriza al costo vigente del producto y resta de tu ganancia, sin afectar la caja"
+                  : "Especifica la razón del ajuste (ej: sobrante o faltante de conteo)"
+              }
             />
           )}
 
@@ -852,6 +870,29 @@ export const AddMovimientoDialog: FC<IProps> = ({
               iTipoMovimiento={tipo}
               productosSeleccionadosIniciales={itemsProductos}
             />
+          )}
+
+          {/* Forma de pago — solo para COMPRA */}
+          {tipo === "COMPRA" && (
+            <FormControl fullWidth margin="normal" size="small">
+              <InputLabel>Forma de pago</InputLabel>
+              <Select
+                value={formaPago}
+                label="Forma de pago"
+                onChange={(e) =>
+                  setFormaPago(
+                    e.target
+                      .value as (typeof FormaPagoCompraEnum.options)[number],
+                  )
+                }
+              >
+                {FormaPagoCompraEnum.options.map((opt) => (
+                  <MenuItem key={opt} value={opt}>
+                    {FORMA_PAGO_COMPRA_LABELS[opt]}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           )}
 
           {/* Moneda de compra — solo para COMPRA y si hay más de una moneda */}

@@ -50,6 +50,8 @@ interface DashboardResumenMetrics {
     unidadesVendidas: number;
     gananciaTotal: number;
     totalGastos: number;
+    totalMerma: number;
+    totalDevoluciones: number;
     gananciaFinal: number;
     productosActivos: number;
   };
@@ -526,6 +528,24 @@ export default function DashboardResumenPage() {
                 <MetricCard
                   title="Gastos"
                   value={fmtS(metrics.ventas.totalGastos)}
+                />
+              </Grid>
+            )}
+
+            {(metrics.ventas.totalMerma || 0) > 0 && (
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <MetricCard
+                  title="Merma"
+                  value={fmtS(metrics.ventas.totalMerma)}
+                />
+              </Grid>
+            )}
+
+            {(metrics.ventas.totalDevoluciones || 0) > 0 && (
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <MetricCard
+                  title="Devoluciones de venta"
+                  value={fmtS(metrics.ventas.totalDevoluciones)}
                 />
               </Grid>
             )}

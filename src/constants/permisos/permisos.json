@@ -119,6 +119,12 @@
   "operaciones.movimientos.crear.consignacion_devolucion": {
     "descripcion": "Permite crear devoluciones de productos en consignación"
   },
+  "operaciones.movimientos.crear.merma": {
+    "descripcion": "Permite registrar pérdidas reales de mercancía (rotura, vencimiento, robo)"
+  },
+  "operaciones.movimientos.crear.devolucion_venta": {
+    "descripcion": "Permite registrar que un cliente devolvió un producto ya vendido"
+  },
   "operaciones.gastos.ver": {
     "descripcion": "Permite ver los gastos de la tienda y el historial de gastos por cierre"
   },

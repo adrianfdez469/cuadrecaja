@@ -6,31 +6,49 @@ import { applyGastosSchema } from "@/schemas/gastos";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ cierreId: string }> }
+  { params }: { params: Promise<{ cierreId: string }> },
 ) {
   try {
     const { cierreId } = await params;
     const session = await getSession();
     const user = session.user;
 
-    if (!verificarPermisoUsuario(user.permisos, "operaciones.cierre.cerrar", user.rol)) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+    if (
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.cierre.cerrar",
+        user.rol,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 },
+      );
     }
 
     const cierre = await prisma.cierrePeriodo.findFirst({
       where: { id: cierreId, tienda: { negocioId: user.negocio.id } },
     });
     if (!cierre) {
-      return NextResponse.json({ error: "Cierre no encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Cierre no encontrado" },
+        { status: 404 },
+      );
     }
     if (cierre.fechaFin) {
-      return NextResponse.json({ error: "El período ya está cerrado" }, { status: 400 });
+      return NextResponse.json(
+        { error: "El período ya está cerrado" },
+        { status: 400 },
+      );
     }
 
     const body = await req.json();
     const parsed = applyGastosSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { error: "Datos inválidos", details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
 
     // Idempotencia: si ya hay gastos recurrentes aplicados, no duplicar
@@ -40,7 +58,7 @@ export async function POST(
     if (yaAplicados > 0) {
       return NextResponse.json(
         { error: "Los gastos recurrentes ya fueron aplicados a este cierre" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -60,6 +78,7 @@ export async function POST(
             nombre: g.nombre,
             categoria: g.categoria,
             tipoCalculo: g.tipoCalculo,
+            naturaleza: g.naturaleza,
             montoCalculado: g.montoCalculado,
             monto: g.monto ?? null,
             porcentaje: g.porcentaje ?? null,
@@ -68,8 +87,13 @@ export async function POST(
         });
       }
 
-      const totalGastosRecurrentes = gastosToApply.reduce((s, g) => s + g.montoCalculado, 0);
-      const totalGastosAdHoc = gastosAdHocExistentes.reduce((s, g) => s + g.montoCalculado, 0);
+      // Solo naturaleza OPERATIVO resta de ganancia (pre-cálculo de referencia; close/route.ts recalcula definitivamente)
+      const totalGastosRecurrentes = gastosToApply
+        .filter((g) => g.naturaleza === "OPERATIVO")
+        .reduce((s, g) => s + g.montoCalculado, 0);
+      const totalGastosAdHoc = gastosAdHocExistentes
+        .filter((g) => g.naturaleza === "OPERATIVO")
+        .reduce((s, g) => s + g.montoCalculado, 0);
       const totalGastos = totalGastosRecurrentes + totalGastosAdHoc;
 
       await tx.cierrePeriodo.update({
@@ -91,6 +115,9 @@ export async function POST(
     return NextResponse.json(gastosAplicados, { status: 201 });
   } catch (error) {
     console.error("Error al aplicar gastos al cierre:", error);
-    return NextResponse.json({ error: "Error al aplicar gastos" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al aplicar gastos" },
+      { status: 500 },
+    );
   }
 }

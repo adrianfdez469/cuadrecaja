@@ -6,6 +6,7 @@ import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
 import { applyGastosToResumenMap } from "@/lib/gastos";
+import { applyComprasYDevolucionesToResumenMap } from "@/lib/movimiento/caja";
 
 export async function PUT(
   req: NextRequest,
@@ -159,6 +160,7 @@ export async function PUT(
 
       let totalGastos = 0;
       for (const g of gastosCierre) {
+        if (g.naturaleza !== "OPERATIVO") continue; // INVERSION resta de caja, no de ganancia
         const moneda = g.monedaCode ?? monedaBase;
         totalGastos += convertToBase(
           g.montoCalculado,
@@ -167,7 +169,37 @@ export async function PUT(
           monedaBase,
         );
       }
-      const totalGananciaFinal = totalGanancia - totalGastos;
+
+      // Compras (efectivo de caja), merma y devoluciones de venta registradas durante este período
+      const movimientosPeriodo = await tx.movimientoStock.findMany({
+        where: {
+          tiendaId,
+          tipo: { in: ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] },
+          fecha: { gte: ultimoPeriodo.fechaInicio },
+        },
+      });
+
+      let totalComprasCaja = 0;
+      let totalMerma = 0;
+      let totalDevoluciones = 0;
+      for (const m of movimientosPeriodo) {
+        if (m.tipo === "COMPRA" && m.formaPago === "EFECTIVO_CAJA") {
+          // costoTotal de una COMPRA está en la moneda de la compra, no en monedaBase
+          totalComprasCaja += convertToBase(
+            m.montoOriginal ?? m.costoTotal ?? 0,
+            m.monedaOriginal ?? monedaBase,
+            tasasGastos,
+            monedaBase,
+          );
+        } else if (m.tipo === "MERMA") {
+          totalMerma += m.costoTotal ?? 0;
+        } else if (m.tipo === "DEVOLUCION_VENTA") {
+          totalDevoluciones += (m.montoReembolso ?? 0) - (m.costoTotal ?? 0);
+        }
+      }
+
+      const totalGananciaFinal =
+        totalGanancia - totalGastos - totalMerma - totalDevoluciones;
 
       // Cerrar el período con resumen
       const periodoCerrado = await tx.cierrePeriodo.update({
@@ -184,6 +216,9 @@ export async function PUT(
           totalGananciasConsignacion,
           totalGastos,
           totalGananciaFinal,
+          totalComprasCaja,
+          totalMerma,
+          totalDevoluciones,
         },
       });
 
@@ -248,9 +283,18 @@ export async function PUT(
       }
 
       // Deduct ad-hoc/recurring expenses from the per-currency cash summary
+      // (todos los gastos, sin importar naturaleza — la caja siempre refleja el efectivo real que salió)
       applyGastosToResumenMap(
         resumenMonedaMap,
         gastosCierre,
+        monedaBase,
+        tasasGastos,
+      );
+
+      // Deduct compras pagadas con efectivo de caja y reembolsos por devolución de venta
+      applyComprasYDevolucionesToResumenMap(
+        resumenMonedaMap,
+        movimientosPeriodo,
         monedaBase,
         tasasGastos,
       );
