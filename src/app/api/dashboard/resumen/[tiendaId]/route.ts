@@ -5,6 +5,7 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { startOfNextDay } from "@/utils/date";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase } from "@/lib/currency";
+import { calcularGananciaFinal } from "@/lib/gastos";
 
 export interface DashboardResumenMetrics {
   ventas: {
@@ -330,8 +331,12 @@ export async function GET(
     const totalGastos = gastosAgregados._sum.totalGastos ?? 0;
     const totalMerma = gastosAgregados._sum.totalMerma ?? 0;
     const totalDevoluciones = gastosAgregados._sum.totalDevoluciones ?? 0;
-    const gananciaFinal =
-      gananciaTotal - totalGastos - totalMerma - totalDevoluciones;
+    const gananciaFinal = calcularGananciaFinal(
+      gananciaTotal,
+      totalGastos,
+      totalMerma,
+      totalDevoluciones,
+    );
 
     // Ordenar productos por unidades vendidas y ganancia
     const topProductos = Array.from(productosVendidosMap.values())

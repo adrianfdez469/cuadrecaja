@@ -670,9 +670,11 @@ export default function POSInterface() {
       },
       onboardingMode
         ? {
-            dialog: "pos-period-dialog",
-            confirm: "pos-period-confirm",
-            cancel: "pos-period-cancel",
+            tourAttrs: {
+              dialog: "pos-period-dialog",
+              confirm: "pos-period-confirm",
+              cancel: "pos-period-cancel",
+            },
           }
         : undefined,
     );

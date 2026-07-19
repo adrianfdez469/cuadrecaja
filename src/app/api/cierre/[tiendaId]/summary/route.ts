@@ -4,6 +4,7 @@ import { ISummaryCierre } from "@/schemas/cierre";
 import { startOfNextDay } from "@/utils/date";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase } from "@/lib/currency";
+import { calcularGananciaFinal } from "@/lib/gastos";
 
 type Params = { tiendaId: string };
 type MontosMap = Record<string, { bruto: number; descuentos: number }>;
@@ -209,8 +210,12 @@ export async function GET(
         const totalDevoluciones = Number(
           (c as CierreResumenExt).totalDevoluciones || 0,
         );
-        const totalGananciaFinal =
-          totalGananciaNeta - totalGastos - totalMerma - totalDevoluciones;
+        const totalGananciaFinal = calcularGananciaFinal(
+          totalGananciaNeta,
+          totalGastos,
+          totalMerma,
+          totalDevoluciones,
+        );
 
         return {
           ...c,
@@ -309,11 +314,12 @@ export async function GET(
     const sumTotalComprasCaja = totales._sum.totalComprasCaja ?? 0;
     // Ganancia final neta de descuentos, gastos, merma y devoluciones (el valor
     // almacenado en CierrePeriodo.totalGananciaFinal no netea descuentos)
-    const sumTotalGananciaFinal =
-      sumTotalGananciaNet -
-      sumTotalGastos -
-      sumTotalMerma -
-      sumTotalDevoluciones;
+    const sumTotalGananciaFinal = calcularGananciaFinal(
+      sumTotalGananciaNet,
+      sumTotalGastos,
+      sumTotalMerma,
+      sumTotalDevoluciones,
+    );
 
     return NextResponse.json({
       cierres: cierresConMontos as unknown as ISummaryCierre["cierres"],

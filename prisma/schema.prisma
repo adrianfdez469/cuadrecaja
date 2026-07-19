@@ -551,6 +551,10 @@ model MovimientoStock {
 
   // Solo para COMPRA: de dónde salió el dinero (ver FormaPagoCompra)
   formaPago FormaPagoCompra?
+  // Solo para COMPRA con formaPago = MIXTO: cuánto de montoOriginal salió
+  // realmente de la caja (en monedaOriginal) — el resto se considera fondeo
+  // externo. Si formaPago = EFECTIVO_CAJA, se asume el monto completo.
+  montoEfectivoCaja Float?
 
   // Solo para DEVOLUCION_VENTA: monto reembolsado al cliente, en moneda base (precio histórico × cantidad).
   // La ganancia revertida se deriva como montoReembolso - costoTotal.
@@ -900,6 +904,7 @@ enum MovimientoTipo {
 enum FormaPagoCompra {
   EFECTIVO_CAJA // Sale de la caja del negocio — resta de ResumenMonedaCierre, no de la ganancia
   EXTERNO // Banco, aporte propio, etc. — no toca la caja registradora
+  MIXTO // La compra superó el efectivo disponible en caja: se tomó lo disponible (ver montoEfectivoCaja) y el resto se cubrió con fondeo externo
 }
 
 // Modelo para las notificaciones del sistema

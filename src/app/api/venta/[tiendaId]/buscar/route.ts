@@ -27,6 +27,17 @@ export async function GET(
       );
     }
 
+    const tienda = await prisma.tienda.findFirst({
+      where: { id: tiendaId, negocioId: user.negocio.id },
+      select: { id: true },
+    });
+    if (!tienda) {
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 },
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const fechaInicio = searchParams.get("fechaInicio");
     const fechaFin = searchParams.get("fechaFin");
@@ -35,9 +46,11 @@ export async function GET(
     const ventas = await prisma.venta.findMany({
       where: {
         tiendaId,
-        ...(fechaInicio && { createdAt: { gte: new Date(fechaInicio) } }),
-        ...(fechaFin && {
-          createdAt: { lte: startOfNextDay(new Date(fechaFin)) },
+        ...((fechaInicio || fechaFin) && {
+          createdAt: {
+            ...(fechaInicio && { gte: new Date(fechaInicio) }),
+            ...(fechaFin && { lte: startOfNextDay(new Date(fechaFin)) }),
+          },
         }),
         ...(search && {
           productos: {

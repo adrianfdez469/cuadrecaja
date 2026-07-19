@@ -5,8 +5,11 @@ import { getSession } from "@/utils/auth";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
-import { applyGastosToResumenMap } from "@/lib/gastos";
-import { applyComprasYDevolucionesToResumenMap } from "@/lib/movimiento/caja";
+import { applyGastosToResumenMap, calcularGananciaFinal } from "@/lib/gastos";
+import {
+  applyComprasYDevolucionesToResumenMap,
+  calcularTotalesMovimientosPeriodo,
+} from "@/lib/movimiento/caja";
 
 export async function PUT(
   req: NextRequest,
@@ -136,6 +139,33 @@ export async function PUT(
 
     const totalGanancia = totalGananciasPropias + totalGananciasConsignacion;
 
+    // Tasas de cambio y movimientos (compras en efectivo de caja, merma,
+    // devoluciones) no dependen de nada escrito dentro de la transacción de
+    // cierre — se calculan antes de abrirla para no alargar el tiempo que
+    // mantiene el lock/la conexión.
+    const tasasCambioGastos = negocioId
+      ? await prisma.tasaCambio.findMany({
+          where: { negocioId },
+          orderBy: { createdAt: "desc" },
+          distinct: ["monedaCode"],
+        })
+      : [];
+    const tasasGastos = buildTasaSnapshot(tasasCambioGastos);
+
+    const movimientosPeriodo = await prisma.movimientoStock.findMany({
+      where: {
+        tiendaId,
+        tipo: { in: ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] },
+        fecha: { gte: ultimoPeriodo.fechaInicio },
+      },
+    });
+    const { totalComprasCaja, totalMerma, totalDevoluciones } =
+      calcularTotalesMovimientosPeriodo(
+        movimientosPeriodo,
+        monedaBase,
+        tasasGastos,
+      );
+
     const [periodoCerrado] = await prisma.$transaction(async (tx) => {
       // Eliminar desgloses de billetes temporales antes de cerrar
       await tx.cashBreakdownCierre.deleteMany({
@@ -149,14 +179,6 @@ export async function PUT(
       const gastosCierre = await tx.gastoCierre.findMany({
         where: { cierreId: ultimoPeriodo.id },
       });
-      const tasasCambioGastos = negocioId
-        ? await tx.tasaCambio.findMany({
-            where: { negocioId },
-            orderBy: { createdAt: "desc" },
-            distinct: ["monedaCode"],
-          })
-        : [];
-      const tasasGastos = buildTasaSnapshot(tasasCambioGastos);
 
       let totalGastos = 0;
       for (const g of gastosCierre) {
@@ -170,36 +192,12 @@ export async function PUT(
         );
       }
 
-      // Compras (efectivo de caja), merma y devoluciones de venta registradas durante este período
-      const movimientosPeriodo = await tx.movimientoStock.findMany({
-        where: {
-          tiendaId,
-          tipo: { in: ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] },
-          fecha: { gte: ultimoPeriodo.fechaInicio },
-        },
-      });
-
-      let totalComprasCaja = 0;
-      let totalMerma = 0;
-      let totalDevoluciones = 0;
-      for (const m of movimientosPeriodo) {
-        if (m.tipo === "COMPRA" && m.formaPago === "EFECTIVO_CAJA") {
-          // costoTotal de una COMPRA está en la moneda de la compra, no en monedaBase
-          totalComprasCaja += convertToBase(
-            m.montoOriginal ?? m.costoTotal ?? 0,
-            m.monedaOriginal ?? monedaBase,
-            tasasGastos,
-            monedaBase,
-          );
-        } else if (m.tipo === "MERMA") {
-          totalMerma += m.costoTotal ?? 0;
-        } else if (m.tipo === "DEVOLUCION_VENTA") {
-          totalDevoluciones += (m.montoReembolso ?? 0) - (m.costoTotal ?? 0);
-        }
-      }
-
-      const totalGananciaFinal =
-        totalGanancia - totalGastos - totalMerma - totalDevoluciones;
+      const totalGananciaFinal = calcularGananciaFinal(
+        totalGanancia,
+        totalGastos,
+        totalMerma,
+        totalDevoluciones,
+      );
 
       // Cerrar el período con resumen
       const periodoCerrado = await tx.cierrePeriodo.update({

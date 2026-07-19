@@ -39,12 +39,24 @@ export async function POST(
     }
     const { ventaProductoId, cantidad, motivo } = parsed.data;
 
-    const venta = await prisma.venta.findFirst({
-      where: { id: ventaId, tiendaId },
-      include: {
-        productos: { include: { producto: true } },
-      },
-    });
+    const [tienda, venta] = await Promise.all([
+      prisma.tienda.findFirst({
+        where: { id: tiendaId, negocioId: user.negocio.id },
+        select: { negocio: { select: { monedaBase: true } } },
+      }),
+      prisma.venta.findFirst({
+        where: { id: ventaId, tiendaId },
+        include: {
+          productos: { include: { producto: true } },
+        },
+      }),
+    ]);
+    if (!tienda) {
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 },
+      );
+    }
     if (!venta) {
       return NextResponse.json(
         { error: "Venta no encontrada" },
@@ -80,10 +92,6 @@ export async function POST(
       );
     }
 
-    const tienda = await prisma.tienda.findUnique({
-      where: { id: tiendaId },
-      select: { negocio: { select: { monedaBase: true } } },
-    });
     const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
     // Usamos las tasas vigentes AL MOMENTO DE LA VENTA original, no las de hoy
     const tasasHistoricas = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;

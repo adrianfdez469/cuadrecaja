@@ -22,14 +22,19 @@ import { useState, useEffect, useMemo } from "react";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { IProveedor } from "@/schemas/proveedor";
 import { ILocal } from "@/schemas/tienda";
-import { cretateBatchMovimientos } from "@/services/movimientoService";
+import {
+  cretateBatchMovimientos,
+  getEfectivoDisponibleCaja,
+} from "@/services/movimientoService";
 import { getProveedores } from "@/services/proveedorService";
 import { getLocales } from "@/services/localesService";
-import { convertToBase } from "@/lib/currency";
+import { convertToBase, convertFromBase } from "@/lib/currency";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { FormaPagoCompraEnum } from "@/schemas/movimiento";
 import { FORMA_PAGO_COMPRA_LABELS } from "@/constants/formaPagoCompra";
+import { formatAdvertenciasCaja, formatCurrency } from "@/utils/formatters";
+import useConfirmDialog from "@/components/confirmDialog";
 
 interface Props {
   open: boolean;
@@ -85,6 +90,7 @@ export function CreateMovimientoDialog({
 }: Props) {
   const { user, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
+  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const [tipo, setTipo] = useState<TipoMovimiento>("COMPRA");
   const [cantidad, setCantidad] = useState("");
   const [costoUnitario, setCostoUnitario] = useState("");
@@ -119,7 +125,10 @@ export function CreateMovimientoDialog({
       setMotivo("");
       setSelectedProveedor(producto.proveedor ?? null);
       setDestinationId("");
-      setMonedaCompra(monedaBase);
+      // El costo del producto (producto.costo) está guardado en su propia
+      // moneda (monedaCostoCode) — la moneda seleccionada debe arrancar ahí,
+      // nunca en monedaBase a secas, o el número se reinterpreta mal.
+      setMonedaCompra(producto.monedaCostoCode ?? monedaBase);
       setFormaPago("EFECTIVO_CAJA");
     }
   }, [open, producto, monedaBase]);
@@ -144,6 +153,29 @@ export function CreateMovimientoDialog({
       setMonedaCompra(monedaBase);
     }
   }, [open, tipo, monedaBase, user?.localActual?.id]);
+
+  const handleMonedaCompraChange = (nuevaMoneda: string) => {
+    // Al cambiar la moneda, convertir el número ya ingresado en vez de
+    // reinterpretarlo tal cual en la nueva moneda (eso multiplicaba/dividía
+    // el costo por la tasa de cambio sin que el usuario lo notara).
+    const costoRaw = parseFloat(costoUnitario) || 0;
+    if (costoRaw > 0 && nuevaMoneda !== monedaCompra) {
+      const enBase = convertToBase(
+        costoRaw,
+        monedaCompra,
+        tasasVigentes,
+        monedaBase,
+      );
+      const enNuevaMoneda = convertFromBase(
+        enBase,
+        nuevaMoneda,
+        tasasVigentes,
+        monedaBase,
+      );
+      setCostoUnitario(String(Number(enNuevaMoneda.toFixed(2))));
+    }
+    setMonedaCompra(nuevaMoneda);
+  };
 
   if (!producto) return null;
 
@@ -173,9 +205,34 @@ export function CreateMovimientoDialog({
     }
     const costoRaw = parseFloat(costoUnitario) || 0;
 
+    if (tipo === "COMPRA" && formaPago === "EFECTIVO_CAJA" && costoRaw > 0) {
+      const montoCompra = costoRaw * qty;
+      try {
+        const disponible = await getEfectivoDisponibleCaja(user.localActual.id);
+        const disponibleMoneda = disponible[monedaCompra] ?? 0;
+        if (montoCompra > disponibleMoneda) {
+          confirmDialog(
+            `La compra (${formatCurrency(montoCompra)} ${monedaCompra}) supera el efectivo disponible en caja (${formatCurrency(disponibleMoneda)} ${monedaCompra}). Se tomarán ${formatCurrency(disponibleMoneda)} ${monedaCompra} de caja y el resto se registrará como fondeo externo. ¿Continuar?`,
+            () => ejecutarGuardado(qty, costoRaw),
+            undefined,
+            { severity: "warning" },
+          );
+          return;
+        }
+      } catch (e) {
+        console.error("Error al verificar efectivo disponible:", e);
+        // Si falla la verificación, no bloqueamos la compra — el backend
+        // igual aplica el tope de forma segura al crear el movimiento.
+      }
+    }
+
+    await ejecutarGuardado(qty, costoRaw);
+  };
+
+  const ejecutarGuardado = async (qty: number, costoRaw: number) => {
     setSaving(true);
     try {
-      await cretateBatchMovimientos(
+      const { advertenciasCaja } = await cretateBatchMovimientos(
         {
           tipo,
           tiendaId: user.localActual.id,
@@ -207,7 +264,11 @@ export function CreateMovimientoDialog({
           },
         ],
       );
-      showMessage("Movimiento registrado", "success");
+      if (advertenciasCaja?.length) {
+        showMessage(formatAdvertenciasCaja(advertenciasCaja), "warning");
+      } else {
+        showMessage("Movimiento registrado", "success");
+      }
       onCreated();
     } catch (e) {
       console.error(e);
@@ -218,185 +279,194 @@ export function CreateMovimientoDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>
-        Registrar movimiento — {producto.producto.nombre}
-      </DialogTitle>
-      <DialogContent>
-        <Box display="flex" flexDirection="column" gap={2} pt={1}>
-          <Alert severity="info">
-            Stock actual: <strong>{producto.existencia}</strong>
-            {producto.proveedor && (
-              <>
-                {" "}
-                · Proveedor: <strong>{producto.proveedor.nombre}</strong>
-              </>
-            )}
-          </Alert>
-
-          <FormControl size="small" fullWidth>
-            <InputLabel>Tipo de movimiento</InputLabel>
-            <Select
-              label="Tipo de movimiento"
-              value={tipo}
-              onChange={(e) => {
-                setTipo(e.target.value as TipoMovimiento);
-                if (!selectedProveedor && producto.proveedor) {
-                  setSelectedProveedor(producto.proveedor);
-                }
-              }}
-            >
-              {TIPOS_BASE.map((t) => (
-                <MenuItem key={t.value} value={t.value}>
-                  {t.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {esConsignacion && (
-            <Autocomplete
-              size="small"
-              options={proveedores}
-              getOptionLabel={(p) => p.nombre}
-              value={selectedProveedor}
-              onChange={(_, val) => setSelectedProveedor(val)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Proveedor *"
-                  placeholder="Seleccionar proveedor..."
-                />
+    <>
+      <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          Registrar movimiento — {producto.producto.nombre}
+        </DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" gap={2} pt={1}>
+            <Alert severity="info">
+              Stock actual: <strong>{producto.existencia}</strong>
+              {producto.proveedor && (
+                <>
+                  {" "}
+                  · Proveedor: <strong>{producto.proveedor.nombre}</strong>
+                </>
               )}
-              isOptionEqualToValue={(opt, val) => opt.id === val.id}
-            />
-          )}
+            </Alert>
 
-          {esTraspaso && (
             <FormControl size="small" fullWidth>
-              <InputLabel>Local destino *</InputLabel>
+              <InputLabel>Tipo de movimiento</InputLabel>
               <Select
-                label="Local destino *"
-                value={destinationId}
-                onChange={(e) => setDestinationId(e.target.value)}
+                label="Tipo de movimiento"
+                value={tipo}
+                onChange={(e) => {
+                  setTipo(e.target.value as TipoMovimiento);
+                  if (!selectedProveedor && producto.proveedor) {
+                    setSelectedProveedor(producto.proveedor);
+                  }
+                }}
               >
-                {destinos.length === 0 && (
-                  <MenuItem disabled value="">
-                    <Typography variant="body2" color="text.secondary">
-                      Sin locales disponibles
-                    </Typography>
-                  </MenuItem>
-                )}
-                {destinos.map((l) => (
-                  <MenuItem key={l.id} value={l.id}>
-                    {l.nombre}
+                {TIPOS_BASE.map((t) => (
+                  <MenuItem key={t.value} value={t.value}>
+                    {t.label}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
-          )}
 
-          <TextField
-            label="Cantidad"
-            value={cantidad}
-            onChange={(e) => setCantidad(e.target.value)}
-            size="small"
-            inputProps={{ inputMode: "decimal" }}
-            autoFocus
-          />
+            {esConsignacion && (
+              <Autocomplete
+                size="small"
+                options={proveedores}
+                getOptionLabel={(p) => p.nombre}
+                value={selectedProveedor}
+                onChange={(_, val) => setSelectedProveedor(val)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Proveedor *"
+                    placeholder="Seleccionar proveedor..."
+                  />
+                )}
+                isOptionEqualToValue={(opt, val) => opt.id === val.id}
+              />
+            )}
 
-          {mostrarCosto && (
+            {esTraspaso && (
+              <FormControl size="small" fullWidth>
+                <InputLabel>Local destino *</InputLabel>
+                <Select
+                  label="Local destino *"
+                  value={destinationId}
+                  onChange={(e) => setDestinationId(e.target.value)}
+                >
+                  {destinos.length === 0 && (
+                    <MenuItem disabled value="">
+                      <Typography variant="body2" color="text.secondary">
+                        Sin locales disponibles
+                      </Typography>
+                    </MenuItem>
+                  )}
+                  {destinos.map((l) => (
+                    <MenuItem key={l.id} value={l.id}>
+                      {l.nombre}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
             <TextField
-              label={`Costo unitario${isExtraCurrency ? ` (${monedaCompra})` : ""}`}
-              value={costoUnitario}
-              onChange={(e) => setCostoUnitario(e.target.value)}
+              label="Cantidad"
+              value={cantidad}
+              onChange={(e) => setCantidad(e.target.value)}
               size="small"
               inputProps={{ inputMode: "decimal" }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">$</InputAdornment>
-                ),
-              }}
+              autoFocus
+            />
+
+            {mostrarCosto && (
+              <TextField
+                label={`Costo unitario${isExtraCurrency ? ` (${monedaCompra})` : ""}`}
+                value={costoUnitario}
+                onChange={(e) => setCostoUnitario(e.target.value)}
+                size="small"
+                inputProps={{ inputMode: "decimal" }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">$</InputAdornment>
+                  ),
+                }}
+                helperText={
+                  isExtraCurrency && costoUnitario
+                    ? `≈ ${convertToBase(parseFloat(costoUnitario) || 0, monedaCompra, tasasVigentes, monedaBase).toFixed(2)} ${monedaBase}`
+                    : undefined
+                }
+              />
+            )}
+
+            {mostrarMoneda && (
+              <FormControl size="small" fullWidth>
+                <InputLabel>Moneda de compra</InputLabel>
+                <Select
+                  label="Moneda de compra"
+                  value={monedaCompra}
+                  onChange={(e) => handleMonedaCompraChange(e.target.value)}
+                >
+                  {monedasParaCompra.map((code) => (
+                    <MenuItem key={code} value={code}>
+                      {code}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {tipo === "COMPRA" && (
+              <FormControl size="small" fullWidth>
+                <InputLabel>Forma de pago</InputLabel>
+                <Select
+                  label="Forma de pago"
+                  value={formaPago}
+                  onChange={(e) =>
+                    setFormaPago(
+                      e.target
+                        .value as (typeof FormaPagoCompraEnum.options)[number],
+                    )
+                  }
+                >
+                  {/* MIXTO no es seleccionable — el backend lo asigna solo
+                    cuando la compra en EFECTIVO_CAJA supera el disponible */}
+                  {FormaPagoCompraEnum.options
+                    .filter((opt) => opt !== "MIXTO")
+                    .map((opt) => (
+                      <MenuItem key={opt} value={opt}>
+                        {FORMA_PAGO_COMPRA_LABELS[opt]}
+                      </MenuItem>
+                    ))}
+                </Select>
+              </FormControl>
+            )}
+
+            <TextField
+              label="Motivo (opcional)"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              size="small"
+              placeholder={
+                tipo === "MERMA"
+                  ? "Ej: se venció, se rompió, robo..."
+                  : "Descripción del movimiento..."
+              }
               helperText={
-                isExtraCurrency && costoUnitario
-                  ? `≈ ${convertToBase(parseFloat(costoUnitario) || 0, monedaCompra, tasasVigentes, monedaBase).toFixed(2)} ${monedaBase}`
+                tipo === "MERMA"
+                  ? "Se valoriza sola al costo vigente del producto — resta de la ganancia, no afecta la caja"
                   : undefined
               }
             />
-          )}
-
-          {mostrarMoneda && (
-            <FormControl size="small" fullWidth>
-              <InputLabel>Moneda de compra</InputLabel>
-              <Select
-                label="Moneda de compra"
-                value={monedaCompra}
-                onChange={(e) => setMonedaCompra(e.target.value)}
-              >
-                {monedasParaCompra.map((code) => (
-                  <MenuItem key={code} value={code}>
-                    {code}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {tipo === "COMPRA" && (
-            <FormControl size="small" fullWidth>
-              <InputLabel>Forma de pago</InputLabel>
-              <Select
-                label="Forma de pago"
-                value={formaPago}
-                onChange={(e) =>
-                  setFormaPago(
-                    e.target
-                      .value as (typeof FormaPagoCompraEnum.options)[number],
-                  )
-                }
-              >
-                {FormaPagoCompraEnum.options.map((opt) => (
-                  <MenuItem key={opt} value={opt}>
-                    {FORMA_PAGO_COMPRA_LABELS[opt]}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          <TextField
-            label="Motivo (opcional)"
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
-            size="small"
-            placeholder={
-              tipo === "MERMA"
-                ? "Ej: se venció, se rompió, robo..."
-                : "Descripción del movimiento..."
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            disabled={saving}
+            startIcon={
+              saving ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : undefined
             }
-            helperText={
-              tipo === "MERMA"
-                ? "Se valoriza sola al costo vigente del producto — resta de la ganancia, no afecta la caja"
-                : undefined
-            }
-          />
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={saving}>
-          Cancelar
-        </Button>
-        <Button
-          onClick={handleSave}
-          variant="contained"
-          disabled={saving}
-          startIcon={
-            saving ? <CircularProgress size={16} color="inherit" /> : undefined
-          }
-        >
-          {saving ? "Guardando..." : "Registrar"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+          >
+            {saving ? "Guardando..." : "Registrar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {ConfirmDialogComponent}
+    </>
   );
 }

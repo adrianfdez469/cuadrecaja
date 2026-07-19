@@ -5,6 +5,8 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { gastoAplicaEnFecha } from "@/utils/gastos";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
+import { calcularGananciaFinal } from "@/lib/gastos";
+import { calcularTotalesMovimientosPeriodo } from "@/lib/movimiento/caja";
 
 export async function POST(
   _req: NextRequest,
@@ -163,7 +165,30 @@ export async function POST(
         0,
       );
     const totalGastos = totalGastosRecurrentes + totalGastosAdHoc;
-    const totalGananciaFinal = totalGanancia - totalGastos;
+
+    // Compras (efectivo de caja), merma y devoluciones de venta registradas en
+    // el período abierto — deben restar de la ganancia igual que en close/route.ts,
+    // si no el preview muestra una ganancia final distinta de la que quedará
+    // persistida al cerrar.
+    const movimientosPeriodo = await prisma.movimientoStock.findMany({
+      where: {
+        tiendaId: cierre.tiendaId,
+        tipo: { in: ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] },
+        fecha: { gte: cierre.fechaInicio },
+      },
+    });
+    const { totalMerma, totalDevoluciones } = calcularTotalesMovimientosPeriodo(
+      movimientosPeriodo,
+      monedaBase,
+      tasasActuales,
+    );
+
+    const totalGananciaFinal = calcularGananciaFinal(
+      totalGanancia,
+      totalGastos,
+      totalMerma,
+      totalDevoluciones,
+    );
 
     return NextResponse.json({
       gastosRecurrentes,

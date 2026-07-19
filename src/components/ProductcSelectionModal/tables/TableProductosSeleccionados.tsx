@@ -1,5 +1,5 @@
-import {formatCurrency} from "@/utils/formatters";
-import {Delete} from "@mui/icons-material";
+import { formatCurrency } from "@/utils/formatters";
+import { Delete } from "@mui/icons-material";
 import {
   Alert,
   Box,
@@ -17,46 +17,74 @@ import {
   CardContent,
   Grid,
   TextField,
+  MenuItem,
+  Stack,
 } from "@mui/material";
 import React from "react";
-import {OperacionTipo, IProductoSeleccionado} from "../ProductSelectionModal";
-import {ITipoMovimiento} from "@/schemas/movimiento";
+import { OperacionTipo, IProductoSeleccionado } from "../ProductSelectionModal";
+import { ITipoMovimiento } from "@/schemas/movimiento";
 import ProductSelectedCard from "@/components/ProductcSelectionModal/ProductSelectedCard";
 
 interface IProps {
   operacion: OperacionTipo;
   productosSeleccionados: IProductoSeleccionado[];
   isMobile: boolean;
-  actualizarCantidad: (productoId: string, nuevaCantidad: number, proveedorId?: string) => void;
+  actualizarCantidad: (
+    productoId: string,
+    nuevaCantidad: number,
+    proveedorId?: string,
+  ) => void;
   actualizarCosto: (productoId: string, nuevoCosto: number) => void;
   eliminarProducto: (productoId: string) => void;
   limpiarSeleccion: () => void;
-  show: boolean,
-  tipoMovimiento: ITipoMovimiento
+  show: boolean;
+  tipoMovimiento: ITipoMovimiento;
+  permiteMonedaPorProducto: boolean;
+  monedasDisponibles: string[];
+  monedaBase: string;
+  actualizarMoneda: (productoId: string, nuevaMoneda: string) => void;
 }
 
 const TableProductosSeleccionados: React.FC<IProps> = ({
-                                                         operacion,
-                                                         productosSeleccionados,
-                                                         isMobile,
-                                                         actualizarCantidad,
-                                                         actualizarCosto,
-                                                         eliminarProducto,
-                                                         limpiarSeleccion,
-                                                         show,
-                                                         tipoMovimiento
-                                                       }) => {
-
+  operacion,
+  productosSeleccionados,
+  isMobile,
+  actualizarCantidad,
+  actualizarCosto,
+  eliminarProducto,
+  limpiarSeleccion,
+  show,
+  tipoMovimiento,
+  permiteMonedaPorProducto,
+  monedasDisponibles,
+  monedaBase,
+  actualizarMoneda,
+}) => {
   // Totales
   const totalProductos = productosSeleccionados.length;
-  const totalCantidad = productosSeleccionados.reduce((sum, p) => sum + p.cantidad, 0);
-  const totalCosto = productosSeleccionados.reduce((sum, p) => sum + p.costoTotal, 0);
+  const totalCantidad = productosSeleccionados.reduce(
+    (sum, p) => sum + p.cantidad,
+    0,
+  );
+  // Cada producto puede estar en una moneda distinta (ver
+  // permiteMonedaPorProducto) — sumarlos todos en un solo número mezclaría
+  // monedas. Se agrupa por moneda y se muestra el desglose.
+  const totalCostoPorMoneda = productosSeleccionados.reduce<
+    Record<string, number>
+  >((acc, p) => {
+    const moneda = permiteMonedaPorProducto
+      ? (p.monedaCostoCode ?? monedaBase)
+      : monedaBase;
+    acc[moneda] = (acc[moneda] ?? 0) + p.costoTotal;
+    return acc;
+  }, {});
+  const monedasConCosto = Object.keys(totalCostoPorMoneda);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   // Validaciones
-  const hayErrores = productosSeleccionados.some(p => {
-    if (operacion === 'SALIDA' || tipoMovimiento === 'TRASPASO_ENTRADA') {
+  const hayErrores = productosSeleccionados.some((p) => {
+    if (operacion === "SALIDA" || tipoMovimiento === "TRASPASO_ENTRADA") {
       return p.cantidad > p.existencia;
     }
     return p.cantidad <= 0;
@@ -64,200 +92,293 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
 
   if (productosSeleccionados.length === 0 && show) {
     return (
-        <Alert severity="info">
-          {`No hay productos seleccionados. Ve a la pestaña \"Productos Disponibles\" para agregar productos.`}
-        </Alert>
+      <Alert severity="info">
+        {`No hay productos seleccionados. Ve a la pestaña \"Productos Disponibles\" para agregar productos.`}
+      </Alert>
     );
   }
 
   return (
-      <div style={{display: show ? 'block' : 'none'}}>
-        {/* Resumen */}
-        <Card variant="outlined" sx={{mb: 2}}>
-          <CardContent sx={{p: isMobile ? 1.5 : 2}}>
-            <Grid container spacing={2}>
-              <Grid item xs={3} sm={3}>
-                <Box textAlign="center">
-                  <Typography variant={isMobile ? "subtitle1" : "h6"} color="primary" fontWeight="bold">
-                    {totalProductos}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Productos
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={3} sm={3}>
-                <Box textAlign="center">
-                  <Typography variant={isMobile ? "subtitle1" : "h6"} color="success.main" fontWeight="bold">
-                    {totalCantidad}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Cantidad Total
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={3} sm={3}>
-                <Box textAlign="center">
-                  <Typography variant={isMobile ? "subtitle1" : "h6"} color="warning.main" fontWeight="bold">
-                    {formatCurrency(totalCosto)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Costo Total
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={3} sm={3}>
-                <Box textAlign="center">
-                  <Tooltip title="Limpiar selección">
-                    <IconButton
-                        size="small"
-                        color="error"
-                        onClick={limpiarSeleccion}
-                    >
-                      <Delete/>
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </Grid>
+    <div style={{ display: show ? "block" : "none" }}>
+      {/* Resumen */}
+      <Card variant="outlined" sx={{ mb: 2 }}>
+        <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={3} sm={3}>
+              <Box textAlign="center">
+                <Typography
+                  variant={isMobile ? "subtitle1" : "h6"}
+                  color="primary"
+                  fontWeight="bold"
+                >
+                  {totalProductos}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Productos
+                </Typography>
+              </Box>
             </Grid>
-          </CardContent>
-        </Card>
+            <Grid item xs={3} sm={3}>
+              <Box textAlign="center">
+                <Typography
+                  variant={isMobile ? "subtitle1" : "h6"}
+                  color="success.main"
+                  fontWeight="bold"
+                >
+                  {totalCantidad}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Cantidad Total
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={3} sm={3}>
+              <Box textAlign="center">
+                {monedasConCosto.length > 1 ? (
+                  <Stack spacing={0}>
+                    {monedasConCosto.map((moneda) => (
+                      <Typography
+                        key={moneda}
+                        variant="body2"
+                        color="warning.main"
+                        fontWeight="bold"
+                      >
+                        {`${formatCurrency(totalCostoPorMoneda[moneda])} ${moneda}`}
+                      </Typography>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography
+                    variant={isMobile ? "subtitle1" : "h6"}
+                    color="warning.main"
+                    fontWeight="bold"
+                  >
+                    {formatCurrency(
+                      totalCostoPorMoneda[monedasConCosto[0]] ?? 0,
+                    )}
+                    {permiteMonedaPorProducto &&
+                      monedasConCosto[0] &&
+                      monedasConCosto[0] !== monedaBase &&
+                      ` ${monedasConCosto[0]}`}
+                  </Typography>
+                )}
+                <Typography variant="caption" color="text.secondary">
+                  Costo Total
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={3} sm={3}>
+              <Box textAlign="center">
+                <Tooltip title="Limpiar selección">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={limpiarSeleccion}
+                  >
+                    <Delete />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
-        {/* Lista de productos seleccionados */}
-        {!isMobile ? (
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="medium">
-                <TableHead>
-                  <TableRow>
-                    <TableCell align="center"></TableCell>
-                    <TableCell>Producto</TableCell>
-                    <TableCell align="center">Cantidad</TableCell>
-                    <TableCell align="center">Costo Unit.</TableCell>
-                    <TableCell align="right">Costo Total</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {productosSeleccionados.map((producto, index) => {
-                    const esSalida = operacion === 'SALIDA';
-                    const cantidadExcede = esSalida && producto.cantidad > producto.existencia;
-
-                    return (
-                        <TableRow key={producto.productoId + index}>
-                          <TableCell align="center">
-                            <Tooltip title="Eliminar producto">
-                              <IconButton
-                                  color="error"
-                                  onClick={() => eliminarProducto(producto.productoId)}
-                              >
-                                <Delete/>
-                              </IconButton>
-                            </Tooltip>
-                          </TableCell>
-                          <TableCell>
-                            <Box>
-                              <Typography variant="body2" fontWeight="medium">
-                                {producto.proveedor ? `${producto.nombre} - ${producto.proveedor.nombre}` : producto.nombre}
-                              </Typography>
-                              {producto.proveedor && (
-                                  <Typography variant="caption" color="text.secondary">
-                                    {producto.proveedor.nombre}
-                                  </Typography>
-                              )}
-                            </Box>
-                          </TableCell>
-                          <TableCell align="center">
-                            <TextField
-                                type="number"
-                                size="small"
-                                value={producto.cantidad.toString()}
-                                onChange={(e) => actualizarCantidad(producto.productoId, Number(e.target.value), producto.proveedorId)}
-                                slotProps={{
-                                  htmlInput: {
-                                    min: 1,
-                                    max: esSalida ? producto.existencia : undefined
-                                  }
-                                }}
-                                disabled={tipoMovimiento === 'TRASPASO_ENTRADA'}
-                                error={cantidadExcede}
-                                helperText={cantidadExcede ? `Máx: ${producto.existencia}` : ''}
-                                sx={{width: 100}}
-                            />
-                          </TableCell>
-                          <TableCell align="center">
-
-                            <TextField
-                                type="number"
-                                size="small"
-                                value={producto.costo?.toString()}
-                                onChange={(e) => actualizarCosto(producto.productoId, Number(e.target.value))}
-                                disabled={esSalida || tipoMovimiento === 'TRASPASO_ENTRADA'}
-                                slotProps={{
-                                  htmlInput: {
-                                    min: 0,
-                                    step: 0.01
-                                  }
-                                }}
-                                sx={{width: 100}}
-                            />
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="medium">
-                              {formatCurrency(producto.costoTotal)}
-                            </Typography>
-                          </TableCell>
-
-                        </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-        ) : (
-            <Box
-                ref={containerRef}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                  pb: 2
-                }}
-            >
+      {/* Lista de productos seleccionados */}
+      {!isMobile ? (
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="medium">
+            <TableHead>
+              <TableRow>
+                <TableCell align="center"></TableCell>
+                <TableCell>Producto</TableCell>
+                <TableCell align="center">Cantidad</TableCell>
+                <TableCell align="center">Costo Unit.</TableCell>
+                {permiteMonedaPorProducto && (
+                  <TableCell align="center">Moneda</TableCell>
+                )}
+                <TableCell align="right">Costo Total</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {productosSeleccionados.map((producto, index) => {
-                const esSalida = operacion === 'SALIDA';
+                const esSalida = operacion === "SALIDA";
+                const cantidadExcede =
+                  esSalida && producto.cantidad > producto.existencia;
 
                 return (
-                    <ProductSelectedCard
-                        key={producto.productoId + index}
-                        name={producto.nombre}
-                        providerName={producto.proveedor?.nombre}
-                        existencia={producto.existencia}
-                        cantidad={producto.cantidad}
-                        costoUnitario={producto.costo}
-                        costoTotal={producto.costoTotal}
-                        permiteDecimal={producto.permiteDecimal}
-                        esSalida={esSalida}
-                        disabledCantidad={tipoMovimiento === 'TRASPASO_ENTRADA'}
-                        disabledCosto={esSalida || tipoMovimiento === 'TRASPASO_ENTRADA'}
-                        onActualizarCantidad={(nuevaCantidad) => actualizarCantidad(producto.productoId, nuevaCantidad, producto.proveedorId)}
-                        onActualizarCosto={(nuevoCosto) => actualizarCosto(producto.productoId, nuevoCosto)}
-                        onEliminar={() => eliminarProducto(producto.productoId)}
-                    />
+                  <TableRow key={producto.productoId + index}>
+                    <TableCell align="center">
+                      <Tooltip title="Eliminar producto">
+                        <IconButton
+                          color="error"
+                          onClick={() => eliminarProducto(producto.productoId)}
+                        >
+                          <Delete />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2" fontWeight="medium">
+                          {producto.proveedor
+                            ? `${producto.nombre} - ${producto.proveedor.nombre}`
+                            : producto.nombre}
+                        </Typography>
+                        {producto.proveedor && (
+                          <Typography variant="caption" color="text.secondary">
+                            {producto.proveedor.nombre}
+                          </Typography>
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center">
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={producto.cantidad.toString()}
+                        onChange={(e) =>
+                          actualizarCantidad(
+                            producto.productoId,
+                            Number(e.target.value),
+                            producto.proveedorId,
+                          )
+                        }
+                        slotProps={{
+                          htmlInput: {
+                            min: 1,
+                            max: esSalida ? producto.existencia : undefined,
+                          },
+                        }}
+                        disabled={tipoMovimiento === "TRASPASO_ENTRADA"}
+                        error={cantidadExcede}
+                        helperText={
+                          cantidadExcede ? `Máx: ${producto.existencia}` : ""
+                        }
+                        sx={{ width: 100 }}
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={producto.costo?.toString()}
+                        onChange={(e) =>
+                          actualizarCosto(
+                            producto.productoId,
+                            Number(e.target.value),
+                          )
+                        }
+                        disabled={
+                          esSalida || tipoMovimiento === "TRASPASO_ENTRADA"
+                        }
+                        slotProps={{
+                          htmlInput: {
+                            min: 0,
+                            step: 0.01,
+                          },
+                        }}
+                        sx={{ width: 100 }}
+                      />
+                    </TableCell>
+                    {permiteMonedaPorProducto && (
+                      <TableCell align="center">
+                        <TextField
+                          select
+                          size="small"
+                          value={producto.monedaCostoCode ?? monedaBase}
+                          onChange={(e) =>
+                            actualizarMoneda(
+                              producto.productoId,
+                              e.target.value,
+                            )
+                          }
+                          disabled={
+                            esSalida || tipoMovimiento === "TRASPASO_ENTRADA"
+                          }
+                          sx={{ width: 90 }}
+                        >
+                          {monedasDisponibles.map((code) => (
+                            <MenuItem key={code} value={code}>
+                              {code}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </TableCell>
+                    )}
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="medium">
+                        {formatCurrency(producto.costoTotal)}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </Box>
-        )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : (
+        <Box
+          ref={containerRef}
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            pb: 2,
+          }}
+        >
+          {productosSeleccionados.map((producto, index) => {
+            const esSalida = operacion === "SALIDA";
 
-        {/* Alertas de validación */}
-        {hayErrores && (
-            <Alert severity="warning" sx={{mt: 2}}>
-              <Typography variant="body2">
-                Hay productos con cantidades inválidas. Por favor, revisa los valores ingresados.
-              </Typography>
-            </Alert>
-        )}
-      </div>
+            return (
+              <ProductSelectedCard
+                key={producto.productoId + index}
+                name={producto.nombre}
+                providerName={producto.proveedor?.nombre}
+                existencia={producto.existencia}
+                cantidad={producto.cantidad}
+                costoUnitario={producto.costo}
+                costoTotal={producto.costoTotal}
+                permiteDecimal={producto.permiteDecimal}
+                esSalida={esSalida}
+                disabledCantidad={tipoMovimiento === "TRASPASO_ENTRADA"}
+                disabledCosto={
+                  esSalida || tipoMovimiento === "TRASPASO_ENTRADA"
+                }
+                onActualizarCantidad={(nuevaCantidad) =>
+                  actualizarCantidad(
+                    producto.productoId,
+                    nuevaCantidad,
+                    producto.proveedorId,
+                  )
+                }
+                onActualizarCosto={(nuevoCosto) =>
+                  actualizarCosto(producto.productoId, nuevoCosto)
+                }
+                onEliminar={() => eliminarProducto(producto.productoId)}
+                {...(permiteMonedaPorProducto && {
+                  moneda: producto.monedaCostoCode ?? monedaBase,
+                  monedasDisponibles,
+                  onActualizarMoneda: (nuevaMoneda: string) =>
+                    actualizarMoneda(producto.productoId, nuevaMoneda),
+                })}
+              />
+            );
+          })}
+        </Box>
+      )}
+
+      {/* Alertas de validación */}
+      {hayErrores && (
+        <Alert severity="warning" sx={{ mt: 2 }}>
+          <Typography variant="body2">
+            Hay productos con cantidades inválidas. Por favor, revisa los
+            valores ingresados.
+          </Typography>
+        </Alert>
+      )}
+    </div>
   );
 };
 
 export default React.memo(TableProductosSeleccionados);
-

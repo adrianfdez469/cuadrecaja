@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback, useState } from 'react';
+import React, { useEffect, useMemo, useCallback, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -12,25 +12,27 @@ import {
   Tab,
   Badge,
   useTheme,
-  useMediaQuery
-} from '@mui/material';
+  useMediaQuery,
+} from "@mui/material";
 
 import {
   Close,
   ShoppingCart,
   Inventory,
   TrendingUp,
-  TrendingDown
-} from '@mui/icons-material';
-import { ITipoMovimiento } from '@/schemas/movimiento';
-import TableProductosDisponibles from './tables/TableProductosDisponibles';
-import TableProductosSeleccionados from './tables/TableProductosSeleccionados';
-import { RejectionModal } from './RejectionModal';
-import { useMessageContext } from '@/context/MessageContext';
-import { IProcessedData } from '@/schemas/processedData';
+  TrendingDown,
+} from "@mui/icons-material";
+import { ITipoMovimiento } from "@/schemas/movimiento";
+import TableProductosDisponibles from "./tables/TableProductosDisponibles";
+import TableProductosSeleccionados from "./tables/TableProductosSeleccionados";
+import { RejectionModal } from "./RejectionModal";
+import { useMessageContext } from "@/context/MessageContext";
+import { useAppContext } from "@/context/AppContext";
+import { convertToBase, convertFromBase } from "@/lib/currency";
+import { IProcessedData } from "@/schemas/processedData";
 
 // Tipos para el componente
-export type OperacionTipo = 'ENTRADA' | 'SALIDA';
+export type OperacionTipo = "ENTRADA" | "SALIDA";
 
 export interface IProductoDisponible {
   productoId: string;
@@ -42,11 +44,14 @@ export interface IProductoDisponible {
     nombre: string;
   };
 
-  productoTiendaId?: string,
-  precio?: number,
-  costo?: number,
-  existencia?: number,
-  proveedorId?: string,
+  productoTiendaId?: string;
+  precio?: number;
+  costo?: number;
+  // Moneda en la que está expresado `costo` — SIEMPRE debe acompañar al
+  // número: reinterpretarlo en otra moneda sin convertir es un bug de dinero.
+  monedaCostoCode?: string | null;
+  existencia?: number;
+  proveedorId?: string;
   proveedor?: {
     id: string;
     nombre: string;
@@ -66,7 +71,12 @@ export interface IProductoSeleccionado extends IProductoDisponible {
 interface ProductSelectionModalProps {
   open: boolean;
   onClose: () => void;
-  loadProductos: (operacion: OperacionTipo, take: number, skip: number, filter?: { categoriaId?: string, text?: string }) => Promise<IProductoDisponible[]>;
+  loadProductos: (
+    operacion: OperacionTipo,
+    take: number,
+    skip: number,
+    filter?: { categoriaId?: string; text?: string },
+  ) => Promise<IProductoDisponible[]>;
   operacion: OperacionTipo;
   iTipoMovimiento: ITipoMovimiento;
   onConfirm: (productosSeleccionados: IProductoSeleccionado[]) => void;
@@ -77,8 +87,6 @@ interface ProductSelectionModalProps {
 
 const ITEMS_PER_PAGE = 50;
 
-
-
 export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   open,
   onClose,
@@ -88,16 +96,34 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   onReject,
   loading = false,
   iTipoMovimiento,
-  productosSeleccionadosIniciales
+  productosSeleccionadosIniciales,
 }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { showMessage } = useMessageContext();
+  const { monedaBase, monedasNegocio, tasasVigentes } = useAppContext();
+  // Solo tiene sentido elegir moneda por producto cuando el costo ingresado
+  // aquí termina afectando la caja/ganancia por moneda (compras).
+  const permiteMonedaPorProducto =
+    iTipoMovimiento === "COMPRA" &&
+    operacion === "ENTRADA" &&
+    monedasNegocio.filter((m) => m.activo).length > 1;
+  const monedasDisponibles = useMemo(
+    () => [
+      monedaBase,
+      ...monedasNegocio
+        .filter((m) => m.activo && m.monedaCode !== monedaBase)
+        .map((m) => m.monedaCode),
+    ],
+    [monedaBase, monedasNegocio],
+  );
 
   // Estados principales
   const [activeTab, setActiveTab] = useState<number>(0);
   const [isSearchActive, setIsSearchActive] = useState(false);
-  const [productosSeleccionados, setProductosSeleccionados] = useState<IProductoSeleccionado[]>(productosSeleccionadosIniciales || []);
+  const [productosSeleccionados, setProductosSeleccionados] = useState<
+    IProductoSeleccionado[]
+  >(productosSeleccionadosIniciales || []);
   const [productos, setProductos] = useState<IProductoDisponible[]>([]);
 
   // Estados para infinite scroll
@@ -106,51 +132,64 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Estados para filtros
-  const [currentFilters, setCurrentFilters] = useState<{ text?: string, categoriaId?: string }>({});
+  const [currentFilters, setCurrentFilters] = useState<{
+    text?: string;
+    categoriaId?: string;
+  }>({});
   const [isFiltering, setIsFiltering] = useState(false);
 
   // Estado para el rechazo de productos
-  const [rejectingProduct, setRejectingProduct] = useState<IProductoDisponible | null>(null);
+  const [rejectingProduct, setRejectingProduct] =
+    useState<IProductoDisponible | null>(null);
   const [isRejecting, setIsRejecting] = useState(false);
 
   // Productos disponibles (excluyendo los ya seleccionados) - MEMOIZADO
   const productosDisponibles = useMemo(() => {
-
     const buildId = (p) => {
       const prodId = p.productoId;
-      const provId = p.proveedorId || '';
-      const movId = p.movimientoOrigenId || '';
+      const provId = p.proveedorId || "";
+      const movId = p.movimientoOrigenId || "";
       return `${prodId}-${provId}-${movId}`;
     };
-    const idsSeleccionados = new Set(productosSeleccionados.map(p => buildId(p)));
+    const idsSeleccionados = new Set(
+      productosSeleccionados.map((p) => buildId(p)),
+    );
 
-    return productos.filter(p => !idsSeleccionados.has(buildId(p)));
+    return productos.filter((p) => !idsSeleccionados.has(buildId(p)));
   }, [productos, productosSeleccionados]);
 
   // Totales - MEMOIZADOS
-  const totalProductos = useMemo(() => productosSeleccionados.length, [productosSeleccionados]);
+  const totalProductos = useMemo(
+    () => productosSeleccionados.length,
+    [productosSeleccionados],
+  );
 
   // Validaciones - MEMOIZADAS
-  const hayErrores = useMemo(() =>
-    productosSeleccionados.some(p => {
-      if (operacion === 'SALIDA' || iTipoMovimiento === 'TRASPASO_ENTRADA') {
-        return p.cantidad > p.existencia;
-      }
-      return p.cantidad <= 0;
-    }),
-    [productosSeleccionados, operacion]
+  const hayErrores = useMemo(
+    () =>
+      productosSeleccionados.some((p) => {
+        if (operacion === "SALIDA" || iTipoMovimiento === "TRASPASO_ENTRADA") {
+          return p.cantidad > p.existencia;
+        }
+        return p.cantidad <= 0;
+      }),
+    [productosSeleccionados, operacion],
   );
 
   const handleConfirm = useCallback(() => {
     if (hayErrores) return;
 
-    if (totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0) {
+    if (
+      totalProductos === 0 &&
+      productosSeleccionadosIniciales &&
+      productosSeleccionadosIniciales.length > 0
+    ) {
       onConfirm(productosSeleccionados);
       return;
     }
 
-    if (productosSeleccionados.some(p => p.costo === 0 || p.costo === null)) {
-      showMessage('El costo de un producto no puede ser 0', 'error');
+    if (productosSeleccionados.some((p) => p.costo === 0 || p.costo === null)) {
+      showMessage("El costo de un producto no puede ser 0", "error");
       return;
     }
 
@@ -162,29 +201,40 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     setRejectingProduct(producto);
   }, []);
 
-  const handleConfirmReject = useCallback(async (motivo: string) => {
-    if (!rejectingProduct || !onReject) return;
-    
-    setIsRejecting(true);
-    try {
-      await onReject(rejectingProduct, motivo);
-      // Eliminar el producto de la lista local para que ya no aparezca
-      setProductos(prev => prev.filter(p => p.movimientoOrigenId !== rejectingProduct.movimientoOrigenId));
-      setRejectingProduct(null);
-    } catch (error) {
-      console.error("Error al rechazar producto:", error);
-      showMessage("Error al rechazar el producto", "error");
-    } finally {
-      setIsRejecting(false);
-    }
-  }, [rejectingProduct, onReject, showMessage]);
+  const handleConfirmReject = useCallback(
+    async (motivo: string) => {
+      if (!rejectingProduct || !onReject) return;
+
+      setIsRejecting(true);
+      try {
+        await onReject(rejectingProduct, motivo);
+        // Eliminar el producto de la lista local para que ya no aparezca
+        setProductos((prev) =>
+          prev.filter(
+            (p) => p.movimientoOrigenId !== rejectingProduct.movimientoOrigenId,
+          ),
+        );
+        setRejectingProduct(null);
+      } catch (error) {
+        console.error("Error al rechazar producto:", error);
+        showMessage("Error al rechazar el producto", "error");
+      } finally {
+        setIsRejecting(false);
+      }
+    },
+    [rejectingProduct, onReject, showMessage],
+  );
 
   // Función para cargar más productos - MEMOIZADA
   const loadMoreProductos = useCallback(async () => {
-
-
     // Validaciones más estrictas para evitar llamadas innecesarias
-    if (isLoadingMore || !hasMore || productos.length === 0 || currentPage === 1) return;
+    if (
+      isLoadingMore ||
+      !hasMore ||
+      productos.length === 0 ||
+      currentPage === 1
+    )
+      return;
 
     setIsLoadingMore(true);
     try {
@@ -192,7 +242,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         operacion,
         ITEMS_PER_PAGE,
         (currentPage - 1) * ITEMS_PER_PAGE,
-        currentFilters
+        currentFilters,
       );
 
       // Si no hay productos nuevos, definitivamente no hay más
@@ -205,67 +255,79 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         setHasMore(false);
       }
 
-      setProductos(prev => [...prev, ...nuevosProductos]);
-      setCurrentPage(prev => prev + 1);
+      setProductos((prev) => [...prev, ...nuevosProductos]);
+      setCurrentPage((prev) => prev + 1);
     } catch (error) {
-      console.error('Error cargando más productos:', error);
+      console.error("Error cargando más productos:", error);
       // En caso de error, también marcamos que no hay más para evitar loops infinitos
       setHasMore(false);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, hasMore, productos.length, currentPage, loadProductos, operacion, currentFilters]);
+  }, [
+    isLoadingMore,
+    hasMore,
+    productos.length,
+    currentPage,
+    loadProductos,
+    operacion,
+    currentFilters,
+  ]);
 
   // Función para manejar cambios de filtros
-  const handleFilterChange = useCallback((filters: { text?: string, categoriaId?: string }) => {
+  const handleFilterChange = useCallback(
+    (filters: { text?: string; categoriaId?: string }) => {
+      // Solo actualizar filtros si realmente cambiaron
+      const filtersChanged =
+        JSON.stringify(filters) !== JSON.stringify(currentFilters);
+      if (!filtersChanged) return;
 
-    // Solo actualizar filtros si realmente cambiaron
-    const filtersChanged = JSON.stringify(filters) !== JSON.stringify(currentFilters);
-    if (!filtersChanged) return;
+      setIsFiltering(true);
+      setCurrentFilters(filters);
 
-    setIsFiltering(true);
-    setCurrentFilters(filters);
+      // Resetear estados antes de cargar
+      setProductos([]);
+      setCurrentPage(1);
+      setHasMore(true);
 
-    // Resetear estados antes de cargar
-    setProductos([]);
-    setCurrentPage(1);
-    setHasMore(true);
+      // Cargar productos con nuevos filtros
+      const cargarProductosConFiltros = async () => {
+        setIsLoadingMore(true);
+        try {
+          const productosFiltrados = await loadProductos(
+            operacion,
+            ITEMS_PER_PAGE,
+            0,
+            filters,
+          );
 
-    // Cargar productos con nuevos filtros
-    const cargarProductosConFiltros = async () => {
-      setIsLoadingMore(true);
-      try {
-        const productosFiltrados = await loadProductos(
-          operacion,
-          ITEMS_PER_PAGE, 0,
-          filters
-        );
+          // Si no hay productos, definitivamente no hay más
+          if (productosFiltrados.length === 0) {
+            setHasMore(false);
+          } else if (productosFiltrados.length < ITEMS_PER_PAGE) {
+            setHasMore(false);
+          } else {
+            setHasMore(true);
+          }
 
-        // Si no hay productos, definitivamente no hay más
-        if (productosFiltrados.length === 0) {
+          // Actualizar productos de manera más suave para evitar re-renderizados abruptos
+          setProductos(productosFiltrados);
+          setCurrentPage(2);
+        } catch (error) {
+          console.error("Error cargando productos con filtros:", error);
+          // En caso de error, también marcamos que no hay más para evitar loops infinitos
           setHasMore(false);
-        } else if (productosFiltrados.length < ITEMS_PER_PAGE) {
-          setHasMore(false);
-        } else {
-          setHasMore(true);
+          setProductos([]);
+        } finally {
+          setIsLoadingMore(false);
+          setIsFiltering(false);
         }
+      };
 
-        // Actualizar productos de manera más suave para evitar re-renderizados abruptos
-        setProductos(productosFiltrados);
-        setCurrentPage(2);
-      } catch (error) {
-        console.error('Error cargando productos con filtros:', error);
-        // En caso de error, también marcamos que no hay más para evitar loops infinitos
-        setHasMore(false);
-        setProductos([]);
-      } finally {
-        setIsLoadingMore(false);
-        setIsFiltering(false);
-      }
-    };
-
-    cargarProductosConFiltros();
-  }, [loadProductos, operacion, currentFilters]);
+      cargarProductosConFiltros();
+    },
+    [loadProductos, operacion, currentFilters],
+  );
 
   // Resetear estado cuando se abre/cierra
   useEffect(() => {
@@ -292,7 +354,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
             operacion,
             ITEMS_PER_PAGE,
             0,
-            currentFilters
+            currentFilters,
           );
 
           // Si no hay productos iniciales, no hay más para cargar
@@ -309,7 +371,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
           setCurrentPage(2);
         } catch (error) {
-          console.error('Error cargando productos iniciales:', error);
+          console.error("Error cargando productos iniciales:", error);
           // En caso de error, marcamos que no hay más para evitar loops infinitos
           setHasMore(false);
           setProductos([]);
@@ -320,113 +382,184 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
       cargarProductosIniciales();
     }
-  }, [open, operacion, loadProductos, currentFilters, productos.length, isLoadingMore, currentPage]);
+  }, [
+    open,
+    operacion,
+    loadProductos,
+    currentFilters,
+    productos.length,
+    isLoadingMore,
+    currentPage,
+  ]);
 
-  const handleProductScan = useCallback((qrText: string) => {
+  const handleProductScan = useCallback(
+    (qrText: string) => {
+      // productosDisponibles
+      // productosSeleccionados
 
-    // productosDisponibles
-    // productosSeleccionados
-
-
-    const producto = productosDisponibles.find(p => {
-      if (p.codigosProducto && p.codigosProducto.some(c => c.codigo === qrText)) return p;
-      return null;
-    });
-
-    if (producto) {
-      agregarProducto(producto);
-    } else {
-      const prod = productosSeleccionados.find(p => {
-        if (p.codigosProducto && p.codigosProducto.some(c => c.codigo === qrText)) return p;
+      const producto = productosDisponibles.find((p) => {
+        if (
+          p.codigosProducto &&
+          p.codigosProducto.some((c) => c.codigo === qrText)
+        )
+          return p;
         return null;
       });
 
-      if (prod) {
-        showMessage(`Producto ${prod.nombre} ya seleccionado`, 'warning');
+      if (producto) {
+        agregarProducto(producto);
       } else {
-        showMessage(`Producto ${qrText} no encontrado`, 'error');
+        const prod = productosSeleccionados.find((p) => {
+          if (
+            p.codigosProducto &&
+            p.codigosProducto.some((c) => c.codigo === qrText)
+          )
+            return p;
+          return null;
+        });
+
+        if (prod) {
+          showMessage(`Producto ${prod.nombre} ya seleccionado`, "warning");
+        } else {
+          showMessage(`Producto ${qrText} no encontrado`, "error");
+        }
+        throw new Error("Producto no encontrado");
       }
-      throw new Error('Producto no encontrado');
-    }
-
-  }, [productosDisponibles, productosSeleccionados]);
-
+    },
+    [productosDisponibles, productosSeleccionados],
+  );
 
   // Funciones para manejar productos - MEMOIZADAS
-  const agregarProducto = useCallback((producto: IProductoDisponible) => {
-
-    let cantidadInicial = 0;
-    let costoInicial = 0;
-    if (operacion === 'ENTRADA') {
-      cantidadInicial = 1;
-      costoInicial = 1;
-    }
-    if (operacion === 'SALIDA' || iTipoMovimiento === 'TRASPASO_ENTRADA') {
-      cantidadInicial = producto.existencia;
-      costoInicial = producto.costo;
-    }
-
-    const nuevoProducto: IProductoSeleccionado = {
-      productoId: producto.productoId,
-      nombre: producto.nombre,
-      permiteDecimal: producto.permiteDecimal,
-      productoTiendaId: producto.productoTiendaId,
-      categoriaId: producto.categoriaId,
-      categoria: producto.categoria,
-      precio: producto.precio,
-      costo: producto.costo,
-      existencia: producto.existencia,
-      proveedorId: producto.proveedorId,
-      proveedor: producto.proveedor,
-      cantidad: cantidadInicial,
-      costoTotal: cantidadInicial * (producto.costo || costoInicial),
-      movimientoOrigenId: producto.movimientoOrigenId,
-      codigosProducto: producto.codigosProducto
-    };
-
-    setProductosSeleccionados(prev => [...prev, nuevoProducto]);
-  }, [operacion]);
-
-  const actualizarCantidad = useCallback((productoId: string, nuevaCantidad: number, proveedorId?: string) => {
-
-
-    setProductosSeleccionados(prev => prev.map(p => {
-
-      if (p.productoId === productoId && p.proveedorId === proveedorId) {
-        const cantidad = operacion === 'SALIDA'
-          ? Math.min(nuevaCantidad, p.existencia)
-          : nuevaCantidad;
-
-        const fixedAmount = p.permiteDecimal ? cantidad : Math.trunc(cantidad)
-
-        return {
-          ...p,
-          cantidad: fixedAmount,
-          costoTotal: cantidad * p.costo
-        };
+  const agregarProducto = useCallback(
+    (producto: IProductoDisponible) => {
+      let cantidadInicial = 0;
+      let costoInicial = 0;
+      if (operacion === "ENTRADA") {
+        cantidadInicial = 1;
+        costoInicial = 1;
+      }
+      if (operacion === "SALIDA" || iTipoMovimiento === "TRASPASO_ENTRADA") {
+        cantidadInicial = producto.existencia;
+        costoInicial = producto.costo;
       }
 
-      return p;
-    }));
-  }, [operacion]);
+      const nuevoProducto: IProductoSeleccionado = {
+        productoId: producto.productoId,
+        nombre: producto.nombre,
+        permiteDecimal: producto.permiteDecimal,
+        productoTiendaId: producto.productoTiendaId,
+        categoriaId: producto.categoriaId,
+        categoria: producto.categoria,
+        precio: producto.precio,
+        costo: producto.costo,
+        // El costo del producto está guardado en su propia moneda — arrancar
+        // ahí (nunca en monedaBase a secas) evita interpretar mal el número.
+        monedaCostoCode: producto.monedaCostoCode ?? monedaBase,
+        existencia: producto.existencia,
+        proveedorId: producto.proveedorId,
+        proveedor: producto.proveedor,
+        cantidad: cantidadInicial,
+        costoTotal: cantidadInicial * (producto.costo || costoInicial),
+        movimientoOrigenId: producto.movimientoOrigenId,
+        codigosProducto: producto.codigosProducto,
+      };
 
-  const actualizarCosto = useCallback((productoId: string, nuevoCosto: number) => {
-    if (operacion === 'SALIDA') return; // No permitir editar costo en salidas
+      setProductosSeleccionados((prev) => [...prev, nuevoProducto]);
+    },
+    [operacion, monedaBase],
+  );
 
-    setProductosSeleccionados(prev => prev.map(p => {
-      if (p.productoId === productoId) {
-        return {
-          ...p,
-          costo: nuevoCosto,
-          costoTotal: p.cantidad * nuevoCosto
-        };
-      }
-      return p;
-    }));
-  }, [operacion]);
+  const actualizarCantidad = useCallback(
+    (productoId: string, nuevaCantidad: number, proveedorId?: string) => {
+      setProductosSeleccionados((prev) =>
+        prev.map((p) => {
+          if (p.productoId === productoId && p.proveedorId === proveedorId) {
+            const cantidad =
+              operacion === "SALIDA"
+                ? Math.min(nuevaCantidad, p.existencia)
+                : nuevaCantidad;
+
+            const fixedAmount = p.permiteDecimal
+              ? cantidad
+              : Math.trunc(cantidad);
+
+            return {
+              ...p,
+              cantidad: fixedAmount,
+              costoTotal: cantidad * p.costo,
+            };
+          }
+
+          return p;
+        }),
+      );
+    },
+    [operacion],
+  );
+
+  const actualizarCosto = useCallback(
+    (productoId: string, nuevoCosto: number) => {
+      if (operacion === "SALIDA") return; // No permitir editar costo en salidas
+
+      setProductosSeleccionados((prev) =>
+        prev.map((p) => {
+          if (p.productoId === productoId) {
+            return {
+              ...p,
+              costo: nuevoCosto,
+              costoTotal: p.cantidad * nuevoCosto,
+            };
+          }
+          return p;
+        }),
+      );
+    },
+    [operacion],
+  );
+
+  // Al cambiar la moneda de un producto, convertir el costo ya ingresado a la
+  // nueva moneda en vez de reinterpretar el mismo número — evita el bug de
+  // tomar un costo en CUP como si fuera USD (o viceversa).
+  const actualizarMoneda = useCallback(
+    (productoId: string, nuevaMoneda: string) => {
+      if (operacion === "SALIDA") return;
+
+      setProductosSeleccionados((prev) =>
+        prev.map((p) => {
+          if (p.productoId !== productoId) return p;
+          const monedaActual = p.monedaCostoCode ?? monedaBase;
+          if (monedaActual === nuevaMoneda) return p;
+
+          const costoActual = p.costo || 0;
+          const enBase = convertToBase(
+            costoActual,
+            monedaActual,
+            tasasVigentes,
+            monedaBase,
+          );
+          const nuevoCosto = convertFromBase(
+            enBase,
+            nuevaMoneda,
+            tasasVigentes,
+            monedaBase,
+          );
+
+          return {
+            ...p,
+            costo: nuevoCosto,
+            costoTotal: p.cantidad * nuevoCosto,
+            monedaCostoCode: nuevaMoneda,
+          };
+        }),
+      );
+    },
+    [operacion, monedaBase, tasasVigentes],
+  );
 
   const eliminarProducto = useCallback((productoId: string) => {
-    setProductosSeleccionados(prev => prev.filter(p => p.productoId !== productoId));
+    setProductosSeleccionados((prev) =>
+      prev.filter((p) => p.productoId !== productoId),
+    );
   }, []);
 
   const limpiarSeleccion = useCallback(() => {
@@ -434,61 +567,77 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   }, []);
 
   // Props memoizadas para las tablas
-  const tableProductosDisponiblesProps = useMemo(() => ({
-    operacion,
-    loading,
-    productos,
-    productosDisponibles,
-    isMobile,
-    isLoadingMore,
-    hasMore,
-    loadMoreProductos,
-    agregarProducto,
-    onFilterChange: handleFilterChange,
-    onSearchChange: setIsSearchActive,
-    onProductScan: (data: IProcessedData) => { if (data?.code) handleProductScan(data.code); },
-    show: activeTab === 0,
-    isFiltering,
-    currentPage,
-    onReject: onReject ? handleRejectClick : undefined
-  }), [
-    operacion,
-    loading,
-    productos,
-    productosDisponibles,
-    isMobile,
-    isLoadingMore,
-    hasMore,
-    loadMoreProductos,
-    agregarProducto,
-    handleFilterChange,
-    handleProductScan,
-    activeTab,
-    isFiltering,
-    currentPage,
-    onReject,
-    handleRejectClick
-  ]);
+  const tableProductosDisponiblesProps = useMemo(
+    () => ({
+      operacion,
+      loading,
+      productos,
+      productosDisponibles,
+      isMobile,
+      isLoadingMore,
+      hasMore,
+      loadMoreProductos,
+      agregarProducto,
+      onFilterChange: handleFilterChange,
+      onSearchChange: setIsSearchActive,
+      onProductScan: (data: IProcessedData) => {
+        if (data?.code) handleProductScan(data.code);
+      },
+      show: activeTab === 0,
+      isFiltering,
+      currentPage,
+      onReject: onReject ? handleRejectClick : undefined,
+    }),
+    [
+      operacion,
+      loading,
+      productos,
+      productosDisponibles,
+      isMobile,
+      isLoadingMore,
+      hasMore,
+      loadMoreProductos,
+      agregarProducto,
+      handleFilterChange,
+      handleProductScan,
+      activeTab,
+      isFiltering,
+      currentPage,
+      onReject,
+      handleRejectClick,
+    ],
+  );
 
-  const tableProductosSeleccionadosProps = useMemo(() => ({
-    operacion,
-    productosSeleccionados,
-    isMobile,
-    actualizarCantidad,
-    actualizarCosto,
-    eliminarProducto,
-    limpiarSeleccion,
-    tipoMovimiento: iTipoMovimiento
-  }), [
-    operacion,
-    productosSeleccionados,
-    isMobile,
-    actualizarCantidad,
-    actualizarCosto,
-    eliminarProducto,
-    limpiarSeleccion,
-    iTipoMovimiento
-  ]);
+  const tableProductosSeleccionadosProps = useMemo(
+    () => ({
+      operacion,
+      productosSeleccionados,
+      isMobile,
+      actualizarCantidad,
+      actualizarCosto,
+      eliminarProducto,
+      limpiarSeleccion,
+      tipoMovimiento: iTipoMovimiento,
+      permiteMonedaPorProducto,
+      monedasDisponibles,
+      monedaBase,
+      actualizarMoneda,
+    }),
+    [
+      operacion,
+      productosSeleccionados,
+      isMobile,
+      actualizarCantidad,
+      actualizarCosto,
+      eliminarProducto,
+      limpiarSeleccion,
+      iTipoMovimiento,
+      permiteMonedaPorProducto,
+      monedasDisponibles,
+      monedaBase,
+      actualizarMoneda,
+    ],
+  );
 
   return (
     <Dialog
@@ -500,29 +649,39 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       PaperProps={{
         sx: {
           borderRadius: isMobile ? 0 : 3,
-          height: isMobile ? '100dvh' : '90vh',
-          maxHeight: isMobile ? '100dvh' : '90vh',
+          height: isMobile ? "100dvh" : "90vh",
+          maxHeight: isMobile ? "100dvh" : "90vh",
           m: isMobile ? 0 : 2,
           // Support for older browsers that don't support dvh
-          '@supports not (height: 100dvh)': {
-            height: isMobile ? '100vh' : '90vh',
-          }
-        }
+          "@supports not (height: 100dvh)": {
+            height: isMobile ? "100vh" : "90vh",
+          },
+        },
       }}
     >
       {/* Header */}
-      <DialogTitle sx={{
-        pb: isMobile && isSearchActive ? 0.5 : 1,
-        pt: isMobile ? 'calc(8px + env(safe-area-inset-top))' : 2,
-        px: isMobile ? 2 : 3
-      }}>
+      <DialogTitle
+        sx={{
+          pb: isMobile && isSearchActive ? 0.5 : 1,
+          pt: isMobile ? "calc(8px + env(safe-area-inset-top))" : 2,
+          px: isMobile ? 2 : 3,
+        }}
+      >
         <Box display="flex" justifyContent="space-between" alignItems="center">
           {!(isMobile && isSearchActive) && (
-            <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontSize: isMobile ? '1.1rem' : '1.5rem' }}>
+            <Typography
+              variant={isMobile ? "h6" : "h5"}
+              sx={{ fontSize: isMobile ? "1.1rem" : "1.5rem" }}
+            >
               Selección de Productos
             </Typography>
           )}
-          <Button onClick={onClose} variant="text" size="large" sx={{ ml: 'auto' }}>
+          <Button
+            onClick={onClose}
+            variant="text"
+            size="large"
+            sx={{ ml: "auto" }}
+          >
             <Close />
           </Button>
         </Box>
@@ -530,7 +689,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
 
       <DialogContent sx={{ p: isMobile ? 1 : 3, pb: 0 }}>
         {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
           <Tabs
             value={activeTab}
             onChange={(_, newValue) => setActiveTab(newValue)}
@@ -541,7 +700,10 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
                 <Box display="flex" alignItems="center" gap={1}>
                   <Inventory />
                   <span>Disponibles</span>
-                  <Badge badgeContent={productosDisponibles.length} color="primary" />
+                  <Badge
+                    badgeContent={productosDisponibles.length}
+                    color="primary"
+                  />
                 </Box>
               }
             />
@@ -557,11 +719,17 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
           </Tabs>
         </Box>
 
-        <TableProductosDisponibles {...tableProductosDisponiblesProps} show={activeTab === 0} />
+        <TableProductosDisponibles
+          {...tableProductosDisponiblesProps}
+          show={activeTab === 0}
+        />
         <Box sx={{ mt: isMobile ? 1 : 0 }}>
-          <TableProductosSeleccionados {...tableProductosSeleccionadosProps} show={activeTab === 1} />
+          <TableProductosSeleccionados
+            {...tableProductosSeleccionadosProps}
+            show={activeTab === 1}
+          />
         </Box>
-        
+
         <RejectionModal
           open={!!rejectingProduct}
           onClose={() => setRejectingProduct(null)}
@@ -572,13 +740,14 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       </DialogContent>
 
       {/* Footer */}
-      <DialogActions sx={{
-        p: isMobile ? 2 : 3,
-        pb: isMobile ? 'calc(8px + env(safe-area-inset-bottom))' : 3,
-        pt: 1
-      }}>
-
-        <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
+      <DialogActions
+        sx={{
+          p: isMobile ? 2 : 3,
+          pb: isMobile ? "calc(8px + env(safe-area-inset-bottom))" : 3,
+          pt: 1,
+        }}
+      >
+        <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
           <Button
             onClick={onClose}
             variant="outlined"
@@ -593,16 +762,28 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
             variant="contained"
             color="primary"
             size="small"
-            disabled={hayErrores || (totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length === 0) || loading}
+            disabled={
+              hayErrores ||
+              (totalProductos === 0 &&
+                productosSeleccionadosIniciales &&
+                productosSeleccionadosIniciales.length === 0) ||
+              loading
+            }
             sx={{ flex: 1 }}
-            startIcon={operacion === 'ENTRADA' ? <TrendingUp /> : <TrendingDown />}
+            startIcon={
+              operacion === "ENTRADA" ? <TrendingUp /> : <TrendingDown />
+            }
           >
-            {loading ? 'Procesando...' : totalProductos === 0 && productosSeleccionadosIniciales && productosSeleccionadosIniciales.length > 0 ? 'Terminar' : `${operacion}`}
+            {loading
+              ? "Procesando..."
+              : totalProductos === 0 &&
+                  productosSeleccionadosIniciales &&
+                  productosSeleccionadosIniciales.length > 0
+                ? "Terminar"
+                : `${operacion}`}
           </Button>
         </Stack>
-
-
       </DialogActions>
     </Dialog>
   );
-}; 
+};

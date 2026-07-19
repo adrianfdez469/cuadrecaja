@@ -3,18 +3,18 @@
  */
 
 // Configuración de localización para España/Cuba
-const LOCALE = 'es-ES';
-const CURRENCY_SYMBOL = '$';
-const SECONDARY_CURRENCY = 'CUP';
+const LOCALE = "es-ES";
+const CURRENCY_SYMBOL = "$";
+const SECONDARY_CURRENCY = "CUP";
 
 /**
  * Formatea una fecha en formato corto (dd/mm/aaaa)
  */
 export const formatDate = (date: number | Date): string => {
   return new Date(date).toLocaleDateString(LOCALE, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   });
 };
 
@@ -23,10 +23,10 @@ export const formatDate = (date: number | Date): string => {
  */
 export const formatDateLong = (date: string | Date): string => {
   return new Date(date).toLocaleDateString(LOCALE, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 };
 
@@ -35,9 +35,9 @@ export const formatDateLong = (date: string | Date): string => {
  */
 export const formatTime = (date: number | Date): string => {
   return new Date(date).toLocaleTimeString(LOCALE, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 };
 
@@ -46,8 +46,8 @@ export const formatTime = (date: number | Date): string => {
  */
 export const formatTimeShort = (date: number | Date): string => {
   return new Date(date).toLocaleTimeString(LOCALE, {
-    hour: '2-digit',
-    minute: '2-digit'
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
@@ -78,12 +78,12 @@ export const getRelativeDate = (date: number | Date): string => {
   const diffTime = checkDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return 'Hoy';
-  if (diffDays === 1) return 'Mañana';
-  if (diffDays === -1) return 'Ayer';
+  if (diffDays === 0) return "Hoy";
+  if (diffDays === 1) return "Mañana";
+  if (diffDays === -1) return "Ayer";
   if (diffDays > 1 && diffDays <= 7) return `En ${diffDays} días`;
   if (diffDays < -1 && diffDays >= -7) return `Hace ${Math.abs(diffDays)} días`;
-  
+
   return formatDate(date);
 };
 
@@ -91,38 +91,40 @@ export const getRelativeDate = (date: number | Date): string => {
  * Formatea días restantes con texto descriptivo
  */
 export const formatDaysRemaining = (days: number): string => {
-  if (days <= 0) return 'Expirado';
-  if (days === 1) return '1 día restante';
+  if (days <= 0) return "Expirado";
+  if (days === 1) return "1 día restante";
   if (days <= 7) return `${days} días restantes`;
   if (days <= 30) return `${days} días restantes`;
-  
+
   const weeks = Math.floor(days / 7);
-  if (weeks === 1) return '1 semana restante';
+  if (weeks === 1) return "1 semana restante";
   if (weeks <= 4) return `${weeks} semanas restantes`;
-  
+
   const months = Math.floor(days / 30);
-  if (months === 1) return '1 mes restante';
+  if (months === 1) return "1 mes restante";
   return `${months} meses restantes`;
 };
 
 /**
  * Obtiene el color para mostrar días restantes
  */
-export const getDaysRemainingColor = (days: number): 'error' | 'warning' | 'success' => {
-  if (days <= 0) return 'error';
-  if (days <= 7) return 'error';
-  if (days <= 30) return 'warning';
-  return 'success';
+export const getDaysRemainingColor = (
+  days: number,
+): "error" | "warning" | "success" => {
+  if (days <= 0) return "error";
+  if (days <= 7) return "error";
+  if (days <= 30) return "warning";
+  return "success";
 };
 
 /**
  * Formatea una moneda con símbolo $ (formato principal)
  */
 export const formatCurrency = (amount: number): string => {
-  if(amount) {
+  if (amount) {
     return `${CURRENCY_SYMBOL}${amount.toLocaleString(LOCALE, {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     })}`;
   } else {
     return `${CURRENCY_SYMBOL}0.00`;
@@ -135,7 +137,7 @@ export const formatCurrency = (amount: number): string => {
 export const formatCurrencyCUP = (amount: number): string => {
   return `${amount.toLocaleString(LOCALE, {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   })} ${SECONDARY_CURRENCY}`;
 };
 
@@ -145,7 +147,7 @@ export const formatCurrencyCUP = (amount: number): string => {
 export const formatCurrencyInteger = (amount: number): string => {
   return `${CURRENCY_SYMBOL}${amount.toLocaleString(LOCALE, {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
   })}`;
 };
 
@@ -155,7 +157,7 @@ export const formatCurrencyInteger = (amount: number): string => {
 export const formatNumber = (amount: number): string => {
   return amount.toLocaleString(LOCALE, {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
   });
 };
 
@@ -165,33 +167,55 @@ export const formatNumber = (amount: number): string => {
 export const formatDecimal = (amount: number, decimals: number = 2): string => {
   return amount.toLocaleString(LOCALE, {
     minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
+    maximumFractionDigits: decimals,
   });
 };
 
 /**
  * Formatea un porcentaje
  */
-export const formatPercentage = (value: number, decimals: number = 1): string => {
+export const formatPercentage = (
+  value: number,
+  decimals: number = 1,
+): string => {
   return `${value.toLocaleString(LOCALE, {
     minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
+    maximumFractionDigits: decimals,
   })}%`;
-}; 
+};
 
 /**
  * Normaliza un texto para búsquedas: elimina tildes, convierte a minúsculas y colapsa espacios
  */
 export const normalizeSearch = (str: string): string =>
-  str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
 export const sanitizeNumber = (number: number) => {
   // Eliminar 0 del inicio
-  if(number) {
+  if (number) {
     const numberString = number.toString();
-    const numberSinCeros = numberString.replace(/^0+/, '');
+    const numberSinCeros = numberString.replace(/^0+/, "");
     return Number(numberSinCeros);
   } else {
     return 0;
   }
-}
+};
+
+/**
+ * Mensaje de advertencia cuando una compra en EFECTIVO_CAJA superó el
+ * efectivo disponible y el backend la dividió en caja + fondeo externo.
+ */
+export const formatAdvertenciasCaja = (
+  advertencias: { moneda: string; disponible: number; fondeoExterno: number }[],
+): string =>
+  advertencias
+    .map(
+      (a) =>
+        `La compra en ${a.moneda} superó el efectivo en caja (disponible: ${formatCurrency(a.disponible)} ${a.moneda}) — se tomaron ${formatCurrency(a.fondeoExterno)} ${a.moneda} de fondeo externo`,
+    )
+    .join(". ");

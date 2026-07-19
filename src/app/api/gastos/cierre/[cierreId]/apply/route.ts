@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { applyGastosSchema } from "@/schemas/gastos";
+import { calcularGananciaFinal } from "@/lib/gastos";
 
 export async function POST(
   req: NextRequest,
@@ -101,8 +102,12 @@ export async function POST(
         data: {
           totalGastos,
           // totalGananciaFinal se recalcula definitivamente en close/route.ts
-          // pero lo pre-calculamos aquí para referencia
-          totalGananciaFinal: cierre.totalGanancia - totalGastos,
+          // (ahí sí se restan merma/devoluciones); aquí es solo un pre-cálculo
+          // de referencia mientras el período sigue abierto.
+          totalGananciaFinal: calcularGananciaFinal(
+            cierre.totalGanancia,
+            totalGastos,
+          ),
         },
       });
     });

@@ -52,10 +52,9 @@ import {
   createGastoAdHoc,
   deleteGastoAdHoc,
   getGastosTienda,
-  previewGastosCierre,
   applyGastosCierre,
 } from "@/services/gastoService";
-import { IGastoAdHocCreate } from "@/schemas/gastos";
+import { IGastoAdHocCreate, IGastoPreview } from "@/schemas/gastos";
 import MonedaBreakdownRow from "@/app/cierre/components/MonedaBreakdownRow";
 import { DENOMINACIONES } from "@/constants/billDenominations";
 import DeduccionesList from "@/app/cierre/components/DeduccionesList";
@@ -106,20 +105,21 @@ const CierreCajaPage = () => {
     }
   };
 
-  const handleConfirmarCierre = async () => {
+  const handleConfirmarCierre = async (
+    gastosRecurrentesSeleccionados: IGastoPreview[],
+  ) => {
     if (!currentPeriod) return;
     const localId = user.localActual.id;
     setIsProcessingCierre(true);
     try {
-      // Aplicar automáticamente los gastos recurrentes que correspondan hoy
-      // (ya se venían mostrando en las cards de resumen antes de llegar acá)
-      try {
-        const preview = await previewGastosCierre(currentPeriod.id);
-        if (preview.gastosRecurrentes.length > 0) {
-          await applyGastosCierre(currentPeriod.id, preview.gastosRecurrentes);
-        }
-      } catch (err) {
-        console.error("Error al aplicar gastos recurrentes:", err);
+      // Aplicar los gastos recurrentes que el usuario dejó marcados en el
+      // diálogo de confirmación. Si esto falla, el cierre se aborta — no
+      // queremos cerrar la caja sin que estos gastos queden reflejados.
+      if (gastosRecurrentesSeleccionados.length > 0) {
+        await applyGastosCierre(
+          currentPeriod.id,
+          gastosRecurrentesSeleccionados,
+        );
       }
 
       await closePeriod(localId, currentPeriod.id);

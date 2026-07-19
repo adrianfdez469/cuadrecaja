@@ -2,11 +2,10 @@ import { CreateMoviento } from "@/lib/movimiento";
 import { prisma } from "@/lib/prisma";
 import { MovimientoTipo } from "@prisma/client";
 import { NextResponse } from "next/server";
-import {startOfNextDay} from "@/utils/date";
+import { startOfNextDay } from "@/utils/date";
 
 export async function GET(req: Request) {
   try {
-    
     const { searchParams } = new URL(req.url);
 
     const take = Number.parseInt(searchParams.get("take") || "20");
@@ -25,7 +24,7 @@ export async function GET(req: Request) {
     // Obtener IDs coincidentes con búsqueda tolerante a tildes/mayúsculas usando unaccent
     let searchIds: string[] | undefined;
     if (search) {
-      const normalizedSearch = search.trim().replace(/\s+/g, ' ');
+      const normalizedSearch = search.trim().replace(/\s+/g, " ");
       const pattern = `%${normalizedSearch}%`;
       const rows = await prisma.$queryRaw<{ id: string }[]>`
         SELECT DISTINCT ms.id
@@ -42,32 +41,35 @@ export async function GET(req: Request) {
             OR unaccent(lower(COALESCE(prov.nombre, ''))) LIKE unaccent(lower(${pattern}))
           )
       `;
-      searchIds = rows.map(r => r.id);
+      searchIds = rows.map((r) => r.id);
     }
 
     const filtros = {
-      ...(fechaInicio && {fecha: { gte: new Date(fechaInicio).toISOString() }}),
-      ...(fechaFin && {fecha: {lte: startOfNextDay(new Date(fechaFin)).toISOString()}}),
+      ...(fechaInicio && {
+        fecha: { gte: new Date(fechaInicio).toISOString() },
+      }),
+      ...(fechaFin && {
+        fecha: { lte: startOfNextDay(new Date(fechaFin)).toISOString() },
+      }),
       ...(tipos.length === 1 && { tipo: tipos[0] }),
       ...(tipos.length > 1 && { tipo: { in: tipos } }),
-      ...(productoTiendaId && {productoTiendaId: productoTiendaId}),
-      ...(referenciaId && {referenciaId: referenciaId}),
+      ...(productoTiendaId && { productoTiendaId: productoTiendaId }),
+      ...(referenciaId && { referenciaId: referenciaId }),
       ...(searchIds && { id: { in: searchIds } }),
-    }
+    };
 
     // 🆕 Obtener el total de registros para paginación
     const total = await prisma.movimientoStock.count({
       where: {
         tiendaId: tiendaId,
         ...filtros,
-        
-      }
+      },
     });
 
     const movimientos = await prisma.movimientoStock.findMany({
       where: {
         tiendaId: tiendaId,
-        ...filtros 
+        ...filtros,
       },
       include: {
         proveedor: true,
@@ -76,55 +78,55 @@ export async function GET(req: Request) {
             producto: {
               select: {
                 nombre: true,
-                
-              }
+              },
             },
             proveedor: true,
-          }
+          },
         },
         usuario: {
           select: {
-            nombre: true
-          }
-        }
+            nombre: true,
+          },
+        },
       },
       take: take,
       skip: skip,
       orderBy: {
-        fecha: 'desc'
-      }
-    })
+        fecha: "desc",
+      },
+    });
 
     // 🆕 Retornar objeto con data y total
-    return NextResponse.json({
-      data: movimientos,
-      total: total
-    }, {status: 200});
+    return NextResponse.json(
+      {
+        data: movimientos,
+        total: total,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     console.error(error);
-    
+
     return NextResponse.json(
       { error: "Error al cargar movimiento" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(req: Request) {
-
   try {
     const { data, items } = await req.json();
 
-    await CreateMoviento(data, items);
+    const { advertenciasCaja } = await CreateMoviento(data, items);
 
-    return NextResponse.json({}, {status: 201});
-
+    return NextResponse.json({ advertenciasCaja }, { status: 201 });
   } catch (error) {
     console.error(error);
-    
+
     return NextResponse.json(
       { error: "Error al crear movimiento" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

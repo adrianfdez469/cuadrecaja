@@ -26,7 +26,23 @@ export const MovimientoStateEnum = z.enum([
 ]);
 
 // Fuente de fondos de una compra de mercancía (solo aplica a tipo COMPRA)
-export const FormaPagoCompraEnum = z.enum(["EFECTIVO_CAJA", "EXTERNO"]);
+// MIXTO: la compra superó el efectivo disponible en caja — se tomó lo
+// disponible (ver montoEfectivoCaja) y el resto se cubrió con fondeo externo.
+export const FormaPagoCompraEnum = z.enum([
+  "EFECTIVO_CAJA",
+  "EXTERNO",
+  "MIXTO",
+]);
+
+// Aviso devuelto al crear una COMPRA en EFECTIVO_CAJA cuyo monto superó el
+// efectivo disponible en caja — el backend la reclasificó como MIXTO/EXTERNO.
+export const advertenciaCajaInsuficienteSchema = z.object({
+  moneda: z.string(),
+  solicitado: z.number(),
+  disponible: z.number(),
+  tomadoDeCaja: z.number(),
+  fondeoExterno: z.number(),
+});
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -163,6 +179,9 @@ export enum MovimientoTipo {
 
 export type ITipoMovimiento = z.infer<typeof MovimientoTipoEnum>;
 export type IFormaPagoCompra = z.infer<typeof FormaPagoCompraEnum>;
+export type IAdvertenciaCajaInsuficiente = z.infer<
+  typeof advertenciaCajaInsuficienteSchema
+>;
 export type IMovimiento = z.infer<typeof movimientoSchema>;
 export type IMovimientoCreate = z.infer<typeof movimientoCreateSchema>;
 export type IMovimientoData = z.infer<typeof movimientoDataSchema>;
