@@ -89,6 +89,8 @@ export default function ResumenCierrePage() {
     ganancia: number;
     transf: number;
     gastos: number;
+    merma: number;
+    devoluciones: number;
     gananciaFinal: number;
   }>({
     inversion: 0,
@@ -96,6 +98,8 @@ export default function ResumenCierrePage() {
     ganancia: 0,
     transf: 0,
     gastos: 0,
+    merma: 0,
+    devoluciones: 0,
     gananciaFinal: 0,
   });
   const [expandedTransfer, setExpandedTransfer] = useState(false);
@@ -212,6 +216,8 @@ export default function ResumenCierrePage() {
             acc.ganancia += row.totalGanancia;
             acc.transf += row.totalTransferencia;
             acc.gastos += row.totalGastos || 0;
+            acc.merma += row.totalMerma || 0;
+            acc.devoluciones += row.totalDevoluciones || 0;
             acc.gananciaFinal += row.totalGananciaFinal ?? row.totalGanancia;
             return acc;
           },
@@ -221,6 +227,8 @@ export default function ResumenCierrePage() {
             ganancia: 0,
             transf: 0,
             gastos: 0,
+            merma: 0,
+            devoluciones: 0,
             gananciaFinal: 0,
           },
         ),
@@ -1364,6 +1372,21 @@ export default function ResumenCierrePage() {
                           >
                             {totales.gastos > 0
                               ? `- ${fmtS(totales.gastos)}`
+                              : "—"}
+                          </Typography>
+                        </TableCell>
+                      )}
+                      {verificarPermiso(
+                        "operaciones.cierre.gananciascostos",
+                      ) && (
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="bold"
+                            color="error.main"
+                          >
+                            {totales.merma + totales.devoluciones > 0
+                              ? `- ${fmtS(totales.merma + totales.devoluciones)}`
                               : "—"}
                           </Typography>
                         </TableCell>
