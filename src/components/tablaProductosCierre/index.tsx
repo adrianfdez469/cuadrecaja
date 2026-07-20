@@ -167,6 +167,7 @@ export const TablaProductosCierre: FC<IProps> = ({
   const {
     totalVentas,
     totalGanancia,
+    totalGananciaFinal,
     totalTransferencia,
     // Totales ampliados desde el backend
     totalVentasBrutas,
@@ -181,6 +182,16 @@ export const TablaProductosCierre: FC<IProps> = ({
     totalTransferenciasByDestination,
     totalVentasPorUsuario,
   } = cierreData;
+
+  // Suma de la ganancia tal como se muestra fila por fila en la tabla (bruta,
+  // neta solo del descuento de cada producto) — el "Total" al pie de la
+  // tabla debe sumar exactamente lo que el usuario ve arriba, sin restar
+  // gastos/merma/devoluciones (eso vive aparte en la card de Ganancia).
+  const totalGananciaFilas = productosVendidos.reduce(
+    (acc, p) => acc + (p.ganancia || 0) - (p.descuento || 0),
+    0,
+  );
+
   // Obtener proveedores únicos para el menú de consignación
   const proveedoresUnicos = Array.from(
     new Map(
@@ -494,26 +505,52 @@ export const TablaProductosCierre: FC<IProps> = ({
               </Box>
             </Grid>
 
-            {!showOnlyCants && (
-              <Grid item xs={12} sm={6} md={3}>
-                <Box textAlign="center">
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    gutterBottom
-                  >
-                    Total Ganancia
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    color="success.main"
-                  >
-                    {formatAmount(totalGanancia)}
-                  </Typography>
-                </Box>
-              </Grid>
-            )}
+            {!showOnlyCants &&
+              (() => {
+                // Ganancia FINAL (neta de gastos operativos, merma y
+                // devoluciones) — mismo dato que muestra la card de
+                // Ganancia, para no mostrar dos cifras distintas del mismo
+                // período. totalGanancia (bruta) se muestra tachada arriba
+                // solo cuando difiere, igual que el patrón de descuentos.
+                const gananciaFinal =
+                  typeof totalGananciaFinal === "number"
+                    ? totalGananciaFinal
+                    : totalGanancia;
+                const hayDeducciones = gananciaFinal !== totalGanancia;
+                return (
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box textAlign="center">
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        Total Ganancia
+                      </Typography>
+                      {hayDeducciones && (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            textDecoration: "line-through",
+                            color: "text.disabled",
+                          }}
+                        >
+                          {formatAmount(totalGanancia)}
+                        </Typography>
+                      )}
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        color={
+                          gananciaFinal < 0 ? "error.main" : "success.main"
+                        }
+                      >
+                        {formatAmount(gananciaFinal)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                );
+              })()}
 
             <Grid item xs={12} sm={6} md={3}>
               <Box textAlign="center">
@@ -1023,8 +1060,8 @@ export const TablaProductosCierre: FC<IProps> = ({
                       <TableCell>
                         - {formatAmount(totalDescuentos || 0)}
                       </TableCell>
-                      {/* Ganancia total neta (desde backend) */}
-                      <TableCell>{formatAmount(totalGanancia || 0)}</TableCell>
+                      {/* Suma de la ganancia de cada fila (bruta) — no resta gastos/merma/devoluciones */}
+                      <TableCell>{formatAmount(totalGananciaFilas)}</TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
                     </>

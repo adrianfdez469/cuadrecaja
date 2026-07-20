@@ -16,10 +16,7 @@ import {
   IconButton,
   Tooltip,
   Divider,
-  Collapse,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import {
   closePeriod,
   fetchCierreData,
@@ -57,7 +54,7 @@ import {
 import { IGastoAdHocCreate, IGastoPreview } from "@/schemas/gastos";
 import MonedaBreakdownRow from "@/app/cierre/components/MonedaBreakdownRow";
 import { DENOMINACIONES } from "@/constants/billDenominations";
-import DeduccionesList from "@/app/cierre/components/DeduccionesList";
+import GananciaCard from "@/app/cierre/components/GananciaCard";
 
 const CierreCajaPage = () => {
   const { user, loadingContext, gotToPath, monedasNegocio, monedaBase } =
@@ -76,7 +73,6 @@ const CierreCajaPage = () => {
   const [isProcessingCierre, setIsProcessingCierre] = useState(false);
   const [adHocOpen, setAdHocOpen] = useState(false);
   const [categoriasGastos, setCategoriasGastos] = useState<string[]>([]);
-  const [gananciaExpanded, setGananciaExpanded] = useState(false);
   const [deletingGastoId, setDeletingGastoId] = useState<string | null>(null);
   const [cerrarCajaDialogOpen, setCerrarCajaDialogOpen] = useState(false);
   const { clearSales, sales } = useSalesStore();
@@ -476,130 +472,26 @@ const CierreCajaPage = () => {
               </Grid>
             )}
 
-          {verificarPermiso("operaciones.cierre.gananciascostos") &&
-            (() => {
-              const gananciaDeducciones = cierreData.gananciaDeducciones || [];
-              const gananciaBruta = totales.totalGanancia;
-              const gananciaFinal =
-                typeof cierreData.totalGananciaFinal === "number"
-                  ? cierreData.totalGananciaFinal
-                  : gananciaBruta;
-              const hayDeducciones = gananciaDeducciones.length > 0;
-
-              return (
-                <Grid item xs={12} sm={6} md={4}>
-                  <Card sx={{ height: "100%" }}>
-                    <CardContent sx={{ p: isMobile ? 1 : 3 }}>
-                      <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={isMobile ? 1 : 2}
-                      >
-                        <Box
-                          sx={{
-                            p: isMobile ? 1 : 1.5,
-                            borderRadius: 2,
-                            bgcolor:
-                              gananciaFinal < 0 ? "error.light" : "info.light",
-                            color: "white",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            minWidth: isMobile ? 40 : 48,
-                            minHeight: isMobile ? 40 : 48,
-                          }}
-                        >
-                          <TrendingUpIcon fontSize="medium" />
-                        </Box>
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="baseline"
-                            flexWrap="wrap"
-                          >
-                            {hayDeducciones && (
-                              <Typography
-                                variant={isMobile ? "body1" : "h6"}
-                                sx={{
-                                  textDecoration: "line-through",
-                                  color: "text.disabled",
-                                }}
-                              >
-                                {formatCurrency(gananciaBruta)}
-                              </Typography>
-                            )}
-                            <Typography
-                              variant={isMobile ? "h5" : "h4"}
-                              fontWeight="bold"
-                              color={
-                                gananciaFinal < 0 ? "error.main" : undefined
-                              }
-                              sx={{
-                                fontSize: isMobile ? "1.25rem" : "2rem",
-                                lineHeight: 1.2,
-                                wordBreak: "break-all",
-                              }}
-                            >
-                              {formatCurrency(gananciaFinal)}
-                            </Typography>
-                          </Stack>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{
-                              fontSize: isMobile ? "0.75rem" : "0.875rem",
-                              lineHeight: 1.2,
-                            }}
-                          >
-                            Ganancia
-                          </Typography>
-                        </Box>
-                        {hayDeducciones && (
-                          <Tooltip
-                            title={
-                              gananciaExpanded
-                                ? "Ocultar detalle"
-                                : "Ver qué restó de la ganancia"
-                            }
-                          >
-                            <IconButton
-                              size="small"
-                              onClick={() => setGananciaExpanded((v) => !v)}
-                              aria-label={
-                                gananciaExpanded
-                                  ? "Ocultar detalle de ganancia"
-                                  : "Ver qué restó de la ganancia"
-                              }
-                              sx={{ p: 1 }}
-                            >
-                              {gananciaExpanded ? (
-                                <ExpandLessIcon fontSize="small" />
-                              ) : (
-                                <ExpandMoreIcon fontSize="small" />
-                              )}
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                      </Stack>
-
-                      <Collapse in={gananciaExpanded}>
-                        <Divider sx={{ my: 1.5 }} />
-                        <DeduccionesList
-                          items={gananciaDeducciones}
-                          onDelete={
-                            canManageGastos && !currentPeriod.fechaFin
-                              ? handleDeleteGasto
-                              : undefined
-                          }
-                          deletingId={deletingGastoId}
-                        />
-                      </Collapse>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              );
-            })()}
+          {verificarPermiso("operaciones.cierre.gananciascostos") && (
+            <Grid item xs={12} sm={6} md={4}>
+              <GananciaCard
+                gananciaBruta={totales.totalGanancia}
+                gananciaFinal={
+                  typeof cierreData.totalGananciaFinal === "number"
+                    ? cierreData.totalGananciaFinal
+                    : totales.totalGanancia
+                }
+                deducciones={cierreData.gananciaDeducciones || []}
+                onDelete={
+                  canManageGastos && !currentPeriod.fechaFin
+                    ? handleDeleteGasto
+                    : undefined
+                }
+                deletingId={deletingGastoId}
+                isMobile={isMobile}
+              />
+            </Grid>
+          )}
 
           {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
           <Grid item xs={12} sm={6} md={4}>

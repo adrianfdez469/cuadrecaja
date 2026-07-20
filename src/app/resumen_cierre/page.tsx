@@ -63,12 +63,17 @@ import {
 } from "@/services/cierrePeriodService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
-import { formatCurrency, formatNumber } from "@/utils/formatters";
+import {
+  formatCurrency,
+  formatNumber,
+  formatMontoEnMoneda,
+} from "@/utils/formatters";
 import { convertFromBase } from "@/lib/currency";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import { usePermisos } from "@/utils/permisos_front";
 import { TasasBanner } from "@/components/TasasBanner";
+import GananciaCard from "@/app/cierre/components/GananciaCard";
 
 export default function ResumenCierrePage() {
   const [data, setData] = useState<ISummaryCierre>();
@@ -424,25 +429,14 @@ export default function ResumenCierrePage() {
     setHistoricalTasas(null);
     setCierreProductData({
       cierreId: itemCierre.id,
-      ciereData: {
-        productosVendidos: cierreData.productosVendidos,
-        totalGanancia: itemCierre.totalGanancia,
-        totalVentas: itemCierre.totalVentas,
-        // Incluir métricas ampliadas necesarias en el Drawer
-        totalVentasBrutas: cierreData.totalVentasBrutas ?? 0,
-        totalDescuentos: cierreData.totalDescuentos ?? 0,
-        totalTransferencia: itemCierre.totalTransferencia,
-        totalVentasPropias: itemCierre.totalVentasPropias,
-        totalVentasConsignacion: itemCierre.totalVentasConsignacion,
-        totalGananciasPropias: itemCierre.totalGananciasPropias,
-        totalGananciasConsignacion: itemCierre.totalGananciasConsignacion,
-        totalTransferenciasByDestination:
-          cierreData.totalTransferenciasByDestination,
-        totalVentasPorUsuario: cierreData.totalVentasPorUsuario,
-      },
+      // Usar cierreData completo (fuente única) en vez de mezclar con
+      // itemCierre (fila de la lista resumen): así el drawer siempre trae
+      // gananciaDeducciones/cajaDeducciones y nunca puede desincronizarse
+      // de los totales que muestra.
+      ciereData: cierreData,
       totales: totales,
-      totalGastos: itemCierre.totalGastos,
-      totalGananciaFinal: itemCierre.totalGananciaFinal,
+      totalGastos: cierreData.totalGastos,
+      totalGananciaFinal: cierreData.totalGananciaFinal,
     });
     setShowProducts(true);
   };
@@ -1566,21 +1560,40 @@ export default function ResumenCierrePage() {
                       />
                     </Grid>
 
-                    <Grid item xs={6} sm={6} md={3}>
-                      <StatCard
-                        icon={
-                          <TrendingUp
-                            fontSize={isMobile ? "medium" : "large"}
-                          />
-                        }
-                        value={fmtD(
-                          cierreProducData.totalGananciaFinal ??
-                            cierreProducData.ciereData.totalGanancia,
-                        )}
-                        label="Ganancia Final"
-                        color="info.light"
-                      />
-                    </Grid>
+                    {verificarPermiso("operaciones.cierre.gananciascostos") ? (
+                      <Grid item xs={12} sm={6} md={3}>
+                        <GananciaCard
+                          gananciaBruta={
+                            cierreProducData.ciereData.totalGanancia
+                          }
+                          gananciaFinal={
+                            cierreProducData.totalGananciaFinal ??
+                            cierreProducData.ciereData.totalGanancia
+                          }
+                          deducciones={
+                            cierreProducData.ciereData.gananciaDeducciones || []
+                          }
+                          isMobile={isMobile}
+                          formatMonto={fmtD}
+                        />
+                      </Grid>
+                    ) : (
+                      <Grid item xs={6} sm={6} md={3}>
+                        <StatCard
+                          icon={
+                            <TrendingUp
+                              fontSize={isMobile ? "medium" : "large"}
+                            />
+                          }
+                          value={fmtD(
+                            cierreProducData.totalGananciaFinal ??
+                              cierreProducData.ciereData.totalGanancia,
+                          )}
+                          label="Ganancia Final"
+                          color="info.light"
+                        />
+                      </Grid>
+                    )}
 
                     {/* Bruto y Descuentos del período */}
                     <Grid item xs={6} sm={6} md={3}>
@@ -1614,22 +1627,6 @@ export default function ResumenCierrePage() {
                         />
                       </Grid>
                     )}
-
-                    {verificarPermiso("operaciones.cierre.gananciascostos") &&
-                      (cierreProducData.totalGastos || 0) > 0 && (
-                        <Grid item xs={6} sm={6} md={3}>
-                          <StatCard
-                            icon={
-                              <TrendingDown
-                                fontSize={isMobile ? "medium" : "large"}
-                              />
-                            }
-                            value={fmtD(cierreProducData.totalGastos || 0)}
-                            label="Gastos del Período"
-                            color="error.light"
-                          />
-                        </Grid>
-                      )}
 
                     <Grid item xs={6} sm={6} md={3}>
                       <StatCard
@@ -1714,8 +1711,10 @@ export default function ResumenCierrePage() {
                                       variant="body2"
                                       fontWeight="medium"
                                     >
-                                      {rm.totalEfectivo.toFixed(2)}{" "}
-                                      {rm.monedaCode}
+                                      {formatMontoEnMoneda(
+                                        rm.totalEfectivo,
+                                        rm.monedaCode,
+                                      )}
                                     </Typography>
                                   </Stack>
                                   <Stack
@@ -1732,8 +1731,10 @@ export default function ResumenCierrePage() {
                                       variant="body2"
                                       fontWeight="medium"
                                     >
-                                      {rm.totalTransfer.toFixed(2)}{" "}
-                                      {rm.monedaCode}
+                                      {formatMontoEnMoneda(
+                                        rm.totalTransfer,
+                                        rm.monedaCode,
+                                      )}
                                     </Typography>
                                   </Stack>
                                 </CardContent>
