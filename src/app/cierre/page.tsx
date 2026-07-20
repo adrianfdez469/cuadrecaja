@@ -566,6 +566,12 @@ const CierreCajaPage = () => {
                             <IconButton
                               size="small"
                               onClick={() => setGananciaExpanded((v) => !v)}
+                              aria-label={
+                                gananciaExpanded
+                                  ? "Ocultar detalle de ganancia"
+                                  : "Ver qué restó de la ganancia"
+                              }
+                              sx={{ p: 1 }}
                             >
                               {gananciaExpanded ? (
                                 <ExpandLessIcon fontSize="small" />

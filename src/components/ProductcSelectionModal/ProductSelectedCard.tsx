@@ -12,7 +12,7 @@ import {
   styled,
 } from "@mui/material";
 import { Delete } from "@mui/icons-material";
-import { formatCurrency } from "@/utils/formatters";
+import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
 import NumberSpinner from "@/components/NumberSpinner";
 import NumberField from "@/components/NumberField";
 import StockBadge from "./StockBadge";
@@ -147,12 +147,15 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
             </Typography>
             <Box display="flex" alignItems="center" gap={2}>
               <Typography variant="h6" fontWeight="bold">
-                {formatCurrency(costoTotal)}
+                {monedasDisponibles && monedasDisponibles.length > 1 && moneda
+                  ? formatMontoEnMoneda(costoTotal, moneda)
+                  : formatCurrency(costoTotal)}
               </Typography>
               <IconButton
                 size="small"
                 color="error"
                 onClick={onEliminar}
+                aria-label={`Eliminar ${name} de la selección`}
                 sx={{ p: 0.5 }}
               >
                 <Delete fontSize="small" />

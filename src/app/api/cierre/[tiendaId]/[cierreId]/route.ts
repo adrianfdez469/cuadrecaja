@@ -4,16 +4,19 @@ import { ICierreData } from "@/schemas/cierre";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
+import {
+  convertToBase,
+  convertFromBase,
+  buildTasaSnapshot,
+} from "@/lib/currency";
 import { applyGastosToResumenMap, calcularGananciaFinal } from "@/lib/gastos";
 import {
   applyComprasYDevolucionesToResumenMap,
   buildResumenMonedas,
   montoCompraEnCaja,
 } from "@/lib/movimiento/caja";
-import { gastoAplicaEnFecha } from "@/utils/gastos";
 
-type Params = { cierreId: string };
+type Params = { tiendaId: string; cierreId: string };
 
 type ProductoVentaAcumulado = {
   nombre: string;
@@ -35,13 +38,17 @@ export async function GET(
   { params }: { params: Promise<Params> },
 ): Promise<NextResponse<ICierreData | { error: string }>> {
   try {
-    const { cierreId } = await params;
+    const { tiendaId, cierreId } = await params;
 
     const session = await getSession();
     const user = session.user;
 
-    const cierre = await prisma.cierrePeriodo.findUnique({
-      where: { id: cierreId },
+    const cierre = await prisma.cierrePeriodo.findFirst({
+      where: {
+        id: cierreId,
+        tiendaId,
+        tienda: { negocioId: user.negocio.id },
+      },
       include: {
         tienda: {
           include: { negocio: { select: { id: true, monedaBase: true } } },
@@ -424,63 +431,11 @@ export async function GET(
         esAdHoc: g.esAdHoc,
       });
     }
-    // Gastos recurrentes que aplican hoy pero aún no se "aplicaron" (no existe GastoCierre
-    // todavía — eso pasa recién al cerrar). Se muestran igual en el desglose para que el
-    // usuario los vea reflejados en las cards ANTES de cerrar la caja.
-    const gastoTiendaIdsYaAplicados = new Set(
-      gastosDelPeriodo.map((g) => g.gastoTiendaId).filter(Boolean),
-    );
-    const gastosTiendaActivos = await prisma.gastoTienda.findMany({
-      where: {
-        tiendaId: cierre.tiendaId,
-        activo: true,
-        id: { notIn: Array.from(gastoTiendaIdsYaAplicados) as string[] },
-      },
-    });
-    const ahora = new Date();
-    // También se usa más abajo para descontarlos de la caja junto con gastosDelPeriodo
-    const gastosRecurrentesPreview: {
-      tipoCalculo: string;
-      montoCalculado: number;
-      monedaCode: string | null;
-    }[] = [];
-    for (const g of gastosTiendaActivos) {
-      const { aplica, motivo: motivoAplica } = gastoAplicaEnFecha(g, ahora);
-      if (!aplica) continue;
-
-      let montoCalculado = 0;
-      if (g.tipoCalculo === "MONTO_FIJO") {
-        montoCalculado = g.monto ?? 0;
-      } else if (g.tipoCalculo === "PORCENTAJE_VENTAS") {
-        montoCalculado = ((g.porcentaje ?? 0) / 100) * totalVentas;
-      } else if (g.tipoCalculo === "PORCENTAJE_GANANCIAS") {
-        montoCalculado = ((g.porcentaje ?? 0) / 100) * totalGananciaNeta;
-      }
-      if (montoCalculado <= 0) continue;
-
-      const moneda = monedaBase; // los recurrentes de monto fijo solo soportan monedaBase
-      gastosRecurrentesPreview.push({
-        tipoCalculo: g.tipoCalculo,
-        montoCalculado,
-        monedaCode: moneda,
-      });
-      if (g.naturaleza === "OPERATIVO") {
-        gananciaDeducciones.push({
-          id: `preview-${g.id}`,
-          tipo: "GASTO",
-          label: g.nombre,
-          monto: montoCalculado,
-          motivo: `Recurrente · se aplica al cerrar · ${motivoAplica}`,
-        });
-      }
-      pushCaja(moneda, {
-        id: `preview-${g.id}`,
-        tipo: "GASTO",
-        label: g.nombre,
-        monto: montoCalculado,
-        motivo: `Recurrente · se aplica al cerrar · ${motivoAplica}`,
-      });
-    }
+    // Los gastos recurrentes aún no aplicados (sin GastoCierre persistido) NO se
+    // restan aquí: esta ganancia es la "en vivo" del período abierto y solo debe
+    // reflejar lo que ya se aplicó de verdad. La proyección de recurrentes se
+    // muestra únicamente en el diálogo de confirmación al cerrar caja
+    // (ver /api/gastos/cierre/[cierreId]/preview), justo antes de aplicarlos.
 
     const totalGastos = gananciaDeducciones
       .filter((d) => d.tipo === "GASTO")
@@ -531,12 +486,25 @@ export async function GET(
           monto: gananciaImpacto,
           motivo: m.motivo,
         });
+        // Este panel muestra el monto en SU PROPIA moneda (no monedaBase);
+        // si falta montoOriginal, convertir montoReembolso (que sí está en
+        // monedaBase) a esa moneda en vez de asumir que ya coinciden.
         const moneda = m.monedaOriginal ?? monedaBase;
+        const montoEnMoneda =
+          m.montoOriginal ??
+          (m.monedaOriginal
+            ? convertFromBase(
+                m.montoReembolso ?? 0,
+                m.monedaOriginal,
+                tasasFallback,
+                monedaBase,
+              )
+            : (m.montoReembolso ?? 0));
         pushCaja(moneda, {
           id: m.id,
           tipo: "DEVOLUCION",
           label: productoNombre,
-          monto: m.montoOriginal ?? m.montoReembolso ?? 0,
+          monto: montoEnMoneda,
           motivo: m.motivo,
         });
       }
@@ -576,7 +544,7 @@ export async function GET(
 
     applyGastosToResumenMap(
       resumenMonedaMap,
-      [...gastosDelPeriodo, ...gastosRecurrentesPreview],
+      gastosDelPeriodo,
       monedaBase,
       tasasFallback,
     );

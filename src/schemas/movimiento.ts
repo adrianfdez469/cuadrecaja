@@ -25,6 +25,22 @@ export const MovimientoStateEnum = z.enum([
   "RECHAZADO",
 ]);
 
+// Tipos creables a través del endpoint genérico POST /api/movimiento.
+// VENTA, DESAGREGACION_* y DEVOLUCION_VENTA quedan fuera: se crean por sus
+// propios flujos dedicados (venta, desagregación automática, y
+// /api/venta/[tiendaId]/devolucion/[ventaId] respectivamente), que calculan
+// los montos en el servidor en vez de confiar en el cliente.
+export const MovimientoTipoCreableEnum = z.enum([
+  "COMPRA",
+  "AJUSTE_ENTRADA",
+  "AJUSTE_SALIDA",
+  "TRASPASO_ENTRADA",
+  "TRASPASO_SALIDA",
+  "CONSIGNACION_ENTRADA",
+  "CONSIGNACION_DEVOLUCION",
+  "MERMA",
+]);
+
 // Fuente de fondos de una compra de mercancía (solo aplica a tipo COMPRA)
 // MIXTO: la compra superó el efectivo disponible en caja — se tomó lo
 // disponible (ver montoEfectivoCaja) y el resto se cubrió con fondeo externo.
@@ -77,22 +93,35 @@ export const movimientoSchema = z.object({
 
 export const movimientoCreateSchema = z.object({
   productoId: z.string().uuid(),
-  cantidad: z.number(),
-  costoUnitario: z.number().optional(),
-  costoTotal: z.number().optional(),
+  cantidad: z.number().positive().finite(),
+  costoUnitario: z.number().nonnegative().finite().optional(),
+  costoTotal: z.number().nonnegative().finite().optional(),
+  monedaCompra: z.string().optional(),
+  proveedorId: z.string().uuid().optional(),
+  movimientoOrigenId: z.string().uuid().optional(),
+  fechaVencimiento: z.coerce.date().optional(),
+  monedaOriginal: z.string().optional(),
+  montoOriginal: z.number().nonnegative().finite().optional(),
+  tasaUsada: z.number().positive().finite().optional(),
   // Solo DEVOLUCION_VENTA: monto reembolsado al cliente, en moneda base
-  montoReembolso: z.number().optional(),
+  montoReembolso: z.number().nonnegative().finite().optional(),
 });
 
 export const movimientoDataSchema = z.object({
-  tipo: MovimientoTipoEnum,
+  // usuarioId NO se acepta del cliente: el endpoint lo fuerza desde la sesión
+  tipo: MovimientoTipoCreableEnum,
   tiendaId: z.string().uuid(),
-  usuarioId: z.string().uuid(),
   referenciaId: z.string().optional(),
-  motivo: z.string().optional(),
+  motivo: z.string().max(300).optional(),
   proveedorId: z.string().uuid().optional(),
+  destinationId: z.string().uuid().optional(),
   // Solo COMPRA: de dónde salió el dinero
   formaPago: FormaPagoCompraEnum.optional(),
+});
+
+export const movimientoBatchCreateSchema = z.object({
+  data: movimientoDataSchema,
+  items: z.array(movimientoCreateSchema).min(1),
 });
 
 export const importDataSchema = z.object({
@@ -185,6 +214,9 @@ export type IAdvertenciaCajaInsuficiente = z.infer<
 export type IMovimiento = z.infer<typeof movimientoSchema>;
 export type IMovimientoCreate = z.infer<typeof movimientoCreateSchema>;
 export type IMovimientoData = z.infer<typeof movimientoDataSchema>;
+export type IMovimientoBatchCreate = z.infer<
+  typeof movimientoBatchCreateSchema
+>;
 export type IImportData = z.infer<typeof importDataSchema>;
 export type IImportarItemsMov = z.infer<typeof importarItemsMovSchema>;
 export type IImportarResponse = z.infer<typeof importarResponseSchema>;

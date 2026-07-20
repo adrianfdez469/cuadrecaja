@@ -11,7 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import { formatCurrency } from "@/utils/formatters";
+import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
 import { IDeduccionItem, IDeduccionTipo } from "@/schemas/cierre";
 
 interface Props {
@@ -19,6 +19,11 @@ interface Props {
   onDelete?: (id: string) => void;
   deletingId?: string | null;
   emptyMessage?: string;
+  // Moneda en la que vienen `item.monto` para ESTE panel. Sin especificar,
+  // se asume moneda base del negocio (usa el símbolo "$"). Especificarla
+  // evita mostrar "$45.00 CUP" cuando el monto en realidad no está en la
+  // moneda base (ver desglose por moneda en MonedaBreakdownRow).
+  monedaCode?: string;
 }
 
 const TIPO_LABELS: Record<IDeduccionTipo, string> = {
@@ -28,21 +33,24 @@ const TIPO_LABELS: Record<IDeduccionTipo, string> = {
   COMPRA: "Compra",
 };
 
+// Contraste verificado contra texto blanco (WCAG AA, >= 4.5:1)
 const TIPO_COLORS: Record<IDeduccionTipo, string> = {
   GASTO: "#5c6bc0",
   MERMA: "#c62828",
   DEVOLUCION: "#ad1457",
-  COMPRA: "#ef6c00",
+  COMPRA: "#b35900",
 };
 
 function DeduccionRow({
   item,
   onDelete,
   deletingId,
+  monedaCode,
 }: {
   item: IDeduccionItem;
   onDelete?: (id: string) => void;
   deletingId?: string | null;
+  monedaCode?: string;
 }) {
   return (
     <Box
@@ -78,7 +86,10 @@ function DeduccionRow({
       </Box>
       <Box display="flex" alignItems="center" gap={0.5} flexShrink={0}>
         <Typography variant="body2" fontWeight="medium" color="error.main">
-          -{formatCurrency(item.monto)}
+          -
+          {monedaCode
+            ? formatMontoEnMoneda(item.monto, monedaCode)
+            : formatCurrency(item.monto)}
         </Typography>
         {onDelete && item.tipo === "GASTO" && item.esAdHoc && (
           <Tooltip title="Eliminar gasto">
@@ -88,7 +99,8 @@ function DeduccionRow({
                 color="error"
                 disabled={deletingId === item.id}
                 onClick={() => onDelete(item.id)}
-                sx={{ p: 0.25 }}
+                sx={{ p: 1 }}
+                aria-label={`Eliminar gasto ${item.label}`}
               >
                 {deletingId === item.id ? (
                   <CircularProgress size={14} color="error" />

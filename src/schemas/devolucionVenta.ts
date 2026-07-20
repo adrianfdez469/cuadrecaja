@@ -29,7 +29,10 @@ export const buscarVentasResponseSchema = z.object({
 
 export const devolucionVentaCreateSchema = z.object({
   ventaProductoId: z.string().uuid(),
-  cantidad: z.number().positive("La cantidad debe ser mayor a 0"),
+  cantidad: z
+    .number()
+    .positive("La cantidad debe ser mayor a 0")
+    .finite("La cantidad debe ser un número finito"),
   motivo: z.string().max(300, "Máximo 300 caracteres").optional(),
 });
 

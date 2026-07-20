@@ -132,6 +132,23 @@ export const formatCurrency = (amount: number): string => {
 };
 
 /**
+ * Formatea un monto en una moneda explícita (posiblemente distinta de la
+ * moneda base del negocio): SIN símbolo "$" — el "$" de formatCurrency()
+ * implica monedaBase y mezclarlo con un código de moneda distinto (ej.
+ * "$45.00 CUP" mostrando en realidad un monto en USD) confunde en los
+ * flujos de caja. Usar esta función siempre que el monto venga acompañado
+ * de su propio monedaCode (desgloses multi-moneda, deducciones por moneda).
+ */
+export const formatMontoEnMoneda = (
+  amount: number,
+  monedaCode: string,
+): string =>
+  `${(amount || 0).toLocaleString(LOCALE, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} ${monedaCode}`;
+
+/**
  * Formatea una moneda con CUP (formato secundario)
  */
 export const formatCurrencyCUP = (amount: number): string => {
@@ -216,6 +233,6 @@ export const formatAdvertenciasCaja = (
   advertencias
     .map(
       (a) =>
-        `La compra en ${a.moneda} superó el efectivo en caja (disponible: ${formatCurrency(a.disponible)} ${a.moneda}) — se tomaron ${formatCurrency(a.fondeoExterno)} ${a.moneda} de fondeo externo`,
+        `La compra en ${a.moneda} superó el efectivo en caja (disponible: ${formatMontoEnMoneda(a.disponible, a.moneda)}) — se tomaron ${formatMontoEnMoneda(a.fondeoExterno, a.moneda)} de fondeo externo`,
     )
     .join(". ");

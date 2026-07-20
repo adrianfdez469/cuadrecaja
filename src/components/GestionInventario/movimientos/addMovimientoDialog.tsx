@@ -45,7 +45,11 @@ import {
   TIPO_MOVIMIENTO_COLORS,
 } from "@/constants/movimientos";
 import { FORMA_PAGO_COMPRA_LABELS } from "@/constants/formaPagoCompra";
-import { formatAdvertenciasCaja, formatCurrency } from "@/utils/formatters";
+import {
+  formatAdvertenciasCaja,
+  formatCurrency,
+  formatMontoEnMoneda,
+} from "@/utils/formatters";
 import { Add, Info } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
@@ -306,7 +310,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
             const detalle = insuficientes
               .map(
                 ([moneda, solicitado]) =>
-                  `${moneda}: solicitado ${formatCurrency(solicitado)}, disponible ${formatCurrency(disponible[moneda] ?? 0)}`,
+                  `solicitado ${formatMontoEnMoneda(solicitado, moneda)}, disponible ${formatMontoEnMoneda(disponible[moneda] ?? 0, moneda)}`,
               )
               .join("; ");
             confirmDialog(
@@ -983,13 +987,13 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     p.monedaCostoCode !== monedaBase ? (
                       <>
                         <Typography variant="body2" color="text.secondary">
-                          {`Costo unitario: ${p.costoUnitario || 0} ${p.monedaCostoCode}`}
+                          {`Costo unitario: ${formatMontoEnMoneda(p.costoUnitario || 0, p.monedaCostoCode)}`}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {`≈ ${formatCurrency(convertToBase(p.costoUnitario || 0, p.monedaCostoCode, tasasVigentes, monedaBase))} (${monedaBase})`}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {`Costo total: ${(p.costoUnitario || 0) * p.cantidad} ${p.monedaCostoCode}`}
+                          {`Costo total: ${formatMontoEnMoneda((p.costoUnitario || 0) * p.cantidad, p.monedaCostoCode)}`}
                         </Typography>
                       </>
                     ) : (

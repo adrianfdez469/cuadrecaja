@@ -1,4 +1,4 @@
-import { formatCurrency } from "@/utils/formatters";
+import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
 import { Delete } from "@mui/icons-material";
 import {
   Alert,
@@ -143,7 +143,10 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                         color="warning.main"
                         fontWeight="bold"
                       >
-                        {`${formatCurrency(totalCostoPorMoneda[moneda])} ${moneda}`}
+                        {formatMontoEnMoneda(
+                          totalCostoPorMoneda[moneda],
+                          moneda,
+                        )}
                       </Typography>
                     ))}
                   </Stack>
@@ -153,13 +156,16 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                     color="warning.main"
                     fontWeight="bold"
                   >
-                    {formatCurrency(
-                      totalCostoPorMoneda[monedasConCosto[0]] ?? 0,
-                    )}
                     {permiteMonedaPorProducto &&
-                      monedasConCosto[0] &&
-                      monedasConCosto[0] !== monedaBase &&
-                      ` ${monedasConCosto[0]}`}
+                    monedasConCosto[0] &&
+                    monedasConCosto[0] !== monedaBase
+                      ? formatMontoEnMoneda(
+                          totalCostoPorMoneda[monedasConCosto[0]] ?? 0,
+                          monedasConCosto[0],
+                        )
+                      : formatCurrency(
+                          totalCostoPorMoneda[monedasConCosto[0]] ?? 0,
+                        )}
                   </Typography>
                 )}
                 <Typography variant="caption" color="text.secondary">
@@ -174,6 +180,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                     size="small"
                     color="error"
                     onClick={limpiarSeleccion}
+                    aria-label="Limpiar selección de productos"
                   >
                     <Delete />
                   </IconButton>
@@ -213,6 +220,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                         <IconButton
                           color="error"
                           onClick={() => eliminarProducto(producto.productoId)}
+                          aria-label={`Eliminar ${producto.nombre}`}
                         >
                           <Delete />
                         </IconButton>
@@ -308,7 +316,14 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                     )}
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="medium">
-                        {formatCurrency(producto.costoTotal)}
+                        {permiteMonedaPorProducto &&
+                        producto.monedaCostoCode &&
+                        producto.monedaCostoCode !== monedaBase
+                          ? formatMontoEnMoneda(
+                              producto.costoTotal,
+                              producto.monedaCostoCode,
+                            )
+                          : formatCurrency(producto.costoTotal)}
                       </Typography>
                     </TableCell>
                   </TableRow>

@@ -93,12 +93,14 @@ export const gastoTiendaSchema = gastoPlantillaSchema.extend({
   monto: z
     .number()
     .positive("El monto debe ser mayor a 0")
+    .finite("El monto debe ser un número finito")
     .nullable()
     .optional(),
   porcentaje: z
     .number()
     .min(0, "Mínimo 0%")
     .max(100, "Máximo 100%")
+    .finite()
     .nullable()
     .optional(),
 });
@@ -143,8 +145,8 @@ export const updateGastoTiendaSchema = gastoTiendaInputBase.partial();
 
 export const assignPlantillaSchema = z.object({
   plantillaId: z.string().uuid(),
-  monto: z.number().positive().nullable().optional(),
-  porcentaje: z.number().min(0).max(100).nullable().optional(),
+  monto: z.number().positive().finite().nullable().optional(),
+  porcentaje: z.number().min(0).max(100).finite().nullable().optional(),
   diaMes: z.number().int().min(1).max(31).nullable().optional(),
   mesAnio: z.number().int().min(1).max(12).nullable().optional(),
   diaAnio: z.number().int().min(1).max(31).nullable().optional(),
@@ -196,9 +198,12 @@ export const gastoAdHocCreateSchema = z
     categoria: z.string().min(1, "La categoría es requerida"),
     tipoCalculo: TipoCalculoEnum,
     naturaleza: NaturalezaGastoEnum.default("OPERATIVO"),
-    montoCalculado: z.number().positive("El monto debe ser mayor a 0"),
-    monto: z.number().positive().nullable().optional(),
-    porcentaje: z.number().min(0).max(100).nullable().optional(),
+    montoCalculado: z
+      .number()
+      .positive("El monto debe ser mayor a 0")
+      .finite("El monto debe ser un número finito"),
+    monto: z.number().positive().finite().nullable().optional(),
+    porcentaje: z.number().min(0).max(100).finite().nullable().optional(),
     monedaCode: z.string().nullable().optional(),
   })
   .superRefine((data, ctx) => {

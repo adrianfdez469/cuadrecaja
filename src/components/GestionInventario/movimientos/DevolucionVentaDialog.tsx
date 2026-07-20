@@ -35,6 +35,7 @@ import {
   IVentaBuscadaProducto,
 } from "@/schemas/devolucionVenta";
 import { formatCurrency } from "@/utils/formatters";
+import useConfirmDialog from "@/components/confirmDialog";
 
 interface IProps {
   dialogOpen: boolean;
@@ -50,6 +51,7 @@ export const DevolucionVentaDialog: FC<IProps> = ({
   onSuccess,
 }) => {
   const { showMessage } = useMessageContext();
+  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -108,7 +110,7 @@ export const DevolucionVentaDialog: FC<IProps> = ({
     setMotivo("");
   };
 
-  const handleConfirmarDevolucion = async () => {
+  const handleConfirmarDevolucion = () => {
     if (!returnTarget) return;
     const cantidad = Number(cantidadDevolver);
     if (!cantidad || cantidad <= 0) {
@@ -123,10 +125,22 @@ export const DevolucionVentaDialog: FC<IProps> = ({
       return;
     }
 
+    confirmDialog(
+      `¿Confirmas devolver ${cantidad} unidad(es) de "${returnTarget.producto.nombre}"? El producto vuelve al inventario y se resta de la ganancia y la caja de hoy. Esta acción no se puede deshacer.`,
+      () => ejecutarDevolucion(returnTarget, cantidad),
+      undefined,
+      { severity: "warning" },
+    );
+  };
+
+  const ejecutarDevolucion = async (
+    target: { ventaId: string; producto: IVentaBuscadaProducto },
+    cantidad: number,
+  ) => {
     setSaving(true);
     try {
-      await registrarDevolucionVenta(tiendaId, returnTarget.ventaId, {
-        ventaProductoId: returnTarget.producto.ventaProductoId,
+      await registrarDevolucionVenta(tiendaId, target.ventaId, {
+        ventaProductoId: target.producto.ventaProductoId,
         cantidad,
         motivo: motivo || undefined,
       });
@@ -253,6 +267,8 @@ export const DevolucionVentaDialog: FC<IProps> = ({
                           size="small"
                           color="primary"
                           onClick={() => handleAbrirDevolucion(venta.id, p)}
+                          aria-label={`Devolver ${p.nombre}`}
+                          sx={{ p: 1 }}
                         >
                           <UndoIcon fontSize="small" />
                         </IconButton>
@@ -332,6 +348,7 @@ export const DevolucionVentaDialog: FC<IProps> = ({
           Cerrar
         </Button>
       </DialogActions>
+      {ConfirmDialogComponent}
     </Dialog>
   );
 };

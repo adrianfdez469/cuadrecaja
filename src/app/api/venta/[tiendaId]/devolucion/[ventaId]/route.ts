@@ -5,6 +5,7 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { devolucionVentaCreateSchema } from "@/schemas/devolucionVenta";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase } from "@/lib/currency";
+import { DEFAULT_CURRENCY } from "@/constants/billDenominations";
 import { CreateMoviento } from "@/lib/movimiento";
 
 export async function POST(
@@ -92,12 +93,30 @@ export async function POST(
       );
     }
 
-    const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
+    const monedaBase = tienda?.negocio?.monedaBase ?? DEFAULT_CURRENCY;
     // Usamos las tasas vigentes AL MOMENTO DE LA VENTA original, no las de hoy
     const tasasHistoricas = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
 
     const monedaCosto = vp.monedaCostoCode ?? monedaBase;
     const monedaPrecio = vp.monedaPrecioCode ?? monedaBase;
+
+    // convertToBase asume tasa=1 si la moneda no está en el snapshot — nunca
+    // calcular un reembolso/costo asumiendo 1:1 en silencio si la tasa
+    // histórica de la venta original se perdió: es dinero real.
+    const monedasSinTasaHistorica = [
+      ...new Set([monedaCosto, monedaPrecio]),
+    ].filter(
+      (m) => m !== monedaBase && m !== "CUP" && tasasHistoricas[m] == null,
+    );
+    if (monedasSinTasaHistorica.length > 0) {
+      return NextResponse.json(
+        {
+          error: `No se encontró la tasa de cambio histórica de ${monedasSinTasaHistorica.join(", ")} usada en la venta original; no se puede calcular la devolución con precisión.`,
+        },
+        { status: 422 },
+      );
+    }
+
     const costoBase = convertToBase(
       vp.costo,
       monedaCosto,

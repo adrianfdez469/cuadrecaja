@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { calcularEfectivoDisponiblePorMoneda } from "@/lib/movimiento/caja";
+import { DEFAULT_CURRENCY } from "@/constants/billDenominations";
 
 // Efectivo disponible en caja por moneda, para el período abierto de la
 // tienda — usado por el frontend para avisar ANTES de registrar una compra
@@ -39,7 +40,7 @@ export async function GET(
         { status: 404 },
       );
     }
-    const monedaBase = tienda.negocio?.monedaBase ?? "CUP";
+    const monedaBase = tienda.negocio?.monedaBase ?? DEFAULT_CURRENCY;
 
     const disponible = await calcularEfectivoDisponiblePorMoneda(
       tiendaId,

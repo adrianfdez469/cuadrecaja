@@ -3,6 +3,13 @@ import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
 import { applyGastosToResumenMap } from "@/lib/gastos";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
+import type { Prisma } from "@prisma/client";
+
+// Subconjunto de PrismaClient usado por calcularEfectivoDisponiblePorMoneda —
+// acepta tanto el cliente normal como un `tx` dentro de $transaction, para
+// poder ejecutar el cálculo con lock dentro de la misma transacción que
+// escribe el movimiento (ver CreateMoviento).
+type PrismaLike = typeof prisma | Prisma.TransactionClient;
 
 type ResumenEntry = {
   totalEfectivo: number;
@@ -108,8 +115,13 @@ export function applyComprasYDevolucionesToResumenMap(
       const moneda = m.monedaOriginal ?? monedaBase;
       const montoEnMoneda = m.montoOriginal ?? m.montoReembolso ?? 0;
       // montoReembolso ya viene en monedaBase (convertido con la tasa
-      // histórica de la venta original al crear la devolución)
-      const enBase = m.montoReembolso ?? montoEnMoneda;
+      // histórica de la venta original al crear la devolución). Si no viene,
+      // NUNCA asumir que montoEnMoneda ya está en monedaBase — convertirlo
+      // explícitamente para no restar, p.ej., dólares crudos de un
+      // acumulado que está en pesos.
+      const enBase =
+        m.montoReembolso ??
+        convertToBase(montoEnMoneda, moneda, tasas, monedaBase);
       if (!map[moneda]) {
         map[moneda] = {
           totalEfectivo: 0,
@@ -197,8 +209,9 @@ export function buildResumenMonedas(
 export async function calcularEfectivoDisponiblePorMoneda(
   tiendaId: string,
   monedaBase: string,
+  client: PrismaLike = prisma,
 ): Promise<Record<string, number>> {
-  const periodoAbierto = await prisma.cierrePeriodo.findFirst({
+  const periodoAbierto = await client.cierrePeriodo.findFirst({
     where: { tiendaId, fechaFin: null },
     orderBy: { fechaInicio: "desc" },
   });
@@ -206,19 +219,19 @@ export async function calcularEfectivoDisponiblePorMoneda(
 
   const [ventas, gastosCierre, movimientosPeriodo, tiendaConNegocio] =
     await Promise.all([
-      prisma.venta.findMany({
+      client.venta.findMany({
         where: { cierrePeriodoId: periodoAbierto.id },
         select: { pagosDetalle: true, vueltoDetalle: true, tasaSnapshot: true },
       }),
-      prisma.gastoCierre.findMany({ where: { cierreId: periodoAbierto.id } }),
-      prisma.movimientoStock.findMany({
+      client.gastoCierre.findMany({ where: { cierreId: periodoAbierto.id } }),
+      client.movimientoStock.findMany({
         where: {
           tiendaId,
           tipo: { in: ["COMPRA", "DEVOLUCION_VENTA"] },
           fecha: { gte: periodoAbierto.fechaInicio },
         },
       }),
-      prisma.tienda.findUnique({
+      client.tienda.findUnique({
         where: { id: tiendaId },
         select: { negocio: { select: { id: true } } },
       }),
@@ -226,7 +239,7 @@ export async function calcularEfectivoDisponiblePorMoneda(
 
   const negocioId = tiendaConNegocio?.negocio?.id;
   const tasasCambio = negocioId
-    ? await prisma.tasaCambio.findMany({
+    ? await client.tasaCambio.findMany({
         where: { negocioId },
         orderBy: { createdAt: "desc" },
         distinct: ["monedaCode"],

@@ -41,11 +41,18 @@ export async function PUT(
       );
     }
 
-    // Get monedaBase for currency conversions
-    const tienda = await prisma.tienda.findUnique({
-      where: { id: tiendaId },
+    // Get monedaBase for currency conversions — findFirst con negocioId para
+    // no permitir cerrar el período de una tienda de otro negocio.
+    const tienda = await prisma.tienda.findFirst({
+      where: { id: tiendaId, negocioId: user.negocio.id },
       select: { negocio: { select: { id: true, monedaBase: true } } },
     });
+    if (!tienda) {
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 },
+      );
+    }
     const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
     const negocioId = tienda?.negocio?.id;
 

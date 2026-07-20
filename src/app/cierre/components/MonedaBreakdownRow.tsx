@@ -14,7 +14,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import { Chip } from "@mui/material";
-import { formatCurrency } from "@/utils/formatters";
+import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
 import BillBreakdownDynamic from "@/components/BillBreakdown/BillBreakdownDynamic";
 import { IBillCount } from "@/schemas/billBreakdown";
 import {
@@ -81,17 +81,25 @@ const MonedaBreakdownRow: FC<Props> = ({
     {},
   );
   const [breakdownTotal, setBreakdownTotal] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasDenominations = denominations.length > 0;
 
   // Load status message on mount without requiring the user to expand
   useEffect(() => {
+    setLoadError(false);
     fetchMonedaBreakdown(tiendaId, cierreId, monedaCode)
       .then((saved) => {
         if (saved?.items?.length) setBreakdownTotal(saved.total);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[MonedaBreakdown] fetch error:", err);
+        // Un fallo de red aquí no debe leerse como "no se ha contado" — el
+        // conteo físico puede existir y no haberse podido cargar, lo que
+        // invalidaría cualquier validación de descuadre contra este total.
+        setLoadError(true);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cierreId, monedaCode]);
 
@@ -168,11 +176,11 @@ const MonedaBreakdownRow: FC<Props> = ({
                       color: "text.disabled",
                     }}
                   >
-                    {totalEfectivoBruto.toFixed(2)}
+                    {formatMontoEnMoneda(totalEfectivoBruto, monedaCode)}
                   </Typography>
                 )}
               <Typography variant="body2" fontWeight="bold">
-                {totalEfectivo.toFixed(2)} {monedaCode}
+                {formatMontoEnMoneda(totalEfectivo, monedaCode)}
               </Typography>
             </Box>
           </Box>
@@ -181,7 +189,7 @@ const MonedaBreakdownRow: FC<Props> = ({
               Transferencia
             </Typography>
             <Typography variant="body2" fontWeight="medium">
-              {totalTransfer.toFixed(2)} {monedaCode}
+              {formatMontoEnMoneda(totalTransfer, monedaCode)}
             </Typography>
           </Box>
           <Box>
@@ -244,6 +252,7 @@ const MonedaBreakdownRow: FC<Props> = ({
                 items={deducciones}
                 onDelete={onDeleteGasto}
                 deletingId={deletingGastoId}
+                monedaCode={monedaCode}
               />
               <Divider sx={{ mt: 1 }} />
               <Box display="flex" justifyContent="space-between" mt={0.5}>
@@ -256,10 +265,10 @@ const MonedaBreakdownRow: FC<Props> = ({
                   color="error.main"
                 >
                   -
-                  {formatCurrency(
+                  {formatMontoEnMoneda(
                     deducciones.reduce((s, it) => s + it.monto, 0),
-                  )}{" "}
-                  {monedaCode}
+                    monedaCode,
+                  )}
                 </Typography>
               </Box>
             </Box>
@@ -284,6 +293,19 @@ const MonedaBreakdownRow: FC<Props> = ({
             Desglose de billetes
           </Button>
 
+          {loadError && (
+            <Typography
+              variant="caption"
+              color="warning.main"
+              display="block"
+              mt={0.5}
+            >
+              No se pudo cargar el conteo físico guardado (error de red) — si ya
+              lo habías contado, no lo des por perdido, reintenta antes de
+              cerrar.
+            </Typography>
+          )}
+
           {breakdownTotal !== null && diff !== null && (
             <Typography
               variant="caption"
@@ -298,10 +320,10 @@ const MonedaBreakdownRow: FC<Props> = ({
               mt={0.5}
             >
               {diff === 0
-                ? `Cuadre perfecto ✓ — ${breakdownTotal.toFixed(2)} ${monedaCode}`
+                ? `Cuadre perfecto ✓ — ${formatMontoEnMoneda(breakdownTotal, monedaCode)}`
                 : diff > 0
-                  ? `Excedente: ${diff.toFixed(2)} ${monedaCode} (contado: ${breakdownTotal.toFixed(2)})`
-                  : `Faltan: ${Math.abs(diff).toFixed(2)} ${monedaCode} (contado: ${breakdownTotal.toFixed(2)})`}
+                  ? `Excedente: ${formatMontoEnMoneda(diff, monedaCode)} (contado: ${formatMontoEnMoneda(breakdownTotal, monedaCode)})`
+                  : `Faltan: ${formatMontoEnMoneda(Math.abs(diff), monedaCode)} (contado: ${formatMontoEnMoneda(breakdownTotal, monedaCode)})`}
             </Typography>
           )}
 

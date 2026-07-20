@@ -11,6 +11,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControlLabel,
   FormGroup,
   Stack,
@@ -21,7 +22,7 @@ import { ICierreData } from "@/schemas/cierre";
 import { fetchMonedaBreakdown } from "@/services/cierrePeriodService";
 import { previewGastosCierre } from "@/services/gastoService";
 import type { IGastoPreview } from "@/schemas/gastos";
-import { formatCurrency } from "@/utils/formatters";
+import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
 
 interface Props {
   open: boolean;
@@ -73,22 +74,12 @@ export default function CerrarCajaConfirmDialog({
     (async () => {
       const nextWarnings: IWarning[] = [];
 
-      if (
-        typeof cierreData.totalGananciaFinal === "number" &&
-        cierreData.totalGananciaFinal < 0
-      ) {
-        nextWarnings.push({
-          severity: "error",
-          text: `La ganancia final es negativa: ${formatCurrency(cierreData.totalGananciaFinal)}`,
-        });
-      }
-
       // Efectivo remanente en caja negativo o muy bajo, por moneda
       for (const rm of cierreData.resumenMonedas ?? []) {
         if (rm.totalEfectivo < 0) {
           nextWarnings.push({
             severity: "error",
-            text: `La caja en ${rm.monedaCode} quedaría en negativo: ${formatCurrency(rm.totalEfectivo)} ${rm.monedaCode}`,
+            text: `La caja en ${rm.monedaCode} quedaría en negativo: ${formatMontoEnMoneda(rm.totalEfectivo, rm.monedaCode)}`,
           });
         } else {
           const bruto = rm.totalEfectivoBruto ?? rm.totalEfectivo;
@@ -96,7 +87,7 @@ export default function CerrarCajaConfirmDialog({
           if (bruto > 0 && rm.totalEfectivo < umbral) {
             nextWarnings.push({
               severity: "warning",
-              text: `El efectivo remanente en caja en ${rm.monedaCode} es muy bajo: ${formatCurrency(rm.totalEfectivo)} ${rm.monedaCode}`,
+              text: `El efectivo remanente en caja en ${rm.monedaCode} es muy bajo: ${formatMontoEnMoneda(rm.totalEfectivo, rm.monedaCode)}`,
             });
           }
         }
@@ -125,8 +116,8 @@ export default function CerrarCajaConfirmDialog({
               severity: "warning",
               text:
                 diff > 0
-                  ? `Sobran ${formatCurrency(diff)} ${rm.monedaCode} en el conteo físico`
-                  : `Faltan ${formatCurrency(Math.abs(diff))} ${rm.monedaCode} en el conteo físico`,
+                  ? `Sobran ${formatMontoEnMoneda(diff, rm.monedaCode)} en el conteo físico`
+                  : `Faltan ${formatMontoEnMoneda(Math.abs(diff), rm.monedaCode)} en el conteo físico`,
             });
           }
         } catch {
@@ -141,13 +132,27 @@ export default function CerrarCajaConfirmDialog({
         if (!cancelled && preview.gastosRecurrentes.length > 0) {
           setGastosRecurrentes(preview.gastosRecurrentes);
           setSelectedKeys(new Set(preview.gastosRecurrentes.map(gastoKey)));
-          const total = preview.gastosRecurrentes.reduce(
-            (s, g) => s + g.montoCalculado,
-            0,
-          );
-          nextWarnings.push({
-            severity: "info",
-            text: `Se van a aplicar ${preview.gastosRecurrentes.length} gasto(s) recurrente(s) por ${formatCurrency(total)}. Puedes desmarcar los que no correspondan.`,
+          // El resumen de "se van a aplicar N gastos por $X" se muestra junto
+          // a los checkboxes (ver JSX) y se recalcula en vivo con
+          // selectedKeys — no se fija acá para no quedar desactualizado
+          // cuando el usuario destilde alguno.
+        }
+        // La ganancia final "base" (cierreData.totalGananciaFinal) ya incluye
+        // gastos aplicados + merma + devoluciones del período; acá solo
+        // restamos los recurrentes OPERATIVO aún pendientes (todos
+        // seleccionados por defecto) para el aviso inicial. Se recalcula en
+        // vivo más abajo según lo que el usuario deje marcado.
+        const totalOperativosIniciales = preview.gastosRecurrentes
+          .filter((g) => g.naturaleza === "OPERATIVO")
+          .reduce((s, g) => s + g.montoCalculado, 0);
+        const gananciaFinalBase =
+          typeof cierreData.totalGananciaFinal === "number"
+            ? cierreData.totalGananciaFinal
+            : (cierreData.totalGanancia ?? 0);
+        if (!cancelled && gananciaFinalBase - totalOperativosIniciales < 0) {
+          nextWarnings.unshift({
+            severity: "error",
+            text: `La ganancia final quedaría negativa: ${formatCurrency(gananciaFinalBase - totalOperativosIniciales)}`,
           });
         }
       } catch {
@@ -173,6 +178,38 @@ export default function CerrarCajaConfirmDialog({
       return next;
     });
   };
+
+  // Solo los recurrentes de naturaleza OPERATIVO restan de la ganancia (los de
+  // INVERSION solo restan de caja). Partimos de cierreData — la misma fuente
+  // que la card "Ganancia" del resumen — y solo sumamos los recurrentes
+  // pendientes que el usuario deja marcados; así el número nunca diverge del
+  // que ya vio en pantalla antes de abrir este diálogo.
+  let totalOperativosSeleccionados = 0;
+  // Cuenta/total de recurrentes efectivamente seleccionados (cualquier
+  // naturaleza) — recalculado en vivo con selectedKeys para no quedar
+  // desactualizado cuando el usuario destilde checkboxes.
+  let cantidadSeleccionados = 0;
+  let totalSeleccionado = 0;
+  gastosRecurrentes.forEach((g, idx) => {
+    if (!selectedKeys.has(gastoKey(g, idx))) return;
+    cantidadSeleccionados += 1;
+    totalSeleccionado += g.montoCalculado;
+    if (g.naturaleza === "OPERATIVO") {
+      totalOperativosSeleccionados += g.montoCalculado;
+    }
+  });
+
+  // Punto de partida: la "Ganancia" que YA se ve en la card del resumen
+  // (totalGananciaFinal — el valor neto, no el bruto tachado). Ese número ya
+  // trae restados los gastos/merma/devoluciones aplicados hasta ahora; acá
+  // solo restamos, encima, los recurrentes pendientes que el usuario deja
+  // marcados — así las filas del diálogo suman entre sí sin dejar nada oculto.
+  const gananciaMostrada =
+    typeof cierreData.totalGananciaFinal === "number"
+      ? cierreData.totalGananciaFinal
+      : (cierreData.totalGanancia ?? 0);
+  const gananciaFinalEstimada = gananciaMostrada - totalOperativosSeleccionados;
+  const esNegativa = gananciaFinalEstimada < 0;
 
   const handleConfirm = async () => {
     setConfirming(true);
@@ -252,6 +289,58 @@ export default function CerrarCajaConfirmDialog({
                 );
               })}
             </FormGroup>
+            <Alert severity="info" sx={{ mt: 1, py: 0.5 }}>
+              Se van a aplicar {cantidadSeleccionados} gasto(s) recurrente(s)
+              por {formatCurrency(totalSeleccionado)}.
+            </Alert>
+          </Box>
+        )}
+
+        {!loading && (
+          <Box sx={{ mt: 2 }}>
+            <Divider sx={{ mb: 1 }} />
+            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+              Resumen final del cierre
+            </Typography>
+            <Stack spacing={0.5}>
+              <Box display="flex" justifyContent="space-between">
+                <Typography variant="body2" color="text.secondary">
+                  Ganancia (según resumen)
+                </Typography>
+                <Typography variant="body2">
+                  {formatCurrency(gananciaMostrada)}
+                </Typography>
+              </Box>
+              <Box display="flex" justifyContent="space-between">
+                <Typography variant="body2" color="error.main">
+                  Gastos recurrentes a aplicar
+                </Typography>
+                <Typography variant="body2" color="error.main">
+                  -{formatCurrency(totalOperativosSeleccionados)}
+                </Typography>
+              </Box>
+              <Divider />
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Typography variant="subtitle2">Ganancia final</Typography>
+                <Typography
+                  variant="subtitle2"
+                  color={esNegativa ? "error.main" : "success.main"}
+                  fontWeight="bold"
+                >
+                  {formatCurrency(gananciaFinalEstimada)}
+                </Typography>
+              </Box>
+            </Stack>
+            {esNegativa && (
+              <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
+                La ganancia final quedaría negativa: los gastos superan la
+                ganancia del período.
+              </Alert>
+            )}
           </Box>
         )}
       </DialogContent>
