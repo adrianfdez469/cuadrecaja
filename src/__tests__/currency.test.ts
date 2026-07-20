@@ -985,3 +985,80 @@ describe("buildTasaSnapshot", () => {
     expect(Object.keys(snapshot)).not.toContain("CUP");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCENARIO: Floating point noise should not push change to the next denomination
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("calcularVuelto - floating point noise regression", () => {
+  it("should return 20 CUP change (not 21) when total is 500 and paid is 520, same currency", () => {
+    const pagos: IPagoLinea[] = [
+      {
+        tipo: "cash",
+        moneda: "CUP",
+        monto: 520,
+        equivalenteBase: 520,
+      },
+    ];
+
+    const result = calcularVuelto(
+      500,
+      pagos,
+      "CUP",
+      "CUP",
+      mockTasaSnapshot,
+      mockDenominaciones,
+    );
+
+    expect(result).toEqual([{ moneda: "CUP", monto: 20 }]);
+  });
+
+  it("should return 20 CUP change when totalBase carries float noise just below the exact value (499.99999999999994)", () => {
+    const pagos: IPagoLinea[] = [
+      {
+        tipo: "cash",
+        moneda: "CUP",
+        monto: 520,
+        equivalenteBase: 520,
+      },
+    ];
+
+    // Simulates float noise from summing item prices (e.g. 0.1 + 0.2 style errors)
+    // that leaves the total a hair under 500 instead of exact.
+    const noisyTotalBase = 499.99999999999994;
+
+    const result = calcularVuelto(
+      noisyTotalBase,
+      pagos,
+      "CUP",
+      "CUP",
+      mockTasaSnapshot,
+      mockDenominaciones,
+    );
+
+    expect(result).toEqual([{ moneda: "CUP", monto: 20 }]);
+  });
+
+  it("should still round up genuinely when change is not an exact multiple of denomMin", () => {
+    const pagos: IPagoLinea[] = [
+      {
+        tipo: "cash",
+        moneda: "CUP",
+        monto: 520.003,
+        equivalenteBase: 520.003,
+      },
+    ];
+
+    const result = calcularVuelto(
+      500,
+      pagos,
+      "CUP",
+      "CUP",
+      mockTasaSnapshot,
+      mockDenominaciones,
+    );
+
+    // denomMin for CUP is 0.01, genuine remainder must still round up
+    expect(result).toEqual([{ moneda: "CUP", monto: 20.01 }]);
+  });
+});
