@@ -36,7 +36,7 @@ import {
 } from "@/services/movimientoService";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useAppContext } from "@/context/AppContext";
-import { ITipoMovimiento, FormaPagoCompraEnum } from "@/schemas/movimiento";
+import { ITipoMovimiento, IFormaPagoCompra } from "@/schemas/movimiento";
 import {
   TIPOS_MOVIMIENTO_MANUAL,
   TIPO_MOVIMIENTO_LABELS,
@@ -44,7 +44,7 @@ import {
   TIPO_MOVIMIENTO_EJEMPLOS,
   TIPO_MOVIMIENTO_COLORS,
 } from "@/constants/movimientos";
-import { FORMA_PAGO_COMPRA_LABELS } from "@/constants/formaPagoCompra";
+import { FormaPagoCompraSelect } from "@/components/GestionInventario/FormaPagoCompraSelect";
 import {
   formatAdvertenciasCaja,
   formatCurrency,
@@ -145,8 +145,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
 
   const [destinations, setDestinations] = useState<ILocal[]>([]);
   const [destinationId, setDestinationId] = useState<string>("");
-  const [formaPago, setFormaPago] =
-    useState<(typeof FormaPagoCompraEnum.options)[number]>("EFECTIVO_CAJA");
+  const [formaPago, setFormaPago] = useState<IFormaPagoCompra>("EXTERNO");
   const { verificarPermiso } = usePermisos();
 
   const theme = useTheme();
@@ -280,7 +279,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
       setMotivo("");
       setProveedor(null);
       setTipo("COMPRA");
-      setFormaPago("EFECTIVO_CAJA");
+      setFormaPago("EXTERNO");
       setCreandoProveedor(false);
     }
   };
@@ -929,29 +928,11 @@ export const AddMovimientoDialog: FC<IProps> = ({
 
           {/* Forma de pago — solo para COMPRA */}
           {tipo === "COMPRA" && (
-            <FormControl fullWidth margin="normal" size="small">
-              <InputLabel>Forma de pago</InputLabel>
-              <Select
-                value={formaPago}
-                label="Forma de pago"
-                onChange={(e) =>
-                  setFormaPago(
-                    e.target
-                      .value as (typeof FormaPagoCompraEnum.options)[number],
-                  )
-                }
-              >
-                {/* MIXTO no es seleccionable — el backend lo asigna solo
-                    cuando la compra en EFECTIVO_CAJA supera el disponible */}
-                {FormaPagoCompraEnum.options
-                  .filter((opt) => opt !== "MIXTO")
-                  .map((opt) => (
-                    <MenuItem key={opt} value={opt}>
-                      {FORMA_PAGO_COMPRA_LABELS[opt]}
-                    </MenuItem>
-                  ))}
-              </Select>
-            </FormControl>
+            <FormaPagoCompraSelect
+              value={formaPago}
+              onChange={setFormaPago}
+              margin="normal"
+            />
           )}
 
           {/* La moneda del costo se elige por producto dentro del modal de
