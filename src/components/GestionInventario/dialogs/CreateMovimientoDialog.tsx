@@ -31,10 +31,10 @@ import { getLocales } from "@/services/localesService";
 import { convertToBase, convertFromBase } from "@/lib/currency";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import { FormaPagoCompraEnum } from "@/schemas/movimiento";
-import { FORMA_PAGO_COMPRA_LABELS } from "@/constants/formaPagoCompra";
+import { IFormaPagoCompra } from "@/schemas/movimiento";
 import { formatAdvertenciasCaja, formatCurrency } from "@/utils/formatters";
 import useConfirmDialog from "@/components/confirmDialog";
+import { FormaPagoCompraSelect } from "@/components/GestionInventario/FormaPagoCompraSelect";
 
 interface Props {
   open: boolean;
@@ -102,8 +102,7 @@ export function CreateMovimientoDialog({
   const [destinos, setDestinos] = useState<ILocal[]>([]);
   const [destinationId, setDestinationId] = useState<string>("");
   const [monedaCompra, setMonedaCompra] = useState<string>(monedaBase);
-  const [formaPago, setFormaPago] =
-    useState<(typeof FormaPagoCompraEnum.options)[number]>("EFECTIVO_CAJA");
+  const [formaPago, setFormaPago] = useState<IFormaPagoCompra>("EXTERNO");
   const [saving, setSaving] = useState(false);
 
   const monedasParaCompra = useMemo(() => {
@@ -129,7 +128,7 @@ export function CreateMovimientoDialog({
       // moneda (monedaCostoCode) — la moneda seleccionada debe arrancar ahí,
       // nunca en monedaBase a secas, o el número se reinterpreta mal.
       setMonedaCompra(producto.monedaCostoCode ?? monedaBase);
-      setFormaPago("EFECTIVO_CAJA");
+      setFormaPago("EXTERNO");
     }
   }, [open, producto, monedaBase]);
 
@@ -405,29 +404,10 @@ export function CreateMovimientoDialog({
             )}
 
             {tipo === "COMPRA" && (
-              <FormControl size="small" fullWidth>
-                <InputLabel>Forma de pago</InputLabel>
-                <Select
-                  label="Forma de pago"
-                  value={formaPago}
-                  onChange={(e) =>
-                    setFormaPago(
-                      e.target
-                        .value as (typeof FormaPagoCompraEnum.options)[number],
-                    )
-                  }
-                >
-                  {/* MIXTO no es seleccionable — el backend lo asigna solo
-                    cuando la compra en EFECTIVO_CAJA supera el disponible */}
-                  {FormaPagoCompraEnum.options
-                    .filter((opt) => opt !== "MIXTO")
-                    .map((opt) => (
-                      <MenuItem key={opt} value={opt}>
-                        {FORMA_PAGO_COMPRA_LABELS[opt]}
-                      </MenuItem>
-                    ))}
-                </Select>
-              </FormControl>
+              <FormaPagoCompraSelect
+                value={formaPago}
+                onChange={setFormaPago}
+              />
             )}
 
             <TextField

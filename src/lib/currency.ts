@@ -5,6 +5,10 @@ import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 const cupTasa = (code: string, tasas: ITasaSnapshot): number =>
   code === "CUP" ? 1 : (tasas[code] ?? 1);
 
+// Tolerance for floating point noise before rounding up to a denomination —
+// avoids Math.ceil bumping an exact multiple (e.g. 20.00000000000006) to the next one.
+const EPS = 1e-6;
+
 /**
  * Builds a tasa snapshot from the latest TasaCambio records per moneda.
  * CUP is always implicit at 1 and is never stored in the snapshot.
@@ -134,7 +138,7 @@ export function calcularVuelto(
     // (nunca hacia abajo): igual que el resto en monedaBase más abajo, para
     // no dar de menos por redondeo — Math.round podía rondar a la baja.
     const vueltoEnMonedaCobro =
-      Math.ceil(vueltoEnMonedaCobroRaw / denomMin) * denomMin;
+      Math.ceil((vueltoEnMonedaCobroRaw - EPS) / denomMin) * denomMin;
 
     if (vueltoEnMonedaCobro > 0) {
       result.push({ moneda: monedaCobro, monto: vueltoEnMonedaCobro });
@@ -149,7 +153,8 @@ export function calcularVuelto(
         .slice()
         .sort((a, b) => b - a);
       const denomMinBase = denomsBase.at(-1) ?? 1;
-      const vueltoEnBase = Math.ceil(restoBase / denomMinBase) * denomMinBase;
+      const vueltoEnBase =
+        Math.ceil((restoBase - EPS) / denomMinBase) * denomMinBase;
       result.push({ moneda: monedaBase, monto: vueltoEnBase });
     }
   } else {
@@ -158,7 +163,7 @@ export function calcularVuelto(
       .sort((a, b) => b - a);
     const denomMinBase = denomsBase.at(-1) ?? 1;
     const vueltoEnBase =
-      Math.ceil(vueltoTotalBase / denomMinBase) * denomMinBase;
+      Math.ceil((vueltoTotalBase - EPS) / denomMinBase) * denomMinBase;
     if (vueltoEnBase > 0) {
       result.push({ moneda: monedaBase, monto: vueltoEnBase });
     }
