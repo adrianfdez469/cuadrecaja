@@ -7,6 +7,21 @@ type ResumenEntry = {
   equivalenteBase: number;
 };
 
+/**
+ * Fórmula única de "ganancia final" de un período — antes reimplementada de
+ * forma independiente en cada endpoint (preview, apply, close, resumen,
+ * summary, dashboard), lo que permitía que un endpoint quedara desactualizado
+ * respecto a los demás (ej. preview no restaba merma/devoluciones).
+ */
+export function calcularGananciaFinal(
+  totalGanancia: number,
+  totalGastos: number,
+  totalMerma: number = 0,
+  totalDevoluciones: number = 0,
+): number {
+  return totalGanancia - totalGastos - totalMerma - totalDevoluciones;
+}
+
 export function applyGastosToResumenMap(
   map: Record<string, ResumenEntry>,
   gastos: {

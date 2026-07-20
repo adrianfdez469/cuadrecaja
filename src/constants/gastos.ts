@@ -1,4 +1,19 @@
-import { ITipoCalculo, IRecurrenciaGasto } from "@/schemas/gastos";
+import {
+  ITipoCalculo,
+  IRecurrenciaGasto,
+  INaturalezaGasto,
+} from "@/schemas/gastos";
+
+export const NATURALEZA_GASTO_LABELS: Record<INaturalezaGasto, string> = {
+  OPERATIVO: "Gasto operativo",
+  INVERSION: "Inversión",
+};
+
+export const NATURALEZA_GASTO_DESCRIPTIONS: Record<INaturalezaGasto, string> = {
+  OPERATIVO: "Resta de la ganancia y de la caja (renta, sueldos, servicios)",
+  INVERSION:
+    "Resta solo de la caja, no de la ganancia (ej. comprar equipamiento)",
+};
 
 export const TIPO_CALCULO_LABELS: Record<ITipoCalculo, string> = {
   MONTO_FIJO: "Monto fijo",
@@ -8,8 +23,10 @@ export const TIPO_CALCULO_LABELS: Record<ITipoCalculo, string> = {
 
 export const TIPO_CALCULO_DESCRIPTIONS: Record<ITipoCalculo, string> = {
   MONTO_FIJO: "Se descuenta un monto fijo en cada aplicación",
-  PORCENTAJE_VENTAS: "Se descuenta un porcentaje del total de ventas del período",
-  PORCENTAJE_GANANCIAS: "Se descuenta un porcentaje de las ganancias brutas del período",
+  PORCENTAJE_VENTAS:
+    "Se descuenta un porcentaje del total de ventas del período",
+  PORCENTAJE_GANANCIAS:
+    "Se descuenta un porcentaje de las ganancias brutas del período",
 };
 
 export const TIPO_CALCULO_COLORS: Record<ITipoCalculo, string> = {
@@ -54,7 +71,10 @@ export const MESES: { value: number; label: string }[] = [
   { value: 12, label: "Diciembre" },
 ];
 
-export const DIAS_MES: { value: number; label: string }[] = Array.from({ length: 31 }, (_, i) => ({
-  value: i + 1,
-  label: String(i + 1),
-}));
+export const DIAS_MES: { value: number; label: string }[] = Array.from(
+  { length: 31 },
+  (_, i) => ({
+    value: i + 1,
+    label: String(i + 1),
+  }),
+);

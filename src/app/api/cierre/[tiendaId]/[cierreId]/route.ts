@@ -3,75 +3,20 @@ import { prisma } from "@/lib/prisma";
 import { ICierreData } from "@/schemas/cierre";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
-import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
-import { applyGastosToResumenMap } from "@/lib/gastos";
+import {
+  convertToBase,
+  convertFromBase,
+  buildTasaSnapshot,
+} from "@/lib/currency";
+import { applyGastosToResumenMap, calcularGananciaFinal } from "@/lib/gastos";
+import {
+  applyComprasYDevolucionesToResumenMap,
+  buildResumenMonedas,
+  montoCompraEnCaja,
+} from "@/lib/movimiento/caja";
 
-type Params = { cierreId: string };
-
-function buildResumenMonedas(
-  ventas: {
-    pagosDetalle?: unknown;
-    vueltoDetalle?: unknown;
-    tasaSnapshot?: unknown;
-  }[],
-  monedaBase: string,
-  tasasFallback: ITasaSnapshot = {},
-) {
-  const map: Record<
-    string,
-    { totalEfectivo: number; totalTransfer: number; equivalenteBase: number }
-  > = {};
-  for (const venta of ventas) {
-    if (!venta.pagosDetalle) continue;
-    const pagos = venta.pagosDetalle as IPagoLinea[];
-    const tasas = {
-      ...tasasFallback,
-      ...((venta.tasaSnapshot ?? {}) as ITasaSnapshot),
-    };
-    for (const pago of pagos) {
-      if (!map[pago.moneda])
-        map[pago.moneda] = {
-          totalEfectivo: 0,
-          totalTransfer: 0,
-          equivalenteBase: 0,
-        };
-      if (pago.tipo === "cash") map[pago.moneda].totalEfectivo += pago.monto;
-      else map[pago.moneda].totalTransfer += pago.monto;
-      map[pago.moneda].equivalenteBase += convertToBase(
-        pago.monto,
-        pago.moneda,
-        tasas,
-        monedaBase,
-      );
-    }
-    // Subtract change given — reduces physical cash on hand per currency
-    if (venta.vueltoDetalle) {
-      const vueltos = venta.vueltoDetalle as IVueltoLinea[];
-      for (const vuelto of vueltos) {
-        if (!map[vuelto.moneda])
-          map[vuelto.moneda] = {
-            totalEfectivo: 0,
-            totalTransfer: 0,
-            equivalenteBase: 0,
-          };
-        map[vuelto.moneda].totalEfectivo -= vuelto.monto;
-        map[vuelto.moneda].equivalenteBase -= convertToBase(
-          vuelto.monto,
-          vuelto.moneda,
-          tasas,
-          monedaBase,
-        );
-      }
-    }
-  }
-  return Object.entries(map).map(([monedaCode, vals]) => ({
-    id: monedaCode,
-    monedaCode,
-    ...vals,
-  }));
-}
+type Params = { tiendaId: string; cierreId: string };
 
 type ProductoVentaAcumulado = {
   nombre: string;
@@ -93,13 +38,17 @@ export async function GET(
   { params }: { params: Promise<Params> },
 ): Promise<NextResponse<ICierreData | { error: string }>> {
   try {
-    const { cierreId } = await params;
+    const { tiendaId, cierreId } = await params;
 
     const session = await getSession();
     const user = session.user;
 
-    const cierre = await prisma.cierrePeriodo.findUnique({
-      where: { id: cierreId },
+    const cierre = await prisma.cierrePeriodo.findFirst({
+      where: {
+        id: cierreId,
+        tiendaId,
+        tienda: { negocioId: user.negocio.id },
+      },
       include: {
         tienda: {
           include: { negocio: { select: { id: true, monedaBase: true } } },
@@ -403,11 +352,164 @@ export async function GET(
       totalGananciasPropiasNet + totalGananciasConsignacionNet,
     );
 
-    // Load gastos to deduct from per-currency summary
-    const gastosDelPeriodo = await prisma.gastoCierre.findMany({
-      where: { cierreId },
-      select: { tipoCalculo: true, montoCalculado: true, monedaCode: true },
-    });
+    // Load gastos to deduct from per-currency summary, and the period's
+    // compras/merma/devoluciones movements — independent queries, fetched
+    // together instead of one after another.
+    const [gastosDelPeriodo, movimientosPeriodo] = await Promise.all([
+      prisma.gastoCierre.findMany({
+        where: { cierreId },
+        select: {
+          id: true,
+          nombre: true,
+          tipoCalculo: true,
+          montoCalculado: true,
+          monedaCode: true,
+          naturaleza: true,
+          esAdHoc: true,
+          gastoTiendaId: true,
+        },
+      }),
+      prisma.movimientoStock.findMany({
+        where: {
+          tiendaId: cierre.tiendaId,
+          tipo: { in: ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] },
+          fecha: {
+            gte: cierre.fechaInicio,
+            ...(cierre.fechaFin && { lte: cierre.fechaFin }),
+          },
+        },
+        include: {
+          productoTienda: {
+            include: { producto: { select: { nombre: true } } },
+          },
+        },
+        orderBy: { fecha: "desc" },
+      }),
+    ]);
+
+    type DeduccionItem = {
+      id: string;
+      tipo: "GASTO" | "MERMA" | "DEVOLUCION" | "COMPRA";
+      label: string;
+      monto: number;
+      motivo?: string | null;
+      esAdHoc?: boolean;
+    };
+    // Detalle de todo lo que resta de la GANANCIA final (gastos operativos, merma, devoluciones)
+    const gananciaDeducciones: DeduccionItem[] = [];
+    // Detalle de todo lo que resta de la CAJA, agrupado por moneda (gastos de cualquier
+    // naturaleza, compras pagadas en efectivo, reembolsos de devolución)
+    const cajaDeduccionesPorMoneda: Record<string, DeduccionItem[]> = {};
+    const pushCaja = (moneda: string, item: DeduccionItem) => {
+      if (!cajaDeduccionesPorMoneda[moneda])
+        cajaDeduccionesPorMoneda[moneda] = [];
+      cajaDeduccionesPorMoneda[moneda].push(item);
+    };
+
+    for (const g of gastosDelPeriodo) {
+      const moneda = g.monedaCode ?? monedaBase;
+      if (g.naturaleza === "OPERATIVO") {
+        gananciaDeducciones.push({
+          id: g.id,
+          tipo: "GASTO",
+          label: g.nombre,
+          monto: convertToBase(
+            g.montoCalculado,
+            moneda,
+            tasasFallback,
+            monedaBase,
+          ),
+          esAdHoc: g.esAdHoc,
+        });
+      }
+      // Todos los gastos (ambas naturalezas) restan de caja
+      pushCaja(moneda, {
+        id: g.id,
+        tipo: "GASTO",
+        label: g.nombre,
+        monto: g.montoCalculado,
+        esAdHoc: g.esAdHoc,
+      });
+    }
+    // Los gastos recurrentes aún no aplicados (sin GastoCierre persistido) NO se
+    // restan aquí: esta ganancia es la "en vivo" del período abierto y solo debe
+    // reflejar lo que ya se aplicó de verdad. La proyección de recurrentes se
+    // muestra únicamente en el diálogo de confirmación al cerrar caja
+    // (ver /api/gastos/cierre/[cierreId]/preview), justo antes de aplicarlos.
+
+    const totalGastos = gananciaDeducciones
+      .filter((d) => d.tipo === "GASTO")
+      .reduce((s, d) => s + d.monto, 0);
+
+    // Compras (efectivo de caja), merma y devoluciones de venta registradas en este período
+    let totalComprasCaja = 0;
+    let totalMerma = 0;
+    let totalDevoluciones = 0;
+    for (const m of movimientosPeriodo) {
+      const productoNombre = m.productoTienda?.producto?.nombre ?? "Producto";
+      const montoCompraCaja = m.tipo === "COMPRA" ? montoCompraEnCaja(m) : 0;
+      if (m.tipo === "COMPRA" && montoCompraCaja > 0) {
+        // costoTotal de una COMPRA está en la moneda de la compra, no en monedaBase
+        totalComprasCaja += convertToBase(
+          montoCompraCaja,
+          m.monedaOriginal ?? monedaBase,
+          tasasFallback,
+          monedaBase,
+        );
+        const moneda = m.monedaOriginal ?? monedaBase;
+        pushCaja(moneda, {
+          id: m.id,
+          tipo: "COMPRA",
+          label:
+            m.formaPago === "MIXTO"
+              ? `${productoNombre} (mixto: ${(m.montoOriginal ?? 0) - montoCompraCaja} de fondeo externo)`
+              : productoNombre,
+          monto: montoCompraCaja,
+          motivo: m.motivo,
+        });
+      } else if (m.tipo === "MERMA") {
+        totalMerma += m.costoTotal ?? 0;
+        gananciaDeducciones.push({
+          id: m.id,
+          tipo: "MERMA",
+          label: productoNombre,
+          monto: m.costoTotal ?? 0,
+          motivo: m.motivo,
+        });
+      } else if (m.tipo === "DEVOLUCION_VENTA") {
+        const gananciaImpacto = (m.montoReembolso ?? 0) - (m.costoTotal ?? 0);
+        totalDevoluciones += gananciaImpacto;
+        gananciaDeducciones.push({
+          id: m.id,
+          tipo: "DEVOLUCION",
+          label: productoNombre,
+          monto: gananciaImpacto,
+          motivo: m.motivo,
+        });
+        // Este panel muestra el monto en SU PROPIA moneda (no monedaBase);
+        // si falta montoOriginal, convertir montoReembolso (que sí está en
+        // monedaBase) a esa moneda en vez de asumir que ya coinciden.
+        const moneda = m.monedaOriginal ?? monedaBase;
+        const montoEnMoneda =
+          m.montoOriginal ??
+          (m.monedaOriginal
+            ? convertFromBase(
+                m.montoReembolso ?? 0,
+                m.monedaOriginal,
+                tasasFallback,
+                monedaBase,
+              )
+            : (m.montoReembolso ?? 0));
+        pushCaja(moneda, {
+          id: m.id,
+          tipo: "DEVOLUCION",
+          label: productoNombre,
+          monto: montoEnMoneda,
+          motivo: m.motivo,
+        });
+      }
+    }
+
     const resumenMonedaMap = buildResumenMonedas(
       cierre.ventas,
       monedaBase,
@@ -426,11 +528,38 @@ export async function GET(
       acc[r.monedaCode] = r;
       return acc;
     }, {});
+
+    // Snapshot del bruto (antes de restar gastos/compras/devoluciones) para
+    // poder mostrar "bruto tachado -> final" en el desglose por moneda
+    const resumenMonedaBrutoMap: Record<
+      string,
+      { totalEfectivo: number; equivalenteBase: number }
+    > = {};
+    for (const [code, vals] of Object.entries(resumenMonedaMap)) {
+      resumenMonedaBrutoMap[code] = {
+        totalEfectivo: vals.totalEfectivo,
+        equivalenteBase: vals.equivalenteBase,
+      };
+    }
+
     applyGastosToResumenMap(
       resumenMonedaMap,
       gastosDelPeriodo,
       monedaBase,
       tasasFallback,
+    );
+    applyComprasYDevolucionesToResumenMap(
+      resumenMonedaMap,
+      movimientosPeriodo,
+      monedaBase,
+      tasasFallback,
+    );
+
+    const totalGananciaFinal = calcularGananciaFinal(
+      totalGananciaNeta,
+      totalGastos,
+      totalMerma,
+      totalDevoluciones,
     );
 
     const cierreData = {
@@ -445,13 +574,39 @@ export async function GET(
       totalTransferencia,
       totalVentasPropias,
       totalVentasConsignacion,
+      // Ventas netas de descuento por tipo (bruto - descuentoPropias/Consignacion)
+      totalVentasPropiasNeto: Math.max(
+        0,
+        totalVentasPropias - descuentoPropias,
+      ),
+      totalVentasConsignacionNeto: Math.max(
+        0,
+        totalVentasConsignacion - descuentoConsignacion,
+      ),
       // También devolver desglose de ganancias netas por tipo
       totalGananciasPropias: totalGananciasPropiasNet,
       totalGananciasConsignacion: totalGananciasConsignacionNet,
       totalTransferenciasByDestination,
       totalVentasPorUsuario,
+      totalGastos,
+      totalGananciaFinal,
+      totalComprasCaja,
+      totalMerma,
+      totalDevoluciones,
+      gananciaDeducciones,
+      cajaDeducciones: cajaDeduccionesPorMoneda,
       resumenMonedas: Object.entries(resumenMonedaMap).map(
-        ([monedaCode, vals]) => ({ ...vals, id: monedaCode, monedaCode }),
+        ([monedaCode, vals]) => ({
+          ...vals,
+          id: monedaCode,
+          monedaCode,
+          totalEfectivoBruto:
+            resumenMonedaBrutoMap[monedaCode]?.totalEfectivo ??
+            vals.totalEfectivo,
+          equivalenteBaseBruto:
+            resumenMonedaBrutoMap[monedaCode]?.equivalenteBase ??
+            vals.equivalenteBase,
+        }),
       ),
       productosVendidos: Object.values(productosVendidos)
         .map((p) => ({

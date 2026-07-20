@@ -35,8 +35,7 @@ import { formatCurrency, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import {
   exportProductosVendidosToExcel,
-  exportProductosPropiosToExcel,
-  exportProductosProveedorToExcel
+  exportProductosProveedorToExcel,
 } from "@/utils/excelExport";
 import { useMessageContext } from "@/context/MessageContext";
 import theme from "@/theme";
@@ -94,14 +93,13 @@ export const TablaProductosCierre: FC<IProps> = ({
   const { user } = useAppContext();
   const { showMessage } = useMessageContext();
   const [disableCierreBtn, setDisableCierreBtn] = useState(false);
-  const [expandedPropios, setExpandedPropios] = useState(true);
   const [expandedConsignacion, setExpandedConsignacion] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [anchorElPropios, setAnchorElPropios] = useState<null | HTMLElement>(null);
-  const [anchorElConsignacion, setAnchorElConsignacion] = useState<null | HTMLElement>(null);
+  const [anchorElConsignacion, setAnchorElConsignacion] =
+    useState<null | HTMLElement>(null);
 
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const handleCierre = async () => {
     if (handleCerrarCaja) {
@@ -119,30 +117,12 @@ export const TablaProductosCierre: FC<IProps> = ({
         cierreData,
         tiendaNombre: user.localActual.nombre,
         fechaInicio: new Date(), // Esto debería venir del cierre
-        fechaFin: new Date()
+        fechaFin: new Date(),
       });
       showMessage("Archivo Excel exportado exitosamente", "success");
     } catch (error) {
       console.error("Error al exportar:", error);
       showMessage("Error al exportar el archivo Excel", "error");
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleExportPropios = async () => {
-    try {
-      setExporting(true);
-      await exportProductosPropiosToExcel({
-        cierreData,
-        tiendaNombre: user.localActual.nombre,
-        fechaInicio: new Date(),
-        fechaFin: new Date()
-      });
-      showMessage("Productos propios exportados exitosamente", "success");
-    } catch (error) {
-      console.error("Error al exportar productos propios:", error);
-      showMessage("Error al exportar productos propios", "error");
     } finally {
       setExporting(false);
     }
@@ -156,7 +136,7 @@ export const TablaProductosCierre: FC<IProps> = ({
         tiendaNombre: user.localActual.nombre,
         fechaInicio: new Date(),
         fechaFin: new Date(),
-        proveedorId
+        proveedorId,
       });
       showMessage("Productos del proveedor exportados exitosamente", "success");
     } catch (error) {
@@ -176,14 +156,6 @@ export const TablaProductosCierre: FC<IProps> = ({
     setAnchorEl(null);
   };
 
-  const handleMenuPropiosOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorElPropios(event.currentTarget);
-  };
-
-  const handleMenuPropiosClose = () => {
-    setAnchorElPropios(null);
-  };
-
   const handleMenuConsignacionOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElConsignacion(event.currentTarget);
   };
@@ -195,25 +167,41 @@ export const TablaProductosCierre: FC<IProps> = ({
   const {
     totalVentas,
     totalGanancia,
+    totalGananciaFinal,
     totalTransferencia,
     // Totales ampliados desde el backend
     totalVentasBrutas,
     totalDescuentos,
     totalVentasPropias,
     totalVentasConsignacion,
+    totalVentasPropiasNeto,
+    totalVentasConsignacionNeto,
     totalGananciasPropias,
     totalGananciasConsignacion,
     productosVendidos,
     totalTransferenciasByDestination,
-    totalVentasPorUsuario
+    totalVentasPorUsuario,
   } = cierreData;
+
+  // Suma de la ganancia tal como se muestra fila por fila en la tabla (bruta,
+  // neta solo del descuento de cada producto) — el "Total" al pie de la
+  // tabla debe sumar exactamente lo que el usuario ve arriba, sin restar
+  // gastos/merma/devoluciones (eso vive aparte en la card de Ganancia).
+  const totalGananciaFilas = productosVendidos.reduce(
+    (acc, p) => acc + (p.ganancia || 0) - (p.descuento || 0),
+    0,
+  );
+
   // Obtener proveedores únicos para el menú de consignación
   const proveedoresUnicos = Array.from(
     new Map(
       productosVendidos
-        .filter(p => p.proveedor)
-        .map(p => [p.proveedor!.id, { id: p.proveedor!.id, nombre: p.proveedor!.nombre }])
-    ).values()
+        .filter((p) => p.proveedor)
+        .map((p) => [
+          p.proveedor!.id,
+          { id: p.proveedor!.id, nombre: p.proveedor!.nombre },
+        ]),
+    ).values(),
   ).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   const totalVentasPorProveedor = Object.values(
@@ -223,24 +211,70 @@ export const TablaProductosCierre: FC<IProps> = ({
           acc[prod.proveedor.id] = {
             ...acc[prod.proveedor.id],
             total: acc[prod.proveedor.id].total + prod.total,
-            ganancia: acc[prod.proveedor.id].ganancia + prod.ganancia
-          }
+            ganancia: acc[prod.proveedor.id].ganancia + prod.ganancia,
+          };
         } else {
           acc[prod.proveedor.id] = {
             id: prod.proveedor.id,
             nombre: prod.proveedor.nombre,
             total: prod.total,
-            ganancia: prod.ganancia
-          }
+            ganancia: prod.ganancia,
+          };
         }
       }
       return acc;
-    }, {})
-  )
-  
+    }, {}),
+  );
+
+  // Muestra "Ventas: $bruto $neto" — si hay descuento, el bruto va tachado y el
+  // neto en negrita para resaltar el valor real (mismo patrón que la card de Ganancia)
+  const VentaConDescuento = ({
+    bruto,
+    neto,
+  }: {
+    bruto: number;
+    neto?: number;
+  }) => {
+    const valorNeto = typeof neto === "number" ? neto : bruto;
+    const hayDescuento = valorNeto !== bruto;
+    return (
+      <Box
+        display="flex"
+        gap={0.75}
+        alignItems="baseline"
+        flexWrap="wrap"
+        component="span"
+      >
+        <Typography variant="body2" color="text.secondary" component="span">
+          Ventas:
+        </Typography>
+        {hayDescuento && (
+          <Typography
+            variant="body2"
+            component="span"
+            sx={{ textDecoration: "line-through", color: "text.disabled" }}
+          >
+            {formatAmount(bruto)}
+          </Typography>
+        )}
+        <Typography
+          variant="body2"
+          component="span"
+          fontWeight={hayDescuento ? "bold" : "normal"}
+          color={hayDescuento ? "text.primary" : "text.secondary"}
+        >
+          {formatAmount(valorNeto)}
+        </Typography>
+      </Box>
+    );
+  };
 
   // Función para renderizar tabla con agrupamiento
-  const ProductTable = ({ productos, title, isConsignacion = false }: {
+  const ProductTable = ({
+    productos,
+    title,
+    isConsignacion = false,
+  }: {
     productos: ProductoVendido[];
     title: string;
     isConsignacion?: boolean;
@@ -253,7 +287,8 @@ export const TablaProductosCierre: FC<IProps> = ({
               <TableRow>
                 <TableCell colSpan={7} align="center">
                   <Typography variant="body2" color="text.secondary">
-                    No hay productos {isConsignacion ? 'en consignación' : 'propios'} vendidos
+                    No hay productos{" "}
+                    {isConsignacion ? "en consignación" : "propios"} vendidos
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -264,21 +299,26 @@ export const TablaProductosCierre: FC<IProps> = ({
     }
 
     // Agrupar productos por productoId
-    const productosAgrupados = productos.reduce((acc, producto) => {
-      const key = producto.productoId;
-      if (!acc[key]) {
-        acc[key] = [];
-      }
-      acc[key].push(producto);
-      return acc;
-    }, {} as Record<string, ProductoVendido[]>);
+    const productosAgrupados = productos.reduce(
+      (acc, producto) => {
+        const key = producto.productoId;
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(producto);
+        return acc;
+      },
+      {} as Record<string, ProductoVendido[]>,
+    );
 
     // Convertir a array y ordenar por nombre
-    const gruposOrdenados: ProductoAgrupado[] = Object.entries(productosAgrupados)
+    const gruposOrdenados: ProductoAgrupado[] = Object.entries(
+      productosAgrupados,
+    )
       .map(([productoId, items]) => ({
         productoId,
         items: items.sort((a, b) => (a.costo || 0) - (b.costo || 0)), // Ordenar por costo dentro del grupo
-        nombre: items[0].nombre
+        nombre: items[0].nombre,
       }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
@@ -291,7 +331,11 @@ export const TablaProductosCierre: FC<IProps> = ({
             <TableRow>
               <TableCell>
                 <Box display="flex" alignItems="center" gap={1}>
-                  {isConsignacion ? <HandshakeIcon fontSize="small" /> : <StoreIcon fontSize="small" />}
+                  {isConsignacion ? (
+                    <HandshakeIcon fontSize="small" />
+                  ) : (
+                    <StoreIcon fontSize="small" />
+                  )}
                   {title}
                 </Box>
               </TableCell>
@@ -314,8 +358,13 @@ export const TablaProductosCierre: FC<IProps> = ({
             {gruposOrdenados.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={isConsignacion ? 7 : 7} align="center">
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                    No hay productos {isConsignacion ? 'en consignación' : 'propios'} vendidos
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ py: 2 }}
+                  >
+                    No hay productos{" "}
+                    {isConsignacion ? "en consignación" : "propios"} vendidos
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -325,10 +374,16 @@ export const TablaProductosCierre: FC<IProps> = ({
                   <TableRow key={`${grupo.productoId}-${index}`}>
                     {/* Celda del nombre del producto con rowSpan */}
                     {index === 0 && (
-                      <TableCell rowSpan={grupo.items.length} sx={{ verticalAlign: 'top', borderRight: '1px solid #e0e0e0' }}>
+                      <TableCell
+                        rowSpan={grupo.items.length}
+                        sx={{
+                          verticalAlign: "top",
+                          borderRight: "1px solid #e0e0e0",
+                        }}
+                      >
                         <Box display="flex" alignItems="center" gap={1}>
                           <Typography variant="body2" fontWeight="medium">
-                            {producto.nombre || 'Producto sin nombre'}
+                            {producto.nombre || "Producto sin nombre"}
                           </Typography>
                           {isConsignacion && (
                             <Chip
@@ -351,10 +406,14 @@ export const TablaProductosCierre: FC<IProps> = ({
                     )}
 
                     {/* Celdas de datos específicos de cada variante */}
-                    <TableCell>{formatNumber(producto.cantidad || 0)}</TableCell>
+                    <TableCell>
+                      {formatNumber(producto.cantidad || 0)}
+                    </TableCell>
                     {!showOnlyCants && (
                       <>
-                        <TableCell>{formatAmount(producto.total || 0)}</TableCell>
+                        <TableCell>
+                          {formatAmount(producto.total || 0)}
+                        </TableCell>
                         {/* Descuento real del producto */}
                         <TableCell>
                           -{formatAmount(producto.descuento || 0)}
@@ -362,19 +421,36 @@ export const TablaProductosCierre: FC<IProps> = ({
                         {/* Ganancia neta = ganancia - descuento real del producto */}
                         {!showOnlyCants && (
                           <TableCell>
-                            {formatAmount((producto.ganancia || 0) - (producto.descuento || 0))}
+                            {formatAmount(
+                              (producto.ganancia || 0) -
+                                (producto.descuento || 0),
+                            )}
                           </TableCell>
                         )}
                         {!showOnlyCants && (
                           <TableCell>
-                            <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
+                            <Typography
+                              variant="body2"
+                              color={
+                                grupo.items.length > 1
+                                  ? "primary.main"
+                                  : "inherit"
+                              }
+                            >
                               {formatAmount(producto.costo || 0)}
                             </Typography>
                           </TableCell>
                         )}
                         {!showOnlyCants && (
                           <TableCell>
-                            <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
+                            <Typography
+                              variant="body2"
+                              color={
+                                grupo.items.length > 1
+                                  ? "primary.main"
+                                  : "inherit"
+                              }
+                            >
                               {formatAmount(producto.precio || 0)}
                             </Typography>
                           </TableCell>
@@ -382,7 +458,9 @@ export const TablaProductosCierre: FC<IProps> = ({
                         {isConsignacion && (
                           <TableCell>
                             <Chip
-                              label={producto.proveedor?.nombre || 'Sin proveedor'}
+                              label={
+                                producto.proveedor?.nombre || "Sin proveedor"
+                              }
                               size="small"
                               color="primary"
                               variant="outlined"
@@ -392,7 +470,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                       </>
                     )}
                   </TableRow>
-                ))
+                )),
               )
             )}
           </TableBody>
@@ -427,18 +505,52 @@ export const TablaProductosCierre: FC<IProps> = ({
               </Box>
             </Grid>
 
-            {!showOnlyCants && (
-              <Grid item xs={12} sm={6} md={3}>
-                <Box textAlign="center">
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Total Ganancia
-                  </Typography>
-                  <Typography variant="h6" fontWeight="bold" color="success.main">
-                    {formatAmount(totalGanancia)}
-                  </Typography>
-                </Box>
-              </Grid>
-            )}
+            {!showOnlyCants &&
+              (() => {
+                // Ganancia FINAL (neta de gastos operativos, merma y
+                // devoluciones) — mismo dato que muestra la card de
+                // Ganancia, para no mostrar dos cifras distintas del mismo
+                // período. totalGanancia (bruta) se muestra tachada arriba
+                // solo cuando difiere, igual que el patrón de descuentos.
+                const gananciaFinal =
+                  typeof totalGananciaFinal === "number"
+                    ? totalGananciaFinal
+                    : totalGanancia;
+                const hayDeducciones = gananciaFinal !== totalGanancia;
+                return (
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Box textAlign="center">
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        Total Ganancia
+                      </Typography>
+                      {hayDeducciones && (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            textDecoration: "line-through",
+                            color: "text.disabled",
+                          }}
+                        >
+                          {formatAmount(totalGanancia)}
+                        </Typography>
+                      )}
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        color={
+                          gananciaFinal < 0 ? "error.main" : "success.main"
+                        }
+                      >
+                        {formatAmount(gananciaFinal)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                );
+              })()}
 
             <Grid item xs={12} sm={6} md={3}>
               <Box textAlign="center">
@@ -454,16 +566,37 @@ export const TablaProductosCierre: FC<IProps> = ({
             {totalTransferenciasByDestination.length > 0 && (
               <Grid item xs={12} sm={6} md={3}>
                 <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom textAlign="center">
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    gutterBottom
+                    textAlign="center"
+                  >
                     Transferencias por Destino
                   </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Box
+                    sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}
+                  >
                     {totalTransferenciasByDestination.map((transfer) => (
-                      <Box key={transfer.id} display="flex" justifyContent="space-between" alignItems="center">
-                        <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                      <Box
+                        key={transfer.id}
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ flexShrink: 0 }}
+                        >
                           {transfer.nombre}:
                         </Typography>
-                        <Typography variant="body2" fontWeight="medium" color="warning.main" sx={{ ml: 1 }}>
+                        <Typography
+                          variant="body2"
+                          fontWeight="medium"
+                          color="warning.main"
+                          sx={{ ml: 1 }}
+                        >
                           {formatAmount(transfer.total)}
                         </Typography>
                       </Box>
@@ -475,20 +608,22 @@ export const TablaProductosCierre: FC<IProps> = ({
           </Grid>
 
           {handleCerrarCaja && (
-            <Box sx={{
-              display: 'flex',
-              justifyContent: { xs: 'center', sm: 'flex-end' },
-              minWidth: { sm: 'auto', md: '200px' },
-              gap: 1
-            }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: { xs: "center", sm: "flex-end" },
+                minWidth: { sm: "auto", md: "200px" },
+                gap: 1,
+              }}
+            >
               <Button
                 variant="contained"
                 onClick={handleCierre}
                 disabled={disableCierreBtn || isProcessing}
                 size="large"
                 sx={{
-                  minWidth: '140px',
-                  height: '48px'
+                  minWidth: "140px",
+                  height: "48px",
                 }}
               >
                 {isProcessing ? "Procesando..." : "Cerrar caja"}
@@ -502,12 +637,12 @@ export const TablaProductosCierre: FC<IProps> = ({
             open={Boolean(anchorEl)}
             onClose={handleMenuClose}
             anchorOrigin={{
-              vertical: 'bottom',
-              horizontal: 'right',
+              vertical: "bottom",
+              horizontal: "right",
             }}
             transformOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
+              vertical: "top",
+              horizontal: "right",
             }}
           >
             <MenuItem onClick={handleExportAll} disabled={exporting}>
@@ -533,7 +668,9 @@ export const TablaProductosCierre: FC<IProps> = ({
                 <CardContent>
                   <Box display="flex" alignItems="center" gap={1} mb={1}>
                     <StoreIcon color="primary" />
-                    <Typography variant="subtitle1" fontWeight="bold">{usuario.nombre}</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      {usuario.nombre}
+                    </Typography>
                   </Box>
                   <Typography variant="body2" color="text.secondary">
                     Ventas: {formatAmount(usuario.total)}
@@ -560,9 +697,10 @@ export const TablaProductosCierre: FC<IProps> = ({
                     Productos Propios
                   </Typography>
                 </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Ventas: {formatAmount(totalVentasPropias)}
-                </Typography>
+                <VentaConDescuento
+                  bruto={totalVentasPropias}
+                  neto={totalVentasPropiasNeto}
+                />
                 {!showOnlyCants && (
                   <Typography variant="body2" color="text.secondary">
                     Ganancia: {formatAmount(totalGananciasPropias)}
@@ -580,9 +718,10 @@ export const TablaProductosCierre: FC<IProps> = ({
                     Productos Consginación
                   </Typography>
                 </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Ventas: {formatAmount(totalVentasConsignacion)}
-                </Typography>
+                <VentaConDescuento
+                  bruto={totalVentasConsignacion}
+                  neto={totalVentasConsignacionNeto}
+                />
                 {!showOnlyCants && (
                   <Typography variant="body2" color="text.secondary">
                     Ganancia: {formatAmount(totalGananciasConsignacion)}
@@ -591,8 +730,14 @@ export const TablaProductosCierre: FC<IProps> = ({
               </CardContent>
             </Card>
           </Grid>
-          
-            {totalVentasPorProveedor.map((item: { id: string, nombre: string, total: number, ganancia: number }) => {
+
+          {totalVentasPorProveedor.map(
+            (item: {
+              id: string;
+              nombre: string;
+              total: number;
+              ganancia: number;
+            }) => {
               return (
                 <Grid item xs={6} md={3} key={item.id}>
                   <Card variant="outlined">
@@ -614,73 +759,39 @@ export const TablaProductosCierre: FC<IProps> = ({
                     </CardContent>
                   </Card>
                 </Grid>
-              )
-            })}
-          </Grid>
-        
+              );
+            },
+          )}
+        </Grid>
       </Paper>
 
       {/* Acordeones para productos separados con datos reales */}
       <Box sx={{ mb: 2 }}>
-        {productosVendidos.filter(p => !p.proveedor).length > 0 && (
-          <Accordion expanded={expandedPropios} sx={{ border: 0 }}>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              onClick={() => setExpandedPropios(!expandedPropios)}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                pr: 1
-              }}
-            >
-              <Box display="flex" alignItems="center" gap={1}>
-                <StoreIcon color="primary" />
-                <Typography variant="subtitle1" fontWeight="bold">
-                  {isMobile ? "Propios" : "Productos Propios"} ({productosVendidos.filter(p => !p.proveedor).length})
-                </Typography>
-              </Box>
-              <Box onClick={(e) => e.stopPropagation()} flex={1} display={'flex'} justifyContent={'flex-end'}>
-                <Tooltip title="Exportar productos propios">
-                  <IconButton
-                    onClick={handleMenuPropiosOpen}
-                    disabled={exporting}
-                    size="small"
-                    color="primary"
-                  >
-                    {exporting ? <CircularProgress size={16} /> : <FileDownloadIcon />}
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              <ProductTable
-                productos={productosVendidos.filter(p => !p.proveedor)}
-                title="Productos Propios"
-                isConsignacion={false}
-              />
-            </AccordionDetails>
-          </Accordion>
-        )}
-        {productosVendidos.filter(p => p.proveedor).length > 0 && (
+        {productosVendidos.filter((p) => p.proveedor).length > 0 && (
           <Accordion expanded={expandedConsignacion}>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               onClick={() => setExpandedConsignacion(!expandedConsignacion)}
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                pr: 1
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                pr: 1,
               }}
             >
               <Box display="flex" alignItems="center" gap={1}>
                 <HandshakeIcon color="secondary" />
                 <Typography variant="subtitle1" fontWeight="bold">
-                  {isMobile ? "Consignación" : "Productos Consignación"} ({productosVendidos.filter(p => p.proveedor).length})
+                  {isMobile ? "Consignación" : "Productos Consignación"} (
+                  {productosVendidos.filter((p) => p.proveedor).length})
                 </Typography>
               </Box>
-              <Box onClick={(e) => e.stopPropagation()} flex={1} display={'flex'} justifyContent={'flex-end'}>
+              <Box
+                onClick={(e) => e.stopPropagation()}
+                flex={1}
+                display={"flex"}
+                justifyContent={"flex-end"}
+              >
                 <Tooltip title="Exportar productos en consignación">
                   <IconButton
                     onClick={handleMenuConsignacionOpen}
@@ -688,14 +799,18 @@ export const TablaProductosCierre: FC<IProps> = ({
                     size="small"
                     color="secondary"
                   >
-                    {exporting ? <CircularProgress size={16} /> : <FileDownloadIcon />}
+                    {exporting ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      <FileDownloadIcon />
+                    )}
                   </IconButton>
                 </Tooltip>
               </Box>
             </AccordionSummary>
             <AccordionDetails>
               <ProductTable
-                productos={productosVendidos.filter(p => p.proveedor)}
+                productos={productosVendidos.filter((p) => p.proveedor)}
                 title="Productos en Consignación"
                 isConsignacion={true}
               />
@@ -703,40 +818,18 @@ export const TablaProductosCierre: FC<IProps> = ({
           </Accordion>
         )}
 
-        {/* Menú de exportación para productos propios */}
-        <Menu
-          anchorEl={anchorElPropios}
-          open={Boolean(anchorElPropios)}
-          onClose={handleMenuPropiosClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-        >
-          <MenuItem onClick={handleExportPropios} disabled={exporting}>
-            <ListItemIcon>
-              <FileDownloadIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Exportar productos propios</ListItemText>
-          </MenuItem>
-        </Menu>
-
         {/* Menú de exportación para productos en consignación */}
         <Menu
           anchorEl={anchorElConsignacion}
           open={Boolean(anchorElConsignacion)}
           onClose={handleMenuConsignacionClose}
           anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
+            vertical: "bottom",
+            horizontal: "right",
           }}
           transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
+            vertical: "top",
+            horizontal: "right",
           }}
         >
           {proveedoresUnicos.map((proveedor) => (
@@ -751,7 +844,9 @@ export const TablaProductosCierre: FC<IProps> = ({
               <ListItemIcon>
                 <FileDownloadIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Exportar productos de {proveedor.nombre}</ListItemText>
+              <ListItemText>
+                Exportar productos de {proveedor.nombre}
+              </ListItemText>
             </MenuItem>
           ))}
         </Menu>
@@ -759,24 +854,31 @@ export const TablaProductosCierre: FC<IProps> = ({
 
       {/* Tabla original (mantenida para compatibilidad) */}
       <Box sx={{ m: 2 }}>
-        <Box display={'flex'} flexDirection={'row'} gap={2}>
-
+        <Box display={"flex"} flexDirection={"row"} gap={2}>
           <Typography variant="h6" gutterBottom>
             {isMobile ? "📋 Todos" : "📋 Todos los Productos"}
           </Typography>
 
-          <Box onClick={(e) => e.stopPropagation()} flex={1} display={'flex'} justifyContent={'flex-end'}>
+          <Box
+            onClick={(e) => e.stopPropagation()}
+            flex={1}
+            display={"flex"}
+            justifyContent={"flex-end"}
+          >
             <Tooltip title="Exportar a Excel">
               <IconButton
                 onClick={handleMenuOpen}
                 disabled={exporting}
                 color="primary"
               >
-                {exporting ? <CircularProgress size={20} /> : <FileDownloadIcon />}
+                {exporting ? (
+                  <CircularProgress size={20} />
+                ) : (
+                  <FileDownloadIcon />
+                )}
               </IconButton>
             </Tooltip>
           </Box>
-
         </Box>
         <TableContainer component={Paper} sx={{ mt: 2 }}>
           <Table size="small">
@@ -801,7 +903,11 @@ export const TablaProductosCierre: FC<IProps> = ({
               {productosVendidos.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={showOnlyCants ? 2 : 7} align="center">
-                    <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ py: 2 }}
+                    >
                       No hay productos vendidos en este período
                     </Typography>
                   </TableCell>
@@ -809,21 +915,26 @@ export const TablaProductosCierre: FC<IProps> = ({
               ) : (
                 (() => {
                   // Agrupar productos por productoId
-                  const productosAgrupados = productosVendidos.reduce((acc, producto) => {
-                    const key = producto.productoId || producto.id;
-                    if (!acc[key]) {
-                      acc[key] = [];
-                    }
-                    acc[key].push(producto);
-                    return acc;
-                  }, {} as Record<string, ProductoVendido[]>);
+                  const productosAgrupados = productosVendidos.reduce(
+                    (acc, producto) => {
+                      const key = producto.productoId || producto.id;
+                      if (!acc[key]) {
+                        acc[key] = [];
+                      }
+                      acc[key].push(producto);
+                      return acc;
+                    },
+                    {} as Record<string, ProductoVendido[]>,
+                  );
 
                   // Convertir a array y ordenar por nombre
                   const gruposOrdenados = Object.entries(productosAgrupados)
                     .map(([productoId, items]) => ({
                       productoId,
-                      items: Array.isArray(items) ? items.sort((a, b) => (a.costo || 0) - (b.costo || 0)) : [],
-                      nombre: items[0]?.nombre || 'Producto sin nombre'
+                      items: Array.isArray(items)
+                        ? items.sort((a, b) => (a.costo || 0) - (b.costo || 0))
+                        : [],
+                      nombre: items[0]?.nombre || "Producto sin nombre",
                     }))
                     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
@@ -832,11 +943,34 @@ export const TablaProductosCierre: FC<IProps> = ({
                       <TableRow key={`${grupo.productoId}-${index}`}>
                         {/* Celda del nombre del producto con rowSpan */}
                         {index === 0 && (
-                          <TableCell rowSpan={grupo.items.length} sx={{ verticalAlign: 'top', borderRight: '1px solid #e0e0e0' }}>
-                            <Box display="flex" alignItems="center" gap={1}>
+                          <TableCell
+                            rowSpan={grupo.items.length}
+                            sx={{
+                              verticalAlign: "top",
+                              borderRight: "1px solid #e0e0e0",
+                            }}
+                          >
+                            <Box
+                              display="flex"
+                              alignItems="center"
+                              gap={1}
+                              flexWrap="wrap"
+                            >
                               <Typography variant="body2" fontWeight="medium">
-                                {producto.nombre || 'Producto sin nombre'}
+                                {producto.nombre || "Producto sin nombre"}
                               </Typography>
+                              {grupo.items.some((i) => i.proveedor) && (
+                                <Chip
+                                  label={
+                                    producto.proveedor
+                                      ? `Consignación · ${producto.proveedor.nombre}`
+                                      : "Consignación"
+                                  }
+                                  size="small"
+                                  color="secondary"
+                                  variant="outlined"
+                                />
+                              )}
                               {grupo.items.length > 1 && (
                                 <Chip
                                   label={`${grupo.items.length} variantes`}
@@ -849,31 +983,55 @@ export const TablaProductosCierre: FC<IProps> = ({
                           </TableCell>
                         )}
 
-                        {/* Celdas de datos específicos de cada variante */
-                        // Cálculo de descuento por fila en tabla global (Todos los Productos)
+                        {
+                          /* Celdas de datos específicos de cada variante */
+                          // Cálculo de descuento por fila en tabla global (Todos los Productos)
                         }
-                        <TableCell>{formatNumber(producto.cantidad || 0)}</TableCell>
+                        <TableCell>
+                          {formatNumber(producto.cantidad || 0)}
+                        </TableCell>
                         {!showOnlyCants && (
                           <>
-                            <TableCell>{formatAmount(producto.total || 0)}</TableCell>
+                            <TableCell>
+                              {formatAmount(producto.total || 0)}
+                            </TableCell>
                             {/* Descuento real por producto */}
-                            <TableCell>-{formatAmount(producto.descuento || 0)}</TableCell>
+                            <TableCell>
+                              -{formatAmount(producto.descuento || 0)}
+                            </TableCell>
                             {/* Ganancia neta usando descuento real */}
                             {!showOnlyCants && (
                               <TableCell>
-                                {formatAmount((producto.ganancia || 0) - (producto.descuento || 0))}
+                                {formatAmount(
+                                  (producto.ganancia || 0) -
+                                    (producto.descuento || 0),
+                                )}
                               </TableCell>
                             )}
                             {!showOnlyCants && (
                               <TableCell>
-                                <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
+                                <Typography
+                                  variant="body2"
+                                  color={
+                                    grupo.items.length > 1
+                                      ? "primary.main"
+                                      : "inherit"
+                                  }
+                                >
                                   {formatAmount(producto.costo || 0)}
                                 </Typography>
                               </TableCell>
                             )}
                             {!showOnlyCants && (
                               <TableCell>
-                                <Typography variant="body2" color={grupo.items.length > 1 ? "primary.main" : "inherit"}>
+                                <Typography
+                                  variant="body2"
+                                  color={
+                                    grupo.items.length > 1
+                                      ? "primary.main"
+                                      : "inherit"
+                                  }
+                                >
                                   {formatAmount(producto.precio || 0)}
                                 </Typography>
                               </TableCell>
@@ -881,21 +1039,29 @@ export const TablaProductosCierre: FC<IProps> = ({
                           </>
                         )}
                       </TableRow>
-                    ))
+                    )),
                   );
                 })()
               )}
               {!hideTotales && productosVendidos.length > 0 && (
-                <TableRow sx={{ fontWeight: "bold", backgroundColor: "#f0f0f0" }}>
+                <TableRow
+                  sx={{ fontWeight: "bold", backgroundColor: "#f0f0f0" }}
+                >
                   <TableCell>Total</TableCell>
-                  <TableCell>{formatNumber(totales?.totalCantidad || 0)}</TableCell>
+                  <TableCell>
+                    {formatNumber(totales?.totalCantidad || 0)}
+                  </TableCell>
                   {!showOnlyCants && (
                     <>
-                      <TableCell>{formatAmount(totales?.totalMonto || 0)}</TableCell>
+                      <TableCell>
+                        {formatAmount(totales?.totalMonto || 0)}
+                      </TableCell>
                       {/* Total descuentos global */}
-                      <TableCell>- {formatAmount(totalDescuentos || 0)}</TableCell>
-                      {/* Ganancia total neta (desde backend) */}
-                      <TableCell>{formatAmount(totalGanancia || 0)}</TableCell>
+                      <TableCell>
+                        - {formatAmount(totalDescuentos || 0)}
+                      </TableCell>
+                      {/* Suma de la ganancia de cada fila (bruta) — no resta gastos/merma/devoluciones */}
+                      <TableCell>{formatAmount(totalGananciaFilas)}</TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
                     </>
@@ -911,23 +1077,38 @@ export const TablaProductosCierre: FC<IProps> = ({
       <Paper sx={{ p: 2, mt: 2 }}>
         {(() => {
           // Usar totales del backend con fallbacks seguros
-          const bruto = typeof totalVentasBrutas === 'number' ? totalVentasBrutas : (totales?.totalMonto || 0);
-          const descuentos = typeof totalDescuentos === 'number' ? totalDescuentos : 0;
-          const neto = typeof totalVentas === 'number' ? totalVentas : Math.max(0, bruto - descuentos);
+          const bruto =
+            typeof totalVentasBrutas === "number"
+              ? totalVentasBrutas
+              : totales?.totalMonto || 0;
+          const descuentos =
+            typeof totalDescuentos === "number" ? totalDescuentos : 0;
+          const neto =
+            typeof totalVentas === "number"
+              ? totalVentas
+              : Math.max(0, bruto - descuentos);
 
           return (
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
                 <Box textAlign="center">
-                  <Typography variant="body2" color="text.secondary">Total Ventas (Bruto)</Typography>
-                  <Typography variant="h6" fontWeight="bold" color="success.main">
+                  <Typography variant="body2" color="text.secondary">
+                    Total Ventas (Bruto)
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="success.main"
+                  >
                     {formatAmount(bruto)}
                   </Typography>
                 </Box>
               </Grid>
               <Grid item xs={12} sm={4}>
                 <Box textAlign="center">
-                  <Typography variant="body2" color="text.secondary">Descuentos aplicados</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Descuentos aplicados
+                  </Typography>
                   <Typography variant="h6" fontWeight="bold" color="error.main">
                     - {formatAmount(descuentos)}
                   </Typography>
@@ -935,8 +1116,14 @@ export const TablaProductosCierre: FC<IProps> = ({
               </Grid>
               <Grid item xs={12} sm={4}>
                 <Box textAlign="center">
-                  <Typography variant="body2" color="text.secondary">Total Ventas (Neto)</Typography>
-                  <Typography variant="h6" fontWeight="bold" color="primary.main">
+                  <Typography variant="body2" color="text.secondary">
+                    Total Ventas (Neto)
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="primary.main"
+                  >
                     {formatAmount(neto)}
                   </Typography>
                 </Box>

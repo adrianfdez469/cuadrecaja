@@ -23,6 +23,8 @@ export const permisosTemplates = {
     "operaciones.movimientos.crear.recepcion",
     "operaciones.movimientos.crear.consignacion_entrada",
     "operaciones.movimientos.crear.consignacion_devolucion",
+    "operaciones.movimientos.crear.merma",
+    "operaciones.movimientos.crear.devolucion_venta",
   ],
   administrador: [
     "configuracion.usuarios.acceder",
@@ -62,6 +64,8 @@ export const permisosTemplates = {
     "operaciones.movimientos.crear.recepcion",
     "operaciones.movimientos.crear.consignacion_entrada",
     "operaciones.movimientos.crear.consignacion_devolucion",
+    "operaciones.movimientos.crear.merma",
+    "operaciones.movimientos.crear.devolucion_venta",
     "configuracion.administrador",
   ],
 };

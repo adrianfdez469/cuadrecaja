@@ -5,6 +5,8 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { gastoAplicaEnFecha } from "@/utils/gastos";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
+import { calcularGananciaFinal } from "@/lib/gastos";
+import { calcularTotalesMovimientosPeriodo } from "@/lib/movimiento/caja";
 
 export async function POST(
   _req: NextRequest,
@@ -122,6 +124,7 @@ export async function POST(
         nombre: g.nombre,
         categoria: g.categoria,
         tipoCalculo: g.tipoCalculo,
+        naturaleza: g.naturaleza,
         montoCalculado,
         monto: g.monto,
         porcentaje: g.porcentaje,
@@ -143,24 +146,49 @@ export async function POST(
       orderBy: { createdAt: "asc" },
     });
 
-    const totalGastosRecurrentes = gastosRecurrentes.reduce(
-      (s, g) => s + g.montoCalculado,
-      0,
-    );
+    // Solo naturaleza OPERATIVO resta de ganancia (INVERSION resta solo de caja)
+    const totalGastosRecurrentes = gastosRecurrentes
+      .filter((g) => g.naturaleza === "OPERATIVO")
+      .reduce((s, g) => s + g.montoCalculado, 0);
     // Ad-hoc gastos may be in a foreign currency — convert to base before summing
-    const totalGastosAdHoc = gastosAdHoc.reduce(
-      (s, g) =>
-        s +
-        convertToBase(
-          g.montoCalculado,
-          g.monedaCode ?? monedaBase,
-          tasasActuales,
-          monedaBase,
-        ),
-      0,
-    );
+    const totalGastosAdHoc = gastosAdHoc
+      .filter((g) => g.naturaleza === "OPERATIVO")
+      .reduce(
+        (s, g) =>
+          s +
+          convertToBase(
+            g.montoCalculado,
+            g.monedaCode ?? monedaBase,
+            tasasActuales,
+            monedaBase,
+          ),
+        0,
+      );
     const totalGastos = totalGastosRecurrentes + totalGastosAdHoc;
-    const totalGananciaFinal = totalGanancia - totalGastos;
+
+    // Compras (efectivo de caja), merma y devoluciones de venta registradas en
+    // el período abierto — deben restar de la ganancia igual que en close/route.ts,
+    // si no el preview muestra una ganancia final distinta de la que quedará
+    // persistida al cerrar.
+    const movimientosPeriodo = await prisma.movimientoStock.findMany({
+      where: {
+        tiendaId: cierre.tiendaId,
+        tipo: { in: ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] },
+        fecha: { gte: cierre.fechaInicio },
+      },
+    });
+    const { totalMerma, totalDevoluciones } = calcularTotalesMovimientosPeriodo(
+      movimientosPeriodo,
+      monedaBase,
+      tasasActuales,
+    );
+
+    const totalGananciaFinal = calcularGananciaFinal(
+      totalGanancia,
+      totalGastos,
+      totalMerma,
+      totalDevoluciones,
+    );
 
     return NextResponse.json({
       gastosRecurrentes,

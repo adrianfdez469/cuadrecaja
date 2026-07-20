@@ -50,6 +50,8 @@ import {
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
 import { AddMovimientoDialog } from "./addMovimientoDialog";
+import { DevolucionVentaDialog } from "./DevolucionVentaDialog";
+import { usePermisos } from "@/utils/permisos_front";
 import { useAppContext } from "@/context/AppContext";
 import {
   cretateBatchMovimientos,
@@ -84,6 +86,8 @@ const TIPO_LABELS: Record<ITipoMovimiento, string> = {
   DESAGREGACION_ALTA: "Desagregación Alta",
   CONSIGNACION_ENTRADA: "Consignación Entrada",
   CONSIGNACION_DEVOLUCION: "Consignación Devolución",
+  MERMA: "Merma",
+  DEVOLUCION_VENTA: "Devolución de venta",
 };
 
 const TODOS_TIPOS = MovimientoTipoEnum.options;
@@ -91,6 +95,8 @@ const TODOS_TIPOS = MovimientoTipoEnum.options;
 export default function MovimientosView() {
   const [movimientos, setMovimientos] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [devolucionDialogOpen, setDevolucionDialogOpen] = useState(false);
+  const { verificarPermiso } = usePermisos();
   const [searchTerm, setSearchTerm] = useState("");
   const { user, loadingContext } = useAppContext();
   const [loadingData, setLoadingData] = useState(true);
@@ -450,6 +456,16 @@ export default function MovimientosView() {
       >
         {isMobile ? "Crear" : "Crear Movimiento"}
       </Button>
+      {verificarPermiso("operaciones.movimientos.crear.devolucion_venta") && (
+        <Button
+          variant="outlined"
+          onClick={() => setDevolucionDialogOpen(true)}
+          size={isMobile ? "small" : "medium"}
+          fullWidth={isMobile}
+        >
+          {isMobile ? "Devolución" : "Devolución de venta"}
+        </Button>
+      )}
       {((movimientos.length === 0 && !searchTerm) ||
         user.rol === "SUPER_ADMIN") && (
         <Button
@@ -1046,6 +1062,12 @@ export default function MovimientosView() {
         // productos={productos}
         closeDialog={() => setDialogOpen(false)}
         fetchMovimientos={fetchMovimientos}
+      />
+      <DevolucionVentaDialog
+        dialogOpen={devolucionDialogOpen}
+        closeDialog={() => setDevolucionDialogOpen(false)}
+        tiendaId={user.localActual.id}
+        onSuccess={fetchMovimientos}
       />
       <ImportarExcelDialog
         open={importDialogOpen}

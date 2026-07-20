@@ -21,11 +21,14 @@ import {
 import {
   IGastoAdHocCreate,
   TipoCalculoEnum,
+  NaturalezaGastoEnum,
   gastoAdHocCreateSchema,
 } from "@/schemas/gastos";
 import {
   TIPO_CALCULO_LABELS,
   TIPO_CALCULO_DESCRIPTIONS,
+  NATURALEZA_GASTO_LABELS,
+  NATURALEZA_GASTO_DESCRIPTIONS,
 } from "@/constants/gastos";
 
 interface Props {
@@ -56,6 +59,8 @@ export default function GastoAdHocDialog({
   const [categoria, setCategoria] = useState("");
   const [tipoCalculo, setTipoCalculo] =
     useState<IGastoAdHocCreate["tipoCalculo"]>("MONTO_FIJO");
+  const [naturaleza, setNaturaleza] =
+    useState<IGastoAdHocCreate["naturaleza"]>("OPERATIVO");
   const [monto, setMonto] = useState("");
   const [porcentaje, setPorcentaje] = useState("");
   const [monedaCode, setMonedaCode] = useState<string | null>(null);
@@ -67,6 +72,7 @@ export default function GastoAdHocDialog({
       setNombre("");
       setCategoria("");
       setTipoCalculo("MONTO_FIJO");
+      setNaturaleza("OPERATIVO");
       setMonto("");
       setPorcentaje("");
       setMonedaCode(null);
@@ -88,6 +94,7 @@ export default function GastoAdHocDialog({
       nombre,
       categoria,
       tipoCalculo,
+      naturaleza,
       montoCalculado: montoCalculado(),
       monto: tipoCalculo === "MONTO_FIJO" ? Number(monto) : null,
       porcentaje: tipoCalculo !== "MONTO_FIJO" ? Number(porcentaje) : null,
@@ -175,24 +182,48 @@ export default function GastoAdHocDialog({
             </Select>
           </FormControl>
 
+          <FormControl fullWidth>
+            <InputLabel>Naturaleza</InputLabel>
+            <Select
+              value={naturaleza}
+              label="Naturaleza"
+              onChange={(e) =>
+                setNaturaleza(e.target.value as IGastoAdHocCreate["naturaleza"])
+              }
+            >
+              {NaturalezaGastoEnum.options.map((opt) => (
+                <MenuItem key={opt} value={opt}>
+                  <Box>
+                    <Typography variant="body2">
+                      {NATURALEZA_GASTO_LABELS[opt]}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {NATURALEZA_GASTO_DESCRIPTIONS[opt]}
+                    </Typography>
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
           {tipoCalculo === "MONTO_FIJO" ? (
             <>
               {(monedasActivas?.length ?? 0) > 1 && (
-                  <FormControl fullWidth>
-                    <InputLabel>Moneda del gasto</InputLabel>
-                    <Select
-                        value={monedaCode ?? monedaBase ?? ""}
-                        label="Moneda del gasto"
-                        onChange={(e) => setMonedaCode(e.target.value || null)}
-                    >
-                      {monedasActivas!.map((m) => (
-                          <MenuItem key={m.monedaCode} value={m.monedaCode}>
-                            {m.moneda?.nombre ?? m.monedaCode}
-                            {m.monedaCode === (monedaBase ?? "") && " (base)"}
-                          </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel>Moneda del gasto</InputLabel>
+                  <Select
+                    value={monedaCode ?? monedaBase ?? ""}
+                    label="Moneda del gasto"
+                    onChange={(e) => setMonedaCode(e.target.value || null)}
+                  >
+                    {monedasActivas!.map((m) => (
+                      <MenuItem key={m.monedaCode} value={m.monedaCode}>
+                        {m.moneda?.nombre ?? m.monedaCode}
+                        {m.monedaCode === (monedaBase ?? "") && " (base)"}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               )}
               <TextField
                 label="Monto"
@@ -213,7 +244,6 @@ export default function GastoAdHocDialog({
                 inputProps={{ min: 0, step: "0.01" }}
                 fullWidth
               />
-
             </>
           ) : (
             <>

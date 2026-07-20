@@ -1,4 +1,4 @@
-import { FC, useState, useEffect, useMemo } from "react";
+import { FC, useState, useEffect } from "react";
 
 import {
   Box,
@@ -32,9 +32,11 @@ import {
   cretateBatchMovimientos,
   getProductosTiendaParaEntrada,
   getProductosTiendaParaNoEntrada,
+  getEfectivoDisponibleCaja,
 } from "@/services/movimientoService";
+import useConfirmDialog from "@/components/confirmDialog";
 import { useAppContext } from "@/context/AppContext";
-import { ITipoMovimiento } from "@/schemas/movimiento";
+import { ITipoMovimiento, FormaPagoCompraEnum } from "@/schemas/movimiento";
 import {
   TIPOS_MOVIMIENTO_MANUAL,
   TIPO_MOVIMIENTO_LABELS,
@@ -42,7 +44,12 @@ import {
   TIPO_MOVIMIENTO_EJEMPLOS,
   TIPO_MOVIMIENTO_COLORS,
 } from "@/constants/movimientos";
-import { formatCurrency } from "@/utils/formatters";
+import { FORMA_PAGO_COMPRA_LABELS } from "@/constants/formaPagoCompra";
+import {
+  formatAdvertenciasCaja,
+  formatCurrency,
+  formatMontoEnMoneda,
+} from "@/utils/formatters";
 import { Add, Info } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
@@ -68,6 +75,9 @@ interface IProductoMovimiento {
   costoUnitario?: number;
   costoTotal: number;
   costo: number;
+  // Moneda en la que se ingresó el costo de este producto (elegida por
+  // producto en el modal de selección, no una moneda global para todo el lote)
+  monedaCostoCode: string;
   proveedor?: {
     id: string;
     nombre: string;
@@ -96,6 +106,7 @@ const getOperacion = (tipo: ITipoMovimiento): OperacionTipo => {
     case "DESAGREGACION_BAJA":
     case "TRASPASO_SALIDA":
     case "VENTA":
+    case "MERMA":
       return "SALIDA";
 
     default:
@@ -115,12 +126,13 @@ export const AddMovimientoDialog: FC<IProps> = ({
   );
   const [saving, setSaving] = useState(false);
   const { showMessage } = useMessageContext();
+  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const [motivo, setMotivo] = useState("");
   const [proveedor, setProveedor] = useState<IProveedor | null>(null);
   const [proveedores, setProveedores] = useState<IProveedor[]>([]);
   const [loadingProveedores, setLoadingProveedores] = useState(false);
   const [creandoProveedor, setCreandoProveedor] = useState(false);
-  const { user, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
+  const { user, tasasVigentes, monedaBase } = useAppContext();
   const [loadingProductos, setLoadingProductos] = useState(false);
   const {
     isOpen,
@@ -133,16 +145,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
 
   const [destinations, setDestinations] = useState<ILocal[]>([]);
   const [destinationId, setDestinationId] = useState<string>("");
-  const [monedaCompra, setMonedaCompra] = useState<string>(monedaBase);
+  const [formaPago, setFormaPago] =
+    useState<(typeof FormaPagoCompraEnum.options)[number]>("EFECTIVO_CAJA");
   const { verificarPermiso } = usePermisos();
-
-  const monedasParaCompra = useMemo(() => {
-    const lista = [monedaBase];
-    for (const nm of monedasNegocio) {
-      if (nm.activo && nm.monedaCode !== monedaBase) lista.push(nm.monedaCode);
-    }
-    return lista;
-  }, [monedaBase, monedasNegocio]);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -173,6 +178,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
             costoTotal: p.costo && p.cantidad ? p.costo * p.cantidad : 0,
             productoId: p.productoId,
             costoUnitario: p.costo || 0,
+            monedaCostoCode: p.monedaCostoCode ?? monedaBase,
             ...(p.proveedor && {
               proveedor: {
                 id: p.proveedor?.id || "",
@@ -183,7 +189,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
         }),
       );
     });
-  }, [operacion, setOnConfirm]);
+  }, [operacion, setOnConfirm, monedaBase]);
 
   useEffect(() => {
     if (verificarPermiso("operaciones.movimientos.crear.compra")) {
@@ -195,10 +201,6 @@ export const AddMovimientoDialog: FC<IProps> = ({
     }
   }, []);
 
-  useEffect(() => {
-    if (tipo !== "COMPRA") setMonedaCompra(monedaBase);
-  }, [tipo, monedaBase]);
-
   const tienePermisoAMovimiento = (tipoMov: ITipoMovimiento) => {
     switch (tipoMov) {
       case "AJUSTE_ENTRADA":
@@ -209,6 +211,8 @@ export const AddMovimientoDialog: FC<IProps> = ({
         return verificarPermiso("operaciones.movimientos.crear.ajuste_salidas");
       case "COMPRA":
         return verificarPermiso("operaciones.movimientos.crear.compra");
+      case "MERMA":
+        return verificarPermiso("operaciones.movimientos.crear.merma");
       case "CONSIGNACION_DEVOLUCION":
         return verificarPermiso(
           "operaciones.movimientos.crear.consignacion_devolucion",
@@ -276,16 +280,64 @@ export const AddMovimientoDialog: FC<IProps> = ({
       setMotivo("");
       setProveedor(null);
       setTipo("COMPRA");
+      setFormaPago("EFECTIVO_CAJA");
       setCreandoProveedor(false);
     }
   };
 
   const handleGuardar = async () => {
+    if (tipo === "COMPRA" && formaPago === "EFECTIVO_CAJA") {
+      // Agrupar por moneda lo que esta compra le pediría a la caja, y
+      // compararlo contra lo realmente disponible ANTES de registrar nada.
+      const solicitadoPorMoneda: Record<string, number> = {};
+      for (const item of itemsProductos) {
+        if (!item.costoUnitario) continue;
+        const moneda = item.monedaCostoCode || monedaBase;
+        solicitadoPorMoneda[moneda] =
+          (solicitadoPorMoneda[moneda] ?? 0) +
+          item.costoUnitario * item.cantidad;
+      }
+
+      if (Object.keys(solicitadoPorMoneda).length > 0) {
+        try {
+          const disponible = await getEfectivoDisponibleCaja(
+            user.localActual.id,
+          );
+          const insuficientes = Object.entries(solicitadoPorMoneda).filter(
+            ([moneda, solicitado]) => solicitado > (disponible[moneda] ?? 0),
+          );
+          if (insuficientes.length > 0) {
+            const detalle = insuficientes
+              .map(
+                ([moneda, solicitado]) =>
+                  `solicitado ${formatMontoEnMoneda(solicitado, moneda)}, disponible ${formatMontoEnMoneda(disponible[moneda] ?? 0, moneda)}`,
+              )
+              .join("; ");
+            confirmDialog(
+              `Esta compra supera el efectivo disponible en caja (${detalle}). Se tomará lo disponible de caja y el resto se registrará como fondeo externo. ¿Continuar?`,
+              () => ejecutarGuardado(),
+              undefined,
+              { severity: "warning" },
+            );
+            return;
+          }
+        } catch (e) {
+          console.error("Error al verificar efectivo disponible:", e);
+          // Si falla la verificación, no bloqueamos la compra — el backend
+          // igual aplica el tope de forma segura al crear el movimiento.
+        }
+      }
+    }
+
+    await ejecutarGuardado();
+  };
+
+  const ejecutarGuardado = async () => {
     setSaving(true);
 
     try {
       const localId = user.localActual.id;
-      await cretateBatchMovimientos(
+      const { advertenciasCaja } = await cretateBatchMovimientos(
         {
           tiendaId: localId,
           tipo: tipo,
@@ -299,18 +351,23 @@ export const AddMovimientoDialog: FC<IProps> = ({
           ...(tipo === "TRASPASO_SALIDA" && {
             destinationId: destinationId,
           }),
+          ...(tipo === "COMPRA" && { formaPago }),
         },
         itemsProductos.map((item) => {
+          // Cada producto lleva su propia moneda (elegida en el modal de
+          // selección, por defecto la moneda en que ya estaba su costo) — no
+          // una moneda global aplicada a todo el lote.
+          const monedaItem = item.monedaCostoCode || monedaBase;
           return {
             cantidad: item.cantidad,
             productoId: item.productoId,
 
-            // Costo en la moneda seleccionada — sin conversión a monedaBase
+            // Costo en la moneda del producto — sin conversión a monedaBase
             ...(requiereCPP(tipo) &&
               item.costoUnitario && {
                 costoUnitario: item.costoUnitario,
                 costoTotal: item.costoUnitario * item.cantidad,
-                monedaCompra,
+                monedaCompra: monedaItem,
               }),
             ...(item.proveedor &&
               tipo === "TRASPASO_SALIDA" && {
@@ -324,15 +381,19 @@ export const AddMovimientoDialog: FC<IProps> = ({
             // Auditoría de moneda original
             ...(tipo === "COMPRA" &&
               item.costoUnitario && {
-                monedaOriginal: monedaCompra,
-                montoOriginal: item.costoUnitario,
-                tasaUsada: tasasVigentes[monedaCompra] ?? 1,
+                monedaOriginal: monedaItem,
+                montoOriginal: item.costoUnitario * item.cantidad,
+                tasaUsada: tasasVigentes[monedaItem] ?? 1,
               }),
           };
         }),
       );
 
-      showMessage("Movimiento creado exitosamente", "success");
+      if (advertenciasCaja?.length) {
+        showMessage(formatAdvertenciasCaja(advertenciasCaja), "warning");
+      } else {
+        showMessage("Movimiento creado exitosamente", "success");
+      }
       handleClose();
       fetchMovimientos();
     } catch (error) {
@@ -412,6 +473,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 productoTiendaId: pt.id,
                 precio: pt.precio,
                 costo: pt.costo,
+                monedaCostoCode: pt.monedaCostoCode,
                 existencia: pt.existencia,
                 proveedorId: pt.proveedor?.id,
                 proveedor: pt.proveedor,
@@ -459,6 +521,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
               productoTiendaId: pt.id,
               precio: pt.precio,
               costo: pt.costo,
+              monedaCostoCode: pt.monedaCostoCode,
               existencia: pt.existencia,
               proveedorId: pt.proveedor?.id,
               proveedor: pt.proveedor,
@@ -658,17 +721,27 @@ export const AddMovimientoDialog: FC<IProps> = ({
             </Box>
           )}
 
-          {/* Campo de motivo para ajustes */}
-          {(tipo === "AJUSTE_ENTRADA" || tipo === "AJUSTE_SALIDA") && (
+          {/* Campo de motivo para ajustes y merma */}
+          {(tipo === "AJUSTE_ENTRADA" ||
+            tipo === "AJUSTE_SALIDA" ||
+            tipo === "MERMA") && (
             <TextField
               label="Motivo"
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               fullWidth
               margin="normal"
-              placeholder="Describe el motivo del ajuste..."
+              placeholder={
+                tipo === "MERMA"
+                  ? "Describe qué pasó (rotura, vencimiento, robo...)"
+                  : "Describe el motivo del ajuste..."
+              }
               size={isMobile ? "small" : "medium"}
-              helperText="Especifica la razón del ajuste (ej: productos vencidos, rotos, encontrados, etc.)"
+              helperText={
+                tipo === "MERMA"
+                  ? "Se valoriza al costo vigente del producto y resta de tu ganancia, sin afectar la caja"
+                  : "Especifica la razón del ajuste (ej: sobrante o faltante de conteo)"
+              }
             />
           )}
 
@@ -854,23 +927,37 @@ export const AddMovimientoDialog: FC<IProps> = ({
             />
           )}
 
-          {/* Moneda de compra — solo para COMPRA y si hay más de una moneda */}
-          {tipo === "COMPRA" && monedasParaCompra.length > 1 && (
+          {/* Forma de pago — solo para COMPRA */}
+          {tipo === "COMPRA" && (
             <FormControl fullWidth margin="normal" size="small">
-              <InputLabel>Moneda de compra</InputLabel>
+              <InputLabel>Forma de pago</InputLabel>
               <Select
-                value={monedaCompra}
-                label="Moneda de compra"
-                onChange={(e) => setMonedaCompra(e.target.value)}
+                value={formaPago}
+                label="Forma de pago"
+                onChange={(e) =>
+                  setFormaPago(
+                    e.target
+                      .value as (typeof FormaPagoCompraEnum.options)[number],
+                  )
+                }
               >
-                {monedasParaCompra.map((code) => (
-                  <MenuItem key={code} value={code}>
-                    {code}
-                  </MenuItem>
-                ))}
+                {/* MIXTO no es seleccionable — el backend lo asigna solo
+                    cuando la compra en EFECTIVO_CAJA supera el disponible */}
+                {FormaPagoCompraEnum.options
+                  .filter((opt) => opt !== "MIXTO")
+                  .map((opt) => (
+                    <MenuItem key={opt} value={opt}>
+                      {FORMA_PAGO_COMPRA_LABELS[opt]}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
           )}
+
+          {/* La moneda del costo se elige por producto dentro del modal de
+              selección (ver ProductSelectionModal) — ya no hay un selector
+              global aquí, que era lo que causaba que el costo de un producto
+              en CUP se interpretara como si estuviera en USD. */}
 
           <Button
             sx={{ mb: 2, mt: 2 }}
@@ -895,16 +982,18 @@ export const AddMovimientoDialog: FC<IProps> = ({
                     <Typography variant="body2" color="text.secondary">
                       {p.cantidad === 1 ? "1 unidad" : `${p.cantidad} unidades`}
                     </Typography>
-                    {tipo === "COMPRA" && monedaCompra !== monedaBase ? (
+                    {tipo === "COMPRA" &&
+                    p.monedaCostoCode &&
+                    p.monedaCostoCode !== monedaBase ? (
                       <>
                         <Typography variant="body2" color="text.secondary">
-                          {`Costo unitario: ${p.costoUnitario || 0} ${monedaCompra}`}
+                          {`Costo unitario: ${formatMontoEnMoneda(p.costoUnitario || 0, p.monedaCostoCode)}`}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {`≈ ${formatCurrency(convertToBase(p.costoUnitario || 0, monedaCompra, tasasVigentes, monedaBase))} (${monedaBase})`}
+                          {`≈ ${formatCurrency(convertToBase(p.costoUnitario || 0, p.monedaCostoCode, tasasVigentes, monedaBase))} (${monedaBase})`}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {`Costo total: ${(p.costoUnitario || 0) * p.cantidad} ${monedaCompra}`}
+                          {`Costo total: ${formatMontoEnMoneda((p.costoUnitario || 0) * p.cantidad, p.monedaCostoCode)}`}
                         </Typography>
                       </>
                     ) : (
@@ -968,6 +1057,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+      {ConfirmDialogComponent}
     </>
   );
 };

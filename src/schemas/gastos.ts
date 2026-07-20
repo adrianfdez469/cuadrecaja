@@ -11,6 +11,9 @@ export const RecurrenciaGastoEnum = z.enum([
   "MENSUAL",
   "ANUAL",
 ]);
+// OPERATIVO resta de ganancia y de caja; INVERSION resta solo de caja
+// (ej. compra de equipamiento/capital que no es mercancía)
+export const NaturalezaGastoEnum = z.enum(["OPERATIVO", "INVERSION"]);
 
 const recurrenciaRefinement = (
   data: {
@@ -58,6 +61,7 @@ export const gastoPlantillaSchema = z.object({
     .min(1, "La categoría es requerida")
     .max(60, "Máximo 60 caracteres"),
   tipoCalculo: TipoCalculoEnum,
+  naturaleza: NaturalezaGastoEnum.default("OPERATIVO"),
   recurrencia: RecurrenciaGastoEnum,
   diaMes: z.number().int().min(1).max(31).nullable().optional(),
   mesAnio: z.number().int().min(1).max(12).nullable().optional(),
@@ -89,12 +93,14 @@ export const gastoTiendaSchema = gastoPlantillaSchema.extend({
   monto: z
     .number()
     .positive("El monto debe ser mayor a 0")
+    .finite("El monto debe ser un número finito")
     .nullable()
     .optional(),
   porcentaje: z
     .number()
     .min(0, "Mínimo 0%")
     .max(100, "Máximo 100%")
+    .finite()
     .nullable()
     .optional(),
 });
@@ -139,8 +145,8 @@ export const updateGastoTiendaSchema = gastoTiendaInputBase.partial();
 
 export const assignPlantillaSchema = z.object({
   plantillaId: z.string().uuid(),
-  monto: z.number().positive().nullable().optional(),
-  porcentaje: z.number().min(0).max(100).nullable().optional(),
+  monto: z.number().positive().finite().nullable().optional(),
+  porcentaje: z.number().min(0).max(100).finite().nullable().optional(),
   diaMes: z.number().int().min(1).max(31).nullable().optional(),
   mesAnio: z.number().int().min(1).max(12).nullable().optional(),
   diaAnio: z.number().int().min(1).max(31).nullable().optional(),
@@ -155,6 +161,7 @@ export const gastoCierreSchema = z.object({
   nombre: z.string(),
   categoria: z.string(),
   tipoCalculo: TipoCalculoEnum,
+  naturaleza: NaturalezaGastoEnum.default("OPERATIVO"),
   montoCalculado: z.number(),
   monto: z.number().nullable().optional(),
   porcentaje: z.number().nullable().optional(),
@@ -170,6 +177,7 @@ export const gastoPreviewSchema = z.object({
   nombre: z.string(),
   categoria: z.string(),
   tipoCalculo: TipoCalculoEnum,
+  naturaleza: NaturalezaGastoEnum.default("OPERATIVO"),
   montoCalculado: z.number(),
   monto: z.number().nullable().optional(),
   porcentaje: z.number().nullable().optional(),
@@ -189,9 +197,13 @@ export const gastoAdHocCreateSchema = z
     nombre: z.string().min(1, "El nombre es requerido"),
     categoria: z.string().min(1, "La categoría es requerida"),
     tipoCalculo: TipoCalculoEnum,
-    montoCalculado: z.number().positive("El monto debe ser mayor a 0"),
-    monto: z.number().positive().nullable().optional(),
-    porcentaje: z.number().min(0).max(100).nullable().optional(),
+    naturaleza: NaturalezaGastoEnum.default("OPERATIVO"),
+    montoCalculado: z
+      .number()
+      .positive("El monto debe ser mayor a 0")
+      .finite("El monto debe ser un número finito"),
+    monto: z.number().positive().finite().nullable().optional(),
+    porcentaje: z.number().min(0).max(100).finite().nullable().optional(),
     monedaCode: z.string().nullable().optional(),
   })
   .superRefine((data, ctx) => {
@@ -240,6 +252,7 @@ export type IGastoAdHocCreate = z.infer<typeof gastoAdHocCreateSchema>;
 
 export type ITipoCalculo = z.infer<typeof TipoCalculoEnum>;
 export type IRecurrenciaGasto = z.infer<typeof RecurrenciaGastoEnum>;
+export type INaturalezaGasto = z.infer<typeof NaturalezaGastoEnum>;
 export type IGastosCierreResponse = z.infer<typeof gastosCierreResponseSchema>;
 export type IGastosPreviewResponse = z.infer<
   typeof gastosPreviewResponseSchema

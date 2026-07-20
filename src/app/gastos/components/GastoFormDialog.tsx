@@ -28,6 +28,7 @@ import {
   IGastoPlantilla,
   TipoCalculoEnum,
   RecurrenciaGastoEnum,
+  NaturalezaGastoEnum,
   createGastoTiendaSchema,
   createGastoPlantillaSchema,
 } from "@/schemas/gastos";
@@ -36,6 +37,8 @@ import {
   TIPO_CALCULO_DESCRIPTIONS,
   RECURRENCIA_LABELS,
   RECURRENCIA_DESCRIPTIONS,
+  NATURALEZA_GASTO_LABELS,
+  NATURALEZA_GASTO_DESCRIPTIONS,
   MESES,
   DIAS_MES,
 } from "@/constants/gastos";
@@ -55,6 +58,7 @@ const emptyForm = {
   nombre: "",
   categoria: "",
   tipoCalculo: "MONTO_FIJO" as ICreateGastoTienda["tipoCalculo"],
+  naturaleza: "OPERATIVO" as ICreateGastoTienda["naturaleza"],
   recurrencia: "DIARIO" as ICreateGastoTienda["recurrencia"],
   monto: "" as string | number,
   porcentaje: "" as string | number,
@@ -64,7 +68,14 @@ const emptyForm = {
   activo: true,
 };
 
-export default function GastoFormDialog({ open, mode, initial, categoriasExistentes = [], onClose, onSave }: Props) {
+export default function GastoFormDialog({
+  open,
+  mode,
+  initial,
+  categoriasExistentes = [],
+  onClose,
+  onSave,
+}: Props) {
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -76,6 +87,7 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
           nombre: initial.nombre,
           categoria: initial.categoria,
           tipoCalculo: initial.tipoCalculo,
+          naturaleza: initial.naturaleza ?? "OPERATIVO",
           recurrencia: initial.recurrencia,
           monto: (initial as IGastoTienda).monto ?? "",
           porcentaje: (initial as IGastoTienda).porcentaje ?? "",
@@ -99,6 +111,7 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
       nombre: form.nombre,
       categoria: form.categoria,
       tipoCalculo: form.tipoCalculo,
+      naturaleza: form.naturaleza,
       recurrencia: form.recurrencia,
       monto: form.monto !== "" ? Number(form.monto) : null,
       porcentaje: form.porcentaje !== "" ? Number(form.porcentaje) : null,
@@ -108,7 +121,8 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
       activo: form.activo,
     };
 
-    const schema = mode === "tienda" ? createGastoTiendaSchema : createGastoPlantillaSchema;
+    const schema =
+      mode === "tienda" ? createGastoTiendaSchema : createGastoPlantillaSchema;
     const parsed = schema.safeParse(raw);
 
     if (!parsed.success) {
@@ -136,8 +150,12 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
   const showAnual = form.recurrencia === "ANUAL";
 
   const title = initial
-    ? mode === "tienda" ? "Editar gasto" : "Editar plantilla"
-    : mode === "tienda" ? "Nuevo gasto" : "Nueva plantilla";
+    ? mode === "tienda"
+      ? "Editar gasto"
+      : "Editar plantilla"
+    : mode === "tienda"
+      ? "Nuevo gasto"
+      : "Nueva plantilla";
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -164,7 +182,9 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
                 {...params}
                 label="Categoría"
                 error={!!errors.categoria}
-                helperText={errors.categoria ?? "Ej: Alquiler, Empleados, Servicios"}
+                helperText={
+                  errors.categoria ?? "Ej: Alquiler, Empleados, Servicios"
+                }
                 required
               />
             )}
@@ -180,7 +200,9 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
               {TipoCalculoEnum.options.map((opt) => (
                 <MenuItem key={opt} value={opt}>
                   <Box>
-                    <Typography variant="body2">{TIPO_CALCULO_LABELS[opt]}</Typography>
+                    <Typography variant="body2">
+                      {TIPO_CALCULO_LABELS[opt]}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
                       {TIPO_CALCULO_DESCRIPTIONS[opt]}
                     </Typography>
@@ -188,7 +210,34 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
                 </MenuItem>
               ))}
             </Select>
-            {errors.tipoCalculo && <FormHelperText>{errors.tipoCalculo}</FormHelperText>}
+            {errors.tipoCalculo && (
+              <FormHelperText>{errors.tipoCalculo}</FormHelperText>
+            )}
+          </FormControl>
+
+          <FormControl fullWidth error={!!errors.naturaleza}>
+            <InputLabel>Naturaleza</InputLabel>
+            <Select
+              value={form.naturaleza}
+              label="Naturaleza"
+              onChange={(e) => set("naturaleza", e.target.value)}
+            >
+              {NaturalezaGastoEnum.options.map((opt) => (
+                <MenuItem key={opt} value={opt}>
+                  <Box>
+                    <Typography variant="body2">
+                      {NATURALEZA_GASTO_LABELS[opt]}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {NATURALEZA_GASTO_DESCRIPTIONS[opt]}
+                    </Typography>
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+            {errors.naturaleza && (
+              <FormHelperText>{errors.naturaleza}</FormHelperText>
+            )}
           </FormControl>
 
           {showMonto && (
@@ -199,7 +248,11 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
               onChange={(e) => set("monto", e.target.value)}
               error={!!errors.monto}
               helperText={errors.monto}
-              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">$</InputAdornment>
+                ),
+              }}
               inputProps={{ min: 0, step: "0.01" }}
               fullWidth
             />
@@ -213,7 +266,9 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
               onChange={(e) => set("porcentaje", e.target.value)}
               error={!!errors.porcentaje}
               helperText={errors.porcentaje}
-              InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
+              InputProps={{
+                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+              }}
               inputProps={{ min: 0, max: 100, step: "0.01" }}
               fullWidth
             />
@@ -229,7 +284,9 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
               {RecurrenciaGastoEnum.options.map((opt) => (
                 <MenuItem key={opt} value={opt}>
                   <Box>
-                    <Typography variant="body2">{RECURRENCIA_LABELS[opt]}</Typography>
+                    <Typography variant="body2">
+                      {RECURRENCIA_LABELS[opt]}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
                       {RECURRENCIA_DESCRIPTIONS[opt]}
                     </Typography>
@@ -237,7 +294,9 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
                 </MenuItem>
               ))}
             </Select>
-            {errors.recurrencia && <FormHelperText>{errors.recurrencia}</FormHelperText>}
+            {errors.recurrencia && (
+              <FormHelperText>{errors.recurrencia}</FormHelperText>
+            )}
           </FormControl>
 
           {showDiaMes && (
@@ -249,13 +308,18 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
                 onChange={(e) => set("diaMes", e.target.value)}
               >
                 {DIAS_MES.map((d) => (
-                  <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
+                  <MenuItem key={d.value} value={d.value}>
+                    {d.label}
+                  </MenuItem>
                 ))}
               </Select>
-              {errors.diaMes
-                ? <FormHelperText>{errors.diaMes}</FormHelperText>
-                : <FormHelperText>Si el mes tiene menos días, se aplicará el último día del mes</FormHelperText>
-              }
+              {errors.diaMes ? (
+                <FormHelperText>{errors.diaMes}</FormHelperText>
+              ) : (
+                <FormHelperText>
+                  Si el mes tiene menos días, se aplicará el último día del mes
+                </FormHelperText>
+              )}
             </FormControl>
           )}
 
@@ -269,10 +333,14 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
                   onChange={(e) => set("mesAnio", e.target.value)}
                 >
                   {MESES.map((m) => (
-                    <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
+                    <MenuItem key={m.value} value={m.value}>
+                      {m.label}
+                    </MenuItem>
                   ))}
                 </Select>
-                {errors.mesAnio && <FormHelperText>{errors.mesAnio}</FormHelperText>}
+                {errors.mesAnio && (
+                  <FormHelperText>{errors.mesAnio}</FormHelperText>
+                )}
               </FormControl>
               <FormControl fullWidth error={!!errors.diaAnio}>
                 <InputLabel>Día</InputLabel>
@@ -282,24 +350,33 @@ export default function GastoFormDialog({ open, mode, initial, categoriasExisten
                   onChange={(e) => set("diaAnio", e.target.value)}
                 >
                   {DIAS_MES.map((d) => (
-                    <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
+                    <MenuItem key={d.value} value={d.value}>
+                      {d.label}
+                    </MenuItem>
                   ))}
                 </Select>
-                {errors.diaAnio && <FormHelperText>{errors.diaAnio}</FormHelperText>}
+                {errors.diaAnio && (
+                  <FormHelperText>{errors.diaAnio}</FormHelperText>
+                )}
               </FormControl>
             </Stack>
           )}
 
           <FormControlLabel
             control={
-              <Switch checked={form.activo} onChange={(e) => set("activo", e.target.checked)} />
+              <Switch
+                checked={form.activo}
+                onChange={(e) => set("activo", e.target.checked)}
+              />
             }
             label="Activo"
           />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={loading}>Cancelar</Button>
+        <Button onClick={onClose} disabled={loading}>
+          Cancelar
+        </Button>
         <Button variant="contained" onClick={handleSave} disabled={loading}>
           {loading ? "Guardando..." : "Guardar"}
         </Button>

@@ -130,8 +130,11 @@ export function calcularVuelto(
       .slice()
       .sort((a, b) => b - a);
     const denomMin = denomsOrdenadas.at(-1) ?? 1;
+    // Siempre redondear el vuelto hacia arriba a la denominación disponible
+    // (nunca hacia abajo): igual que el resto en monedaBase más abajo, para
+    // no dar de menos por redondeo — Math.round podía rondar a la baja.
     const vueltoEnMonedaCobro =
-      Math.round(vueltoEnMonedaCobroRaw / denomMin) * denomMin;
+      Math.ceil(vueltoEnMonedaCobroRaw / denomMin) * denomMin;
 
     if (vueltoEnMonedaCobro > 0) {
       result.push({ moneda: monedaCobro, monto: vueltoEnMonedaCobro });

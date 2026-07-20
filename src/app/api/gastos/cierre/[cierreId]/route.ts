@@ -55,17 +55,21 @@ export async function GET(
     });
     const tasas = buildTasaSnapshot(tasasCambio);
 
-    const totalGastos = gastos.reduce(
-      (s, g) =>
-        s +
-        convertToBase(
-          g.montoCalculado,
-          g.monedaCode ?? monedaBase,
-          tasas,
-          monedaBase,
-        ),
-      0,
-    );
+    // Solo naturaleza OPERATIVO resta de ganancia (INVERSION resta solo de caja,
+    // no se refleja en este total aunque sí aparece en el detalle por línea)
+    const totalGastos = gastos
+      .filter((g) => g.naturaleza === "OPERATIVO")
+      .reduce(
+        (s, g) =>
+          s +
+          convertToBase(
+            g.montoCalculado,
+            g.monedaCode ?? monedaBase,
+            tasas,
+            monedaBase,
+          ),
+        0,
+      );
 
     // Agrupar por categoría
     const agrupados: Record<string, typeof gastos> = {};

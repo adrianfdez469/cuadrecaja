@@ -72,6 +72,8 @@ import PeriodoBadge from "@/app/pos/components/PeriodoBadge";
 import RefreshButton from "@/app/pos/components/RefreshButton";
 import ResumenDiaModal from "@/app/pos/components/ResumenDiaModal";
 import FlagIcon from "@mui/icons-material/Flag";
+import UndoIcon from "@mui/icons-material/Undo";
+import { DevolucionVentaDialog } from "@/components/GestionInventario/movimientos/DevolucionVentaDialog";
 import { AsociarCodigoDialog } from "@/app/pos/components/AsociarCodigoDialog";
 import { usePermisos } from "@/utils/permisos_front";
 import { useHardwareScanner } from "@/hooks/useHardwareScanner";
@@ -81,14 +83,20 @@ import {
   ONBOARDING_PROMPT_POS_PERIOD_EVENT,
   TOUR_POS_VENTA,
 } from "@/features/onboarding/constants";
-import { shouldDeferPosPeriodPrompt, shouldDeferPosBackgroundOperations } from "@/features/onboarding/utils/posOnboardingPeriod";
+import {
+  shouldDeferPosPeriodPrompt,
+  shouldDeferPosBackgroundOperations,
+} from "@/features/onboarding/utils/posOnboardingPeriod";
 import {
   isPosTopToolbarTourTarget,
   scrollPosTourTargetIntoView,
 } from "@/features/onboarding/utils/onboardingNavigation";
 import { getTourById } from "@/features/onboarding/tours/primerosPasos";
 import { usePrintOnSale } from "@/features/printing/hooks/usePrintOnSale";
-import { usePrintContext, usePrinter } from "@/features/printing/hooks/usePrinter";
+import {
+  usePrintContext,
+  usePrinter,
+} from "@/features/printing/hooks/usePrinter";
 import { PrintQueueIndicator } from "@/features/printing/components/PrintQueueIndicator";
 import { PrinterSetupSheet } from "@/features/printing/components/PrinterSetupSheet";
 import { Sale } from "@/store/salesStore";
@@ -161,6 +169,7 @@ export default function POSInterface() {
   >([]);
   const [intentToSearch, setIntentToSearch] = useState(false);
   const [resumenDiaOpen, setResumenDiaOpen] = useState(false);
+  const [devolucionVentaOpen, setDevolucionVentaOpen] = useState(false);
   // Edición de nombre de carrito (píldora)
   const [editingCartId, setEditingCartId] = useState<string | null>(null);
   const [editingCartName, setEditingCartName] = useState<string>("");
@@ -192,7 +201,9 @@ export default function POSInterface() {
 
   // Referencia al scanner para poder reabrirlo
   const scannerRef = useRef<ProductProcessorDataRef>(null);
-  const hardwareScanHandlerRef = useRef<(data: IProcessedData) => void>(() => {});
+  const hardwareScanHandlerRef = useRef<(data: IProcessedData) => void>(
+    () => {},
+  );
 
   // Estado para prevenir múltiples sincronizaciones simultáneas (no para pagos)
   const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(
@@ -230,6 +241,9 @@ export default function POSInterface() {
     "operaciones.pos-venta.asociar_codigo",
   );
   const puedeImprimir = verificarPermiso("operaciones.pos-venta.imprimir");
+  const puedeDevolucionVenta = verificarPermiso(
+    "operaciones.movimientos.crear.devolucion_venta",
+  );
   const { triggerPrint } = usePrintOnSale();
   const printContext = usePrintContext();
   const { prefetchTemplate } = usePrinter(user?.localActual?.id);
@@ -249,7 +263,9 @@ export default function POSInterface() {
   });
   const onboardingRun = useOnboardingStore((s) => s.run);
   const onboardingStepIndex = useOnboardingStore((s) => s.stepIndex);
-  const activeStepDefinitions = useOnboardingStore((s) => s.activeStepDefinitions);
+  const activeStepDefinitions = useOnboardingStore(
+    (s) => s.activeStepDefinitions,
+  );
 
   const [asociarCodigoOpen, setAsociarCodigoOpen] = useState(false);
   const [codigoNoEncontrado, setCodigoNoEncontrado] = useState<string>("");
@@ -614,10 +630,7 @@ export default function POSInterface() {
       setCategories(categorias);
     } catch (error) {
       console.error("Error al obtener productos", error);
-      if (
-        !silent &&
-        !shouldDeferPosBackgroundOperations(periodo)
-      ) {
+      if (!silent && !shouldDeferPosBackgroundOperations(periodo)) {
         showMessage("Error al obtener productos", "error");
       }
     } finally {
@@ -657,9 +670,11 @@ export default function POSInterface() {
       },
       onboardingMode
         ? {
-            dialog: "pos-period-dialog",
-            confirm: "pos-period-confirm",
-            cancel: "pos-period-cancel",
+            tourAttrs: {
+              dialog: "pos-period-dialog",
+              confirm: "pos-period-confirm",
+              cancel: "pos-period-cancel",
+            },
           }
         : undefined,
     );
@@ -756,7 +771,8 @@ export default function POSInterface() {
             pagosDetalle: multimoneda.pagosDetalle,
             vueltoDetalle: multimoneda.vueltoDetalle,
             tasaSnapshot: multimoneda.tasaSnapshot,
-            ...(multimoneda.discountTotal != null && multimoneda.discountTotal > 0
+            ...(multimoneda.discountTotal != null &&
+            multimoneda.discountTotal > 0
               ? { discountTotal: multimoneda.discountTotal }
               : {}),
           }),
@@ -1097,7 +1113,10 @@ export default function POSInterface() {
         } catch (error) {
           console.error(error);
           if (!shouldDeferPosPeriodPrompt()) {
-            showMessage("Ocurrió un erro intentando cargar le período", "error");
+            showMessage(
+              "Ocurrió un erro intentando cargar le período",
+              "error",
+            );
           }
         } finally {
           setLoading(false);
@@ -1298,6 +1317,16 @@ export default function POSInterface() {
                 <FlagIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+            {puedeDevolucionVenta && (
+              <Tooltip title="Devolución de venta">
+                <IconButton
+                  size="small"
+                  onClick={() => setDevolucionVentaOpen(true)}
+                >
+                  <UndoIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
             <PosStatusToolBar
               handleShowSyncView={handleShowSyncView}
               handleShowUserSales={handleShowUserSales}
@@ -1542,6 +1571,16 @@ export default function POSInterface() {
           tiendaId={user.localActual.id}
           cierreId={periodo?.id ?? ""}
         />
+
+        {/* Diálogo de devolución de venta */}
+        {puedeDevolucionVenta && (
+          <DevolucionVentaDialog
+            dialogOpen={devolucionVentaOpen}
+            closeDialog={() => setDevolucionVentaOpen(false)}
+            tiendaId={user.localActual.id}
+            onSuccess={() => fetchProductosAndCategories(true)}
+          />
+        )}
 
         {/* Drawer de ventas del usuario */}
         <UserSalesDrawer

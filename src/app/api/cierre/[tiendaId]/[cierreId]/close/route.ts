@@ -5,7 +5,11 @@ import { getSession } from "@/utils/auth";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
-import { applyGastosToResumenMap } from "@/lib/gastos";
+import { applyGastosToResumenMap, calcularGananciaFinal } from "@/lib/gastos";
+import {
+  applyComprasYDevolucionesToResumenMap,
+  calcularTotalesMovimientosPeriodo,
+} from "@/lib/movimiento/caja";
 
 export async function PUT(
   req: NextRequest,
@@ -37,11 +41,18 @@ export async function PUT(
       );
     }
 
-    // Get monedaBase for currency conversions
-    const tienda = await prisma.tienda.findUnique({
-      where: { id: tiendaId },
+    // Get monedaBase for currency conversions — findFirst con negocioId para
+    // no permitir cerrar el período de una tienda de otro negocio.
+    const tienda = await prisma.tienda.findFirst({
+      where: { id: tiendaId, negocioId: user.negocio.id },
       select: { negocio: { select: { id: true, monedaBase: true } } },
     });
+    if (!tienda) {
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 },
+      );
+    }
     const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
     const negocioId = tienda?.negocio?.id;
 
@@ -135,6 +146,33 @@ export async function PUT(
 
     const totalGanancia = totalGananciasPropias + totalGananciasConsignacion;
 
+    // Tasas de cambio y movimientos (compras en efectivo de caja, merma,
+    // devoluciones) no dependen de nada escrito dentro de la transacción de
+    // cierre — se calculan antes de abrirla para no alargar el tiempo que
+    // mantiene el lock/la conexión.
+    const tasasCambioGastos = negocioId
+      ? await prisma.tasaCambio.findMany({
+          where: { negocioId },
+          orderBy: { createdAt: "desc" },
+          distinct: ["monedaCode"],
+        })
+      : [];
+    const tasasGastos = buildTasaSnapshot(tasasCambioGastos);
+
+    const movimientosPeriodo = await prisma.movimientoStock.findMany({
+      where: {
+        tiendaId,
+        tipo: { in: ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] },
+        fecha: { gte: ultimoPeriodo.fechaInicio },
+      },
+    });
+    const { totalComprasCaja, totalMerma, totalDevoluciones } =
+      calcularTotalesMovimientosPeriodo(
+        movimientosPeriodo,
+        monedaBase,
+        tasasGastos,
+      );
+
     const [periodoCerrado] = await prisma.$transaction(async (tx) => {
       // Eliminar desgloses de billetes temporales antes de cerrar
       await tx.cashBreakdownCierre.deleteMany({
@@ -148,17 +186,10 @@ export async function PUT(
       const gastosCierre = await tx.gastoCierre.findMany({
         where: { cierreId: ultimoPeriodo.id },
       });
-      const tasasCambioGastos = negocioId
-        ? await tx.tasaCambio.findMany({
-            where: { negocioId },
-            orderBy: { createdAt: "desc" },
-            distinct: ["monedaCode"],
-          })
-        : [];
-      const tasasGastos = buildTasaSnapshot(tasasCambioGastos);
 
       let totalGastos = 0;
       for (const g of gastosCierre) {
+        if (g.naturaleza !== "OPERATIVO") continue; // INVERSION resta de caja, no de ganancia
         const moneda = g.monedaCode ?? monedaBase;
         totalGastos += convertToBase(
           g.montoCalculado,
@@ -167,7 +198,13 @@ export async function PUT(
           monedaBase,
         );
       }
-      const totalGananciaFinal = totalGanancia - totalGastos;
+
+      const totalGananciaFinal = calcularGananciaFinal(
+        totalGanancia,
+        totalGastos,
+        totalMerma,
+        totalDevoluciones,
+      );
 
       // Cerrar el período con resumen
       const periodoCerrado = await tx.cierrePeriodo.update({
@@ -184,6 +221,9 @@ export async function PUT(
           totalGananciasConsignacion,
           totalGastos,
           totalGananciaFinal,
+          totalComprasCaja,
+          totalMerma,
+          totalDevoluciones,
         },
       });
 
@@ -248,9 +288,18 @@ export async function PUT(
       }
 
       // Deduct ad-hoc/recurring expenses from the per-currency cash summary
+      // (todos los gastos, sin importar naturaleza — la caja siempre refleja el efectivo real que salió)
       applyGastosToResumenMap(
         resumenMonedaMap,
         gastosCierre,
+        monedaBase,
+        tasasGastos,
+      );
+
+      // Deduct compras pagadas con efectivo de caja y reembolsos por devolución de venta
+      applyComprasYDevolucionesToResumenMap(
+        resumenMonedaMap,
+        movimientosPeriodo,
         monedaBase,
         tasasGastos,
       );
