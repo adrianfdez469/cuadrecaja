@@ -181,9 +181,14 @@ export async function POST(
 
       const productosMegrados = productosExistentes.map((p) => {
         const producto = productos.find((p2) => p2.productoTiendaId === p.id);
+        // DB primero, payload después SOLO para llenar huecos (cantidad, name, etc.):
+        // costo/precio/monedaCostoCode/monedaPrecioCode deben ganar siempre desde
+        // la BD — de lo contrario un monedaPrecioCode obsoleto del carrito puede
+        // quedar emparejado con un precio fresco de otra moneda y disparar
+        // conversiones erróneas al cerrar el período.
         return {
-          ...p,
           ...producto,
+          ...p,
         };
       });
 
@@ -611,8 +616,7 @@ export async function GET(
         amount: ad.amount,
         // Prisma almacena JSON, lo convertimos al tipo esperado de la UI (si es posible)
         productsAffected: ad.productsAffected as unknown as
-          | { productoTiendaId: string; cantidad: number }[]
-          | undefined,
+          { productoTiendaId: string; cantidad: number }[] | undefined,
         createdAt: ad.createdAt,
         ruleName: ad.discountRule?.name,
       })),

@@ -94,6 +94,39 @@ export async function PUT(
       );
     }
 
+    // Historial completo de tasas — usado como fallback cuando el
+    // tasaSnapshot de una venta quedó incompleto (p. ej. el cliente no tenía
+    // todavía cargada la tasa de una moneda usada en esa venta). Sin este
+    // fallback, convertToBase asume 1 para la moneda faltante y el cierre
+    // guarda montos completamente distintos a los que se veían en la
+    // pantalla previa al cierre. Se calcula antes de abrir la transacción de
+    // cierre para no alargar el tiempo que mantiene el lock/la conexión.
+    //
+    // Importante: el fallback debe reconstruir la tasa que estaba VIGENTE EN
+    // EL MOMENTO de cada venta, no la más reciente en términos absolutos —
+    // usar "la de ahora" podría sustituir un valor histórico real (con el
+    // que de hecho se le cobró al cliente) por uno distinto si la tasa
+    // cambió entre la venta y el cierre. Solo se usa la tasa "más reciente
+    // en general" como último recurso, para una moneda que ni siquiera
+    // tuviera tasa registrada todavía en el momento de esa venta.
+    const historialTasas = negocioId
+      ? await prisma.tasaCambio.findMany({
+          where: { negocioId },
+          orderBy: { createdAt: "asc" },
+          select: { monedaCode: true, tasa: true, createdAt: true },
+        })
+      : [];
+    const tasasGastos = buildTasaSnapshot(historialTasas);
+
+    const tasasEnMomento = (momento: Date): ITasaSnapshot => {
+      const resultado: ITasaSnapshot = {};
+      for (const t of historialTasas) {
+        if (t.monedaCode === "CUP" || t.createdAt > momento) continue;
+        resultado[t.monedaCode] = t.tasa; // historial ascendente: la última asignación es la vigente en ese momento
+      }
+      return resultado;
+    };
+
     // CALCULOS
     let totalVentas = 0;
     let totalInversion = 0;
@@ -105,7 +138,11 @@ export async function PUT(
 
     for (const venta of ultimoPeriodo.ventas) {
       totalTransferencia += venta.totaltransfer;
-      const tasas = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+      const tasas = {
+        ...tasasGastos,
+        ...tasasEnMomento(venta.createdAt),
+        ...((venta.tasaSnapshot ?? {}) as ITasaSnapshot),
+      };
       let ventaBruta = 0;
 
       for (const vp of venta.productos) {
@@ -146,19 +183,10 @@ export async function PUT(
 
     const totalGanancia = totalGananciasPropias + totalGananciasConsignacion;
 
-    // Tasas de cambio y movimientos (compras en efectivo de caja, merma,
-    // devoluciones) no dependen de nada escrito dentro de la transacción de
-    // cierre — se calculan antes de abrirla para no alargar el tiempo que
-    // mantiene el lock/la conexión.
-    const tasasCambioGastos = negocioId
-      ? await prisma.tasaCambio.findMany({
-          where: { negocioId },
-          orderBy: { createdAt: "desc" },
-          distinct: ["monedaCode"],
-        })
-      : [];
-    const tasasGastos = buildTasaSnapshot(tasasCambioGastos);
-
+    // Movimientos (compras en efectivo de caja, merma, devoluciones) no
+    // dependen de nada escrito dentro de la transacción de cierre — se
+    // calculan antes de abrirla para no alargar el tiempo que mantiene el
+    // lock/la conexión.
     const movimientosPeriodo = await prisma.movimientoStock.findMany({
       where: {
         tiendaId,
@@ -240,7 +268,11 @@ export async function PUT(
       for (const venta of ultimoPeriodo.ventas) {
         if (!venta.pagosDetalle) continue;
         const pagos = venta.pagosDetalle as unknown as IPagoLinea[];
-        const tasas = (venta.tasaSnapshot as unknown as ITasaSnapshot) ?? {};
+        const tasas = {
+          ...tasasGastos,
+          ...tasasEnMomento(venta.createdAt),
+          ...((venta.tasaSnapshot as unknown as ITasaSnapshot) ?? {}),
+        };
 
         for (const pago of pagos) {
           if (!resumenMonedaMap[pago.moneda]) {
@@ -319,7 +351,11 @@ export async function PUT(
 
       const liquidaciones = {};
       for (const venta of ultimoPeriodo.ventas) {
-        const tasasLiq = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+        const tasasLiq = {
+          ...tasasGastos,
+          ...tasasEnMomento(venta.createdAt),
+          ...((venta.tasaSnapshot ?? {}) as ITasaSnapshot),
+        };
         for (const vp of venta.productos) {
           if (vp.producto?.proveedorId) {
             const key = `${vp.producto.proveedorId}_${vp.producto.productoId}`;

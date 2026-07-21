@@ -212,7 +212,12 @@ export async function POST(
         const producto = productos.find(
           (p2: IncomingProduct) => p2.productoTiendaId === p.id,
         );
-        return { ...p, ...producto };
+        // DB primero, payload después SOLO para llenar huecos (cantidad, name, etc.):
+        // costo/precio/monedaCostoCode/monedaPrecioCode deben ganar siempre desde
+        // la BD — de lo contrario un monedaPrecioCode obsoleto del carrito puede
+        // quedar emparejado con un precio fresco de otra moneda y disparar
+        // conversiones erróneas al cerrar el período.
+        return { ...producto, ...p };
       }) as MergedProduct[];
 
       // Validar cantidades decimales
