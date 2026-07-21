@@ -105,6 +105,8 @@ const PaymentModal: FC<IProps> = ({
   const [promoCode, setPromoCode] = useState("");
   const [discountTotal, setDiscountTotal] = useState(0);
   const [applied, setApplied] = useState<DiscountApplicationResultItem[]>([]);
+  const [showDiscount, setShowDiscount] = useState(false);
+  const discountExpanded = showDiscount || applied.length > 0;
 
   const finalTotal = useMemo(
     () => Math.max(0, total - discountTotal),
@@ -1004,47 +1006,64 @@ const PaymentModal: FC<IProps> = ({
         <Divider sx={{ my: 2 }} />
 
         {/* ── Discounts ── */}
-        <Stack spacing={1} mb={2}>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <TextField
-              label="Código de descuento"
-              value={promoCode}
-              onChange={(e) => setPromoCode(e.target.value.trim())}
-              onKeyDown={(e) => {
-                if (e.key === "Enter")
-                  previewDiscount(promoCode ? [promoCode] : undefined);
-              }}
-              size="small"
-              fullWidth
-            />
-            <Button
-              variant="contained"
-              onClick={() =>
-                previewDiscount(promoCode ? [promoCode] : undefined)
-              }
-              sx={{ minWidth: 90 }}
-              size="small"
-            >
-              Aplicar
-            </Button>
-          </Box>
-          {applied.length > 0 && (
-            <Box>
-              {applied.map((d) => (
-                <Typography
-                  key={d.discountRuleId}
-                  variant="body2"
-                  color="success.main"
-                >
-                  {d.ruleName || "Descuento"}: -{fmtBase(d.amount)}
-                </Typography>
-              ))}
-              <Typography variant="body2" fontWeight={600} mt={0.5}>
-                Total descuentos: -({fmtBase(discountTotal)})
-              </Typography>
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => setShowDiscount((v) => !v)}
+          startIcon={discountExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          sx={{
+            textTransform: "none",
+            color: applied.length > 0 ? "success.main" : "text.secondary",
+            mb: discountExpanded ? 1 : 2,
+          }}
+        >
+          {applied.length > 0
+            ? `Descuento aplicado: -${fmtBase(discountTotal)}`
+            : "¿Tienes un código de descuento?"}
+        </Button>
+        <Collapse in={discountExpanded}>
+          <Stack spacing={1} mb={2}>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                label="Código de descuento"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value.trim())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter")
+                    previewDiscount(promoCode ? [promoCode] : undefined);
+                }}
+                size="small"
+                fullWidth
+              />
+              <Button
+                variant="contained"
+                onClick={() =>
+                  previewDiscount(promoCode ? [promoCode] : undefined)
+                }
+                sx={{ minWidth: 90 }}
+                size="small"
+              >
+                Aplicar
+              </Button>
             </Box>
-          )}
-        </Stack>
+            {applied.length > 0 && (
+              <Box>
+                {applied.map((d) => (
+                  <Typography
+                    key={d.discountRuleId}
+                    variant="body2"
+                    color="success.main"
+                  >
+                    {d.ruleName || "Descuento"}: -{fmtBase(d.amount)}
+                  </Typography>
+                ))}
+                <Typography variant="body2" fontWeight={600} mt={0.5}>
+                  Total descuentos: -({fmtBase(discountTotal)})
+                </Typography>
+              </Box>
+            )}
+          </Stack>
+        </Collapse>
 
         {/* ── Summary ── */}
         <Stack spacing={0.5} mt={2} mb={1}>
