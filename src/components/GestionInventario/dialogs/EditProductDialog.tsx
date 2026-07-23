@@ -114,22 +114,26 @@ export function EditProductDialog({
       setEsFraccion(!!prod.fraccionDeId);
       setFraccionValue(prod.unidadesPorFraccion ?? null);
       setCodigosProducto(prod.codigosProducto?.map((c) => c.codigo) ?? []);
+      setSelectedFraccion(null);
     }
   }, [open, producto]);
 
   useEffect(() => {
-    if (esFraccion && productos.length === 0) {
+    if (!open || !esFraccion) return;
+    const fraccionDeId = producto?.producto.fraccionDeId;
+    if (productos.length === 0) {
       fetchProducts().then((prods) => {
         setProductos(prods);
-        if (producto?.producto.fraccionDeId) {
-          const found = prods.find(
-            (p) => p.id === producto.producto.fraccionDeId,
-          );
-          setSelectedFraccion(found ?? null);
-        }
+        setSelectedFraccion(
+          fraccionDeId
+            ? (prods.find((p) => p.id === fraccionDeId) ?? null)
+            : null,
+        );
       });
+    } else if (fraccionDeId) {
+      setSelectedFraccion(productos.find((p) => p.id === fraccionDeId) ?? null);
     }
-  }, [esFraccion]);
+  }, [open, esFraccion, producto, productos]);
 
   const handlePrecioMonedaChange = (nuevaMoneda: string) => {
     const monedaActual = monedaPrecioCode ?? monedaBase;
@@ -342,44 +346,43 @@ export function EditProductDialog({
             />
           </Box>
 
-            {/* Precio + moneda */}
-            <Box display="flex" gap={1} alignItems="flex-start">
-              {monedasDisponibles.length > 1 && (
-                  <FormControl size="small" sx={{ minWidth: 90 }}>
-                    <InputLabel>Moneda</InputLabel>
-                    <Select
-                        label="Moneda"
-                        value={precioMonedaEfectiva}
-                        onChange={(e) => handlePrecioMonedaChange(e.target.value)}
-                    >
-                      {monedasDisponibles.map((code) => (
-                          <MenuItem key={code} value={code}>
-                            {code}
-                          </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-              )}
-              <TextField
-                  label={`Precio (${precioMonedaEfectiva})`}
-                  value={precio}
-                  onChange={(e) => setPrecio(e.target.value)}
-                  size="small"
-                  inputProps={{ inputMode: "decimal" }}
-                  InputProps={{
-                    startAdornment: (
-                        <InputAdornment position="start">$</InputAdornment>
-                    ),
-                  }}
-                  helperText={
-                    precioEnBase !== null
-                        ? `≈ ${precioEnBase.toFixed(2)} ${monedaBase}`
-                        : undefined
-                  }
-                  sx={{ flex: 1 }}
-              />
-            </Box>
-
+          {/* Precio + moneda */}
+          <Box display="flex" gap={1} alignItems="flex-start">
+            {monedasDisponibles.length > 1 && (
+              <FormControl size="small" sx={{ minWidth: 90 }}>
+                <InputLabel>Moneda</InputLabel>
+                <Select
+                  label="Moneda"
+                  value={precioMonedaEfectiva}
+                  onChange={(e) => handlePrecioMonedaChange(e.target.value)}
+                >
+                  {monedasDisponibles.map((code) => (
+                    <MenuItem key={code} value={code}>
+                      {code}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+            <TextField
+              label={`Precio (${precioMonedaEfectiva})`}
+              value={precio}
+              onChange={(e) => setPrecio(e.target.value)}
+              size="small"
+              inputProps={{ inputMode: "decimal" }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">$</InputAdornment>
+                ),
+              }}
+              helperText={
+                precioEnBase !== null
+                  ? `≈ ${precioEnBase.toFixed(2)} ${monedaBase}`
+                  : undefined
+              }
+              sx={{ flex: 1 }}
+            />
+          </Box>
 
           {warnCostoMayorPrecio && (
             <Alert severity="warning" sx={{ py: 0.5 }}>
