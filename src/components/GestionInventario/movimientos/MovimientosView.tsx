@@ -253,6 +253,13 @@ export default function MovimientosView() {
             productoId: item.productoId,
             costoUnitario: item.costo,
             costoTotal: item.costoTotal,
+            // Moneda tal cual venía de la tienda origen — nunca reinterpretar
+            // el costo en la moneda base del destino (bug: CUP leído como USD).
+            monedaCompra: item.monedaCostoCode,
+            // Precio de venta origen — usado solo si el producto no existía
+            // aún en la tienda destino (ver CreateMoviento).
+            precio: item.precio,
+            monedaPrecio: item.monedaPrecioCode,
             ...(item.proveedor && { proveedorId: item.proveedor.id }),
             movimientoOrigenId: item.movimientoOrigenId,
           };
@@ -283,7 +290,9 @@ export default function MovimientosView() {
         categoria: item.productoTienda?.producto?.categoria,
         productoTiendaId: item.productoTiendaId,
         precio: item.productoTienda?.precio,
+        monedaPrecioCode: item.productoTienda?.monedaPrecioCode,
         costo: item.productoTienda?.costo,
+        monedaCostoCode: item.productoTienda?.monedaCostoCode,
         existencia: item.productoTienda?.existencia,
         proveedorId: item.productoTienda?.proveedorId,
         proveedor: item.productoTienda?.proveedor,

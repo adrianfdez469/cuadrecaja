@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Box,
   Card,
@@ -10,11 +10,11 @@ import {
   Stack,
   Typography,
   CardContent,
-  styled
+  styled,
 } from "@mui/material";
 import { ExpandMore, ExpandLess } from "@mui/icons-material";
-import {formatCurrency} from "@/utils/formatters";
-import StockBadge from './StockBadge';
+import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
+import StockBadge from "./StockBadge";
 
 interface ProductCardProps {
   name: string;
@@ -23,19 +23,32 @@ interface ProductCardProps {
   stock: number;
   actions?: React.ReactNode;
   onClick?: () => void;
+  // Moneda del costo/precio — mostrarla solo cuando el movimiento la usa (ver
+  // ProductSelectionModal.mostrarMoneda)
+  monedaCosto?: string;
+  monedaPrecio?: string;
 }
 
 const StyledCard = styled(Card)(() => ({
-  display: 'flex',
-  flexDirection: 'column',
+  display: "flex",
+  flexDirection: "column",
 }));
 
-function ProductCard({name, cost, precio, stock, onClick, actions}: ProductCardProps ) {
+function ProductCard({
+  name,
+  cost,
+  precio,
+  stock,
+  onClick,
+  actions,
+  monedaCosto,
+  monedaPrecio,
+}: ProductCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
     <StyledCard variant="outlined">
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <Box sx={{ display: "flex", alignItems: "center" }}>
         <CardActionArea onClick={onClick} sx={{ flex: 1, minWidth: 0 }}>
           <Box sx={{ px: 1.5, py: 1 }}>
             <Stack direction="row" spacing={1} alignItems="center">
@@ -44,7 +57,7 @@ function ProductCard({name, cost, precio, stock, onClick, actions}: ProductCardP
                 component="div"
                 sx={{
                   fontWeight: 700,
-                  color: 'text.primary',
+                  color: "text.primary",
                   lineHeight: 1.3,
                   flex: 1,
                 }}
@@ -57,28 +70,50 @@ function ProductCard({name, cost, precio, stock, onClick, actions}: ProductCardP
         </CardActionArea>
         <IconButton
           size="small"
-          onClick={() => setExpanded(v => !v)}
+          onClick={() => setExpanded((v) => !v)}
           sx={{ p: 0.5, mx: 0.5, flexShrink: 0 }}
         >
-          {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+          {expanded ? (
+            <ExpandLess fontSize="small" />
+          ) : (
+            <ExpandMore fontSize="small" />
+          )}
         </IconButton>
       </Box>
 
       <Collapse in={expanded} unmountOnExit>
         <Divider />
-        <CardContent sx={{ py: 1, px: 1.5, '&:last-child': { pb: 1 } }}>
+        <CardContent sx={{ py: 1, px: 1.5, "&:last-child": { pb: 1 } }}>
           <Stack spacing={0.5}>
             <Stack direction="row" justifyContent="space-between">
-              <Typography variant="caption" color="text.secondary">Precio:</Typography>
-              <Typography variant="caption" fontWeight={600}>{formatCurrency(precio)}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Precio:
+              </Typography>
+              <Typography variant="caption" fontWeight={600}>
+                {monedaPrecio
+                  ? formatMontoEnMoneda(precio, monedaPrecio)
+                  : formatCurrency(precio)}
+              </Typography>
             </Stack>
             <Stack direction="row" justifyContent="space-between">
-              <Typography variant="caption" color="text.secondary">Costo:</Typography>
-              <Typography variant="caption" fontWeight={600}>{formatCurrency(cost)}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Costo:
+              </Typography>
+              <Typography variant="caption" fontWeight={600}>
+                {monedaCosto
+                  ? formatMontoEnMoneda(cost, monedaCosto)
+                  : formatCurrency(cost)}
+              </Typography>
             </Stack>
             <Stack direction="row" justifyContent="space-between">
-              <Typography variant="caption" color="text.secondary">Costo total:</Typography>
-              <Typography variant="caption" fontWeight={700} color="primary">{formatCurrency(cost * stock)}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Costo total:
+              </Typography>
+              <Typography variant="caption" fontWeight={700} color="primary">
+                {monedaCosto
+                  ? formatMontoEnMoneda(cost * stock, monedaCosto)
+                  : formatCurrency(cost * stock)}
+              </Typography>
             </Stack>
           </Stack>
         </CardContent>
@@ -87,7 +122,7 @@ function ProductCard({name, cost, precio, stock, onClick, actions}: ProductCardP
       {actions && (
         <>
           <Divider />
-          <CardActions sx={{ justifyContent: 'flex-end', p: 1 }}>
+          <CardActions sx={{ justifyContent: "flex-end", p: 1 }}>
             {actions}
           </CardActions>
         </>

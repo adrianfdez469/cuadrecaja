@@ -97,6 +97,12 @@ export const movimientoCreateSchema = z.object({
   costoUnitario: z.number().nonnegative().finite().optional(),
   costoTotal: z.number().nonnegative().finite().optional(),
   monedaCompra: z.string().optional(),
+  // Solo TRASPASO_ENTRADA: precio de venta de la tienda origen, usado al
+  // crear el ProductoTienda en el destino cuando el producto no existía ahí.
+  precio: z.number().nonnegative().finite().optional(),
+  // Moneda del precio anterior — mismo motivo que monedaCompra (evita
+  // interpretar el precio en la moneda base del destino).
+  monedaPrecio: z.string().optional(),
   proveedorId: z.string().uuid().optional(),
   movimientoOrigenId: z.string().uuid().optional(),
   fechaVencimiento: z.coerce.date().optional(),

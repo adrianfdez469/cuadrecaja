@@ -91,6 +91,8 @@ export const CreateMoviento = async (
           proveedorId: itemProveedorId,
           movimientoOrigenId,
           fechaVencimiento,
+          precio,
+          monedaPrecio,
           monedaOriginal,
           montoOriginal,
           tasaUsada: tasaUsadaItem,
@@ -224,7 +226,13 @@ export const CreateMoviento = async (
               tiendaId,
               productoId,
               costo: costoUnitario || 0,
-              precio: 0,
+              // TRASPASO_ENTRADA trae el precio de venta de la tienda origen;
+              // el resto de movimientos no lo envía y arranca en 0 como antes.
+              precio: precio ?? 0,
+              // Moneda del precio traído de la tienda origen — igual que
+              // monedaCostoCode, null significa monedaBase (mismo negocio en
+              // ambas tiendas, por lo que null es seguro de conservar tal cual).
+              monedaPrecioCode: precio ? (monedaPrecio ?? null) : null,
               existencia: cantidad,
               monedaCostoCode: costoUnitario ? monedaEfectiva : null,
               proveedorId: itemProveedorId || proveedorId || null,
