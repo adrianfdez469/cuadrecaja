@@ -46,6 +46,9 @@ export interface IProductoDisponible {
 
   productoTiendaId?: string;
   precio?: number;
+  // Moneda en la que está expresado `precio` — mismo motivo que
+  // monedaCostoCode: reinterpretarlo sin convertir es un bug de dinero.
+  monedaPrecioCode?: string | null;
   costo?: number;
   // Moneda en la que está expresado `costo` — SIEMPRE debe acompañar al
   // número: reinterpretarlo en otra moneda sin convertir es un bug de dinero.
@@ -108,6 +111,10 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     iTipoMovimiento === "COMPRA" &&
     operacion === "ENTRADA" &&
     monedasNegocio.filter((m) => m.activo).length > 1;
+  // En TRASPASO_ENTRADA la moneda no es editable (viene fija de la tienda
+  // origen) pero igual debe mostrarse en ambas pestañas del modal.
+  const mostrarMoneda =
+    permiteMonedaPorProducto || iTipoMovimiento === "TRASPASO_ENTRADA";
   const monedasDisponibles = useMemo(
     () => [
       monedaBase,
@@ -451,6 +458,9 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
         categoriaId: producto.categoriaId,
         categoria: producto.categoria,
         precio: producto.precio,
+        // El precio del producto está guardado en su propia moneda — mismo
+        // criterio que monedaCostoCode.
+        monedaPrecioCode: producto.monedaPrecioCode ?? monedaBase,
         costo: producto.costo,
         // El costo del producto está guardado en su propia moneda — arrancar
         // ahí (nunca en monedaBase a secas) evita interpretar mal el número.
@@ -587,6 +597,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       isFiltering,
       currentPage,
       onReject: onReject ? handleRejectClick : undefined,
+      mostrarMoneda,
     }),
     [
       operacion,
@@ -605,6 +616,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       currentPage,
       onReject,
       handleRejectClick,
+      mostrarMoneda,
     ],
   );
 

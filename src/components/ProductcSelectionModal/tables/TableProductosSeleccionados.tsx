@@ -66,13 +66,17 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
     (sum, p) => sum + p.cantidad,
     0,
   );
-  // Cada producto puede estar en una moneda distinta (ver
-  // permiteMonedaPorProducto) — sumarlos todos en un solo número mezclaría
-  // monedas. Se agrupa por moneda y se muestra el desglose.
+  // En TRASPASO_ENTRADA la moneda no es editable (viene fija de la tienda
+  // origen) pero igual debe mostrarse, no solo cuando permiteMonedaPorProducto.
+  const mostrarMoneda =
+    permiteMonedaPorProducto || tipoMovimiento === "TRASPASO_ENTRADA";
+  // Cada producto puede estar en una moneda distinta (ver mostrarMoneda) —
+  // sumarlos todos en un solo número mezclaría monedas. Se agrupa por moneda
+  // y se muestra el desglose.
   const totalCostoPorMoneda = productosSeleccionados.reduce<
     Record<string, number>
   >((acc, p) => {
-    const moneda = permiteMonedaPorProducto
+    const moneda = mostrarMoneda
       ? (p.monedaCostoCode ?? monedaBase)
       : monedaBase;
     acc[moneda] = (acc[moneda] ?? 0) + p.costoTotal;
@@ -156,9 +160,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                     color="warning.main"
                     fontWeight="bold"
                   >
-                    {permiteMonedaPorProducto &&
-                    monedasConCosto[0] &&
-                    monedasConCosto[0] !== monedaBase
+                    {mostrarMoneda && monedasConCosto[0]
                       ? formatMontoEnMoneda(
                           totalCostoPorMoneda[monedasConCosto[0]] ?? 0,
                           monedasConCosto[0],
@@ -201,9 +203,7 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                 <TableCell>Producto</TableCell>
                 <TableCell align="center">Cantidad</TableCell>
                 <TableCell align="center">Costo Unit.</TableCell>
-                {permiteMonedaPorProducto && (
-                  <TableCell align="center">Moneda</TableCell>
-                )}
+                {mostrarMoneda && <TableCell align="center">Moneda</TableCell>}
                 <TableCell align="right">Costo Total</TableCell>
               </TableRow>
             </TableHead>
@@ -289,39 +289,41 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                         sx={{ width: 100 }}
                       />
                     </TableCell>
-                    {permiteMonedaPorProducto && (
+                    {mostrarMoneda && (
                       <TableCell align="center">
-                        <TextField
-                          select
-                          size="small"
-                          value={producto.monedaCostoCode ?? monedaBase}
-                          onChange={(e) =>
-                            actualizarMoneda(
-                              producto.productoId,
-                              e.target.value,
-                            )
-                          }
-                          disabled={
-                            esSalida || tipoMovimiento === "TRASPASO_ENTRADA"
-                          }
-                          sx={{ width: 90 }}
-                        >
-                          {monedasDisponibles.map((code) => (
-                            <MenuItem key={code} value={code}>
-                              {code}
-                            </MenuItem>
-                          ))}
-                        </TextField>
+                        {tipoMovimiento === "TRASPASO_ENTRADA" ? (
+                          <Typography variant="body2" fontWeight="medium">
+                            {producto.monedaCostoCode ?? monedaBase}
+                          </Typography>
+                        ) : (
+                          <TextField
+                            select
+                            size="small"
+                            value={producto.monedaCostoCode ?? monedaBase}
+                            onChange={(e) =>
+                              actualizarMoneda(
+                                producto.productoId,
+                                e.target.value,
+                              )
+                            }
+                            disabled={esSalida}
+                            sx={{ width: 90 }}
+                          >
+                            {monedasDisponibles.map((code) => (
+                              <MenuItem key={code} value={code}>
+                                {code}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        )}
                       </TableCell>
                     )}
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="medium">
-                        {permiteMonedaPorProducto &&
-                        producto.monedaCostoCode &&
-                        producto.monedaCostoCode !== monedaBase
+                        {mostrarMoneda
                           ? formatMontoEnMoneda(
                               producto.costoTotal,
-                              producto.monedaCostoCode,
+                              producto.monedaCostoCode ?? monedaBase,
                             )
                           : formatCurrency(producto.costoTotal)}
                       </Typography>
@@ -371,12 +373,17 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                   actualizarCosto(producto.productoId, nuevoCosto)
                 }
                 onEliminar={() => eliminarProducto(producto.productoId)}
-                {...(permiteMonedaPorProducto && {
-                  moneda: producto.monedaCostoCode ?? monedaBase,
-                  monedasDisponibles,
-                  onActualizarMoneda: (nuevaMoneda: string) =>
-                    actualizarMoneda(producto.productoId, nuevaMoneda),
-                })}
+                {...(tipoMovimiento === "TRASPASO_ENTRADA"
+                  ? {
+                      moneda: producto.monedaCostoCode ?? monedaBase,
+                      monedaSoloLectura: true,
+                    }
+                  : permiteMonedaPorProducto && {
+                      moneda: producto.monedaCostoCode ?? monedaBase,
+                      monedasDisponibles,
+                      onActualizarMoneda: (nuevaMoneda: string) =>
+                        actualizarMoneda(producto.productoId, nuevaMoneda),
+                    })}
               />
             );
           })}

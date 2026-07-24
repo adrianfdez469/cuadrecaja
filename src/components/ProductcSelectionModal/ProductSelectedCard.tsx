@@ -36,6 +36,9 @@ interface ProductSelectedCardProps {
   moneda?: string;
   monedasDisponibles?: string[];
   onActualizarMoneda?: (nuevaMoneda: string) => void;
+  // TRASPASO_ENTRADA: moneda fija de la tienda origen, no editable — se
+  // muestra como texto en vez del selector.
+  monedaSoloLectura?: boolean;
 }
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -62,6 +65,7 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
   moneda,
   monedasDisponibles,
   onActualizarMoneda,
+  monedaSoloLectura,
 }) => {
   return (
     <StyledCard variant="outlined">
@@ -119,23 +123,34 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
               step={0.01}
             />
 
-            {monedasDisponibles && monedasDisponibles.length > 1 && (
+            {monedaSoloLectura && moneda && (
               <TextField
-                select
                 size="small"
                 label="Moneda"
                 value={moneda}
-                disabled={disabledCosto}
-                onChange={(e) => onActualizarMoneda?.(e.target.value)}
+                disabled
                 sx={{ width: 90 }}
-              >
-                {monedasDisponibles.map((code) => (
-                  <MenuItem key={code} value={code}>
-                    {code}
-                  </MenuItem>
-                ))}
-              </TextField>
+              />
             )}
+            {!monedaSoloLectura &&
+              monedasDisponibles &&
+              monedasDisponibles.length > 1 && (
+                <TextField
+                  select
+                  size="small"
+                  label="Moneda"
+                  value={moneda}
+                  disabled={disabledCosto}
+                  onChange={(e) => onActualizarMoneda?.(e.target.value)}
+                  sx={{ width: 90 }}
+                >
+                  {monedasDisponibles.map((code) => (
+                    <MenuItem key={code} value={code}>
+                      {code}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
           </Stack>
           <Box
             display="flex"
@@ -147,7 +162,9 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
             </Typography>
             <Box display="flex" alignItems="center" gap={2}>
               <Typography variant="h6" fontWeight="bold">
-                {monedasDisponibles && monedasDisponibles.length > 1 && moneda
+                {moneda &&
+                (monedaSoloLectura ||
+                  (monedasDisponibles && monedasDisponibles.length > 1))
                   ? formatMontoEnMoneda(costoTotal, moneda)
                   : formatCurrency(costoTotal)}
               </Typography>
