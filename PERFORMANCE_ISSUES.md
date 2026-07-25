@@ -103,9 +103,25 @@ tienen timeout configurado. Son detonantes claros del error en operaciones grand
 
 | # | Archivo | Problema |
 |---|---------|----------|
-| P1.1 | `src/lib/movimiento/import.ts` (tx en ~430 y ~206) | Importación de inventario: hasta 100 items × ~6 queries = cientos de round-trips secuenciales en un solo tx. Sin timeout. |
+| P1.1 ✅ | `src/lib/movimiento/import.ts` (tx en ~430 y ~206) | **RESUELTO (fix dirigido).** Importación de inventario (Excel, lote real y grande): hasta 100 items × ~6 queries = cientos de round-trips secuenciales en un solo tx. Sin timeout. |
 | P1.2 ✅ | `src/app/api/productos_tienda/[tiendaId]/route.ts` (tx en ~162) | **RESUELTO.** Guardar/conformar precios en lote: `prisma.$transaction(productos.map(...))` con array de tamaño ilimitado (puede ser todo el catálogo). Sin chunking ni timeout. |
 | P1.3 | `src/app/api/negocio/[id]/cambiar-moneda-base/route.ts` (tx en ~175) | Recorre TODOS los `productoTienda` del negocio y hace `update` uno por uno + loop de gastos. Escala linealmente con el catálogo. |
+
+> **P1.1 — Estado: resuelto (fix dirigido).** Caller real: `POST /api/movimiento/import`
+> (importación de Excel) → `ImportarExcelMovimiento`. Es un lote grande genuino (inventario
+> completo), a diferencia de P1.2. Cambios aplicados: (a) `{ timeout: 30000, maxWait: 10000 }`
+> (`IMPORT_TX_OPTIONS`) en ambas transacciones —la del path chunked (`procesarChunk`) y la del
+> path de lote pequeño ≤100 items—; (b) `CHUNK_SIZE` reducido de 50 a 25 para acotar la duración
+> de cada transacción del path grande. Se mantiene `CHUNK_THRESHOLD=100` y la separación de paths
+> para no cambiar la semántica de atomicidad de imports pequeños. Verificado con `eslint` +
+> `tsc --noEmit` (0 errores).
+>
+> **Follow-up recomendado (no aplicado, requiere más pruebas):** unificar los dos paths sobre la
+> lógica buena (`procesarLoteProductos`) siempre chunkeada, y batchear el pre-cargado de
+> categorías/proveedores/productos existentes fuera del loop para reducir round-trips. Nota: hoy
+> `procesarChunk` (path >100 items) **carece** del chequeo de `productoTienda` duplicado y del
+> dedup de productos que sí tiene `procesarLoteProductos` — inconsistencia latente a corregir al
+> unificar.
 
 > **P1.2 — Estado: resuelto (endurecimiento defensivo).** Los updates se procesan en lotes
 > secuenciales de 100 (`CHUNK_SIZE`), cada uno en su propia transacción de array. Los updates
