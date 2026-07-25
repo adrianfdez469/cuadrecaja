@@ -115,6 +115,7 @@ export default function TicketConfigPage() {
         mostrarMultimoneda: data.mostrarMultimoneda,
         mostrarTasas: data.mostrarTasas ?? false,
         mostrarTotalesSecundarios: data.mostrarTotalesSecundarios ?? true,
+        marcarLineasVacias: data.marcarLineasVacias ?? true,
         anchoPapel: data.anchoPapel === 80 ? 80 : 58,
         logoUrl: data.logoUrl,
       });
@@ -305,6 +306,22 @@ export default function TicketConfigPage() {
               }
               label="Mostrar totales en monedas secundarias"
             />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.marcarLineasVacias}
+                  onChange={(e) =>
+                    setForm({ ...form, marcarLineasVacias: e.target.checked })
+                  }
+                />
+              }
+              label="Marcar renglones vacíos con caracteres"
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+              Actívelo solo si su impresora no avanza el papel en renglones en
+              blanco. Agrega un carácter en los bordes de los renglones de avance
+              para forzar el salto de línea.
+            </Typography>
 
             {previewPayload ? (
               <Box>

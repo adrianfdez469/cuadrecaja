@@ -716,7 +716,13 @@ export default function POSInterface() {
     multimoneda?: import("@/app/pos/components/PaymentModal").IMultimonedaExtras,
   ) => {
     try {
-      if (total <= totalCash + totalTransfer) {
+      // Comparación en céntimos para tolerar ruido de punto flotante: sin esto,
+      // un total fraccionado podía dar `false` por diferencias ~1e-13 y la venta
+      // se descartaba en silencio.
+      if (
+        Math.round(total * 100) <=
+        Math.round((totalCash + totalTransfer) * 100)
+      ) {
         const tiendaId = user.localActual.id;
         const cierreId = periodo.id;
         const identifier =
@@ -940,6 +946,11 @@ export default function POSInterface() {
             "info",
           );
         }
+      } else {
+        showMessage(
+          "❌ El pago no cubre el total de la venta",
+          "error",
+        );
       }
     } catch (error) {
       console.error(error);

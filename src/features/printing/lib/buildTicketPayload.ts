@@ -44,25 +44,21 @@ export function buildTicketPayload(
   const monedaBase = context.monedaBase;
   const tasas = sale.tasaSnapshot ?? {};
 
-  const productos = sale.productos.map((p) => ({
-    cantidad: p.cantidad,
-    nombre: p.name,
-    precioUnitario: p.price,
-    subtotal: p.price * p.cantidad,
-    monedaPrecioCode: p.monedaPrecioCode,
-  }));
+  // Cada línea se convierte a la moneda base para que la columna de importes
+  // del ticket sume exactamente al Subtotal / TOTAL <base> (evita mezclar
+  // monedas crudas, p. ej. 14 USD junto a 4.500 CUP en la misma columna).
+  const productos = sale.productos.map((p) => {
+    const moneda = p.monedaPrecioCode ?? monedaBase;
+    return {
+      cantidad: p.cantidad,
+      nombre: p.name,
+      precioUnitario: convertToBase(p.price, moneda, tasas, monedaBase),
+      subtotal: convertToBase(p.price * p.cantidad, moneda, tasas, monedaBase),
+      monedaPrecioCode: monedaBase, // ya normalizado a base
+    };
+  });
 
-  const subtotalBase = productos.reduce(
-    (sum, p) =>
-      sum +
-      convertToBase(
-        p.subtotal,
-        p.monedaPrecioCode ?? monedaBase,
-        tasas,
-        monedaBase,
-      ),
-    0,
-  );
+  const subtotalBase = productos.reduce((sum, p) => sum + p.subtotal, 0);
 
   const discountTotal =
     plantilla.mostrarDescuentos && sale.discountTotal != null && sale.discountTotal > 0

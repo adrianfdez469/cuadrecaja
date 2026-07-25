@@ -238,6 +238,7 @@ model TicketPlantilla {
   mostrarMultimoneda        Boolean  @default(true)
   mostrarTasas              Boolean  @default(false)
   mostrarTotalesSecundarios Boolean  @default(true)
+  marcarLineasVacias        Boolean  @default(true)
   anchoPapel                Int      @default(58)
   logoUrl                   String?
   updatedAt                 DateTime @updatedAt

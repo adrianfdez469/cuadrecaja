@@ -20,8 +20,8 @@ function renderTextLineHtml(
 }
 
 /** Puntos en ambos bordes + altura fija: el driver Windows no avanza papel en zonas vacías. */
-function renderFeedLineHtml(width: number): string {
-  const text = formatFeedLine(width).replace(/</g, "&lt;");
+function renderFeedLineHtml(width: number, marker: boolean): string {
+  const text = formatFeedLine(width, marker).replace(/</g, "&lt;");
   return `<div class="feed-line">${text}</div>`;
 }
 
@@ -39,7 +39,7 @@ export function buildTicketPrintHtmlFromRendered(
         return `<div class="qr-wrap"><img src="${qrDataUrl}" alt="QR Cuadre de Caja" /></div>`;
       }
       if (line.kind === "feed") {
-        return renderFeedLineHtml(width);
+        return renderFeedLineHtml(width, line.marker);
       }
       return renderTextLineHtml(line, width);
     })

@@ -12,6 +12,7 @@ export const ticketPlantillaSchema = z.object({
   mostrarMultimoneda: z.boolean().default(true),
   mostrarTasas: z.boolean().default(false),
   mostrarTotalesSecundarios: z.boolean().default(true),
+  marcarLineasVacias: z.boolean().default(true),
   anchoPapel: z.union([z.literal(58), z.literal(80)]).default(58),
   logoUrl: z.string().max(500).nullable().optional(),
   updatedAt: z.string().datetime().optional(),
@@ -39,6 +40,7 @@ export const DEFAULT_TICKET_PLANTILLA: Omit<
   mostrarMultimoneda: true,
   mostrarTasas: false,
   mostrarTotalesSecundarios: true,
+  marcarLineasVacias: true,
   anchoPapel: 58,
   logoUrl: null,
 };

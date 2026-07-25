@@ -56,6 +56,8 @@ export interface ITicketQrLine {
 /** Avance de papel: fuerza altura en impresión navegador (el driver ignora filas vacías). */
 export interface ITicketFeedLine {
   kind: "feed";
+  /** Si true, se imprimen caracteres en los bordes para forzar avance en impresoras que ignoran renglones vacíos. */
+  marker: boolean;
 }
 
 export type ITicketRenderedLine =

@@ -86,7 +86,7 @@ export const TicketPreviewContent: React.FC<TicketPreviewContentProps> = ({
                 color: "text.disabled",
               }}
             >
-              {formatFeedLine(width)}
+              {formatFeedLine(width, line.marker) || " "}
             </Typography>
           );
         }
