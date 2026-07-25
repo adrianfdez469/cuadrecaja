@@ -62,7 +62,7 @@ export function encodeTicketToEscPos(payload: ITicketPayload): Uint8Array {
         currentAlign = "left";
         parts.push(cmd(ESC, 0x61, 0x00));
       }
-      parts.push(line(formatFeedLine(width)));
+      parts.push(line(formatFeedLine(width, row.marker)));
       continue;
     }
 

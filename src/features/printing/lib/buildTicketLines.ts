@@ -28,8 +28,8 @@ function blankLine(): ITicketRenderedLine {
 }
 
 /** Avance de papel con marca visible (el spooler Windows recorta el vacío). */
-function feedLine(): ITicketRenderedLine {
-  return { kind: "feed" };
+function feedLine(marker: boolean): ITicketRenderedLine {
+  return { kind: "feed", marker };
 }
 
 function center(text: string): ITicketRenderedLine {
@@ -103,10 +103,11 @@ export function buildTicketLines(payload: ITicketPayload): ITicketRenderedLine[]
   const ancho = (plantilla.anchoPapel === 80 ? 80 : 58) as 58 | 80;
   const width = getCharsPerLine(ancho);
   const tasas = payload.tasaSnapshot ?? {};
+  const marcarLineasVacias = plantilla.marcarLineasVacias ?? true;
   const lines: ITicketRenderedLine[] = [];
 
   for (let i = 0; i < TICKET_FEED_LEADING_LINES; i++) {
-    lines.push(feedLine());
+    lines.push(feedLine(marcarLineasVacias));
   }
 
   lines.push(left(fullSeparator(width, "=")));
@@ -217,7 +218,7 @@ export function buildTicketLines(payload: ITicketPayload): ITicketRenderedLine[]
   lines.push(left(fullSeparator(width, "=")));
 
   for (let i = 0; i < TICKET_FEED_BLANK_LINES; i++) {
-    lines.push(feedLine());
+    lines.push(feedLine(marcarLineasVacias));
   }
 
   return lines;

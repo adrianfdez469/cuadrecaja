@@ -40,7 +40,7 @@ import {
 import { useAppContext } from "@/context/AppContext";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { calcularVuelto, convertToBase, convertFromBase } from "@/lib/currency";
+import { convertToBase, convertFromBase } from "@/lib/currency";
 
 export interface IMultimonedaExtras {
   monedaCobro: string;
@@ -100,6 +100,12 @@ const PaymentModal: FC<IProps> = ({
   );
 
   const fmtBase = (amount: number) => `${amount.toFixed(2)} ${monedaBase}`;
+
+  // El efectivo autocompletado se redondea SIEMPRE por exceso al siguiente
+  // entero (63.64 → 64). El Number(...toFixed(2)) evita que el ruido de punto
+  // flotante suba de más un total entero.
+  const ceilCash = (x: number) => Math.ceil(Number(x.toFixed(2)));
+  const round2 = (x: number) => Math.round(x * 100) / 100;
 
   // ─── Discounts ────────────────────────────────────────────────────────────
   const [promoCode, setPromoCode] = useState("");
@@ -255,26 +261,20 @@ const PaymentModal: FC<IProps> = ({
       return;
     }
 
-    const dv = calcularVuelto(
-      finalTotal,
-      pagosLinea,
-      mainCurrency,
-      monedaBase,
-      tasasVigentes,
-      denominaciones,
+    // Vuelto = diferencia EXACTA (sin redondear a denominación), en la moneda
+    // de efectivo principal. El efectivo se redondea por exceso, así que el
+    // vuelto es ese sobrante exacto y el neto en caja = total real.
+    const monto = round2(
+      convertFromBase(vueltoTotalBase, mainCurrency, tasasVigentes, monedaBase),
     );
-    const newMap: Record<string, number> = {};
-    for (const v of dv) if (v.monto > 0) newMap[v.moneda] = v.monto;
-    setVueltoMap(newMap);
+    setVueltoMap(monto > 0 ? { [mainCurrency]: monto } : {});
   }, [
     falta,
     vueltoLocked,
-    totalPagado,
-    finalTotal,
+    vueltoTotalBase,
     monedaBase,
     pagosLinea,
     tasasVigentes,
-    denominaciones,
   ]);
 
   // ─── Init ─────────────────────────────────────────────────────────────────
@@ -309,7 +309,7 @@ const PaymentModal: FC<IProps> = ({
       if (keys.length !== 1 || keys[0] !== monedaBase) return prev;
       const base = prev[monedaBase];
       return {
-        [monedaBase]: { ...base, cash: parseFloat(finalTotal.toFixed(2)) },
+        [monedaBase]: { ...base, cash: ceilCash(finalTotal) },
       };
     });
   }, [finalTotal, monedaBase, open]);
@@ -325,9 +325,7 @@ const PaymentModal: FC<IProps> = ({
       );
     const rem = Math.max(0, finalTotal - otherPaid);
     if (rem <= 0) return 0;
-    return parseFloat(
-      convertFromBase(rem, moneda, tasasVigentes, monedaBase).toFixed(2),
-    );
+    return ceilCash(convertFromBase(rem, moneda, tasasVigentes, monedaBase));
   };
 
   const updatePago = (moneda: string, partial: Partial<PagoMoneda>) =>
@@ -388,7 +386,7 @@ const PaymentModal: FC<IProps> = ({
     } else {
       const transfer = pagosMap[monedaBase]?.transfer ?? 0;
       updatePago(monedaBase, {
-        cash: parseFloat(Math.max(0, finalTotal - transfer).toFixed(2)),
+        cash: ceilCash(Math.max(0, finalTotal - transfer)),
       });
     }
     setShowBreakdown((prev) => !prev);

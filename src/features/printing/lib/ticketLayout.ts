@@ -131,9 +131,13 @@ export function formatRenderedLine(
   return align === "center" ? centerLine(text, width) : text;
 }
 
-/** Puntos de avance de papel en ambos bordes (simétrico). */
-export function formatFeedLine(width: number): string {
-  return padLine(".", ".", width);
+/**
+ * Renglón de avance de papel. Con `marker` (por defecto) coloca puntos en ambos
+ * bordes para forzar el avance en impresoras que ignoran renglones vacíos; sin
+ * `marker` devuelve un renglón realmente en blanco.
+ */
+export function formatFeedLine(width: number, marker = true): string {
+  return marker ? padLine(".", ".", width) : "";
 }
 
 /** Convierte marcadores `** texto **` usados en encabezados del ticket */
