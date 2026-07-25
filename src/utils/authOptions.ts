@@ -142,10 +142,29 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
+        // ⚠️ VALIDAR QUE localActual APUNTE A UN LOCAL REALMENTE DISPONIBLE
+        // (puede quedar huérfano si el usuario fue removido de esa tienda, la
+        // tienda se eliminó, o nunca se seteó). Si no es válido, caer al
+        // primer local disponible y persistirlo para futuros logins.
+        const localActualValido = localesDisponibles.some(
+          (local) => local.id === user.localActual?.id,
+        );
+
+        const localActualEfectivo = localActualValido
+          ? user.localActual
+          : (localesDisponibles[0] ?? null);
+
+        if (!localActualValido && localActualEfectivo) {
+          await prisma.usuario.update({
+            where: { id: user.id },
+            data: { localActualId: localActualEfectivo.id },
+          });
+        }
+
         // Obtener permisos basados en la tienda actual
         const permisos = await getPermisosUsuario(
           user.id,
-          user.localActual?.id || null,
+          localActualEfectivo?.id || null,
         );
 
         let rol = "";
@@ -153,7 +172,7 @@ export const authOptions: NextAuthOptions = {
         if (user.rol === "SUPER_ADMIN") {
           rol = "SUPER_ADMIN";
         } else {
-          rol = await getRolUsuario(user.id, user.localActual?.id || null);
+          rol = await getRolUsuario(user.id, localActualEfectivo?.id || null);
         }
 
         const negocioParaToken = {
@@ -177,7 +196,7 @@ export const authOptions: NextAuthOptions = {
           // tiendas: tiendasDisponibles,
           locales: localesDisponibles,
           // tiendaActual: user.tiendaActual
-          localActual: user.localActual,
+          localActual: localActualEfectivo,
           permisos: permisos,
         };
       },
