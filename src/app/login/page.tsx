@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import NextLink from "next/link";
 import {
   TextField,
@@ -40,6 +41,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     try {
@@ -101,10 +103,23 @@ export default function LoginPage() {
           setError("Credenciales inválidas. Verifica tu usuario y contraseña.");
         }
         setLoading(false);
+        return;
       }
-      // Éxito: se deja loading=true, AppContext detectará la sesión y redirigirá.
-      // Si se apagara aquí, el botón se reactivaría durante el instante
-      // en que useSession aún no refleja el nuevo estado autenticado.
+
+      // signIn no devuelve el contenido de la sesión, solo ok/error.
+      // La pedimos y validamos que venga completa antes de redirigir,
+      // en vez de asumir éxito y esperar a que AppContext la detecte sola.
+      const session = await getSession();
+
+      if (!session?.user?.rol) {
+        setError(
+          "Tu cuenta no tiene un rol asignado en este local. Contacta al administrador.",
+        );
+        setLoading(false);
+        return;
+      }
+
+      router.push("/home");
     } catch (err) {
       console.error(err);
       setError("Error de conexión. Intenta nuevamente.");
@@ -674,13 +689,13 @@ export default function LoginPage() {
               </form>
 
               {/* Footer informativo */}
-              <Box sx={{ mt: 4, textAlign: 'center' }}>
+              <Box sx={{ mt: 4, textAlign: "center" }}>
                 <Link
                   component={NextLink}
                   href="/"
                   variant="body2"
                   underline="hover"
-                  sx={{ display: 'block', mb: 1 }}
+                  sx={{ display: "block", mb: 1 }}
                 >
                   Volver a la página principal
                 </Link>
