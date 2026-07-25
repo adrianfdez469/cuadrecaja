@@ -47,9 +47,6 @@
   "recuperaciones.dashboard.acceder": {
     "descripcion": "Permite acceder al dashboard de recuperaciones"
   },
-  "recuperaciones.inventario.acceder": {
-    "descripcion": "Permite acceder a la interfaz de recuperaciones del inventario actual de los productos"
-  },
   "recuperaciones.resumencierres.acceder": {
     "descripcion": "Permite revisar los resumentes de los cierres anteriores"
   },
@@ -83,8 +80,11 @@
   "operaciones.ventas.eliminar": {
     "descripcion": "Permite eliminar ventas"
   },
-  "operaciones.conformarprecios.acceder": {
-    "descripcion": "Permite conformar precios de productos"
+  "operaciones.inventario.editarcosto": {
+    "descripcion": "Permite editar el costo de los productos en la vista de inventario"
+  },
+  "operaciones.inventario.editarprecio": {
+    "descripcion": "Permite editar el precio de venta de los productos en la vista de inventario"
   },
   "operaciones.cierre.acceder": {
     "descripcion": "Permite acceder a la interfaz de cierre de caja"

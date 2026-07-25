@@ -181,7 +181,7 @@ const CONFIGURATION_MENU_ITEMS = [
     label: "Ticket de venta",
     path: "/configuracion/ticket",
     icon: Receipt,
-    permission: 'configuracion.ticket.editar'
+    permission: "configuracion.ticket.editar",
   },
   {
     label: "Monedas del negocio",
@@ -215,6 +215,10 @@ const MAIN_MENU_ITEMS = [
     path: "/inventario",
     icon: Inventory,
     permission: "operaciones.inventario.acceder",
+    anyOf: [
+      "operaciones.inventario.acceder",
+      "operaciones.movimientos.acceder",
+    ],
   },
   {
     label: "Ventas",
@@ -312,7 +316,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     administracion: false,
     configuracion: false,
   });
-  const { verificarPermiso } = usePermisos();
+  const { verificarPermiso, tieneAlguno } = usePermisos();
   const {
     isBlockingActive,
     canNavigateTo,
@@ -437,6 +441,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       })
       .filter((item) => {
         if (user.rol === "SUPER_ADMIN") return true;
+        if (item.anyOf) return tieneAlguno(item.anyOf);
         return verificarPermiso(item.permission);
       });
   };

@@ -7,14 +7,17 @@ import { useAppContext } from "@/context/AppContext";
 import { GestionInventarioPage } from "@/components/GestionInventario";
 
 export default function GestionInventarioRoute() {
-  const { verificarPermiso } = usePermisos();
+  const { tieneAlguno } = usePermisos();
   const { loadingContext } = useAppContext();
   const router = useRouter();
 
   useEffect(() => {
     if (
       !loadingContext &&
-      !verificarPermiso("operaciones.inventario.acceder")
+      !tieneAlguno([
+        "operaciones.inventario.acceder",
+        "operaciones.movimientos.acceder",
+      ])
     ) {
       router.push("/forbidden");
     }
