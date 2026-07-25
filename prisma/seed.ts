@@ -4,6 +4,9 @@ import { seedDemoCatalogForTienda } from '../src/lib/onboarding/seedDemoCatalogF
 
 const prisma = new PrismaClient();
 
+/** Único negocio sobre el que puede operar el seed de desarrollo. */
+const NEGOCIO_DEMO = 'Negocio Demo';
+
 const planes = [
   {
     nombre: 'FREEMIUM',
@@ -212,9 +215,13 @@ async function main() {
   console.log(`  ✓ Categorías globales (${globalCreadas} creadas, ${globalCategorias.length - globalCreadas} existentes)`);
 
   // ──────────────────────────────────────────────────────────────────────
-  // Seed de desarrollo — solo fuera de producción
+  // Seed de desarrollo — requiere opt-in explícito
+  //
+  // NO usar NODE_ENV como guarda: durante la fase de install de un build en
+  // Vercel no vale 'production', así que este bloque llegó a correr contra la
+  // base de producción y contaminó negocios reales con el catálogo demo.
   // ──────────────────────────────────────────────────────────────────────
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.SEED_DEV === 'true') {
     console.log('\nSeeding datos de desarrollo...');
 
     const planFreemium = await prisma.plan.findUnique({ where: { nombre: 'FREEMIUM' } });
@@ -222,12 +229,15 @@ async function main() {
 
     // ── 1. Negocio + Superadmin ───────────────────────────────────────
     let negocioId: string;
-    const superadminExistente = await prisma.usuario.findUnique({ where: { usuario: 'superadmin' } });
+    const superadminExistente = await prisma.usuario.findUnique({
+      where: { usuario: 'superadmin' },
+      include: { negocio: { select: { id: true, nombre: true } } },
+    });
 
     if (!superadminExistente) {
       const negocio = await prisma.negocio.create({
         data: {
-          nombre: 'Negocio Demo',
+          nombre: NEGOCIO_DEMO,
           limitTime: fiveYearsFromNow,
           planId: planFreemium?.id ?? null,
         },
@@ -243,6 +253,16 @@ async function main() {
         },
       });
       console.log('  ✓ superadmin');
+    } else if (superadminExistente.negocio.nombre !== NEGOCIO_DEMO) {
+      // El superadmin apunta al negocio que tenga seleccionado en la app
+      // (/api/auth/cambiar-negocio reescribe Usuario.negocioId). Sembrar ahí
+      // inyecta la tienda y el catálogo demo en un negocio real.
+      console.error(
+        `\n  ✗ El usuario 'superadmin' pertenece a "${superadminExistente.negocio.nombre}", ` +
+          `no a "${NEGOCIO_DEMO}".\n` +
+          '    Se omite el seed de desarrollo para no contaminar un negocio real.\n'
+      );
+      return;
     } else {
       negocioId = superadminExistente.negocioId;
       console.log('  - superadmin ya existe');
