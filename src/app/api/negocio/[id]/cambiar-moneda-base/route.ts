@@ -171,8 +171,15 @@ export async function POST(
       );
     }
 
-    // Transacción: convierte precios/costos y actualiza Negocio
-    await prisma.$transaction(async (tx) => {
+    // Transacción: convierte precios/costos y actualiza Negocio.
+    // DEBE ser atómica y una sola transacción: un fallo parcial dejaría el negocio
+    // con parte de los precios en la moneda nueva y parte en la vieja, y reintentar
+    // re-convertiría los ya convertidos (la conversión NO es idempotente). Por eso no
+    // se puede chunkear en transacciones separadas como en otros lotes. Con el
+    // transaction pooler el default de 5000 ms se agota al recorrer todo el catálogo,
+    // así que se da un timeout generoso. Ver PERFORMANCE_ISSUES.md (P1.3).
+    await prisma.$transaction(
+      async (tx) => {
       const productos = await tx.productoTienda.findMany({
         where: { tienda: { negocioId: id } },
         select: {
@@ -251,7 +258,9 @@ export async function POST(
         where: { id },
         data: { monedaBase: monedaNueva },
       });
-    });
+    },
+      { timeout: 60000, maxWait: 15000 },
+    );
 
     return NextResponse.json({ ok: true, monedaBase: monedaNueva });
   } catch (error) {

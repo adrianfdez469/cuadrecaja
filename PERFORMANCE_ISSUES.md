@@ -105,7 +105,20 @@ tienen timeout configurado. Son detonantes claros del error en operaciones grand
 |---|---------|----------|
 | P1.1 ✅ | `src/lib/movimiento/import.ts` (tx en ~430 y ~206) | **RESUELTO (fix dirigido).** Importación de inventario (Excel, lote real y grande): hasta 100 items × ~6 queries = cientos de round-trips secuenciales en un solo tx. Sin timeout. |
 | P1.2 ✅ | `src/app/api/productos_tienda/[tiendaId]/route.ts` (tx en ~162) | **RESUELTO.** Guardar/conformar precios en lote: `prisma.$transaction(productos.map(...))` con array de tamaño ilimitado (puede ser todo el catálogo). Sin chunking ni timeout. |
-| P1.3 | `src/app/api/negocio/[id]/cambiar-moneda-base/route.ts` (tx en ~175) | Recorre TODOS los `productoTienda` del negocio y hace `update` uno por uno + loop de gastos. Escala linealmente con el catálogo. |
+| P1.3 ✅ | `src/app/api/negocio/[id]/cambiar-moneda-base/route.ts` (tx en ~175) | **RESUELTO (fix dirigido).** Recorre TODOS los `productoTienda` del negocio y hace `update` uno por uno + loop de gastos. Escala linealmente con el catálogo. |
+
+> **P1.3 — Estado: resuelto (fix dirigido).** Operación rara de admin (cambiar la moneda base
+> del negocio). **La atomicidad es obligatoria y NO se puede chunkear:** un fallo parcial dejaría
+> parte del catálogo en la moneda nueva y parte en la vieja, y reintentar re-convertiría los ya
+> convertidos (la conversión NO es idempotente, a diferencia de P1.2). Fix: se mantiene una sola
+> transacción atómica con semántica idéntica (valores exactos, consistentes con el preview del GET)
+> y se le añade `{ timeout: 60000, maxWait: 15000 }`. Se descartó el `UPDATE` masivo en SQL porque
+> el redondeo `Math.round(x*100)/100` en float64 de JS no coincide con `ROUND(numeric)` de Postgres
+> en casos de medio-centavo, y debe coincidir con el preview. Verificado con `eslint` + `tsc` (0 err).
+>
+> **Follow-up (solo si aparecen catálogos gigantes):** un `UPDATE ... FROM (VALUES ...)` con los
+> valores ya redondeados en JS (un solo round-trip, atómico) o mover a un job en background. Hoy
+> innecesario por la baja frecuencia de la operación.
 
 > **P1.1 — Estado: resuelto (fix dirigido).** Caller real: `POST /api/movimiento/import`
 > (importación de Excel) → `ImportarExcelMovimiento`. Es un lote grande genuino (inventario
