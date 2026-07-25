@@ -168,14 +168,22 @@ Muchos queries pero con cota conocida. Riesgo real bajo latencia del pooler en e
 | # | Archivo | Nota |
 |---|---------|------|
 | P2.1 ✅ | `src/lib/movimiento/index.ts` → `CreateMoviento` (tx en ~67) | **RESUELTO.** Loop por item con ~4-6 queries c/u. **Solo** la rama `esCompraEfectivoCaja` tenía `{ timeout: 15000, maxWait: 10000 }`; traspasos, mermas y ajustes corrían con el default de 5000ms. |
-| P2.2 | `src/lib/onboarding/initializeNegocio.ts` (tx en ~59) | Onboarding: ~90-100 queries en peor caso (hasta 19 tiendas + seed de catálogo demo). |
-| P2.3 | `src/lib/negocio/deleteNegocioCompleto.ts` (tx en ~11) | `deleteMany` masivos + loop de hasta 50; costo depende del volumen del negocio. |
+| P2.2 ✅ | `src/lib/onboarding/initializeNegocio.ts` (tx en ~59) | **RESUELTO.** Onboarding: ~90-100 queries en peor caso (hasta 19 tiendas + seed de catálogo demo). |
+| P2.3 ✅ | `src/lib/negocio/deleteNegocioCompleto.ts` (tx en ~11) | **RESUELTO.** `deleteMany` masivos + loop de hasta 50; costo depende del volumen del negocio. |
 
 > **P2.1 — Estado: resuelto.** Se extrajo `MOVIMIENTO_TX_OPTIONS = { timeout: 20000, maxWait: 10000 }`
 > y se aplica a **todos** los tipos de movimiento (antes solo COMPRA+EFECTIVO_CAJA tenía timeout; el
 > resto usaba el default de 5000 ms). El valor 20000 ≥ 15000 del caso anterior, así que no reduce el
 > presupuesto de la rama con lock de caja. No se batcheó el loop: es demasiado sensible (CPP,
 > fraccionados, advisory lock por tienda) para hacerlo sin tests. Verificado con `eslint` + `tsc` (0 err).
+
+> **P2.2 — Estado: resuelto.** Se añadió `{ timeout: 30000, maxWait: 10000 }` a la transacción de
+> onboarding. Se mantiene una sola transacción atómica (crear negocio + tiendas + usuario + roles +
+> catálogo demo es todo-o-nada); no se chunkea. Verificado con `eslint` + `tsc` (0 err).
+>
+> **P2.3 — Estado: resuelto.** Se añadió `{ timeout: 60000, maxWait: 15000 }` a la transacción de
+> borrado (timeout más alto porque los `deleteMany` sobre `venta`/`movimientoStock` de negocios con
+> historial pueden ser lentos). Atómico por diseño; no se chunkea. Verificado con `eslint` + `tsc` (0 err).
 
 **Propuesta de solución:**
 - P2.1: extender el `{ timeout, maxWait }` a **todas** las ramas de `CreateMoviento`, no solo

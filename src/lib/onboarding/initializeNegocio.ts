@@ -56,6 +56,10 @@ export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboa
     orderBy: { precio: 'asc' },
   });
 
+  // Debe ser atómico: crear el negocio, sus tiendas, usuario, roles y catálogo
+  // demo es todo-o-nada. Con hasta 19 tiendas + seed de catálogo son ~90-100 queries
+  // secuenciales que agotan el default de Prisma (5000 ms) bajo el transaction pooler.
+  // Ver PERFORMANCE_ISSUES.md (P2.2).
   await prisma.$transaction(async (tx) => {
     const negocio = await tx.negocio.create({
       data: {
@@ -115,7 +119,7 @@ export async function initializeNegocio(input: IOnboardingInput): Promise<IOnboa
     if (input.incluirProductosPrueba) {
       await seedDemoCatalogForTienda(tx, negocio.id, tiendas[0].id);
     }
-  });
+  }, { timeout: 30000, maxWait: 10000 });
 
   return {
     usuario: correo,
