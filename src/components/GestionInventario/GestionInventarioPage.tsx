@@ -30,16 +30,22 @@ import ImportarExcelDialog from "./movimientos/importExcelDialog";
 import { exportInventarioToExcel } from "@/utils/excelExport";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
+import { usePermisos } from "@/utils/permisos_front";
 
 export function GestionInventarioPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, monedaBase, tasasVigentes } = useAppContext();
   const { showMessage } = useMessageContext();
+  const { verificarPermiso } = usePermisos();
+  const puedeVerInventario = verificarPermiso("operaciones.inventario.acceder");
+  const puedeVerMovimientos = verificarPermiso(
+    "operaciones.movimientos.acceder",
+  );
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [printLabelsOpen, setPrintLabelsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(puedeVerInventario ? 0 : 1);
 
   const {
     categorias,
@@ -126,7 +132,9 @@ export function GestionInventarioPage() {
     return () => window.clearTimeout(timer);
   }, [createProductOpen, signalEvent]);
 
-  const tabsBar = (
+  const mostrarTabs = puedeVerInventario && puedeVerMovimientos;
+
+  const tabsBar = mostrarTabs ? (
     <Container
       maxWidth="xl"
       sx={{ px: isMobile ? 1 : 3, pt: isMobile ? 1.5 : 3 }}
@@ -136,13 +144,13 @@ export function GestionInventarioPage() {
         onChange={(_, v) => setActiveTab(v)}
         sx={{ borderBottom: 1, borderColor: "divider" }}
       >
-        <Tab label="Inventario" />
-        <Tab label="Movimientos" />
+        <Tab label="Inventario" value={0} />
+        <Tab label="Movimientos" value={1} />
       </Tabs>
     </Container>
-  );
+  ) : null;
 
-  if (activeTab === 1) {
+  if (activeTab === 1 && puedeVerMovimientos) {
     return (
       <>
         {tabsBar}

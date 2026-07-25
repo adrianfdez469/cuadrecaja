@@ -97,6 +97,34 @@ export async function POST(
       );
     }
 
+    if (
+      costo &&
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.inventario.editarcosto",
+        user.rol,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "No tiene permiso para fijar el costo del producto" },
+        { status: 403 },
+      );
+    }
+
+    if (
+      precio &&
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.inventario.editarprecio",
+        user.rol,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "No tiene permiso para fijar el precio del producto" },
+        { status: 403 },
+      );
+    }
+
     const existente = await prisma.productoTienda.findFirst({
       where: { tiendaId, productoId, proveedorId: null, deletedAt: null },
     });
@@ -140,11 +168,6 @@ export async function PUT(
     if (
       !verificarPermisoUsuario(
         user.permisos,
-        "operaciones.conformarprecios.acceder",
-        user.rol,
-      ) &&
-      !verificarPermisoUsuario(
-        user.permisos,
         "operaciones.inventario.acceder",
         user.rol,
       )
@@ -157,6 +180,59 @@ export async function PUT(
 
     if (!tiendaId || !Array.isArray(productos)) {
       return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+    }
+
+    const puedeEditarCosto = verificarPermisoUsuario(
+      user.permisos,
+      "operaciones.inventario.editarcosto",
+      user.rol,
+    );
+    const puedeEditarPrecio = verificarPermisoUsuario(
+      user.permisos,
+      "operaciones.inventario.editarprecio",
+      user.rol,
+    );
+
+    if (!puedeEditarCosto || !puedeEditarPrecio) {
+      const existentes = await prisma.productoTienda.findMany({
+        where: { id: { in: productos.map((p) => p.id) }, tiendaId },
+        select: {
+          id: true,
+          precio: true,
+          costo: true,
+          monedaPrecioCode: true,
+          monedaCostoCode: true,
+        },
+      });
+      const existentesPorId = new Map(existentes.map((e) => [e.id, e]));
+
+      for (const producto of productos) {
+        const actual = existentesPorId.get(producto.id);
+        const intentaCambiarCosto =
+          (producto.costo !== undefined && producto.costo !== actual?.costo) ||
+          ("monedaCostoCode" in producto &&
+            (producto.monedaCostoCode ?? null) !==
+              (actual?.monedaCostoCode ?? null));
+        const intentaCambiarPrecio =
+          (producto.precio !== undefined &&
+            producto.precio !== actual?.precio) ||
+          ("monedaPrecioCode" in producto &&
+            (producto.monedaPrecioCode ?? null) !==
+              (actual?.monedaPrecioCode ?? null));
+
+        if (intentaCambiarCosto && !puedeEditarCosto) {
+          return NextResponse.json(
+            { error: "No tiene permiso para editar el costo del producto" },
+            { status: 403 },
+          );
+        }
+        if (intentaCambiarPrecio && !puedeEditarPrecio) {
+          return NextResponse.json(
+            { error: "No tiene permiso para editar el precio del producto" },
+            { status: 403 },
+          );
+        }
+      }
     }
 
     await prisma.$transaction(

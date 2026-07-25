@@ -35,6 +35,7 @@ import HardwareQrScanner from "@/components/ProductProcessorData/HardwareQrScann
 import MobileQrScanner from "@/components/ProductProcessorData/MobileQrScanner";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase, convertFromBase } from "@/lib/currency";
+import { usePermisos } from "@/utils/permisos_front";
 
 interface Props {
   open: boolean;
@@ -66,6 +67,13 @@ export function EditProductDialog({
   onSave,
 }: Props) {
   const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
+  const { verificarPermiso } = usePermisos();
+  const puedeEditarCosto = verificarPermiso(
+    "operaciones.inventario.editarcosto",
+  );
+  const puedeEditarPrecio = verificarPermiso(
+    "operaciones.inventario.editarprecio",
+  );
 
   const monedasDisponibles = useMemo(() => {
     const lista = [monedaBase];
@@ -317,6 +325,7 @@ export function EditProductDialog({
                   label="Moneda"
                   value={costoMonedaEfectiva}
                   onChange={(e) => handleCostoMonedaChange(e.target.value)}
+                  disabled={!puedeEditarCosto}
                 >
                   {monedasDisponibles.map((code) => (
                     <MenuItem key={code} value={code}>
@@ -331,6 +340,7 @@ export function EditProductDialog({
               value={costo}
               onChange={(e) => setCosto(e.target.value)}
               size="small"
+              disabled={!puedeEditarCosto}
               inputProps={{ inputMode: "decimal" }}
               InputProps={{
                 startAdornment: (
@@ -355,6 +365,7 @@ export function EditProductDialog({
                   label="Moneda"
                   value={precioMonedaEfectiva}
                   onChange={(e) => handlePrecioMonedaChange(e.target.value)}
+                  disabled={!puedeEditarPrecio}
                 >
                   {monedasDisponibles.map((code) => (
                     <MenuItem key={code} value={code}>
@@ -369,6 +380,7 @@ export function EditProductDialog({
               value={precio}
               onChange={(e) => setPrecio(e.target.value)}
               size="small"
+              disabled={!puedeEditarPrecio}
               inputProps={{ inputMode: "decimal" }}
               InputProps={{
                 startAdornment: (

@@ -48,7 +48,14 @@ import {
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
 import { IRol, ICreateRol, IUpdateRol, IPermiso } from "@/schemas/rol";
-import { getRoles, createRol, updateRol, deleteRol, getPermisos, getPermisosTemplates } from "@/services/rolService";
+import {
+  getRoles,
+  createRol,
+  updateRol,
+  deleteRol,
+  getPermisos,
+  getPermisosTemplates,
+} from "@/services/rolService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 
@@ -57,12 +64,12 @@ interface PermisosData {
 }
 
 interface IPlantillas {
-  [key: string]: string[]
+  [key: string]: string[];
 }
 
 export default function RolesPage() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const [roles, setRoles] = useState<IRol[]>([]);
   const [loading, setLoading] = useState(false);
@@ -71,7 +78,7 @@ export default function RolesPage() {
   const [selectedRol, setSelectedRol] = useState<IRol | null>(null);
   const [permisos, setPermisos] = useState<PermisosData>({});
   const [permisosLoading, setPermisosLoading] = useState(false);
-  
+
   const { showMessage } = useMessageContext();
   const { user, loadingContext } = useAppContext();
   const [templates, setTemplates] = useState<IPlantillas>();
@@ -79,12 +86,15 @@ export default function RolesPage() {
   // Estados del formulario
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [permisosSeleccionados, setPermisosSeleccionados] = useState<string[]>([]);
-  const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<string>("");
+  const [permisosSeleccionados, setPermisosSeleccionados] = useState<string[]>(
+    [],
+  );
+  const [plantillaSeleccionada, setPlantillaSeleccionada] =
+    useState<string>("");
 
   const fetchRoles = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     setError(null);
     try {
@@ -92,8 +102,8 @@ export default function RolesPage() {
       setRoles(data);
     } catch (error) {
       console.error(error);
-      setError('Error al cargar los roles');
-      showMessage('Error al cargar los roles', 'error');
+      setError("Error al cargar los roles");
+      showMessage("Error al cargar los roles", "error");
     } finally {
       setLoading(false);
     }
@@ -105,13 +115,11 @@ export default function RolesPage() {
       const permisosResponse = await getPermisos();
       const permisosTemplates = await getPermisosTemplates();
 
-      
-
       setPermisos(permisosResponse);
       setTemplates(permisosTemplates);
     } catch (error) {
       console.error("Error al cargar permisos:", error);
-      showMessage('Error al cargar los permisos del sistema', 'error');
+      showMessage("Error al cargar los permisos del sistema", "error");
     } finally {
       setPermisosLoading(false);
     }
@@ -152,12 +160,12 @@ export default function RolesPage() {
 
   const handleSubmit = async () => {
     if (!nombre.trim()) {
-      showMessage('El nombre del rol es requerido', 'error');
+      showMessage("El nombre del rol es requerido", "error");
       return;
     }
 
     if (permisosSeleccionados.length === 0) {
-      showMessage('Debe seleccionar al menos un permiso', 'error');
+      showMessage("Debe seleccionar al menos un permiso", "error");
       return;
     }
 
@@ -169,53 +177,63 @@ export default function RolesPage() {
         const rolData: IUpdateRol = {
           nombre: nombre.trim(),
           descripcion: descripcion.trim() || undefined,
-          permisos: permisosString
+          permisos: permisosString,
         };
         await updateRol(selectedRol.id, rolData);
-        showMessage('Rol actualizado correctamente', 'success');
+        showMessage("Rol actualizado correctamente", "success");
       } else {
         // Crear nuevo rol
         const rolData: ICreateRol = {
           nombre: nombre.trim(),
           descripcion: descripcion.trim() || undefined,
-          permisos: permisosString
+          permisos: permisosString,
         };
         await createRol(rolData);
-        showMessage('Rol creado correctamente', 'success');
+        showMessage("Rol creado correctamente", "success");
       }
-      
+
       handleCloseDialog();
       fetchRoles();
     } catch (error) {
-      console.error('Error al guardar rol:', error);
-      const errorMessage = error.response?.data?.error || 'Error al guardar el rol';
-      showMessage(errorMessage, 'error');
+      console.error("Error al guardar rol:", error);
+      const errorMessage =
+        error.response?.data?.error || "Error al guardar el rol";
+      showMessage(errorMessage, "error");
     }
   };
 
   const handleDelete = async (rol: IRol) => {
-    if (window.confirm(`¿Estás seguro de que deseas eliminar el rol "${rol.nombre}"?`)) {
+    if (
+      window.confirm(
+        `¿Estás seguro de que deseas eliminar el rol "${rol.nombre}"?`,
+      )
+    ) {
       try {
         await deleteRol(rol.id);
-        showMessage('Rol eliminado correctamente', 'success');
+        showMessage("Rol eliminado correctamente", "success");
         fetchRoles();
       } catch (error) {
-        console.error('Error al eliminar rol:', error);
-        const errorMessage = error.response?.data?.error || 'Error al eliminar el rol';
-        showMessage(errorMessage, 'error');
+        console.error("Error al eliminar rol:", error);
+        const errorMessage =
+          error.response?.data?.error || "Error al eliminar el rol";
+        showMessage(errorMessage, "error");
       }
     }
   };
 
-  const handlePermisosChange = (event: SelectChangeEvent<typeof permisosSeleccionados>) => {
+  const handlePermisosChange = (
+    event: SelectChangeEvent<typeof permisosSeleccionados>,
+  ) => {
     const value = event.target.value;
-    setPermisosSeleccionados(typeof value === 'string' ? value.split(',') : value);
+    setPermisosSeleccionados(
+      typeof value === "string" ? value.split(",") : value,
+    );
   };
 
   const handlePlantillaChange = (event: SelectChangeEvent<string>) => {
     const plantillaId = event.target.value;
     setPlantillaSeleccionada(plantillaId);
-    
+
     if (plantillaId && templates) {
       const permisos = templates[plantillaId];
       if (permisos) {
@@ -228,34 +246,44 @@ export default function RolesPage() {
 
   const groupPermissions = (permisosData: PermisosData) => {
     const grouped: { [key: string]: { [key: string]: IPermiso } } = {};
-    
-    Object.keys(permisosData).forEach(key => {
-      const parts = key.split('.');
-      const moduleGroup = parts[0];
-      
-      if (!grouped[moduleGroup]) {
-        grouped[moduleGroup] = {};
-      }
-      
-      grouped[moduleGroup][key] = permisosData[key];
-    });
-    
+
+    Object.keys(permisosData)
+      .sort((a, b) => a.localeCompare(b))
+      .forEach((key) => {
+        const parts = key.split(".");
+        const moduleGroup = parts[0];
+
+        if (!grouped[moduleGroup]) {
+          grouped[moduleGroup] = {};
+        }
+
+        grouped[moduleGroup][key] = permisosData[key];
+      });
+
     return grouped;
   };
 
   const getModuleDisplayName = (moduleName: string) => {
     const moduleNames: { [key: string]: string } = {
-      'pos': 'Punto de Venta',
-      'movimientos': 'Movimientos',
-      'configuracion': 'Configuración',
-      'reportes': 'Reportes'
+      pos: "Punto de Venta",
+      movimientos: "Movimientos",
+      configuracion: "Configuración",
+      reportes: "Reportes",
     };
-    return moduleNames[moduleName] || moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
+    return (
+      moduleNames[moduleName] ||
+      moduleName.charAt(0).toUpperCase() + moduleName.slice(1)
+    );
   };
 
   if (loadingContext) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <CircularProgress />
       </Box>
     );
@@ -264,7 +292,12 @@ export default function RolesPage() {
   return (
     <PageContainer title="Gestión de Roles">
       <ContentCard>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={3}
+        >
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -307,80 +340,99 @@ export default function RolesPage() {
                   </TableRow>
                 ) : (
                   roles.map((rol) => {
-                    const esSuperAdmin = user?.rol === 'SUPER_ADMIN';
+                    const esSuperAdmin = user?.rol === "SUPER_ADMIN";
                     const puedeEditar = !rol.isGlobal || esSuperAdmin;
                     return (
-                    <TableRow key={rol.id} hover>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Security fontSize="small" color="primary" />
-                          <Typography variant="body2" fontWeight="medium">
-                            {rol.nombre}
+                      <TableRow key={rol.id} hover>
+                        <TableCell>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Security fontSize="small" color="primary" />
+                            <Typography variant="body2" fontWeight="medium">
+                              {rol.nombre}
+                            </Typography>
+                            {rol.isGlobal && (
+                              <Chip
+                                icon={
+                                  <LockOutlined
+                                    sx={{ fontSize: "14px !important" }}
+                                  />
+                                }
+                                label="Global"
+                                size="small"
+                                color="secondary"
+                                variant="outlined"
+                              />
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {rol.descripcion || "Sin descripción"}
                           </Typography>
-                          {rol.isGlobal && (
-                            <Chip
-                              icon={<LockOutlined sx={{ fontSize: '14px !important' }} />}
-                              label="Global"
-                              size="small"
-                              color="secondary"
-                              variant="outlined"
-                            />
-                          )}
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {rol.descripcion || 'Sin descripción'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Box display="flex" flexWrap="wrap" gap={0.5}>
-                          {rol.permisos.split("|").slice(0, 3).map((permiso) => (
-                            <Chip
-                              key={permiso}
-                              label={permiso}
-                              size="small"
-                              variant="outlined"
-                              color="primary"
-                            />
-                          ))}
-                          {rol.permisos.split("|").length > 3 && (
-                            <Chip
-                              label={`+${rol.permisos.split("|").length - 3} más`}
-                              size="small"
-                              variant="outlined"
-                              color="default"
-                            />
-                          )}
-                        </Box>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Tooltip title={puedeEditar ? "Editar" : "Solo un superadmin puede modificar roles globales"}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleOpenDialog(rol)}
-                              color="primary"
-                              disabled={!puedeEditar}
-                            >
-                              <Edit fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title={rol.isGlobal ? "Los roles globales no pueden ser eliminados" : "Eliminar"}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDelete(rol)}
-                              color="error"
-                              disabled={rol.isGlobal}
-                            >
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" flexWrap="wrap" gap={0.5}>
+                            {rol.permisos
+                              .split("|")
+                              .slice(0, 3)
+                              .map((permiso) => (
+                                <Chip
+                                  key={permiso}
+                                  label={permiso}
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                />
+                              ))}
+                            {rol.permisos.split("|").length > 3 && (
+                              <Chip
+                                label={`+${rol.permisos.split("|").length - 3} más`}
+                                size="small"
+                                variant="outlined"
+                                color="default"
+                              />
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Tooltip
+                            title={
+                              puedeEditar
+                                ? "Editar"
+                                : "Solo un superadmin puede modificar roles globales"
+                            }
+                          >
+                            <span>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleOpenDialog(rol)}
+                                color="primary"
+                                disabled={!puedeEditar}
+                              >
+                                <Edit fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip
+                            title={
+                              rol.isGlobal
+                                ? "Los roles globales no pueden ser eliminados"
+                                : "Eliminar"
+                            }
+                          >
+                            <span>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDelete(rol)}
+                                color="error"
+                                disabled={rol.isGlobal}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
                     );
                   })
                 )}
@@ -390,16 +442,14 @@ export default function RolesPage() {
         )}
 
         {/* Dialog para crear/editar rol */}
-        <Dialog 
-          open={open} 
+        <Dialog
+          open={open}
           onClose={handleCloseDialog}
-          maxWidth="md" 
+          maxWidth="md"
           fullWidth
           fullScreen={isMobile}
         >
-          <DialogTitle>
-            {selectedRol ? 'Editar Rol' : 'Nuevo Rol'}
-          </DialogTitle>
+          <DialogTitle>{selectedRol ? "Editar Rol" : "Nuevo Rol"}</DialogTitle>
           <DialogContent>
             <Box display="flex" flexDirection="column" gap={3} pt={1}>
               <TextField
@@ -410,7 +460,7 @@ export default function RolesPage() {
                 required
                 placeholder="Ej: Vendedor, Administrador"
               />
-              
+
               <TextField
                 label="Descripción"
                 value={descripcion}
@@ -427,31 +477,31 @@ export default function RolesPage() {
                   <Select
                     value={plantillaSeleccionada}
                     onChange={handlePlantillaChange}
-                    input={<OutlinedInput label="Plantilla de Permisos (Opcional)" />}
+                    input={
+                      <OutlinedInput label="Plantilla de Permisos (Opcional)" />
+                    }
                     disabled={permisosLoading}
                   >
                     <MenuItem value="">
                       <em>Seleccionar una plantilla predefinida...</em>
                     </MenuItem>
-                    {templates && 
-                      Object.entries(templates)
-                      .map((item) => {
+                    {templates &&
+                      Object.entries(templates).map((item) => {
                         const nombrePlantilla = item[0];
-                        
-return (
 
-
-                      <MenuItem key={nombrePlantilla} value={nombrePlantilla}>
-                        <Box>
-                          <Typography variant="body2" fontWeight="medium">
-                            {nombrePlantilla}
-                          </Typography>
-                        </Box>
-                      </MenuItem>
-)
-                      })
-                    }
-                    
+                        return (
+                          <MenuItem
+                            key={nombrePlantilla}
+                            value={nombrePlantilla}
+                          >
+                            <Box>
+                              <Typography variant="body2" fontWeight="medium">
+                                {nombrePlantilla}
+                              </Typography>
+                            </Box>
+                          </MenuItem>
+                        );
+                      })}
                   </Select>
                 </FormControl>
               )}
@@ -459,12 +509,15 @@ return (
               {plantillaSeleccionada && !selectedRol && templates && (
                 <Alert severity="info" sx={{ mb: 2 }}>
                   <Typography variant="body2">
-                    <strong>Plantilla aplicada:</strong> {
-                      plantillaSeleccionada
-                    }
+                    <strong>Plantilla aplicada:</strong> {plantillaSeleccionada}
                   </Typography>
-                  <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-                    Puedes modificar los permisos seleccionados según tus necesidades específicas.
+                  <Typography
+                    variant="caption"
+                    display="block"
+                    sx={{ mt: 0.5 }}
+                  >
+                    Puedes modificar los permisos seleccionados según tus
+                    necesidades específicas.
                   </Typography>
                 </Alert>
               )}
@@ -477,7 +530,7 @@ return (
                   onChange={handlePermisosChange}
                   input={<OutlinedInput label="Permisos" />}
                   renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                       {selected.map((value) => (
                         <Chip key={value} label={value} size="small" />
                       ))}
@@ -488,26 +541,40 @@ return (
                   {permisosLoading ? (
                     <MenuItem disabled>
                       <CircularProgress size={20} />
-                      <Typography sx={{ ml: 1 }}>Cargando permisos...</Typography>
+                      <Typography sx={{ ml: 1 }}>
+                        Cargando permisos...
+                      </Typography>
                     </MenuItem>
                   ) : (
-                    Object.entries(groupPermissions(permisos)).map(([module, modulePermisos]) => [
-                      <MenuItem key={`header-${module}`} disabled sx={{ fontWeight: 'bold' }}>
-                        <Typography variant="subtitle2" color="primary">
-                          {getModuleDisplayName(module)}
-                        </Typography>
-                      </MenuItem>,
-                      ...Object.entries(modulePermisos).map(([permisoKey, permisoData]) => (
-                        <MenuItem key={permisoKey} value={permisoKey}>
-                          <Checkbox checked={permisosSeleccionados.indexOf(permisoKey) > -1} />
-                          <ListItemText 
-                            primary={permisoKey}
-                            secondary={permisoData.descripcion}
-                            sx={{ ml: 1 }}
-                          />
-                        </MenuItem>
-                      ))
-                    ]).flat()
+                    Object.entries(groupPermissions(permisos))
+                      .map(([module, modulePermisos]) => [
+                        <MenuItem
+                          key={`header-${module}`}
+                          disabled
+                          sx={{ fontWeight: "bold" }}
+                        >
+                          <Typography variant="subtitle2" color="primary">
+                            {getModuleDisplayName(module)}
+                          </Typography>
+                        </MenuItem>,
+                        ...Object.entries(modulePermisos).map(
+                          ([permisoKey, permisoData]) => (
+                            <MenuItem key={permisoKey} value={permisoKey}>
+                              <Checkbox
+                                checked={
+                                  permisosSeleccionados.indexOf(permisoKey) > -1
+                                }
+                              />
+                              <ListItemText
+                                primary={permisoKey}
+                                secondary={permisoData.descripcion}
+                                sx={{ ml: 1 }}
+                              />
+                            </MenuItem>
+                          ),
+                        ),
+                      ])
+                      .flat()
                   )}
                 </Select>
               </FormControl>
@@ -522,14 +589,14 @@ return (
                     <Grid container spacing={1}>
                       {permisosSeleccionados.map((permiso) => (
                         <Grid item xs={12} sm={6} md={4} key={permiso}>
-                          <Tooltip title={permisos[permiso]?.descripcion || ''}>
+                          <Tooltip title={permisos[permiso]?.descripcion || ""}>
                             <Chip
                               label={permiso}
                               size="small"
                               color="primary"
                               variant="outlined"
                               deleteIcon={<InfoOutlined />}
-                              sx={{ width: '100%' }}
+                              sx={{ width: "100%" }}
                             />
                           </Tooltip>
                         </Grid>
@@ -541,19 +608,17 @@ return (
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDialog}>
-              Cancelar
-            </Button>
-            <Button 
-              onClick={handleSubmit} 
+            <Button onClick={handleCloseDialog}>Cancelar</Button>
+            <Button
+              onClick={handleSubmit}
               variant="contained"
               disabled={!nombre.trim() || permisosSeleccionados.length === 0}
             >
-              {selectedRol ? 'Actualizar' : 'Crear'}
+              {selectedRol ? "Actualizar" : "Crear"}
             </Button>
           </DialogActions>
         </Dialog>
       </ContentCard>
     </PageContainer>
   );
-} 
+}
