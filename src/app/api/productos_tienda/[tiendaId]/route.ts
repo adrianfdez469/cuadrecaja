@@ -235,32 +235,44 @@ export async function PUT(
       }
     }
 
-    await prisma.$transaction(
-      productos.map((producto) => {
-        const data: {
-          precio?: number;
-          costo?: number;
-          fechaVencimiento?: Date | null;
-          monedaCostoCode?: string | null;
-          monedaPrecioCode?: string | null;
-        } = {};
-        if (producto.precio !== undefined) data.precio = producto.precio;
-        if (producto.costo !== undefined) data.costo = producto.costo;
-        if ("fechaVencimiento" in producto) {
-          data.fechaVencimiento = producto.fechaVencimiento
-            ? new Date(producto.fechaVencimiento)
-            : null;
-        }
-        if ("monedaCostoCode" in producto)
-          data.monedaCostoCode = producto.monedaCostoCode ?? null;
-        if ("monedaPrecioCode" in producto)
-          data.monedaPrecioCode = producto.monedaPrecioCode ?? null;
-        return prisma.productoTienda.update({
-          where: { id: producto.id },
-          data,
-        });
-      }),
-    );
+    const buildUpdate = (producto) => {
+      const data: {
+        precio?: number;
+        costo?: number;
+        fechaVencimiento?: Date | null;
+        monedaCostoCode?: string | null;
+        monedaPrecioCode?: string | null;
+      } = {};
+      if (producto.precio !== undefined) data.precio = producto.precio;
+      if (producto.costo !== undefined) data.costo = producto.costo;
+      if ("fechaVencimiento" in producto) {
+        data.fechaVencimiento = producto.fechaVencimiento
+          ? new Date(producto.fechaVencimiento)
+          : null;
+      }
+      if ("monedaCostoCode" in producto)
+        data.monedaCostoCode = producto.monedaCostoCode ?? null;
+      if ("monedaPrecioCode" in producto)
+        data.monedaPrecioCode = producto.monedaPrecioCode ?? null;
+      return prisma.productoTienda.update({
+        where: { id: producto.id },
+        data,
+      });
+    };
+
+    // El array de productos puede abarcar todo el catálogo de la tienda.
+    // Ejecutar todos los updates en una sola transacción satura el transaction
+    // pooler (pgbouncer, connection_limit=1) y agota el timeout. Lo dividimos en
+    // lotes acotados que corren en transacciones secuenciales. Los updates fijan
+    // valores absolutos (idempotentes), así que si un lote falla, reintentar la
+    // petición completa converge sin efectos colaterales. La forma de array de
+    // $transaction no admite { timeout, maxWait }; el tamaño acotado del lote es
+    // lo que mantiene cada transacción rápida. Ver PERFORMANCE_ISSUES.md (P1.2).
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < productos.length; i += CHUNK_SIZE) {
+      const lote = productos.slice(i, i + CHUNK_SIZE);
+      await prisma.$transaction(lote.map(buildUpdate));
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

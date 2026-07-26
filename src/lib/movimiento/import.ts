@@ -29,6 +29,12 @@ interface IImportarResponse {
   data?: any[]; // Agregar propiedad data para los resultados
 }
 
+// Opciones de transacción para importaciones. El transaction pooler (pgbouncer,
+// connection_limit=1) añade latencia por query; con el default de Prisma (5000 ms)
+// una importación de decenas de productos —que hace ~4-6 queries por item— agota la
+// transacción antes de terminar. Ver PERFORMANCE_ISSUES.md (P1.1).
+const IMPORT_TX_OPTIONS = { timeout: 30000, maxWait: 10000 };
+
 // Función para sanitizar strings
 const sanitizarString = (str: string, maxLength: number = 255): string => {
   if (!str || typeof str !== "string") return "";
@@ -313,7 +319,7 @@ const procesarChunk = async (
       message: `Chunk procesado: ${resultados.length} productos`,
       data: resultados,
     };
-  });
+  }, IMPORT_TX_OPTIONS);
 };
 
 export const ImportarExcelMovimiento = async (
@@ -418,9 +424,11 @@ export const ImportarExcelMovimiento = async (
       };
     }
 
-    // Decidir si usar procesamiento por chunks o transacción única
+    // Decidir si usar procesamiento por chunks o transacción única.
+    // CHUNK_SIZE reducido a 25 para acotar la duración de cada transacción bajo
+    // el transaction pooler (ver PERFORMANCE_ISSUES.md P1.1).
     const CHUNK_THRESHOLD = 100; // Umbral para usar chunks
-    const CHUNK_SIZE = 50; // Tamaño de cada chunk
+    const CHUNK_SIZE = 25; // Tamaño de cada chunk
 
     if (itemsSanitizados.length > CHUNK_THRESHOLD) {
       return await procesarLotesGrandes(data, itemsSanitizados, CHUNK_SIZE);
@@ -448,7 +456,7 @@ export const ImportarExcelMovimiento = async (
             .join("; "),
         });
       }
-    });
+    }, IMPORT_TX_OPTIONS);
 
     return {
       success: true,

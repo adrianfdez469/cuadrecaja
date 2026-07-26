@@ -8,6 +8,10 @@ import { prisma } from '@/lib/prisma';
 export async function deleteNegocioCompleto(negocioId: string): Promise<void> {
   const negocioWhere: Prisma.NegocioWhereUniqueInput = { id: negocioId };
 
+  // Debe ser atómico: borrar el negocio y todas sus entidades es todo-o-nada.
+  // Los deleteMany sobre tablas grandes (venta, movimientoStock) + el loop de hasta
+  // 50 iteraciones pueden superar el default de Prisma (5000 ms) en negocios con
+  // historial bajo el transaction pooler. Ver PERFORMANCE_ISSUES.md (P2.3).
   await prisma.$transaction(async (tx) => {
     await tx.appliedDiscount.deleteMany({
       where: { venta: { tienda: { negocioId } } },
@@ -92,5 +96,5 @@ export async function deleteNegocioCompleto(negocioId: string): Promise<void> {
     await tx.tienda.deleteMany({ where: { negocioId } });
 
     await tx.negocio.delete({ where: negocioWhere });
-  });
+  }, { timeout: 60000, maxWait: 15000 });
 }

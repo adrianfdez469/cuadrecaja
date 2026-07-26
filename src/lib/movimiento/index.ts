@@ -29,6 +29,14 @@ type ICreateMovimientoData = {
   formaPago?: IFormaPagoCompra;
 };
 
+// Opciones de transacción para creación de movimientos. El loop procesa cada item
+// con ~4-6 queries (findFirst/update/create de productoTienda + fraccionados +
+// movimiento), así que un lote de varios productos —traspaso, compra, merma, etc.—
+// agota el default de Prisma (5000 ms) bajo el transaction pooler. Antes solo la rama
+// COMPRA+EFECTIVO_CAJA tenía timeout; ahora aplica a todos los tipos.
+// Ver PERFORMANCE_ISSUES.md (P2.1).
+const MOVIMIENTO_TX_OPTIONS = { timeout: 20000, maxWait: 10000 };
+
 export const CreateMoviento = async (
   data: ICreateMovimientoData,
   items: IMovimientoCreate[],
@@ -372,7 +380,7 @@ export const CreateMoviento = async (
         }
       }
     },
-    esCompraEfectivoCaja ? { timeout: 15000, maxWait: 10000 } : undefined,
+    MOVIMIENTO_TX_OPTIONS,
   );
 
   return { advertenciasCaja };

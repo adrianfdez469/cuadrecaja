@@ -175,83 +175,92 @@ export async function POST(
       );
     }
 
-    // Transacción atómica
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Verificar que todos los productos existen
-      const productosExistentes = await tx.productoTienda.findMany({
-        where: {
-          id: { in: productos.map((p: IncomingProduct) => p.productoTiendaId) },
+    // ----------------------------------------------------------------------
+    // Lecturas y cálculos FUERA de la transacción.
+    // Con el transaction pooler (pgbouncer, connection_limit=1) cualquier query
+    // que corra dentro del $transaction usando el cliente global `prisma` (como
+    // applyDiscountsForSale) pide una 2ª conexión inexistente y provoca el error
+    // "Transaction already closed". Además, sacar las lecturas reduce el tiempo
+    // dentro del tx. Ver PERFORMANCE_ISSUES.md (P0).
+    // ----------------------------------------------------------------------
+
+    // 1. Verificar que todos los productos existen
+    const productosExistentes = await prisma.productoTienda.findMany({
+      where: {
+        id: { in: productos.map((p: IncomingProduct) => p.productoTiendaId) },
+      },
+      select: {
+        id: true,
+        productoId: true,
+        existencia: true,
+        costo: true,
+        precio: true,
+        monedaCostoCode: true,
+        monedaPrecioCode: true,
+        proveedorId: true,
+        producto: {
+          select: { permiteDecimal: true },
         },
-        select: {
-          id: true,
-          productoId: true,
-          existencia: true,
-          costo: true,
-          precio: true,
-          monedaCostoCode: true,
-          monedaPrecioCode: true,
-          proveedorId: true,
-          producto: {
-            select: { permiteDecimal: true },
-          },
-        },
+      },
+    });
+
+    const productosNoEncontrados = productos.filter(
+      (p: IncomingProduct) =>
+        !productosExistentes.some((pe) => pe.id === p.productoTiendaId),
+    );
+
+    if (productosNoEncontrados.length > 0) {
+      throw new Error(
+        `Productos no encontrados: ${productosNoEncontrados.map((p: IncomingProduct) => p.name || p.productoTiendaId).join(", ")}`,
+      );
+    }
+
+    const productosMergeados = productosExistentes.map((p) => {
+      const producto = productos.find(
+        (p2: IncomingProduct) => p2.productoTiendaId === p.id,
+      );
+      // DB primero, payload después SOLO para llenar huecos (cantidad, name, etc.):
+      // costo/precio/monedaCostoCode/monedaPrecioCode deben ganar siempre desde
+      // la BD — de lo contrario un monedaPrecioCode obsoleto del carrito puede
+      // quedar emparejado con un precio fresco de otra moneda y disparar
+      // conversiones erróneas al cerrar el período.
+      return { ...producto, ...p };
+    }) as MergedProduct[];
+
+    // Validar cantidades decimales
+    const invalidDecimalProducts = productosMergeados.filter(
+      (p) => !Number.isInteger(p.cantidad) && !p.producto.permiteDecimal,
+    );
+    if (invalidDecimalProducts.length > 0) {
+      throw new Error(`Cantidad decimal no permitida para algunos productos`);
+    }
+
+    // 2. Calcular descuentos (solo lee; NO debe correr dentro del tx)
+    let discountTotalCalc = 0;
+    let discountCalcResult: Awaited<
+      ReturnType<typeof applyDiscountsForSale>
+    > | null = null;
+
+    try {
+      const discountProducts = productosMergeados.map((p) => ({
+        productoTiendaId: String(p.productoTiendaId),
+        cantidad: Number(p.cantidad) || 0,
+        precio: Number(p.precio ?? p.price) || 0,
+      }));
+
+      discountCalcResult = await applyDiscountsForSale({
+        tiendaId,
+        discountCodes: Array.isArray(discountCodes) ? discountCodes : [],
+        products: discountProducts,
       });
+      discountTotalCalc = discountCalcResult.discountTotal;
+    } catch {
+      discountTotalCalc = 0;
+      discountCalcResult = null;
+    }
 
-      const productosNoEncontrados = productos.filter(
-        (p: IncomingProduct) =>
-          !productosExistentes.some((pe) => pe.id === p.productoTiendaId),
-      );
-
-      if (productosNoEncontrados.length > 0) {
-        throw new Error(
-          `Productos no encontrados: ${productosNoEncontrados.map((p: IncomingProduct) => p.name || p.productoTiendaId).join(", ")}`,
-        );
-      }
-
-      const productosMergeados = productosExistentes.map((p) => {
-        const producto = productos.find(
-          (p2: IncomingProduct) => p2.productoTiendaId === p.id,
-        );
-        // DB primero, payload después SOLO para llenar huecos (cantidad, name, etc.):
-        // costo/precio/monedaCostoCode/monedaPrecioCode deben ganar siempre desde
-        // la BD — de lo contrario un monedaPrecioCode obsoleto del carrito puede
-        // quedar emparejado con un precio fresco de otra moneda y disparar
-        // conversiones erróneas al cerrar el período.
-        return { ...producto, ...p };
-      }) as MergedProduct[];
-
-      // Validar cantidades decimales
-      const invalidDecimalProducts = productosMergeados.filter(
-        (p) => !Number.isInteger(p.cantidad) && !p.producto.permiteDecimal,
-      );
-      if (invalidDecimalProducts.length > 0) {
-        throw new Error(`Cantidad decimal no permitida para algunos productos`);
-      }
-
-      // 2. Calcular descuentos
-      let discountTotalCalc = 0;
-      let discountCalcResult: Awaited<
-        ReturnType<typeof applyDiscountsForSale>
-      > | null = null;
-
-      try {
-        const discountProducts = productosMergeados.map((p) => ({
-          productoTiendaId: String(p.productoTiendaId),
-          cantidad: Number(p.cantidad) || 0,
-          precio: Number(p.precio ?? p.price) || 0,
-        }));
-
-        discountCalcResult = await applyDiscountsForSale({
-          tiendaId,
-          discountCodes: Array.isArray(discountCodes) ? discountCodes : [],
-          products: discountProducts,
-        });
-        discountTotalCalc = discountCalcResult.discountTotal;
-      } catch {
-        discountTotalCalc = 0;
-        discountCalcResult = null;
-      }
-
+    // Transacción atómica: SOLO escrituras
+    const result = await prisma.$transaction(async (tx) => {
       // 3. Crear la venta
       const venta = await tx.venta.create({
         data: {
@@ -289,18 +298,16 @@ export async function POST(
         include: { productos: true },
       });
 
-      // 3.1 Guardar descuentos aplicados
-      if ((discountTotalCalc || 0) > 0 && discountCalcResult?.applied) {
-        for (const a of discountCalcResult.applied) {
-          await tx.appliedDiscount.create({
-            data: {
-              ventaId: venta.id,
-              discountRuleId: a.discountRuleId,
-              amount: a.amount,
-              productsAffected: a.productsAffected ?? null,
-            },
-          });
-        }
+      // 3.1 Guardar descuentos aplicados (batch, un solo round-trip)
+      if ((discountTotalCalc || 0) > 0 && discountCalcResult?.applied?.length) {
+        await tx.appliedDiscount.createMany({
+          data: discountCalcResult.applied.map((a) => ({
+            ventaId: venta.id,
+            discountRuleId: a.discountRuleId,
+            amount: a.amount,
+            productsAffected: a.productsAffected ?? null,
+          })),
+        });
       }
 
       // 4. Manejar productos fraccionables
@@ -434,13 +441,16 @@ export async function POST(
         }
       }
 
-      // 5. Crear movimientos de venta y actualizar existencias
+      // 5. Actualizar existencias y acumular movimientos de venta
+      const movimientosVenta: Prisma.MovimientoStockCreateManyInput[] = [];
       for (const producto of productos as IncomingProduct[]) {
         const productoTienda = productosExistentes.find(
           (p) => p.id === producto.productoTiendaId,
         );
         if (!productoTienda) continue;
 
+        // Releer existencia dentro del tx: la desagregación de fraccionables
+        // pudo haberla modificado para este producto.
         const productoTiendaActual = await tx.productoTienda.findUnique({
           where: { id: producto.productoTiendaId },
           select: { existencia: true },
@@ -461,24 +471,31 @@ export async function POST(
           data: { existencia: { decrement: producto.cantidad } },
         });
 
-        await tx.movimientoStock.create({
-          data: {
-            tipo: "VENTA",
-            cantidad: producto.cantidad,
-            productoTiendaId: producto.productoTiendaId,
-            tiendaId,
-            usuarioId,
-            existenciaAnterior,
-            referenciaId: venta.id,
-            motivo: `Venta ${venta.id}`,
-            ...(productoTienda.proveedorId && {
-              proveedorId: productoTienda.proveedorId,
-            }),
-          },
+        movimientosVenta.push({
+          tipo: "VENTA",
+          cantidad: producto.cantidad,
+          productoTiendaId: producto.productoTiendaId,
+          tiendaId,
+          usuarioId,
+          existenciaAnterior,
+          referenciaId: venta.id,
+          motivo: `Venta ${venta.id}`,
+          ...(productoTienda.proveedorId && {
+            proveedorId: productoTienda.proveedorId,
+          }),
         });
       }
 
+      // Insertar todos los movimientos de venta en un solo round-trip
+      if (movimientosVenta.length > 0) {
+        await tx.movimientoStock.createMany({ data: movimientosVenta });
+      }
+
       return venta;
+    }, {
+      // Red de seguridad ante la latencia del transaction pooler.
+      maxWait: 10000,
+      timeout: 20000,
     });
 
     return NextResponse.json(
