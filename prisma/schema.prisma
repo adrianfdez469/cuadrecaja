@@ -857,6 +857,19 @@ model TasaCambio {
   @@index([negocioId, monedaCode, createdAt])
 }
 
+// Caché global de tasas de referencia externas (elTOQUE) — append-only; la vigente es la más reciente.
+// NO tiene negocioId a propósito: el dato es de plataforma, idéntico para todos los negocios.
+// El primer negocio que consulta tras vencer el TTL trae el dato; el resto lo lee de aquí.
+model TasaReferenciaExterna {
+  id        String   @id @default(uuid())
+  fuente    String   @default("ELTOQUE")
+  tasas     Json // { "USD": 440, "EUR": 500, "MLC": 210 } — códigos ISO, CUP por unidad
+  fechaDato DateTime // Momento del dato según la fuente (no cuándo lo trajimos)
+  fetchedAt DateTime @default(now())
+
+  @@index([fuente, fetchedAt])
+}
+
 // Registro de cada cambio de moneda base — para auditar cierres históricos
 model HistorialMonedaBase {
   id             String   @id @default(uuid())

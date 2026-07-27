@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionFromRequest } from "@/utils/authFromRequest";
 import { NextRequest, NextResponse } from "next/server";
 import { cambiarMonedaBaseSchema } from "@/schemas/tasaCambio";
+import { assertNegocioConfigAccess } from "@/lib/negocioConfigAccess";
 import {
   buildTasaSnapshot,
   convertToBase,
@@ -15,10 +16,11 @@ export async function GET(
 ) {
   try {
     const session = await getSessionFromRequest(req);
-    if (!session?.user)
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
     const { id } = await params;
+
+    const accessError = assertNegocioConfigAccess(session, id);
+    if (accessError) return accessError;
+
     const { searchParams } = new URL(req.url);
     const monedaNueva = searchParams.get("monedaNueva");
     if (!monedaNueva)
@@ -128,10 +130,11 @@ export async function POST(
 ) {
   try {
     const session = await getSessionFromRequest(req);
-    if (!session?.user)
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
     const { id } = await params;
+
+    const accessError = assertNegocioConfigAccess(session, id);
+    if (accessError) return accessError;
+
     const body = await req.json();
     const result = cambiarMonedaBaseSchema.safeParse(body);
     if (!result.success)
