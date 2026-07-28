@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { Session } from "next-auth";
-import { assertNegocioConfigAccess } from "@/lib/negocioConfigAccess";
+import {
+  assertNegocioConfigAccess,
+  assertNegocioConfigReadAccess,
+} from "@/lib/negocioConfigAccess";
 
 /**
  * Regresión de seguridad: las rutas de configuración de negocio (monedas y tasas de
@@ -77,6 +80,50 @@ describe("assertNegocioConfigAccess", () => {
 
   it("responde 403 si el usuario no tiene negocio asignado", async () => {
     const res = assertNegocioConfigAccess(sesion({}), NEGOCIO_PROPIO);
+    expect(res?.status).toBe(403);
+  });
+});
+
+/**
+ * Regresión funcional: aplicar el guard de escritura también a los GET dejaba al
+ * vendedor sin monedas ni tasas (403 silenciado en `AppContext.loadMonedas`), y con
+ * ello sin la opción de multimoneda en el POS.
+ */
+describe("assertNegocioConfigReadAccess", () => {
+  const PERMISOS_VENDEDOR =
+    "operaciones.pos-venta.acceder|operaciones.cierre.acceder";
+
+  it("deja leer al vendedor de su propio negocio, sin permiso de configuración", () => {
+    const res = assertNegocioConfigReadAccess(
+      sesion({
+        negocioId: NEGOCIO_PROPIO,
+        permisos: PERMISOS_VENDEDOR,
+        rol: "USER",
+      }),
+      NEGOCIO_PROPIO,
+    );
+    expect(res).toBeNull();
+  });
+
+  it("responde 401 si no hay sesión", () => {
+    const res = assertNegocioConfigReadAccess(null, NEGOCIO_PROPIO);
+    expect(res?.status).toBe(401);
+  });
+
+  it("responde 403 al leer la configuración de OTRO negocio", () => {
+    const res = assertNegocioConfigReadAccess(
+      sesion({
+        negocioId: NEGOCIO_PROPIO,
+        permisos: PERMISOS_VENDEDOR,
+        rol: "USER",
+      }),
+      NEGOCIO_AJENO,
+    );
+    expect(res?.status).toBe(403);
+  });
+
+  it("responde 403 si el usuario no tiene negocio asignado", () => {
+    const res = assertNegocioConfigReadAccess(sesion({}), NEGOCIO_PROPIO);
     expect(res?.status).toBe(403);
   });
 });

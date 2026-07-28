@@ -6,8 +6,25 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 export const PERMISO_CONFIGURACION_NEGOCIO = "configuracion.administrador";
 
 /**
- * Guarda para las rutas de configuración avanzada de un negocio (monedas habilitadas,
- * tasas de cambio y cambio de moneda base). Verifica, en orden:
+ * Guarda de LECTURA para la configuración multimoneda del negocio (monedas habilitadas
+ * y tasas vigentes). Solo exige sesión y pertenencia al negocio: estos datos los carga
+ * el AppContext para TODOS los usuarios, porque el POS los necesita para cobrar en
+ * moneda alternativa. Exigir aquí el permiso de configuración avanzada dejaba al
+ * vendedor sin monedas ni tasas (403 silenciado en `loadMonedas`), y con ello sin la
+ * opción de multimoneda en la pantalla de venta.
+ *
+ * Para cualquier mutación usar `assertNegocioConfigAccess`.
+ */
+export function assertNegocioConfigReadAccess(
+  session: Session | null,
+  negocioId: string,
+): NextResponse | null {
+  return assertNegocioAccess(session, negocioId);
+}
+
+/**
+ * Guarda de ESCRITURA para las rutas de configuración avanzada de un negocio (monedas
+ * habilitadas, tasas de cambio y cambio de moneda base). Verifica, en orden:
  *
  *  1. Que haya sesión.
  *  2. Que el usuario pertenezca al negocio del path. Sin esto, cualquier usuario
