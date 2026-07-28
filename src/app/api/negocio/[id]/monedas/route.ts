@@ -2,7 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { getSessionFromRequest } from "@/utils/authFromRequest";
 import { NextRequest, NextResponse } from "next/server";
 import { negocioMonedaCreateSchema } from "@/schemas/moneda";
-import { assertNegocioConfigAccess } from "@/lib/negocioConfigAccess";
+import {
+  assertNegocioConfigAccess,
+  assertNegocioConfigReadAccess,
+} from "@/lib/negocioConfigAccess";
 
 export async function GET(
   req: NextRequest,
@@ -12,7 +15,8 @@ export async function GET(
     const session = await getSessionFromRequest(req);
     const { id } = await params;
 
-    const accessError = assertNegocioConfigAccess(session, id);
+    // Lectura: la necesita el POS de cualquier usuario del negocio, no solo el admin.
+    const accessError = assertNegocioConfigReadAccess(session, id);
     if (accessError) return accessError;
 
     const monedas = await prisma.negocioMoneda.findMany({
