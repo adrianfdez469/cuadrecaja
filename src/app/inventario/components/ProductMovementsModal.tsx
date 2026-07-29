@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -27,21 +27,24 @@ import {
   useMediaQuery,
   Collapse,
   Button,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import dayjs, { Dayjs } from 'dayjs';
-import { IProductoTiendaV2 } from '@/schemas/producto';
-import { IMovimiento, ITipoMovimiento } from '@/schemas/movimiento';
-import { findMovimientos } from '@/services/movimientoService';
-import { useAppContext } from '@/context/AppContext';
-import { useMessageContext } from '@/context/MessageContext';
-import { isMovimientoBaja } from '@/utils/tipoMovimiento';
-import { TIPOS_MOVIMIENTO, TIPO_MOVIMIENTO_LABELS } from '@/constants/movimientos';
-import { formatDateTime } from '@/utils/formatters';
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs, { Dayjs } from "dayjs";
+import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IMovimiento, ITipoMovimiento } from "@/schemas/movimiento";
+import { findMovimientos } from "@/services/movimientoService";
+import { useAppContext } from "@/context/AppContext";
+import { useMessageContext } from "@/context/MessageContext";
+import { isMovimientoBaja } from "@/utils/tipoMovimiento";
+import {
+  TIPOS_MOVIMIENTO,
+  TIPO_MOVIMIENTO_LABELS,
+} from "@/constants/movimientos";
+import { formatDateTime } from "@/utils/formatters";
 
 interface ProductMovementsModalProps {
   open: boolean;
@@ -52,21 +55,23 @@ interface ProductMovementsModalProps {
 export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
   open,
   onClose,
-  producto
+  producto,
 }) => {
   const [movimientos, setMovimientos] = useState<IMovimiento[]>([]);
-  const [filteredMovimientos, setFilteredMovimientos] = useState<IMovimiento[]>([]);
+  const [filteredMovimientos, setFilteredMovimientos] = useState<IMovimiento[]>(
+    [],
+  );
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState<Dayjs | null>(null);
   const [endDate, setEndDate] = useState<Dayjs | null>(null);
-  const [selectedTipo, setSelectedTipo] = useState<ITipoMovimiento | ''>('');
+  const [selectedTipo, setSelectedTipo] = useState<ITipoMovimiento | "">("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  
+
   const { user } = useAppContext();
   const { showMessage } = useMessageContext();
-  
+
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   // Cargar movimientos cuando se abre el modal
   useEffect(() => {
@@ -84,7 +89,7 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
 
   const fetchMovimientos = async () => {
     if (!producto || !user?.localActual?.id) return;
-    
+
     setLoading(true);
     try {
       const result = await findMovimientos(
@@ -95,34 +100,36 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
       );
       setMovimientos(result?.data || []);
     } catch (error) {
-      console.error('Error al cargar movimientos:', error);
-      showMessage('Error al cargar los movimientos del producto', 'error');
+      console.error("Error al cargar movimientos:", error);
+      showMessage("Error al cargar los movimientos del producto", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const applyFilters = () => {    
+  const applyFilters = () => {
     let filtered = [...movimientos];
 
     // Filtro por fecha
     if (startDate) {
-      filtered = filtered.filter(mov => 
-        dayjs(mov.fecha).isAfter(startDate.startOf('day')) || 
-        dayjs(mov.fecha).isSame(startDate.startOf('day'))
+      filtered = filtered.filter(
+        (mov) =>
+          dayjs(mov.fecha).isAfter(startDate.startOf("day")) ||
+          dayjs(mov.fecha).isSame(startDate.startOf("day")),
       );
     }
-    
+
     if (endDate) {
-      filtered = filtered.filter(mov => 
-        dayjs(mov.fecha).isBefore(endDate.endOf('day')) || 
-        dayjs(mov.fecha).isSame(endDate.endOf('day'))
+      filtered = filtered.filter(
+        (mov) =>
+          dayjs(mov.fecha).isBefore(endDate.endOf("day")) ||
+          dayjs(mov.fecha).isSame(endDate.endOf("day")),
       );
     }
 
     // Filtro por tipo
     if (selectedTipo) {
-      filtered = filtered.filter(mov => mov.tipo === selectedTipo);
+      filtered = filtered.filter((mov) => mov.tipo === selectedTipo);
     }
 
     setFilteredMovimientos(filtered);
@@ -130,9 +137,9 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
 
   const getRowColor = (tipo: ITipoMovimiento) => {
     if (isMovimientoBaja(tipo)) {
-      return '#ffebee'; // Rojo suave (salmon)
+      return "#ffebee"; // Rojo suave (salmon)
     } else {
-      return '#e8f5e8'; // Verde suave (bien clarito)
+      return "#e8f5e8"; // Verde suave (bien clarito)
     }
   };
 
@@ -141,16 +148,23 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
     return isNegative ? `-${cantidad}` : `+${cantidad}`;
   };
 
-  const calcularExistenciaDespues = (existenciaAnterior: number | null | undefined, cantidad: number, tipo: ITipoMovimiento) => {
-    if (existenciaAnterior === null || existenciaAnterior === undefined) return null;
+  const calcularExistenciaDespues = (
+    existenciaAnterior: number | null | undefined,
+    cantidad: number,
+    tipo: ITipoMovimiento,
+  ) => {
+    if (existenciaAnterior === null || existenciaAnterior === undefined)
+      return null;
     const isNegative = isMovimientoBaja(tipo);
-    return isNegative ? existenciaAnterior - cantidad : existenciaAnterior + cantidad;
+    return isNegative
+      ? existenciaAnterior - cantidad
+      : existenciaAnterior + cantidad;
   };
 
   const clearFilters = () => {
     setStartDate(null);
     setEndDate(null);
-    setSelectedTipo('');
+    setSelectedTipo("");
   };
 
   const hasActiveFilters = startDate || endDate || selectedTipo;
@@ -165,18 +179,21 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
       fullWidth
       fullScreen={isMobile}
       PaperProps={{
-        sx: { 
-          minHeight: isMobile ? '100vh' : '80vh',
-          m: isMobile ? 0 : undefined
-        }
+        sx: {
+          minHeight: isMobile ? "100vh" : "80vh",
+          m: isMobile ? 0 : undefined,
+        },
       }}
     >
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant={isMobile ? "h6" : "h6"} sx={{ 
-            fontSize: isMobile ? '1.1rem' : undefined,
-            pr: 1
-          }}>
+          <Typography
+            variant={isMobile ? "h6" : "h6"}
+            sx={{
+              fontSize: isMobile ? "1.1rem" : undefined,
+              pr: 1,
+            }}
+          >
             Movimientos de: {producto.producto.nombre}
           </Typography>
           <IconButton onClick={onClose} edge="end">
@@ -189,42 +206,49 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
         {/* Sección de filtros */}
         <Box mb={2}>
           {/* Header de filtros con botón para colapsar en móvil */}
-          <Box 
-            display="flex" 
-            justifyContent="space-between" 
+          <Box
+            display="flex"
+            justifyContent="space-between"
             alignItems="center"
-            sx={{ 
-              p: isMobile ? 1 : 2, 
-              bgcolor: "grey.50", 
+            sx={{
+              p: isMobile ? 1 : 2,
+              bgcolor: "grey.50",
               borderRadius: 1,
-              cursor: isMobile ? 'pointer' : 'default'
+              cursor: isMobile ? "pointer" : "default",
             }}
-            onClick={isMobile ? () => setFiltersExpanded(!filtersExpanded) : undefined}
+            onClick={
+              isMobile ? () => setFiltersExpanded(!filtersExpanded) : undefined
+            }
           >
             <Box display="flex" alignItems="center" gap={1}>
               <FilterListIcon fontSize="small" />
-              <Typography variant="subtitle1">
-                Filtros
-              </Typography>
+              <Typography variant="subtitle1">Filtros</Typography>
               {hasActiveFilters && (
-                <Chip 
-                  label={filteredMovimientos.length} 
-                  size="small" 
-                  color="primary" 
+                <Chip
+                  label={filteredMovimientos.length}
+                  size="small"
+                  color="primary"
                 />
               )}
             </Box>
-            
+
             {isMobile && (
               <IconButton size="small">
                 {filtersExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               </IconButton>
             )}
           </Box>
-          
+
           {/* Contenido de filtros */}
           <Collapse in={filtersExpanded || !isMobile}>
-            <Box sx={{ p: isMobile ? 1 : 2, bgcolor: "grey.50", borderRadius: 1, mt: isMobile ? 0 : 0 }}>
+            <Box
+              sx={{
+                p: isMobile ? 1 : 2,
+                bgcolor: "grey.50",
+                borderRadius: 1,
+                mt: isMobile ? 0 : 0,
+              }}
+            >
               <Grid container spacing={isMobile ? 1 : 2} alignItems="center">
                 <Grid item xs={12} sm={6} md={3}>
                   <DatePicker
@@ -233,13 +257,13 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
                     onChange={(newValue) => setStartDate(newValue)}
                     slotProps={{
                       textField: {
-                        size: 'small',
-                        fullWidth: true
-                      }
+                        size: "small",
+                        fullWidth: true,
+                      },
                     }}
                   />
                 </Grid>
-                
+
                 <Grid item xs={12} sm={6} md={3}>
                   <DatePicker
                     label="Fecha fin"
@@ -247,19 +271,21 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
                     onChange={(newValue) => setEndDate(newValue)}
                     slotProps={{
                       textField: {
-                        size: 'small',
-                        fullWidth: true
-                      }
+                        size: "small",
+                        fullWidth: true,
+                      },
                     }}
                   />
                 </Grid>
-                
+
                 <Grid item xs={12} sm={8} md={4}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Tipo de movimiento</InputLabel>
                     <Select
                       value={selectedTipo}
-                      onChange={(e) => setSelectedTipo(e.target.value as ITipoMovimiento | '')}
+                      onChange={(e) =>
+                        setSelectedTipo(e.target.value as ITipoMovimiento | "")
+                      }
                       label="Tipo de movimiento"
                     >
                       <MenuItem value="">Todos los tipos</MenuItem>
@@ -271,9 +297,14 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
                     </Select>
                   </FormControl>
                 </Grid>
-                
+
                 <Grid item xs={12} sm={4} md={2}>
-                  <Box display="flex" flexDirection={isMobile ? "row" : "column"} gap={1} justifyContent={isMobile ? "space-between" : "flex-start"}>
+                  <Box
+                    display="flex"
+                    flexDirection={isMobile ? "row" : "column"}
+                    gap={1}
+                    justifyContent={isMobile ? "space-between" : "flex-start"}
+                  >
                     <Chip
                       label={`${filteredMovimientos.length} registros`}
                       color="primary"
@@ -285,7 +316,7 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
                         size="small"
                         color="secondary"
                         onClick={clearFilters}
-                        sx={{ minWidth: 'auto', fontSize: '0.75rem' }}
+                        sx={{ minWidth: "auto", fontSize: "0.75rem" }}
                       >
                         Limpiar
                       </Button>
@@ -304,107 +335,111 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
           </Box>
         ) : filteredMovimientos.length === 0 ? (
           <Alert severity="info">
-            {movimientos.length === 0 
+            {movimientos.length === 0
               ? "Este producto no tiene movimientos registrados"
-              : "No hay movimientos que coincidan con los filtros aplicados"
-            }
+              : "No hay movimientos que coincidan con los filtros aplicados"}
           </Alert>
         ) : (
-          <TableContainer 
-            component={Paper} 
-            sx={{ 
-              maxHeight: isMobile ? 'calc(100vh - 280px)' : 500,
-              '& .MuiTableCell-root': {
-                fontSize: isMobile ? '0.875rem' : undefined,
-                padding: isMobile ? '8px' : undefined
-              }
+          <TableContainer
+            component={Paper}
+            sx={{
+              maxHeight: isMobile ? "calc(100vh - 280px)" : 500,
+              "& .MuiTableCell-root": {
+                fontSize: isMobile ? "0.875rem" : undefined,
+                padding: isMobile ? "8px" : undefined,
+              },
             }}
           >
             <Table stickyHeader size={isMobile ? "small" : "medium"}>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Fecha</strong></TableCell>
-                  <TableCell><strong>Tipo</strong></TableCell>
-                  <TableCell align="center"><strong>Cantidad</strong></TableCell>
-                  {!isMobile && <TableCell align="center"><strong>Existencia Anterior</strong></TableCell>}
-                  {isMobile && <TableCell align="center"><strong>Anterior → Posterior</strong></TableCell>}
-                  {!isMobile && <TableCell><strong>Observaciones</strong></TableCell>}
-                  {!isMobile && <TableCell><strong>Usuario</strong></TableCell>}
+                  <TableCell>
+                    <strong>Fecha</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Tipo</strong>
+                  </TableCell>
+                  <TableCell align="center">
+                    <strong>Cantidad</strong>
+                  </TableCell>
+                  <TableCell align="center">
+                    <strong>Anterior → Posterior</strong>
+                  </TableCell>
+                  {!isMobile && (
+                    <TableCell>
+                      <strong>Observaciones</strong>
+                    </TableCell>
+                  )}
+                  {!isMobile && (
+                    <TableCell>
+                      <strong>Usuario</strong>
+                    </TableCell>
+                  )}
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredMovimientos.map((movimiento, index) => {
                   const existenciaDespues = calcularExistenciaDespues(
-                    movimiento.existenciaAnterior, 
-                    movimiento.cantidad, 
-                    movimiento.tipo
+                    movimiento.existenciaAnterior,
+                    movimiento.cantidad,
+                    movimiento.tipo,
                   );
-                  
+
                   return (
                     <TableRow
                       key={`${movimiento.id}-${index}`}
                       sx={{
                         backgroundColor: getRowColor(movimiento.tipo),
-                        '&:hover': {
-                          opacity: 0.8
-                        }
+                        "&:hover": {
+                          opacity: 0.8,
+                        },
                       }}
                     >
-                      <TableCell>
-                        {formatDateTime(movimiento.fecha)}
-                      </TableCell>
+                      <TableCell>{formatDateTime(movimiento.fecha)}</TableCell>
                       <TableCell>
                         <Chip
                           label={TIPO_MOVIMIENTO_LABELS[movimiento.tipo]}
                           size="small"
-                          color={isMovimientoBaja(movimiento.tipo) ? "error" : "success"}
+                          color={
+                            isMovimientoBaja(movimiento.tipo)
+                              ? "error"
+                              : "success"
+                          }
                           variant="outlined"
-                          sx={{ fontSize: isMobile ? '0.7rem' : undefined }}
+                          sx={{ fontSize: isMobile ? "0.7rem" : undefined }}
                         />
                       </TableCell>
                       <TableCell align="center">
                         <Typography
                           fontWeight="bold"
-                          color={isMovimientoBaja(movimiento.tipo) ? "error.main" : "success.main"}
-                          fontSize={isMobile ? '0.875rem' : undefined}
+                          color={
+                            isMovimientoBaja(movimiento.tipo)
+                              ? "error.main"
+                              : "success.main"
+                          }
+                          fontSize={isMobile ? "0.875rem" : undefined}
                         >
                           {formatCantidad(movimiento.cantidad, movimiento.tipo)}
                         </Typography>
                       </TableCell>
+                      <TableCell align="center">
+                        <Typography
+                          fontSize={isMobile ? "0.75rem" : "0.875rem"}
+                          color="text.secondary"
+                        >
+                          {movimiento.existenciaAnterior !== null &&
+                          movimiento.existenciaAnterior !== undefined &&
+                          existenciaDespues !== null
+                            ? `${movimiento.existenciaAnterior} → ${existenciaDespues}`
+                            : "-"}
+                        </Typography>
+                      </TableCell>
                       {!isMobile && (
-                        <TableCell align="center">
-                          <Typography
-                            color="text.secondary"
-                            fontSize="0.875rem"
-                          >
-                            {movimiento.existenciaAnterior !== null && movimiento.existenciaAnterior !== undefined 
-                              ? movimiento.existenciaAnterior 
-                              : '-'
-                            }
-                          </Typography>
-                        </TableCell>
-                      )}
-                      {isMobile && (
-                        <TableCell align="center">
-                          <Typography
-                            fontSize="0.75rem"
-                            color="text.secondary"
-                          >
-                            {movimiento.existenciaAnterior !== null && movimiento.existenciaAnterior !== undefined && existenciaDespues !== null
-                              ? `${movimiento.existenciaAnterior} → ${existenciaDespues}`
-                              : '-'
-                            }
-                          </Typography>
-                        </TableCell>
+                        <TableCell>{movimiento.motivo || "-"}</TableCell>
                       )}
                       {!isMobile && (
                         <TableCell>
-                          {movimiento.motivo || '-'}
-                        </TableCell>
-                      )}
-                      {!isMobile && (
-                        <TableCell>
-                          {movimiento.usuario?.nombre || 'Sistema'}
+                          {movimiento.usuario?.nombre || "Sistema"}
                         </TableCell>
                       )}
                     </TableRow>
@@ -417,4 +452,4 @@ export const ProductMovementsModal: React.FC<ProductMovementsModalProps> = ({
       </DialogContent>
     </Dialog>
   );
-}; 
+};

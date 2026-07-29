@@ -127,7 +127,15 @@ export async function DELETE(
     );
 
     await prisma.$transaction(async (tx) => {
-      // 1. Actualizar existencia del producto (devolver al inventario)
+      // 1. Actualizar existencia del producto (devolver al inventario).
+      // Se lee la existencia previa dentro de la transacción para dejarla
+      // registrada en el movimiento y no romper el kardex.
+      const productoTienda = await tx.productoTienda.findUnique({
+        where: { id: productoTiendaId },
+        select: { existencia: true },
+      });
+      const existenciaAnterior = productoTienda?.existencia ?? 0;
+
       await tx.productoTienda.update({
         where: { id: productoTiendaId },
         data: { existencia: { increment: cantidad } },
@@ -142,6 +150,7 @@ export async function DELETE(
           tiendaId,
           usuarioId: user.id,
           referenciaId: ventaId,
+          existenciaAnterior,
           motivo: `Devolución por eliminación de producto en venta ${ventaId} — ajuste de ${montoProductoBase.toFixed(2)} ${monedaBase} en pagos recibidos`,
         },
       });
