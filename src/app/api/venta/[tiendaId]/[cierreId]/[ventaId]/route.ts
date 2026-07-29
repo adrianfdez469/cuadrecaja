@@ -7,19 +7,29 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ tiendaId: string, cierreId: string, ventaId }> }
+  {
+    params,
+  }: { params: Promise<{ tiendaId: string; cierreId: string; ventaId }> },
 ) {
   try {
-    
     const session = await getSession();
     const user = session.user;
 
     if (
-      !verificarPermisoUsuario(user.permisos, "operaciones.pos-venta.cancelarventa", user.rol) && 
-      !verificarPermisoUsuario(user.permisos, "operaciones.ventas.eliminar", user.rol)) {
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.pos-venta.cancelarventa",
+        user.rol,
+      ) &&
+      !verificarPermisoUsuario(
+        user.permisos,
+        "operaciones.ventas.eliminar",
+        user.rol,
+      )
+    ) {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -35,14 +45,16 @@ export async function DELETE(
       include: {
         cierrePeriodo: {
           select: {
-            fechaFin: true
-          }
-        }
-      }
+            fechaFin: true,
+          },
+        },
+      },
     });
 
-    if(venta.cierrePeriodo.fechaFin) {
-      throw Error("La venta que se trata de elimnar está en un período que ah sido cerrado");
+    if (venta.cierrePeriodo.fechaFin) {
+      throw Error(
+        "La venta que se trata de elimnar está en un período que ah sido cerrado",
+      );
     }
 
     // Buscamos los movimientos de tipo SALIDA generados por la venta (VENTA, DESAGREGACION_BAJA)
@@ -51,71 +63,89 @@ export async function DELETE(
     const movimientos = await prisma.movimientoStock.findMany({
       where: {
         referenciaId: ventaId,
-      }
+      },
     });
 
-    
-    
     // Generamos un movimiento de ajuste para arreglar cantidades
     // Eliminamos la venta y sus dependencias con prodoctos
 
-    const operaciones = movimientos.reduce((acc,mov) => {
+    await prisma.$transaction(async (tx) => {
+      // Existencia resultante por productoTienda: una misma venta puede generar
+      // varios movimientos sobre el mismo producto (VENTA + DESAGREGACION_*),
+      // así que la existencia anterior de cada ajuste es el resultado del ajuste
+      // previo, no la que hay en base al inicio.
+      const existenciasEncadenadas = new Map<string, number>();
 
-      let tipoMov;
-      if(mov.tipo === 'VENTA' || mov.tipo === 'DESAGREGACION_BAJA') {
-        tipoMov = MovimientoTipo.AJUSTE_ENTRADA;
-      } else {
-        tipoMov = MovimientoTipo.AJUSTE_SALIDA;
-      }
+      for (const mov of movimientos) {
+        const tipoMov =
+          mov.tipo === "VENTA" || mov.tipo === "DESAGREGACION_BAJA"
+            ? MovimientoTipo.AJUSTE_ENTRADA
+            : MovimientoTipo.AJUSTE_SALIDA;
 
-      acc.push(prisma.productoTienda.update({
-        where: {
-          id: mov.productoTiendaId
-        },
-        data: {
-          existencia: {
-            increment: isMovimientoBaja(tipoMov) ? -mov.cantidad : mov.cantidad,
+        const delta = isMovimientoBaja(tipoMov) ? -mov.cantidad : mov.cantidad;
+
+        let existenciaAnterior = existenciasEncadenadas.get(
+          mov.productoTiendaId,
+        );
+        if (existenciaAnterior === undefined) {
+          const productoTienda = await tx.productoTienda.findUnique({
+            where: { id: mov.productoTiendaId },
+            select: { existencia: true },
+          });
+          existenciaAnterior = productoTienda?.existencia ?? 0;
+        }
+
+        await tx.productoTienda.update({
+          where: {
+            id: mov.productoTiendaId,
           },
-        }
-      }))
+          data: {
+            existencia: {
+              increment: delta,
+            },
+          },
+        });
 
-      acc.push(prisma.movimientoStock.create({
-        data: {
-          cantidad: mov.cantidad,
-          tipo: tipoMov,
-          productoTiendaId: mov.productoTiendaId,
-          tiendaId: tiendaId,
-          usuarioId: usuarioId,
-          motivo: "Eliminación de venta"
-        }
-      }));
+        existenciasEncadenadas.set(
+          mov.productoTiendaId,
+          existenciaAnterior + delta,
+        );
 
-      return acc;
-    }, []);
-
-    operaciones.push(prisma.ventaProducto.deleteMany({
-      where: {
-        ventaId: ventaId
+        await tx.movimientoStock.create({
+          data: {
+            cantidad: mov.cantidad,
+            tipo: tipoMov,
+            productoTiendaId: mov.productoTiendaId,
+            tiendaId: tiendaId,
+            usuarioId: usuarioId,
+            referenciaId: ventaId,
+            existenciaAnterior,
+            motivo: "Eliminación de venta",
+          },
+        });
       }
-    }));
-    operaciones.push(prisma.venta.delete({
-      where: {
-        id: ventaId
-      }
-    }));
-    
 
-    await prisma.$transaction(operaciones);
+      await tx.ventaProducto.deleteMany({
+        where: {
+          ventaId: ventaId,
+        },
+      });
+      await tx.venta.delete({
+        where: {
+          id: ventaId,
+        },
+      });
+    });
 
     return NextResponse.json(
       { message: "Venta eliminada correctamente" },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error(error);
     return NextResponse.json(
       { error: "Error al eliminar la venta" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
