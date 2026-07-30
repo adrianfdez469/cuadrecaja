@@ -186,6 +186,10 @@ export function CreateMovimientoDialog({
   const isExtraCurrency = mostrarCosto && monedaCompra !== monedaBase;
 
   const handleSave = async () => {
+    // Guarda contra doble submit: el botón se deshabilita por `saving`, pero
+    // en redes lentas dos clicks pueden entrar antes del re-render.
+    if (saving) return;
+
     const qty = parseFloat(cantidad.replace(",", "."));
     if (!qty || qty <= 0) {
       showMessage("Ingresa una cantidad válida", "warning");
@@ -206,6 +210,9 @@ export function CreateMovimientoDialog({
 
     if (tipo === "COMPRA" && formaPago === "EFECTIVO_CAJA" && costoRaw > 0) {
       const montoCompra = costoRaw * qty;
+      // Bloquear el botón ya desde la verificación de caja: es una petición
+      // más, y dejarlo habilitado durante ella permitía registrar dos veces.
+      setSaving(true);
       try {
         const disponible = await getEfectivoDisponibleCaja(user.localActual.id);
         const disponibleMoneda = disponible[monedaCompra] ?? 0;
@@ -213,7 +220,7 @@ export function CreateMovimientoDialog({
           confirmDialog(
             `La compra (${formatCurrency(montoCompra)} ${monedaCompra}) supera el efectivo disponible en caja (${formatCurrency(disponibleMoneda)} ${monedaCompra}). Se tomarán ${formatCurrency(disponibleMoneda)} ${monedaCompra} de caja y el resto se registrará como fondeo externo. ¿Continuar?`,
             () => ejecutarGuardado(qty, costoRaw),
-            undefined,
+            () => setSaving(false),
             { severity: "warning" },
           );
           return;
@@ -268,6 +275,8 @@ export function CreateMovimientoDialog({
       } else {
         showMessage("Movimiento registrado", "success");
       }
+      // onCreated cierra el diálogo de inmediato y recarga el inventario en
+      // segundo plano — no se espera el listado fresco para cerrar.
       onCreated();
     } catch (e) {
       console.error(e);
@@ -279,7 +288,12 @@ export function CreateMovimientoDialog({
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <Dialog
+        open={open}
+        onClose={saving ? undefined : onClose}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>
           Registrar movimiento — {producto.producto.nombre}
         </DialogTitle>
