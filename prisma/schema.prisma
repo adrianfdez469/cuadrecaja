@@ -864,7 +864,7 @@ model TasaReferenciaExterna {
   id        String   @id @default(uuid())
   fuente    String   @default("ELTOQUE")
   tasas     Json // { "USD": 440, "EUR": 500, "MLC": 210 } — códigos ISO, CUP por unidad
-  fechaDato DateTime // Momento del dato según la fuente (no cuándo lo trajimos)
+  fechaDato DateTime // Reloj de la fuente al responder (la TRMI no publica fecha propia)
   fetchedAt DateTime @default(now())
 
   @@index([fuente, fetchedAt])
