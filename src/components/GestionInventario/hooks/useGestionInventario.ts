@@ -123,9 +123,17 @@ export function useGestionInventario() {
       showMessage("Error al cargar el inventario", "error");
     } finally {
       setLoading(false);
-      setCreateMovTarget(null);
     }
   }, [tiendaId]);
+
+  // El diálogo se cierra en cuanto responde el POST del movimiento — nunca
+  // esperando el refetch del inventario. Si se espera, el formulario sigue
+  // vivo con el botón habilitado y en redes lentas admite un segundo submit
+  // que duplica el movimiento.
+  const handleMovimientoCreated = useCallback(() => {
+    setCreateMovTarget(null);
+    void reload();
+  }, [reload]);
 
   useEffect(() => {
     if (!loadingContext) reload();
@@ -461,7 +469,7 @@ export function useGestionInventario() {
     handleChangeQtySave,
     handleCreateProduct,
     handleDeleteProduct,
-    handleMovimientoCreated: reload,
+    handleMovimientoCreated,
 
     reload,
     tiendaId,

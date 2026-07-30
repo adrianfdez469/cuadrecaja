@@ -12,6 +12,7 @@ import {
   TableHead,
   TableRow,
   CircularProgress,
+  LinearProgress,
   Stack,
   Alert,
   TextField,
@@ -100,6 +101,9 @@ export default function MovimientosView() {
   const [searchTerm, setSearchTerm] = useState("");
   const { user, loadingContext } = useAppContext();
   const [loadingData, setLoadingData] = useState(true);
+  // Solo la primera carga tapa la pantalla; los refetch posteriores muestran
+  // una barra de progreso sin desmontar la vista ni los diálogos abiertos.
+  const [primeraCarga, setPrimeraCarga] = useState(true);
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -198,6 +202,7 @@ export default function MovimientosView() {
       setHasMoreData(false);
     } finally {
       setLoadingData(false);
+      setPrimeraCarga(false);
     }
   };
 
@@ -237,9 +242,8 @@ export default function MovimientosView() {
   };
 
   const crearMovimientosRecepción = async (prods) => {
-    setLoadingData(true);
-
     try {
+      setLoadingData(true);
       const localId = user.localActual.id;
       await cretateBatchMovimientos(
         {
@@ -265,15 +269,20 @@ export default function MovimientosView() {
           };
         }),
       );
-
-      fetchMovimientos(0);
-      fecthPendientesRecep();
     } catch (error) {
       console.error(error);
       showMessage("No se pudo crear los movimientos de entrada", "error");
-    } finally {
       setLoadingData(false);
+      return;
     }
+
+    // Ya está registrado: los refetch solo refrescan la vista y un fallo aquí
+    // no debe reportarse como si el movimiento hubiera fallado.
+    // fetchMovimientos apaga el indicador al terminar.
+    await Promise.all([
+      fetchMovimientos(0),
+      fecthPendientesRecep().catch((error) => console.error(error)),
+    ]);
   };
 
   const loadPendientesRecep = async (
@@ -361,7 +370,7 @@ export default function MovimientosView() {
     ...new Set(movimientos.map((m) => m.productoTiendaId)),
   ].length;
 
-  if (loadingContext || loadingData) {
+  if (loadingContext || (primeraCarga && loadingData)) {
     return (
       <Box
         display="flex"
@@ -724,6 +733,8 @@ export default function MovimientosView() {
         noPadding
         fullHeight
       >
+        {loadingData && <LinearProgress />}
+
         {/* Panel de filtros adicionales */}
         <Collapse in={filtersExpanded}>
           <Box sx={{ px: isMobile ? 1.5 : 3, pt: 2, pb: 2 }}>

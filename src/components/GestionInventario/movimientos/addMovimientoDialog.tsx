@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from "react";
+import { FC, useState, useEffect, useRef } from "react";
 
 import {
   Box,
@@ -125,6 +125,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
     [],
   );
   const [saving, setSaving] = useState(false);
+  // Espejo de `saving` en un ref: los handlers creados en el render del click
+  // ven el valor viejo del estado, y `handleClose` necesita el actual.
+  const savingRef = useRef(false);
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const [motivo, setMotivo] = useState("");
@@ -272,19 +275,31 @@ export const AddMovimientoDialog: FC<IProps> = ({
     }
   };
 
+  const updateSaving = (value: boolean) => {
+    savingRef.current = value;
+    setSaving(value);
+  };
+
+  const resetForm = () => {
+    setItemsProductos([]);
+    setMotivo("");
+    setProveedor(null);
+    setTipo("COMPRA");
+    setFormaPago("EXTERNO");
+    setCreandoProveedor(false);
+  };
+
   const handleClose = () => {
-    if (!saving) {
-      closeDialog();
-      setItemsProductos([]);
-      setMotivo("");
-      setProveedor(null);
-      setTipo("COMPRA");
-      setFormaPago("EXTERNO");
-      setCreandoProveedor(false);
-    }
+    if (savingRef.current) return;
+    closeDialog();
+    resetForm();
   };
 
   const handleGuardar = async () => {
+    // Guarda contra doble submit: el botón se deshabilita por `saving`, pero
+    // en redes lentas dos clicks pueden entrar antes del re-render.
+    if (savingRef.current) return;
+
     if (tipo === "COMPRA" && formaPago === "EFECTIVO_CAJA") {
       // Agrupar por moneda lo que esta compra le pediría a la caja, y
       // compararlo contra lo realmente disponible ANTES de registrar nada.
@@ -298,6 +313,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
       }
 
       if (Object.keys(solicitadoPorMoneda).length > 0) {
+        // Bloquear el botón ya desde la verificación de caja: es una petición
+        // más, y dejarlo habilitado durante ella permitía guardar dos veces.
+        updateSaving(true);
         try {
           const disponible = await getEfectivoDisponibleCaja(
             user.localActual.id,
@@ -315,7 +333,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
             confirmDialog(
               `Esta compra supera el efectivo disponible en caja (${detalle}). Se tomará lo disponible de caja y el resto se registrará como fondeo externo. ¿Continuar?`,
               () => ejecutarGuardado(),
-              undefined,
+              () => updateSaving(false),
               { severity: "warning" },
             );
             return;
@@ -332,7 +350,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
   };
 
   const ejecutarGuardado = async () => {
-    setSaving(true);
+    updateSaving(true);
 
     try {
       const localId = user.localActual.id;
@@ -393,13 +411,17 @@ export const AddMovimientoDialog: FC<IProps> = ({
       } else {
         showMessage("Movimiento creado exitosamente", "success");
       }
-      handleClose();
-      fetchMovimientos();
+      // Cerrar en cuanto responde el POST y recargar el listado en segundo
+      // plano: esperar el listado fresco dejaba el formulario vivo y admitía
+      // un segundo submit que duplicaba el movimiento.
+      closeDialog();
+      resetForm();
+      void fetchMovimientos();
     } catch (error) {
       console.error(error);
       showMessage("No se pudo guardar el movimiento", "error");
     } finally {
-      setSaving(false);
+      updateSaving(false);
     }
   };
 
