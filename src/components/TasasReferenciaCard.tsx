@@ -43,6 +43,20 @@ const fmtActualizado = (iso: string) =>
     minute: "2-digit",
   });
 
+// La TRMI se mueve en minutos, así que lo que importa no es la hora exacta de la consulta
+// sino cuánto hace que se hizo. La hora exacta queda en el tooltip.
+const fmtEdad = (iso: string) => {
+  const minutos = Math.max(
+    0,
+    Math.round((Date.now() - new Date(iso).getTime()) / 60000),
+  );
+  if (minutos < 1) return "hace instantes";
+  if (minutos < 60) return `hace ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `hace ${horas} h`;
+  return `hace ${Math.floor(horas / 24)} d`;
+};
+
 export function TasasReferenciaCard({
   vigentes,
   monedasHabilitadas,
@@ -56,16 +70,23 @@ export function TasasReferenciaCard({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [aplicando, setAplicando] = useState<string | null>(null);
+  const [refrescando, setRefrescando] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  /**
+   * @param force refresco pedido por el usuario: pide un dato más nuevo que el TTL normal
+   *   y mantiene el panel visible (solo gira el icono) en vez de volver al skeleton.
+   */
+  const load = useCallback(async (force = false) => {
+    if (force) setRefrescando(true);
+    else setLoading(true);
     setError(false);
     try {
-      setData(await getTasasReferencia());
+      setData(await getTasasReferencia(force));
     } catch {
       setError(true);
     } finally {
       setLoading(false);
+      setRefrescando(false);
     }
   }, []);
 
@@ -139,7 +160,7 @@ export function TasasReferenciaCard({
         severity="warning"
         sx={{ mb: 2 }}
         action={
-          <Button color="inherit" size="small" onClick={load}>
+          <Button color="inherit" size="small" onClick={() => load(true)}>
             Reintentar
           </Button>
         }
@@ -178,9 +199,13 @@ export function TasasReferenciaCard({
             Referencia elTOQUE
           </Typography>
           {data?.actualizadoEn && (
-            <Typography variant="caption" color="text.secondary">
-              · {fmtActualizado(data.actualizadoEn)}
-            </Typography>
+            <Tooltip
+              title={`Consultado a elTOQUE el ${fmtActualizado(data.actualizadoEn)}`}
+            >
+              <Typography variant="caption" color="text.secondary">
+                · {fmtEdad(data.actualizadoEn)}
+              </Typography>
+            </Tooltip>
           )}
           {data?.stale && (
             <Tooltip title="No se pudo contactar a elTOQUE; se muestra el último dato conocido.">
@@ -196,8 +221,16 @@ export function TasasReferenciaCard({
 
         <Stack direction="row" alignItems="center" gap={0.5}>
           <Tooltip title="Actualizar">
-            <IconButton size="small" onClick={load}>
-              <Refresh fontSize="small" />
+            <IconButton
+              size="small"
+              onClick={() => load(true)}
+              disabled={refrescando}
+            >
+              {refrescando ? (
+                <CircularProgress size={16} />
+              ) : (
+                <Refresh fontSize="small" />
+              )}
             </IconButton>
           </Tooltip>
           {desviadas.length > 1 && (

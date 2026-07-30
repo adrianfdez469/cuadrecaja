@@ -48,20 +48,37 @@ describe("normalizarRespuestaEltoque", () => {
     expect(res?.tasas).toEqual({ USD: 440 });
   });
 
-  it("compone fechaDato con la fecha y hora reportadas por la fuente", () => {
+  it("descarta valores no numéricos sin tumbar el resto de la respuesta", () => {
+    // Basta que elTOQUE devuelva null en una moneda que ni usamos para que un parseo
+    // estricto dejara la integración caída.
     const res = normalizarRespuestaEltoque({
+      tasas: { USD: 440, USDT_TRC20: null, MLC: "210" },
+    });
+    expect(res?.tasas).toEqual({ USD: 440 });
+  });
+
+  it("interpreta la hora reportada como hora de Cuba, no del servidor", () => {
+    // En verano Cuba es UTC−4: 09:05:03 en La Habana ⇒ 13:05:03Z. Se compara el instante
+    // en UTC para que el test no dependa de la zona de la máquina que lo corre (en Vercel
+    // es UTC y ahí estaba el bug: el dato quedaba corrido 4 h).
+    const verano = normalizarRespuestaEltoque({
       tasas: { USD: 440 },
       date: "2026-07-27",
       hour: 9,
       minutes: 5,
       seconds: 3,
     });
+    expect(verano?.fechaDato.toISOString()).toBe("2026-07-27T13:05:03.000Z");
 
-    expect(res?.fechaDato.getFullYear()).toBe(2026);
-    expect(res?.fechaDato.getMonth()).toBe(6); // julio
-    expect(res?.fechaDato.getDate()).toBe(27);
-    expect(res?.fechaDato.getHours()).toBe(9);
-    expect(res?.fechaDato.getMinutes()).toBe(5);
+    // En invierno es UTC−5.
+    const invierno = normalizarRespuestaEltoque({
+      tasas: { USD: 440 },
+      date: "2026-01-15",
+      hour: 9,
+      minutes: 0,
+      seconds: 0,
+    });
+    expect(invierno?.fechaDato.toISOString()).toBe("2026-01-15T14:00:00.000Z");
   });
 
   it("cae a la fecha actual si la fuente no reporta fecha", () => {
@@ -83,6 +100,7 @@ describe("normalizarRespuestaEltoque", () => {
   it("devuelve null si la respuesta no tiene la forma esperada", () => {
     expect(normalizarRespuestaEltoque({ rates: { USD: 440 } })).toBeNull();
     expect(normalizarRespuestaEltoque(null)).toBeNull();
+    // Forma válida pero sin un solo valor usable ⇒ tampoco hay nada que cachear.
     expect(normalizarRespuestaEltoque({ tasas: { USD: "440" } })).toBeNull();
   });
 

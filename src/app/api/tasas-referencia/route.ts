@@ -21,7 +21,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
     }
 
-    return NextResponse.json(await getTasasReferencia());
+    // ?force=1 → viene del botón "Actualizar". No salta la caché, solo reduce el TTL
+    // exigido (ver ELTOQUE_FORCE_MIN_MINUTES): la cuota del token sigue protegida.
+    const force = req.nextUrl.searchParams.get("force") === "1";
+
+    return NextResponse.json(await getTasasReferencia({ force }));
   } catch (error) {
     console.error(error);
     return NextResponse.json(
