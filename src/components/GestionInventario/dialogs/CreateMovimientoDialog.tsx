@@ -18,7 +18,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { IProveedor } from "@/schemas/proveedor";
 import { ILocal } from "@/schemas/tienda";
@@ -33,6 +33,7 @@ import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { IFormaPagoCompra } from "@/schemas/movimiento";
 import { formatAdvertenciasCaja, formatCurrency } from "@/utils/formatters";
+import { generateUUID } from "@/utils/uuid";
 import useConfirmDialog from "@/components/confirmDialog";
 import { FormaPagoCompraSelect } from "@/components/GestionInventario/FormaPagoCompraSelect";
 
@@ -104,6 +105,10 @@ export function CreateMovimientoDialog({
   const [monedaCompra, setMonedaCompra] = useState<string>(monedaBase);
   const [formaPago, setFormaPago] = useState<IFormaPagoCompra>("EXTERNO");
   const [saving, setSaving] = useState(false);
+  // Identifies the batch on the server. Preserved across retries of the same
+  // save — including the one the user triggers after a network error — and
+  // renewed only once the movement is recorded.
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const monedasParaCompra = useMemo(() => {
     const lista = [monedaBase];
@@ -237,6 +242,7 @@ export function CreateMovimientoDialog({
 
   const ejecutarGuardado = async (qty: number, costoRaw: number) => {
     setSaving(true);
+    idempotencyKeyRef.current ??= generateUUID();
     try {
       const { advertenciasCaja } = await cretateBatchMovimientos(
         {
@@ -269,12 +275,15 @@ export function CreateMovimientoDialog({
               }),
           },
         ],
+        idempotencyKeyRef.current,
       );
       if (advertenciasCaja?.length) {
         showMessage(formatAdvertenciasCaja(advertenciasCaja), "warning");
       } else {
         showMessage("Movimiento registrado", "success");
       }
+      // Batch recorded: the next save needs a fresh key.
+      idempotencyKeyRef.current = null;
       // onCreated cierra el diálogo de inmediato y recarga el inventario en
       // segundo plano — no se espera el listado fresco para cerrar.
       onCreated();

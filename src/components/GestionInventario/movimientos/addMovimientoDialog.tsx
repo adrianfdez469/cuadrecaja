@@ -66,6 +66,7 @@ import {
 import { ILocal } from "@/schemas/tienda";
 import { getLocales } from "@/services/localesService";
 import { usePermisos } from "@/utils/permisos_front";
+import { generateUUID } from "@/utils/uuid";
 
 interface IProductoMovimiento {
   nombre: string;
@@ -128,6 +129,10 @@ export const AddMovimientoDialog: FC<IProps> = ({
   // Espejo de `saving` en un ref: los handlers creados en el render del click
   // ven el valor viejo del estado, y `handleClose` necesita el actual.
   const savingRef = useRef(false);
+  // Identifies the batch on the server. Kept while the form holds its content,
+  // so a user retry after a network error does not record the movement twice;
+  // renewed only once the save succeeds.
+  const idempotencyKeyRef = useRef<string | null>(null);
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const [motivo, setMotivo] = useState("");
@@ -287,6 +292,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
     setTipo("COMPRA");
     setFormaPago("EXTERNO");
     setCreandoProveedor(false);
+    idempotencyKeyRef.current = null;
   };
 
   const handleClose = () => {
@@ -351,6 +357,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
 
   const ejecutarGuardado = async () => {
     updateSaving(true);
+    idempotencyKeyRef.current ??= generateUUID();
 
     try {
       const localId = user.localActual.id;
@@ -404,6 +411,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
               }),
           };
         }),
+        idempotencyKeyRef.current,
       );
 
       if (advertenciasCaja?.length) {

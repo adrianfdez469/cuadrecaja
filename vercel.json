@@ -3,6 +3,10 @@
       {
         "path": "/api/crons/purge-expired-freemium-landing-business",
         "schedule": "0 0 * * *"
+      },
+      {
+        "path": "/api/crons/purge-expired-idempotency-keys",
+        "schedule": "0 4 * * *"
       }
     ]
   }
