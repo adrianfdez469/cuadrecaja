@@ -143,13 +143,25 @@ export async function DELETE(
     }
 
     const producto = await prisma.producto.findUnique({
-      where: { id, negocioId: user.negocio.id, deletedAt: null },
+      where: { id, negocioId: user.negocio.id },
     });
 
     if (!producto) {
       return NextResponse.json(
         { error: "Producto no encontrado" },
         { status: 404 },
+      );
+    }
+
+    // El maestro solo se marca eliminado cuando esta fue la última tienda
+    // activa, así que si ya está eliminado no queda ninguna fila de
+    // ProductoTienda activa para reintentar. Responder éxito, no 404: DELETE
+    // siempre se reintenta ante fallos de red, y un reenvío que llega después
+    // de que el borrado ya terminó no debe leerse como un error.
+    if (producto.deletedAt) {
+      return NextResponse.json(
+        { message: "Producto eliminado de esta tienda", duplicado: true },
+        { status: 200 },
       );
     }
 

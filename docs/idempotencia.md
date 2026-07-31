@@ -167,6 +167,31 @@ apareció nada nuevo. Los `+=` de `close` y `productos_tienda` son acumuladores
 locales del cálculo, no incrementos en base; `usuarios/[id]` y `notificaciones/[id]`
 se cortan solos con su guarda `deletedAt: null` y escriben valores absolutos.
 
+## Verificación dinámica (2026-07-31)
+
+Se ejecutaron reintentos reales — secuenciales y concurrentes, misma
+`Idempotency-Key` — contra un servidor local para COMPRA, AJUSTE_ENTRADA,
+AJUSTE_SALIDA, MERMA, VENTA (`syncId`), DEVOLUCION_VENTA y
+`DELETE /api/productos/[id]`, verificando en cada caso que el efecto en BD
+(existencia, filas de `MovimientoStock`/`Venta`) se aplica exactamente una
+vez. Dos hallazgos de esa pasada, ambos corregidos:
+
+- **`POST /api/venta/[tiendaId]/devolucion/[ventaId]`** comprobaba
+  `cantidadDisponible` (basado en lo ya devuelto) **antes** de mirar si la
+  clave ya se había procesado. Un reintento que llegaba después de que la
+  ejecución original ya había registrado la devolución se topaba con "0
+  disponibles" y recibía un 400 de negocio en vez del replay — la devolución
+  sí se había aplicado (una sola vez, sin duplicar), pero el reintento dejaba
+  de ser transparente. Se movió `findIdempotentResponse` justo después de
+  construir `claim`, antes de cualquier lectura que dependa del efecto ya
+  aplicado.
+- **`DELETE /api/productos/[id]`** devolvía 404 en un reenvío si esa tienda
+  era la última activa del producto: el borrado también marca `deletedAt` en
+  el `Producto` maestro, y el lookup inicial filtraba por `deletedAt: null`,
+  así que un reintento no encontraba nada. Ahora se busca el producto sin ese
+  filtro y, si ya está eliminado, se responde éxito (`duplicado: true`) en
+  vez de 404 — mismo criterio que el resto de endpoints protegidos.
+
 ### Qué NO cubre esto
 
 - **Doble click / doble submit humano.** La política del interceptor solo

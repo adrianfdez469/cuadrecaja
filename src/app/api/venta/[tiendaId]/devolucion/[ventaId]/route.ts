@@ -43,6 +43,19 @@ export async function POST(
       endpoint: IDEMPOTENCY_ENDPOINT,
     };
 
+    // Fast path primero: si esta clave ya se procesó, responder lo mismo sin
+    // reevaluar nada. Importa el orden — `cantidadDisponible` más abajo
+    // refleja el efecto que la ejecución original ya aplicó, así que un
+    // reintento que llegara hasta ahí vería "0 disponibles" y recibiría un
+    // 400 de negocio en vez del replay, sobre una devolución que sí ocurrió.
+    const replayed = await findIdempotentResponse(claim);
+    if (replayed) {
+      return NextResponse.json(
+        { ...replayed, duplicado: true },
+        { status: 200 },
+      );
+    }
+
     if (
       !verificarPermisoUsuario(
         user.permisos,
@@ -163,15 +176,7 @@ export async function POST(
 
     // Devolver es acumulativo —"devolver N unidades"— así que repetirlo devuelve
     // el doble. No hay transición de estado que sirva de guarda natural, de ahí
-    // la clave de idempotencia.
-    const replayed = await findIdempotentResponse(claim);
-    if (replayed) {
-      return NextResponse.json(
-        { ...replayed, duplicado: true },
-        { status: 200 },
-      );
-    }
-
+    // la clave de idempotencia (chequeada arriba, antes de `cantidadDisponible`).
     await prisma.$transaction(async (tx) => {
       await claimIdempotencyKey(tx, claim);
 
