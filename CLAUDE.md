@@ -76,6 +76,7 @@ Negocio (tenant root)
 
 ## Code Conventions
 
+- **Language: all new code is written in English** — identifiers, comments, JSDoc, error codes and log messages. Chat and markdown docs stay in Spanish. Parts of the codebase still carry Spanish names (`Producto`, `CreateMoviento`, `verificarPermisoUsuario`); keep using them where they already exist, but never introduce new Spanish identifiers or comments.
 - **Naming:** Components → PascalCase; functions/variables → camelCase; interfaces → PascalCase with `I` prefix
 - **Imports:** Use `@/` alias for all `src/` imports
 - **TypeScript:** Avoid `any`; justify with a comment when unavoidable. Strict mode is disabled.
