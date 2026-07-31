@@ -576,8 +576,43 @@ model MovimientoStock {
 
   state MovimientoState @default(APROBADO)
 
+  // Groups every movement created by a single request, so a batch can be traced
+  // back as one operation. Holds the request's idempotency key. Null for
+  // movements created by internal flows (sale, disaggregation, refund, import)
+  // and for everything recorded before batching existed.
+  batchId String?
+
   @@index([productoTiendaId])
   @@index([fecha])
+  @@index([batchId])
+}
+
+// Generic idempotency store, shared by every endpoint that needs it — no
+// per-domain table.
+//
+// A request that mutates data can arrive twice: the axios interceptor retries on
+// timeout/network error, and aborting the client does NOT cancel the handler, so
+// the original execution is still running and commits anyway. Endpoints claim
+// their key inside their own transaction, which turns the retry into a unique
+// constraint violation instead of duplicated data. See src/lib/idempotency.ts.
+model IdempotencyKey {
+  key String @id // Client-generated, stable across retries of the same operation
+
+  // Tenant that owns the key (negocioId). A key is only ever matched within its
+  // own scope, so one tenant can never read back another tenant's response.
+  scopeId String
+
+  // Route that claimed the key: reusing the same key elsewhere must not return
+  // an unrelated response.
+  endpoint String
+
+  // Response of the original execution, replayed verbatim on a retry.
+  response Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([scopeId])
+  @@index([createdAt]) // TTL cleanup
 }
 
 // =====================

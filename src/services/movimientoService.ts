@@ -1,4 +1,5 @@
-import axiosClient from "@/lib/axiosClient";
+import axiosClient, { IDEMPOTENCY_KEY_HEADER } from "@/lib/axiosClient";
+import { generateUUID } from "@/utils/uuid";
 import type {
   ITipoMovimiento,
   IImportData,
@@ -14,14 +15,32 @@ import type {
 
 const API_URL = `/api/movimiento`;
 
+/**
+ * Creates a batch of stock movements.
+ *
+ * The idempotency key identifies the batch and lets the server deduplicate it.
+ * Generating one here already covers the automatic axios retry, since the retry
+ * reuses the same config and therefore the same key. Callers that also want to
+ * cover a manual retry by the user after an error must pass a stable key, kept
+ * outside the render and renewed only once the save succeeds.
+ */
 export const cretateBatchMovimientos = async (
   data,
   items,
-): Promise<{ advertenciasCaja: IAdvertenciaCajaInsuficiente[] }> => {
-  const res = await axiosClient.post(API_URL, {
-    data: data,
-    items: items,
-  });
+  idempotencyKey?: string,
+): Promise<{
+  advertenciasCaja: IAdvertenciaCajaInsuficiente[];
+  duplicado?: boolean;
+}> => {
+  const res = await axiosClient.post(
+    API_URL,
+    { data, items },
+    {
+      headers: {
+        [IDEMPOTENCY_KEY_HEADER]: idempotencyKey ?? generateUUID(),
+      },
+    },
+  );
   return res.data;
 };
 
@@ -68,10 +87,15 @@ export const importarMovimientosExcel = async (
   items: IImportarItemsMov[],
 ): Promise<IImportarResponse> => {
   try {
-    const response = await axiosClient.post(`${API_URL}/import`, {
-      data,
-      items,
-    });
+    const response = await axiosClient.post(
+      `${API_URL}/import`,
+      { data, items },
+      // Reimportar el mismo archivo duplicaría todo el lote. La clave se genera
+      // por invocación: cubre el reintento automático de axios, mientras que
+      // volver a lanzar la importación a mano es una decisión deliberada del
+      // usuario y sí debe registrarse como una importación nueva.
+      { headers: { [IDEMPOTENCY_KEY_HEADER]: generateUUID() } },
+    );
 
     return response.data;
   } catch (error) {

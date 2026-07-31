@@ -1,4 +1,11 @@
-import { CreateMoviento } from "@/lib/movimiento";
+import { CreateMoviento, MOVIMIENTO_TX_OPTIONS } from "@/lib/movimiento";
+import {
+  claimIdempotencyKey,
+  findIdempotentResponse,
+  storeIdempotentResponse,
+  DuplicateRequestError,
+} from "@/lib/idempotency";
+import { IDEMPOTENCY_KEY_HEADER } from "@/constants/idempotency";
 import { prisma } from "@/lib/prisma";
 import { MovimientoTipo } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -6,7 +13,14 @@ import { startOfNextDay } from "@/utils/date";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { movimientoBatchCreateSchema } from "@/schemas/movimiento";
-import type { ITipoMovimiento } from "@/schemas/movimiento";
+import type {
+  ITipoMovimiento,
+  IAdvertenciaCajaInsuficiente,
+} from "@/schemas/movimiento";
+
+const IDEMPOTENCY_ENDPOINT = "POST /api/movimiento";
+
+type MovimientoResponse = { advertenciasCaja: IAdvertenciaCajaInsuficiente[] };
 
 // Permiso requerido para crear cada tipo de movimiento manual. Mantener en
 // sync con MovimientoTipoCreableEnum (src/schemas/movimiento.ts).
@@ -167,9 +181,23 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // Declared outside the try so the duplicate-request handler can look the
+  // stored response up again.
+  let claim: { key: string; scopeId: string; endpoint: string } | undefined;
+
   try {
     const session = await getSession();
     const user = session.user;
+
+    // Required: without a key this POST is not replayable, and the axios
+    // interceptor would refuse to retry it anyway.
+    const idempotencyKey = req.headers.get(IDEMPOTENCY_KEY_HEADER);
+    if (!idempotencyKey) {
+      return NextResponse.json(
+        { error: `Falta la cabecera ${IDEMPOTENCY_KEY_HEADER}` },
+        { status: 400 },
+      );
+    }
 
     const body = await req.json();
     const parsed = movimientoBatchCreateSchema.safeParse(body);
@@ -203,14 +231,54 @@ export async function POST(req: Request) {
       );
     }
 
-    // usuarioId nunca se toma del cliente: siempre el usuario autenticado.
-    const { advertenciasCaja } = await CreateMoviento(
-      { ...data, usuarioId: user.id },
-      items,
-    );
+    claim = {
+      key: idempotencyKey,
+      scopeId: user.negocio.id,
+      endpoint: IDEMPOTENCY_ENDPOINT,
+    };
 
-    return NextResponse.json({ advertenciasCaja }, { status: 201 });
+    // Fast path: this batch was already processed, so replay its response
+    // instead of doing the work again. The overlapping case — a retry that
+    // arrives while the first execution is still running — is caught by the
+    // unique index inside the transaction below.
+    const replayed = await findIdempotentResponse<MovimientoResponse>(claim);
+    if (replayed) {
+      return NextResponse.json(
+        { ...replayed, duplicado: true },
+        { status: 200 },
+      );
+    }
+
+    const response = await prisma.$transaction(async (tx) => {
+      await claimIdempotencyKey(tx, claim);
+
+      // usuarioId nunca se toma del cliente: siempre el usuario autenticado.
+      const { advertenciasCaja } = await CreateMoviento(
+        { ...data, usuarioId: user.id, batchId: idempotencyKey },
+        items,
+        tx,
+      );
+
+      const payload = { advertenciasCaja };
+      await storeIdempotentResponse(tx, idempotencyKey, payload);
+      return payload;
+    }, MOVIMIENTO_TX_OPTIONS);
+
+    return NextResponse.json(response, { status: 201 });
   } catch (error) {
+    // A concurrent request with the same key got there first. It only reaches
+    // this point after that request committed — the unique index holds the
+    // second one until then — so its response is already stored.
+    if (error instanceof DuplicateRequestError && claim) {
+      const stored = await findIdempotentResponse<MovimientoResponse>(claim);
+      return stored
+        ? NextResponse.json({ ...stored, duplicado: true }, { status: 200 })
+        : NextResponse.json(
+            { error: "La operación ya está en curso" },
+            { status: 409 },
+          );
+    }
+
     console.error(error);
 
     return NextResponse.json(

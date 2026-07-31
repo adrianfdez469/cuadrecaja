@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
-import { CreateMoviento } from "@/lib/movimiento";
+import { CreateMoviento, MOVIMIENTO_TX_OPTIONS } from "@/lib/movimiento";
+import { lockActiveRow } from "@/lib/dbLocks";
 
 const MOTIVO_ELIMINACION = "Eliminación de producto";
 
@@ -142,13 +143,25 @@ export async function DELETE(
     }
 
     const producto = await prisma.producto.findUnique({
-      where: { id, negocioId: user.negocio.id, deletedAt: null },
+      where: { id, negocioId: user.negocio.id },
     });
 
     if (!producto) {
       return NextResponse.json(
         { error: "Producto no encontrado" },
         { status: 404 },
+      );
+    }
+
+    // El maestro solo se marca eliminado cuando esta fue la última tienda
+    // activa, así que si ya está eliminado no queda ninguna fila de
+    // ProductoTienda activa para reintentar. Responder éxito, no 404: DELETE
+    // siempre se reintenta ante fallos de red, y un reenvío que llega después
+    // de que el borrado ya terminó no debe leerse como un error.
+    if (producto.deletedAt) {
+      return NextResponse.json(
+        { message: "Producto eliminado de esta tienda", duplicado: true },
+        { status: 200 },
       );
     }
 
@@ -185,47 +198,74 @@ export async function DELETE(
       }
     }
 
-    if (productoTienda.existencia > 0) {
-      await CreateMoviento(
-        {
-          tipo: productoTienda.proveedorId
-            ? "CONSIGNACION_DEVOLUCION"
-            : "AJUSTE_SALIDA",
-          tiendaId,
-          usuarioId: user.id,
-          motivo: MOTIVO_ELIMINACION,
-          ...(productoTienda.proveedorId && {
-            proveedorId: productoTienda.proveedorId,
-          }),
-        },
-        [{ productoId: id, cantidad: productoTienda.existencia }],
-      );
-    }
+    // One transaction: the outbound adjustment and the soft delete describe the
+    // same fact. Applying one without the other leaves phantom stock (flagged as
+    // deleted but never discounted) or an adjustment with no deletion.
+    const alreadyDeleted = await prisma.$transaction(async (tx) => {
+      // Lock the row and confirm it is still active. Two concurrent executions —
+      // the axios retry overlapping the original request, still alive because
+      // the server cancels nothing — meet here: the second one waits, sees the
+      // row already flagged and leaves without recording a second adjustment.
+      //
+      // `deletedAt` is written at the end and not here on purpose: CreateMoviento
+      // resolves the ProductoTienda filtering by `deletedAt: null`, so flagging
+      // it earlier would make it miss the row and create a new one instead of
+      // discounting the existing stock.
+      if (!(await lockActiveRow(tx, "ProductoTienda", productoTienda.id))) {
+        return true;
+      }
 
-    await prisma.productoTienda.update({
-      where: { id: productoTienda.id },
-      data: { deletedAt: new Date() },
-    });
+      if (productoTienda.existencia > 0) {
+        await CreateMoviento(
+          {
+            tipo: productoTienda.proveedorId
+              ? "CONSIGNACION_DEVOLUCION"
+              : "AJUSTE_SALIDA",
+            tiendaId,
+            usuarioId: user.id,
+            motivo: MOTIVO_ELIMINACION,
+            ...(productoTienda.proveedorId && {
+              proveedorId: productoTienda.proveedorId,
+            }),
+          },
+          [{ productoId: id, cantidad: productoTienda.existencia }],
+          tx,
+        );
+      }
 
-    // Si ya no queda ninguna tienda activa para este producto, liberar
-    // también el Producto maestro (mismo patrón de soft delete + renombrado
-    // para liberar el nombre único por negocio).
-    const tiendasActivasRestantes = await prisma.productoTienda.count({
-      where: { productoId: id, deletedAt: null },
-    });
-
-    if (tiendasActivasRestantes === 0) {
-      await prisma.producto.update({
-        where: { id },
-        data: {
-          deletedAt: new Date(),
-          nombre: `${producto.nombre}_ELIMINADO_${Date.now()}`,
-        },
+      // Only now flag the row: the outbound adjustment is already recorded.
+      await tx.productoTienda.update({
+        where: { id: productoTienda.id },
+        data: { deletedAt: new Date() },
       });
-    }
 
+      // Si ya no queda ninguna tienda activa para este producto, liberar
+      // también el Producto maestro (mismo patrón de soft delete + renombrado
+      // para liberar el nombre único por negocio).
+      const tiendasActivasRestantes = await tx.productoTienda.count({
+        where: { productoId: id, deletedAt: null },
+      });
+
+      if (tiendasActivasRestantes === 0) {
+        await tx.producto.update({
+          where: { id },
+          data: {
+            deletedAt: new Date(),
+            nombre: `${producto.nombre}_ELIMINADO_${Date.now()}`,
+          },
+        });
+      }
+
+      return false;
+    }, MOVIMIENTO_TX_OPTIONS);
+
+    // Resend of an already-applied deletion: success from the client's point of
+    // view, the product is effectively out of the store.
     return NextResponse.json(
-      { message: "Producto eliminado de esta tienda" },
+      {
+        message: "Producto eliminado de esta tienda",
+        ...(alreadyDeleted && { duplicado: true }),
+      },
       { status: 200 },
     );
   } catch (error) {
