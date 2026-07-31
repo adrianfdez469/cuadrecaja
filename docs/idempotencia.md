@@ -70,6 +70,46 @@ vencida hace rato, y una petición nueva trae una clave nueva.
 `Venta.syncId` es un mecanismo equivalente anterior a este helper, y sigue en uso
 en `/api/venta`.
 
+### Cuando hay una transición de estado, no hace falta clave
+
+Si la operación tiene una precondición de estado natural (`PENDIENTE` →
+`RECHAZADO`), el compare-and-set es más simple y no depende de que el cliente
+mande nada: se actualiza con la precondición en el `where` y se comprueba el
+`count`.
+
+```ts
+const claimed = await tx.movimientoStock.updateMany({
+  where: { id: movimientoId, state: "PENDIENTE" },
+  data: { state: "RECHAZADO" },
+});
+if (claimed.count === 0) return; // otra ejecución ya lo reclamó
+```
+
+Así está resuelto `POST /api/movimiento/rechazo`, y protege también contra el
+doble click, no solo contra el reintento de red.
+
+### Excepción: trabajo no atómico
+
+`POST /api/movimiento/import` procesa en chunks de 50, cada uno con su propia
+transacción, y admite éxito parcial a propósito. Como no hay una única
+transacción del trabajo, la clave se reserva antes, en su propia escritura, y
+**no se libera si la importación falla**: liberarla dejaría reimportar los chunks
+que sí entraron. Ante un fallo el usuario relanza la importación y el cliente
+genera una clave nueva — una decisión deliberada, no un reintento ciego.
+
+### Cobertura de las operaciones de movimientos
+
+Los diez handlers que crean `MovimientoStock` están protegidos:
+
+| Handler | Mecanismo |
+|---|---|
+| `POST /api/movimiento` | clave de idempotencia |
+| `POST /api/movimiento/import` | clave de idempotencia (reservada aparte, ver arriba) |
+| `POST /api/movimiento/rechazo` | compare-and-set sobre `state` |
+| `POST /api/venta/[tiendaId]/devolucion/[ventaId]` | clave de idempotencia |
+| `POST /api/venta/[tiendaId]/[cierreId]`, `POST /api/app/venta/[...]` | `Venta.syncId` |
+| Los tres `DELETE` de venta y `DELETE /api/productos/[id]` | bloquear y re-verificar (ver abajo) |
+
 ## El patrón para operaciones que revierten efectos
 
 Devolver stock, revertir pagos o cerrar un período **no son idempotentes**:

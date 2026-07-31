@@ -87,10 +87,15 @@ export const importarMovimientosExcel = async (
   items: IImportarItemsMov[],
 ): Promise<IImportarResponse> => {
   try {
-    const response = await axiosClient.post(`${API_URL}/import`, {
-      data,
-      items,
-    });
+    const response = await axiosClient.post(
+      `${API_URL}/import`,
+      { data, items },
+      // Reimportar el mismo archivo duplicaría todo el lote. La clave se genera
+      // por invocación: cubre el reintento automático de axios, mientras que
+      // volver a lanzar la importación a mano es una decisión deliberada del
+      // usuario y sí debe registrarse como una importación nueva.
+      { headers: { [IDEMPOTENCY_KEY_HEADER]: generateUUID() } },
+    );
 
     return response.data;
   } catch (error) {

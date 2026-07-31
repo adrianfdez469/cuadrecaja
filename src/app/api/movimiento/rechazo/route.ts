@@ -7,43 +7,60 @@ export async function POST(req: Request) {
     const { movimientoId, motivo } = await req.json();
 
     if (!movimientoId) {
-      return NextResponse.json({ error: "ID de movimiento requerido" }, { status: 400 });
+      return NextResponse.json(
+        { error: "ID de movimiento requerido" },
+        { status: 400 },
+      );
     }
 
     // 1. Buscar el movimiento original (debe ser un TRASPASO_SALIDA PENDIENTE)
     const movimientoOriginal = await prisma.movimientoStock.findUnique({
       where: { id: movimientoId },
       include: {
-        productoTienda: true
-      }
+        productoTienda: true,
+      },
     });
 
     if (!movimientoOriginal) {
-      return NextResponse.json({ error: "Movimiento no encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Movimiento no encontrado" },
+        { status: 404 },
+      );
     }
 
-    if (movimientoOriginal.state !== 'PENDIENTE' || movimientoOriginal.tipo !== MovimientoTipo.TRASPASO_SALIDA) {
-      return NextResponse.json({ error: "El movimiento no puede ser rechazado en su estado actual" }, { status: 400 });
+    if (
+      movimientoOriginal.state !== "PENDIENTE" ||
+      movimientoOriginal.tipo !== MovimientoTipo.TRASPASO_SALIDA
+    ) {
+      return NextResponse.json(
+        { error: "El movimiento no puede ser rechazado en su estado actual" },
+        { status: 400 },
+      );
     }
 
-    await prisma.$transaction(async (tx) => {
-      // 2. Marcar el movimiento original como RECHAZADO
-      // Nota: Asegúrate de que 'RECHAZADO' sea un valor válido en tu esquema Prisma para el campo 'state'
-      // Si no existe, podrías usar un campo motivo o similar, pero aquí asumimos que state puede ser RECHAZADO
-      await tx.movimientoStock.update({
-        where: { id: movimientoId },
-        data: { 
-          state: 'RECHAZADO',
-          motivo: motivo ? `RECHAZADO: ${motivo}` : 'RECHAZADO'
-        }
+    const alreadyRejected = await prisma.$transaction(async (tx) => {
+      // 2. Marcar el movimiento original como RECHAZADO.
+      // The PENDIENTE check above runs outside the transaction, so two
+      // concurrent rejections both passed it and returned the stock twice.
+      // This update is the compare-and-set: only the execution that finds the
+      // movement still PENDIENTE claims it, the other one gets count 0 and
+      // leaves without touching stock.
+      const claimed = await tx.movimientoStock.updateMany({
+        where: { id: movimientoId, state: "PENDIENTE" },
+        data: {
+          state: "RECHAZADO",
+          motivo: motivo ? `RECHAZADO: ${motivo}` : "RECHAZADO",
+        },
       });
+
+      if (claimed.count === 0) return true;
 
       // 3. Devolver el stock a la tienda de origen
       // La tienda de origen es movimientoOriginal.tiendaId
       // El productoTiendaId es movimientoOriginal.productoTiendaId
-      
+
       const productoTiendaOrigen = await tx.productoTienda.findUnique({
-        where: { id: movimientoOriginal.productoTiendaId }
+        where: { id: movimientoOriginal.productoTiendaId },
       });
 
       if (!productoTiendaOrigen) {
@@ -57,9 +74,9 @@ export async function POST(req: Request) {
         where: { id: productoTiendaOrigen.id },
         data: {
           existencia: {
-            increment: cantidadRechazada
-          }
-        }
+            increment: cantidadRechazada,
+          },
+        },
       });
 
       // 4. Crear un movimiento de entrada por devolución de rechazo
@@ -71,20 +88,28 @@ export async function POST(req: Request) {
           tiendaId: movimientoOriginal.tiendaId,
           usuarioId: movimientoOriginal.usuarioId, // O el usuario que rechaza si se pasara
           existenciaAnterior: existenciaAnterior,
-          motivo: `DEVOLUCIÓN POR RECHAZO: ${motivo || 'Sin motivo'}`,
+          motivo: `DEVOLUCIÓN POR RECHAZO: ${motivo || "Sin motivo"}`,
           referenciaId: movimientoOriginal.id,
           costoUnitario: movimientoOriginal.costoUnitario,
-          costoTotal: (movimientoOriginal.costoUnitario || 0) * cantidadRechazada,
-        }
+          costoTotal:
+            (movimientoOriginal.costoUnitario || 0) * cantidadRechazada,
+        },
       });
+
+      return false;
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    // Resend of an already-processed rejection: success for the client, the
+    // movement is rejected and the stock is back.
+    return NextResponse.json(
+      { success: true, ...(alreadyRejected && { duplicado: true }) },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Error al rechazar movimiento:", error);
     return NextResponse.json(
       { error: "Error al procesar el rechazo", details: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
