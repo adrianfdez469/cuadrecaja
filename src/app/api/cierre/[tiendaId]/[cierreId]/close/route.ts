@@ -202,6 +202,22 @@ export async function PUT(
       );
 
     const [periodoCerrado] = await prisma.$transaction(async (tx) => {
+      // The "already closed" check above runs outside the transaction, so two
+      // concurrent closes both passed it. Here the period is locked and the
+      // check repeated under that lock: the second execution waits, sees the
+      // fechaFin already written and aborts before duplicating the per-currency
+      // summaries and the consignment settlements.
+      const [lockedPeriod] = await tx.$queryRaw<
+        Array<{ fechaFin: Date | null }>
+      >`
+        SELECT "fechaFin" FROM "CierrePeriodo"
+        WHERE "id" = ${ultimoPeriodo.id}
+        FOR UPDATE
+      `;
+      if (!lockedPeriod || lockedPeriod.fechaFin) {
+        throw new Error("PERIOD_ALREADY_CLOSED");
+      }
+
       // Eliminar desgloses de billetes temporales antes de cerrar
       await tx.cashBreakdownCierre.deleteMany({
         where: { cierrePeriodoId: ultimoPeriodo.id },
@@ -417,6 +433,14 @@ export async function PUT(
 
     return NextResponse.json(periodoCerrado, { status: 201 });
   } catch (error) {
+    // A concurrent close won the race; the period is already closed.
+    if (error instanceof Error && error.message === "PERIOD_ALREADY_CLOSED") {
+      return NextResponse.json(
+        { error: "El período ya fue cerrado" },
+        { status: 400 },
+      );
+    }
+
     console.error("❌ Error al cerrar el período:", error);
     return NextResponse.json(
       { error: "Error al cerrar el período" },

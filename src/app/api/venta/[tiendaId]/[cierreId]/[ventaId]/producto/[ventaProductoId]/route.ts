@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { MovimientoTipo } from "@prisma/client";
+import { lockExistingRow } from "@/lib/dbLocks";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import {
@@ -127,6 +128,15 @@ export async function DELETE(
     );
 
     await prisma.$transaction(async (tx) => {
+      // Lock the sale line and confirm it is still there before returning stock:
+      // repeating the return would increment the quantity twice. The second
+      // execution waits here and finds it already deleted.
+      if (
+        !(await lockExistingRow(tx, "VentaProducto", ventaProductoId))
+      ) {
+        return;
+      }
+
       // 1. Actualizar existencia del producto (devolver al inventario).
       // Se lee la existencia previa dentro de la transacción para dejarla
       // registrada en el movimiento y no romper el kardex.

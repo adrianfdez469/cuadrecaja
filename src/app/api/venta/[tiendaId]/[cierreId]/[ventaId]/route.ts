@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; // Asegúrate de tener la configuración de Prisma en `lib/prisma.ts`
 import { MovimientoTipo } from "@prisma/client";
+import { lockExistingRow } from "@/lib/dbLocks";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
@@ -70,6 +71,15 @@ export async function DELETE(
     // Eliminamos la venta y sus dependencias con prodoctos
 
     await prisma.$transaction(async (tx) => {
+      // Before reverting anything: lock the sale and confirm it is still there.
+      // Reverting stock is not idempotent, so a second execution — the network
+      // retry overlapping the original, still running — would add the quantities
+      // back twice. With the lock, the second one waits, finds the sale already
+      // deleted and leaves without touching anything.
+      if (!(await lockExistingRow(tx, "Venta", ventaId))) {
+        return;
+      }
+
       // Existencia resultante por productoTienda: una misma venta puede generar
       // varios movimientos sobre el mismo producto (VENTA + DESAGREGACION_*),
       // así que la existencia anterior de cada ajuste es el resultado del ajuste
