@@ -30,10 +30,10 @@ import {
   Collapse,
   Divider,
   FormControlLabel,
-  Switch
+  Switch,
 } from "@mui/material";
-import { 
-  Delete, 
+import {
+  Delete,
   Add,
   AccountBalance,
   Description,
@@ -41,20 +41,27 @@ import {
   Search,
   Refresh,
   ExpandLess,
-  ExpandMore
+  ExpandMore,
 } from "@mui/icons-material";
-import { fetchTransferDestinations, createTransferDestination, updateTransferDestination, deleteTransferDestination } from "@/services/transferDestinationsService";
+import {
+  fetchTransferDestinations,
+  createTransferDestination,
+  updateTransferDestination,
+  deleteTransferDestination,
+} from "@/services/transferDestinationsService";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import SelectableTextField from "@/components/SelectableTextField";
 import { useAppContext } from "@/context/AppContext";
 import { ITransferDestination } from "@/schemas/transferDestination";
 
 export default function DestinosTransferenciaPage() {
   const [destinations, setDestinations] = useState<ITransferDestination[]>([]);
   const [open, setOpen] = useState(false);
-  const [editingDestination, setEditingDestination] = useState<ITransferDestination | null>(null);
+  const [editingDestination, setEditingDestination] =
+    useState<ITransferDestination | null>(null);
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [isDefault, setIsDefault] = useState(false);
@@ -63,9 +70,9 @@ export default function DestinosTransferenciaPage() {
   const { showMessage } = useMessageContext();
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { user } = useAppContext();
-  
+
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [statsExpanded, setStatsExpanded] = useState(false);
 
@@ -77,7 +84,7 @@ export default function DestinosTransferenciaPage() {
 
   const loadDestinations = async () => {
     if (!user?.localActual?.id) return;
-    
+
     setLoading(true);
     try {
       const data = await fetchTransferDestinations(user.localActual.id);
@@ -114,49 +121,74 @@ export default function DestinosTransferenciaPage() {
 
     try {
       if (editingDestination) {
-        await updateTransferDestination(editingDestination.id, nombre, descripcion, isDefault);
-        showMessage('Destino de transferencia actualizado exitosamente', 'success');
+        await updateTransferDestination(
+          editingDestination.id,
+          nombre,
+          descripcion,
+          isDefault,
+        );
+        showMessage(
+          "Destino de transferencia actualizado exitosamente",
+          "success",
+        );
       } else {
-        await createTransferDestination(nombre, descripcion, isDefault, user.localActual.id);
-        showMessage('Destino de transferencia creado exitosamente', 'success');
+        await createTransferDestination(
+          nombre,
+          descripcion,
+          isDefault,
+          user.localActual.id,
+        );
+        showMessage("Destino de transferencia creado exitosamente", "success");
       }
       await loadDestinations();
       handleClose();
     } catch (error) {
       console.error("Error al guardar destino de transferencia:", error);
-      showMessage('Error al guardar el destino de transferencia', 'error');
+      showMessage("Error al guardar el destino de transferencia", "error");
     }
   };
 
   const handleDelete = async (id: string) => {
-    confirmDialog('¿Está seguro que desea eliminar el destino de transferencia?', async () => {
-      try {
-        await deleteTransferDestination(id);
-        showMessage('Destino de transferencia eliminado', 'success');
-      } catch (error) {
-        console.error(error);
-        showMessage('Error al intentar eliminar el destino de transferencia. Es probable que esté en uso!', 'error');
-      } finally {
-        await loadDestinations();
-      }
-    });
+    confirmDialog(
+      "¿Está seguro que desea eliminar el destino de transferencia?",
+      async () => {
+        try {
+          await deleteTransferDestination(id);
+          showMessage("Destino de transferencia eliminado", "success");
+        } catch (error) {
+          console.error(error);
+          showMessage(
+            "Error al intentar eliminar el destino de transferencia. Es probable que esté en uso!",
+            "error",
+          );
+        } finally {
+          await loadDestinations();
+        }
+      },
+    );
   };
 
-  const filteredDestinations = destinations.filter((destination) =>
-    destination.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (destination.descripcion && destination.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredDestinations = destinations.filter(
+    (destination) =>
+      destination.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (destination.descripcion &&
+        destination.descripcion
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())),
   );
 
   // Cálculos para estadísticas
   const totalDestinations = destinations.length;
-  const defaultDestinations = destinations.filter(d => d.default).length;
-  const destinationsWithDescription = destinations.filter(d => d.descripcion).length;
+  const defaultDestinations = destinations.filter((d) => d.default).length;
+  const destinationsWithDescription = destinations.filter(
+    (d) => d.descripcion,
+  ).length;
   const destinationsVisible = filteredDestinations.length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Configuración', href: '/configuracion' },
-    { label: 'Destinos de Transferencia' }
+    { label: "Inicio", href: "/home" },
+    { label: "Configuración", href: "/configuracion" },
+    { label: "Destinos de Transferencia" },
   ];
 
   const headerActions = (
@@ -167,8 +199,15 @@ export default function DestinosTransferenciaPage() {
         </IconButton>
       </Tooltip>
       {isMobile && (
-        <Tooltip title={statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"}>
-          <IconButton onClick={() => setStatsExpanded(!statsExpanded)} size="small">
+        <Tooltip
+          title={
+            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
+          }
+        >
+          <IconButton
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            size="small"
+          >
             {statsExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Tooltip>
@@ -186,8 +225,18 @@ export default function DestinosTransferenciaPage() {
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode, value: string, label: string, color: string }) => (
-    <Card sx={{ height: '100%' }}>
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    color: string;
+  }) => (
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -195,39 +244,38 @@ export default function DestinosTransferenciaPage() {
               p: isMobile ? 0.75 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 32 : 48,
               minHeight: isMobile ? 32 : 48,
             }}
           >
-            {React.isValidElement(icon) 
-              ? React.cloneElement(icon, { 
-                  fontSize: isMobile ? "small" : "large" 
+            {React.isValidElement(icon)
+              ? React.cloneElement(icon, {
+                  fontSize: isMobile ? "small" : "large",
                 } as Record<string, unknown>)
-              : icon
-            }
+              : icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "subtitle1" : "h4"} 
+            <Typography
+              variant={isMobile ? "subtitle1" : "h4"}
               fontWeight="bold"
-              sx={{ 
-                fontSize: isMobile ? '1rem' : '2rem',
+              sx={{
+                fontSize: isMobile ? "1rem" : "2rem",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
             </Typography>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
-                fontSize: isMobile ? '0.6875rem' : '0.875rem',
-                lineHeight: 1.2
+              sx={{
+                fontSize: isMobile ? "0.6875rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
@@ -240,7 +288,12 @@ export default function DestinosTransferenciaPage() {
 
   if (!user?.localActual?.id) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <Typography variant="h6" color="text.secondary">
           Selecciona un local para gestionar los destinos de transferencia
         </Typography>
@@ -250,7 +303,12 @@ export default function DestinosTransferenciaPage() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <CircularProgress />
         <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
           Cargando destinos de transferencia...
@@ -262,7 +320,11 @@ export default function DestinosTransferenciaPage() {
   return (
     <PageContainer
       title="Gestión de Destinos de Transferencia"
-      subtitle={!isMobile ? "Configura los destinos para las transferencias de tu local" : undefined}
+      subtitle={
+        !isMobile
+          ? "Configura los destinos para las transferencias de tu local"
+          : undefined
+      }
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
@@ -330,11 +392,13 @@ export default function DestinosTransferenciaPage() {
       )}
 
       {/* Lista de destinos */}
-      <ContentCard 
+      <ContentCard
         title="Lista de Destinos"
-        subtitle={!isMobile ? "Haz clic en cualquier destino para editarlo" : undefined}
+        subtitle={
+          !isMobile ? "Haz clic en cualquier destino para editarlo" : undefined
+        }
         headerActions={
-          <TextField
+          <SelectableTextField
             size="small"
             placeholder={isMobile ? "Buscar..." : "Buscar destino..."}
             value={searchTerm}
@@ -346,9 +410,9 @@ export default function DestinosTransferenciaPage() {
                 </InputAdornment>
               ),
             }}
-            sx={{ 
+            sx={{
               minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : 'none'
+              maxWidth: isMobile ? 200 : "none",
             }}
           />
         }
@@ -357,13 +421,19 @@ export default function DestinosTransferenciaPage() {
       >
         {filteredDestinations.length === 0 ? (
           <Box sx={{ p: 2 }}>
-            <Box sx={{ textAlign: 'center', py: 8 }}>
-              <AccountBalance sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+            <Box sx={{ textAlign: "center", py: 8 }}>
+              <AccountBalance
+                sx={{ fontSize: 48, color: "text.secondary", mb: 2 }}
+              />
               <Typography variant="h6" color="text.secondary">
-                {searchTerm ? 'No se encontraron destinos' : 'No hay destinos registrados'}
+                {searchTerm
+                  ? "No se encontraron destinos"
+                  : "No hay destinos registrados"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Agrega destinos para configurar las transferencias'}
+                {searchTerm
+                  ? "Intenta con otros términos de búsqueda"
+                  : "Agrega destinos para configurar las transferencias"}
               </Typography>
             </Box>
           </Box>
@@ -372,22 +442,30 @@ export default function DestinosTransferenciaPage() {
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
               {filteredDestinations.map((destination) => (
-                <Card 
+                <Card
                   key={destination.id}
                   onClick={() => handleOpen(destination)}
                   sx={{
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
+                    cursor: "pointer",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
                     <Stack spacing={1.5}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
                         <Box display="flex" alignItems="center" gap={1}>
                           <AccountBalance color="primary" />
-                          <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                          <Typography
+                            variant="subtitle2"
+                            fontWeight="medium"
+                            sx={{ fontSize: "0.875rem" }}
+                          >
                             {destination.nombre}
                           </Typography>
                           {destination.default && (
@@ -405,9 +483,13 @@ export default function DestinosTransferenciaPage() {
                           <Delete fontSize="small" />
                         </IconButton>
                       </Box>
-                      
+
                       {destination.descripcion && (
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontSize: "0.6875rem" }}
+                        >
                           {destination.descripcion}
                         </Typography>
                       )}
@@ -431,16 +513,16 @@ export default function DestinosTransferenciaPage() {
               </TableHead>
               <TableBody>
                 {filteredDestinations.map((destination) => (
-                  <TableRow 
+                  <TableRow
                     key={destination.id}
                     onClick={() => handleOpen(destination)}
                     sx={{
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
                       },
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      "&:nth-of-type(odd)": {
+                        backgroundColor: "rgba(0, 0, 0, 0.02)",
                       },
                     }}
                   >
@@ -454,16 +536,16 @@ export default function DestinosTransferenciaPage() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
-                        {destination.descripcion || '-'}
+                        {destination.descripcion || "-"}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
                       {destination.default ? (
-                        <Chip 
-                          icon={<Star />} 
-                          label="Por Defecto" 
-                          color="warning" 
-                          size="small" 
+                        <Chip
+                          icon={<Star />}
+                          label="Por Defecto"
+                          color="warning"
+                          size="small"
                         />
                       ) : (
                         <Typography variant="body2" color="text.secondary">
@@ -494,22 +576,24 @@ export default function DestinosTransferenciaPage() {
       {/* Modal de edición/creación */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingDestination ? "Editar Destino de Transferencia" : "Nuevo Destino de Transferencia"}
+          {editingDestination
+            ? "Editar Destino de Transferencia"
+            : "Nuevo Destino de Transferencia"}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
-            <TextField 
-              fullWidth 
-              label="Nombre" 
+            <TextField
+              fullWidth
+              label="Nombre"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               required
               placeholder="Ej: Tarjeta Principal, Cuenta Bancaria..."
             />
-            
-            <TextField 
-              fullWidth 
-              label="Descripción" 
+
+            <TextField
+              fullWidth
+              label="Descripción"
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
               multiline
@@ -531,9 +615,9 @@ export default function DestinosTransferenciaPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancelar</Button>
-          <Button 
-            onClick={handleSave} 
-            variant="contained" 
+          <Button
+            onClick={handleSave}
+            variant="contained"
             disabled={!nombre.trim()}
           >
             {editingDestination ? "Actualizar" : "Crear"}
@@ -544,4 +628,4 @@ export default function DestinosTransferenciaPage() {
       {ConfirmDialogComponent}
     </PageContainer>
   );
-} 
+}

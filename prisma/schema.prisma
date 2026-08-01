@@ -260,6 +260,7 @@ model Usuario {
   MovimientoStock     MovimientoStock[]
   tasasCambio         TasaCambio[]
   historialMonedaBase HistorialMonedaBase[]
+  initialCashFundEntries InitialCashFund[]
 
   // 🆕 Relación con proveedores asociados
   proveedores Proveedor[] @relation("ProveedorUsuario")
@@ -495,10 +496,28 @@ model CierrePeriodo {
   resumenMonedas      ResumenMonedaCierre[]
   cashBreakdownMoneda CashBreakdownMoneda[]
 
+  initialCashFundEntries InitialCashFund[]
+
   // Idices
   @@index([fechaInicio])
   @@index([fechaFin])
   @@index([tiendaId])
+}
+
+// Fondo inicial de caja por moneda, para un período. Append-only: cada edición
+// inserta una fila nueva con el snapshot completo de todas las monedas; la más
+// reciente por createdAt es la vigente. Nunca se borra — es dato histórico del
+// cierre, y la lista completa por cierrePeriodoId ya es el historial de auditoría.
+model InitialCashFund {
+  id              String        @id @default(uuid())
+  cierrePeriodo   CierrePeriodo @relation(fields: [cierrePeriodoId], references: [id], onDelete: Cascade)
+  cierrePeriodoId String
+  amounts         Json // Record<monedaCode, number>, ej. {"CUP": 5000, "USD": 20}
+  createdById     String
+  createdBy       Usuario       @relation(fields: [createdById], references: [id])
+  createdAt       DateTime      @default(now())
+
+  @@index([cierrePeriodoId, createdAt])
 }
 
 model CashBreakdownCierre {

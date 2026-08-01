@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { IconButton, InputAdornment, TextField } from "@mui/material";
+import { IconButton, InputAdornment } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 import { normalizeSearch } from "@/utils/formatters";
+import SelectableTextField from "@/components/SelectableTextField";
 
 interface IProps {
   onSearch: (normalizedTerm: string) => void;
@@ -15,7 +16,11 @@ interface IProps {
 
 // Llama a onSearch solo cuando el texto esté vacío o tenga al menos 3 caracteres.
 // El término que recibe el padre ya está normalizado (sin tildes, minúsculas, espacios colapsados).
-export default function SearchInput({ onSearch, placeholder = "Buscar...", sx }: IProps) {
+export default function SearchInput({
+  onSearch,
+  placeholder = "Buscar...",
+  sx,
+}: IProps) {
   const [value, setValue] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -41,7 +46,7 @@ export default function SearchInput({ onSearch, placeholder = "Buscar...", sx }:
   };
 
   return (
-    <TextField
+    <SelectableTextField
       size="small"
       placeholder={placeholder}
       value={value}

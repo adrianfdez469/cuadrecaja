@@ -55,6 +55,8 @@ import { IGastoAdHocCreate, IGastoPreview } from "@/schemas/gastos";
 import MonedaBreakdownRow from "@/app/cierre/components/MonedaBreakdownRow";
 import { DENOMINACIONES } from "@/constants/billDenominations";
 import GananciaCard from "@/app/cierre/components/GananciaCard";
+import InitialCashFundDialog from "@/app/cierre/components/InitialCashFundDialog";
+import SavingsIcon from "@mui/icons-material/Savings";
 
 const CierreCajaPage = () => {
   const { user, loadingContext, gotToPath, monedasNegocio, monedaBase } =
@@ -75,11 +77,15 @@ const CierreCajaPage = () => {
   const [categoriasGastos, setCategoriasGastos] = useState<string[]>([]);
   const [deletingGastoId, setDeletingGastoId] = useState<string | null>(null);
   const [cerrarCajaDialogOpen, setCerrarCajaDialogOpen] = useState(false);
+  const [initialFundDialogOpen, setInitialFundDialogOpen] = useState(false);
   const { clearSales, sales } = useSalesStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { verificarPermiso } = usePermisos();
   const canManageGastos = verificarPermiso("operaciones.gastos.gestionar");
+  const canManageInitialFund = verificarPermiso(
+    "operaciones.cierre.fondoinicial",
+  );
 
   const handleSaveAdHoc = async (data: IGastoAdHocCreate) => {
     if (!currentPeriod) return;
@@ -187,9 +193,19 @@ const CierreCajaPage = () => {
       }
 
       setCurrentPeriod(currentPeriod);
+      // Los gastos son datos opcionales de esta vista (solo alimentan el
+      // Autocomplete de categorías del diálogo de gasto ad-hoc, que ni
+      // siquiera se renderiza sin `canManageGastos`) — no deben impedir que
+      // se muestre el cierre si el usuario no tiene permiso para verlos o si
+      // la petición falla por cualquier otro motivo.
       const [data, gastosTienda] = await Promise.all([
         fetchCierreData(localId, currentPeriod.id),
-        getGastosTienda(localId),
+        canManageGastos
+          ? getGastosTienda(localId).catch((error) => {
+              console.error("Error al cargar categorías de gastos:", error);
+              return [];
+            })
+          : Promise.resolve([]),
       ]);
 
       setCierreData(data);
@@ -292,6 +308,16 @@ const CierreCajaPage = () => {
           <RefreshIcon />
         </IconButton>
       </Tooltip>
+      {canManageInitialFund && currentPeriod && !currentPeriod.fechaFin && (
+        <Button
+          variant="outlined"
+          size={isMobile ? "small" : "medium"}
+          startIcon={<SavingsIcon />}
+          onClick={() => setInitialFundDialogOpen(true)}
+        >
+          {isMobile ? "Fondo" : "Fondo inicial"}
+        </Button>
+      )}
       {canManageGastos && currentPeriod && !currentPeriod.fechaFin && (
         <Button
           variant="outlined"
@@ -544,6 +570,7 @@ const CierreCajaPage = () => {
                     equivalenteBase={rm.equivalenteBase}
                     totalEfectivoBruto={rm.totalEfectivoBruto}
                     equivalenteBaseBruto={rm.equivalenteBaseBruto}
+                    initialFund={rm.initialFund}
                     tiendaId={user?.localActual?.id ?? ""}
                     cierreId={currentPeriod.id}
                     isOpen={!currentPeriod.fechaFin}
@@ -584,6 +611,17 @@ const CierreCajaPage = () => {
           onClose={() => setCerrarCajaDialogOpen(false)}
           onConfirm={handleConfirmarCierre}
         />
+
+        {canManageInitialFund && (
+          <InitialCashFundDialog
+            open={initialFundDialogOpen}
+            tiendaId={user.localActual.id}
+            cierreId={currentPeriod.id}
+            monedasActivas={monedasNegocio}
+            onClose={() => setInitialFundDialogOpen(false)}
+            onSaved={getInitData}
+          />
+        )}
 
         {canManageGastos && (
           <GastoAdHocDialog

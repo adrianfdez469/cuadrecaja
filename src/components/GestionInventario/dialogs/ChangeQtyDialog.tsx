@@ -10,7 +10,6 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  InputAdornment,
   InputLabel,
   MenuItem,
   Select,
@@ -22,6 +21,8 @@ import { ChangeQtyOptions } from "../hooks/useGestionInventario";
 import { formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
+import MoneyField from "@/components/MoneyField";
+import SelectableTextField from "@/components/SelectableTextField";
 
 interface Props {
   open: boolean;
@@ -120,7 +121,7 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
               size="small"
               sx={{ flex: 1 }}
             />
-            <TextField
+            <SelectableTextField
               label="Nueva cantidad"
               value={newQtyStr}
               onChange={(e) => setNewQtyStr(e.target.value)}
@@ -154,17 +155,11 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
           )}
 
           {mostrarCosto && (
-            <TextField
+            <MoneyField
               label={`Costo unitario${isExtraCurrency ? ` (${monedaCompra})` : ""}`}
               value={costoUnitario}
               onChange={(e) => setCostoUnitario(e.target.value)}
               size="small"
-              inputProps={{ inputMode: "decimal" }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">$</InputAdornment>
-                ),
-              }}
               helperText={
                 isExtraCurrency && costoUnitario
                   ? `≈ ${convertToBase(parseFloat(costoUnitario) || 0, monedaCompra, tasasVigentes, monedaBase).toFixed(2)} ${monedaBase}`

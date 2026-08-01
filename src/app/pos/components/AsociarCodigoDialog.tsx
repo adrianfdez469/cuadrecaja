@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  TextField,
   List,
   ListItemButton,
   ListItemText,
@@ -26,6 +25,7 @@ import { normalizeSearch } from "@/utils/formatters";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
+import SelectableTextField from "@/components/SelectableTextField";
 
 interface AsociarCodigoDialogProps {
   open: boolean;
@@ -113,7 +113,7 @@ export function AsociarCodigoDialog({
           />
         </Box>
 
-        <TextField
+        <SelectableTextField
           fullWidth
           autoFocus
           label="Buscar producto"

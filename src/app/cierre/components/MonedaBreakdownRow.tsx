@@ -31,6 +31,7 @@ interface Props {
   equivalenteBase: number;
   totalEfectivoBruto?: number;
   equivalenteBaseBruto?: number;
+  initialFund?: number;
   tiendaId: string;
   cierreId: string;
   isOpen: boolean;
@@ -66,6 +67,7 @@ const MonedaBreakdownRow: FC<Props> = ({
   equivalenteBase,
   totalEfectivoBruto,
   equivalenteBaseBruto,
+  initialFund = 0,
   tiendaId,
   cierreId,
   isOpen,
@@ -162,6 +164,16 @@ const MonedaBreakdownRow: FC<Props> = ({
           variant="outlined"
         />
         <Stack direction="row" gap={3} flexWrap="wrap" alignItems="center">
+          {initialFund > 0 && (
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Fondo inicial
+              </Typography>
+              <Typography variant="body2" fontWeight="medium">
+                {formatMontoEnMoneda(initialFund, monedaCode)}
+              </Typography>
+            </Box>
+          )}
           <Box>
             <Typography variant="caption" color="text.secondary">
               Efectivo

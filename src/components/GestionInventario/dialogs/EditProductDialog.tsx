@@ -14,7 +14,6 @@ import {
   FormControl,
   FormControlLabel,
   IconButton,
-  InputAdornment,
   InputLabel,
   MenuItem,
   Select,
@@ -36,6 +35,8 @@ import MobileQrScanner from "@/components/ProductProcessorData/MobileQrScanner";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase, convertFromBase } from "@/lib/currency";
 import { usePermisos } from "@/utils/permisos_front";
+import MoneyField from "@/components/MoneyField";
+import SelectableTextField from "@/components/SelectableTextField";
 
 interface Props {
   open: boolean;
@@ -335,18 +336,12 @@ export function EditProductDialog({
                 </Select>
               </FormControl>
             )}
-            <TextField
+            <MoneyField
               label={`Costo (${costoMonedaEfectiva})`}
               value={costo}
               onChange={(e) => setCosto(e.target.value)}
               size="small"
               disabled={!puedeEditarCosto}
-              inputProps={{ inputMode: "decimal" }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">$</InputAdornment>
-                ),
-              }}
               helperText={
                 costoEnBase !== null
                   ? `≈ ${costoEnBase.toFixed(2)} ${monedaBase}`
@@ -375,18 +370,12 @@ export function EditProductDialog({
                 </Select>
               </FormControl>
             )}
-            <TextField
+            <MoneyField
               label={`Precio (${precioMonedaEfectiva})`}
               value={precio}
               onChange={(e) => setPrecio(e.target.value)}
               size="small"
               disabled={!puedeEditarPrecio}
-              inputProps={{ inputMode: "decimal" }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">$</InputAdornment>
-                ),
-              }}
               helperText={
                 precioEnBase !== null
                   ? `≈ ${precioEnBase.toFixed(2)} ${monedaBase}`
@@ -456,7 +445,7 @@ export function EditProductDialog({
                   ))}
                 </Select>
               </FormControl>
-              <TextField
+              <SelectableTextField
                 label="Unidades por fracción"
                 value={fraccionValue ?? ""}
                 onChange={(e) =>

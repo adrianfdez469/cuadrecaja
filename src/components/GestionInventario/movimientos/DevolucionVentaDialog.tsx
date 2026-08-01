@@ -36,6 +36,7 @@ import {
 } from "@/schemas/devolucionVenta";
 import { formatCurrency } from "@/utils/formatters";
 import useConfirmDialog from "@/components/confirmDialog";
+import SelectableTextField from "@/components/SelectableTextField";
 
 interface IProps {
   dialogOpen: boolean;
@@ -186,7 +187,7 @@ export const DevolucionVentaDialog: FC<IProps> = ({
             onChange={setFechaFin}
             slotProps={{ textField: { size: "small", fullWidth: true } }}
           />
-          <TextField
+          <SelectableTextField
             label="Producto"
             placeholder="Nombre del producto..."
             value={search}
@@ -293,16 +294,11 @@ export const DevolucionVentaDialog: FC<IProps> = ({
                       direction={isMobile ? "column" : "row"}
                       spacing={1.5}
                     >
-                      <TextField
+                      <SelectableTextField
                         label="Cantidad"
-                        type="number"
                         value={cantidadDevolver}
                         onChange={(e) => setCantidadDevolver(e.target.value)}
-                        inputProps={{
-                          min: 0,
-                          max: returnTarget.producto.cantidadDisponible,
-                          step: "0.01",
-                        }}
+                        inputProps={{ inputMode: "decimal" }}
                         size="small"
                         fullWidth
                       />

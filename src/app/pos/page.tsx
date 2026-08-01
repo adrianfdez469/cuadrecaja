@@ -12,7 +12,6 @@ import {
   Typography,
   CircularProgress,
   Box,
-  TextField,
   Paper as MuiPaper,
   Portal,
   InputAdornment,
@@ -55,6 +54,7 @@ import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
 import { useCartTotal } from "@/hooks/useCartTotal";
 import { convertToBase } from "@/lib/currency";
+import SelectableTextField from "@/components/SelectableTextField";
 
 import ProductProcessorData from "@/components/ProductProcessorData/ProductProcessorData";
 
@@ -177,7 +177,7 @@ export default function POSInterface() {
   const editCartInputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
     if (editingCartId) {
-      // Forzar foco de forma robusta tras renderizar el TextField
+      // Forzar foco de forma robusta tras renderizar el campo
       const focusLater = () => {
         const el = editCartInputRef.current;
         if (el) {
@@ -188,10 +188,7 @@ export default function POSInterface() {
               el.focus();
             } catch {}
           }
-          // Seleccionar el texto para facilitar la edición
-          try {
-            el.select();
-          } catch {}
+          // SelectableTextField selecciona el texto en su propio onFocus.
         }
       };
       const raf = requestAnimationFrame(() => setTimeout(focusLater, 0));
@@ -720,8 +717,7 @@ export default function POSInterface() {
       // un total fraccionado podía dar `false` por diferencias ~1e-13 y la venta
       // se descartaba en silencio.
       if (
-        Math.round(total * 100) <=
-        Math.round((totalCash + totalTransfer) * 100)
+        Math.round(total * 100) <= Math.round((totalCash + totalTransfer) * 100)
       ) {
         const tiendaId = user.localActual.id;
         const cierreId = periodo.id;
@@ -947,10 +943,7 @@ export default function POSInterface() {
           );
         }
       } else {
-        showMessage(
-          "❌ El pago no cubre el total de la venta",
-          "error",
-        );
+        showMessage("❌ El pago no cubre el total de la venta", "error");
       }
     } catch (error) {
       console.error(error);
@@ -1158,7 +1151,7 @@ export default function POSInterface() {
         onOnboardingPeriodPrompt,
       );
     };
-  }, [periodo, user.localActual?.id]);
+  }, [periodo, user?.localActual?.id]);
 
   // Activar audio context cuando se carga la página
   useEffect(() => {
@@ -1652,11 +1645,11 @@ export default function POSInterface() {
             {carts.map((c) => (
               <Box key={c.id} sx={{ display: "flex", alignItems: "center" }}>
                 {editingCartId === c.id ? (
-                  <TextField
+                  <SelectableTextField
                     size="small"
                     value={editingCartName}
                     autoFocus
-                    inputRef={editCartInputRef}
+                    ref={editCartInputRef}
                     onChange={(e) => setEditingCartName(e.target.value)}
                     onBlur={() => {
                       if (editingCartId) {
@@ -1794,8 +1787,8 @@ export default function POSInterface() {
           }}
         >
           <Stack direction="row" spacing={1}>
-            <TextField
-              inputRef={searchInputRef}
+            <SelectableTextField
+              ref={searchInputRef}
               fullWidth
               variant="outlined"
               placeholder="Buscar productos..."
@@ -1804,11 +1797,7 @@ export default function POSInterface() {
               // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
               onFocus={() => handleSearchFocus()}
               onBlur={() => handleSearchBlur()}
-              onMouseDown={(e) => {
-                handleSearchMouseDown();
-                if (e.button === 0 && searchInputRef.current)
-                  setTimeout(() => searchInputRef.current?.select(), 0);
-              }}
+              onMouseDown={() => handleSearchMouseDown()}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">

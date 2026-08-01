@@ -12,6 +12,7 @@ import type {
   IProdTiendaQueryParams,
   IProdTiendaResponse,
 } from "@/schemas/producto";
+import type { IResumenCajaResponse } from "@/schemas/resumenCaja";
 
 const API_URL = `/api/movimiento`;
 
@@ -49,6 +50,15 @@ export const getEfectivoDisponibleCaja = async (
 ): Promise<Record<string, number>> => {
   const res = await axiosClient.get(`${API_URL}/${tiendaId}/caja-disponible`);
   return res.data.disponible;
+};
+
+export const getResumenCaja = async (
+  tiendaId: string,
+): Promise<IResumenCajaResponse> => {
+  const res = await axiosClient.get<IResumenCajaResponse>(
+    `${API_URL}/${tiendaId}/caja-resumen`,
+  );
+  return res.data;
 };
 
 export const findMovimientos = async (

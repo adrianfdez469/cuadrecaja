@@ -15,7 +15,6 @@ import {
   LinearProgress,
   Stack,
   Alert,
-  TextField,
   InputAdornment,
   Grid,
   Card,
@@ -64,6 +63,7 @@ import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { ITipoMovimiento, MovimientoTipoEnum } from "@/schemas/movimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import SelectableTextField from "@/components/SelectableTextField";
 import { formatNumber, formatDateTime } from "@/utils/formatters";
 import ImportarExcelDialog from "./importExcelDialog";
 import {
@@ -671,7 +671,7 @@ export default function MovimientosView() {
         }
         headerActions={
           <Stack direction="row" spacing={1} alignItems="center">
-            <TextField
+            <SelectableTextField
               size="small"
               placeholder={isMobile ? "Buscar..." : "Buscar movimiento..."}
               value={searchInputValue}

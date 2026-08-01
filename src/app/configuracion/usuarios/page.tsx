@@ -1,21 +1,21 @@
-"use client"
+"use client";
 
 import React, { useEffect, useState } from "react";
-import { 
-  Typography, 
-  Button, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  IconButton, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions, 
-  TextField, 
+import {
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
   Box,
   CircularProgress,
   InputAdornment,
@@ -28,11 +28,11 @@ import {
   useTheme,
   useMediaQuery,
   Collapse,
-  Divider
+  Divider,
 } from "@mui/material";
-import { 
-  Edit, 
-  Delete, 
+import {
+  Edit,
+  Delete,
   Add,
   Person,
   Search,
@@ -45,6 +45,7 @@ import {
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import SelectableTextField from "@/components/SelectableTextField";
 import LimitDialog from "@/components/LimitDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { usePermisos } from "@/utils/permisos_front";
@@ -65,9 +66,12 @@ const PENDIENTE_VERIFICACION = "PENDIENTE_VERIFICACION" as const;
 
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<IUsuarioListItem[]>([]);
-  const [resetPasswordSent, setResetPasswordSent] = useState<Record<string, boolean>>({});
+  const [resetPasswordSent, setResetPasswordSent] = useState<
+    Record<string, boolean>
+  >({});
   const [open, setOpen] = useState(false);
-  const [selectedUsuario, setSelectedUsuario] = useState<IUsuarioListItem | null>(null);
+  const [selectedUsuario, setSelectedUsuario] =
+    useState<IUsuarioListItem | null>(null);
   const [nombre, setNombre] = useState("");
   const [usuario, setUsuario] = useState("");
   const [loading, setLoading] = useState(true);
@@ -82,9 +86,9 @@ export default function UsuariosPage() {
   const { showMessage } = useMessageContext();
   const { verificarPermiso } = usePermisos();
   const canManageUsers = verificarPermiso("configuracion.usuarios.acceder");
-  
+
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     fetchUsuarios();
@@ -129,7 +133,7 @@ export default function UsuariosPage() {
       const info = await getUsuarioDeleteInfo(id);
       setDeleteInfo(info);
       setDeleteDialogOpen(true);
-    } catch(e) {
+    } catch (e) {
       showMessage("Error al obtener información del usuario", "error");
       console.error("Error al eliminar el usuario", e);
     } finally {
@@ -150,8 +154,10 @@ export default function UsuariosPage() {
         typeof error === "object" &&
         error !== null &&
         "response" in error &&
-        typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error === "string"
-          ? (error as { response: { data: { error: string } } }).response.data.error
+        typeof (error as { response?: { data?: { error?: string } } }).response
+          ?.data?.error === "string"
+          ? (error as { response: { data: { error: string } } }).response.data
+              .error
           : "Error al eliminar el usuario";
       showMessage(msg, "error");
     }
@@ -167,9 +173,10 @@ export default function UsuariosPage() {
         typeof error === "object" &&
         error !== null &&
         "response" in error &&
-        typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error ===
-          "string"
-          ? (error as { response: { data: { error: string } } }).response.data.error
+        typeof (error as { response?: { data?: { error?: string } } }).response
+          ?.data?.error === "string"
+          ? (error as { response: { data: { error: string } } }).response.data
+              .error
           : "No se pudo reenviar la invitación";
       showMessage(msg, "error");
     }
@@ -183,7 +190,10 @@ export default function UsuariosPage() {
 
     const emailNormalizado = usuario.trim().toLowerCase();
     if (!EMAIL_REGEX.test(emailNormalizado)) {
-      showMessage("El campo usuario debe ser un correo electrónico válido.", "warning");
+      showMessage(
+        "El campo usuario debe ser un correo electrónico válido.",
+        "warning",
+      );
       return;
     }
 
@@ -202,34 +212,42 @@ export default function UsuariosPage() {
           emailCambiado
             ? "Datos guardados. Se envió un correo de activación para confirmar el nuevo email."
             : "Usuario actualizado exitosamente",
-          "success"
+          "success",
         );
       } else {
         await createUsuario(data);
         showMessage(
           "Usuario creado. Se envió una invitación por correo para que defina su contraseña.",
-          "success"
+          "success",
         );
       }
       fetchUsuarios();
       handleClose();
     } catch (error: unknown) {
       console.error("Error al guardar el usuario", error);
-      const err = error as { response?: { status?: number; data?: { error?: string } } };
+      const err = error as {
+        response?: { status?: number; data?: { error?: string } };
+      };
       if (
         err.response?.status === 400 &&
         err.response?.data?.error?.includes("Limite de usuarios exedido")
       ) {
         setLimitDialog(true);
       } else {
-        showMessage(err.response?.data?.error || "Error al guardar el usuario", "error");
+        showMessage(
+          err.response?.data?.error || "Error al guardar el usuario",
+          "error",
+        );
       }
     } finally {
       setSaving(false);
     }
   };
 
-  const handleResetPassword = async (e: React.MouseEvent, user: IUsuarioListItem) => {
+  const handleResetPassword = async (
+    e: React.MouseEvent,
+    user: IUsuarioListItem,
+  ) => {
     e.stopPropagation();
     confirmDialog(
       `Se enviará un correo de restablecimiento a ${user.usuario}. ¿Deseas continuar?`,
@@ -243,13 +261,14 @@ export default function UsuariosPage() {
             typeof error === "object" &&
             error !== null &&
             "response" in error &&
-            typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error ===
-              "string"
-              ? (error as { response: { data: { error: string } } }).response.data.error
+            typeof (error as { response?: { data?: { error?: string } } })
+              .response?.data?.error === "string"
+              ? (error as { response: { data: { error: string } } }).response
+                  .data.error
               : "No se pudo enviar el restablecimiento";
           showMessage(msg, "error");
         }
-      }
+      },
     );
   };
 
@@ -260,16 +279,16 @@ export default function UsuariosPage() {
   const filteredUsuarios = usuarios.filter(
     (user) =>
       user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.usuario.toLowerCase().includes(searchTerm.toLowerCase())
+      user.usuario.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // Cálculos para estadísticas
   const totalUsuarios = usuarios.length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Configuración', href: '/configuracion' },
-    { label: 'Usuarios' }
+    { label: "Inicio", href: "/home" },
+    { label: "Configuración", href: "/configuracion" },
+    { label: "Usuarios" },
   ];
 
   const headerActions = (
@@ -280,8 +299,15 @@ export default function UsuariosPage() {
         </IconButton>
       </Tooltip>
       {isMobile && (
-        <Tooltip title={statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"}>
-          <IconButton onClick={() => setStatsExpanded(!statsExpanded)} size="small">
+        <Tooltip
+          title={
+            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
+          }
+        >
+          <IconButton
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            size="small"
+          >
             {statsExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Tooltip>
@@ -300,8 +326,18 @@ export default function UsuariosPage() {
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode, value: string, label: string, color: string }) => (
-    <Card sx={{ height: '100%' }}>
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    color: string;
+  }) => (
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -309,39 +345,38 @@ export default function UsuariosPage() {
               p: isMobile ? 0.75 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 32 : 48,
               minHeight: isMobile ? 32 : 48,
             }}
           >
-            {React.isValidElement(icon) 
-              ? React.cloneElement(icon, { 
-                  fontSize: isMobile ? "small" : "large" 
+            {React.isValidElement(icon)
+              ? React.cloneElement(icon, {
+                  fontSize: isMobile ? "small" : "large",
                 } as Record<string, unknown>)
-              : icon
-            }
+              : icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "subtitle1" : "h4"} 
+            <Typography
+              variant={isMobile ? "subtitle1" : "h4"}
               fontWeight="bold"
-              sx={{ 
-                fontSize: isMobile ? '1rem' : '2rem',
+              sx={{
+                fontSize: isMobile ? "1rem" : "2rem",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
             </Typography>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
-                fontSize: isMobile ? '0.6875rem' : '0.875rem',
-                lineHeight: 1.2
+              sx={{
+                fontSize: isMobile ? "0.6875rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
@@ -354,7 +389,12 @@ export default function UsuariosPage() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <CircularProgress />
         <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
           Cargando usuarios...
@@ -434,11 +474,13 @@ export default function UsuariosPage() {
       )}
 
       {/* Lista de usuarios */}
-      <ContentCard 
+      <ContentCard
         title="Lista de Usuarios"
-        subtitle={!isMobile ? "Haz clic en cualquier usuario para editarlo" : undefined}
+        subtitle={
+          !isMobile ? "Haz clic en cualquier usuario para editarlo" : undefined
+        }
         headerActions={
-          <TextField
+          <SelectableTextField
             size="small"
             placeholder={isMobile ? "Buscar..." : "Buscar usuario..."}
             value={searchTerm}
@@ -450,9 +492,9 @@ export default function UsuariosPage() {
                 </InputAdornment>
               ),
             }}
-            sx={{ 
+            sx={{
               minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : 'none'
+              maxWidth: isMobile ? 200 : "none",
             }}
           />
         }
@@ -461,13 +503,17 @@ export default function UsuariosPage() {
       >
         {filteredUsuarios.length === 0 ? (
           <Box sx={{ p: 2 }}>
-            <Box sx={{ textAlign: 'center', py: 8 }}>
-              <Person sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+            <Box sx={{ textAlign: "center", py: 8 }}>
+              <Person sx={{ fontSize: 48, color: "text.secondary", mb: 2 }} />
               <Typography variant="h6" color="text.secondary">
-                {searchTerm ? 'No se encontraron usuarios' : 'No hay usuarios registrados'}
+                {searchTerm
+                  ? "No se encontraron usuarios"
+                  : "No hay usuarios registrados"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Agrega usuarios para comenzar a gestionar el acceso al sistema'}
+                {searchTerm
+                  ? "Intenta con otros términos de búsqueda"
+                  : "Agrega usuarios para comenzar a gestionar el acceso al sistema"}
               </Typography>
             </Box>
           </Box>
@@ -476,35 +522,63 @@ export default function UsuariosPage() {
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
               {filteredUsuarios.map((user) => (
-                <Card 
+                <Card
                   key={user.id}
                   onClick={() => handleOpen(user)}
                   sx={{
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
+                    cursor: "pointer",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
                     <Stack spacing={1.5}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight="medium"
+                          sx={{ fontSize: "0.875rem" }}
+                        >
                           {user.nombre}
                         </Typography>
-                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          flexWrap="wrap"
+                          useFlexGap
+                        >
                           {user.estadoCuenta === PENDIENTE_VERIFICACION ? (
-                            <Chip label="Pendiente" color="warning" size="small" sx={{ height: 20 }} />
+                            <Chip
+                              label="Pendiente"
+                              color="warning"
+                              size="small"
+                              sx={{ height: 20 }}
+                            />
                           ) : null}
                           {user.rol === "SUPER_ADMIN" ? (
-                            <Chip label={user.rol} color="info" size="small" sx={{ height: 20 }} />
+                            <Chip
+                              label={user.rol}
+                              color="info"
+                              size="small"
+                              sx={{ height: 20 }}
+                            />
                           ) : null}
                           {resetPasswordSent[user.id] ? (
-                            <Chip label="Reset enviado" color="info" size="small" sx={{ height: 20 }} />
+                            <Chip
+                              label="Reset enviado"
+                              color="info"
+                              size="small"
+                              sx={{ height: 20 }}
+                            />
                           ) : null}
                         </Stack>
                       </Box>
-                      
+
                       <Box
                         display="flex"
                         flexDirection="row"
@@ -549,7 +623,8 @@ export default function UsuariosPage() {
                               <MailOutline sx={{ fontSize: 20 }} />
                             </IconButton>
                           ) : null}
-                          {canManageUsers && user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
+                          {canManageUsers &&
+                          user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
                             <IconButton
                               onClick={(e) => handleResetPassword(e, user)}
                               size="small"
@@ -567,7 +642,11 @@ export default function UsuariosPage() {
                             }}
                             size="small"
                             color="error"
-                            disabled={!verificarPermiso("configuracion.usuarios.deleteOrDisable") || deleteLoading}
+                            disabled={
+                              !verificarPermiso(
+                                "configuracion.usuarios.deleteOrDisable",
+                              ) || deleteLoading
+                            }
                             aria-label="Eliminar usuario"
                           >
                             <Delete sx={{ fontSize: 20 }} />
@@ -594,16 +673,16 @@ export default function UsuariosPage() {
               </TableHead>
               <TableBody>
                 {filteredUsuarios.map((user) => (
-                  <TableRow 
+                  <TableRow
                     key={user.id}
                     onClick={() => handleOpen(user)}
                     sx={{
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
                       },
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      "&:nth-of-type(odd)": {
+                        backgroundColor: "rgba(0, 0, 0, 0.02)",
                       },
                     }}
                   >
@@ -618,20 +697,43 @@ export default function UsuariosPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-start">
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        alignItems="center"
+                        justifyContent="flex-start"
+                      >
                         {user.estadoCuenta === PENDIENTE_VERIFICACION ? (
-                          <Chip label="Pendiente" color="warning" size="small" />
+                          <Chip
+                            label="Pendiente"
+                            color="warning"
+                            size="small"
+                          />
                         ) : (
-                          <Chip label="Activo" color="success" size="small" variant="outlined" />
+                          <Chip
+                            label="Activo"
+                            color="success"
+                            size="small"
+                            variant="outlined"
+                          />
                         )}
                         {resetPasswordSent[user.id] ? (
-                          <Chip label="Reset enviado" color="info" size="small" variant="outlined" />
+                          <Chip
+                            label="Reset enviado"
+                            color="info"
+                            size="small"
+                            variant="outlined"
+                          />
                         ) : null}
                       </Stack>
                     </TableCell>
 
                     <TableCell align="center">
-                      <Stack direction="row" spacing={0.5} justifyContent="center">
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        justifyContent="center"
+                      >
                         {user.estadoCuenta === PENDIENTE_VERIFICACION &&
                         verificarPermiso("configuracion.usuarios.acceder") ? (
                           <Tooltip title="Reenviar invitación">
@@ -644,7 +746,8 @@ export default function UsuariosPage() {
                             </IconButton>
                           </Tooltip>
                         ) : null}
-                        {canManageUsers && user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
+                        {canManageUsers &&
+                        user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
                           <Tooltip title="Enviar restablecimiento de contraseña">
                             <IconButton
                               onClick={(e) => handleResetPassword(e, user)}
@@ -676,7 +779,11 @@ export default function UsuariosPage() {
                               }}
                               size="small"
                               color="error"
-                              disabled={!verificarPermiso('configuracion.usuarios.deleteOrDisable') || deleteLoading}
+                              disabled={
+                                !verificarPermiso(
+                                  "configuracion.usuarios.deleteOrDisable",
+                                ) || deleteLoading
+                              }
                             >
                               <Delete fontSize="small" />
                             </IconButton>
@@ -701,24 +808,24 @@ export default function UsuariosPage() {
           <Stack spacing={3} sx={{ pt: 1 }}>
             {!selectedUsuario ? (
               <Typography variant="body2" color="text.secondary">
-                Se enviará un correo con un enlace para que la persona defina su contraseña y active
-                su cuenta (válido varias horas).
+                Se enviará un correo con un enlace para que la persona defina su
+                contraseña y active su cuenta (válido varias horas).
               </Typography>
             ) : null}
 
-            <TextField 
-              fullWidth 
-              label="Nombre completo" 
+            <TextField
+              fullWidth
+              label="Nombre completo"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               required
               placeholder="Ej: Juan Pérez, María García..."
             />
-            
-            <TextField 
-              fullWidth 
+
+            <TextField
+              fullWidth
               type="email"
-              label="Correo electrónico (usuario)" 
+              label="Correo electrónico (usuario)"
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               required
@@ -727,7 +834,8 @@ export default function UsuariosPage() {
 
             {selectedUsuario ? (
               <Typography variant="caption" color="text.secondary">
-                La contraseña se gestiona por flujo de restablecimiento enviado por correo.
+                La contraseña se gestiona por flujo de restablecimiento enviado
+                por correo.
               </Typography>
             ) : null}
           </Stack>
@@ -736,9 +844,9 @@ export default function UsuariosPage() {
           <Button onClick={handleClose} color="secondary" disabled={saving}>
             Cancelar
           </Button>
-          <Button 
-            onClick={handleSave} 
-            variant="contained" 
+          <Button
+            onClick={handleSave}
+            variant="contained"
             color="primary"
             disabled={
               !nombre.trim() ||
@@ -756,7 +864,10 @@ export default function UsuariosPage() {
       <DeleteUsuarioDialog
         open={deleteDialogOpen}
         info={deleteInfo}
-        onClose={() => { setDeleteDialogOpen(false); setDeleteInfo(null); }}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setDeleteInfo(null);
+        }}
         onConfirm={handleConfirmDelete}
       />
 

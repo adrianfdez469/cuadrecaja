@@ -2,7 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { IVenta } from "@/schemas/venta";
+import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import { applyDiscountsForSale } from "@/lib/discounts";
+import { calcularEfectivoDisponiblePorMoneda } from "@/lib/movimiento/caja";
+
+// El vuelto solicitado en una venta en tiempo real supera el efectivo
+// realmente disponible en esa moneda. Ver la validación dentro de la
+// transacción más abajo para el porqué de la excepción con wasOffline.
+class InsufficientCashForChangeError extends Error {
+  constructor(
+    public readonly currency: string,
+    public readonly requestedChange: number,
+    public readonly available: number,
+  ) {
+    super("INSUFFICIENT_CASH_FOR_CHANGE");
+  }
+}
 
 // Tipos auxiliares estrictos para evitar usos de any
 interface IncomingProduct {
@@ -247,276 +262,350 @@ export async function POST(
       discountCalcResult = null;
     }
 
+    // Solo hace falta para validar el vuelto contra la caja real (ver más
+    // abajo) — si la venta no da vuelto en efectivo, esta query es innecesaria,
+    // pero es barata y mantiene el código simple.
+    const tiendaConNegocio = await prisma.tienda.findUnique({
+      where: { id: tiendaId },
+      select: { negocio: { select: { monedaBase: true } } },
+    });
+    const monedaBase = tiendaConNegocio?.negocio?.monedaBase ?? "CUP";
+
     // **TRANSACCIÓN ATÓMICA: Todo o nada (SOLO escrituras)**
-    const result = await prisma.$transaction(async (tx) => {
-      // 3. Crear la venta
-      const venta = await tx.venta.create({
-        data: {
-          tiendaId,
-          usuarioId,
-          // El frontend envía `total` ya convertido a moneda base (useCartTotal + descuento aplicado).
-          // NO usar discountCalcResult.finalTotal: suma precios crudos en monedas mezcladas → incorrecto.
-          total: Math.max(0, Number(total) || 0),
-          totalcash,
-          totaltransfer,
-          cierrePeriodoId: ultimoPeriodo.id,
-          syncId,
-          // 🆕 NUEVOS CAMPOS
-          frontendCreatedAt: createdAt ? new Date(createdAt) : null,
-          wasOffline: wasOffline || false,
-          syncAttempts: syncAttempts || 0, // 🆕 Usar syncAttempts enviado desde frontend
-          discountTotal: discountTotalCalc || 0,
-          productos: {
-            create: productosMegrados.map((p) => ({
-              productoTiendaId: p.productoTiendaId,
-              cantidad: p.cantidad,
-              costo: p.costo,
-              precio: p.precio,
-              monedaCostoCode: p.monedaCostoCode ?? null,
-              monedaPrecioCode: p.monedaPrecioCode ?? null,
-            })),
-          },
-          ...(transferDestinationId &&
-            totaltransfer > 0 && { transferDestinationId }),
-          // Multimoneda
-          ...(monedaCobro && { monedaCobro }),
-          ...(pagosDetalle && { pagosDetalle }),
-          ...(vueltoDetalle && { vueltoDetalle }),
-          ...(tasaSnapshot && { tasaSnapshot }),
-        },
-        include: {
-          productos: true,
-        },
-      });
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 0. Validar que el vuelto solicitado esté cubierto por el efectivo
+        // realmente disponible en caja (fondo inicial + ventas - vueltos -
+        // gastos - compras, ver calcularEfectivoDisponiblePorMoneda). Mismo
+        // lock por tienda que usa COMPRA (src/lib/movimiento/index.ts) —
+        // compras y ventas compiten por el mismo efectivo físico y deben
+        // serializarse entre sí para no leer un "disponible" que la otra ya
+        // comprometió.
+        const vueltos = (vueltoDetalle as IVueltoLinea[] | undefined) ?? [];
+        const pagos = (pagosDetalle as IPagoLinea[] | undefined) ?? [];
+        const tieneVueltoEnEfectivo = vueltos.some((v) => v.monto > 0);
 
-      // 3.1 Persistir AppliedDiscount si corresponde (batch, un solo round-trip)
-      try {
-        const applied = discountCalcResult?.applied || [];
-        if ((discountTotalCalc || 0) > 0 && applied.length > 0) {
-          await tx.appliedDiscount.createMany({
-            data: applied.map((a) => ({
-              ventaId: venta.id,
-              discountRuleId: a.discountRuleId,
-              amount: a.amount,
-              productsAffected: a.productsAffected ?? null,
-            })),
-          });
-        }
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        console.error(
-          "❌ [POST /api/venta] Error guardando AppliedDiscount:",
-          msg,
-        );
-      }
-
-      // 3. Manejar productos fraccionables (si aplica) - PRIMERO
-      const productosFraccionables = await tx.productoTienda.findMany({
-        where: {
-          id: {
-            in: productos.map((p) => p.productoTiendaId),
-          },
-          producto: {
-            fraccionDeId: {
-              not: null,
-            },
-          },
-        },
-        include: {
-          producto: {
-            select: {
-              fraccionDeId: true,
-              unidadesPorFraccion: true,
-            },
-          },
-        },
-      });
-
-      if (productosFraccionables.length > 0) {
-        const productosFraccionablesData = productosFraccionables.filter(
-          (pf) => pf.producto.fraccionDeId,
-        );
-
-        // Usar existencias originales para el cálculo
-        const productosFraccionablesNeedDesagregateData =
-          productosFraccionablesData.filter((prodFracc) => {
-            const prod = productos.find(
-              (p) => p.productoTiendaId === prodFracc.id,
-            );
-            if (prod) {
-              if (prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
-                throw new Error(
-                  `Vendes más unidades sueltas de las que lleva una caja en una misma venta`,
-                );
-              }
-              // Usar existencia original (antes de cualquier modificación)
-              return prodFracc.existencia < prod.cantidad;
+        if (tieneVueltoEnEfectivo) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tiendaId})::bigint)`;
+          const disponible = await calcularEfectivoDisponiblePorMoneda(
+            tiendaId,
+            monedaBase,
+            tx,
+          );
+          const pagoCashPorMoneda: Record<string, number> = {};
+          for (const p of pagos) {
+            if (p.tipo === "cash") {
+              pagoCashPorMoneda[p.moneda] =
+                (pagoCashPorMoneda[p.moneda] ?? 0) + p.monto;
             }
-            return false;
-          });
-
-        const itemsDesagregaciónBaja = [];
-        const itemsDesagregaciónAlta = [];
-
-        productosFraccionablesNeedDesagregateData.forEach((item) => {
-          itemsDesagregaciónAlta.push({
-            cantidad: item.producto.unidadesPorFraccion,
-            productoId: item.productoId,
-          });
-          itemsDesagregaciónBaja.push({
-            cantidad: 1,
-            productoId: item.producto.fraccionDeId,
-          });
-        });
-
-        // Crear movimientos de desagregación dentro de la misma transacción
-        if (itemsDesagregaciónBaja.length > 0) {
-          for (const item of itemsDesagregaciónBaja) {
-            const productoTiendaDesagregar = await tx.productoTienda.findFirst({
-              where: {
-                tiendaId,
-                productoId: item.productoId,
-                proveedorId: null, // Solo productos propios para desagregación
-              },
-            });
-
-            if (productoTiendaDesagregar) {
-              const existenciaAnterior = productoTiendaDesagregar.existencia;
-
-              if (existenciaAnterior < item.cantidad) {
-                throw new Error(
-                  `Existencia insuficiente, no hay suficiente existencia para desagregar. Existencia: ${existenciaAnterior}, Cantidad a desagregar: ${item.cantidad}`,
+          }
+          for (const v of vueltos) {
+            if (v.monto <= 0) continue;
+            const disponibleMoneda =
+              (disponible[v.moneda] ?? 0) + (pagoCashPorMoneda[v.moneda] ?? 0);
+            if (v.monto > disponibleMoneda + 0.01) {
+              // Una venta offline ya ocurrió físicamente antes de que el
+              // servidor tuviera visibilidad — el cajero ya entregó ese
+              // cambio. Rechazarla no deshace lo ya sucedido y solo dejaría
+              // la venta atascada reintentando en el dispositivo offline.
+              // Se registra para visibilidad, sin bloquear la sincronización.
+              if (!wasOffline) {
+                throw new InsufficientCashForChangeError(
+                  v.moneda,
+                  v.monto,
+                  disponibleMoneda,
                 );
               }
-
-              await tx.productoTienda.update({
-                where: { id: productoTiendaDesagregar.id },
-                data: {
-                  existencia: {
-                    decrement: item.cantidad,
-                  },
-                },
-              });
-
-              await tx.movimientoStock.create({
-                data: {
-                  tipo: "DESAGREGACION_BAJA",
-                  cantidad: item.cantidad,
-                  productoTiendaId: productoTiendaDesagregar.id,
-                  tiendaId,
-                  usuarioId,
-                  existenciaAnterior,
-                  referenciaId: venta.id,
-                  motivo: `Desagregación para venta ${venta.id}`,
-                },
-              });
+              console.warn(
+                `⚠️ [POST /api/venta] Venta offline con vuelto no cubierto por caja: moneda=${v.moneda} vuelto=${v.monto} disponible=${disponibleMoneda.toFixed(2)} syncId=${syncId}`,
+              );
             }
           }
         }
 
-        if (itemsDesagregaciónAlta.length > 0) {
-          for (const item of itemsDesagregaciónAlta) {
-            const productoTiendaAgregar = await tx.productoTienda.findFirst({
-              where: {
-                tiendaId,
-                productoId: item.productoId,
-                proveedorId: null, // Solo productos propios para desagregación
-              },
-            });
-
-            if (productoTiendaAgregar) {
-              const existenciaAnterior = productoTiendaAgregar.existencia;
-
-              await tx.productoTienda.update({
-                where: { id: productoTiendaAgregar.id },
-                data: {
-                  existencia: {
-                    increment: item.cantidad,
-                  },
-                },
-              });
-
-              await tx.movimientoStock.create({
-                data: {
-                  tipo: "DESAGREGACION_ALTA",
-                  cantidad: item.cantidad,
-                  productoTiendaId: productoTiendaAgregar.id,
-                  tiendaId,
-                  usuarioId,
-                  existenciaAnterior,
-                  referenciaId: venta.id,
-                  motivo: `Desagregación para venta ${venta.id}`,
-                },
-              });
-            }
-          }
-        }
-      }
-
-      // 4. Actualizar existencias y acumular movimientos de venta - ÚLTIMO
-      const movimientosVenta: Prisma.MovimientoStockCreateManyInput[] = [];
-      for (const producto of productos) {
-        const productoTienda = productosExistentes.find(
-          (p) => p.id === producto.productoTiendaId,
-        );
-        if (!productoTienda) continue;
-
-        // Obtener la existencia actual (después de desagregaciones si las hubo)
-        const productoTiendaActual = await tx.productoTienda.findUnique({
-          where: { id: producto.productoTiendaId },
-          select: { existencia: true },
+        // 3. Crear la venta
+        const venta = await tx.venta.create({
+          data: {
+            tiendaId,
+            usuarioId,
+            // El frontend envía `total` ya convertido a moneda base (useCartTotal + descuento aplicado).
+            // NO usar discountCalcResult.finalTotal: suma precios crudos en monedas mezcladas → incorrecto.
+            total: Math.max(0, Number(total) || 0),
+            totalcash,
+            totaltransfer,
+            cierrePeriodoId: ultimoPeriodo.id,
+            syncId,
+            // 🆕 NUEVOS CAMPOS
+            frontendCreatedAt: createdAt ? new Date(createdAt) : null,
+            wasOffline: wasOffline || false,
+            syncAttempts: syncAttempts || 0, // 🆕 Usar syncAttempts enviado desde frontend
+            discountTotal: discountTotalCalc || 0,
+            productos: {
+              create: productosMegrados.map((p) => ({
+                productoTiendaId: p.productoTiendaId,
+                cantidad: p.cantidad,
+                costo: p.costo,
+                precio: p.precio,
+                monedaCostoCode: p.monedaCostoCode ?? null,
+                monedaPrecioCode: p.monedaPrecioCode ?? null,
+              })),
+            },
+            ...(transferDestinationId &&
+              totaltransfer > 0 && { transferDestinationId }),
+            // Multimoneda
+            ...(monedaCobro && { monedaCobro }),
+            ...(pagosDetalle && { pagosDetalle }),
+            ...(vueltoDetalle && { vueltoDetalle }),
+            ...(tasaSnapshot && { tasaSnapshot }),
+          },
+          include: {
+            productos: true,
+          },
         });
 
-        if (!productoTiendaActual) continue;
-
-        const existenciaAnterior = productoTiendaActual.existencia;
-
-        if (existenciaAnterior < producto.cantidad) {
-          throw new Error(
-            `Existencia insuficiente para realizar la venta de productoTiendaId: ${producto.productoTiendaId}. Existencia: ${existenciaAnterior}, Cantidad a vender: ${producto.cantidad}`,
+        // 3.1 Persistir AppliedDiscount si corresponde (batch, un solo round-trip)
+        try {
+          const applied = discountCalcResult?.applied || [];
+          if ((discountTotalCalc || 0) > 0 && applied.length > 0) {
+            await tx.appliedDiscount.createMany({
+              data: applied.map((a) => ({
+                ventaId: venta.id,
+                discountRuleId: a.discountRuleId,
+                amount: a.amount,
+                productsAffected: a.productsAffected ?? null,
+              })),
+            });
+          }
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error(
+            "❌ [POST /api/venta] Error guardando AppliedDiscount:",
+            msg,
           );
         }
 
-        // Actualizar existencia
-        await tx.productoTienda.update({
-          where: { id: producto.productoTiendaId },
-          data: {
-            existencia: {
-              decrement: producto.cantidad,
+        // 3. Manejar productos fraccionables (si aplica) - PRIMERO
+        const productosFraccionables = await tx.productoTienda.findMany({
+          where: {
+            id: {
+              in: productos.map((p) => p.productoTiendaId),
+            },
+            producto: {
+              fraccionDeId: {
+                not: null,
+              },
+            },
+          },
+          include: {
+            producto: {
+              select: {
+                fraccionDeId: true,
+                unidadesPorFraccion: true,
+              },
             },
           },
         });
 
-        // Acumular movimiento de venta
-        movimientosVenta.push({
-          tipo: "VENTA",
-          cantidad: producto.cantidad,
-          productoTiendaId: producto.productoTiendaId,
-          tiendaId,
-          usuarioId,
-          existenciaAnterior,
-          referenciaId: venta.id,
-          motivo: `Venta ${venta.id}`,
-          ...(productoTienda.proveedorId && {
-            proveedorId: productoTienda.proveedorId,
-          }),
-        });
-      }
+        if (productosFraccionables.length > 0) {
+          const productosFraccionablesData = productosFraccionables.filter(
+            (pf) => pf.producto.fraccionDeId,
+          );
 
-      // Insertar todos los movimientos de venta en un solo round-trip
-      if (movimientosVenta.length > 0) {
-        await tx.movimientoStock.createMany({ data: movimientosVenta });
-      }
+          // Usar existencias originales para el cálculo
+          const productosFraccionablesNeedDesagregateData =
+            productosFraccionablesData.filter((prodFracc) => {
+              const prod = productos.find(
+                (p) => p.productoTiendaId === prodFracc.id,
+              );
+              if (prod) {
+                if (prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
+                  throw new Error(
+                    `Vendes más unidades sueltas de las que lleva una caja en una misma venta`,
+                  );
+                }
+                // Usar existencia original (antes de cualquier modificación)
+                return prodFracc.existencia < prod.cantidad;
+              }
+              return false;
+            });
 
-      return venta;
-    }, {
-      // Red de seguridad ante la latencia del transaction pooler.
-      maxWait: 10000,
-      timeout: 20000,
-    });
+          const itemsDesagregaciónBaja = [];
+          const itemsDesagregaciónAlta = [];
+
+          productosFraccionablesNeedDesagregateData.forEach((item) => {
+            itemsDesagregaciónAlta.push({
+              cantidad: item.producto.unidadesPorFraccion,
+              productoId: item.productoId,
+            });
+            itemsDesagregaciónBaja.push({
+              cantidad: 1,
+              productoId: item.producto.fraccionDeId,
+            });
+          });
+
+          // Crear movimientos de desagregación dentro de la misma transacción
+          if (itemsDesagregaciónBaja.length > 0) {
+            for (const item of itemsDesagregaciónBaja) {
+              const productoTiendaDesagregar =
+                await tx.productoTienda.findFirst({
+                  where: {
+                    tiendaId,
+                    productoId: item.productoId,
+                    proveedorId: null, // Solo productos propios para desagregación
+                  },
+                });
+
+              if (productoTiendaDesagregar) {
+                const existenciaAnterior = productoTiendaDesagregar.existencia;
+
+                if (existenciaAnterior < item.cantidad) {
+                  throw new Error(
+                    `Existencia insuficiente, no hay suficiente existencia para desagregar. Existencia: ${existenciaAnterior}, Cantidad a desagregar: ${item.cantidad}`,
+                  );
+                }
+
+                await tx.productoTienda.update({
+                  where: { id: productoTiendaDesagregar.id },
+                  data: {
+                    existencia: {
+                      decrement: item.cantidad,
+                    },
+                  },
+                });
+
+                await tx.movimientoStock.create({
+                  data: {
+                    tipo: "DESAGREGACION_BAJA",
+                    cantidad: item.cantidad,
+                    productoTiendaId: productoTiendaDesagregar.id,
+                    tiendaId,
+                    usuarioId,
+                    existenciaAnterior,
+                    referenciaId: venta.id,
+                    motivo: `Desagregación para venta ${venta.id}`,
+                  },
+                });
+              }
+            }
+          }
+
+          if (itemsDesagregaciónAlta.length > 0) {
+            for (const item of itemsDesagregaciónAlta) {
+              const productoTiendaAgregar = await tx.productoTienda.findFirst({
+                where: {
+                  tiendaId,
+                  productoId: item.productoId,
+                  proveedorId: null, // Solo productos propios para desagregación
+                },
+              });
+
+              if (productoTiendaAgregar) {
+                const existenciaAnterior = productoTiendaAgregar.existencia;
+
+                await tx.productoTienda.update({
+                  where: { id: productoTiendaAgregar.id },
+                  data: {
+                    existencia: {
+                      increment: item.cantidad,
+                    },
+                  },
+                });
+
+                await tx.movimientoStock.create({
+                  data: {
+                    tipo: "DESAGREGACION_ALTA",
+                    cantidad: item.cantidad,
+                    productoTiendaId: productoTiendaAgregar.id,
+                    tiendaId,
+                    usuarioId,
+                    existenciaAnterior,
+                    referenciaId: venta.id,
+                    motivo: `Desagregación para venta ${venta.id}`,
+                  },
+                });
+              }
+            }
+          }
+        }
+
+        // 4. Actualizar existencias y acumular movimientos de venta - ÚLTIMO
+        const movimientosVenta: Prisma.MovimientoStockCreateManyInput[] = [];
+        for (const producto of productos) {
+          const productoTienda = productosExistentes.find(
+            (p) => p.id === producto.productoTiendaId,
+          );
+          if (!productoTienda) continue;
+
+          // Obtener la existencia actual (después de desagregaciones si las hubo)
+          const productoTiendaActual = await tx.productoTienda.findUnique({
+            where: { id: producto.productoTiendaId },
+            select: { existencia: true },
+          });
+
+          if (!productoTiendaActual) continue;
+
+          const existenciaAnterior = productoTiendaActual.existencia;
+
+          if (existenciaAnterior < producto.cantidad) {
+            throw new Error(
+              `Existencia insuficiente para realizar la venta de productoTiendaId: ${producto.productoTiendaId}. Existencia: ${existenciaAnterior}, Cantidad a vender: ${producto.cantidad}`,
+            );
+          }
+
+          // Actualizar existencia
+          await tx.productoTienda.update({
+            where: { id: producto.productoTiendaId },
+            data: {
+              existencia: {
+                decrement: producto.cantidad,
+              },
+            },
+          });
+
+          // Acumular movimiento de venta
+          movimientosVenta.push({
+            tipo: "VENTA",
+            cantidad: producto.cantidad,
+            productoTiendaId: producto.productoTiendaId,
+            tiendaId,
+            usuarioId,
+            existenciaAnterior,
+            referenciaId: venta.id,
+            motivo: `Venta ${venta.id}`,
+            ...(productoTienda.proveedorId && {
+              proveedorId: productoTienda.proveedorId,
+            }),
+          });
+        }
+
+        // Insertar todos los movimientos de venta en un solo round-trip
+        if (movimientosVenta.length > 0) {
+          await tx.movimientoStock.createMany({ data: movimientosVenta });
+        }
+
+        return venta;
+      },
+      {
+        // Red de seguridad ante la latencia del transaction pooler.
+        maxWait: 10000,
+        timeout: 20000,
+      },
+    );
 
     return NextResponse.json(result, { status: 201 });
   } catch (error: unknown) {
+    if (error instanceof InsufficientCashForChangeError) {
+      return NextResponse.json(
+        {
+          error: `Efectivo insuficiente en caja (${error.currency}) para dar el vuelto solicitado`,
+          currency: error.currency,
+          requestedChange: error.requestedChange,
+          available: error.available,
+        },
+        { status: 400 },
+      );
+    }
+
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

@@ -1,21 +1,21 @@
-"use client"
+"use client";
 
 import React, { useEffect, useState } from "react";
-import { 
-  Typography, 
-  Button, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  IconButton, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions, 
-  TextField, 
+import {
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
   Box,
   CircularProgress,
   InputAdornment,
@@ -32,11 +32,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Autocomplete
+  Autocomplete,
 } from "@mui/material";
-import { 
-  Edit, 
-  Delete, 
+import {
+  Edit,
+  Delete,
   Add,
   Search,
   Refresh,
@@ -45,21 +45,29 @@ import {
   Warning,
   Info,
   Campaign,
-  Message
+  Message,
 } from "@mui/icons-material";
 import { NotificationApiService } from "@/services/notificationApiService";
-import { INotificacion, INotificacionFormData, INotificacionStats, NivelImportancia, TipoNotificacion } from "@/schemas/notificacion";
+import {
+  INotificacion,
+  INotificacionFormData,
+  INotificacionStats,
+  NivelImportancia,
+  TipoNotificacion,
+} from "@/schemas/notificacion";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import SelectableTextField from "@/components/SelectableTextField";
 import { useMessageContext } from "@/context/MessageContext";
-import dayjs from 'dayjs';
+import dayjs from "dayjs";
 import { INegocio } from "@/schemas/negocio";
 
 export default function NotificacionesPage() {
   const [notificaciones, setNotificaciones] = useState<INotificacion[]>([]);
   const [open, setOpen] = useState(false);
-  const [selectedNotificacion, setSelectedNotificacion] = useState<INotificacion | null>(null);
+  const [selectedNotificacion, setSelectedNotificacion] =
+    useState<INotificacion | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -68,24 +76,24 @@ export default function NotificacionesPage() {
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [usuarios, setUsuarios] = useState<any[]>([]);
-  
+
   // Form data
   const [formData, setFormData] = useState<INotificacionFormData>({
     titulo: "",
     descripcion: "",
-    fechaInicio: dayjs().format('YYYY-MM-DDTHH:mm'),
-    fechaFin: dayjs().add(7, 'day').format('YYYY-MM-DDTHH:mm'),
-    nivelImportancia: 'MEDIA',
-    tipo: 'NOTIFICACION',
+    fechaInicio: dayjs().format("YYYY-MM-DDTHH:mm"),
+    fechaFin: dayjs().add(7, "day").format("YYYY-MM-DDTHH:mm"),
+    nivelImportancia: "MEDIA",
+    tipo: "NOTIFICACION",
     negociosDestino: [],
-    usuariosDestino: []
+    usuariosDestino: [],
   });
 
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const { showMessage } = useMessageContext();
-  
+
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     fetchNotificaciones();
@@ -118,7 +126,7 @@ export default function NotificacionesPage() {
 
   const fetchNegocios = async () => {
     try {
-      const response = await fetch('/api/negocio');
+      const response = await fetch("/api/negocio");
       const data = await response.json();
       setNegocios(data);
     } catch (error) {
@@ -128,7 +136,7 @@ export default function NotificacionesPage() {
 
   const fetchUsuarios = async () => {
     try {
-      const response = await fetch('/api/usuarios');
+      const response = await fetch("/api/usuarios");
       const data = await response.json();
       setUsuarios(data);
     } catch (error) {
@@ -142,24 +150,28 @@ export default function NotificacionesPage() {
       setFormData({
         titulo: notificacion.titulo,
         descripcion: notificacion.descripcion,
-        fechaInicio: dayjs(notificacion.fechaInicio).format('YYYY-MM-DDTHH:mm'),
-        fechaFin: dayjs(notificacion.fechaFin).format('YYYY-MM-DDTHH:mm'),
+        fechaInicio: dayjs(notificacion.fechaInicio).format("YYYY-MM-DDTHH:mm"),
+        fechaFin: dayjs(notificacion.fechaFin).format("YYYY-MM-DDTHH:mm"),
         nivelImportancia: notificacion.nivelImportancia,
         tipo: notificacion.tipo,
-        negociosDestino: NotificationApiService.stringToArray(notificacion.negociosDestino),
-        usuariosDestino: NotificationApiService.stringToArray(notificacion.usuariosDestino)
+        negociosDestino: NotificationApiService.stringToArray(
+          notificacion.negociosDestino,
+        ),
+        usuariosDestino: NotificationApiService.stringToArray(
+          notificacion.usuariosDestino,
+        ),
       });
     } else {
       setSelectedNotificacion(null);
       setFormData({
         titulo: "",
         descripcion: "",
-        fechaInicio: dayjs().format('YYYY-MM-DDTHH:mm'),
-        fechaFin: dayjs().add(7, 'day').format('YYYY-MM-DDTHH:mm'),
-        nivelImportancia: 'MEDIA',
-        tipo: 'NOTIFICACION',
+        fechaInicio: dayjs().format("YYYY-MM-DDTHH:mm"),
+        fechaFin: dayjs().add(7, "day").format("YYYY-MM-DDTHH:mm"),
+        nivelImportancia: "MEDIA",
+        tipo: "NOTIFICACION",
         negociosDestino: [],
-        usuariosDestino: []
+        usuariosDestino: [],
       });
     }
     setOpen(true);
@@ -191,14 +203,20 @@ export default function NotificacionesPage() {
     }
 
     if (new Date(formData.fechaInicio) >= new Date(formData.fechaFin)) {
-      showMessage("La fecha de inicio debe ser anterior a la fecha de fin", "warning");
+      showMessage(
+        "La fecha de inicio debe ser anterior a la fecha de fin",
+        "warning",
+      );
       return;
     }
 
     setSaving(true);
     try {
       if (selectedNotificacion) {
-        await NotificationApiService.updateNotification(selectedNotificacion.id, formData);
+        await NotificationApiService.updateNotification(
+          selectedNotificacion.id,
+          formData,
+        );
         showMessage("Notificación actualizada exitosamente", "success");
       } else {
         await NotificationApiService.createNotification(formData);
@@ -218,7 +236,10 @@ export default function NotificacionesPage() {
   const handleRunAutoCheck = async () => {
     try {
       await NotificationApiService.runAutomaticChecks();
-      showMessage("Verificaciones automáticas ejecutadas exitosamente", "success");
+      showMessage(
+        "Verificaciones automáticas ejecutadas exitosamente",
+        "success",
+      );
       fetchNotificaciones();
       fetchStats();
     } catch (error) {
@@ -227,19 +248,20 @@ export default function NotificacionesPage() {
     }
   };
 
-  const filteredNotificaciones = notificaciones.filter((notif) =>
-    notif.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    notif.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    notif.tipo.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredNotificaciones = notificaciones.filter(
+    (notif) =>
+      notif.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      notif.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      notif.tipo.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const getTipoIcon = (tipo: TipoNotificacion) => {
     switch (tipo) {
-      case 'ALERTA':
+      case "ALERTA":
         return <Warning color="error" />;
-      case 'PROMOCION':
+      case "PROMOCION":
         return <Campaign color="secondary" />;
-      case 'MENSAJE':
+      case "MENSAJE":
         return <Message color="primary" />;
       default:
         return <Info color="info" />;
@@ -248,43 +270,61 @@ export default function NotificacionesPage() {
 
   const getImportanceColor = (nivel: NivelImportancia) => {
     switch (nivel) {
-      case 'CRITICA':
-        return 'error';
-      case 'ALTA':
-        return 'warning';
-      case 'MEDIA':
-        return 'info';
+      case "CRITICA":
+        return "error";
+      case "ALTA":
+        return "warning";
+      case "MEDIA":
+        return "info";
       default:
-        return 'success';
+        return "success";
     }
   };
 
   const isActive = (notificacion: INotificacion) => {
     const ahora = new Date();
-    return ahora >= new Date(notificacion.fechaInicio) && ahora <= new Date(notificacion.fechaFin);
+    return (
+      ahora >= new Date(notificacion.fechaInicio) &&
+      ahora <= new Date(notificacion.fechaFin)
+    );
   };
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Configuración', href: '/configuracion' },
-    { label: 'Notificaciones' }
+    { label: "Inicio", href: "/home" },
+    { label: "Configuración", href: "/configuracion" },
+    { label: "Notificaciones" },
   ];
 
   const headerActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">
       <Tooltip title="Ejecutar verificaciones automáticas">
-        <IconButton onClick={handleRunAutoCheck} disabled={loading} size="small">
+        <IconButton
+          onClick={handleRunAutoCheck}
+          disabled={loading}
+          size="small"
+        >
           <Refresh />
         </IconButton>
       </Tooltip>
       <Tooltip title="Actualizar notificaciones">
-        <IconButton onClick={fetchNotificaciones} disabled={loading} size="small">
+        <IconButton
+          onClick={fetchNotificaciones}
+          disabled={loading}
+          size="small"
+        >
           <Refresh />
         </IconButton>
       </Tooltip>
       {isMobile && (
-        <Tooltip title={statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"}>
-          <IconButton onClick={() => setStatsExpanded(!statsExpanded)} size="small">
+        <Tooltip
+          title={
+            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
+          }
+        >
+          <IconButton
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            size="small"
+          >
             {statsExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Tooltip>
@@ -369,7 +409,7 @@ export default function NotificacionesPage() {
       {/* Tabla de Notificaciones */}
       <ContentCard>
         <Box sx={{ mb: 2 }}>
-          <TextField
+          <SelectableTextField
             fullWidth
             variant="outlined"
             placeholder="Buscar notificaciones..."
@@ -425,7 +465,9 @@ export default function NotificacionesPage() {
                     <TableCell>
                       <Chip
                         label={notificacion.nivelImportancia}
-                        color={getImportanceColor(notificacion.nivelImportancia)}
+                        color={getImportanceColor(
+                          notificacion.nivelImportancia,
+                        )}
                         size="small"
                       />
                     </TableCell>
@@ -438,12 +480,16 @@ export default function NotificacionesPage() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {dayjs(notificacion.fechaInicio).format('DD/MM/YYYY HH:mm')}
+                        {dayjs(notificacion.fechaInicio).format(
+                          "DD/MM/YYYY HH:mm",
+                        )}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {dayjs(notificacion.fechaFin).format('DD/MM/YYYY HH:mm')}
+                        {dayjs(notificacion.fechaFin).format(
+                          "DD/MM/YYYY HH:mm",
+                        )}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -478,7 +524,9 @@ export default function NotificacionesPage() {
       {/* Dialog para crear/editar notificación */}
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle>
-          {selectedNotificacion ? "Editar Notificación" : "Crear Nueva Notificación"}
+          {selectedNotificacion
+            ? "Editar Notificación"
+            : "Crear Nueva Notificación"}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -487,7 +535,9 @@ export default function NotificacionesPage() {
                 fullWidth
                 label="Título"
                 value={formData.titulo}
-                onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, titulo: e.target.value })
+                }
                 required
               />
             </Grid>
@@ -496,7 +546,9 @@ export default function NotificacionesPage() {
                 fullWidth
                 label="Descripción"
                 value={formData.descripcion}
-                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, descripcion: e.target.value })
+                }
                 multiline
                 rows={3}
                 required
@@ -508,7 +560,9 @@ export default function NotificacionesPage() {
                 label="Fecha de Inicio"
                 type="datetime-local"
                 value={formData.fechaInicio}
-                onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, fechaInicio: e.target.value })
+                }
                 InputLabelProps={{ shrink: true }}
                 required
               />
@@ -519,7 +573,9 @@ export default function NotificacionesPage() {
                 label="Fecha de Fin"
                 type="datetime-local"
                 value={formData.fechaFin}
-                onChange={(e) => setFormData({ ...formData, fechaFin: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, fechaFin: e.target.value })
+                }
                 InputLabelProps={{ shrink: true }}
                 required
               />
@@ -529,7 +585,12 @@ export default function NotificacionesPage() {
                 <InputLabel>Tipo</InputLabel>
                 <Select
                   value={formData.tipo}
-                  onChange={(e) => setFormData({ ...formData, tipo: e.target.value as TipoNotificacion })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      tipo: e.target.value as TipoNotificacion,
+                    })
+                  }
                   label="Tipo"
                 >
                   <MenuItem value="ALERTA">Alerta</MenuItem>
@@ -544,7 +605,12 @@ export default function NotificacionesPage() {
                 <InputLabel>Nivel de Importancia</InputLabel>
                 <Select
                   value={formData.nivelImportancia}
-                  onChange={(e) => setFormData({ ...formData, nivelImportancia: e.target.value as NivelImportancia })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      nivelImportancia: e.target.value as NivelImportancia,
+                    })
+                  }
                   label="Nivel de Importancia"
                 >
                   <MenuItem value="BAJA">Baja</MenuItem>
@@ -559,11 +625,13 @@ export default function NotificacionesPage() {
                 multiple
                 options={negocios}
                 getOptionLabel={(option) => option.nombre}
-                value={negocios.filter(n => formData.negociosDestino.includes(n.id))}
+                value={negocios.filter((n) =>
+                  formData.negociosDestino.includes(n.id),
+                )}
                 onChange={(_, newValue) => {
                   setFormData({
                     ...formData,
-                    negociosDestino: newValue.map(n => n.id)
+                    negociosDestino: newValue.map((n) => n.id),
                   });
                 }}
                 renderInput={(params) => (
@@ -580,11 +648,13 @@ export default function NotificacionesPage() {
                 multiple
                 options={usuarios}
                 getOptionLabel={(option) => option.nombre}
-                value={usuarios.filter(u => formData.usuariosDestino.includes(u.id))}
+                value={usuarios.filter((u) =>
+                  formData.usuariosDestino.includes(u.id),
+                )}
                 onChange={(_, newValue) => {
                   setFormData({
                     ...formData,
-                    usuariosDestino: newValue.map(u => u.id)
+                    usuariosDestino: newValue.map((u) => u.id),
                   });
                 }}
                 renderInput={(params) => (

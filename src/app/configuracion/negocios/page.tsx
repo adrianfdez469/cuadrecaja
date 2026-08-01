@@ -37,13 +37,13 @@ import {
   FormControlLabel,
   Switch,
 } from "@mui/material";
-import { 
-  Delete, 
-  Edit, 
-  Add, 
-  Business, 
-  Store, 
-  Person, 
+import {
+  Delete,
+  Edit,
+  Add,
+  Business,
+  Store,
+  Person,
   Inventory,
   Search,
   ExpandMore,
@@ -54,20 +54,27 @@ import {
   Refresh,
 } from "@mui/icons-material";
 import Payments from "@mui/icons-material/Payments";
-import { createNegocio, getNegocios, updateNegocio, deleteNegocio, getNegocioStatsById } from "@/services/negocioServce";
+import {
+  createNegocio,
+  getNegocios,
+  updateNegocio,
+  deleteNegocio,
+  getNegocioStatsById,
+} from "@/services/negocioServce";
 import { getPlanes } from "@/services/planService";
 import type { IPlan } from "@/schemas/plan";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
 import { INegocio } from "@/schemas/negocio";
-import { 
-  formatDate, 
-  formatDaysRemaining, 
+import {
+  formatDate,
+  formatDaysRemaining,
   getDaysRemainingColor,
-  formatPercentage 
+  formatPercentage,
 } from "@/utils/formatters";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import SelectableTextField from "@/components/SelectableTextField";
 import { useRouter } from "next/navigation";
 import { registerFirstPaymentForNegocio } from "@/services/referralAdminService";
 
@@ -93,8 +100,8 @@ interface NegocioStats {
 
 export default function Negocios() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,7 +111,9 @@ export default function Negocios() {
   /** Solo negocios creados vía activación desde la landing */
   const [soloActivacionLanding, setSoloActivacionLanding] = useState(false);
   const [expandedNegocio, setExpandedNegocio] = useState<string | null>(null);
-  const [negocioStats, setNegocioStats] = useState<Record<string, NegocioStats>>({});
+  const [negocioStats, setNegocioStats] = useState<
+    Record<string, NegocioStats>
+  >({});
   const [statsExpanded, setStatsExpanded] = useState(false);
   const { showMessage } = useMessageContext();
   const { user, loadingContext } = useAppContext();
@@ -130,7 +139,7 @@ export default function Negocios() {
       setNegocios(data);
     } catch (error) {
       console.error(error);
-      setError('Error al cargar los negocios');
+      setError("Error al cargar los negocios");
     } finally {
       setLoading(false);
     }
@@ -140,7 +149,10 @@ export default function Negocios() {
   useEffect(() => {
     if (!loadingContext && user) {
       if (user.rol !== "SUPER_ADMIN") {
-        showMessage("No tienes permisos para acceder a la gestión de negocios", "error");
+        showMessage(
+          "No tienes permisos para acceder a la gestión de negocios",
+          "error",
+        );
         router.push("/home");
         return;
       }
@@ -150,20 +162,22 @@ export default function Negocios() {
   useEffect(() => {
     if (user && user.rol === "SUPER_ADMIN") {
       fetchNegocios();
-      getPlanes().then(setPlanes).catch(() => showMessage('Error al cargar los planes', 'error'));
+      getPlanes()
+        .then(setPlanes)
+        .catch(() => showMessage("Error al cargar los planes", "error"));
     }
   }, [user, soloActivacionLanding]);
 
   const fetchNegocioStats = async (negocioId: string) => {
     try {
       const data = await getNegocioStatsById(negocioId);
-      setNegocioStats(prev => ({
+      setNegocioStats((prev) => ({
         ...prev,
-        [negocioId]: data
+        [negocioId]: data,
       }));
     } catch (error) {
-      console.error('Error al cargar estadísticas del negocio:', error);
-      showMessage('Error al cargar estadísticas del negocio', 'error');
+      console.error("Error al cargar estadísticas del negocio:", error);
+      showMessage("Error al cargar estadísticas del negocio", "error");
     }
   };
 
@@ -180,32 +194,24 @@ export default function Negocios() {
 
   const handleSave = async () => {
     if (!selectedPlan) return;
-    
+
     setLoading(true);
     try {
       if (selectedNegocio) {
-        await updateNegocio(
-          selectedNegocio.id,
-          nombre,
-          selectedPlan.id,
-        );
-        showMessage('Negocio actualizado satisfactoriamente', 'success');
+        await updateNegocio(selectedNegocio.id, nombre, selectedPlan.id);
+        showMessage("Negocio actualizado satisfactoriamente", "success");
       } else {
-        await createNegocio(
-          nombre,
-          selectedPlan.duracion,
-          selectedPlan.id,
-        );
-        showMessage('Negocio creado satisfactoriamente', 'success');
+        await createNegocio(nombre, selectedPlan.duracion, selectedPlan.id);
+        showMessage("Negocio creado satisfactoriamente", "success");
       }
-      
+
       const negocioId = selectedNegocio?.id;
       await fetchNegocios();
       if (negocioId) {
         if (expandedNegocio === negocioId) {
           fetchNegocioStats(negocioId);
         } else {
-          setNegocioStats(prev => {
+          setNegocioStats((prev) => {
             const updated = { ...prev };
             delete updated[negocioId];
             return updated;
@@ -215,26 +221,35 @@ export default function Negocios() {
       handleCloseDialog();
     } catch (error) {
       console.error(error);
-      showMessage(`Ocurrió un error al ${selectedNegocio ? 'actualizar' : 'crear'} el negocio`, 'error');
+      showMessage(
+        `Ocurrió un error al ${selectedNegocio ? "actualizar" : "crear"} el negocio`,
+        "error",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (negocio: INegocio) => {
-    if (!confirm(`¿Estás seguro de que deseas eliminar el negocio "${negocio.nombre}"? Esta acción no se puede deshacer.`)) {
+    if (
+      !confirm(
+        `¿Estás seguro de que deseas eliminar el negocio "${negocio.nombre}"? Esta acción no se puede deshacer.`,
+      )
+    ) {
       return;
     }
-    
+
     setLoading(true);
     try {
       await deleteNegocio(negocio.id);
-      showMessage('Negocio eliminado satisfactoriamente', 'success');
+      showMessage("Negocio eliminado satisfactoriamente", "success");
       await fetchNegocios();
     } catch (error) {
       console.error(error);
-      const errorMessage = error.response?.data?.error || 'Ocurrió un error al eliminar el negocio';
-      showMessage(errorMessage, 'error');
+      const errorMessage =
+        error.response?.data?.error ||
+        "Ocurrió un error al eliminar el negocio";
+      showMessage(errorMessage, "error");
     } finally {
       setLoading(false);
     }
@@ -244,17 +259,17 @@ export default function Negocios() {
     setSelectedNegocio(negocio);
     setNombre(negocio.nombre);
 
-    const matched = planes.find(p => p.id === negocio.planId);
+    const matched = planes.find((p) => p.id === negocio.planId);
     if (matched) setSelectedPlan(matched);
     setOpen(true);
   };
 
   const handleSetSelectedPlan = (planId: string) => {
-    setSelectedPlan(planes.find(p => p.id === planId));
+    setSelectedPlan(planes.find((p) => p.id === planId));
   };
 
   const handleCloseDialog = () => {
-    setNombre('');
+    setNombre("");
     setSelectedNegocio(null);
     setSelectedPlan(undefined);
     setOpen(false);
@@ -263,13 +278,16 @@ export default function Negocios() {
   const toLocalDatetimeInput = (d: Date) => {
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
-      d.getMinutes()
+      d.getMinutes(),
     )}`;
   };
 
   const openFirstPaymentDialog = (negocio: INegocio) => {
     if (!puedeMostrarBotonPrimerPago(negocio)) {
-      showMessage('Este negocio ya está en un plan de pago. No aplica registrar primer pago desde aquí.', 'info');
+      showMessage(
+        "Este negocio ya está en un plan de pago. No aplica registrar primer pago desde aquí.",
+        "info",
+      );
       return;
     }
     setFpNegocio(negocio);
@@ -298,20 +316,22 @@ export default function Negocios() {
       const res = await registerFirstPaymentForNegocio(fpNegocio.id, {
         planId: fpPlanId,
         paidAt: fpPaidAt ? new Date(fpPaidAt).toISOString() : undefined,
-        paymentAmount: fpAmount.trim() ? Number.parseFloat(fpAmount) : undefined,
+        paymentAmount: fpAmount.trim()
+          ? Number.parseFloat(fpAmount)
+          : undefined,
       });
       const r = res.result;
       if (r?.alreadyQualified) {
         showMessage(
           "Este negocio ya tenía registrado el primer pago. No se aplicaron cambios nuevos.",
-          "info"
+          "info",
         );
       } else if (r?.qualifiedNow) {
         showMessage(
           r.hasReferral
             ? "Primer pago registrado. Referido calificado y pendiente de liquidación si aplica."
             : "Primer pago registrado. Este negocio no tenía código de referido asociado.",
-          "success"
+          "success",
         );
       } else {
         showMessage(res.message ?? "Operación completada.", "success");
@@ -319,9 +339,14 @@ export default function Negocios() {
       closeFirstPaymentDialog();
       await fetchNegocios();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: string } }; message?: string };
+      const err = e as {
+        response?: { data?: { error?: string } };
+        message?: string;
+      };
       const msg =
-        err.response?.data?.error ?? err.message ?? "No se pudo registrar el primer pago.";
+        err.response?.data?.error ??
+        err.message ??
+        "No se pudo registrar el primer pago.";
       showMessage(msg, "error");
     } finally {
       setFpSubmitting(false);
@@ -329,7 +354,7 @@ export default function Negocios() {
   };
 
   const getPlanForNegocio = (negocio: INegocio): IPlan | undefined =>
-    planes.find(p => p.id === negocio.planId);
+    planes.find((p) => p.id === negocio.planId);
 
   /** Solo negocios aún en plan gratuito/freemium (precio 0 o sin plan): ya en plan de pago no aplica registrar “primer pago” desde aquí. */
   const puedeMostrarBotonPrimerPago = (negocio: INegocio): boolean => {
@@ -339,7 +364,7 @@ export default function Negocios() {
   };
 
   const getPlanName = (negocio: INegocio): string =>
-    getPlanForNegocio(negocio)?.nombre ?? 'Sin plan';
+    getPlanForNegocio(negocio)?.nombre ?? "Sin plan";
 
   const getDaysRemaining = (limitTime: Date): number => {
     const now = new Date();
@@ -351,7 +376,10 @@ export default function Negocios() {
 
   const getPlanColor = (negocio: INegocio) => {
     const color = getPlanForNegocio(negocio)?.color;
-    return (color as 'default' | 'primary' | 'secondary' | 'success' | 'warning') || 'default';
+    return (
+      (color as "default" | "primary" | "secondary" | "success" | "warning") ||
+      "default"
+    );
   };
 
   const filteredNegocios = negocios.filter((negocio) => {
@@ -365,12 +393,22 @@ export default function Negocios() {
 
   // Cálculos para estadísticas
   const totalNegocios = negocios.length;
-  const negociosActivos = negocios.filter(n => getDaysRemaining(n.limitTime) > 0).length;
+  const negociosActivos = negocios.filter(
+    (n) => getDaysRemaining(n.limitTime) > 0,
+  ).length;
   const negociosExpirados = totalNegocios - negociosActivos;
   const negociosVisibles = filteredNegocios.length;
 
   // Componente para mostrar estadísticas de uso
-  const UsageStatsCard = ({ icon, title, actual, limite, porcentaje, color, compact = false }: {
+  const UsageStatsCard = ({
+    icon,
+    title,
+    actual,
+    limite,
+    porcentaje,
+    color,
+    compact = false,
+  }: {
     icon: React.ReactNode;
     title: string;
     actual: number;
@@ -384,7 +422,7 @@ export default function Negocios() {
     const isOverLimit = porcentaje >= 100 && !isUnlimited;
 
     return (
-      <Card variant="outlined" sx={{ height: '100%' }}>
+      <Card variant="outlined" sx={{ height: "100%" }}>
         <CardContent sx={{ p: compact ? 1.5 : 2 }}>
           <Stack spacing={compact ? 1 : 1.5}>
             {/* Header con icono y título */}
@@ -395,21 +433,21 @@ export default function Negocios() {
                   borderRadius: 1.5,
                   bgcolor: `${color}.light`,
                   color: `${color}.main`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   minWidth: compact ? 24 : 32,
                   minHeight: compact ? 24 : 32,
                 }}
               >
                 {icon}
               </Box>
-              <Typography 
-                variant={compact ? "caption" : "body2"} 
+              <Typography
+                variant={compact ? "caption" : "body2"}
                 fontWeight="medium"
-                sx={{ 
-                  fontSize: compact ? '0.6875rem' : '0.875rem',
-                  lineHeight: 1.2
+                sx={{
+                  fontSize: compact ? "0.6875rem" : "0.875rem",
+                  lineHeight: 1.2,
                 }}
               >
                 {title}
@@ -418,36 +456,47 @@ export default function Negocios() {
 
             {/* Números principales */}
             <Box>
-              <Stack direction="row" alignItems="baseline" spacing={0.5} sx={{ mb: 0.5 }}>
-                <Typography 
-                  variant={compact ? "h6" : "h5"} 
+              <Stack
+                direction="row"
+                alignItems="baseline"
+                spacing={0.5}
+                sx={{ mb: 0.5 }}
+              >
+                <Typography
+                  variant={compact ? "h6" : "h5"}
                   fontWeight="bold"
-                  sx={{ 
-                    fontSize: compact ? '1rem' : '1.25rem',
-                    lineHeight: 1.2
+                  sx={{
+                    fontSize: compact ? "1rem" : "1.25rem",
+                    lineHeight: 1.2,
                   }}
                 >
                   {actual}
                 </Typography>
-                <Typography 
-                  variant="caption" 
+                <Typography
+                  variant="caption"
                   color="text.secondary"
-                  sx={{ fontSize: compact ? '0.625rem' : '0.75rem' }}
+                  sx={{ fontSize: compact ? "0.625rem" : "0.75rem" }}
                 >
-                  / {isUnlimited ? '∞' : limite}
+                  / {isUnlimited ? "∞" : limite}
                 </Typography>
                 {!isUnlimited && (
                   <Chip
                     label={formatPercentage(porcentaje)}
                     size="small"
-                    color={isOverLimit ? 'error' : isNearLimit ? 'warning' : 'success'}
+                    color={
+                      isOverLimit
+                        ? "error"
+                        : isNearLimit
+                          ? "warning"
+                          : "success"
+                    }
                     variant="outlined"
-                    sx={{ 
+                    sx={{
                       height: compact ? 16 : 20,
-                      fontSize: compact ? '0.625rem' : '0.75rem',
-                      '& .MuiChip-label': {
-                        px: compact ? 0.5 : 1
-                      }
+                      fontSize: compact ? "0.625rem" : "0.75rem",
+                      "& .MuiChip-label": {
+                        px: compact ? 0.5 : 1,
+                      },
                     }}
                   />
                 )}
@@ -461,11 +510,15 @@ export default function Negocios() {
                   sx={{
                     height: compact ? 4 : 6,
                     borderRadius: 2,
-                    backgroundColor: 'grey.200',
-                    '& .MuiLinearProgress-bar': {
-                      backgroundColor: isOverLimit ? 'error.main' : isNearLimit ? 'warning.main' : 'success.main',
+                    backgroundColor: "grey.200",
+                    "& .MuiLinearProgress-bar": {
+                      backgroundColor: isOverLimit
+                        ? "error.main"
+                        : isNearLimit
+                          ? "warning.main"
+                          : "success.main",
                       borderRadius: 2,
-                    }
+                    },
                   }}
                 />
               )}
@@ -477,13 +530,18 @@ export default function Negocios() {
   };
 
   // Componente de estadística general
-  const StatCard = ({ icon, value, label, color }: { 
-    icon: React.ReactNode, 
-    value: string, 
-    label: string, 
-    color: string 
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    color: string;
   }) => (
-    <Card sx={{ height: '100%' }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -491,10 +549,10 @@ export default function Negocios() {
               p: isMobile ? 1 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 40 : 48,
               minHeight: isMobile ? 40 : 48,
             }}
@@ -502,23 +560,23 @@ export default function Negocios() {
             {icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "h5" : "h4"} 
+            <Typography
+              variant={isMobile ? "h5" : "h4"}
               fontWeight="bold"
-              sx={{ 
-                fontSize: isMobile ? '1.25rem' : '2rem',
+              sx={{
+                fontSize: isMobile ? "1.25rem" : "2rem",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
             </Typography>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
-                fontSize: isMobile ? '0.75rem' : '0.875rem',
-                lineHeight: 1.2
+              sx={{
+                fontSize: isMobile ? "0.75rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
@@ -547,12 +605,23 @@ export default function Negocios() {
               <Typography variant="h6" fontWeight="bold" noWrap>
                 {negocio.nombre}
               </Typography>
-              <Stack direction="row" alignItems="center" gap={0.5} flexWrap="wrap" sx={{ mt: 0.25 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                gap={0.5}
+                flexWrap="wrap"
+                sx={{ mt: 0.25 }}
+              >
                 <Typography variant="caption" color="text.secondary">
                   ID: {negocio.id.slice(0, 8)}...
                 </Typography>
                 {negocio.creadoPorActivacionLanding ? (
-                  <Chip label="Activación landing" size="small" color="info" variant="outlined" />
+                  <Chip
+                    label="Activación landing"
+                    size="small"
+                    color="info"
+                    variant="outlined"
+                  />
                 ) : null}
               </Stack>
             </Box>
@@ -567,7 +636,7 @@ export default function Negocios() {
               variant="filled"
             />
             <Chip
-              label={days > 0 ? 'Activo' : 'Expirado'}
+              label={days > 0 ? "Activo" : "Expirado"}
               size="small"
               color={getDaysRemainingColor(days)}
               variant="filled"
@@ -590,7 +659,12 @@ export default function Negocios() {
           </Box>
 
           {/* Botones de acción */}
-          <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+          <Stack
+            direction="row"
+            spacing={1}
+            justifyContent="space-between"
+            alignItems="center"
+          >
             <Stack direction="row" spacing={0.5}>
               {puedeMostrarBotonPrimerPago(negocio) && (
                 <Tooltip title="Registrar primer pago (módulo referidos)">
@@ -622,14 +696,24 @@ export default function Negocios() {
                 </IconButton>
               </Tooltip>
             </Stack>
-            
-            <Tooltip title={isExpanded ? "Ocultar estadísticas" : "Ver estadísticas detalladas"}>
+
+            <Tooltip
+              title={
+                isExpanded
+                  ? "Ocultar estadísticas"
+                  : "Ver estadísticas detalladas"
+              }
+            >
               <IconButton
                 onClick={() => handleExpandNegocio(negocio.id)}
                 size="small"
                 color="info"
               >
-                {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                {isExpanded ? (
+                  <ExpandLess fontSize="small" />
+                ) : (
+                  <ExpandMore fontSize="small" />
+                )}
               </IconButton>
             </Tooltip>
           </Stack>
@@ -637,11 +721,15 @@ export default function Negocios() {
           {/* Estadísticas expandidas */}
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
             <Divider sx={{ my: 2 }} />
-            <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography
+              variant="subtitle2"
+              gutterBottom
+              sx={{ display: "flex", alignItems: "center", gap: 1 }}
+            >
               <TrendingUp color="primary" fontSize="small" />
               Estadísticas de Uso
             </Typography>
-            
+
             {stats ? (
               <Grid container spacing={2}>
                 <Grid item xs={12}>
@@ -681,12 +769,15 @@ export default function Negocios() {
                     </Grid>
                   </Grid>
                 </Grid>
-                
+
                 <Grid item xs={12}>
                   <Card variant="outlined">
-                    <CardContent sx={{ p: 2, textAlign: 'center' }}>
+                    <CardContent sx={{ p: 2, textAlign: "center" }}>
                       <Stack alignItems="center" spacing={1}>
-                        <Schedule color={getDaysRemainingColor(stats.diasRestantes)} sx={{ fontSize: 24 }} />
+                        <Schedule
+                          color={getDaysRemainingColor(stats.diasRestantes)}
+                          sx={{ fontSize: 24 }}
+                        />
                         <Typography variant="body2" fontWeight="bold">
                           {formatDaysRemaining(stats.diasRestantes)}
                         </Typography>
@@ -699,9 +790,11 @@ export default function Negocios() {
                 </Grid>
               </Grid>
             ) : (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, p: 2 }}>
                 <CircularProgress size={20} />
-                <Typography variant="body2">Cargando estadísticas...</Typography>
+                <Typography variant="body2">
+                  Cargando estadísticas...
+                </Typography>
               </Box>
             )}
           </Collapse>
@@ -711,9 +804,9 @@ export default function Negocios() {
   };
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Configuración', href: '/configuracion' },
-    { label: 'Negocios' }
+    { label: "Inicio", href: "/home" },
+    { label: "Configuración", href: "/configuracion" },
+    { label: "Negocios" },
   ];
 
   const headerActions = (
@@ -724,8 +817,15 @@ export default function Negocios() {
         </IconButton>
       </Tooltip>
       {isMobile && (
-        <Tooltip title={statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"}>
-          <IconButton onClick={() => setStatsExpanded(!statsExpanded)} size="small">
+        <Tooltip
+          title={
+            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
+          }
+        >
+          <IconButton
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            size="small"
+          >
             {statsExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Tooltip>
@@ -748,7 +848,12 @@ export default function Negocios() {
         subtitle="Administra los negocios del sistema"
         breadcrumbs={breadcrumbs}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="200px"
+        >
           <CircularProgress />
           <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
             Cargando negocios...
@@ -766,7 +871,12 @@ export default function Negocios() {
         subtitle="Administra los negocios del sistema"
         breadcrumbs={breadcrumbs}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="200px"
+        >
           <CircularProgress />
           <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
             Verificando permisos...
@@ -784,7 +894,11 @@ export default function Negocios() {
   return (
     <PageContainer
       title="Gestión de Negocios"
-      subtitle={!isMobile ? "Administra los negocios del sistema y sus planes de suscripción" : undefined}
+      subtitle={
+        !isMobile
+          ? "Administra los negocios del sistema y sus planes de suscripción"
+          : undefined
+      }
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
@@ -875,9 +989,15 @@ export default function Negocios() {
 
       <ContentCard
         title="Lista de Negocios"
-        subtitle={`${filteredNegocios.length} negocio${filteredNegocios.length !== 1 ? 's' : ''} encontrado${filteredNegocios.length !== 1 ? 's' : ''}`}
+        subtitle={`${filteredNegocios.length} negocio${filteredNegocios.length !== 1 ? "s" : ""} encontrado${filteredNegocios.length !== 1 ? "s" : ""}`}
         headerActions={
-          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+          <Stack
+            direction="row"
+            spacing={2}
+            alignItems="center"
+            flexWrap="wrap"
+            useFlexGap
+          >
             <FormControlLabel
               control={
                 <Switch
@@ -888,9 +1008,14 @@ export default function Negocios() {
                 />
               }
               label="Solo registro por landing"
-              sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.875rem', whiteSpace: 'nowrap' } }}
+              sx={{
+                "& .MuiFormControlLabel-label": {
+                  fontSize: "0.875rem",
+                  whiteSpace: "nowrap",
+                },
+              }}
             />
-            <TextField
+            <SelectableTextField
               size="small"
               placeholder={isMobile ? "Buscar..." : "Buscar negocio..."}
               value={searchTerm}
@@ -904,7 +1029,7 @@ export default function Negocios() {
               }}
               sx={{
                 minWidth: isMobile ? 160 : 250,
-                maxWidth: isMobile ? 200 : 'none',
+                maxWidth: isMobile ? 200 : "none",
               }}
             />
           </Stack>
@@ -918,7 +1043,9 @@ export default function Negocios() {
             {filteredNegocios.length === 0 ? (
               <Box textAlign="center" py={4}>
                 <Typography variant="h6" color="text.secondary">
-                  {searchTerm ? 'No se encontraron negocios' : 'No hay negocios registrados'}
+                  {searchTerm
+                    ? "No se encontraron negocios"
+                    : "No hay negocios registrados"}
                 </Typography>
               </Box>
             ) : (
@@ -947,10 +1074,15 @@ export default function Negocios() {
                   const planData = getPlanForNegocio(negocio);
                   const stats = negocioStats[negocio.id];
                   const isExpanded = expandedNegocio === negocio.id;
-                  
+
                   return (
                     <>
-                      <TableRow key={negocio.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                      <TableRow
+                        key={negocio.id}
+                        sx={{
+                          "&:last-child td, &:last-child th": { border: 0 },
+                        }}
+                      >
                         <TableCell>
                           <Box display="flex" alignItems="center" gap={1}>
                             <Business color="primary" />
@@ -958,12 +1090,26 @@ export default function Negocios() {
                               <Typography variant="body2" fontWeight="medium">
                                 {negocio.nombre}
                               </Typography>
-                              <Stack direction="row" alignItems="center" gap={0.5} flexWrap="wrap" sx={{ mt: 0.25 }}>
-                                <Typography variant="caption" color="text.secondary">
+                              <Stack
+                                direction="row"
+                                alignItems="center"
+                                gap={0.5}
+                                flexWrap="wrap"
+                                sx={{ mt: 0.25 }}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   ID: {negocio.id.slice(0, 8)}...
                                 </Typography>
                                 {negocio.creadoPorActivacionLanding ? (
-                                  <Chip label="Activación landing" size="small" color="info" variant="outlined" />
+                                  <Chip
+                                    label="Activación landing"
+                                    size="small"
+                                    color="info"
+                                    variant="outlined"
+                                  />
                                 ) : null}
                               </Stack>
                             </Box>
@@ -978,7 +1124,10 @@ export default function Negocios() {
                               variant="filled"
                             />
                             {planData && planData.precio > 0 && (
-                              <Typography variant="caption" color="success.main">
+                              <Typography
+                                variant="caption"
+                                color="success.main"
+                              >
                                 ${planData.precio}/mes
                               </Typography>
                             )}
@@ -986,7 +1135,7 @@ export default function Negocios() {
                         </TableCell>
                         <TableCell align="center">
                           <Chip
-                            label={days > 0 ? 'Activo' : 'Expirado'}
+                            label={days > 0 ? "Activo" : "Expirado"}
                             size="small"
                             color={getDaysRemainingColor(days)}
                             variant="filled"
@@ -997,26 +1146,45 @@ export default function Negocios() {
                             <Typography variant="body2" fontWeight="medium">
                               {formatDaysRemaining(days)}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
                               {formatDate(negocio.limitTime)}
                             </Typography>
                           </Stack>
                         </TableCell>
                         <TableCell align="center">
-                          <Stack direction="row" spacing={0.5} justifyContent="center">
-                            <Tooltip title={isExpanded ? "Ocultar estadísticas" : "Ver estadísticas detalladas"}>
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            justifyContent="center"
+                          >
+                            <Tooltip
+                              title={
+                                isExpanded
+                                  ? "Ocultar estadísticas"
+                                  : "Ver estadísticas detalladas"
+                              }
+                            >
                               <IconButton
                                 onClick={() => handleExpandNegocio(negocio.id)}
                                 size="small"
                                 color="info"
                               >
-                                {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                                {isExpanded ? (
+                                  <ExpandLess fontSize="small" />
+                                ) : (
+                                  <ExpandMore fontSize="small" />
+                                )}
                               </IconButton>
                             </Tooltip>
                             {puedeMostrarBotonPrimerPago(negocio) && (
                               <Tooltip title="Registrar primer pago (referidos)">
                                 <IconButton
-                                  onClick={() => openFirstPaymentDialog(negocio)}
+                                  onClick={() =>
+                                    openFirstPaymentDialog(negocio)
+                                  }
                                   size="small"
                                   color="success"
                                 >
@@ -1046,14 +1214,30 @@ export default function Negocios() {
                         </TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
-                          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                        <TableCell
+                          style={{ paddingBottom: 0, paddingTop: 0 }}
+                          colSpan={5}
+                        >
+                          <Collapse
+                            in={isExpanded}
+                            timeout="auto"
+                            unmountOnExit
+                          >
                             <Box sx={{ margin: 2 }}>
-                              <Typography variant="h6" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography
+                                variant="h6"
+                                gutterBottom
+                                component="div"
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                }}
+                              >
                                 <TrendingUp color="primary" />
                                 Estadísticas de Uso - {negocio.nombre}
                               </Typography>
-                              
+
                               {stats ? (
                                 <Grid container spacing={3}>
                                   <Grid item xs={12} md={9}>
@@ -1084,27 +1268,54 @@ export default function Negocios() {
                                           title="Productos"
                                           actual={stats.productos.actual}
                                           limite={stats.productos.limite}
-                                          porcentaje={stats.productos.porcentaje}
+                                          porcentaje={
+                                            stats.productos.porcentaje
+                                          }
                                           color="info"
                                         />
                                       </Grid>
                                     </Grid>
                                   </Grid>
-                                  
+
                                   <Grid item xs={12} md={3}>
-                                    <Card variant="outlined" sx={{ height: '100%' }}>
-                                      <CardContent sx={{ p: 2, textAlign: 'center' }}>
+                                    <Card
+                                      variant="outlined"
+                                      sx={{ height: "100%" }}
+                                    >
+                                      <CardContent
+                                        sx={{ p: 2, textAlign: "center" }}
+                                      >
                                         <Stack alignItems="center" spacing={1}>
-                                          <Schedule color={getDaysRemainingColor(stats.diasRestantes)} sx={{ fontSize: 32 }} />
-                                          <Typography variant="h6" fontWeight="bold">
-                                            {formatDaysRemaining(stats.diasRestantes)}
+                                          <Schedule
+                                            color={getDaysRemainingColor(
+                                              stats.diasRestantes,
+                                            )}
+                                            sx={{ fontSize: 32 }}
+                                          />
+                                          <Typography
+                                            variant="h6"
+                                            fontWeight="bold"
+                                          >
+                                            {formatDaysRemaining(
+                                              stats.diasRestantes,
+                                            )}
                                           </Typography>
-                                          <Typography variant="body2" color="text.secondary">
-                                            Vence el {formatDate(stats.fechaVencimiento)}
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                          >
+                                            Vence el{" "}
+                                            {formatDate(stats.fechaVencimiento)}
                                           </Typography>
                                           <Chip
-                                            label={stats.diasRestantes <= 0 ? 'Expirado' : 'Activo'}
-                                            color={getDaysRemainingColor(stats.diasRestantes)}
+                                            label={
+                                              stats.diasRestantes <= 0
+                                                ? "Expirado"
+                                                : "Activo"
+                                            }
+                                            color={getDaysRemainingColor(
+                                              stats.diasRestantes,
+                                            )}
                                             variant="filled"
                                             size="small"
                                           />
@@ -1114,9 +1325,18 @@ export default function Negocios() {
                                   </Grid>
                                 </Grid>
                               ) : (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2 }}>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 2,
+                                    p: 2,
+                                  }}
+                                >
                                   <CircularProgress size={20} />
-                                  <Typography variant="body2">Cargando estadísticas...</Typography>
+                                  <Typography variant="body2">
+                                    Cargando estadísticas...
+                                  </Typography>
                                 </Box>
                               )}
                             </Box>
@@ -1128,11 +1348,13 @@ export default function Negocios() {
                 })}
               </TableBody>
             </Table>
-            
+
             {filteredNegocios.length === 0 && (
               <Box textAlign="center" py={4}>
                 <Typography variant="h6" color="text.secondary">
-                  {searchTerm ? 'No se encontraron negocios' : 'No hay negocios registrados'}
+                  {searchTerm
+                    ? "No se encontraron negocios"
+                    : "No hay negocios registrados"}
                 </Typography>
               </Box>
             )}
@@ -1141,17 +1363,17 @@ export default function Negocios() {
       </ContentCard>
 
       {/* Dialog para crear/editar negocio */}
-      <Dialog 
-        open={open} 
-        onClose={handleCloseDialog} 
-        fullWidth 
+      <Dialog
+        open={open}
+        onClose={handleCloseDialog}
+        fullWidth
         maxWidth="sm"
         fullScreen={isMobile}
         PaperProps={{
           sx: {
             borderRadius: isMobile ? 0 : 3,
-            m: isMobile ? 0 : 2
-          }
+            m: isMobile ? 0 : 2,
+          },
         }}
       >
         <DialogTitle sx={{ pb: 1 }}>
@@ -1173,15 +1395,17 @@ export default function Negocios() {
               required
               size={isMobile ? "small" : "medium"}
             />
-            
+
             <Box>
               <Typography variant="subtitle2" gutterBottom>
                 Plan de Suscripción
               </Typography>
               <Select
                 fullWidth
-                value={selectedPlan?.id ?? ''}
-                onChange={(e) => handleSetSelectedPlan(e.target.value as string)}
+                value={selectedPlan?.id ?? ""}
+                onChange={(e) =>
+                  handleSetSelectedPlan(e.target.value as string)
+                }
                 displayEmpty
                 size={isMobile ? "small" : "medium"}
               >
@@ -1204,25 +1428,29 @@ export default function Negocios() {
                           />
                         )}
                       </Box>
-                      <Typography variant="caption" color="text.secondary" display="block">
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        display="block"
+                      >
                         {planData.descripcion}
                       </Typography>
                       <Box display="flex" gap={1} mt={0.5}>
                         <Chip
                           icon={<Store />}
-                          label={`${planData.limiteLocales === -1 ? '∞' : planData.limiteLocales} tiendas`}
+                          label={`${planData.limiteLocales === -1 ? "∞" : planData.limiteLocales} tiendas`}
                           size="small"
                           variant="outlined"
                         />
                         <Chip
                           icon={<Person />}
-                          label={`${planData.limiteUsuarios === -1 ? '∞' : planData.limiteUsuarios} usuarios`}
+                          label={`${planData.limiteUsuarios === -1 ? "∞" : planData.limiteUsuarios} usuarios`}
                           size="small"
                           variant="outlined"
                         />
                         <Chip
                           icon={<Inventory />}
-                          label={`${planData.limiteProductos === -1 ? '∞' : planData.limiteProductos} productos`}
+                          label={`${planData.limiteProductos === -1 ? "∞" : planData.limiteProductos} productos`}
                           size="small"
                           variant="outlined"
                         />
@@ -1242,26 +1470,36 @@ export default function Negocios() {
                   {selectedPlan.descripcion}
                 </Typography>
                 <Typography variant="body2" sx={{ mt: 0.5 }}>
-                  <strong>Validez:</strong> {selectedPlan.duracion > 0 ? selectedPlan.duracion : 'Cantidad personalizable de'} días desde la activación
+                  <strong>Validez:</strong>{" "}
+                  {selectedPlan.duracion > 0
+                    ? selectedPlan.duracion
+                    : "Cantidad personalizable de"}{" "}
+                  días desde la activación
                 </Typography>
               </Alert>
             )}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: isMobile ? 1.5 : 3, gap: 1 }}>
-          <Button onClick={handleCloseDialog} color="secondary" size={isMobile ? "medium" : "large"}>
+          <Button
+            onClick={handleCloseDialog}
+            color="secondary"
+            size={isMobile ? "medium" : "large"}
+          >
             Cancelar
           </Button>
-          <Button 
-            onClick={handleSave} 
-            variant="contained" 
+          <Button
+            onClick={handleSave}
+            variant="contained"
             disabled={!nombre || !selectedPlan || loading}
             size={isMobile ? "medium" : "large"}
           >
             {loading ? (
               <CircularProgress size={20} />
+            ) : selectedNegocio ? (
+              "Actualizar"
             ) : (
-              selectedNegocio ? "Actualizar" : "Crear"
+              "Crear"
             )}
           </Button>
         </DialogActions>
@@ -1294,8 +1532,9 @@ export default function Negocios() {
               Negocio: <strong>{fpNegocio?.nombre ?? "—"}</strong>
             </Typography>
             <Alert severity="info" icon={<Info />}>
-              Marca el plan que contrató el cliente al pagar en efectivo. Si había referido, se califica y se
-              generan los montos según la tabla de reglas. Requiere una regla activa por plan en base de datos.
+              Marca el plan que contrató el cliente al pagar en efectivo. Si
+              había referido, se califica y se generan los montos según la tabla
+              de reglas. Requiere una regla activa por plan en base de datos.
             </Alert>
             <Box>
               <Typography variant="subtitle2" gutterBottom>
@@ -1342,7 +1581,11 @@ export default function Negocios() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ p: isMobile ? 1.5 : 3, gap: 1 }}>
-          <Button onClick={closeFirstPaymentDialog} color="secondary" disabled={fpSubmitting}>
+          <Button
+            onClick={closeFirstPaymentDialog}
+            color="secondary"
+            disabled={fpSubmitting}
+          >
             Cancelar
           </Button>
           <Button
@@ -1351,7 +1594,11 @@ export default function Negocios() {
             color="success"
             disabled={!fpPlanId || fpSubmitting}
           >
-            {fpSubmitting ? <CircularProgress size={22} /> : "Confirmar primer pago"}
+            {fpSubmitting ? (
+              <CircularProgress size={22} />
+            ) : (
+              "Confirmar primer pago"
+            )}
           </Button>
         </DialogActions>
       </Dialog>

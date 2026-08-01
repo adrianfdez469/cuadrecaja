@@ -30,7 +30,7 @@ import {
   Collapse,
   Divider,
   FormControlLabel,
-  Switch
+  Switch,
 } from "@mui/material";
 import {
   Delete,
@@ -44,20 +44,28 @@ import {
   Refresh,
   ExpandLess,
   ExpandMore,
-  Public
+  Public,
 } from "@mui/icons-material";
-import { fetchCategories, createCategory, updateCategory, deleteCategory } from "@/services/categoryService";
+import {
+  fetchCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "@/services/categoryService";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import SelectableTextField from "@/components/SelectableTextField";
 import { useSession } from "next-auth/react";
 import type { ICategory } from "@/schemas/categoria";
 
 export default function CategoriasPage() {
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [open, setOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<ICategory | null>(null);
+  const [editingCategory, setEditingCategory] = useState<ICategory | null>(
+    null,
+  );
   const [nombre, setNombre] = useState("");
   const [color, setColor] = useState("#1976d2");
   const [createAsGlobal, setCreateAsGlobal] = useState(false);
@@ -70,7 +78,7 @@ export default function CategoriasPage() {
   const isSuperAdmin = session?.user?.rol === "SUPER_ADMIN";
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [statsExpanded, setStatsExpanded] = useState(false);
 
@@ -112,27 +120,30 @@ export default function CategoriasPage() {
     try {
       if (editingCategory) {
         await updateCategory(editingCategory.id, nombre, color);
-        showMessage('Categoría actualizada exitosamente', 'success');
+        showMessage("Categoría actualizada exitosamente", "success");
       } else {
         await createCategory(nombre, color, isSuperAdmin && createAsGlobal);
-        showMessage('Categoría creada exitosamente', 'success');
+        showMessage("Categoría creada exitosamente", "success");
       }
       await loadCategories();
       handleClose();
     } catch (error) {
       console.error("Error al guardar categoría:", error);
-      showMessage('Error al guardar la categoría', 'error');
+      showMessage("Error al guardar la categoría", "error");
     }
   };
 
   const handleDelete = async (id: string) => {
-    confirmDialog('¿Está seguro que desea eliminar la categoría?', async () => {
+    confirmDialog("¿Está seguro que desea eliminar la categoría?", async () => {
       try {
         await deleteCategory(id);
-        showMessage('Categoría eliminada', 'success');
+        showMessage("Categoría eliminada", "success");
       } catch (error) {
         console.error(error);
-        showMessage('Error al intentar eliminar la categoría. Es probable que esté en uso!', 'error');
+        showMessage(
+          "Error al intentar eliminar la categoría. Es probable que esté en uso!",
+          "error",
+        );
       } finally {
         await loadCategories();
       }
@@ -140,18 +151,18 @@ export default function CategoriasPage() {
   };
 
   const filteredCategories = categories.filter((category) =>
-    category.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    category.nombre.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // Cálculos para estadísticas
   const totalCategorias = categories.length;
-  const coloresUnicos = [...new Set(categories.map(c => c.color))].length;
+  const coloresUnicos = [...new Set(categories.map((c) => c.color))].length;
   const categoriasVisibles = filteredCategories.length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Configuración', href: '/configuracion' },
-    { label: 'Categorías' }
+    { label: "Inicio", href: "/home" },
+    { label: "Configuración", href: "/configuracion" },
+    { label: "Categorías" },
   ];
 
   const headerActions = (
@@ -162,8 +173,15 @@ export default function CategoriasPage() {
         </IconButton>
       </Tooltip>
       {isMobile && (
-        <Tooltip title={statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"}>
-          <IconButton onClick={() => setStatsExpanded(!statsExpanded)} size="small">
+        <Tooltip
+          title={
+            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
+          }
+        >
+          <IconButton
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            size="small"
+          >
             {statsExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Tooltip>
@@ -180,8 +198,18 @@ export default function CategoriasPage() {
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode, value: string, label: string, color: string }) => (
-    <Card sx={{ height: '100%' }}>
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    color: string;
+  }) => (
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -189,29 +217,28 @@ export default function CategoriasPage() {
               p: isMobile ? 0.75 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 32 : 48,
               minHeight: isMobile ? 32 : 48,
             }}
           >
             {React.isValidElement(icon)
               ? React.cloneElement(icon, {
-                  fontSize: isMobile ? "small" : "large"
+                  fontSize: isMobile ? "small" : "large",
                 } as Record<string, unknown>)
-              : icon
-            }
+              : icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography
               variant={isMobile ? "subtitle1" : "h4"}
               fontWeight="bold"
               sx={{
-                fontSize: isMobile ? '1rem' : '2rem',
+                fontSize: isMobile ? "1rem" : "2rem",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
@@ -220,8 +247,8 @@ export default function CategoriasPage() {
               variant="body2"
               color="text.secondary"
               sx={{
-                fontSize: isMobile ? '0.6875rem' : '0.875rem',
-                lineHeight: 1.2
+                fontSize: isMobile ? "0.6875rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
@@ -234,7 +261,12 @@ export default function CategoriasPage() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <CircularProgress />
         <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
           Cargando categorías...
@@ -246,7 +278,11 @@ export default function CategoriasPage() {
   return (
     <PageContainer
       title="Gestión de Categorías"
-      subtitle={!isMobile ? "Organiza tus productos con categorías personalizadas" : undefined}
+      subtitle={
+        !isMobile
+          ? "Organiza tus productos con categorías personalizadas"
+          : undefined
+      }
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
@@ -316,9 +352,13 @@ export default function CategoriasPage() {
       {/* Lista de categorías */}
       <ContentCard
         title="Lista de Categorías"
-        subtitle={!isMobile ? "Las categorías globales son compartidas por todos los negocios" : undefined}
+        subtitle={
+          !isMobile
+            ? "Las categorías globales son compartidas por todos los negocios"
+            : undefined
+        }
         headerActions={
-          <TextField
+          <SelectableTextField
             size="small"
             placeholder={isMobile ? "Buscar..." : "Buscar categoría..."}
             value={searchTerm}
@@ -332,7 +372,7 @@ export default function CategoriasPage() {
             }}
             sx={{
               minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : 'none'
+              maxWidth: isMobile ? 200 : "none",
             }}
           />
         }
@@ -341,13 +381,17 @@ export default function CategoriasPage() {
       >
         {filteredCategories.length === 0 ? (
           <Box sx={{ p: 2 }}>
-            <Box sx={{ textAlign: 'center', py: 8 }}>
-              <Category sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+            <Box sx={{ textAlign: "center", py: 8 }}>
+              <Category sx={{ fontSize: 48, color: "text.secondary", mb: 2 }} />
               <Typography variant="h6" color="text.secondary">
-                {searchTerm ? 'No se encontraron categorías' : 'No hay categorías registradas'}
+                {searchTerm
+                  ? "No se encontraron categorías"
+                  : "No hay categorías registradas"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Agrega categorías para organizar mejor tus productos'}
+                {searchTerm
+                  ? "Intenta con otros términos de búsqueda"
+                  : "Agrega categorías para organizar mejor tus productos"}
               </Typography>
             </Box>
           </Box>
@@ -362,15 +406,21 @@ export default function CategoriasPage() {
                     key={categoria.id}
                     onClick={() => handleOpen(categoria)}
                     sx={{
-                      cursor: isGlobalReadOnly ? 'default' : 'pointer',
-                      '&:hover': {
-                        backgroundColor: isGlobalReadOnly ? undefined : 'action.hover',
+                      cursor: isGlobalReadOnly ? "default" : "pointer",
+                      "&:hover": {
+                        backgroundColor: isGlobalReadOnly
+                          ? undefined
+                          : "action.hover",
                       },
                     }}
                   >
-                    <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
                       <Stack spacing={1.5}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="center"
+                        >
                           <Box display="flex" alignItems="center" gap={1}>
                             <Box
                               sx={{
@@ -378,25 +428,43 @@ export default function CategoriasPage() {
                                 height: 20,
                                 borderRadius: 1,
                                 bgcolor: categoria.color,
-                                border: '1px solid',
-                                borderColor: 'divider'
+                                border: "1px solid",
+                                borderColor: "divider",
                               }}
                             />
-                            <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                            <Typography
+                              variant="subtitle2"
+                              fontWeight="medium"
+                              sx={{ fontSize: "0.875rem" }}
+                            >
                               {categoria.nombre}
                             </Typography>
                             {categoria.esGlobal && (
                               <Chip
-                                icon={<Public sx={{ fontSize: '0.75rem !important' }} />}
+                                icon={
+                                  <Public
+                                    sx={{ fontSize: "0.75rem !important" }}
+                                  />
+                                }
                                 label="Global"
                                 size="small"
                                 color="info"
                                 variant="outlined"
-                                sx={{ fontSize: '0.65rem', height: 18, '& .MuiChip-label': { px: 0.5 } }}
+                                sx={{
+                                  fontSize: "0.65rem",
+                                  height: 18,
+                                  "& .MuiChip-label": { px: 0.5 },
+                                }}
                               />
                             )}
                           </Box>
-                          <Tooltip title={isGlobalReadOnly ? "Las categorías globales no se pueden eliminar" : "Eliminar categoría"}>
+                          <Tooltip
+                            title={
+                              isGlobalReadOnly
+                                ? "Las categorías globales no se pueden eliminar"
+                                : "Eliminar categoría"
+                            }
+                          >
                             <span>
                               <IconButton
                                 onClick={(e) => {
@@ -413,7 +481,11 @@ export default function CategoriasPage() {
                           </Tooltip>
                         </Box>
 
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontSize: "0.6875rem" }}
+                        >
                           Color: {categoria.color}
                         </Typography>
                       </Stack>
@@ -442,12 +514,14 @@ export default function CategoriasPage() {
                       key={categoria.id}
                       onClick={() => handleOpen(categoria)}
                       sx={{
-                        cursor: isGlobalReadOnly ? 'default' : 'pointer',
-                        '&:hover': {
-                          backgroundColor: isGlobalReadOnly ? undefined : 'action.hover',
+                        cursor: isGlobalReadOnly ? "default" : "pointer",
+                        "&:hover": {
+                          backgroundColor: isGlobalReadOnly
+                            ? undefined
+                            : "action.hover",
                         },
-                        '&:nth-of-type(odd)': {
-                          backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                        "&:nth-of-type(odd)": {
+                          backgroundColor: "rgba(0, 0, 0, 0.02)",
                         },
                       }}
                     >
@@ -459,8 +533,8 @@ export default function CategoriasPage() {
                               height: 24,
                               borderRadius: 1,
                               bgcolor: categoria.color,
-                              border: '1px solid',
-                              borderColor: 'divider'
+                              border: "1px solid",
+                              borderColor: "divider",
                             }}
                           />
                           <Typography variant="body2" fontWeight="medium">
@@ -468,24 +542,42 @@ export default function CategoriasPage() {
                           </Typography>
                           {categoria.esGlobal && (
                             <Chip
-                              icon={<Public sx={{ fontSize: '0.75rem !important' }} />}
+                              icon={
+                                <Public
+                                  sx={{ fontSize: "0.75rem !important" }}
+                                />
+                              }
                               label="Global"
                               size="small"
                               color="info"
                               variant="outlined"
-                              sx={{ fontSize: '0.7rem' }}
+                              sx={{ fontSize: "0.7rem" }}
                             />
                           )}
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontFamily: "monospace" }}
+                        >
                           {categoria.color}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
-                        <Stack direction="row" spacing={0.5} justifyContent="center">
-                          <Tooltip title={isGlobalReadOnly ? "Las categorías globales no se pueden modificar" : "Editar categoría"}>
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          justifyContent="center"
+                        >
+                          <Tooltip
+                            title={
+                              isGlobalReadOnly
+                                ? "Las categorías globales no se pueden modificar"
+                                : "Editar categoría"
+                            }
+                          >
                             <span>
                               <IconButton
                                 onClick={(e) => {
@@ -500,7 +592,13 @@ export default function CategoriasPage() {
                               </IconButton>
                             </span>
                           </Tooltip>
-                          <Tooltip title={isGlobalReadOnly ? "Las categorías globales no se pueden eliminar" : "Eliminar categoría"}>
+                          <Tooltip
+                            title={
+                              isGlobalReadOnly
+                                ? "Las categorías globales no se pueden eliminar"
+                                : "Eliminar categoría"
+                            }
+                          >
                             <span>
                               <IconButton
                                 onClick={(e) => {
@@ -528,7 +626,9 @@ export default function CategoriasPage() {
 
       {/* Dialog para crear/editar categoría */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingCategory ? "Editar Categoría" : "Nueva Categoría"}</DialogTitle>
+        <DialogTitle>
+          {editingCategory ? "Editar Categoría" : "Nueva Categoría"}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
             <TextField
@@ -557,22 +657,22 @@ export default function CategoriasPage() {
                     height: 32,
                     borderRadius: 1,
                     bgcolor: color,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    border: "1px solid",
+                    borderColor: "divider",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  <ColorLens sx={{ color: 'white', fontSize: 16 }} />
+                  <ColorLens sx={{ color: "white", fontSize: 16 }} />
                 </Box>
                 <Chip
                   label={nombre || "Vista previa"}
                   size="small"
                   sx={{
                     bgcolor: color,
-                    color: 'white',
-                    fontWeight: 'medium'
+                    color: "white",
+                    fontWeight: "medium",
                   }}
                 />
               </Box>
@@ -591,7 +691,8 @@ export default function CategoriasPage() {
                   <Box>
                     <Typography variant="body2">Categoría Global</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Disponible para todos los negocios, solo editable por superadmins
+                      Disponible para todos los negocios, solo editable por
+                      superadmins
                     </Typography>
                   </Box>
                 }

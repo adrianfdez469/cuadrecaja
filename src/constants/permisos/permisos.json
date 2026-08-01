@@ -95,6 +95,9 @@
   "operaciones.cierre.gananciascostos": {
     "descripcion": "Permite ver las ganancias y costos en el resumen de cierre de caja"
   },
+  "operaciones.cierre.fondoinicial": {
+    "descripcion": "Permite registrar y modificar el fondo inicial de caja por moneda mientras el período sigue abierto"
+  },
   "operaciones.movimientos.acceder": {
     "descripcion": "Permite acceder a la interfaz de movimientos de stock"
   },

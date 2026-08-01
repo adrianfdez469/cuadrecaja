@@ -33,6 +33,7 @@ import { useState, useRef, useMemo } from "react";
 import { ICategory } from "@/schemas/categoria";
 import { StockFilter, ExpiryFilter } from "../hooks/useGestionInventario";
 import { uniqueBy } from "@/utils/arrayUtils";
+import SelectableTextField from "@/components/SelectableTextField";
 
 interface InventarioFiltersBarProps {
   searchTerm: string;
@@ -139,12 +140,12 @@ export function InventarioFiltersBar({
           alignItems="center"
           sx={{ scrollMarginTop: "64px" }}
         >
-          <TextField
+          <SelectableTextField
             size="small"
             placeholder="Buscar..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            inputRef={searchInputRef}
+            ref={searchInputRef}
             onFocus={() =>
               searchRowRef.current?.scrollIntoView({
                 behavior: "smooth",
@@ -330,7 +331,7 @@ export function InventarioFiltersBar({
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
       <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
-        <TextField
+        <SelectableTextField
           size="small"
           placeholder="Buscar producto o categoría..."
           value={searchTerm}
