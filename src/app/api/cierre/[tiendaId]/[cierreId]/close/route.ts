@@ -8,7 +8,9 @@ import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
 import { applyGastosToResumenMap, calcularGananciaFinal } from "@/lib/gastos";
 import {
   applyComprasYDevolucionesToResumenMap,
+  applyInitialFundToResumenMap,
   calcularTotalesMovimientosPeriodo,
+  getCurrentInitialCashFundAmounts,
 } from "@/lib/movimiento/caja";
 
 export async function PUT(
@@ -201,6 +203,12 @@ export async function PUT(
         tasasGastos,
       );
 
+    // InitialCashFund es append-only y no cambia por el cierre de otro
+    // proceso — se puede leer fuera de la transacción, igual que movimientosPeriodo.
+    const initialFundAmounts = await getCurrentInitialCashFundAmounts(
+      ultimoPeriodo.id,
+    );
+
     const [periodoCerrado] = await prisma.$transaction(async (tx) => {
       // The "already closed" check above runs outside the transaction, so two
       // concurrent closes both passed it. Here the period is locked and the
@@ -334,6 +342,15 @@ export async function PUT(
           }
         }
       }
+
+      // Fondo inicial de caja — no es una deducción, es el punto de partida
+      // del efectivo (igual que las ventas en efectivo del período).
+      applyInitialFundToResumenMap(
+        resumenMonedaMap,
+        initialFundAmounts,
+        monedaBase,
+        tasasGastos,
+      );
 
       // Deduct ad-hoc/recurring expenses from the per-currency cash summary
       // (todos los gastos, sin importar naturaleza — la caja siempre refleja el efectivo real que salió)

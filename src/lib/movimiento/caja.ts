@@ -200,42 +200,107 @@ export function buildResumenMonedas(
 }
 
 /**
- * Efectivo real disponible en caja, por moneda, para el período actualmente
- * abierto de una tienda: pagos en efectivo de las ventas del período, menos
- * vueltos, gastos y compras/devoluciones ya registrados. Usado para no
- * permitir que una COMPRA en efectivo deje la caja en negativo (ver
- * FormaPagoCompra.MIXTO).
+ * Fondo inicial vigente de un período, por moneda. `InitialCashFund` es
+ * append-only: cada edición inserta una fila con el snapshot completo de
+ * todas las monedas, y la más reciente por createdAt es la vigente. Sin
+ * ninguna fila, el fondo es 0 en todas las monedas (comportamiento por
+ * defecto al abrir un período, sin insertar nada).
  */
-export async function calcularEfectivoDisponiblePorMoneda(
-  tiendaId: string,
-  monedaBase: string,
+export async function getCurrentInitialCashFundAmounts(
+  cierrePeriodoId: string,
   client: PrismaLike = prisma,
 ): Promise<Record<string, number>> {
+  const latest = await client.initialCashFund.findFirst({
+    where: { cierrePeriodoId },
+    orderBy: { createdAt: "desc" },
+  });
+  return (latest?.amounts as Record<string, number>) ?? {};
+}
+
+/**
+ * Suma el fondo inicial de caja (por moneda) como término inicial positivo.
+ * No es una deducción — es el punto de partida del efectivo, igual que las
+ * ventas en efectivo del período. Debe aplicarse junto a (no después de)
+ * applyGastosToResumenMap/applyComprasYDevolucionesToResumenMap.
+ */
+export function applyInitialFundToResumenMap(
+  map: Record<string, ResumenEntry>,
+  amounts: Record<string, number>,
+  monedaBase: string,
+  tasas: ITasaSnapshot,
+): void {
+  for (const [monedaCode, amount] of Object.entries(amounts)) {
+    if (!amount) continue;
+    if (!map[monedaCode]) {
+      map[monedaCode] = {
+        totalEfectivo: 0,
+        totalTransfer: 0,
+        equivalenteBase: 0,
+      };
+    }
+    map[monedaCode].totalEfectivo += amount;
+    map[monedaCode].equivalenteBase += convertToBase(
+      amount,
+      monedaCode,
+      tasas,
+      monedaBase,
+    );
+  }
+}
+
+export type ResumenCajaMoneda = {
+  monedaCode: string;
+  fondoInicial: number;
+  // Ventas en efectivo, netas de vuelto — antes de mezclar el fondo inicial
+  // y las deducciones (gastos, compras/devoluciones en efectivo).
+  ventasEfectivo: number;
+  // fondoInicial + ventasEfectivo - gastos - compras/devoluciones en efectivo.
+  totalEsperado: number;
+  equivalenteBase: number;
+};
+
+/**
+ * Única fuente de verdad del desglose de caja del período actualmente abierto
+ * de una tienda, por moneda. `null` si no hay período abierto. Usada tanto
+ * por `calcularEfectivoDisponiblePorMoneda` (solo el total) como por
+ * `calcularResumenCajaPorMoneda` (desglose completo para el widget de caja).
+ */
+async function construirResumenCajaAbierta(
+  tiendaId: string,
+  monedaBase: string,
+  client: PrismaLike,
+): Promise<ResumenCajaMoneda[] | null> {
   const periodoAbierto = await client.cierrePeriodo.findFirst({
     where: { tiendaId, fechaFin: null },
     orderBy: { fechaInicio: "desc" },
   });
-  if (!periodoAbierto) return {};
+  if (!periodoAbierto) return null;
 
-  const [ventas, gastosCierre, movimientosPeriodo, tiendaConNegocio] =
-    await Promise.all([
-      client.venta.findMany({
-        where: { cierrePeriodoId: periodoAbierto.id },
-        select: { pagosDetalle: true, vueltoDetalle: true, tasaSnapshot: true },
-      }),
-      client.gastoCierre.findMany({ where: { cierreId: periodoAbierto.id } }),
-      client.movimientoStock.findMany({
-        where: {
-          tiendaId,
-          tipo: { in: ["COMPRA", "DEVOLUCION_VENTA"] },
-          fecha: { gte: periodoAbierto.fechaInicio },
-        },
-      }),
-      client.tienda.findUnique({
-        where: { id: tiendaId },
-        select: { negocio: { select: { id: true } } },
-      }),
-    ]);
+  const [
+    ventas,
+    gastosCierre,
+    movimientosPeriodo,
+    tiendaConNegocio,
+    initialFundAmounts,
+  ] = await Promise.all([
+    client.venta.findMany({
+      where: { cierrePeriodoId: periodoAbierto.id },
+      select: { pagosDetalle: true, vueltoDetalle: true, tasaSnapshot: true },
+    }),
+    client.gastoCierre.findMany({ where: { cierreId: periodoAbierto.id } }),
+    client.movimientoStock.findMany({
+      where: {
+        tiendaId,
+        tipo: { in: ["COMPRA", "DEVOLUCION_VENTA"] },
+        fecha: { gte: periodoAbierto.fechaInicio },
+      },
+    }),
+    client.tienda.findUnique({
+      where: { id: tiendaId },
+      select: { negocio: { select: { id: true } } },
+    }),
+    getCurrentInitialCashFundAmounts(periodoAbierto.id, client),
+  ]);
 
   const negocioId = tiendaConNegocio?.negocio?.id;
   const tasasCambio = negocioId
@@ -256,6 +321,20 @@ export async function calcularEfectivoDisponiblePorMoneda(
     return acc;
   }, {});
 
+  // Snapshot de ventas en efectivo (netas de vuelto) antes de mezclar el
+  // fondo inicial y las deducciones — es la línea "ventas reales" del
+  // desglose de caja.
+  const ventasEfectivoPorMoneda: Record<string, number> = {};
+  for (const [moneda, vals] of Object.entries(resumenMonedaMap)) {
+    ventasEfectivoPorMoneda[moneda] = vals.totalEfectivo;
+  }
+
+  applyInitialFundToResumenMap(
+    resumenMonedaMap,
+    initialFundAmounts,
+    monedaBase,
+    tasas,
+  );
   applyGastosToResumenMap(resumenMonedaMap, gastosCierre, monedaBase, tasas);
   applyComprasYDevolucionesToResumenMap(
     resumenMonedaMap,
@@ -264,9 +343,49 @@ export async function calcularEfectivoDisponiblePorMoneda(
     tasas,
   );
 
-  const disponible: Record<string, number> = {};
-  for (const [moneda, vals] of Object.entries(resumenMonedaMap)) {
-    disponible[moneda] = vals.totalEfectivo;
-  }
-  return disponible;
+  return Object.entries(resumenMonedaMap).map(([monedaCode, vals]) => ({
+    monedaCode,
+    fondoInicial: initialFundAmounts[monedaCode] ?? 0,
+    ventasEfectivo: ventasEfectivoPorMoneda[monedaCode] ?? 0,
+    totalEsperado: vals.totalEfectivo,
+    equivalenteBase: vals.equivalenteBase,
+  }));
+}
+
+/**
+ * Efectivo real disponible en caja, por moneda, para el período actualmente
+ * abierto de una tienda: pagos en efectivo de las ventas del período, menos
+ * vueltos, gastos y compras/devoluciones ya registrados. Usado para no
+ * permitir que una COMPRA en efectivo deje la caja en negativo (ver
+ * FormaPagoCompra.MIXTO).
+ */
+export async function calcularEfectivoDisponiblePorMoneda(
+  tiendaId: string,
+  monedaBase: string,
+  client: PrismaLike = prisma,
+): Promise<Record<string, number>> {
+  const resumen = await construirResumenCajaAbierta(
+    tiendaId,
+    monedaBase,
+    client,
+  );
+  if (!resumen) return {};
+  return Object.fromEntries(
+    resumen.map((r) => [r.monedaCode, r.totalEsperado]),
+  );
+}
+
+/**
+ * Desglose de caja del período abierto, por moneda, separando cuánto es
+ * fondo inicial y cuánto son ventas reales del total esperado en caja. Usado
+ * por el widget de caja del POS.
+ */
+export async function calcularResumenCajaPorMoneda(
+  tiendaId: string,
+  monedaBase: string,
+  client: PrismaLike = prisma,
+): Promise<ResumenCajaMoneda[]> {
+  return (
+    (await construirResumenCajaAbierta(tiendaId, monedaBase, client)) ?? []
+  );
 }

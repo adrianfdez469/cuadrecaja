@@ -1,44 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
-import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
+import { calcularEfectivoDisponiblePorMoneda } from "@/lib/movimiento/caja";
 
-// Returns net cash on hand per currency for the given period:
-// sum(cash received per currency) - sum(change given per currency)
+// Returns real cash available per currency for the currently open period of
+// this store: ventas en efectivo - vueltos - gastos - compras/devoluciones +
+// fondo inicial. Única fuente de verdad — antes este endpoint tenía su propio
+// cálculo simplificado (solo pagos - vueltos), inconsistente con el resto del
+// sistema porque no restaba gastos ni compras en efectivo.
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ tiendaId: string; cierreId: string }> }
+  { params }: { params: Promise<{ tiendaId: string; cierreId: string }> },
 ) {
   try {
-    const { cierreId } = await params;
-    await getSession();
+    const { tiendaId } = await params;
+    const session = await getSession();
+    const user = session.user;
 
-    const ventas = await prisma.venta.findMany({
-      where: { cierrePeriodoId: cierreId },
-      select: { pagosDetalle: true, vueltoDetalle: true },
+    const tienda = await prisma.tienda.findFirst({
+      where: { id: tiendaId, negocioId: user.negocio.id },
+      select: { negocio: { select: { monedaBase: true } } },
     });
-
-    const balance: Record<string, number> = {};
-
-    for (const venta of ventas) {
-      if (venta.pagosDetalle) {
-        const pagos = venta.pagosDetalle as unknown as IPagoLinea[];
-        for (const pago of pagos) {
-          if (pago.tipo === 'cash') {
-            balance[pago.moneda] = (balance[pago.moneda] ?? 0) + pago.monto;
-          }
-        }
-      }
-      if (venta.vueltoDetalle) {
-        const vueltos = venta.vueltoDetalle as unknown as IVueltoLinea[];
-        for (const vuelto of vueltos) {
-          balance[vuelto.moneda] = (balance[vuelto.moneda] ?? 0) - vuelto.monto;
-        }
-      }
+    if (!tienda) {
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 },
+      );
     }
+    const monedaBase = tienda.negocio?.monedaBase ?? "CUP";
+
+    const balance = await calcularEfectivoDisponiblePorMoneda(
+      tiendaId,
+      monedaBase,
+    );
 
     return NextResponse.json(balance, { status: 200 });
   } catch {
-    return NextResponse.json({ error: "Error al obtener el balance de caja" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al obtener el balance de caja" },
+      { status: 500 },
+    );
   }
 }

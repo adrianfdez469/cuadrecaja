@@ -18,7 +18,6 @@ import {
   Typography,
   Chip,
   Grid2 as Grid,
-  TextField,
   InputAdornment,
   FormControl,
   InputLabel,
@@ -36,6 +35,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import ProductCard from "@/components/ProductcSelectionModal/ProductCard";
 import ProductProcessorData from "@/components/ProductProcessorData/ProductProcessorData";
 import { IProcessedData } from "@/schemas/processedData";
+import SelectableTextField from "@/components/SelectableTextField";
 
 interface IProps {
   operacion: OperacionTipo;
@@ -226,7 +226,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
         <Grid container spacing={1} alignItems="center">
           <Grid size={{ xs: 12, sm: 4 }}>
             <Box display="flex" alignItems="center" gap={1}>
-              <TextField
+              <SelectableTextField
                 fullWidth
                 type="search"
                 size="small"

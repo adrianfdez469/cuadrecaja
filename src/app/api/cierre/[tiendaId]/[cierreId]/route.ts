@@ -12,7 +12,9 @@ import {
 import { applyGastosToResumenMap, calcularGananciaFinal } from "@/lib/gastos";
 import {
   applyComprasYDevolucionesToResumenMap,
+  applyInitialFundToResumenMap,
   buildResumenMonedas,
+  getCurrentInitialCashFundAmounts,
   montoCompraEnCaja,
 } from "@/lib/movimiento/caja";
 
@@ -529,6 +531,19 @@ export async function GET(
       return acc;
     }, {});
 
+    // El fondo inicial no es una deducción — es el punto de partida del
+    // efectivo, igual que las ventas del día — por eso se suma ANTES del
+    // snapshot "bruto" para que quede reflejado tanto en bruto como en final.
+    const initialFundAmounts = await getCurrentInitialCashFundAmounts(
+      cierre.id,
+    );
+    applyInitialFundToResumenMap(
+      resumenMonedaMap,
+      initialFundAmounts,
+      monedaBase,
+      tasasFallback,
+    );
+
     // Snapshot del bruto (antes de restar gastos/compras/devoluciones) para
     // poder mostrar "bruto tachado -> final" en el desglose por moneda
     const resumenMonedaBrutoMap: Record<
@@ -606,6 +621,7 @@ export async function GET(
           equivalenteBaseBruto:
             resumenMonedaBrutoMap[monedaCode]?.equivalenteBase ??
             vals.equivalenteBase,
+          initialFund: initialFundAmounts[monedaCode] ?? 0,
         }),
       ),
       productosVendidos: Object.values(productosVendidos)

@@ -34,9 +34,9 @@ import {
   MenuItem,
   Avatar,
 } from "@mui/material";
-import { 
-  Delete, 
-  Edit, 
+import {
+  Delete,
+  Edit,
   Add,
   Business,
   Phone,
@@ -51,17 +51,29 @@ import {
 } from "@mui/icons-material";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import SelectableTextField from "@/components/SelectableTextField";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
-import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from "@/services/proveedorService";
-import { IProveedor, IProveedorCreate, IProveedorUpdate } from "@/schemas/proveedor";
+import {
+  getProveedores,
+  createProveedor,
+  updateProveedor,
+  deleteProveedor,
+} from "@/services/proveedorService";
+import {
+  IProveedor,
+  IProveedorCreate,
+  IProveedorUpdate,
+} from "@/schemas/proveedor";
 import { getUsuarios, IUsuarioBasico } from "@/services/usuarioService";
 
 export default function Proveedores() {
   const [proveedores, setProveedores] = useState<IProveedor[]>([]);
   const [usuarios, setUsuarios] = useState<IUsuarioBasico[]>([]);
   const [open, setOpen] = useState(false);
-  const [selectedProveedor, setSelectedProveedor] = useState<IProveedor | null>(null);
+  const [selectedProveedor, setSelectedProveedor] = useState<IProveedor | null>(
+    null,
+  );
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [direccion, setDireccion] = useState("");
@@ -73,9 +85,9 @@ export default function Proveedores() {
   const [statsExpanded, setStatsExpanded] = useState(false);
   const { showMessage } = useMessageContext();
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
-  
+
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     fetchProveedores();
@@ -122,7 +134,10 @@ export default function Proveedores() {
       };
 
       if (selectedProveedor) {
-        await updateProveedor(selectedProveedor.id, proveedorData as IProveedorUpdate);
+        await updateProveedor(
+          selectedProveedor.id,
+          proveedorData as IProveedorUpdate,
+        );
         showMessage("Proveedor actualizado exitosamente", "success");
       } else {
         await createProveedor(proveedorData as IProveedorCreate);
@@ -133,7 +148,8 @@ export default function Proveedores() {
       handleClose();
     } catch (error) {
       console.error("Error al guardar proveedor:", error);
-      const errorMessage = error.response?.data?.error || "Error al guardar el proveedor";
+      const errorMessage =
+        error.response?.data?.error || "Error al guardar el proveedor";
       showMessage(errorMessage, "error");
     } finally {
       setSaving(false);
@@ -141,7 +157,7 @@ export default function Proveedores() {
   };
 
   const handleDelete = async (id: string) => {
-    const proveedor = proveedores.find(p => p.id === id);
+    const proveedor = proveedores.find((p) => p.id === id);
     if (!proveedor) return;
 
     confirmDialog(
@@ -153,10 +169,11 @@ export default function Proveedores() {
           await fetchProveedores();
         } catch (error) {
           console.error("Error al eliminar proveedor:", error);
-          const errorMessage = error.response?.data?.error || "Error al eliminar el proveedor";
+          const errorMessage =
+            error.response?.data?.error || "Error al eliminar el proveedor";
           showMessage(errorMessage, "error");
         }
-      }
+      },
     );
   };
 
@@ -184,21 +201,23 @@ export default function Proveedores() {
     resetForm();
   };
 
-  const filteredProveedores = proveedores.filter(proveedor =>
-    proveedor.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (proveedor.descripcion && proveedor.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredProveedores = proveedores.filter(
+    (proveedor) =>
+      proveedor.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (proveedor.descripcion &&
+        proveedor.descripcion.toLowerCase().includes(searchTerm.toLowerCase())),
   );
 
   // Cálculos para estadísticas
   const totalProveedores = proveedores.length;
-  const proveedoresConTelefono = proveedores.filter(p => p.telefono).length;
-  const proveedoresConDireccion = proveedores.filter(p => p.direccion).length;
-  const proveedoresConUsuario = proveedores.filter(p => p.usuarioId).length;
+  const proveedoresConTelefono = proveedores.filter((p) => p.telefono).length;
+  const proveedoresConDireccion = proveedores.filter((p) => p.direccion).length;
+  const proveedoresConUsuario = proveedores.filter((p) => p.usuarioId).length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Configuración', href: '/configuracion' },
-    { label: 'Proveedores' }
+    { label: "Inicio", href: "/home" },
+    { label: "Configuración", href: "/configuracion" },
+    { label: "Proveedores" },
   ];
 
   const headerActions = (
@@ -209,8 +228,15 @@ export default function Proveedores() {
         </IconButton>
       </Tooltip>
       {isMobile && (
-        <Tooltip title={statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"}>
-          <IconButton onClick={() => setStatsExpanded(!statsExpanded)} size="small">
+        <Tooltip
+          title={
+            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
+          }
+        >
+          <IconButton
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            size="small"
+          >
             {statsExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Tooltip>
@@ -238,7 +264,7 @@ export default function Proveedores() {
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={3}>
               <Card>
-                <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                <CardContent sx={{ textAlign: "center", py: 2 }}>
                   <Typography variant="h4" color="primary" fontWeight="bold">
                     {totalProveedores}
                   </Typography>
@@ -250,8 +276,12 @@ export default function Proveedores() {
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <Card>
-                <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                  <Typography variant="h4" color="success.main" fontWeight="bold">
+                <CardContent sx={{ textAlign: "center", py: 2 }}>
+                  <Typography
+                    variant="h4"
+                    color="success.main"
+                    fontWeight="bold"
+                  >
                     {proveedoresConTelefono}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -262,7 +292,7 @@ export default function Proveedores() {
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <Card>
-                <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                <CardContent sx={{ textAlign: "center", py: 2 }}>
                   <Typography variant="h4" color="info.main" fontWeight="bold">
                     {proveedoresConDireccion}
                   </Typography>
@@ -274,8 +304,12 @@ export default function Proveedores() {
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <Card>
-                <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                  <Typography variant="h4" color="secondary.main" fontWeight="bold">
+                <CardContent sx={{ textAlign: "center", py: 2 }}>
+                  <Typography
+                    variant="h4"
+                    color="secondary.main"
+                    fontWeight="bold"
+                  >
                     {proveedoresConUsuario}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -291,9 +325,9 @@ export default function Proveedores() {
       {/* Contenido principal */}
       <ContentCard
         title="Lista de Proveedores"
-        subtitle={`${filteredProveedores.length} proveedor${filteredProveedores.length !== 1 ? 'es' : ''} encontrado${filteredProveedores.length !== 1 ? 's' : ''}`}
+        subtitle={`${filteredProveedores.length} proveedor${filteredProveedores.length !== 1 ? "es" : ""} encontrado${filteredProveedores.length !== 1 ? "s" : ""}`}
         headerActions={
-          <TextField
+          <SelectableTextField
             size="small"
             placeholder="Buscar proveedores..."
             value={searchTerm}
@@ -310,20 +344,23 @@ export default function Proveedores() {
         }
       >
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress />
           </Box>
         ) : filteredProveedores.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <LocalShipping sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+          <Box sx={{ textAlign: "center", py: 4 }}>
+            <LocalShipping
+              sx={{ fontSize: 64, color: "text.secondary", mb: 2 }}
+            />
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              {searchTerm ? 'No se encontraron proveedores' : 'No hay proveedores registrados'}
+              {searchTerm
+                ? "No se encontraron proveedores"
+                : "No hay proveedores registrados"}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              {searchTerm 
-                ? 'Intenta con otros términos de búsqueda' 
-                : 'Comienza agregando tu primer proveedor'
-              }
+              {searchTerm
+                ? "Intenta con otros términos de búsqueda"
+                : "Comienza agregando tu primer proveedor"}
             </Typography>
             {!searchTerm && (
               <Button
@@ -340,25 +377,37 @@ export default function Proveedores() {
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
               {filteredProveedores.map((proveedor) => (
-                <Card 
+                <Card
                   key={proveedor.id}
                   onClick={() => handleEdit(proveedor)}
                   sx={{
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
+                    cursor: "pointer",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
                     <Stack spacing={1.5}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                          <Typography
+                            variant="subtitle2"
+                            fontWeight="medium"
+                            sx={{ fontSize: "0.875rem" }}
+                          >
                             {proveedor.nombre}
                           </Typography>
                           {proveedor.descripcion && (
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ fontSize: "0.75rem" }}
+                            >
                               {proveedor.descripcion}
                             </Typography>
                           )}
@@ -374,16 +423,19 @@ export default function Proveedores() {
                           <Delete fontSize="small" />
                         </IconButton>
                       </Box>
-                      
+
                       <Box display="flex" gap={1} flexWrap="wrap">
                         {proveedor.usuarioId && (
                           <Chip
                             icon={<Person fontSize="small" />}
-                            label={usuarios.find(u => u.id === proveedor.usuarioId)?.nombre || 'Usuario'}
+                            label={
+                              usuarios.find((u) => u.id === proveedor.usuarioId)
+                                ?.nombre || "Usuario"
+                            }
                             size="small"
                             variant="outlined"
                             color="primary"
-                            sx={{ fontSize: '0.6875rem', height: 20 }}
+                            sx={{ fontSize: "0.6875rem", height: 20 }}
                           />
                         )}
                         {proveedor.telefono && (
@@ -393,7 +445,7 @@ export default function Proveedores() {
                             size="small"
                             variant="outlined"
                             color="success"
-                            sx={{ fontSize: '0.6875rem', height: 20 }}
+                            sx={{ fontSize: "0.6875rem", height: 20 }}
                           />
                         )}
                         {proveedor.direccion && (
@@ -403,7 +455,7 @@ export default function Proveedores() {
                             size="small"
                             variant="outlined"
                             color="info"
-                            sx={{ fontSize: '0.6875rem', height: 20 }}
+                            sx={{ fontSize: "0.6875rem", height: 20 }}
                           />
                         )}
                       </Box>
@@ -429,16 +481,16 @@ export default function Proveedores() {
               </TableHead>
               <TableBody>
                 {filteredProveedores.map((proveedor) => (
-                  <TableRow 
+                  <TableRow
                     key={proveedor.id}
                     onClick={() => handleEdit(proveedor)}
                     sx={{
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
                       },
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      "&:nth-of-type(odd)": {
+                        backgroundColor: "rgba(0, 0, 0, 0.02)",
                       },
                     }}
                   >
@@ -449,21 +501,32 @@ export default function Proveedores() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
-                        {proveedor.descripcion || '-'}
+                        {proveedor.descripcion || "-"}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       {proveedor.usuarioId ? (
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={0.5}
+                        >
                           <Avatar sx={{ width: 24, height: 24 }}>
-                            {usuarios.find(u => u.id === proveedor.usuarioId)?.nombre.charAt(0)}
+                            {usuarios
+                              .find((u) => u.id === proveedor.usuarioId)
+                              ?.nombre.charAt(0)}
                           </Avatar>
                           <Typography variant="body2" fontWeight="medium">
-                            {usuarios.find(u => u.id === proveedor.usuarioId)?.nombre}
+                            {
+                              usuarios.find((u) => u.id === proveedor.usuarioId)
+                                ?.nombre
+                            }
                           </Typography>
                         </Stack>
                       ) : (
-                        <Typography variant="body2" color="text.secondary">-</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          -
+                        </Typography>
                       )}
                     </TableCell>
                     <TableCell>
@@ -476,7 +539,9 @@ export default function Proveedores() {
                           color="success"
                         />
                       ) : (
-                        <Typography variant="body2" color="text.secondary">-</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          -
+                        </Typography>
                       )}
                     </TableCell>
                     <TableCell>
@@ -489,11 +554,17 @@ export default function Proveedores() {
                           color="info"
                         />
                       ) : (
-                        <Typography variant="body2" color="text.secondary">-</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          -
+                        </Typography>
                       )}
                     </TableCell>
                     <TableCell align="center">
-                      <Stack direction="row" spacing={0.5} justifyContent="center">
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        justifyContent="center"
+                      >
                         <Tooltip title="Editar proveedor">
                           <IconButton
                             onClick={(e) => {
@@ -530,12 +601,14 @@ export default function Proveedores() {
 
       {/* Dialog para crear/editar proveedor */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{selectedProveedor ? "Editar Proveedor" : "Nuevo Proveedor"}</DialogTitle>
+        <DialogTitle>
+          {selectedProveedor ? "Editar Proveedor" : "Nuevo Proveedor"}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
-            <TextField 
-              fullWidth 
-              label="Nombre del proveedor" 
+            <TextField
+              fullWidth
+              label="Nombre del proveedor"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               required
@@ -550,9 +623,9 @@ export default function Proveedores() {
               }}
             />
 
-            <TextField 
-              fullWidth 
-              label="Descripción" 
+            <TextField
+              fullWidth
+              label="Descripción"
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
               placeholder="Descripción opcional del proveedor..."
@@ -561,9 +634,9 @@ export default function Proveedores() {
               rows={2}
             />
 
-            <TextField 
-              fullWidth 
-              label="Teléfono" 
+            <TextField
+              fullWidth
+              label="Teléfono"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
               placeholder="Ej: +1234567890"
@@ -577,9 +650,9 @@ export default function Proveedores() {
               }}
             />
 
-            <TextField 
-              fullWidth 
-              label="Dirección" 
+            <TextField
+              fullWidth
+              label="Dirección"
               value={direccion}
               onChange={(e) => setDireccion(e.target.value)}
               placeholder="Dirección del proveedor..."
@@ -596,7 +669,9 @@ export default function Proveedores() {
             />
 
             <FormControl fullWidth disabled={saving}>
-              <InputLabel id="usuario-label">Usuario Asociado (Opcional)</InputLabel>
+              <InputLabel id="usuario-label">
+                Usuario Asociado (Opcional)
+              </InputLabel>
               <Select
                 labelId="usuario-label"
                 value={usuarioId}
@@ -619,7 +694,9 @@ export default function Proveedores() {
                         {usuario.nombre.charAt(0)}
                       </Avatar>
                       <Box>
-                        <Typography variant="body2">{usuario.nombre}</Typography>
+                        <Typography variant="body2">
+                          {usuario.nombre}
+                        </Typography>
                         <Typography variant="caption" color="text.secondary">
                           @{usuario.usuario}
                         </Typography>
@@ -635,9 +712,9 @@ export default function Proveedores() {
           <Button onClick={handleClose} color="secondary" disabled={saving}>
             Cancelar
           </Button>
-          <Button 
-            onClick={handleSave} 
-            variant="contained" 
+          <Button
+            onClick={handleSave}
+            variant="contained"
             color="primary"
             disabled={!nombre.trim() || saving}
             startIcon={saving ? <CircularProgress size={16} /> : undefined}
@@ -650,4 +727,4 @@ export default function Proveedores() {
       {ConfirmDialogComponent}
     </PageContainer>
   );
-} 
+}

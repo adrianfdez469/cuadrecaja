@@ -187,7 +187,7 @@ export const DevolucionVentaDialog: FC<IProps> = ({
             onChange={setFechaFin}
             slotProps={{ textField: { size: "small", fullWidth: true } }}
           />
-          <TextField
+          <SelectableTextField
             label="Producto"
             placeholder="Nombre del producto..."
             value={search}

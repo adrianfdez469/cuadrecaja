@@ -35,9 +35,9 @@ import {
   Alert,
   Paper,
 } from "@mui/material";
-import { 
-  Delete, 
-  Edit, 
+import {
+  Delete,
+  Edit,
   Add,
   Store,
   Person,
@@ -50,16 +50,22 @@ import {
   Warehouse,
   Security,
   PersonAdd,
-  Close
+  Close,
 } from "@mui/icons-material";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import SelectableTextField from "@/components/SelectableTextField";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import LimitDialog from "@/components/LimitDialog";
 import { ILocal, TipoLocal } from "@/schemas/tienda";
 import { IRol } from "@/schemas/rol";
-import { getLocales, createLocal, updateLocal, deleteLocal } from "@/services/localesService";
+import {
+  getLocales,
+  createLocal,
+  updateLocal,
+  deleteLocal,
+} from "@/services/localesService";
 import { getRoles } from "@/services/rolService";
 import { getUsuarios } from "@/services/usuarioService";
 
@@ -84,9 +90,9 @@ export default function Locales() {
   const [limitDialog, setLimitDialog] = useState(false);
   const { showMessage } = useMessageContext();
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
-  
+
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     fetchLocales();
@@ -148,15 +154,17 @@ export default function Locales() {
       resetForm();
     } catch (error) {
       console.error("Error al guardar local:", error);
-      
+
       // Manejar específicamente el error de límite de locales
-      if (error.response?.status === 400 && 
-          error.response?.data?.error?.includes("Limite de locales")) {
+      if (
+        error.response?.status === 400 &&
+        error.response?.data?.error?.includes("Limite de locales")
+      ) {
         setLimitDialog(true);
       } else {
         showMessage(
-          error.response?.data?.error || "Error al guardar el local", 
-          "error"
+          error.response?.data?.error || "Error al guardar el local",
+          "error",
         );
       }
     } finally {
@@ -165,40 +173,41 @@ export default function Locales() {
   };
 
   const handleDelete = async (id) => {
-    confirmDialog(
-      "¿Está seguro que desea eliminar este local?",
-      async () => {
-        try {
-          await deleteLocal(id);
-          fetchLocales();
-          showMessage("Local eliminado exitosamente", "success");
-        } catch (error) {
-          console.error("Error al eliminar local:", error);
-          showMessage(
-            error.response?.data?.error || "Error al eliminar el local",
-            "error"
-          );
-        }
+    confirmDialog("¿Está seguro que desea eliminar este local?", async () => {
+      try {
+        await deleteLocal(id);
+        fetchLocales();
+        showMessage("Local eliminado exitosamente", "success");
+      } catch (error) {
+        console.error("Error al eliminar local:", error);
+        showMessage(
+          error.response?.data?.error || "Error al eliminar el local",
+          "error",
+        );
       }
-    );
+    });
   };
 
   const handleEdit = (local) => {
     setSelectedLocal(local);
     setNombre(local.nombre);
     setTipo(local.tipo || TipoLocal.TIENDA);
-    
+
     // Usar usuariosTiendas si está disponible, sino usar usuarios para compatibilidad
     if (local.usuariosTiendas) {
-      setUsuariosRoles(local.usuariosTiendas.map(ut => ({ 
-        usuarioId: ut.usuario.id, 
-        rolId: ut.rol?.id 
-      })));
+      setUsuariosRoles(
+        local.usuariosTiendas.map((ut) => ({
+          usuarioId: ut.usuario.id,
+          rolId: ut.rol?.id,
+        })),
+      );
     } else {
       // Fallback para compatibilidad con datos antiguos
-      setUsuariosRoles(local.usuarios.map(u => ({ usuarioId: u.id, rolId: undefined })));
+      setUsuariosRoles(
+        local.usuarios.map((u) => ({ usuarioId: u.id, rolId: undefined })),
+      );
     }
-    
+
     setOpen(true);
   };
 
@@ -218,20 +227,26 @@ export default function Locales() {
     setLimitDialog(false);
   };
 
-  const filteredLocales = locales.filter(local =>
-    local.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredLocales = locales.filter((local) =>
+    local.nombre.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // Cálculos para estadísticas
   const totalLocales = locales.length;
-  const totalUsuariosAsignados = [...new Set(locales.flatMap(t => t.usuarios.map(u => u.id)))].length;
-  const localesConUsuarios = locales.filter(t => t.usuarios.length > 0).length;
-  const localesSinUsuarios = locales.filter(t => t.usuarios.length === 0).length;
+  const totalUsuariosAsignados = [
+    ...new Set(locales.flatMap((t) => t.usuarios.map((u) => u.id))),
+  ].length;
+  const localesConUsuarios = locales.filter(
+    (t) => t.usuarios.length > 0,
+  ).length;
+  const localesSinUsuarios = locales.filter(
+    (t) => t.usuarios.length === 0,
+  ).length;
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Configuración', href: '/configuracion' },
-    { label: 'Locales' }
+    { label: "Inicio", href: "/home" },
+    { label: "Configuración", href: "/configuracion" },
+    { label: "Locales" },
   ];
 
   const headerActions = (
@@ -242,8 +257,15 @@ export default function Locales() {
         </IconButton>
       </Tooltip>
       {isMobile && (
-        <Tooltip title={statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"}>
-          <IconButton onClick={() => setStatsExpanded(!statsExpanded)} size="small">
+        <Tooltip
+          title={
+            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
+          }
+        >
+          <IconButton
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            size="small"
+          >
             {statsExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Tooltip>
@@ -261,7 +283,11 @@ export default function Locales() {
 
   // Función para obtener el icono según el tipo
   const getTipoIcon = (tipoLocal: string) => {
-    return tipoLocal === TipoLocal.ALMACEN ? <Warehouse fontSize="small" /> : <Store fontSize="small" />;
+    return tipoLocal === TipoLocal.ALMACEN ? (
+      <Warehouse fontSize="small" />
+    ) : (
+      <Store fontSize="small" />
+    );
   };
 
   // Función para obtener el color según el tipo
@@ -270,8 +296,18 @@ export default function Locales() {
   };
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode, value: string, label: string, color: string }) => (
-    <Card sx={{ height: '100%' }}>
+  const StatCard = ({
+    icon,
+    value,
+    label,
+    color,
+  }: {
+    icon: React.ReactNode;
+    value: string;
+    label: string;
+    color: string;
+  }) => (
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
         <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
           <Box
@@ -279,39 +315,38 @@ export default function Locales() {
               p: isMobile ? 0.75 : 1.5,
               borderRadius: 2,
               bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minWidth: isMobile ? 32 : 48,
               minHeight: isMobile ? 32 : 48,
             }}
           >
-            {React.isValidElement(icon) 
-              ? React.cloneElement(icon, { 
-                  fontSize: isMobile ? "small" : "large" 
+            {React.isValidElement(icon)
+              ? React.cloneElement(icon, {
+                  fontSize: isMobile ? "small" : "large",
                 } as Record<string, unknown>)
-              : icon
-            }
+              : icon}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography 
-              variant={isMobile ? "subtitle1" : "h4"} 
+            <Typography
+              variant={isMobile ? "subtitle1" : "h4"}
               fontWeight="bold"
-              sx={{ 
-                fontSize: isMobile ? '1rem' : '2rem',
+              sx={{
+                fontSize: isMobile ? "1rem" : "2rem",
                 lineHeight: 1.2,
-                wordBreak: 'break-all'
+                wordBreak: "break-all",
               }}
             >
               {value}
             </Typography>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ 
-                fontSize: isMobile ? '0.6875rem' : '0.875rem',
-                lineHeight: 1.2
+              sx={{
+                fontSize: isMobile ? "0.6875rem" : "0.875rem",
+                lineHeight: 1.2,
               }}
             >
               {label}
@@ -324,7 +359,12 @@ export default function Locales() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <CircularProgress />
         <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
           Cargando locales...
@@ -334,8 +374,8 @@ export default function Locales() {
   }
 
   return (
-    <PageContainer 
-      title="Gestión de Locales" 
+    <PageContainer
+      title="Gestión de Locales"
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
     >
@@ -380,7 +420,7 @@ export default function Locales() {
       <ContentCard
         title={`Locales (${filteredLocales.length})`}
         headerActions={
-          <TextField
+          <SelectableTextField
             size="small"
             placeholder="Buscar locales..."
             value={searchTerm}
@@ -392,9 +432,9 @@ export default function Locales() {
                 </InputAdornment>
               ),
             }}
-            sx={{ 
+            sx={{
               minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : 'none'
+              maxWidth: isMobile ? 200 : "none",
             }}
           />
         }
@@ -405,10 +445,14 @@ export default function Locales() {
           <Box sx={{ p: 2 }}>
             <Alert severity="info" sx={{ mt: 2 }}>
               <Typography variant="h6" gutterBottom>
-                {searchTerm ? 'No se encontraron locales' : 'No hay locales registradas'}
+                {searchTerm
+                  ? "No se encontraron locales"
+                  : "No hay locales registradas"}
               </Typography>
               <Typography variant="body1" gutterBottom>
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Comienza creando tu primera locales para gestionar tu negocio'}
+                {searchTerm
+                  ? "Intenta con otros términos de búsqueda"
+                  : "Comienza creando tu primera locales para gestionar tu negocio"}
               </Typography>
               {!searchTerm && (
                 <Button
@@ -427,30 +471,43 @@ export default function Locales() {
           <Box sx={{ p: 1.5 }}>
             <Stack spacing={1.5}>
               {filteredLocales.map((local) => (
-                <Card 
+                <Card
                   key={local.id}
                   onClick={() => handleEdit(local)}
                   sx={{
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
+                    cursor: "pointer",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
                     <Stack spacing={1.5}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Box display="flex" alignItems="center" gap={1} sx={{ flex: 1 }}>
-                          <Typography variant="subtitle2" fontWeight="medium" sx={{ fontSize: '0.875rem' }}>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <Box
+                          display="flex"
+                          alignItems="center"
+                          gap={1}
+                          sx={{ flex: 1 }}
+                        >
+                          <Typography
+                            variant="subtitle2"
+                            fontWeight="medium"
+                            sx={{ fontSize: "0.875rem" }}
+                          >
                             {local.nombre}
                           </Typography>
-                          <Chip 
+                          <Chip
                             icon={getTipoIcon(local.tipo)}
                             label={local.tipo}
                             size="small"
                             color={getTipoColor(local.tipo)}
                             variant="outlined"
-                            sx={{ fontSize: '0.6875rem', height: 20 }}
+                            sx={{ fontSize: "0.6875rem", height: 20 }}
                           />
                         </Box>
                         <IconButton
@@ -464,33 +521,44 @@ export default function Locales() {
                           <Delete fontSize="small" />
                         </IconButton>
                       </Box>
-                      
+
                       <Box display="flex" flexWrap="wrap" gap={0.5}>
-                        {local.usuariosTiendas && local.usuariosTiendas.length > 0 ? (
+                        {local.usuariosTiendas &&
+                        local.usuariosTiendas.length > 0 ? (
                           local.usuariosTiendas.map((usuarioTienda) => (
-                            <Chip 
+                            <Chip
                               key={usuarioTienda.usuario.id}
-                              label={`${usuarioTienda.usuario.nombre}${usuarioTienda.rol ? ` (${usuarioTienda.rol.nombre})` : ''}`}
+                              label={`${usuarioTienda.usuario.nombre}${usuarioTienda.rol ? ` (${usuarioTienda.rol.nombre})` : ""}`}
                               size="small"
                               variant="outlined"
-                              icon={usuarioTienda.rol ? <Security fontSize="small" /> : <Person fontSize="small" />}
-                              sx={{ fontSize: '0.6875rem', height: 24 }}
+                              icon={
+                                usuarioTienda.rol ? (
+                                  <Security fontSize="small" />
+                                ) : (
+                                  <Person fontSize="small" />
+                                )
+                              }
+                              sx={{ fontSize: "0.6875rem", height: 24 }}
                             />
                           ))
                         ) : local.usuarios && local.usuarios.length > 0 ? (
                           // Fallback para compatibilidad
                           local.usuarios.map((user) => (
-                            <Chip 
+                            <Chip
                               key={user.id}
                               label={user.nombre}
                               size="small"
                               variant="outlined"
                               icon={<Person fontSize="small" />}
-                              sx={{ fontSize: '0.6875rem', height: 24 }}
+                              sx={{ fontSize: "0.6875rem", height: 24 }}
                             />
                           ))
                         ) : (
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontSize: "0.6875rem" }}
+                          >
                             Sin usuarios asignados
                           </Typography>
                         )}
@@ -515,16 +583,16 @@ export default function Locales() {
               </TableHead>
               <TableBody>
                 {filteredLocales.map((local) => (
-                  <TableRow 
+                  <TableRow
                     key={local.id}
                     onClick={() => handleEdit(local)}
                     sx={{
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
                       },
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      "&:nth-of-type(odd)": {
+                        backgroundColor: "rgba(0, 0, 0, 0.02)",
                       },
                     }}
                   >
@@ -534,7 +602,7 @@ export default function Locales() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip 
+                      <Chip
                         icon={getTipoIcon(local.tipo)}
                         label={local.tipo}
                         size="small"
@@ -544,20 +612,27 @@ export default function Locales() {
                     </TableCell>
                     <TableCell>
                       <Box display="flex" flexWrap="wrap" gap={0.5}>
-                        {local.usuariosTiendas && local.usuariosTiendas.length > 0 ? (
+                        {local.usuariosTiendas &&
+                        local.usuariosTiendas.length > 0 ? (
                           local.usuariosTiendas.map((usuarioTienda) => (
-                            <Chip 
+                            <Chip
                               key={usuarioTienda.usuario.id}
-                              label={`${usuarioTienda.usuario.nombre}${usuarioTienda.rol ? ` (${usuarioTienda.rol.nombre})` : ''}`}
+                              label={`${usuarioTienda.usuario.nombre}${usuarioTienda.rol ? ` (${usuarioTienda.rol.nombre})` : ""}`}
                               size="small"
                               variant="outlined"
-                              icon={usuarioTienda.rol ? <Security fontSize="small" /> : <Person fontSize="small" />}
+                              icon={
+                                usuarioTienda.rol ? (
+                                  <Security fontSize="small" />
+                                ) : (
+                                  <Person fontSize="small" />
+                                )
+                              }
                             />
                           ))
                         ) : local.usuarios && local.usuarios.length > 0 ? (
                           // Fallback para compatibilidad
                           local.usuarios.map((user) => (
-                            <Chip 
+                            <Chip
                               key={user.id}
                               label={user.nombre}
                               size="small"
@@ -573,7 +648,11 @@ export default function Locales() {
                       </Box>
                     </TableCell>
                     <TableCell align="center">
-                      <Stack direction="row" spacing={0.5} justifyContent="center">
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        justifyContent="center"
+                      >
                         <Tooltip title="Editar local">
                           <IconButton
                             onClick={(e) => {
@@ -610,12 +689,14 @@ export default function Locales() {
 
       {/* Dialog para crear/editar local */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{selectedLocal ? "Editar Local" : "Nuevo Local"}</DialogTitle>
+        <DialogTitle>
+          {selectedLocal ? "Editar Local" : "Nuevo Local"}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
-            <TextField 
-              fullWidth 
-              label="Nombre del local" 
+            <TextField
+              fullWidth
+              label="Nombre del local"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               required
@@ -649,49 +730,55 @@ export default function Locales() {
               <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
                 Usuarios y Roles Asignados
               </Typography>
-              
+
               {/* Lista de usuarios asignados con roles */}
               {usuariosRoles.length > 0 && (
                 <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                   <Stack spacing={1}>
                     {usuariosRoles.map((usuarioRol, index) => {
-                      const usuario = usuarios.find(u => u.id === usuarioRol.usuarioId);
+                      const usuario = usuarios.find(
+                        (u) => u.id === usuarioRol.usuarioId,
+                      );
                       // const rol = roles.find(r => r.id === usuarioRol.rolId);
-                      
+
                       if (!usuario) return null;
-                      
+
                       return (
-                        <Box 
-                          key={usuario.id} 
-                          display="flex" 
-                          alignItems="center" 
+                        <Box
+                          key={usuario.id}
+                          display="flex"
+                          alignItems="center"
                           gap={2}
-                          sx={{ 
-                            p: 1, 
-                            border: '1px solid', 
-                            borderColor: 'divider', 
+                          sx={{
+                            p: 1,
+                            border: "1px solid",
+                            borderColor: "divider",
                             borderRadius: 1,
-                            bgcolor: 'background.paper'
+                            bgcolor: "background.paper",
                           }}
                         >
                           <Person fontSize="small" color="primary" />
-                          
+
                           <Box flex={1}>
                             <Typography variant="body2" fontWeight="medium">
                               {usuario.nombre}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
                               {usuario.usuario}
                             </Typography>
                           </Box>
-                          
+
                           <FormControl size="small" sx={{ minWidth: 150 }}>
                             <InputLabel>Rol</InputLabel>
                             <Select
-                              value={usuarioRol.rolId || ''}
+                              value={usuarioRol.rolId || ""}
                               onChange={(e) => {
                                 const newUsuariosRoles = [...usuariosRoles];
-                                newUsuariosRoles[index].rolId = e.target.value || undefined;
+                                newUsuariosRoles[index].rolId =
+                                  e.target.value || undefined;
                                 setUsuariosRoles(newUsuariosRoles);
                               }}
                               label="Rol"
@@ -701,7 +788,11 @@ export default function Locales() {
                               </MenuItem>
                               {roles.map((rol) => (
                                 <MenuItem key={rol.id} value={rol.id}>
-                                  <Box display="flex" alignItems="center" gap={1}>
+                                  <Box
+                                    display="flex"
+                                    alignItems="center"
+                                    gap={1}
+                                  >
                                     <Security fontSize="small" />
                                     {rol.nombre}
                                   </Box>
@@ -709,13 +800,15 @@ export default function Locales() {
                               ))}
                             </Select>
                           </FormControl>
-                          
+
                           <Tooltip title="Remover usuario">
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="error"
                               onClick={() => {
-                                setUsuariosRoles(usuariosRoles.filter((_, i) => i !== index));
+                                setUsuariosRoles(
+                                  usuariosRoles.filter((_, i) => i !== index),
+                                );
                               }}
                             >
                               <Close fontSize="small" />
@@ -727,15 +820,21 @@ export default function Locales() {
                   </Stack>
                 </Paper>
               )}
-              
+
               {/* Selector para agregar nuevos usuarios */}
               <FormControl fullWidth>
                 <Select
                   value=""
                   onChange={(e) => {
                     const userId = e.target.value as string;
-                    if (userId && !usuariosRoles.some(ur => ur.usuarioId === userId)) {
-                      setUsuariosRoles([...usuariosRoles, { usuarioId: userId, rolId: undefined }]);
+                    if (
+                      userId &&
+                      !usuariosRoles.some((ur) => ur.usuarioId === userId)
+                    ) {
+                      setUsuariosRoles([
+                        ...usuariosRoles,
+                        { usuarioId: userId, rolId: undefined },
+                      ]);
                     }
                   }}
                   displayEmpty
@@ -744,7 +843,9 @@ export default function Locales() {
                     <em>Seleccionar usuario para agregar...</em>
                   </MenuItem>
                   {usuarios
-                    .filter(u => !usuariosRoles.some(ur => ur.usuarioId === u.id))
+                    .filter(
+                      (u) => !usuariosRoles.some((ur) => ur.usuarioId === u.id),
+                    )
                     .map((user) => (
                       <MenuItem key={user.id} value={user.id}>
                         <Box display="flex" alignItems="center" gap={1}>
@@ -755,10 +856,11 @@ export default function Locales() {
                     ))}
                 </Select>
               </FormControl>
-              
+
               {usuariosRoles.length === 0 && (
                 <Alert severity="info" sx={{ mt: 1 }}>
-                  No hay usuarios asignados a este local. Agregue al menos un usuario.
+                  No hay usuarios asignados a este local. Agregue al menos un
+                  usuario.
                 </Alert>
               )}
             </FormControl>
@@ -768,9 +870,9 @@ export default function Locales() {
           <Button onClick={handleClose} color="secondary" disabled={saving}>
             Cancelar
           </Button>
-          <Button 
-            onClick={handleSave} 
-            variant="contained" 
+          <Button
+            onClick={handleSave}
+            variant="contained"
             color="primary"
             disabled={!nombre.trim() || saving}
             startIcon={saving ? <CircularProgress size={16} /> : undefined}
@@ -790,4 +892,4 @@ export default function Locales() {
       {ConfirmDialogComponent}
     </PageContainer>
   );
-} 
+}

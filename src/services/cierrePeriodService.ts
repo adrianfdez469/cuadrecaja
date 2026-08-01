@@ -2,32 +2,49 @@ import { ICierreData } from "@/schemas/cierre";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import { IBillCount, ICashBreakdownCierre } from "@/schemas/billBreakdown";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
+import type { IInitialCashFundEntry } from "@/schemas/initialCashFund";
 import axios from "@/lib/axiosClient";
 
 const API_URL = (tiendaId) => `/api/cierre/${tiendaId}`; // Ruta base del backend
 
-export const fetchLastPeriod = async (tiendaId): Promise<ICierrePeriodo|undefined> => {
+export const fetchLastPeriod = async (
+  tiendaId,
+): Promise<ICierrePeriodo | undefined> => {
   const response = await axios.get<ICierrePeriodo>(`${API_URL(tiendaId)}/last`);
   return response.data;
 };
 
-export const openPeriod = async (tiendaId): Promise<ICierrePeriodo|undefined> => {
+export const openPeriod = async (
+  tiendaId,
+): Promise<ICierrePeriodo | undefined> => {
   const response = await axios.put<ICierrePeriodo>(`${API_URL(tiendaId)}/open`);
-  return response.data;
-}
-
-export const fetchCierreData = async (tiendaId: string, cierreId: string) => {
-  const response = await axios.get<ICierreData>(`${API_URL(tiendaId)}/${cierreId}`);
   return response.data;
 };
 
-export const closePeriod = async (tiendaId: string, cierreId: string): Promise<ICierrePeriodo|undefined> => {
-  const response = await axios.put<ICierrePeriodo>(`${API_URL(tiendaId)}/${cierreId}/close`);
+export const fetchCierreData = async (tiendaId: string, cierreId: string) => {
+  const response = await axios.get<ICierreData>(
+    `${API_URL(tiendaId)}/${cierreId}`,
+  );
   return response.data;
-}
+};
 
-export const fetchCashBreakdown = async (tiendaId: string, cierreId: string): Promise<ICashBreakdownCierre | null> => {
-  const response = await axios.get<ICashBreakdownCierre | null>(`${API_URL(tiendaId)}/${cierreId}/cash-breakdown`);
+export const closePeriod = async (
+  tiendaId: string,
+  cierreId: string,
+): Promise<ICierrePeriodo | undefined> => {
+  const response = await axios.put<ICierrePeriodo>(
+    `${API_URL(tiendaId)}/${cierreId}/close`,
+  );
+  return response.data;
+};
+
+export const fetchCashBreakdown = async (
+  tiendaId: string,
+  cierreId: string,
+): Promise<ICashBreakdownCierre | null> => {
+  const response = await axios.get<ICashBreakdownCierre | null>(
+    `${API_URL(tiendaId)}/${cierreId}/cash-breakdown`,
+  );
   return response.data;
 };
 
@@ -38,11 +55,14 @@ export const saveCashBreakdown = async (
   items: IBillCount[],
   total: number,
 ): Promise<ICashBreakdownCierre> => {
-  const response = await axios.put<ICashBreakdownCierre>(`${API_URL(tiendaId)}/${cierreId}/cash-breakdown`, {
-    currency,
-    items,
-    total,
-  });
+  const response = await axios.put<ICashBreakdownCierre>(
+    `${API_URL(tiendaId)}/${cierreId}/cash-breakdown`,
+    {
+      currency,
+      items,
+      total,
+    },
+  );
   return response.data;
 };
 
@@ -51,9 +71,10 @@ export const fetchMonedaBreakdown = async (
   cierreId: string,
   monedaCode: string,
 ): Promise<{ items: IBillCount[]; total: number } | null> => {
-  const response = await axios.get<{ items: IBillCount[]; total: number } | null>(
-    `${API_URL(tiendaId)}/${cierreId}/moneda-breakdown/${monedaCode}`,
-  );
+  const response = await axios.get<{
+    items: IBillCount[];
+    total: number;
+  } | null>(`${API_URL(tiendaId)}/${cierreId}/moneda-breakdown/${monedaCode}`);
   return response.data;
 };
 
@@ -61,7 +82,9 @@ export const fetchTasasAtClose = async (
   tiendaId: string,
   cierreId: string,
 ): Promise<ITasaSnapshot> => {
-  const response = await axios.get<ITasaSnapshot>(`${API_URL(tiendaId)}/${cierreId}/tasas-at-close`);
+  const response = await axios.get<ITasaSnapshot>(
+    `${API_URL(tiendaId)}/${cierreId}/tasas-at-close`,
+  );
   return response.data;
 };
 
@@ -72,5 +95,30 @@ export const saveMonedaBreakdown = async (
   items: IBillCount[],
   total: number,
 ): Promise<void> => {
-  await axios.put(`${API_URL(tiendaId)}/${cierreId}/moneda-breakdown/${monedaCode}`, { items, total });
+  await axios.put(
+    `${API_URL(tiendaId)}/${cierreId}/moneda-breakdown/${monedaCode}`,
+    { items, total },
+  );
+};
+
+export const fetchInitialCashFundHistory = async (
+  tiendaId: string,
+  cierreId: string,
+): Promise<IInitialCashFundEntry[]> => {
+  const response = await axios.get<IInitialCashFundEntry[]>(
+    `${API_URL(tiendaId)}/${cierreId}/initial-cash-fund`,
+  );
+  return response.data;
+};
+
+export const saveInitialCashFund = async (
+  tiendaId: string,
+  cierreId: string,
+  amounts: Record<string, number>,
+): Promise<IInitialCashFundEntry> => {
+  const response = await axios.put<IInitialCashFundEntry>(
+    `${API_URL(tiendaId)}/${cierreId}/initial-cash-fund`,
+    { amounts },
+  );
+  return response.data;
 };

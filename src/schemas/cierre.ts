@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { tiendaSchema } from "./tienda";
+import { initialCashFundEntrySchema } from "./initialCashFund";
 
 export const cierrePeriodoSchema = z.object({
   id: z.string().uuid(),
@@ -7,6 +8,7 @@ export const cierrePeriodoSchema = z.object({
   fechaFin: z.coerce.date().optional(),
   tiendaId: z.string().uuid(),
   tienda: tiendaSchema,
+  initialCashFund: initialCashFundEntrySchema.optional(),
   totalVentas: z.number(),
   totalGanancia: z.number(),
   totalInversion: z.number(),
@@ -44,6 +46,8 @@ const resumenMonedaCierreSchema = z.object({
   // Valores antes de restar gastos/compras/devoluciones (para mostrar bruto tachado -> final)
   totalEfectivoBruto: z.number().optional(),
   equivalenteBaseBruto: z.number().optional(),
+  // Fondo inicial de caja de esta moneda, ya incluido en totalEfectivo/equivalenteBase
+  initialFund: z.number().optional(),
 });
 
 export type IResumenMonedaCierre = z.infer<typeof resumenMonedaCierreSchema>;

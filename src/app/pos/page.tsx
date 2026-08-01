@@ -1151,7 +1151,7 @@ export default function POSInterface() {
         onOnboardingPeriodPrompt,
       );
     };
-  }, [periodo, user.localActual?.id]);
+  }, [periodo, user?.localActual?.id]);
 
   // Activar audio context cuando se carga la página
   useEffect(() => {
@@ -1576,11 +1576,6 @@ export default function POSInterface() {
           cierreId={periodo?.id ?? ""}
         />
 
-        {/* Modal de resumen de caja (fondo inicial vs. ventas reales) */}
-          <ResumenCajaModal
-            onClose={() => setResumenCajaOpen(false)}
-          />
-        )}
         {/* Diálogo de devolución de venta */}
         {puedeDevolucionVenta && (
           <DevolucionVentaDialog

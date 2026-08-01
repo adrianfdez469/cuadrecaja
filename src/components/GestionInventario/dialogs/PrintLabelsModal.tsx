@@ -14,7 +14,6 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Checkbox,
-  TextField,
   Alert,
   CircularProgress,
   Stack,
@@ -31,13 +30,14 @@ import {
   QrCode,
   QrCode2,
 } from "@mui/icons-material";
-import { formatCurrency } from '@/utils/formatters';
+import { formatCurrency } from "@/utils/formatters";
 import jsPDF from "jspdf";
 import bwipjs from "bwip-js";
 import QRCode from "qrcode";
-import generateEAN13 from '@/utils/generateProductCode';
+import generateEAN13 from "@/utils/generateProductCode";
 import { useMessageContext } from "@/context/MessageContext";
 import { generateProductsCode } from "@/services/productServise";
+import SelectableTextField from "@/components/SelectableTextField";
 
 interface ProductoConCodigos {
   id: string;
@@ -78,12 +78,14 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
   tiendaId,
 }) => {
   const [productos, setProductos] = useState<ProductoConCodigos[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>(
+    [],
+  );
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatingCodes, setGeneratingCodes] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [codeType, setCodeType] = useState<'barcode' | 'qr'>('barcode');
+  const [codeType, setCodeType] = useState<"barcode" | "qr">("barcode");
   const { showMessage } = useMessageContext();
 
   // Cargar productos al abrir el modal
@@ -96,18 +98,26 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
   const loadProductos = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/productos_tienda/${tiendaId}/with-codes`);
+      const response = await fetch(
+        `/api/productos_tienda/${tiendaId}/with-codes`,
+      );
       if (!response.ok) throw new Error("Error al cargar productos");
       const data = await response.json();
-      
-      const data2 = (data as ProductoConCodigos[])
-      .reduce((acum: ProductoConCodigos[], item) => {
-        const prod = acum.find(p => p.producto.nombre === item.producto.nombre && p.precio === item.precio);
-        if(!prod) {
-          acum.push(item);
-        }
-        return acum;
-      }, []);
+
+      const data2 = (data as ProductoConCodigos[]).reduce(
+        (acum: ProductoConCodigos[], item) => {
+          const prod = acum.find(
+            (p) =>
+              p.producto.nombre === item.producto.nombre &&
+              p.precio === item.precio,
+          );
+          if (!prod) {
+            acum.push(item);
+          }
+          return acum;
+        },
+        [],
+      );
       setProductos(data2);
     } catch (error) {
       console.error("Error al cargar productos:", error);
@@ -118,61 +128,73 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 
   const filteredProducts = productos.filter(
     (product) =>
-      product.producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.categoria?.nombre?.toLowerCase()?.includes(searchTerm.toLowerCase())
+      product.producto.nombre
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      product.categoria?.nombre
+        ?.toLowerCase()
+        ?.includes(searchTerm.toLowerCase()),
   );
 
-  const handleProductSelect = (product: ProductoConCodigos, selected: boolean) => {
+  const handleProductSelect = (
+    product: ProductoConCodigos,
+    selected: boolean,
+  ) => {
     if (selected) {
       const needsCode = product.producto.codigosProducto.length === 0;
-      setSelectedProducts(prev => [
+      setSelectedProducts((prev) => [
         ...prev,
-        { ...product, cantidad: 1, needsCode }
+        { ...product, cantidad: 1, needsCode },
       ]);
     } else {
-      setSelectedProducts(prev => 
-        prev.filter(p => p.id !== product.id)
-      );
+      setSelectedProducts((prev) => prev.filter((p) => p.id !== product.id));
     }
   };
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-    setSelectedProducts(prev =>
-      prev.map(p => p.id === productId ? { ...p, cantidad: newQuantity } : p)
+    setSelectedProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId ? { ...p, cantidad: newQuantity } : p,
+      ),
     );
   };
 
   const handleSelectAllProducts = (checked: boolean) => {
     if (checked) {
-      setSelectedProducts(filteredProducts.map(p => ({
-        ...p,
-        cantidad: 1,
-        needsCode: p.producto.codigosProducto.length === 0
-      })));
+      setSelectedProducts(
+        filteredProducts.map((p) => ({
+          ...p,
+          cantidad: 1,
+          needsCode: p.producto.codigosProducto.length === 0,
+        })),
+      );
     } else {
       setSelectedProducts([]);
     }
   };
 
   const generateMissingCodes = async () => {
-    const productsNeedingCodes = selectedProducts.filter(p => p.needsCode);
+    const productsNeedingCodes = selectedProducts.filter((p) => p.needsCode);
     if (productsNeedingCodes.length === 0) return;
 
     setGeneratingCodes(true);
-    showMessage(`Generando códigos para ${productsNeedingCodes.length} producto(s)...`, 'info');
+    showMessage(
+      `Generando códigos para ${productsNeedingCodes.length} producto(s)...`,
+      "info",
+    );
 
     // Obtener códigos existentes para evitar duplicados
     const allCodes = productos
-      .flatMap(p => p.producto.codigosProducto.map(c => c.codigo))
-      .concat(selectedProducts.map(p => p.generatedCode).filter(Boolean));
-    
+      .flatMap((p) => p.producto.codigosProducto.map((c) => c.codigo))
+      .concat(selectedProducts.map((p) => p.generatedCode).filter(Boolean));
+
     const existingCodes = new Set(allCodes);
 
     try {
       // Generar códigos para cada producto que los necesite
-      const prodPayload:{ productoId: string, code: string}[] = [];
-      
+      const prodPayload: { productoId: string; code: string }[] = [];
+
       for (const product of productsNeedingCodes) {
         try {
           // Generar código
@@ -181,10 +203,13 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 
           prodPayload.push({
             productoId: product.producto.id,
-            code: generatedCode
+            code: generatedCode,
           });
         } catch (error) {
-          console.error(`Error generando código para ${product.producto.nombre}:`, error);
+          console.error(
+            `Error generando código para ${product.producto.nombre}:`,
+            error,
+          );
         }
       }
 
@@ -192,7 +217,7 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 
       // Procesar la respuesta del endpoint bulk
       const responseData = response.data;
-      
+
       // Crear un mapa de productos actualizados basado en la respuesta
       const successMap = new Map();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -201,7 +226,7 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
       });
 
       // Actualizar productos exitosos
-      const updatedProducts = selectedProducts.map(product => {
+      const updatedProducts = selectedProducts.map((product) => {
         if (product.needsCode && successMap.has(product.producto.id)) {
           const newCode = successMap.get(product.producto.id);
           return {
@@ -212,9 +237,9 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
               ...product.producto,
               codigosProducto: [
                 ...product.producto.codigosProducto,
-                { id: newCode.id, codigo: newCode.codigo }
-              ]
-            }
+                { id: newCode.id, codigo: newCode.codigo },
+              ],
+            },
           };
         }
         return product;
@@ -228,31 +253,45 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
       setSelectedProducts(updatedProducts);
 
       // También actualizar la lista principal de productos para reflejar los nuevos códigos
-      setProductos(prev => prev.map(product => {
-        const updated = updatedProducts.find(up => up.producto.id === product.producto.id);
-        return updated ? {
-          ...product,
-          producto: updated.producto
-        } : product;
-      }));
+      setProductos((prev) =>
+        prev.map((product) => {
+          const updated = updatedProducts.find(
+            (up) => up.producto.id === product.producto.id,
+          );
+          return updated
+            ? {
+                ...product,
+                producto: updated.producto,
+              }
+            : product;
+        }),
+      );
 
       // Mostrar mensaje de resultado
       if (successCount > 0 && errorCount === 0) {
-        showMessage(`Se generaron ${successCount} códigos exitosamente`, 'success');
+        showMessage(
+          `Se generaron ${successCount} códigos exitosamente`,
+          "success",
+        );
       } else if (successCount > 0 && errorCount > 0) {
-        showMessage(`Se generaron ${successCount} códigos. ${errorCount} fallaron.`, 'warning');
+        showMessage(
+          `Se generaron ${successCount} códigos. ${errorCount} fallaron.`,
+          "warning",
+        );
       } else if (errorCount > 0) {
-        showMessage(`Error generando códigos para ${errorCount} producto(s)`, 'error');
+        showMessage(
+          `Error generando códigos para ${errorCount} producto(s)`,
+          "error",
+        );
       }
 
       // Mostrar errores específicos si los hay
       if (errorCount > 0) {
-        console.error('Errores específicos:', responseData.errors);
+        console.error("Errores específicos:", responseData.errors);
       }
-
     } catch (error) {
-      console.error('Error generando códigos:', error);
-      showMessage('Error generando códigos de barras', 'error');
+      console.error("Error generando códigos:", error);
+      showMessage("Error generando códigos de barras", "error");
     } finally {
       setGeneratingCodes(false);
     }
@@ -263,19 +302,27 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 
     setGenerating(true);
     try {
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'A4' });
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "A4",
+      });
       const pageWidth = 595;
       const pageHeight = 842;
-      
+
       // Etiquetas más compactas
-      const labelWidth = 140;  // Reducido de 180 a 140
-      const labelHeight = 80;  // Reducido de 120 a 80
-      const margin = 10;       // Reducido de 15 a 10
-      const spacing = 2;       // Espaciado entre etiquetas
-      
-      const cols = Math.floor((pageWidth - 2 * margin) / (labelWidth + spacing));
-      const rows = Math.floor((pageHeight - 2 * margin) / (labelHeight + spacing));
-      
+      const labelWidth = 140; // Reducido de 180 a 140
+      const labelHeight = 80; // Reducido de 120 a 80
+      const margin = 10; // Reducido de 15 a 10
+      const spacing = 2; // Espaciado entre etiquetas
+
+      const cols = Math.floor(
+        (pageWidth - 2 * margin) / (labelWidth + spacing),
+      );
+      const rows = Math.floor(
+        (pageHeight - 2 * margin) / (labelHeight + spacing),
+      );
+
       // let currentPage = 1;
       let currentRow = 0;
       let currentCol = 0;
@@ -295,8 +342,9 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
           const y = margin + currentRow * (labelHeight + spacing);
 
           // Código de barras a usar
-          const codigoBarras = product.generatedCode || 
-            (product.producto.codigosProducto[0]?.codigo) || 
+          const codigoBarras =
+            product.generatedCode ||
+            product.producto.codigosProducto[0]?.codigo ||
             `NO-CODE-${product.id}`;
 
           // Dibujar borde de etiqueta más sutil
@@ -306,13 +354,16 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
 
           // Nombre del producto (letra más pequeña, arriba)
           doc.setFontSize(6);
-          doc.setFont('helvetica', 'normal');
-          const nombreWrapped = doc.splitTextToSize(product.producto.nombre, labelWidth - 8);
+          doc.setFont("helvetica", "normal");
+          const nombreWrapped = doc.splitTextToSize(
+            product.producto.nombre,
+            labelWidth - 8,
+          );
           doc.text(nombreWrapped.slice(0, 1), x + 4, y + 10); // Solo 1 línea para ser más compacto
 
           // Precio (letra grande pero proporcionalmente ajustada)
           doc.setFontSize(18); // Reducido de 24 a 18
-          doc.setFont('helvetica', 'bold');
+          doc.setFont("helvetica", "bold");
           const precioText = formatCurrency(product.precio);
           const precioWidth = doc.getTextWidth(precioText);
           doc.text(precioText, x + (labelWidth - precioWidth) / 2, y + 35); // Centrado verticalmente
@@ -320,46 +371,64 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
           // Generar código según el tipo seleccionado
           if (codigoBarras !== `NO-CODE-${product.id}`) {
             try {
-              if (codeType === 'barcode') {
+              if (codeType === "barcode") {
                 // Código de barras
-                const canvas = document.createElement('canvas');
+                const canvas = document.createElement("canvas");
                 bwipjs.toCanvas(canvas, {
-                  bcid: 'code128',
+                  bcid: "code128",
                   text: codigoBarras,
-                  scale: 0.8,  // Reducido de 1 a 0.8
-                  height: 12,  // Reducido de 20 a 12
+                  scale: 0.8, // Reducido de 1 a 0.8
+                  height: 12, // Reducido de 20 a 12
                   includetext: false,
-                  textxalign: 'center',
+                  textxalign: "center",
                 });
-                const barcodeDataUrl = canvas.toDataURL('image/png');
-                doc.addImage(barcodeDataUrl, 'PNG', x + 4, y + 45, labelWidth - 8, 16); // Más compacto
+                const barcodeDataUrl = canvas.toDataURL("image/png");
+                doc.addImage(
+                  barcodeDataUrl,
+                  "PNG",
+                  x + 4,
+                  y + 45,
+                  labelWidth - 8,
+                  16,
+                ); // Más compacto
               } else {
                 // Código QR
-                const qrDataUrl = await QRCode.toDataURL(codigoBarras, { 
-                  width: 48, 
+                const qrDataUrl = await QRCode.toDataURL(codigoBarras, {
+                  width: 48,
                   margin: 0,
-                  errorCorrectionLevel: 'M'
+                  errorCorrectionLevel: "M",
                 });
                 const qrSize = 16; // Tamaño compacto para QR
-                doc.addImage(qrDataUrl, 'PNG', x + (labelWidth - qrSize) / 2, y + 45, qrSize, qrSize);
+                doc.addImage(
+                  qrDataUrl,
+                  "PNG",
+                  x + (labelWidth - qrSize) / 2,
+                  y + 45,
+                  qrSize,
+                  qrSize,
+                );
               }
-              
+
               // Número del código (letra muy pequeña)
               doc.setFontSize(4); // Reducido de 6 a 4
-              doc.setFont('helvetica', 'normal');
+              doc.setFont("helvetica", "normal");
               const codigoWidth = doc.getTextWidth(codigoBarras);
-              doc.text(codigoBarras, x + (labelWidth - codigoWidth) / 2, y + 70);
+              doc.text(
+                codigoBarras,
+                x + (labelWidth - codigoWidth) / 2,
+                y + 70,
+              );
             } catch (error) {
               console.error("Error generando código:", error);
               // Fallback: mostrar solo el texto del código
               doc.setFontSize(5);
-              doc.setFont('helvetica', 'normal');
+              doc.setFont("helvetica", "normal");
               doc.text(`Código: ${codigoBarras}`, x + 4, y + 55);
             }
           } else {
             // Sin código de barras
             doc.setFontSize(5);
-            doc.setFont('helvetica', 'normal');
+            doc.setFont("helvetica", "normal");
             doc.text("Sin código", x + 4, y + 55);
           }
 
@@ -373,19 +442,24 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
         }
       }
 
-      const codeTypeText = codeType === 'barcode' ? 'barras' : 'QR';
+      const codeTypeText = codeType === "barcode" ? "barras" : "QR";
       doc.save(`etiquetas_precios_${codeTypeText}_${new Date().getTime()}.pdf`);
-      showMessage(`PDF generado con ${labelCount} etiquetas con códigos ${codeTypeText}`, 'success');
+      showMessage(
+        `PDF generado con ${labelCount} etiquetas con códigos ${codeTypeText}`,
+        "success",
+      );
     } catch (error) {
       console.error("Error generando PDF:", error);
-      showMessage('Error generando el PDF de etiquetas', 'error');
+      showMessage("Error generando el PDF de etiquetas", "error");
     } finally {
       setGenerating(false);
     }
   };
 
   const totalLabels = selectedProducts.reduce((sum, p) => sum + p.cantidad, 0);
-  const productsWithoutCodes = selectedProducts.filter(p => p.needsCode && !p.generatedCode);
+  const productsWithoutCodes = selectedProducts.filter(
+    (p) => p.needsCode && !p.generatedCode,
+  );
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -395,10 +469,15 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
           <Typography variant="h6">Imprimir Etiquetas de Precios</Typography>
         </Stack>
       </DialogTitle>
-      
+
       <DialogContent>
         {loading ? (
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            minHeight="200px"
+          >
             <CircularProgress />
             <Typography variant="body2" sx={{ ml: 2 }}>
               Cargando productos...
@@ -407,7 +486,7 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
         ) : (
           <Stack spacing={2}>
             {/* Búsqueda */}
-            <TextField
+            <SelectableTextField
               fullWidth
               placeholder="Buscar productos..."
               value={searchTerm}
@@ -416,61 +495,88 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
             />
 
             {/* Selector de tipo de código */}
-            <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, border: 1, borderColor: 'divider' }}>
+            <Box
+              sx={{
+                p: 2,
+                bgcolor: "background.paper",
+                borderRadius: 1,
+                border: 1,
+                borderColor: "divider",
+              }}
+            >
               <Typography variant="subtitle2" gutterBottom>
                 Tipo de código a imprimir:
               </Typography>
               <Stack direction="row" spacing={2}>
                 <Button
-                  variant={codeType === 'barcode' ? 'contained' : 'outlined'}
+                  variant={codeType === "barcode" ? "contained" : "outlined"}
                   size="small"
-                  onClick={() => setCodeType('barcode')}
+                  onClick={() => setCodeType("barcode")}
                   startIcon={<QrCode />}
                 >
                   Código de Barras
                 </Button>
                 <Button
-                  variant={codeType === 'qr' ? 'contained' : 'outlined'}
+                  variant={codeType === "qr" ? "contained" : "outlined"}
                   size="small"
-                  onClick={() => setCodeType('qr')}
+                  onClick={() => setCodeType("qr")}
                   startIcon={<QrCode2 />}
                 >
                   Código QR
                 </Button>
               </Stack>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                {codeType === 'barcode' 
-                  ? 'Los códigos de barras son ideales para escáneres tradicionales de tiendas'
-                  : 'Los códigos QR pueden escanearse con cualquier smartphone'
-                }
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mt: 1, display: "block" }}
+              >
+                {codeType === "barcode"
+                  ? "Los códigos de barras son ideales para escáneres tradicionales de tiendas"
+                  : "Los códigos QR pueden escanearse con cualquier smartphone"}
               </Typography>
             </Box>
 
             {/* Productos sin códigos - advertencia */}
             {productsWithoutCodes.length > 0 && (
-              <Alert 
-                severity="warning" 
+              <Alert
+                severity="warning"
                 action={
-                  <Button 
-                    color="inherit" 
-                    size="small" 
+                  <Button
+                    color="inherit"
+                    size="small"
                     onClick={generateMissingCodes}
-                    startIcon={generatingCodes ? <CircularProgress size={16} /> : <QrCode />}
+                    startIcon={
+                      generatingCodes ? (
+                        <CircularProgress size={16} />
+                      ) : (
+                        <QrCode />
+                      )
+                    }
                     disabled={generatingCodes}
                   >
-                    {generatingCodes ? 'Generando...' : 'Auto-generar códigos'}
+                    {generatingCodes ? "Generando..." : "Auto-generar códigos"}
                   </Button>
                 }
               >
-                {productsWithoutCodes.length} producto(s) seleccionado(s) no tienen código de barras
+                {productsWithoutCodes.length} producto(s) seleccionado(s) no
+                tienen código de barras
               </Alert>
             )}
 
             {/* Resumen de selección */}
             {selectedProducts.length > 0 && (
-              <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, border: 1, borderColor: 'divider' }}>
+              <Box
+                sx={{
+                  p: 2,
+                  bgcolor: "background.paper",
+                  borderRadius: 1,
+                  border: 1,
+                  borderColor: "divider",
+                }}
+              >
                 <Typography variant="subtitle2" gutterBottom>
-                  Productos seleccionados: {selectedProducts.length} ({totalLabels} etiquetas)
+                  Productos seleccionados: {selectedProducts.length} (
+                  {totalLabels} etiquetas)
                 </Typography>
                 <Stack direction="row" spacing={1} flexWrap="wrap">
                   {selectedProducts.map((product) => (
@@ -488,35 +594,46 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
             <Divider />
 
             {/* Lista de productos */}
-            <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+            <Box sx={{ maxHeight: 400, overflow: "auto" }}>
               <List>
-
-              {/* Checkbox para seleccionar todos los productos */}
-              <ListItem>
-                <Checkbox
-                  checked={selectedProducts.length === filteredProducts.length}
-                  onChange={(e) => handleSelectAllProducts(e.target.checked)}
-                />
-                <ListItemText
-                  primary="Seleccionar todos"
-                  secondary={`${filteredProducts.length} productos disponibles`}
-                />
-              </ListItem>
+                {/* Checkbox para seleccionar todos los productos */}
+                <ListItem>
+                  <Checkbox
+                    checked={
+                      selectedProducts.length === filteredProducts.length
+                    }
+                    onChange={(e) => handleSelectAllProducts(e.target.checked)}
+                  />
+                  <ListItemText
+                    primary="Seleccionar todos"
+                    secondary={`${filteredProducts.length} productos disponibles`}
+                  />
+                </ListItem>
 
                 {filteredProducts.map((product) => {
-                  const isSelected = selectedProducts.some(p => p.id === product.id);
-                  const selectedProduct = selectedProducts.find(p => p.id === product.id);
+                  const isSelected = selectedProducts.some(
+                    (p) => p.id === product.id,
+                  );
+                  const selectedProduct = selectedProducts.find(
+                    (p) => p.id === product.id,
+                  );
                   const hasCode = product.producto.codigosProducto.length > 0;
 
                   return (
                     <ListItem key={product.id} dense>
                       <Checkbox
                         checked={isSelected}
-                        onChange={(e) => handleProductSelect(product, e.target.checked)}
+                        onChange={(e) =>
+                          handleProductSelect(product, e.target.checked)
+                        }
                       />
                       <ListItemText
                         primary={
-                          <Stack direction="row" alignItems="center" spacing={1}>
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={1}
+                          >
                             <Typography variant="body2">
                               {product.producto.nombre}
                             </Typography>
@@ -539,8 +656,15 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
                           </Stack>
                         }
                         secondary={
-                          <Stack direction="row" alignItems="center" spacing={1}>
-                            <Typography variant="caption" color="text.secondary">
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={1}
+                          >
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
                               {formatCurrency(product.precio)}
                             </Typography>
                             {product.categoria && (
@@ -549,9 +673,9 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
                                 size="small"
                                 sx={{
                                   bgcolor: product.categoria.color,
-                                  color: 'white',
-                                  fontSize: '0.65rem',
-                                  height: 16
+                                  color: "white",
+                                  fontSize: "0.65rem",
+                                  height: 16,
                                 }}
                               />
                             )}
@@ -560,20 +684,37 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
                       />
                       {isSelected && (
                         <ListItemSecondaryAction>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={0.5}
+                          >
                             <IconButton
                               size="small"
-                              onClick={() => handleQuantityChange(product.id, selectedProduct.cantidad - 1)}
+                              onClick={() =>
+                                handleQuantityChange(
+                                  product.id,
+                                  selectedProduct.cantidad - 1,
+                                )
+                              }
                               disabled={selectedProduct.cantidad <= 1}
                             >
                               <Remove fontSize="small" />
                             </IconButton>
-                            <Typography variant="body2" sx={{ minWidth: 20, textAlign: 'center' }}>
+                            <Typography
+                              variant="body2"
+                              sx={{ minWidth: 20, textAlign: "center" }}
+                            >
                               {selectedProduct.cantidad}
                             </Typography>
                             <IconButton
                               size="small"
-                              onClick={() => handleQuantityChange(product.id, selectedProduct.cantidad + 1)}
+                              onClick={() =>
+                                handleQuantityChange(
+                                  product.id,
+                                  selectedProduct.cantidad + 1,
+                                )
+                              }
                             >
                               <Add fontSize="small" />
                             </IconButton>
@@ -590,18 +731,20 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose}>
-          Cancelar
-        </Button>
+        <Button onClick={onClose}>Cancelar</Button>
         <Button
           variant="contained"
           onClick={generatePriceLabelsPDF}
-          disabled={selectedProducts.length === 0 || generating || productsWithoutCodes.length > 0}
+          disabled={
+            selectedProducts.length === 0 ||
+            generating ||
+            productsWithoutCodes.length > 0
+          }
           startIcon={generating ? <CircularProgress size={16} /> : <Print />}
         >
-          {generating ? 'Generando...' : `Imprimir ${totalLabels} etiqueta(s)`}
+          {generating ? "Generando..." : `Imprimir ${totalLabels} etiqueta(s)`}
         </Button>
       </DialogActions>
     </Dialog>
   );
-}; 
+};

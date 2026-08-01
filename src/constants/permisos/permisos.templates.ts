@@ -55,6 +55,7 @@ export const permisosTemplates = {
     "operaciones.cierre.acceder",
     "operaciones.cierre.cerrar",
     "operaciones.cierre.gananciascostos",
+    "operaciones.cierre.fondoinicial",
     "operaciones.movimientos.acceder",
     "operaciones.movimientos.crear.compra",
     "operaciones.movimientos.crear.ajuste_entradas",

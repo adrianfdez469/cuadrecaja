@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Collapse,
@@ -36,11 +36,14 @@ import { usePermisos } from "@/utils/permisos_front";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { removeProductFromSale, removeSell } from "@/services/sellService";
+import { getResumenCaja } from "@/services/movimientoService";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import { ITransferDestination } from "@/schemas/transferDestination";
 import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IResumenCajaMoneda } from "@/schemas/resumenCaja";
 import { formatDateTime } from "@/utils/formatters";
 import { convertToBase, pagadaConUnSoloPago } from "@/lib/currency";
+import CajaResumenCards from "./CajaResumenCards";
 
 interface IProps {
   showUserSales: boolean;
@@ -140,6 +143,25 @@ export const UserSalesDrawer: React.FC<IProps> = ({
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
   const [transferExpanded, setTransferExpanded] = useState(false);
+  const [cajaResumen, setCajaResumen] = useState<IResumenCajaMoneda[]>([]);
+
+  const puedeVerCaja = verificarPermiso("operaciones.cierre.acceder");
+  const tiendaId = user?.localActual?.id;
+
+  // Fondo inicial y efectivo real de caja — se carga junto con el resto del
+  // resumen cada vez que se abre el drawer, mismo endpoint que ya usa el
+  // widget de caja del cierre (única fuente de verdad, ver src/lib/movimiento/caja.ts).
+  useEffect(() => {
+    if (!showUserSales || !puedeVerCaja || !tiendaId) return;
+    getResumenCaja(tiendaId)
+      .then((result) => setCajaResumen(result.resumen))
+      .catch((error) => {
+        console.error(
+          "[UserSalesDrawer] Error al cargar el resumen de caja",
+          error,
+        );
+      });
+  }, [showUserSales, puedeVerCaja, tiendaId]);
 
   const canDeleteProducts =
     viewMode === "historical" &&
@@ -414,6 +436,9 @@ export const UserSalesDrawer: React.FC<IProps> = ({
 
         {/* Contenido Scrollable */}
         <Box sx={{ flexGrow: 1, overflowY: "auto", pr: 0.5 }}>
+          {/* Caja: fondo inicial y efectivo real, por moneda */}
+          <CajaResumenCards resumen={cajaResumen} />
+
           {/* Totales generales */}
           <Grid container spacing={2} mb={3}>
             <Grid item xs={12} sm={4}>

@@ -14,7 +14,6 @@ import {
   IconButton,
   Alert,
   Button,
-  TextField,
   InputAdornment,
   Grid,
   Card,
@@ -49,6 +48,7 @@ import {
 } from "@/services/sellService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import SelectableTextField from "@/components/SelectableTextField";
 import VentaDetailDialog from "./components/VentaDetailDialog";
 import { formatDate, formatDateTime, isToday } from "@/utils/formatters";
 import { usePermisos } from "@/utils/permisos_front";
@@ -489,7 +489,7 @@ const Ventas = () => {
             : undefined
         }
         headerActions={
-          <TextField
+          <SelectableTextField
             size="small"
             placeholder={isMobile ? "Buscar..." : "Buscar venta..."}
             value={searchTerm}
