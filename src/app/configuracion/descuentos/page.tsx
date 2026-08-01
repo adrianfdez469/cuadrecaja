@@ -29,6 +29,8 @@ import CheckIcon from "@mui/icons-material/CheckCircleOutline";
 import CloseIcon from "@mui/icons-material/CloseOutlined";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import dayjs from "dayjs";
+import PercentageField from "@/components/PercentageField";
+import MoneyField from "@/components/MoneyField";
 
 type DiscountType = "PERCENTAGE" | "FIXED" | "PROMO_CODE";
 type DiscountAppliesTo = "TICKET" | "PRODUCT" | "CATEGORY" | "CUSTOMER";
@@ -72,7 +74,8 @@ async function createRule(data: Partial<DiscountRule>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error((await res.json()).error || "Error creando regla");
+  if (!res.ok)
+    throw new Error((await res.json()).error || "Error creando regla");
   return res.json();
 }
 
@@ -82,13 +85,15 @@ async function patchRule(id: string, data: Partial<DiscountRule>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id, ...data }),
   });
-  if (!res.ok) throw new Error((await res.json()).error || "Error actualizando regla");
+  if (!res.ok)
+    throw new Error((await res.json()).error || "Error actualizando regla");
   return res.json();
 }
 
 async function deleteRule(id: string) {
   const res = await fetch(`/api/discounts?id=${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error((await res.json()).error || "Error eliminando regla");
+  if (!res.ok)
+    throw new Error((await res.json()).error || "Error eliminando regla");
 }
 
 export default function DiscountsPage() {
@@ -100,7 +105,7 @@ export default function DiscountsPage() {
   const [form, setForm] = useState({
     name: "",
     type: "PERCENTAGE" as DiscountType,
-    value: 10,
+    value: 10 as string | number,
     appliesTo: "TICKET" as DiscountAppliesTo,
     code: "",
     minTotal: "",
@@ -111,7 +116,10 @@ export default function DiscountsPage() {
     productIds: [] as string[],
     categoryIds: [] as string[],
   });
-  const [options, setOptions] = useState<DiscountOptions>({ products: [], categories: [] });
+  const [options, setOptions] = useState<DiscountOptions>({
+    products: [],
+    categories: [],
+  });
   const [loadingOptions, setLoadingOptions] = useState(false);
 
   const load = async () => {
@@ -163,8 +171,12 @@ export default function DiscountsPage() {
         conditions: {
           ...(form.code ? { code: form.code } : {}),
           ...(form.minTotal ? { minTotal: Number(form.minTotal) } : {}),
-          ...(form.appliesTo === 'PRODUCT' && form.productIds.length > 0 ? { productIds: form.productIds } : {}),
-          ...(form.appliesTo === 'CATEGORY' && form.categoryIds.length > 0 ? { categoryIds: form.categoryIds } : {}),
+          ...(form.appliesTo === "PRODUCT" && form.productIds.length > 0
+            ? { productIds: form.productIds }
+            : {}),
+          ...(form.appliesTo === "CATEGORY" && form.categoryIds.length > 0
+            ? { categoryIds: form.categoryIds }
+            : {}),
         },
       };
       if (form.startDate) payload.startDate = form.startDate;
@@ -213,25 +225,34 @@ export default function DiscountsPage() {
 
   return (
     <Box p={2}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        mb={2}
+      >
         <Stack direction="row" spacing={1} alignItems="center">
           <LocalOfferIcon />
           <Typography variant="h5">Descuentos</Typography>
         </Stack>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={async () => {
-          // cargar opciones al abrir
-          setOpenDialog(true);
-          try {
-            setLoadingOptions(true);
-            const res = await fetch('/api/discounts/options');
-            if (res.ok) {
-              const data = await res.json();
-              setOptions(data);
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={async () => {
+            // cargar opciones al abrir
+            setOpenDialog(true);
+            try {
+              setLoadingOptions(true);
+              const res = await fetch("/api/discounts/options");
+              if (res.ok) {
+                const data = await res.json();
+                setOptions(data);
+              }
+            } finally {
+              setLoadingOptions(false);
             }
-          } finally {
-            setLoadingOptions(false);
-          }
-        }}>
+          }}
+        >
           Nueva Regla
         </Button>
       </Stack>
@@ -245,22 +266,37 @@ export default function DiscountsPage() {
           ) : (
             <Grid container spacing={2}>
               {rules.map((r) => {
-                const conditions: DiscountConditions = (r.conditions as DiscountConditions) || {};
+                const conditions: DiscountConditions =
+                  (r.conditions as DiscountConditions) || {};
                 return (
                   <Grid item xs={12} md={6} lg={4} key={r.id}>
                     <Card variant="outlined">
                       <CardContent>
-                        <Stack direction="row" justifyContent="space-between" alignItems="start" mb={1}>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="start"
+                          mb={1}
+                        >
                           <Typography variant="h6">{r.name}</Typography>
                           <Stack direction="row" spacing={1}>
-                            <IconButton onClick={() => toggleActive(r)} size="small" title={r.isActive ? "Desactivar" : "Activar"}>
-                              {r.isActive ? <CheckIcon color="success" /> : <CloseIcon color="error" />}
+                            <IconButton
+                              onClick={() => toggleActive(r)}
+                              size="small"
+                              title={r.isActive ? "Desactivar" : "Activar"}
+                            >
+                              {r.isActive ? (
+                                <CheckIcon color="success" />
+                              ) : (
+                                <CloseIcon color="error" />
+                              )}
                             </IconButton>
                             <IconButton
                               onClick={async () => {
                                 // Preparar edición
                                 setEditingId(r.id);
-                                const cond: DiscountConditions = (r.conditions as DiscountConditions) || {};
+                                const cond: DiscountConditions =
+                                  (r.conditions as DiscountConditions) || {};
                                 setForm({
                                   name: r.name,
                                   type: r.type,
@@ -268,8 +304,12 @@ export default function DiscountsPage() {
                                   appliesTo: r.appliesTo,
                                   code: cond.code || "",
                                   minTotal: cond.minTotal?.toString?.() || "",
-                                  startDate: r.startDate ? dayjs(r.startDate).format("YYYY-MM-DD") : "",
-                                  endDate: r.endDate ? dayjs(r.endDate).format("YYYY-MM-DD") : "",
+                                  startDate: r.startDate
+                                    ? dayjs(r.startDate).format("YYYY-MM-DD")
+                                    : "",
+                                  endDate: r.endDate
+                                    ? dayjs(r.endDate).format("YYYY-MM-DD")
+                                    : "",
                                   isActive: r.isActive,
                                   productIds: cond.productIds || [],
                                   categoryIds: cond.categoryIds || [],
@@ -277,7 +317,9 @@ export default function DiscountsPage() {
                                 // cargar opciones para edición
                                 try {
                                   setLoadingOptions(true);
-                                  const res = await fetch('/api/discounts/options');
+                                  const res = await fetch(
+                                    "/api/discounts/options",
+                                  );
                                   if (res.ok) setOptions(await res.json());
                                 } finally {
                                   setLoadingOptions(false);
@@ -289,26 +331,57 @@ export default function DiscountsPage() {
                             >
                               <EditIcon />
                             </IconButton>
-                            <IconButton onClick={() => remove(r.id)} size="small" color="error" title="Eliminar">
+                            <IconButton
+                              onClick={() => remove(r.id)}
+                              size="small"
+                              color="error"
+                              title="Eliminar"
+                            >
                               <DeleteIcon />
                             </IconButton>
                           </Stack>
                         </Stack>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          gutterBottom
+                        >
                           Tipo: {r.type} · Ámbito: {r.appliesTo}
                         </Typography>
                         <Typography variant="body2" gutterBottom>
-                          Valor: {r.type === "PERCENTAGE" ? `${r.value}%` : `${r.value}`}
+                          Valor:{" "}
+                          {r.type === "PERCENTAGE"
+                            ? `${r.value}%`
+                            : `${r.value}`}
                         </Typography>
                         {(conditions?.code || conditions?.minTotal) && (
                           <Typography variant="body2" color="text.secondary">
-                            Condiciones: {conditions?.code ? `código "${conditions.code}"` : ""}
-                            {conditions?.code && conditions?.minTotal ? " · " : ""}
-                            {conditions?.minTotal ? `mínimo ${conditions.minTotal}` : ""}
+                            Condiciones:{" "}
+                            {conditions?.code
+                              ? `código "${conditions.code}"`
+                              : ""}
+                            {conditions?.code && conditions?.minTotal
+                              ? " · "
+                              : ""}
+                            {conditions?.minTotal
+                              ? `mínimo ${conditions.minTotal}`
+                              : ""}
                           </Typography>
                         )}
-                        <Typography variant="caption" color="text.secondary" display="block" mt={1}>
-                          Vigencia: {r.startDate ? dayjs(r.startDate).format("YYYY-MM-DD") : "—"} a {r.endDate ? dayjs(r.endDate).format("YYYY-MM-DD") : "—"}
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          display="block"
+                          mt={1}
+                        >
+                          Vigencia:{" "}
+                          {r.startDate
+                            ? dayjs(r.startDate).format("YYYY-MM-DD")
+                            : "—"}{" "}
+                          a{" "}
+                          {r.endDate
+                            ? dayjs(r.endDate).format("YYYY-MM-DD")
+                            : "—"}
                         </Typography>
                       </CardContent>
                     </Card>
@@ -320,16 +393,24 @@ export default function DiscountsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editingId ? "Editar Regla de Descuento" : "Nueva Regla de Descuento"}</DialogTitle>
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {editingId ? "Editar Regla de Descuento" : "Nueva Regla de Descuento"}
+        </DialogTitle>
         <DialogContent>
           <Grid container mt={1} spacing={3}>
-
             <Grid item xs={12}>
               <TextField
                 label="Nombre"
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
                 fullWidth
                 size="small"
               />
@@ -340,7 +421,12 @@ export default function DiscountsPage() {
                 <Select
                   label="Tipo"
                   value={form.type}
-                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as DiscountType }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      type: e.target.value as DiscountType,
+                    }))
+                  }
                 >
                   <MenuItem value="PERCENTAGE">Porcentaje</MenuItem>
                   <MenuItem value="FIXED">Monto fijo</MenuItem>
@@ -348,14 +434,27 @@ export default function DiscountsPage() {
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                label={form.type === "PERCENTAGE" ? "Porcentaje (%)" : "Monto"}
-                type="number"
-                value={form.value}
-                onChange={(e) => setForm((f) => ({ ...f, value: Number(e.target.value) }))}
-                fullWidth
-                size="small"
-              />
+              {form.type === "PERCENTAGE" ? (
+                <PercentageField
+                  label="Porcentaje"
+                  value={form.value}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, value: e.target.value }))
+                  }
+                  fullWidth
+                  size="small"
+                />
+              ) : (
+                <MoneyField
+                  label="Monto"
+                  value={form.value}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, value: e.target.value }))
+                  }
+                  fullWidth
+                  size="small"
+                />
+              )}
             </Grid>
 
             <Grid item xs={12} sm={6}>
@@ -364,7 +463,12 @@ export default function DiscountsPage() {
                 <Select
                   label="Ámbito"
                   value={form.appliesTo}
-                  onChange={(e) => setForm((f) => ({ ...f, appliesTo: e.target.value as DiscountAppliesTo }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      appliesTo: e.target.value as DiscountAppliesTo,
+                    }))
+                  }
                 >
                   <MenuItem value="TICKET">Ticket</MenuItem>
                   <MenuItem value="PRODUCT">Producto</MenuItem>
@@ -377,14 +481,16 @@ export default function DiscountsPage() {
               <TextField
                 label="Código promocional (opcional)"
                 value={form.code}
-                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, code: e.target.value }))
+                }
                 fullWidth
                 size="small"
               />
             </Grid>
 
             {/* Selección de Productos/Categorías según ámbito */}
-            {form.appliesTo === 'PRODUCT' && (
+            {form.appliesTo === "PRODUCT" && (
               <Grid item xs={12}>
                 <FormControl fullWidth size="small">
                   <InputLabel id="product-select-label">Productos</InputLabel>
@@ -393,24 +499,43 @@ export default function DiscountsPage() {
                     multiple
                     value={form.productIds}
                     label="Productos"
-                    onChange={(e) => setForm((f) => ({ ...f, productIds: (e.target.value as string[]) }))}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        productIds: e.target.value as string[],
+                      }))
+                    }
                     disabled={loadingOptions}
-                    renderValue={(selected) => (selected as string[]).map(id => options.products.find(p => p.id === id)?.nombre || id).join(', ')}
+                    renderValue={(selected) =>
+                      (selected as string[])
+                        .map(
+                          (id) =>
+                            options.products.find((p) => p.id === id)?.nombre ||
+                            id,
+                        )
+                        .join(", ")
+                    }
                   >
                     {loadingOptions && (
-                      <MenuItem disabled value="__loading__">Cargando opciones…</MenuItem>
+                      <MenuItem disabled value="__loading__">
+                        Cargando opciones…
+                      </MenuItem>
                     )}
                     {options.products.map((p) => (
-                      <MenuItem key={p.id} value={p.id}>{p.nombre}</MenuItem>
+                      <MenuItem key={p.id} value={p.id}>
+                        {p.nombre}
+                      </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
                 {loadingOptions && (
-                  <Typography variant="caption" color="text.secondary">Cargando opciones de productos…</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Cargando opciones de productos…
+                  </Typography>
                 )}
               </Grid>
             )}
-            {form.appliesTo === 'CATEGORY' && (
+            {form.appliesTo === "CATEGORY" && (
               <Grid item xs={12}>
                 <FormControl fullWidth size="small">
                   <InputLabel id="category-select-label">Categorías</InputLabel>
@@ -419,20 +544,39 @@ export default function DiscountsPage() {
                     multiple
                     value={form.categoryIds}
                     label="Categorías"
-                    onChange={(e) => setForm((f) => ({ ...f, categoryIds: (e.target.value as string[]) }))}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        categoryIds: e.target.value as string[],
+                      }))
+                    }
                     disabled={loadingOptions}
-                    renderValue={(selected) => (selected as string[]).map(id => options.categories.find(c => c.id === id)?.nombre || id).join(', ')}
+                    renderValue={(selected) =>
+                      (selected as string[])
+                        .map(
+                          (id) =>
+                            options.categories.find((c) => c.id === id)
+                              ?.nombre || id,
+                        )
+                        .join(", ")
+                    }
                   >
                     {loadingOptions && (
-                      <MenuItem disabled value="__loading__">Cargando opciones…</MenuItem>
+                      <MenuItem disabled value="__loading__">
+                        Cargando opciones…
+                      </MenuItem>
                     )}
                     {options.categories.map((c) => (
-                      <MenuItem key={c.id} value={c.id}>{c.nombre}</MenuItem>
+                      <MenuItem key={c.id} value={c.id}>
+                        {c.nombre}
+                      </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
                 {loadingOptions && (
-                  <Typography variant="caption" color="text.secondary">Cargando opciones de categorías…</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Cargando opciones de categorías…
+                  </Typography>
                 )}
               </Grid>
             )}
@@ -442,7 +586,9 @@ export default function DiscountsPage() {
                 label="Inicio"
                 type="date"
                 value={form.startDate}
-                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, startDate: e.target.value }))
+                }
                 fullWidth
                 size="small"
                 InputLabelProps={{ shrink: true }}
@@ -453,7 +599,9 @@ export default function DiscountsPage() {
                 label="Fin"
                 type="date"
                 value={form.endDate}
-                onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, endDate: e.target.value }))
+                }
                 fullWidth
                 size="small"
                 InputLabelProps={{ shrink: true }}
@@ -462,26 +610,29 @@ export default function DiscountsPage() {
 
             <Grid item xs={12} sm={6}>
               <TextField
-                  label="Monto mínimo (opcional)"
-                  type="number"
-                  value={form.minTotal}
-                  onChange={(e) => setForm((f) => ({ ...f, minTotal: e.target.value }))}
-                  fullWidth
-                  size="small"
+                label="Monto mínimo (opcional)"
+                type="number"
+                value={form.minTotal}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, minTotal: e.target.value }))
+                }
+                fullWidth
+                size="small"
               />
             </Grid>
-
 
             <Grid item xs={12}>
               <FormControlLabel
                 control={
                   <Switch
                     checked={form.isActive}
-                    onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, isActive: e.target.checked }))
+                    }
                     color="primary"
                   />
                 }
-                label={form.isActive ? 'Activo' : 'Inactivo'}
+                label={form.isActive ? "Activo" : "Inactivo"}
               />
             </Grid>
           </Grid>
@@ -494,7 +645,8 @@ export default function DiscountsPage() {
             disabled={
               saving ||
               !form.name ||
-              (loadingOptions && (form.appliesTo === 'PRODUCT' || form.appliesTo === 'CATEGORY'))
+              (loadingOptions &&
+                (form.appliesTo === "PRODUCT" || form.appliesTo === "CATEGORY"))
             }
           >
             {editingId ? "Actualizar" : "Guardar"}
