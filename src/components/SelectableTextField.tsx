@@ -14,7 +14,11 @@ const SelectableTextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
     ) => {
       // Multiline fields are meant for partial edits, not full replacement.
       if (!multiline) {
-        event.target.select();
+        // Deferred: selecting synchronously on focus can be undone by the
+        // browser's own cursor placement on the mouseup that follows a click
+        // into an unfocused field. Running after that settles wins reliably.
+        const target = event.target;
+        setTimeout(() => target.select(), 0);
       }
       onFocus?.(event);
     };

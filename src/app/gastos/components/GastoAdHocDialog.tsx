@@ -10,7 +10,6 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  InputAdornment,
   InputLabel,
   MenuItem,
   Select,
@@ -30,6 +29,8 @@ import {
   NATURALEZA_GASTO_LABELS,
   NATURALEZA_GASTO_DESCRIPTIONS,
 } from "@/constants/gastos";
+import MoneyField from "@/components/MoneyField";
+import PercentageField from "@/components/PercentageField";
 
 interface Props {
   open: boolean;
@@ -225,41 +226,28 @@ export default function GastoAdHocDialog({
                   </Select>
                 </FormControl>
               )}
-              <TextField
+              <MoneyField
                 label="Monto"
-                type="number"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
                 error={!!errors.monto || !!errors.montoCalculado}
                 helperText={errors.monto ?? errors.montoCalculado}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      {monedasActivas?.find(
-                        (m) => m.monedaCode === (monedaCode ?? monedaBase),
-                      )?.moneda?.simbolo ?? "$"}
-                    </InputAdornment>
-                  ),
-                }}
-                inputProps={{ min: 0, step: "0.01" }}
+                currencySymbol={
+                  monedasActivas?.find(
+                    (m) => m.monedaCode === (monedaCode ?? monedaBase),
+                  )?.moneda?.simbolo ?? "$"
+                }
                 fullWidth
               />
             </>
           ) : (
             <>
-              <TextField
+              <PercentageField
                 label="Porcentaje"
-                type="number"
                 value={porcentaje}
                 onChange={(e) => setPorcentaje(e.target.value)}
                 error={!!errors.porcentaje}
                 helperText={errors.porcentaje}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">%</InputAdornment>
-                  ),
-                }}
-                inputProps={{ min: 0, max: 100, step: "0.01" }}
                 fullWidth
               />
               {calculado > 0 && (

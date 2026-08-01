@@ -11,7 +11,6 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  InputAdornment,
   InputLabel,
   MenuItem,
   Select,
@@ -36,6 +35,8 @@ import { formatAdvertenciasCaja, formatCurrency } from "@/utils/formatters";
 import { generateUUID } from "@/utils/uuid";
 import useConfirmDialog from "@/components/confirmDialog";
 import { FormaPagoCompraSelect } from "@/components/GestionInventario/FormaPagoCompraSelect";
+import MoneyField from "@/components/MoneyField";
+import SelectableTextField from "@/components/SelectableTextField";
 
 interface Props {
   open: boolean;
@@ -380,7 +381,7 @@ export function CreateMovimientoDialog({
               </FormControl>
             )}
 
-            <TextField
+            <SelectableTextField
               label="Cantidad"
               value={cantidad}
               onChange={(e) => setCantidad(e.target.value)}
@@ -390,17 +391,11 @@ export function CreateMovimientoDialog({
             />
 
             {mostrarCosto && (
-              <TextField
+              <MoneyField
                 label={`Costo unitario${isExtraCurrency ? ` (${monedaCompra})` : ""}`}
                 value={costoUnitario}
                 onChange={(e) => setCostoUnitario(e.target.value)}
                 size="small"
-                inputProps={{ inputMode: "decimal" }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">$</InputAdornment>
-                  ),
-                }}
                 helperText={
                   isExtraCurrency && costoUnitario
                     ? `≈ ${convertToBase(parseFloat(costoUnitario) || 0, monedaCompra, tasasVigentes, monedaBase).toFixed(2)} ${monedaBase}`

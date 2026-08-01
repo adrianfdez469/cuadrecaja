@@ -12,7 +12,6 @@ import {
   FormControl,
   FormControlLabel,
   FormHelperText,
-  InputAdornment,
   InputLabel,
   MenuItem,
   Select,
@@ -42,6 +41,8 @@ import {
   MESES,
   DIAS_MES,
 } from "@/constants/gastos";
+import MoneyField from "@/components/MoneyField";
+import PercentageField from "@/components/PercentageField";
 
 type Mode = "tienda" | "plantilla";
 
@@ -241,35 +242,23 @@ export default function GastoFormDialog({
           </FormControl>
 
           {showMonto && (
-            <TextField
+            <MoneyField
               label="Monto"
-              type="number"
               value={form.monto}
               onChange={(e) => set("monto", e.target.value)}
               error={!!errors.monto}
               helperText={errors.monto}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">$</InputAdornment>
-                ),
-              }}
-              inputProps={{ min: 0, step: "0.01" }}
               fullWidth
             />
           )}
 
           {showPorcentaje && (
-            <TextField
+            <PercentageField
               label="Porcentaje"
-              type="number"
               value={form.porcentaje}
               onChange={(e) => set("porcentaje", e.target.value)}
               error={!!errors.porcentaje}
               helperText={errors.porcentaje}
-              InputProps={{
-                endAdornment: <InputAdornment position="end">%</InputAdornment>,
-              }}
-              inputProps={{ min: 0, max: 100, step: "0.01" }}
               fullWidth
             />
           )}

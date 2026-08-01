@@ -12,15 +12,17 @@ import {
   Divider,
   FormControl,
   FormHelperText,
-  InputAdornment,
   InputLabel,
   MenuItem,
   Select,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
-import { IGastoPlantilla, IAssignPlantilla, assignPlantillaSchema } from "@/schemas/gastos";
+import {
+  IGastoPlantilla,
+  IAssignPlantilla,
+  assignPlantillaSchema,
+} from "@/schemas/gastos";
 import {
   TIPO_CALCULO_LABELS,
   TIPO_CALCULO_COLORS,
@@ -30,6 +32,8 @@ import {
   DIAS_MES,
 } from "@/constants/gastos";
 import { formatearCuandoAplica } from "@/utils/gastos";
+import MoneyField from "@/components/MoneyField";
+import PercentageField from "@/components/PercentageField";
 
 interface Props {
   open: boolean;
@@ -38,7 +42,12 @@ interface Props {
   onAssign: (data: IAssignPlantilla) => Promise<void>;
 }
 
-export default function AssignPlantillaDialog({ open, plantillas, onClose, onAssign }: Props) {
+export default function AssignPlantillaDialog({
+  open,
+  plantillas,
+  onClose,
+  onAssign,
+}: Props) {
   const [step, setStep] = useState<1 | 2>(1);
   const [selected, setSelected] = useState<IGastoPlantilla | null>(null);
   const [monto, setMonto] = useState("");
@@ -111,14 +120,17 @@ export default function AssignPlantillaDialog({ open, plantillas, onClose, onAss
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        {step === 1 ? "Seleccionar plantilla" : `Configurar: ${selected?.nombre}`}
+        {step === 1
+          ? "Seleccionar plantilla"
+          : `Configurar: ${selected?.nombre}`}
       </DialogTitle>
       <DialogContent>
         {step === 1 && (
           <Stack spacing={1.5} mt={0.5}>
             {plantillas.length === 0 && (
               <Typography color="text.secondary" textAlign="center" py={2}>
-                No hay plantillas disponibles. Crea una desde Configuración → Plantillas de Gastos.
+                No hay plantillas disponibles. Crea una desde Configuración →
+                Plantillas de Gastos.
               </Typography>
             )}
             {plantillas.map((p) => (
@@ -135,21 +147,35 @@ export default function AssignPlantillaDialog({ open, plantillas, onClose, onAss
                   opacity: p.activo ? 1 : 0.5,
                 }}
               >
-                <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="flex-start"
+                >
                   <Typography variant="subtitle2">{p.nombre}</Typography>
                   <Chip
                     label={RECURRENCIA_LABELS[p.recurrencia]}
                     size="small"
-                    sx={{ backgroundColor: RECURRENCIA_COLORS[p.recurrencia], color: "#fff", fontSize: "0.6875rem" }}
+                    sx={{
+                      backgroundColor: RECURRENCIA_COLORS[p.recurrencia],
+                      color: "#fff",
+                      fontSize: "0.6875rem",
+                    }}
                   />
                 </Box>
                 <Box display="flex" gap={1} mt={0.5} alignItems="center">
                   <Chip
                     label={TIPO_CALCULO_LABELS[p.tipoCalculo]}
                     size="small"
-                    sx={{ backgroundColor: TIPO_CALCULO_COLORS[p.tipoCalculo], color: "#fff", fontSize: "0.6875rem" }}
+                    sx={{
+                      backgroundColor: TIPO_CALCULO_COLORS[p.tipoCalculo],
+                      color: "#fff",
+                      fontSize: "0.6875rem",
+                    }}
                   />
-                  <Typography variant="caption" color="text.secondary">{p.categoria}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {p.categoria}
+                  </Typography>
                 </Box>
                 <Typography variant="caption" color="text.secondary">
                   {formatearCuandoAplica(p)}
@@ -163,7 +189,8 @@ export default function AssignPlantillaDialog({ open, plantillas, onClose, onAss
           <Stack spacing={2} mt={0.5}>
             <Box p={1.5} bgcolor="action.hover" borderRadius={1}>
               <Typography variant="body2" color="text.secondary">
-                Plantilla: <strong>{selected.nombre}</strong> · {selected.categoria}
+                Plantilla: <strong>{selected.nombre}</strong> ·{" "}
+                {selected.categoria}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {formatearCuandoAplica(selected)}
@@ -173,30 +200,24 @@ export default function AssignPlantillaDialog({ open, plantillas, onClose, onAss
             <Divider />
 
             {showMonto && (
-              <TextField
+              <MoneyField
                 label="Monto para esta tienda"
-                type="number"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
                 error={!!errors.monto}
                 helperText={errors.monto}
-                InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-                inputProps={{ min: 0, step: "0.01" }}
                 fullWidth
                 required
               />
             )}
 
             {showPorcentaje && (
-              <TextField
+              <PercentageField
                 label="Porcentaje para esta tienda"
-                type="number"
                 value={porcentaje}
                 onChange={(e) => setPorcentaje(e.target.value)}
                 error={!!errors.porcentaje}
                 helperText={errors.porcentaje}
-                InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
-                inputProps={{ min: 0, max: 100, step: "0.01" }}
                 fullWidth
                 required
               />
@@ -210,9 +231,15 @@ export default function AssignPlantillaDialog({ open, plantillas, onClose, onAss
                   label="Día del mes"
                   onChange={(e) => setDiaMes(Number(e.target.value))}
                 >
-                  {DIAS_MES.map((d) => <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>)}
+                  {DIAS_MES.map((d) => (
+                    <MenuItem key={d.value} value={d.value}>
+                      {d.label}
+                    </MenuItem>
+                  ))}
                 </Select>
-                {errors.diaMes && <FormHelperText>{errors.diaMes}</FormHelperText>}
+                {errors.diaMes && (
+                  <FormHelperText>{errors.diaMes}</FormHelperText>
+                )}
               </FormControl>
             )}
 
@@ -220,17 +247,37 @@ export default function AssignPlantillaDialog({ open, plantillas, onClose, onAss
               <Stack direction="row" spacing={2}>
                 <FormControl fullWidth error={!!errors.mesAnio}>
                   <InputLabel>Mes</InputLabel>
-                  <Select value={mesAnio} label="Mes" onChange={(e) => setMesAnio(Number(e.target.value))}>
-                    {MESES.map((m) => <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>)}
+                  <Select
+                    value={mesAnio}
+                    label="Mes"
+                    onChange={(e) => setMesAnio(Number(e.target.value))}
+                  >
+                    {MESES.map((m) => (
+                      <MenuItem key={m.value} value={m.value}>
+                        {m.label}
+                      </MenuItem>
+                    ))}
                   </Select>
-                  {errors.mesAnio && <FormHelperText>{errors.mesAnio}</FormHelperText>}
+                  {errors.mesAnio && (
+                    <FormHelperText>{errors.mesAnio}</FormHelperText>
+                  )}
                 </FormControl>
                 <FormControl fullWidth error={!!errors.diaAnio}>
                   <InputLabel>Día</InputLabel>
-                  <Select value={diaAnio} label="Día" onChange={(e) => setDiaAnio(Number(e.target.value))}>
-                    {DIAS_MES.map((d) => <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>)}
+                  <Select
+                    value={diaAnio}
+                    label="Día"
+                    onChange={(e) => setDiaAnio(Number(e.target.value))}
+                  >
+                    {DIAS_MES.map((d) => (
+                      <MenuItem key={d.value} value={d.value}>
+                        {d.label}
+                      </MenuItem>
+                    ))}
                   </Select>
-                  {errors.diaAnio && <FormHelperText>{errors.diaAnio}</FormHelperText>}
+                  {errors.diaAnio && (
+                    <FormHelperText>{errors.diaAnio}</FormHelperText>
+                  )}
                 </FormControl>
               </Stack>
             )}
@@ -238,8 +285,14 @@ export default function AssignPlantillaDialog({ open, plantillas, onClose, onAss
         )}
       </DialogContent>
       <DialogActions>
-        {step === 2 && <Button onClick={() => setStep(1)} disabled={loading}>Atrás</Button>}
-        <Button onClick={onClose} disabled={loading}>Cancelar</Button>
+        {step === 2 && (
+          <Button onClick={() => setStep(1)} disabled={loading}>
+            Atrás
+          </Button>
+        )}
+        <Button onClick={onClose} disabled={loading}>
+          Cancelar
+        </Button>
         {step === 2 && (
           <Button variant="contained" onClick={handleAssign} disabled={loading}>
             {loading ? "Asignando..." : "Asignar"}
