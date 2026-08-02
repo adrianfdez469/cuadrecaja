@@ -23,6 +23,8 @@ import DownloadIcon from "@mui/icons-material/Download";
 import { importarMovimientosExcel } from "@/services/movimientoService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
+import { convertToBase } from "@/lib/currency";
+import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
 const HEADERS_REQUERIDOS = [
   "Categoría",
@@ -32,15 +34,45 @@ const HEADERS_REQUERIDOS = [
   "Cantidad",
 ];
 
+function buildNegativeRentabilidadWarning(
+  filaNum: number,
+  costo: number,
+  precio: number,
+  monedaCosto: string,
+  monedaPrecio: string,
+  tasasVigentes: ITasaSnapshot,
+  monedaBase: string,
+): string | null {
+  let costoBase = costo;
+  let precioBase = precio;
+
+  if (monedaCosto !== monedaPrecio) {
+    costoBase = convertToBase(costo, monedaCosto, tasasVigentes, monedaBase);
+    precioBase = convertToBase(precio, monedaPrecio, tasasVigentes, monedaBase);
+  }
+
+  if (costoBase <= 0) return null;
+
+  const rentabilidad = ((precioBase - costoBase) / costoBase) * 100;
+  if (rentabilidad >= 0) return null;
+
+  let msg = `Fila ${filaNum}: Costo ${costo} ${monedaCosto}, Precio ${precio} ${monedaPrecio}, Rentabilidad ${rentabilidad.toFixed(1)}%`;
+  if (monedaCosto !== monedaPrecio) {
+    msg += `. Advertencia: monedas distintas (${monedaCosto} ≠ ${monedaPrecio}).`;
+  }
+  return msg;
+}
+
 export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
+  const [advertencias, setAdvertencias] = useState<string[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState(false);
 
-  const { user, monedaBase } = useAppContext();
+  const { user, monedaBase, tasasVigentes } = useAppContext();
   const { showMessage } = useMessageContext();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
@@ -77,6 +109,7 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleFile = async (e: any) => {
     setErrores([]);
+    setAdvertencias([]);
     setItems([]);
     setPreview(false);
 
@@ -95,6 +128,7 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
       const rows = XLSX.utils.sheet_to_json<any>(sheet, { defval: "" });
 
       const erroresTemp: string[] = [];
+      const advertenciasTemp: string[] = [];
 
       if (rows.length === 0) {
         erroresTemp.push("El archivo no contiene filas de datos");
@@ -163,10 +197,22 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
             monedaCostoCode: monedaCosto,
             monedaPrecioCode: monedaPrecio,
           });
+
+          const warning = buildNegativeRentabilidadWarning(
+            filaNum,
+            costo,
+            precio,
+            monedaCosto,
+            monedaPrecio,
+            tasasVigentes,
+            monedaBase,
+          );
+          if (warning) advertenciasTemp.push(warning);
         }
       }
 
       setErrores(erroresTemp);
+      setAdvertencias(advertenciasTemp);
       setItems(itemsTemp);
       setPreview(erroresTemp.length === 0 && itemsTemp.length > 0);
     } catch {
@@ -177,6 +223,7 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
   const handleImportar = async () => {
     setLoading(true);
     setErrores([]);
+    setAdvertencias([]);
     try {
       const dataEnvio = {
         usuarioId: user.id,
@@ -201,6 +248,7 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
   const handleClose = () => {
     setArchivo(null);
     setErrores([]);
+    setAdvertencias([]);
     setItems([]);
     setPreview(false);
     onClose();
@@ -253,6 +301,18 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
               <ul>
                 {errores.map((err, idx) => (
                   <li key={idx}>{err}</li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+          {advertencias.length > 0 && (
+            <Alert severity="warning">
+              <Typography variant="subtitle2">
+                Productos con rentabilidad negativa:
+              </Typography>
+              <ul>
+                {advertencias.map((adv, idx) => (
+                  <li key={idx}>{adv}</li>
                 ))}
               </ul>
             </Alert>
