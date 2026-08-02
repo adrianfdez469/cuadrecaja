@@ -46,7 +46,7 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
   );
 
   const startEditing = () => {
-    if (disabled) return;
+    if (disabled || editing) return;
     setDraftText(String(value));
     setEditing(true);
   };
