@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, Button, Chip, Typography, useTheme } from "@mui/material";
 import SelectableTextField from "@/components/SelectableTextField";
 import {
@@ -37,6 +37,16 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
   const [editing, setEditing] = useState(false);
   const [draftText, setDraftText] = useState("");
   const [activeStep, setActiveStep] = useState(getDefaultStep(allowDecimal));
+
+  // Defensive companion to the QuantityDialog fix: QuantityStepper doesn't
+  // unmount between product switches (e.g. scanner selecting a new product
+  // while the dialog is already open), so activeStep can otherwise survive
+  // a switch between decimal and integer products, referencing a step value
+  // that isn't in the new product's chip set. Reset it whenever allowDecimal
+  // changes so it always matches the current product's step domain.
+  useEffect(() => {
+    setActiveStep(getDefaultStep(allowDecimal));
+  }, [allowDecimal]);
 
   const chips = getStepChips(
     allowDecimal,
@@ -123,7 +133,12 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
               onBlur={commitEditing}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  e.currentTarget.blur();
+                  // SelectableTextField spreads onKeyDown into MUI's TextField,
+                  // which only routes onChange/onBlur/onFocus to the inner
+                  // <input> explicitly; onKeyDown falls through to the root
+                  // FormControl wrapper. A bubbled keydown's target is still
+                  // the focused <input>, so use that instead of currentTarget.
+                  (e.target as HTMLInputElement).blur();
                 }
               }}
               inputProps={{

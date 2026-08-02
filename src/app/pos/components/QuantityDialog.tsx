@@ -9,6 +9,7 @@ import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
 import { QuantityStepper } from "./QuantityStepper";
 import { ProductAvatarPlaceholder } from "./ProductAvatarPlaceholder";
+import { clampQuantity } from "@/app/pos/utils/quantityInput";
 
 interface QuantityDialogProps {
   productoTienda: IProductoTiendaV2 | null;
@@ -28,7 +29,11 @@ export const QuantityDialog = ({
   const [quantity, setQuantity] = useState(1);
   const { addToCart, items } = useCartStore();
   const { tasasVigentes, monedaBase } = useAppContext();
-  const [isDecimalInput, setIsDecimalInput] = useState(false);
+  // Derived directly from the prop during render (not via useEffect/useState)
+  // so it's never one render behind when productoTienda changes — a stale
+  // value here fed QuantityStepper's initial activeStep with the wrong
+  // allowDecimal on the very render that mounts it.
+  const isDecimalInput = productoTienda?.producto?.permiteDecimal ?? false;
 
   const getInitialMaxQuantity = useCallback((): number => {
     if (!productoTienda) return 0;
@@ -54,8 +59,6 @@ export const QuantityDialog = ({
   }, [productoTienda, items, maxDisponibleOverride]);
 
   useEffect(() => {
-    setIsDecimalInput(productoTienda?.producto?.permiteDecimal || false);
-
     const maxDisponible = getInitialMaxQuantity();
     const minValue = productoTienda?.producto?.permiteDecimal ? 0.1 : 1;
     setQuantity(maxDisponible >= minValue ? minValue : 0);
@@ -247,7 +250,16 @@ export const QuantityDialog = ({
           {hasStock && (
             <Button
               size="small"
-              onClick={() => setQuantity(maxForDisplay)}
+              onClick={() =>
+                setQuantity(
+                  clampQuantity(
+                    maxForDisplay,
+                    minQuantity,
+                    maxForDisplay,
+                    isDecimalInput,
+                  ),
+                )
+              }
               sx={{ minHeight: 0, py: 0 }}
             >
               Usar máximo
