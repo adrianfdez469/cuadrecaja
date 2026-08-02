@@ -18,7 +18,7 @@ import {
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useState } from "react";
 import { IProductoTiendaV2 } from "@/schemas/producto";
-import { formatCurrency, formatNumber } from "@/utils/formatters";
+import { formatMontoEnMoneda, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import { getRentabilidad } from "./rentabilidad";
 import { generateProductCodesPDF } from "@/utils/productCodesPdf";
@@ -173,8 +173,8 @@ export function InventarioTable({
             <TableCell>Producto</TableCell>
             <TableCell>Categoría</TableCell>
             <TableCell align="right">Stock</TableCell>
-            <TableCell align="right">Precio</TableCell>
             <TableCell align="right">Costo</TableCell>
+            <TableCell align="right">Precio</TableCell>
             <TableCell align="right">Rentabilidad</TableCell>
             <TableCell align="center">Vencimiento</TableCell>
             <TableCell align="center">Acciones</TableCell>
@@ -235,12 +235,18 @@ export function InventarioTable({
                 </TableCell>
                 <TableCell align="right">
                   <Typography variant="body2">
-                    {formatCurrency(p.precio)}
+                    {formatMontoEnMoneda(
+                      p.costo,
+                      p.monedaCostoCode ?? monedaBase,
+                    )}
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
                   <Typography variant="body2">
-                    {formatCurrency(p.costo)}
+                    {formatMontoEnMoneda(
+                      p.precio,
+                      p.monedaPrecioCode ?? monedaBase,
+                    )}
                   </Typography>
                 </TableCell>
                 <TableCell align="right">

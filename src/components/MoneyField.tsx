@@ -14,10 +14,19 @@ type MoneyFieldProps = TextFieldProps & {
  * depends on the selected currency).
  */
 const MoneyField = React.forwardRef<HTMLInputElement, MoneyFieldProps>(
-  ({ currencySymbol = "$", InputProps, inputProps, ...other }, ref) => (
+  (
+    { currencySymbol = "$", InputProps, inputProps, onChange, ...other },
+    ref,
+  ) => (
     <SelectableTextField
       {...other}
       ref={ref}
+      onChange={(e) => {
+        // Los montos nunca pueden ser negativos — se descarta el "-" al
+        // teclearlo en vez de validar recién al guardar.
+        e.target.value = e.target.value.replace(/-/g, "");
+        onChange?.(e);
+      }}
       inputProps={{ inputMode: "decimal", ...inputProps }}
       InputProps={{
         startAdornment: (

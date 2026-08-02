@@ -187,9 +187,14 @@ export function CreateMovimientoDialog({
   const esConsignacion =
     tipo === "CONSIGNACION_ENTRADA" || tipo === "CONSIGNACION_DEVOLUCION";
   const esTraspaso = tipo === "TRASPASO_SALIDA";
+  const esSalida =
+    TIPOS_BASE.find((t) => t.value === tipo)?.esEntrada === false;
   const mostrarCosto = tipo === "COMPRA" || tipo === "CONSIGNACION_ENTRADA";
   const mostrarMoneda = mostrarCosto && monedasParaCompra.length > 1;
   const isExtraCurrency = mostrarCosto && monedaCompra !== monedaBase;
+
+  const cantidadNum = parseFloat(cantidad.replace(",", ".")) || 0;
+  const cantidadExcedeStock = esSalida && cantidadNum > producto.existencia;
 
   const handleSave = async () => {
     // Guarda contra doble submit: el botón se deshabilita por `saving`, pero
@@ -199,6 +204,13 @@ export function CreateMovimientoDialog({
     const qty = parseFloat(cantidad.replace(",", "."));
     if (!qty || qty <= 0) {
       showMessage("Ingresa una cantidad válida", "warning");
+      return;
+    }
+    if (esSalida && qty > producto.existencia) {
+      showMessage(
+        `No hay suficiente stock: disponible ${producto.existencia}`,
+        "warning",
+      );
       return;
     }
     if (esConsignacion && !selectedProveedor) {
@@ -290,7 +302,9 @@ export function CreateMovimientoDialog({
       onCreated();
     } catch (e) {
       console.error(e);
-      showMessage("Error al registrar el movimiento", "error");
+      const errorMessage =
+        e.response?.data?.error || "Error al registrar el movimiento";
+      showMessage(errorMessage, "error");
     } finally {
       setSaving(false);
     }
@@ -384,10 +398,20 @@ export function CreateMovimientoDialog({
             <SelectableTextField
               label="Cantidad"
               value={cantidad}
-              onChange={(e) => setCantidad(e.target.value)}
+              onChange={(e) => setCantidad(e.target.value.replace(/-/g, ""))}
               size="small"
-              inputProps={{ inputMode: "decimal" }}
+              inputProps={{
+                inputMode: "decimal",
+                min: 0,
+                ...(esSalida && { max: producto.existencia }),
+              }}
               autoFocus
+              error={cantidadExcedeStock}
+              helperText={
+                cantidadExcedeStock
+                  ? `Máx. disponible: ${producto.existencia}`
+                  : undefined
+              }
             />
 
             {mostrarCosto && (
@@ -453,7 +477,7 @@ export function CreateMovimientoDialog({
           <Button
             onClick={handleSave}
             variant="contained"
-            disabled={saving}
+            disabled={saving || cantidadExcedeStock}
             startIcon={
               saving ? (
                 <CircularProgress size={16} color="inherit" />

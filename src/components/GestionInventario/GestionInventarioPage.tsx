@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
+  Badge,
   Box,
   Container,
   Tab,
@@ -31,6 +33,7 @@ import { exportInventarioToExcel } from "@/utils/excelExport";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { usePermisos } from "@/utils/permisos_front";
+import { usePendingReceptionStore } from "@/store/pendingReceptionStore";
 
 export function GestionInventarioPage() {
   const theme = useTheme();
@@ -38,6 +41,7 @@ export function GestionInventarioPage() {
   const { user, monedaBase, tasasVigentes } = useAppContext();
   const { showMessage } = useMessageContext();
   const { verificarPermiso } = usePermisos();
+  const searchParams = useSearchParams();
   const puedeVerInventario = verificarPermiso("operaciones.inventario.acceder");
   const puedeVerMovimientos = verificarPermiso(
     "operaciones.movimientos.acceder",
@@ -45,7 +49,11 @@ export function GestionInventarioPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [printLabelsOpen, setPrintLabelsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(puedeVerInventario ? 0 : 1);
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get("tab") === "movimientos" || !puedeVerInventario ? 1 : 0,
+  );
+  const pendingReceptionCount = usePendingReceptionStore((s) => s.items.length);
+  const fetchPendingReception = usePendingReceptionStore((s) => s.fetch);
 
   const {
     categorias,
@@ -123,6 +131,11 @@ export function GestionInventarioPage() {
   const signalEvent = useOnboardingStore((s) => s.signalEvent);
 
   useEffect(() => {
+    if (!puedeVerMovimientos || !tiendaId) return;
+    fetchPendingReception(tiendaId);
+  }, [puedeVerMovimientos, tiendaId, fetchPendingReception]);
+
+  useEffect(() => {
     if (!createProductOpen) return;
     const timer = window.setTimeout(() => {
       const store = useOnboardingStore.getState();
@@ -142,10 +155,26 @@ export function GestionInventarioPage() {
       <Tabs
         value={activeTab}
         onChange={(_, v) => setActiveTab(v)}
-        sx={{ borderBottom: 1, borderColor: "divider" }}
+        sx={{
+          borderBottom: 1,
+          borderColor: "divider",
+          // El scroller de Tabs recorta overflow vertical por defecto, lo que
+          // corta la mitad superior del Badge del tab "Movimientos".
+          "& .MuiTabs-scroller": { overflow: "visible !important" },
+        }}
       >
         <Tab label="Inventario" value={0} />
-        <Tab label="Movimientos" value={1} />
+        <Tab
+          value={1}
+          // Reserva espacio a la derecha del texto para que el Badge no quede
+          // recortado por el propio botón del Tab (overflow: hidden del ripple).
+          sx={pendingReceptionCount > 0 ? { pr: 2.5 } : undefined}
+          label={
+            <Badge badgeContent={pendingReceptionCount} color="error">
+              Movimientos
+            </Badge>
+          }
+        />
       </Tabs>
     </Container>
   ) : null;
@@ -218,6 +247,7 @@ export function GestionInventarioPage() {
           open={Boolean(editTarget)}
           producto={editTarget}
           categorias={categorias}
+          productosTienda={productos}
           onClose={closeEdit}
           onSave={handleEditSave}
         />
@@ -247,6 +277,7 @@ export function GestionInventarioPage() {
         <CreateProductDialog
           open={createProductOpen}
           categorias={categorias}
+          productosTienda={productos}
           onClose={closeCreateProduct}
           onSave={handleCreateProduct}
         />

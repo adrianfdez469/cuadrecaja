@@ -124,10 +124,10 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
             <SelectableTextField
               label="Nueva cantidad"
               value={newQtyStr}
-              onChange={(e) => setNewQtyStr(e.target.value)}
+              onChange={(e) => setNewQtyStr(e.target.value.replace(/-/g, ""))}
               size="small"
               sx={{ flex: 1 }}
-              inputProps={{ inputMode: "decimal" }}
+              inputProps={{ inputMode: "decimal", min: 0 }}
               autoFocus
             />
           </Box>

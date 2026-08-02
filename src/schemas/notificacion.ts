@@ -1,12 +1,22 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-export const NivelImportanciaEnum = z.enum(['BAJA', 'MEDIA', 'ALTA', 'CRITICA']);
-export const TipoNotificacionEnum = z.enum(['ALERTA', 'NOTIFICACION', 'PROMOCION', 'MENSAJE']);
+export const NivelImportanciaEnum = z.enum([
+  "BAJA",
+  "MEDIA",
+  "ALTA",
+  "CRITICA",
+]);
+export const TipoNotificacionEnum = z.enum([
+  "ALERTA",
+  "NOTIFICACION",
+  "PROMOCION",
+  "MENSAJE",
+]);
 
 export const notificacionSchema = z.object({
   id: z.string().uuid(),
-  titulo: z.string().min(1, 'El título es requerido'),
-  descripcion: z.string().min(1, 'La descripción es requerida'),
+  titulo: z.string().min(1, "El título es requerido"),
+  descripcion: z.string().min(1, "La descripción es requerida"),
   fechaInicio: z.coerce.date(),
   fechaFin: z.coerce.date(),
   nivelImportancia: NivelImportanciaEnum,
@@ -14,6 +24,10 @@ export const notificacionSchema = z.object({
   leidoPor: z.string(),
   negociosDestino: z.string(),
   usuariosDestino: z.string(),
+  // Ruta interna a la que navega el botón de acción del diálogo de detalle
+  // (ej. "/inventario?tab=movimientos&openPending=1"). Null en notificaciones
+  // sin acción asociada (anuncios, expiración de suscripción, etc.)
+  accionUrl: z.string().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -46,8 +60,8 @@ export const notificacionStatsSchema = z.object({
 });
 
 export const notificacionFormDataSchema = z.object({
-  titulo: z.string().min(1, 'El título es requerido'),
-  descripcion: z.string().min(1, 'La descripción es requerida'),
+  titulo: z.string().min(1, "El título es requerido"),
+  descripcion: z.string().min(1, "La descripción es requerida"),
   fechaInicio: z.string(),
   fechaFin: z.string(),
   nivelImportancia: NivelImportanciaEnum,
@@ -63,7 +77,9 @@ export const notificacionResponseSchema = z.object({
 });
 
 export type INotificacion = z.infer<typeof notificacionSchema>;
-export type INotificacionConEstado = z.infer<typeof notificacionConEstadoSchema>;
+export type INotificacionConEstado = z.infer<
+  typeof notificacionConEstadoSchema
+>;
 export type INotificacionStats = z.infer<typeof notificacionStatsSchema>;
 export type INotificacionFormData = z.infer<typeof notificacionFormDataSchema>;
 export type INotificacionResponse = z.infer<typeof notificacionResponseSchema>;

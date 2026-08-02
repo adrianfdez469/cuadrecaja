@@ -987,6 +987,7 @@ model Notificacion {
   leidoPor         String           @default("") // Array de userIds separados por coma
   negociosDestino  String           @default("") // Array de negocioIds separados por coma (vacío = todos)
   usuariosDestino  String           @default("") // Array de userIds separados por coma (vacío = todos)
+  accionUrl        String? // Ruta interna que abre el botón de acción del diálogo de detalle (ej. "/inventario?tab=movimientos&openPending=1")
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 

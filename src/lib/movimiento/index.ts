@@ -4,6 +4,7 @@ import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { calcularCPP, requiereCPP } from "../cpp-calculator";
 import { convertToBase, convertFromBase, buildTasaSnapshot } from "../currency";
 import { calcularEfectivoDisponiblePorMoneda } from "./caja";
+import { lockActiveRow } from "../dbLocks";
 import { DEFAULT_CURRENCY } from "@/constants/billDenominations";
 import type {
   IAdvertenciaCajaInsuficiente,
@@ -41,6 +42,21 @@ type ICreateMovimientoData = {
 // COMPRA+EFECTIVO_CAJA tenía timeout; ahora aplica a todos los tipos.
 // Ver PERFORMANCE_ISSUES.md (P2.1).
 export const MOVIMIENTO_TX_OPTIONS = { timeout: 20000, maxWait: 10000 };
+
+/** Thrown when a baja movement (AJUSTE_SALIDA, TRASPASO_SALIDA, MERMA, etc.)
+ * requests more units than are currently in stock. */
+export class InsufficientStockError extends Error {
+  constructor(
+    readonly productoNombre: string,
+    readonly solicitado: number,
+    readonly disponible: number,
+  ) {
+    super(
+      `Stock insuficiente para "${productoNombre}": se solicitaron ${solicitado} unidades y solo hay ${disponible} disponibles.`,
+    );
+    this.name = "InsufficientStockError";
+  }
+}
 
 /**
  * @param externalTx the caller's transaction. Pass it when creating the movement
@@ -152,7 +168,7 @@ export const CreateMoviento = async (
 
       // 1. Obtener el productoTienda existente
       let existenciaAnterior = 0;
-      const productoTiendaExistente = await tx.productoTienda.findFirst({
+      let productoTiendaExistente = await tx.productoTienda.findFirst({
         where: {
           tiendaId,
           productoId,
@@ -160,6 +176,36 @@ export const CreateMoviento = async (
           deletedAt: null,
         },
       });
+
+      // No dejar que una baja (traspaso/ajuste/consignación/merma) deje la
+      // existencia en negativo: sin fila previa no hay nada que rebajar, y
+      // con fila previa la cantidad solicitada no puede superar lo disponible.
+      if (isMovimientoBaja(tipo)) {
+        if (productoTiendaExistente) {
+          // Lock de fila: dos bajas concurrentes sobre el mismo ProductoTienda
+          // no deben leer la misma existencia "disponible" antes de que la
+          // otra confirme su decremento — eso dejaría el stock en negativo.
+          // Se re-lee después del lock para validar contra el dato ya
+          // confirmado, no el que se tenía al entrar a la transacción.
+          await lockActiveRow(tx, "ProductoTienda", productoTiendaExistente.id);
+          productoTiendaExistente = await tx.productoTienda.findFirst({
+            where: { id: productoTiendaExistente.id },
+          });
+        }
+
+        const disponible = productoTiendaExistente?.existencia ?? 0;
+        if (cantidad > disponible) {
+          const productoInfo = await tx.producto.findUnique({
+            where: { id: productoId },
+            select: { nombre: true },
+          });
+          throw new InsufficientStockError(
+            productoInfo?.nombre ?? productoId,
+            cantidad,
+            disponible,
+          );
+        }
+      }
 
       let productoTienda;
       let calculoCPP = null;

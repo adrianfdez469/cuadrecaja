@@ -88,10 +88,11 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
 
   // Validaciones
   const hayErrores = productosSeleccionados.some((p) => {
+    if (p.cantidad <= 0) return true;
     if (operacion === "SALIDA" || tipoMovimiento === "TRASPASO_ENTRADA") {
       return p.cantidad > p.existencia;
     }
-    return p.cantidad <= 0;
+    return false;
   });
 
   if (productosSeleccionados.length === 0 && show) {

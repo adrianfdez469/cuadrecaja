@@ -283,9 +283,11 @@ export function useGestionInventario() {
       showMessage("Movimiento registrado", "success");
       setChangeQtyTarget(null);
       await reload();
-    } catch (e) {
+    } catch (e: unknown) {
       console.error(e);
-      showMessage("Error al registrar el movimiento", "error");
+      const msg = (e as { response?: { data?: { error?: string } } })?.response
+        ?.data?.error;
+      showMessage(msg ?? "Error al registrar el movimiento", "error");
     }
   };
 

@@ -175,10 +175,11 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
   const hayErrores = useMemo(
     () =>
       productosSeleccionados.some((p) => {
+        if (p.cantidad <= 0) return true;
         if (operacion === "SALIDA" || iTipoMovimiento === "TRASPASO_ENTRADA") {
           return p.cantidad > p.existencia;
         }
-        return p.cantidad <= 0;
+        return false;
       }),
     [productosSeleccionados, operacion],
   );
@@ -486,8 +487,8 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
           if (p.productoId === productoId && p.proveedorId === proveedorId) {
             const cantidad =
               operacion === "SALIDA"
-                ? Math.min(nuevaCantidad, p.existencia)
-                : nuevaCantidad;
+                ? Math.max(0, Math.min(nuevaCantidad, p.existencia))
+                : Math.max(0, nuevaCantidad);
 
             const fixedAmount = p.permiteDecimal
               ? cantidad
@@ -511,13 +512,14 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
     (productoId: string, nuevoCosto: number) => {
       if (operacion === "SALIDA") return; // No permitir editar costo en salidas
 
+      const costo = Math.max(0, nuevoCosto);
       setProductosSeleccionados((prev) =>
         prev.map((p) => {
           if (p.productoId === productoId) {
             return {
               ...p,
-              costo: nuevoCosto,
-              costoTotal: p.cantidad * nuevoCosto,
+              costo,
+              costoTotal: p.cantidad * costo,
             };
           }
           return p;

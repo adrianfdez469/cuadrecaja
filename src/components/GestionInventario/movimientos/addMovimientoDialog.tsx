@@ -427,7 +427,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
       void fetchMovimientos();
     } catch (error) {
       console.error(error);
-      showMessage("No se pudo guardar el movimiento", "error");
+      const errorMessage =
+        error.response?.data?.error || "No se pudo guardar el movimiento";
+      showMessage(errorMessage, "error");
     } finally {
       updateSaving(false);
     }

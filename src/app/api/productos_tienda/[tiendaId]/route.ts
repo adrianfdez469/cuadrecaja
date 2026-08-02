@@ -97,6 +97,13 @@ export async function POST(
       );
     }
 
+    if ((precio != null && precio < 0) || (costo != null && costo < 0)) {
+      return NextResponse.json(
+        { error: "El precio y el costo no pueden ser negativos" },
+        { status: 400 },
+      );
+    }
+
     if (
       costo &&
       !verificarPermisoUsuario(
@@ -180,6 +187,19 @@ export async function PUT(
 
     if (!tiendaId || !Array.isArray(productos)) {
       return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+    }
+
+    if (
+      productos.some(
+        (p) =>
+          (p.precio != null && p.precio < 0) ||
+          (p.costo != null && p.costo < 0),
+      )
+    ) {
+      return NextResponse.json(
+        { error: "El precio y el costo no pueden ser negativos" },
+        { status: 400 },
+      );
     }
 
     const puedeEditarCosto = verificarPermisoUsuario(

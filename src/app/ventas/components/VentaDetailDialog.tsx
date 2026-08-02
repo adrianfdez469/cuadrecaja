@@ -54,6 +54,7 @@ interface VentaDetailDialogProps {
   venta: IVenta | null;
   canDeleteProducts?: boolean;
   deletingVentaProductoId?: string | null;
+  deletingVenta?: boolean;
   onDeleteProduct?: (venta: IVenta, ventaProductoId: string) => void;
   onDeleteSale?: (venta: IVenta) => void;
 }
@@ -64,6 +65,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
   venta,
   canDeleteProducts = false,
   deletingVentaProductoId = null,
+  deletingVenta = false,
   onDeleteProduct,
   onDeleteSale,
 }) => {
@@ -366,8 +368,9 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                 {productosBase.map((producto, index) => {
                   const canDeleteThis =
                     canDeleteProducts && !!producto.ventaProductoId;
-                  const isDeleting =
-                    deletingVentaProductoId === producto.ventaProductoId;
+                  const isDeleting = isLastProduct
+                    ? deletingVenta
+                    : deletingVentaProductoId === producto.ventaProductoId;
                   const traza = trazaOriginal(
                     producto.price || 0,
                     producto.monedaProducto,
@@ -487,8 +490,9 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                     {productosBase.map((producto, index) => {
                       const canDeleteThis =
                         canDeleteProducts && !!producto.ventaProductoId;
-                      const isDeleting =
-                        deletingVentaProductoId === producto.ventaProductoId;
+                      const isDeleting = isLastProduct
+                        ? deletingVenta
+                        : deletingVentaProductoId === producto.ventaProductoId;
                       const traza = trazaOriginal(
                         producto.price || 0,
                         producto.monedaProducto,

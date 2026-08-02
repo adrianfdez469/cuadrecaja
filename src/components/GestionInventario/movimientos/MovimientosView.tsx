@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
   Typography,
@@ -26,7 +27,6 @@ import {
   IconButton,
   Collapse,
   Divider,
-  Badge,
   Select,
   MenuItem,
   FormControl,
@@ -42,7 +42,6 @@ import {
   Search,
   Refresh,
   ExpandMore,
-  Message,
   ExpandLess,
   FilterAlt,
   CleaningServices,
@@ -56,7 +55,6 @@ import { useAppContext } from "@/context/AppContext";
 import {
   cretateBatchMovimientos,
   findMovimientos,
-  getMovimientosProductosEnviados,
   rejectMovimiento,
 } from "@/services/movimientoService";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
@@ -73,6 +71,8 @@ import {
 } from "@/components/ProductcSelectionModal/ProductSelectionModal";
 import { useProductSelectionModal } from "@/hooks/useProductSelectionModal";
 import { useMessageContext } from "@/context/MessageContext";
+import { usePendingReceptionStore } from "@/store/pendingReceptionStore";
+import { PendingReceptionBanner } from "./PendingReceptionBanner";
 
 const PAGE_SIZE = 20;
 
@@ -107,7 +107,8 @@ export default function MovimientosView() {
   const [noLocalActual, setNoLocalActual] = useState(false);
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [pendienteRecepcion, setPendienteRecepcion] = useState([]);
+  const { items: pendienteRecepcion, fetch: fetchPendienteRecepcion } =
+    usePendingReceptionStore();
   const [tipoFilter, setTipoFilter] = useState<ITipoMovimiento[]>([]);
   const [fechaInicio, setFechaInicio] = useState<Dayjs | null>(null);
   const [fechaFin, setFechaFin] = useState<Dayjs | null>(null);
@@ -143,6 +144,25 @@ export default function MovimientosView() {
 
   const [skip, setSkip] = useState(0);
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Llegada desde la notificación de "movimientos pendientes": abre el modal
+  // de aceptación en cuanto los pendientes terminan de cargarse, y limpia el
+  // parámetro para no reabrirlo en un refresh posterior.
+  useEffect(() => {
+    if (
+      searchParams.get("openPending") === "1" &&
+      pendienteRecepcion.length > 0
+    ) {
+      pendienteRecepcionOpenModal("ENTRADA");
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("openPending");
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  }, [searchParams, pendienteRecepcion, pathname, router]);
+
   const handleReject = async (
     producto: IProductoDisponible,
     motivo: string,
@@ -152,10 +172,7 @@ export default function MovimientosView() {
       await rejectMovimiento(producto.movimientoOrigenId, motivo);
       showMessage("Entrada rechazada correctamente", "success");
       // Actualizar el contador de pendientes
-      const nuevosPendientes = await getMovimientosProductosEnviados(
-        user.localActual.id,
-      );
-      setPendienteRecepcion(nuevosPendientes || []);
+      await fetchPendienteRecepcion(user.localActual.id);
     } catch (error) {
       console.error("Error al rechazar producto:", error);
       showMessage("Error al rechazar el producto", "error");
@@ -229,16 +246,11 @@ export default function MovimientosView() {
   };
 
   const fecthPendientesRecep = async () => {
-    const result = await getMovimientosProductosEnviados(user.localActual.id);
-
-    setPendienteRecepcion(result || []);
-
-    if (result.length > 0) {
-      pendienteRecepcionSetOnConfirm((prods) => {
-        // Crear documento de tipo TRASPASO_ENTRADA con los productos
-        crearMovimientosRecepción(prods);
-      });
-    }
+    await fetchPendienteRecepcion(user.localActual.id);
+    pendienteRecepcionSetOnConfirm((prods) => {
+      // Crear documento de tipo TRASPASO_ENTRADA con los productos
+      crearMovimientosRecepción(prods);
+    });
   };
 
   const crearMovimientosRecepción = async (prods) => {
@@ -305,7 +317,7 @@ export default function MovimientosView() {
         existencia: item.productoTienda?.existencia,
         proveedorId: item.productoTienda?.proveedorId,
         proveedor: item.productoTienda?.proveedor,
-        permiteDecimal: item.permiteDecimal,
+        permiteDecimal: item.productoTienda?.producto?.permiteDecimal,
         movimientoOrigenId: item.movimientoOrigenId,
         codigosProducto: item.productoTienda?.producto?.codigosProducto,
       };
@@ -452,19 +464,6 @@ export default function MovimientosView() {
         </Tooltip>
       )}
 
-      {pendienteRecepcion.length > 0 && (
-        <Tooltip title="Productos pendientes por recepcionar">
-          <IconButton
-            size="small"
-            onClick={() => pendienteRecepcionOpenModal("ENTRADA")}
-          >
-            <Badge badgeContent={pendienteRecepcion.length} color="error">
-              <Message />
-            </Badge>
-          </IconButton>
-        </Tooltip>
-      )}
-
       <Button
         variant="contained"
         startIcon={!isMobile ? <Add /> : undefined}
@@ -487,7 +486,7 @@ export default function MovimientosView() {
       {((movimientos.length === 0 && !searchTerm) ||
         user.rol === "SUPER_ADMIN") && (
         <Button
-          variant="contained"
+          variant="outlined"
           startIcon={!isMobile ? <Dock /> : undefined}
           onClick={() => handleImportExcel()}
           size={isMobile ? "small" : "medium"}
@@ -583,6 +582,11 @@ export default function MovimientosView() {
       headerActions={headerActions}
       maxWidth="xl"
     >
+      <PendingReceptionBanner
+        count={pendienteRecepcion.length}
+        onClick={() => pendienteRecepcionOpenModal("ENTRADA")}
+      />
+
       {/* Estadísticas de movimientos */}
       {isMobile ? (
         <Box sx={{ mb: 2 }}>
