@@ -139,9 +139,9 @@ export const importDataSchema = z.object({
 export const importarItemsMovSchema = z.object({
   nombreProducto: z.string().min(1),
   categoria: z.string().optional(),
-  costo: z.number(),
-  precio: z.number(),
-  cantidad: z.number(),
+  costo: z.number().nonnegative(),
+  precio: z.number().nonnegative(),
+  cantidad: z.number().positive(),
   esConsignación: z.boolean().optional(),
   nombreProveedor: z.string().optional(),
   monedaCostoCode: z.string().optional(),
@@ -172,6 +172,9 @@ export const movimientoProductoEnviadoSchema = z.object({
   tiendaId: z.string().uuid(),
   proveedorId: z.string().uuid().nullable(),
   destinationId: z.string(),
+  // Añadido por el endpoint de recepción (GET /api/movimiento/[tiendaId]/recepcion)
+  // para poder referenciar el movimiento TRASPASO_SALIDA original al aceptar/rechazar.
+  movimientoOrigenId: z.string().uuid(),
   productoTienda: z.object({
     id: z.string().uuid(),
     tiendaId: z.string().uuid(),
@@ -180,6 +183,8 @@ export const movimientoProductoEnviadoSchema = z.object({
     precio: z.number(),
     existencia: z.number(),
     proveedorId: z.string().uuid().nullable(),
+    monedaCostoCode: z.string().nullable(),
+    monedaPrecioCode: z.string().nullable(),
     producto: productoSchema,
     tienda: z.object({
       id: z.string().uuid(),

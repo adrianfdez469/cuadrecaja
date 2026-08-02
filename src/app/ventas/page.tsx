@@ -75,6 +75,7 @@ const Ventas = () => {
   const [deletingVentaProductoId, setDeletingVentaProductoId] = useState<
     string | null
   >(null);
+  const [deletingVentaId, setDeletingVentaId] = useState<string | null>(null);
 
   const handleCreateFirstPeriod = async () => {
     // Evitar múltiples clics mientras se procesa
@@ -147,15 +148,17 @@ const Ventas = () => {
       "¿Está seguro que desea eliminar completamente esta venta?",
       async () => {
         try {
+          setDeletingVentaId(venta.id);
           const tiendaId = user.localActual.id;
           await removeSell(tiendaId, currentPeriod.id, venta.id, user.id);
+          setVentas((prev) => prev.filter((v) => v.id !== venta.id));
           showMessage("La venta fue eliminada satisfactoriamente", "success");
+          handleCloseDetail();
         } catch (error) {
           console.error(error);
           showMessage("La venta no pudo ser eliminada", "error");
         } finally {
-          await loadData();
-          handleCloseDetail();
+          setDeletingVentaId(null);
         }
       },
     );
@@ -604,8 +607,13 @@ const Ventas = () => {
                           }}
                           size="small"
                           color="error"
+                          disabled={deletingVentaId === venta.id}
                         >
-                          <Delete fontSize="small" />
+                          {deletingVentaId === venta.id ? (
+                            <CircularProgress size={18} />
+                          ) : (
+                            <Delete fontSize="small" />
+                          )}
                         </IconButton>
                       </Box>
                     </Stack>
@@ -693,16 +701,23 @@ const Ventas = () => {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Eliminar venta">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCancelVenta(venta);
-                            }}
-                            size="small"
-                            color="error"
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
+                          <span>
+                            <IconButton
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancelVenta(venta);
+                              }}
+                              size="small"
+                              color="error"
+                              disabled={deletingVentaId === venta.id}
+                            >
+                              {deletingVentaId === venta.id ? (
+                                <CircularProgress size={18} />
+                              ) : (
+                                <Delete fontSize="small" />
+                              )}
+                            </IconButton>
+                          </span>
                         </Tooltip>
                       </Stack>
                     </TableCell>
@@ -720,6 +735,7 @@ const Ventas = () => {
         onClose={handleCloseDetail}
         venta={selectedVenta}
         deletingVentaProductoId={deletingVentaProductoId}
+        deletingVenta={!!selectedVenta && deletingVentaId === selectedVenta.id}
         canDeleteProducts={
           !!selectedVenta &&
           (selectedVenta.usuarioId === user.id || user.rol === "SUPER_ADMIN") &&

@@ -13,6 +13,7 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  FormHelperText,
   IconButton,
   InputLabel,
   MenuItem,
@@ -37,11 +38,14 @@ import { convertToBase, convertFromBase } from "@/lib/currency";
 import { usePermisos } from "@/utils/permisos_front";
 import MoneyField from "@/components/MoneyField";
 import SelectableTextField from "@/components/SelectableTextField";
+import { RentabilidadRibbon } from "./RentabilidadRibbon";
+import { calcularCostoFraccion } from "./fraccionCosto";
 
 interface Props {
   open: boolean;
   producto: IProductoTiendaV2 | null;
   categorias: ICategory[];
+  productosTienda: IProductoTiendaV2[];
   onClose: () => void;
   onSave: (producto: IProductoTiendaV2, data: EditProductData) => Promise<void>;
 }
@@ -64,6 +68,7 @@ export function EditProductDialog({
   open,
   producto,
   categorias,
+  productosTienda,
   onClose,
   onSave,
 }: Props) {
@@ -102,6 +107,7 @@ export function EditProductDialog({
   const [fraccionValue, setFraccionValue] = useState<number | null>(null);
   const [codigosProducto, setCodigosProducto] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (open && producto) {
@@ -124,6 +130,7 @@ export function EditProductDialog({
       setFraccionValue(prod.unidadesPorFraccion ?? null);
       setCodigosProducto(prod.codigosProducto?.map((c) => c.codigo) ?? []);
       setSelectedFraccion(null);
+      setSubmitted(false);
     }
   }, [open, producto]);
 
@@ -143,6 +150,25 @@ export function EditProductDialog({
       setSelectedFraccion(productos.find((p) => p.id === fraccionDeId) ?? null);
     }
   }, [open, esFraccion, producto, productos]);
+
+  useEffect(() => {
+    if (!esFraccion || !selectedFraccion || !fraccionValue) return;
+    const calculado = calcularCostoFraccion(
+      selectedFraccion.id,
+      fraccionValue,
+      productosTienda,
+    );
+    if (calculado) {
+      setCosto(calculado.costo);
+      setMonedaCostoCode(calculado.monedaCostoCode);
+    }
+  }, [esFraccion, selectedFraccion, fraccionValue, productosTienda]);
+
+  useEffect(() => {
+    if (!esFraccion || !selectedFraccion) return;
+    setCatValue(selectedFraccion.categoria);
+    setCatInputValue(selectedFraccion.categoria.nombre);
+  }, [esFraccion, selectedFraccion]);
 
   const handlePrecioMonedaChange = (nuevaMoneda: string) => {
     const monedaActual = monedaPrecioCode ?? monedaBase;
@@ -187,7 +213,8 @@ export function EditProductDialog({
   };
 
   const handleSave = async () => {
-    if (!nombre.trim()) return;
+    setSubmitted(true);
+    if (!canSave) return;
     setSaving(true);
     try {
       const typedText = catInputValue.trim();
@@ -255,6 +282,17 @@ export function EditProductDialog({
   const costoBase = costoEnBase !== null ? costoEnBase : parseFloat(costo) || 0;
   const warnCostoMayorPrecio =
     costoBase > 0 && precioBase > 0 && costoBase > precioBase;
+  const fraccionProductoError =
+    submitted && esFraccion && !selectedFraccion
+      ? "Selecciona el producto base"
+      : "";
+  const fraccionCantidadError =
+    submitted && esFraccion && !fraccionValue
+      ? "La cantidad es obligatoria"
+      : "";
+  const canSave =
+    nombre.trim().length > 0 &&
+    (!esFraccion || (!!selectedFraccion && !!fraccionValue));
 
   if (!producto) return null;
 
@@ -279,9 +317,72 @@ export function EditProductDialog({
             fullWidth
           />
 
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={esFraccion}
+                onChange={(e) => setEsFraccion(e.target.checked)}
+                size="small"
+              />
+            }
+            label="Es fracción de otro producto"
+          />
+
+          {esFraccion && (
+            <Box
+              display="flex"
+              gap={2}
+              flexDirection={{ xs: "column", sm: "row" }}
+            >
+              <FormControl
+                size="small"
+                fullWidth
+                required
+                error={!!fraccionProductoError}
+                sx={{ flex: 1 }}
+              >
+                <InputLabel>Producto base</InputLabel>
+                <Select
+                  label="Producto base"
+                  value={selectedFraccion?.id ?? ""}
+                  onChange={(e) =>
+                    setSelectedFraccion(
+                      productos.find((p) => p.id === e.target.value) ?? null,
+                    )
+                  }
+                >
+                  {productos.map((p) => (
+                    <MenuItem key={p.id} value={p.id}>
+                      {p.nombre}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {fraccionProductoError && (
+                  <FormHelperText>{fraccionProductoError}</FormHelperText>
+                )}
+              </FormControl>
+              <SelectableTextField
+                label="Unidades por fracción"
+                value={fraccionValue ?? ""}
+                onChange={(e) =>
+                  setFraccionValue(
+                    parseInt(e.target.value.replace(/-/g, "")) || null,
+                  )
+                }
+                size="small"
+                required
+                error={!!fraccionCantidadError}
+                helperText={fraccionCantidadError}
+                sx={{ flex: 1 }}
+                inputProps={{ inputMode: "numeric" }}
+              />
+            </Box>
+          )}
+
           <Autocomplete
             value={catValue}
             inputValue={catInputValue}
+            disabled={esFraccion}
             onChange={(_, val) => {
               if (typeof val === "string") {
                 setCatValue({ inputValue: val, nombre: val, id: "" });
@@ -313,7 +414,16 @@ export function EditProductDialog({
             )}
             freeSolo
             renderInput={(params) => (
-              <TextField {...params} label="Categoría" size="small" />
+              <TextField
+                {...params}
+                label="Categoría"
+                size="small"
+                helperText={
+                  esFraccion
+                    ? "Se usa la categoría del producto base"
+                    : undefined
+                }
+              />
             )}
           />
 
@@ -326,7 +436,7 @@ export function EditProductDialog({
                   label="Moneda"
                   value={costoMonedaEfectiva}
                   onChange={(e) => handleCostoMonedaChange(e.target.value)}
-                  disabled={!puedeEditarCosto}
+                  disabled={!puedeEditarCosto || esFraccion}
                 >
                   {monedasDisponibles.map((code) => (
                     <MenuItem key={code} value={code}>
@@ -341,11 +451,13 @@ export function EditProductDialog({
               value={costo}
               onChange={(e) => setCosto(e.target.value)}
               size="small"
-              disabled={!puedeEditarCosto}
+              disabled={!puedeEditarCosto || esFraccion}
               helperText={
-                costoEnBase !== null
-                  ? `≈ ${costoEnBase.toFixed(2)} ${monedaBase}`
-                  : undefined
+                esFraccion
+                  ? "Calculado automáticamente a partir del producto base"
+                  : costoEnBase !== null
+                    ? `≈ ${costoEnBase.toFixed(2)} ${monedaBase}`
+                    : undefined
               }
               sx={{ flex: 1 }}
             />
@@ -385,6 +497,8 @@ export function EditProductDialog({
             />
           </Box>
 
+          <RentabilidadRibbon costoBase={costoBase} precioBase={precioBase} />
+
           {warnCostoMayorPrecio && (
             <Alert severity="warning" sx={{ py: 0.5 }}>
               El costo ({costoBase.toFixed(2)} {monedaBase}) es mayor al precio
@@ -409,54 +523,6 @@ export function EditProductDialog({
             }
             label="Permite cantidades decimales"
           />
-
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={esFraccion}
-                onChange={(e) => setEsFraccion(e.target.checked)}
-                size="small"
-              />
-            }
-            label="Es fracción de otro producto"
-          />
-
-          {esFraccion && (
-            <Box
-              display="flex"
-              gap={2}
-              flexDirection={{ xs: "column", sm: "row" }}
-            >
-              <FormControl size="small" fullWidth sx={{ flex: 1 }}>
-                <InputLabel>Producto base</InputLabel>
-                <Select
-                  label="Producto base"
-                  value={selectedFraccion?.id ?? ""}
-                  onChange={(e) =>
-                    setSelectedFraccion(
-                      productos.find((p) => p.id === e.target.value) ?? null,
-                    )
-                  }
-                >
-                  {productos.map((p) => (
-                    <MenuItem key={p.id} value={p.id}>
-                      {p.nombre}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <SelectableTextField
-                label="Unidades por fracción"
-                value={fraccionValue ?? ""}
-                onChange={(e) =>
-                  setFraccionValue(parseInt(e.target.value) || null)
-                }
-                size="small"
-                sx={{ flex: 1 }}
-                inputProps={{ inputMode: "numeric" }}
-              />
-            </Box>
-          )}
 
           <Box>
             <Box display="flex" alignItems="center" mb={1}>
@@ -512,7 +578,7 @@ export function EditProductDialog({
         <Button
           onClick={handleSave}
           variant="contained"
-          disabled={saving || !nombre.trim()}
+          disabled={saving}
           startIcon={
             saving ? <CircularProgress size={16} color="inherit" /> : undefined
           }

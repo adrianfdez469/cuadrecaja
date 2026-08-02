@@ -140,7 +140,8 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
         if (!categoria) filaErrores.push("Categoría vacía");
         if (isNaN(costo) || costo < 0) filaErrores.push("Costo inválido");
         if (isNaN(precio) || precio < 0) filaErrores.push("Precio inválido");
-        if (isNaN(cantidad)) filaErrores.push("Cantidad inválida");
+        if (isNaN(cantidad) || cantidad <= 0)
+          filaErrores.push("Cantidad inválida");
 
         const clave = `${producto}|||${proveedor ?? ""}`;
         if (duplicados.has(clave)) {

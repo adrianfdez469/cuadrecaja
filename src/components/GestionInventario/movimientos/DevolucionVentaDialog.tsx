@@ -297,7 +297,9 @@ export const DevolucionVentaDialog: FC<IProps> = ({
                       <SelectableTextField
                         label="Cantidad"
                         value={cantidadDevolver}
-                        onChange={(e) => setCantidadDevolver(e.target.value)}
+                        onChange={(e) =>
+                          setCantidadDevolver(e.target.value.replace(/-/g, ""))
+                        }
                         inputProps={{ inputMode: "decimal" }}
                         size="small"
                         fullWidth

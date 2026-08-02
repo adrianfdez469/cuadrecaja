@@ -1,5 +1,13 @@
 import { prisma } from "@/lib/prisma";
-import { Negocio, Plan, Prisma, Producto, Usuario } from "@prisma/client";
+import {
+  MovimientoTipo,
+  Negocio,
+  Plan,
+  Prisma,
+  Producto,
+  Usuario,
+} from "@prisma/client";
+import { tienePermiso } from "@/utils/getPermisosUsuario";
 
 export interface NotificationData {
   titulo: string;
@@ -10,6 +18,7 @@ export interface NotificationData {
   tipo: "ALERTA" | "NOTIFICACION" | "PROMOCION" | "MENSAJE";
   negociosDestino?: string;
   usuariosDestino?: string;
+  accionUrl?: string;
 }
 
 export class NotificationService {
@@ -28,6 +37,7 @@ export class NotificationService {
           tipo: data.tipo,
           negociosDestino: data.negociosDestino || "",
           usuariosDestino: data.usuariosDestino || "",
+          accionUrl: data.accionUrl,
           leidoPor: "",
         },
       });
@@ -556,6 +566,126 @@ export class NotificationService {
   }
 
   /**
+   * Verificar movimientos de stock pendientes de recepción, agrupados por
+   * tienda destino (traspasos TRASPASO_SALIDA en estado PENDIENTE)
+   */
+  static async checkPendingReception(negocioId?: string) {
+    try {
+      const whereNegocio = negocioId ? { negocioId } : {};
+
+      const tiendas = await prisma.tienda.findMany({
+        where: whereNegocio,
+        select: { id: true, nombre: true, negocioId: true },
+      });
+
+      for (const tienda of tiendas) {
+        await this.processPendingReception(tienda);
+      }
+    } catch (error) {
+      console.error(
+        "Error al verificar movimientos pendientes de recepción:",
+        error,
+      );
+    }
+  }
+
+  /**
+   * Procesar movimientos pendientes de recepción para una tienda específica.
+   * Se dirige solo a los usuarios con acceso a esa tienda (usuariosDestino),
+   * no al negocio completo, para no generar ruido en negocios multi-tienda.
+   */
+  private static async processPendingReception(tienda: {
+    id: string;
+    nombre: string;
+    negocioId: string;
+  }) {
+    const titulo = `Movimientos pendientes — ${tienda.nombre}`;
+
+    const count = await prisma.movimientoStock.count({
+      where: {
+        destinationId: tienda.id,
+        tipo: MovimientoTipo.TRASPASO_SALIDA,
+        state: "PENDIENTE",
+      },
+    });
+
+    if (count === 0) {
+      const existente = await this.findExistingNotification(
+        titulo,
+        tienda.negocioId,
+      );
+      if (existente) await this.deleteNotification(existente.id);
+      return;
+    }
+
+    const asignaciones = await prisma.usuarioTienda.findMany({
+      where: { tiendaId: tienda.id },
+      select: { usuarioId: true, rol: { select: { permisos: true } } },
+    });
+    // Los SUPER_ADMIN no tienen fila en UsuarioTienda (ven todo por bypass,
+    // igual que verificarPermisoUsuario) — sin esto, nunca calificarían aquí.
+    const superAdmins = await prisma.usuario.findMany({
+      where: { negocioId: tienda.negocioId, rol: "SUPER_ADMIN" },
+      select: { id: true },
+    });
+    const usuarioIds = Array.from(
+      new Set([
+        ...asignaciones
+          .filter((a) =>
+            tienePermiso(
+              a.rol?.permisos || "",
+              "operaciones.movimientos.acceder",
+            ),
+          )
+          .map((a) => a.usuarioId),
+        ...superAdmins.map((u) => u.id),
+      ]),
+    );
+
+    // Sin usuarios con acceso a esta tienda: no hay a quién notificar.
+    if (usuarioIds.length === 0) return;
+
+    const usuariosDestino = usuarioIds.join(",");
+    const descripcion = `Tienes ${count} movimiento${count !== 1 ? "s" : ""} pendiente${count !== 1 ? "s" : ""} de recepción en la tienda "${tienda.nombre}".`;
+    // No depende de una fecha de expiración real: el conteo por tienda se
+    // recalcula en cada check y la notificación se borra cuando llega a 0.
+    // fechaFin es solo un tope de seguridad por si ese borrado nunca ocurre.
+    const fechaFin = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const accionUrl = "/inventario?tab=movimientos&openPending=1";
+
+    const existente = await this.findExistingNotification(
+      titulo,
+      tienda.negocioId,
+    );
+
+    if (!existente) {
+      await this.createAutomaticNotification({
+        titulo,
+        descripcion,
+        fechaInicio: new Date(),
+        fechaFin,
+        nivelImportancia: "MEDIA",
+        tipo: "ALERTA",
+        negociosDestino: tienda.negocioId,
+        usuariosDestino,
+        accionUrl,
+      });
+    } else {
+      const contenidoCambiado =
+        existente.descripcion !== descripcion ||
+        existente.usuariosDestino !== usuariosDestino;
+
+      if (contenidoCambiado) {
+        await this.updateNotification(existente.id, {
+          descripcion,
+          usuariosDestino,
+          fechaFin,
+        });
+      }
+    }
+  }
+
+  /**
    * Ejecutar todas las verificaciones automáticas
    */
   static async runAutomaticChecks(negocioId?: string) {
@@ -564,6 +694,7 @@ export class NotificationService {
       this.checkProductLimits(negocioId),
       this.checkUserLimits(negocioId),
       this.checkProductExpiration(negocioId),
+      this.checkPendingReception(negocioId),
       this.deleteExpiredNotifications(),
     ]);
   }

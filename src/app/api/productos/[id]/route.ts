@@ -215,7 +215,18 @@ export async function DELETE(
         return true;
       }
 
-      if (productoTienda.existencia > 0) {
+      // Releer la existencia después del lock: la variable de fuera de la
+      // transacción puede haber quedado obsoleta frente a un movimiento
+      // concurrente, y CreateMoviento ahora rechaza una baja que pida más de
+      // lo realmente disponible.
+      const existenciaActual = (
+        await tx.productoTienda.findUniqueOrThrow({
+          where: { id: productoTienda.id },
+          select: { existencia: true },
+        })
+      ).existencia;
+
+      if (existenciaActual > 0) {
         await CreateMoviento(
           {
             tipo: productoTienda.proveedorId
@@ -228,7 +239,7 @@ export async function DELETE(
               proveedorId: productoTienda.proveedorId,
             }),
           },
-          [{ productoId: id, cantidad: productoTienda.existencia }],
+          [{ productoId: id, cantidad: existenciaActual }],
           tx,
         );
       }

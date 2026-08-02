@@ -75,6 +75,7 @@ export const SalesDrawer: FC<IProps> = ({
   const [showProducts, setShowProducts] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale>();
   const [disableAll, setDisableAll] = useState(false);
+  const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const [offline, setOffline] = useState(false);
@@ -268,6 +269,7 @@ export const SalesDrawer: FC<IProps> = ({
       async () => {
         try {
           setDisableAll(true);
+          setDeletingSaleId(sale.identifier);
           if (sale.synced) {
             // eliminar de las ventas en backend
             const tiendaId = user.localActual.id;
@@ -297,6 +299,7 @@ export const SalesDrawer: FC<IProps> = ({
           }
         } finally {
           setDisableAll(false);
+          setDeletingSaleId(null);
         }
       },
     );
@@ -624,7 +627,11 @@ export const SalesDrawer: FC<IProps> = ({
                                       disableAll || (offline && s.synced)
                                     }
                                   >
-                                    <DeleteIcon />
+                                    {deletingSaleId === s.identifier ? (
+                                      <CircularProgress size="24px" />
+                                    ) : (
+                                      <DeleteIcon />
+                                    )}
                                   </IconButton>
                                 )}
                               </Box>

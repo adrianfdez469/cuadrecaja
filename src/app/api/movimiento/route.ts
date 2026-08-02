@@ -1,4 +1,8 @@
-import { CreateMoviento, MOVIMIENTO_TX_OPTIONS } from "@/lib/movimiento";
+import {
+  CreateMoviento,
+  MOVIMIENTO_TX_OPTIONS,
+  InsufficientStockError,
+} from "@/lib/movimiento";
 import {
   claimIdempotencyKey,
   findIdempotentResponse,
@@ -277,6 +281,10 @@ export async function POST(req: Request) {
             { error: "La operación ya está en curso" },
             { status: 409 },
           );
+    }
+
+    if (error instanceof InsufficientStockError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     console.error(error);
