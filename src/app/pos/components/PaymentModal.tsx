@@ -37,19 +37,14 @@ import {
   DENOMINACIONES,
 } from "@/constants/billDenominations";
 import { useAppContext } from "@/context/AppContext";
-import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
-import type { ITasaSnapshot } from "@/schemas/tasaCambio";
+import type {
+  IPagoLinea,
+  IVueltoLinea,
+  IMultimonedaExtras,
+} from "@/schemas/pago";
 import { convertToBase, convertFromBase } from "@/lib/currency";
 import MoneyField from "@/components/MoneyField";
 import SelectableTextField from "@/components/SelectableTextField";
-
-export interface IMultimonedaExtras {
-  monedaCobro: string;
-  pagosDetalle: IPagoLinea[];
-  vueltoDetalle: IVueltoLinea[];
-  tasaSnapshot: ITasaSnapshot;
-  discountTotal?: number;
-}
 
 interface IProps {
   open: boolean;

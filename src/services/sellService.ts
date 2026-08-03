@@ -4,7 +4,7 @@ import axiosClient, {
 } from "@/lib/axiosClient";
 import { IVenta } from "@/schemas/venta";
 import { IProductoVenta } from "@/schemas/producto";
-import type { IMultimonedaExtras } from "@/app/pos/components/PaymentModal";
+import type { IMultimonedaExtras } from "@/schemas/pago";
 
 const API_URL = (tiendaId: string, cierreId: string) =>
   `/api/venta/${tiendaId}/${cierreId}`;

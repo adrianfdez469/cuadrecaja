@@ -41,6 +41,7 @@ import CartDrawer from "@/components/cartDrawer/CartDrawer";
 import PaymentModal from "./components/PaymentModal";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { ICierrePeriodo } from "@/schemas/cierre";
+import type { IMultimonedaExtras } from "@/schemas/pago";
 import useConfirmDialog from "@/components/confirmDialog";
 import { createSell } from "@/services/sellService";
 import { useSalesStore } from "@/store/salesStore";
@@ -712,7 +713,7 @@ export default function POSInterface() {
     totalTransfer: number,
     transferDestinationId?: string,
     discountCodes?: string[],
-    multimoneda?: import("@/app/pos/components/PaymentModal").IMultimonedaExtras,
+    multimoneda?: IMultimonedaExtras,
   ) => {
     try {
       // Comparación en céntimos para tolerar ruido de punto flotante: sin esto,
