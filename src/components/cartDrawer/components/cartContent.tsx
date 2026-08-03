@@ -324,7 +324,6 @@ export const CartContent = ({
   const [discountTotal, setDiscountTotal] = useState(0);
   const [applied, setApplied] = useState<DiscountApplicationResultItem[]>([]);
   const [showDiscount, setShowDiscount] = useState(false);
-  const discountExpanded = showDiscount || applied.length > 0;
   const finalTotal = Math.max(0, total - discountTotal);
 
   const previewDiscount = async (codes?: string[]): Promise<void> => {
@@ -402,15 +401,16 @@ export const CartContent = ({
     fetchDrawerBalance();
   };
 
-  const touchedPayment = quickPay.transferEnabled || quickPay.cash > 0;
-  const effectiveCash = touchedPayment ? quickPay.cash : finalTotal;
-  const effectiveTransfer = quickPay.transferEnabled ? quickPay.transfer : 0;
-  const totalPaidFast = effectiveCash + effectiveTransfer;
+  // El efectivo ya viene siempre precargado con un monto correcto desde
+  // QuickPayFields (igual que "Efectivo" en el panel de multimoneda), así
+  // que no hace falta distinguir "tocado" de "sin tocar" — se compara
+  // directo contra el total, igual que totalPagado/falta en
+  // MultiCurrencyPaymentPanel.
+  const totalPaidFast = quickPay.cash + quickPay.transfer;
   const fastFalta =
-    touchedPayment &&
     Math.round(totalPaidFast * 100) < Math.round(finalTotal * 100);
   const fastCambio = Math.max(0, totalPaidFast - finalTotal);
-  const fastVueltoAvailable = (drawerBalance[monedaBase] ?? 0) + effectiveCash;
+  const fastVueltoAvailable = (drawerBalance[monedaBase] ?? 0) + quickPay.cash;
   const fastVueltoError =
     fastCambio > fastVueltoAvailable + 0.001
       ? `Disponible en caja: ${fastVueltoAvailable.toFixed(2)} ${monedaBase}`
@@ -424,20 +424,20 @@ export const CartContent = ({
 
   const handleFastSell = async () => {
     const pagosDetalle: IPagoLinea[] = [];
-    if (effectiveCash > 0) {
+    if (quickPay.cash > 0) {
       pagosDetalle.push({
         tipo: "cash",
         moneda: monedaBase,
-        monto: effectiveCash,
-        equivalenteBase: effectiveCash,
+        monto: quickPay.cash,
+        equivalenteBase: quickPay.cash,
       });
     }
-    if (effectiveTransfer > 0) {
+    if (quickPay.transfer > 0) {
       pagosDetalle.push({
         tipo: "transfer",
         moneda: monedaBase,
-        monto: effectiveTransfer,
-        equivalenteBase: effectiveTransfer,
+        monto: quickPay.transfer,
+        equivalenteBase: quickPay.transfer,
         transferDestinationId: quickPay.transferDestId || undefined,
       });
     }
@@ -454,8 +454,8 @@ export const CartContent = ({
 
     await makePay(
       finalTotal,
-      effectiveCash,
-      effectiveTransfer,
+      quickPay.cash,
+      quickPay.transfer,
       quickPay.transferDestId || undefined,
       promoCode ? [promoCode] : [],
       multimoneda,
@@ -695,24 +695,32 @@ export const CartContent = ({
             </Box>
           </Box>
 
+          {applied.length > 0 && (
+            <Typography
+              variant="body2"
+              fontWeight={600}
+              color="success.main"
+              sx={{ mb: 0.5 }}
+            >
+              Descuento aplicado: -{discountTotal.toFixed(2)} {monedaBase}
+            </Typography>
+          )}
           <Button
             variant="text"
             size="small"
             onClick={() => setShowDiscount((v) => !v)}
-            startIcon={
-              discountExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />
-            }
+            startIcon={showDiscount ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             sx={{
               textTransform: "none",
-              color: applied.length > 0 ? "success.main" : "text.secondary",
-              mb: discountExpanded ? 1 : 1.5,
+              color: "text.secondary",
+              mb: showDiscount ? 1 : 1.5,
             }}
           >
             {applied.length > 0
-              ? `Descuento aplicado: -${discountTotal.toFixed(2)} ${monedaBase}`
+              ? "Cambiar código de descuento"
               : "¿Tienes un código de descuento?"}
           </Button>
-          <Collapse in={discountExpanded}>
+          <Collapse in={showDiscount}>
             <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
               <TextField
                 label="Código de descuento"
@@ -743,25 +751,22 @@ export const CartContent = ({
               <QuickPayFields
                 key={saleResetKey}
                 finalTotal={finalTotal}
-                monedaBase={monedaBase}
                 transferDestinations={transferDestinations}
                 onChange={setQuickPay}
               />
 
-              {touchedPayment && (
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  color={fastFalta ? "error.main" : "success.main"}
-                  sx={{ mt: 1, mb: fastVueltoError ? 0.5 : 1 }}
-                >
-                  {fastFalta
-                    ? `Falta: ${(finalTotal - totalPaidFast).toFixed(2)} ${monedaBase}`
-                    : fastCambio > 0
-                      ? `Cambio: ${fastCambio.toFixed(2)} ${monedaBase}`
-                      : "Pago exacto"}
-                </Typography>
-              )}
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                color={fastFalta ? "error.main" : "success.main"}
+                sx={{ mt: 1, mb: fastVueltoError ? 0.5 : 1 }}
+              >
+                {fastFalta
+                  ? `Falta: ${(finalTotal - totalPaidFast).toFixed(2)} ${monedaBase}`
+                  : fastCambio > 0
+                    ? `Cambio: ${fastCambio.toFixed(2)} ${monedaBase}`
+                    : "Pago exacto"}
+              </Typography>
 
               {fastVueltoError && (
                 <Typography

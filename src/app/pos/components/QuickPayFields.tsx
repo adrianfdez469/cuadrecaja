@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -20,6 +20,7 @@ import MoneyField from "@/components/MoneyField";
 import BillBreakdownInput from "@/components/BillBreakdown/BillBreakdownInput";
 import { DEFAULT_CURRENCY } from "@/constants/billDenominations";
 import { moneyRegex } from "@/utils/regex";
+import { ceilCash, reduceCashForTransfer } from "@/app/pos/utils/cashPayment";
 import type { ITransferDestination } from "@/schemas/transferDestination";
 
 export interface QuickPayValues {
@@ -31,7 +32,6 @@ export interface QuickPayValues {
 
 interface QuickPayFieldsProps {
   finalTotal: number;
-  monedaBase: string;
   transferDestinations: ITransferDestination[];
   onChange: (values: QuickPayValues) => void;
 }
@@ -43,13 +43,17 @@ const defaultDestId = (dests: ITransferDestination[]) =>
       ? dests[0].id
       : (dests.find((d) => d.default)?.id ?? dests[0].id);
 
+// Mismo patrón que el "Efectivo" del panel de multimoneda (MultiCurrencyPaymentPanel):
+// el efectivo arranca precargado con el total a cobrar redondeado hacia
+// arriba, y se resincroniza cada vez que el total cambia (ej. se aplica un
+// descuento). Escribir en "transferencia" resta de "efectivo" en vez de
+// sumarse aparte, para que el total pagado no se duplique.
 export function QuickPayFields({
   finalTotal,
-  monedaBase,
   transferDestinations,
   onChange,
 }: QuickPayFieldsProps) {
-  const [cash, setCash] = useState(0);
+  const [cash, setCash] = useState(() => ceilCash(finalTotal));
   const [transferEnabled, setTransferEnabled] = useState(false);
   const [transfer, setTransfer] = useState(0);
   const [transferDestId, setTransferDestId] = useState(() =>
@@ -57,6 +61,14 @@ export function QuickPayFields({
   );
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [breakdownResetKey, setBreakdownResetKey] = useState(0);
+
+  useEffect(() => {
+    if (finalTotal <= 0) return;
+    const nextCash = ceilCash(finalTotal);
+    setCash(nextCash);
+    onChange({ cash: nextCash, transferEnabled, transfer, transferDestId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finalTotal]);
 
   const report = (
     next: Partial<QuickPayValues>,
@@ -79,20 +91,33 @@ export function QuickPayFields({
   };
 
   const handleTransferToggle = () => {
-    const next = !transferEnabled;
-    setTransferEnabled(next);
-    const nextTransfer = next ? transfer : 0;
-    if (!next) setTransfer(0);
-    report(
-      { transferEnabled: next, transfer: nextTransfer },
-      { cash, transferEnabled, transfer, transferDestId },
-    );
+    if (transferEnabled) {
+      // Al desactivar, el monto de transferencia se limpia y vuelve a
+      // sumarse a efectivo — igual que si se hubiera borrado el campo a
+      // mano. Si no, quedaba oculto pero seguía contando en el cobro.
+      const nextCash = reduceCashForTransfer(cash, transfer, 0);
+      setTransferEnabled(false);
+      setTransfer(0);
+      setCash(nextCash);
+      report(
+        { transferEnabled: false, transfer: 0, cash: nextCash },
+        { cash, transferEnabled, transfer, transferDestId },
+      );
+    } else {
+      setTransferEnabled(true);
+      report(
+        { transferEnabled: true },
+        { cash, transferEnabled, transfer, transferDestId },
+      );
+    }
   };
 
   const handleTransferChange = (value: number) => {
+    const nextCash = reduceCashForTransfer(cash, transfer, value);
     setTransfer(value);
+    setCash(nextCash);
     report(
-      { transfer: value },
+      { transfer: value, cash: nextCash },
       { cash, transferEnabled, transfer, transferDestId },
     );
   };
@@ -106,7 +131,16 @@ export function QuickPayFields({
   };
 
   const handleToggleBreakdown = () => {
-    if (!showBreakdown) setBreakdownResetKey((k) => k + 1);
+    if (!showBreakdown) {
+      setBreakdownResetKey((k) => k + 1);
+    } else {
+      const nextCash = Math.max(0, ceilCash(finalTotal - transfer));
+      setCash(nextCash);
+      report(
+        { cash: nextCash },
+        { cash, transferEnabled, transfer, transferDestId },
+      );
+    }
     setShowBreakdown((v) => !v);
   };
 
@@ -115,7 +149,6 @@ export function QuickPayFields({
       <MoneyField
         fullWidth
         label="Monto recibido (efectivo)"
-        placeholder={`Exacto: ${finalTotal.toFixed(2)} ${monedaBase}`}
         currencySymbol={<AttachMoneyIcon />}
         value={cash || ""}
         onChange={(e) => {
@@ -167,7 +200,7 @@ export function QuickPayFields({
             size="small"
           />
         }
-        label="Pagó por transferencia"
+        label="Transferencia"
       />
 
       <Collapse in={transferEnabled}>

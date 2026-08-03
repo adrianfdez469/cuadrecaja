@@ -39,6 +39,7 @@ import type {
 import { convertToBase, convertFromBase } from "@/lib/currency";
 import MoneyField from "@/components/MoneyField";
 import SelectableTextField from "@/components/SelectableTextField";
+import { ceilCash, reduceCashForTransfer } from "@/app/pos/utils/cashPayment";
 
 interface MultiCurrencyPaymentPanelProps {
   finalTotal: number;
@@ -91,10 +92,6 @@ export function MultiCurrencyPaymentPanel({
     [monedasActivas, monedaBase],
   );
 
-  // El efectivo autocompletado se redondea SIEMPRE por exceso al siguiente
-  // entero (63.64 → 64). El Number(...toFixed(2)) evita que el ruido de punto
-  // flotante suba de más un total entero.
-  const ceilCash = (x: number) => Math.ceil(Number(x.toFixed(2)));
   const round2 = (x: number) => Math.round(x * 100) / 100;
 
   // ─── Payments ─────────────────────────────────────────────────────────────
@@ -669,34 +666,33 @@ export function MultiCurrencyPaymentPanel({
                         const v = e.target.value;
                         if (moneyRegex.test(v)) {
                           const newTransfer = Number(v);
-                          const newCash = parseFloat(
-                            Math.max(
-                              0,
-                              pago.cash + pago.transfer - newTransfer,
-                            ).toFixed(2),
-                          );
                           updatePago(moneda, {
                             transfer: newTransfer,
-                            cash: newCash,
+                            cash: reduceCashForTransfer(
+                              pago.cash,
+                              pago.transfer,
+                              newTransfer,
+                            ),
                           });
                         } else if (v === "") {
-                          const total = parseFloat(
-                            (pago.cash + pago.transfer).toFixed(2),
-                          );
                           updatePago(moneda, {
                             transfer: 0,
-                            cash: total,
+                            cash: reduceCashForTransfer(
+                              pago.cash,
+                              pago.transfer,
+                              0,
+                            ),
                           });
                         }
                       } else {
                         const newTransfer = parseFloat(e.target.value) || 0;
-                        const newCash = Math.max(
-                          0,
-                          pago.cash + pago.transfer - newTransfer,
-                        );
                         updatePago(moneda, {
                           transfer: newTransfer,
-                          cash: newCash,
+                          cash: reduceCashForTransfer(
+                            pago.cash,
+                            pago.transfer,
+                            newTransfer,
+                          ),
                         });
                       }
                     }}
