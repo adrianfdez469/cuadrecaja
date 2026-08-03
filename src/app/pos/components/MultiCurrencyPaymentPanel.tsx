@@ -56,6 +56,7 @@ interface MultiCurrencyPaymentPanelProps {
   tiendaId: string;
   cierreId: string;
   onBack: () => void;
+  onSaleComplete: () => void;
 }
 
 type PagoMoneda = { cash: number; transfer: number; transferDestId: string };
@@ -76,6 +77,7 @@ export function MultiCurrencyPaymentPanel({
   tiendaId,
   cierreId,
   onBack,
+  onSaleComplete,
 }: MultiCurrencyPaymentPanelProps) {
   const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
@@ -404,6 +406,7 @@ export function MultiCurrencyPaymentPanel({
         ([moneda, monto]) => ({ moneda, monto }),
       );
       onBack();
+      onSaleComplete();
       const totalcashBase = pagosArr
         .filter((p) => p.tipo === "cash")
         .reduce(

@@ -20,7 +20,7 @@ import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { useAppContext } from "@/context/AppContext";
@@ -372,33 +372,35 @@ export const CartContent = ({
   };
   const [quickPay, setQuickPay] = useState<QuickPayValues>(initialQuickPay);
 
-  // ─── Reset checkout state after a completed sale (pinned cart never unmounts) ──
-  const [saleResetKey, setSaleResetKey] = useState(0);
-  const prevCartLengthRef = useRef(cart.length);
-  useEffect(() => {
-    if (prevCartLengthRef.current > 0 && cart.length === 0) {
-      setPaymentMode("cart");
-      setPromoCode("");
-      setDiscountTotal(0);
-      setApplied([]);
-      setQuickPay(initialQuickPay);
-      setSaleResetKey((k) => k + 1);
-    }
-    prevCartLengthRef.current = cart.length;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart.length]);
-
   // ─── Drawer cash balance (for fast-path change validation) ─────────────────
   const [drawerBalance, setDrawerBalance] = useState<Record<string, number>>(
     {},
   );
-  useEffect(() => {
+  const fetchDrawerBalance = () => {
     if (!tiendaId || !cierreId) return;
     fetch(`/api/cierre/${tiendaId}/${cierreId}/cash-balance`)
       .then((r) => (r.ok ? r.json() : {}))
       .then((bal: Record<string, number>) => setDrawerBalance(bal))
       .catch(() => setDrawerBalance({}));
+  };
+  useEffect(() => {
+    fetchDrawerBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tiendaId, cierreId]);
+
+  // ─── Reset checkout state after a completed sale (pinned cart never unmounts;
+  // triggered explicitly at the point a sale actually submits, never inferred
+  // from cart contents so it can't false-positive on cart/account switching) ──
+  const [saleResetKey, setSaleResetKey] = useState(0);
+  const resetCheckoutState = () => {
+    setPaymentMode("cart");
+    setPromoCode("");
+    setDiscountTotal(0);
+    setApplied([]);
+    setQuickPay(initialQuickPay);
+    setSaleResetKey((k) => k + 1);
+    fetchDrawerBalance();
+  };
 
   const touchedPayment = quickPay.transferEnabled || quickPay.cash > 0;
   const effectiveCash = touchedPayment ? quickPay.cash : finalTotal;
@@ -458,6 +460,7 @@ export const CartContent = ({
       promoCode ? [promoCode] : [],
       multimoneda,
     );
+    resetCheckoutState();
   };
 
   const handleRemoveItem = (item: ICartItem) => {
@@ -804,6 +807,7 @@ export const CartContent = ({
               tiendaId={tiendaId}
               cierreId={cierreId}
               onBack={() => setPaymentMode("cart")}
+              onSaleComplete={resetCheckoutState}
             />
           )}
         </Box>
