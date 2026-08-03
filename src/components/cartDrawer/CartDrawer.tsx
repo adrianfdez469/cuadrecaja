@@ -2,12 +2,23 @@ import React, { FC, useEffect } from "react";
 import { Drawer } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import { CartContent } from "./components/cartContent";
+import type { IMultimonedaExtras } from "@/schemas/pago";
+import type { ITransferDestination } from "@/schemas/transferDestination";
 
 interface IProps {
   open: boolean;
   cart: ICartItem[];
   onClose: () => void;
-  onOkButtonClick?: () => Promise<void>;
+  makePay: (
+    total: number,
+    totalcash: number,
+    totaltransfer: number,
+    transferDestinationId?: string,
+    discountCodes?: string[],
+    multimoneda?: IMultimonedaExtras,
+  ) => Promise<void>;
+  transferDestinations: ITransferDestination[];
+  cierreId: string;
   updateQuantity?: (id: string, quantity: number) => void;
   clear?: () => void;
   removeItem?: (id: string) => void;
@@ -20,7 +31,9 @@ const CartDrawer: FC<IProps> = ({
   open,
   cart,
   onClose,
-  onOkButtonClick,
+  makePay,
+  transferDestinations,
+  cierreId,
   updateQuantity,
   clear,
   removeItem,
@@ -28,8 +41,6 @@ const CartDrawer: FC<IProps> = ({
   isCartPinned,
   setIsCartPinned,
 }) => {
-
-
   useEffect(() => {
     if (cart.length === 0) {
       onClose();
@@ -48,9 +59,9 @@ const CartDrawer: FC<IProps> = ({
         sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
         PaperProps={{
           sx: {
-            height: '100dvh',
-            overflow: 'hidden'
-          }
+            height: "100dvh",
+            overflow: "hidden",
+          },
         }}
       >
         <CartContent
@@ -60,7 +71,9 @@ const CartDrawer: FC<IProps> = ({
           updateQuantity={updateQuantity}
           onClose={onClose}
           removeItem={removeItem}
-          onOkButtonClick={onOkButtonClick}
+          makePay={makePay}
+          transferDestinations={transferDestinations}
+          cierreId={cierreId}
           isCartPinned={isCartPinned}
           setIsCartPinned={setIsCartPinned}
         />

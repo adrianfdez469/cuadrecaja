@@ -1470,7 +1470,9 @@ export default function POSInterface() {
           cart={cart}
           onClose={() => setOpenCart(false)}
           open={!isCartPinned && openCart}
-          onOkButtonClick={async () => setPaymentDialog(true)}
+          makePay={handleMakePay}
+          transferDestinations={transferDestinations}
+          cierreId={periodo?.id ?? ""}
           total={total}
           clear={clearCart}
           removeItem={removeFromCart}
@@ -1920,7 +1922,9 @@ export default function POSInterface() {
             updateQuantity={handleUpdateQuantity}
             onClose={() => setOpenCart(false)}
             removeItem={removeFromCart}
-            onOkButtonClick={async () => setPaymentDialog(true)}
+            makePay={handleMakePay}
+            transferDestinations={transferDestinations}
+            cierreId={periodo?.id ?? ""}
             isCartPinned={isCartPinned}
             setIsCartPinned={setIsCartPinned}
           />

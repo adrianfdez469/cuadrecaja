@@ -10,6 +10,8 @@ import {
   useMediaQuery,
   useTheme,
   alpha,
+  Collapse,
+  TextField,
 } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import PushPinIcon from "@mui/icons-material/PushPin";
@@ -18,6 +20,25 @@ import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+import { useEffect, useState } from "react";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import { useAppContext } from "@/context/AppContext";
+import type {
+  IMultimonedaExtras,
+  IPagoLinea,
+  IVueltoLinea,
+} from "@/schemas/pago";
+import type { ITransferDestination } from "@/schemas/transferDestination";
+import type {
+  DiscountApplicationResult,
+  DiscountApplicationResultItem,
+} from "@/lib/discounts";
+import {
+  QuickPayFields,
+  type QuickPayValues,
+} from "@/app/pos/components/QuickPayFields";
+import { MultiCurrencyPaymentPanel } from "@/app/pos/components/MultiCurrencyPaymentPanel";
 
 function ExpiryChip({ fechaVencimiento }: { fechaVencimiento: string }) {
   const ahora = new Date();
@@ -253,7 +274,16 @@ interface IProps {
   onClose: () => void;
   removeItem?: (id: string) => void;
   total: number;
-  onOkButtonClick: () => void;
+  makePay: (
+    total: number,
+    totalcash: number,
+    totaltransfer: number,
+    transferDestinationId?: string,
+    discountCodes?: string[],
+    multimoneda?: IMultimonedaExtras,
+  ) => Promise<void>;
+  transferDestinations: ITransferDestination[];
+  cierreId: string;
   isCartPinned: boolean;
   setIsCartPinned: (isCartPinned: boolean) => void;
 }
@@ -266,7 +296,9 @@ export const CartContent = ({
   updateQuantity,
   onClose,
   removeItem,
-  onOkButtonClick,
+  makePay,
+  transferDestinations,
+  cierreId,
   setIsCartPinned,
 }: IProps) => {
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
@@ -274,6 +306,125 @@ export const CartContent = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
+
+  const { user, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
+  const tiendaId = user?.localActual?.id ?? "";
+
+  const monedasActivas = monedasNegocio.filter((m) => m.activo);
+  const hasExtraCurrencies = monedasActivas.some(
+    (m) => m.monedaCode !== monedaBase,
+  );
+
+  const [paymentMode, setPaymentMode] = useState<"cart" | "multimoneda">(
+    "cart",
+  );
+
+  // ─── Discount (shared by both payment modes) ──────────────────────────────
+  const [promoCode, setPromoCode] = useState("");
+  const [discountTotal, setDiscountTotal] = useState(0);
+  const [applied, setApplied] = useState<DiscountApplicationResultItem[]>([]);
+  const [showDiscount, setShowDiscount] = useState(false);
+  const discountExpanded = showDiscount || applied.length > 0;
+  const finalTotal = Math.max(0, total - discountTotal);
+
+  const previewDiscount = async (codes?: string[]): Promise<void> => {
+    try {
+      const res = await fetch("/api/discounts/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tiendaId,
+          products: cart.map((item) => ({
+            productoTiendaId: item.productoTiendaId,
+            cantidad: item.quantity,
+            precio: item.price,
+          })),
+          ...(codes?.length ? { discountCodes: codes } : {}),
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Error");
+      const data = (await res.json()) as DiscountApplicationResult;
+      setDiscountTotal(Number(data.discountTotal) || 0);
+      setApplied(Array.isArray(data.applied) ? data.applied : []);
+    } catch (e: unknown) {
+      console.error("Error preview descuento", e);
+      setDiscountTotal(0);
+      setApplied([]);
+      showMessage("No se pudo aplicar el código de descuento", "warning");
+    }
+  };
+
+  const cartSignature = JSON.stringify(
+    cart.map((i) => ({ id: i.productoTiendaId, q: i.quantity })),
+  );
+
+  useEffect(() => {
+    if (cart.length > 0) previewDiscount(promoCode ? [promoCode] : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartSignature]);
+
+  // ─── Fast-path payment fields ──────────────────────────────────────────────
+  const [quickPay, setQuickPay] = useState<QuickPayValues>({
+    cash: 0,
+    transferEnabled: false,
+    transfer: 0,
+    transferDestId: "",
+  });
+
+  const touchedPayment = quickPay.transferEnabled || quickPay.cash > 0;
+  const effectiveCash = touchedPayment ? quickPay.cash : finalTotal;
+  const effectiveTransfer = quickPay.transferEnabled ? quickPay.transfer : 0;
+  const totalPaidFast = effectiveCash + effectiveTransfer;
+  const fastFalta =
+    touchedPayment &&
+    Math.round(totalPaidFast * 100) < Math.round(finalTotal * 100);
+  const fastCambio = Math.max(0, totalPaidFast - finalTotal);
+  const needsTransferDest =
+    quickPay.transferEnabled &&
+    quickPay.transfer > 0 &&
+    transferDestinations.length > 1 &&
+    !quickPay.transferDestId;
+  const canSellFast = cart.length > 0 && !fastFalta && !needsTransferDest;
+
+  const handleFastSell = async () => {
+    const pagosDetalle: IPagoLinea[] = [];
+    if (effectiveCash > 0) {
+      pagosDetalle.push({
+        tipo: "cash",
+        moneda: monedaBase,
+        monto: effectiveCash,
+        equivalenteBase: effectiveCash,
+      });
+    }
+    if (effectiveTransfer > 0) {
+      pagosDetalle.push({
+        tipo: "transfer",
+        moneda: monedaBase,
+        monto: effectiveTransfer,
+        equivalenteBase: effectiveTransfer,
+        transferDestinationId: quickPay.transferDestId,
+      });
+    }
+    const vueltoDetalle: IVueltoLinea[] =
+      fastCambio > 0 ? [{ moneda: monedaBase, monto: fastCambio }] : [];
+
+    const multimoneda: IMultimonedaExtras = {
+      monedaCobro: monedaBase,
+      pagosDetalle,
+      vueltoDetalle,
+      tasaSnapshot: tasasVigentes,
+      ...(discountTotal > 0 ? { discountTotal } : {}),
+    };
+
+    await makePay(
+      finalTotal,
+      effectiveCash,
+      effectiveTransfer,
+      quickPay.transferDestId || undefined,
+      promoCode ? [promoCode] : [],
+      multimoneda,
+    );
+  };
 
   const handleRemoveItem = (item: ICartItem) => {
     if (removeItem) {
@@ -419,37 +570,39 @@ export const CartContent = ({
       </Box>
 
       {/* Productos */}
-      <Box
-        flex={1}
-        overflow="auto"
-        sx={{
-          "&::-webkit-scrollbar": {
-            width: "6px",
-          },
-          "&::-webkit-scrollbar-track": {
-            background: "rgba(0,0,0,0.05)",
-            borderRadius: "3px",
-          },
-          "&::-webkit-scrollbar-thumb": {
-            background: "rgba(0,0,0,0.2)",
-            borderRadius: "3px",
-            "&:hover": {
-              background: "rgba(0,0,0,0.3)",
+      {paymentMode === "cart" && (
+        <Box
+          flex={1}
+          overflow="auto"
+          sx={{
+            "&::-webkit-scrollbar": {
+              width: "6px",
             },
-          },
-        }}
-      >
-        {cart.map((item) => (
-          <CartItemCard
-            key={item.id}
-            item={item}
-            onDecrease={decreaseQty}
-            onIncrease={increaseQty}
-            onRemove={removeItem ? handleRemoveItem : undefined}
-            canUpdateQuantity={Boolean(updateQuantity)}
-          />
-        ))}
-      </Box>
+            "&::-webkit-scrollbar-track": {
+              background: "rgba(0,0,0,0.05)",
+              borderRadius: "3px",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              background: "rgba(0,0,0,0.2)",
+              borderRadius: "3px",
+              "&:hover": {
+                background: "rgba(0,0,0,0.3)",
+              },
+            },
+          }}
+        >
+          {cart.map((item) => (
+            <CartItemCard
+              key={item.id}
+              item={item}
+              onDecrease={decreaseQty}
+              onIncrease={increaseQty}
+              onRemove={removeItem ? handleRemoveItem : undefined}
+              canUpdateQuantity={Boolean(updateQuantity)}
+            />
+          ))}
+        </Box>
+      )}
 
       {/* Footer */}
       <Box
@@ -465,7 +618,7 @@ export const CartContent = ({
           alignItems="flex-end"
           justifyContent="space-between"
           gap={1.5}
-          mb={onOkButtonClick ? 1.5 : 0}
+          mb={1.5}
         >
           <Box minWidth={0} flex={1}>
             <Typography
@@ -476,30 +629,122 @@ export const CartContent = ({
             >
               Total venta
             </Typography>
+            {discountTotal > 0 && (
+              <Typography
+                variant="caption"
+                sx={{ textDecoration: "line-through", color: "text.disabled" }}
+                display="block"
+              >
+                {total.toFixed(2)} {monedaBase}
+              </Typography>
+            )}
             <MultiCurrencyAmount
-              amount={total}
+              amount={finalTotal}
               variant="emphasized"
               color="success.main"
             />
           </Box>
         </Box>
 
-        {onOkButtonClick && (
-          <Button
-            variant="contained"
-            color="success"
-            disabled={cart.length === 0}
-            onClick={onOkButtonClick}
-            fullWidth
-            size="large"
-            sx={{
-              fontWeight: "bold",
-              py: 1.25,
-              minHeight: 48,
-            }}
-          >
-            VENDER
-          </Button>
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => setShowDiscount((v) => !v)}
+          startIcon={discountExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          sx={{
+            textTransform: "none",
+            color: applied.length > 0 ? "success.main" : "text.secondary",
+            mb: discountExpanded ? 1 : 1.5,
+          }}
+        >
+          {applied.length > 0
+            ? `Descuento aplicado: -${discountTotal.toFixed(2)} ${monedaBase}`
+            : "¿Tienes un código de descuento?"}
+        </Button>
+        <Collapse in={discountExpanded}>
+          <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
+            <TextField
+              label="Código de descuento"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value.trim())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter")
+                  previewDiscount(promoCode ? [promoCode] : undefined);
+              }}
+              size="small"
+              fullWidth
+            />
+            <Button
+              variant="contained"
+              onClick={() =>
+                previewDiscount(promoCode ? [promoCode] : undefined)
+              }
+              sx={{ minWidth: 90 }}
+              size="small"
+            >
+              Aplicar
+            </Button>
+          </Box>
+        </Collapse>
+
+        {paymentMode === "cart" ? (
+          <>
+            <QuickPayFields
+              finalTotal={finalTotal}
+              monedaBase={monedaBase}
+              transferDestinations={transferDestinations}
+              onChange={setQuickPay}
+            />
+
+            {touchedPayment && (
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                color={fastFalta ? "error.main" : "success.main"}
+                sx={{ mt: 1, mb: 1 }}
+              >
+                {fastFalta
+                  ? `Falta: ${(finalTotal - totalPaidFast).toFixed(2)} ${monedaBase}`
+                  : fastCambio > 0
+                    ? `Cambio: ${fastCambio.toFixed(2)} ${monedaBase}`
+                    : "Pago exacto"}
+              </Typography>
+            )}
+
+            <Button
+              variant="contained"
+              color="success"
+              disabled={!canSellFast}
+              onClick={handleFastSell}
+              fullWidth
+              size="large"
+              sx={{ mt: 1, fontWeight: "bold", py: 1.25, minHeight: 48 }}
+            >
+              VENDER
+            </Button>
+
+            {hasExtraCurrencies && (
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => setPaymentMode("multimoneda")}
+                sx={{ mt: 1, textTransform: "none" }}
+              >
+                Multimoneda
+              </Button>
+            )}
+          </>
+        ) : (
+          <MultiCurrencyPaymentPanel
+            finalTotal={finalTotal}
+            discountTotal={discountTotal}
+            promoCode={promoCode}
+            makePay={makePay}
+            transferDestinations={transferDestinations}
+            tiendaId={tiendaId}
+            cierreId={cierreId}
+            onBack={() => setPaymentMode("cart")}
+          />
         )}
       </Box>
 
