@@ -192,21 +192,22 @@ export function PosProductItemLayout({
               {disponibilidad.secondary}
             </Typography>
           )}
-          {cartQty > 0 && (
-            <Typography
-              variant="caption"
-              color="primary.main"
-              align="right"
-              display="block"
-              fontWeight={600}
-              sx={{ mt: 0.25 }}
-            >
-              En carrito:{" "}
-              {productoTienda.producto?.permiteDecimal
-                ? cartQty.toFixed(1)
-                : cartQty}
-            </Typography>
-          )}
+          {/* Siempre montado (visibility en vez de unmount condicional) para
+              reservar el espacio de esta línea y evitar que la card salte de
+              tamaño cuando la cantidad pasa de 0 a >0. */}
+          <Typography
+            variant="caption"
+            color="primary.main"
+            align="right"
+            display="block"
+            fontWeight={600}
+            sx={{ mt: 0.25, visibility: cartQty > 0 ? "visible" : "hidden" }}
+          >
+            En carrito:{" "}
+            {productoTienda.producto?.permiteDecimal
+              ? cartQty.toFixed(2)
+              : cartQty}
+          </Typography>
         </Box>
       </Box>
 

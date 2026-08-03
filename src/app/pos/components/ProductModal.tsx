@@ -1,11 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { Box, Grid, Typography, Modal, Fab } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { IProductoTiendaV2 } from "@/schemas/producto";
-import { QuantityDialog } from "./QuantityDialog";
-import { calcularDisponibilidadReal } from "../utils/calcularDisponibilidadReal";
 import { PosProductItemLayout } from "./PosProductItemLayout";
 
 interface ProductModalProps {
@@ -14,7 +11,6 @@ interface ProductModalProps {
   productosTienda: IProductoTiendaV2[];
   allProductosTienda?: IProductoTiendaV2[];
   category: { id: string; nombre: string; color: string } | null;
-  openCart: () => void;
   isCartPinned?: boolean;
 }
 
@@ -24,31 +20,9 @@ export function ProductModal({
   productosTienda,
   allProductosTienda,
   category,
-  openCart,
   isCartPinned,
 }: ProductModalProps) {
-  const [selectedProduct, setSelectedProduct] =
-    useState<IProductoTiendaV2 | null>(null);
-
   const allProducts = allProductosTienda || productosTienda;
-
-  const handleProductClick = (product: IProductoTiendaV2) => {
-    setSelectedProduct(product);
-  };
-
-  const handleResetProductQuantity = () => {
-    setSelectedProduct(null);
-  };
-
-  const handleConfirmQuantity = () => {
-    handleResetProductQuantity();
-    openCart();
-    closeModal();
-  };
-
-  const selectedProductMaxDisponible = selectedProduct
-    ? calcularDisponibilidadReal(selectedProduct, allProducts).maxPorTransaccion
-    : 0;
 
   const content = (
     <Box
@@ -96,7 +70,6 @@ export function ProductModal({
               productoTienda={productoTienda}
               allProductosTienda={allProducts}
               showDescription
-              onClick={() => handleProductClick(productoTienda)}
               sx={{ height: "100%" }}
             />
           </Grid>
@@ -105,48 +78,37 @@ export function ProductModal({
     </Box>
   );
 
-  return (
-    <>
-      {isCartPinned ? (
-        open && (
-          <Box
-            sx={{
-              position: "absolute",
-              inset: 0,
-              zIndex: 101,
-              overflow: "hidden",
-            }}
-          >
-            {content}
-          </Box>
-        )
-      ) : (
-        <Modal
-          open={open}
-          onClose={closeModal}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Box
-            sx={{
-              width: { xs: "100vw", sm: "95vw" },
-              height: { xs: "100dvh", sm: "95vh" },
-            }}
-          >
-            {content}
-          </Box>
-        </Modal>
-      )}
-
-      <QuantityDialog
-        productoTienda={selectedProduct}
-        onClose={handleResetProductQuantity}
-        onConfirm={handleConfirmQuantity}
-        maxDisponibleOverride={selectedProductMaxDisponible}
-      />
-    </>
+  return isCartPinned ? (
+    open && (
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 101,
+          overflow: "hidden",
+        }}
+      >
+        {content}
+      </Box>
+    )
+  ) : (
+    <Modal
+      open={open}
+      onClose={closeModal}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Box
+        sx={{
+          width: { xs: "100vw", sm: "95vw" },
+          height: { xs: "100dvh", sm: "95vh" },
+        }}
+      >
+        {content}
+      </Box>
+    </Modal>
   );
 }

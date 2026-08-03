@@ -24,6 +24,7 @@ import {
   Stack,
   Grid2 as Grid,
   Tooltip,
+  alpha,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
@@ -130,6 +131,7 @@ export default function POSInterface() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchAnchorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
   const posScrollRef = useRef<HTMLDivElement>(null);
   const [searchPanelLayout, setSearchPanelLayout] = useState({
     bottom: 80,
@@ -780,10 +782,18 @@ export default function POSInterface() {
           }),
         };
 
-        // 1. INMEDIATAMENTE: Eliminar carrito activo (y su píldora), cerrar modal y drawer
+        // 1. INMEDIATAMENTE: Eliminar carrito activo (y su píldora), y cerrar
+        // todo lo que pueda seguir abierto del flujo de venta para arrancar
+        // limpio en la próxima venta.
         removeActiveCart();
         setPaymentDialog(false);
         setOpenCart(false);
+        setShowProducts(false);
+        setSelectedProduct(null);
+        setShowSearchResults(false);
+        setSearchQuery("");
+        setProductOrigin(null);
+        setCameraScannerOpen(false);
 
         // 2. Agregar la venta al store local
         addSale(newSale);
@@ -1007,13 +1017,6 @@ export default function POSInterface() {
       .slice(0, 10);
   }, [productosTienda, searchQuery]);
 
-  const handleProductSelect = (product: IProductoTiendaV2) => {
-    setSelectedProduct(product);
-    setProductOrigin("search"); // Marcar como selección manual
-    setShowSearchResults(false);
-    setSearchQuery("");
-  };
-
   const handleResetProductQuantity = () => {
     setSelectedProduct(null);
     setProductOrigin(null); // Limpiar origen al cancelar
@@ -1038,15 +1041,21 @@ export default function POSInterface() {
   };
 
   const handleSearchBlur = () => {
-    // Delay para permitir que los clicks en los resultados funcionen
+    // Delay para permitir que los clicks en los resultados funcionen.
+    // También se dispara desde el propio panel de resultados (ver su
+    // onBlur) para reevaluar cuando el foco se mueve DENTRO del panel
+    // (ej. edición inline de cantidad) — en ese caso no debe cerrarse.
     setTimeout(() => {
+      if (searchResultsRef.current?.contains(document.activeElement)) {
+        return;
+      }
       setIntentToSearch(false);
       setShowSearchResults(false);
     }, 150);
   };
 
   useLayoutEffect(() => {
-    if (!showSearchResults || searchResults.length === 0) return;
+    if (!showSearchResults || searchQuery.trim() === "") return;
 
     updateSearchPanelLayout();
     window.addEventListener("resize", updateSearchPanelLayout);
@@ -1060,7 +1069,7 @@ export default function POSInterface() {
       window.removeEventListener("scroll", updateSearchPanelLayout, true);
       ro.disconnect();
     };
-  }, [showSearchResults, searchResults.length, updateSearchPanelLayout]);
+  }, [showSearchResults, searchQuery, updateSearchPanelLayout]);
 
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
@@ -1362,6 +1371,7 @@ export default function POSInterface() {
                   lg: "repeat(5, 1fr)",
                 },
             gap: { xs: 0.5, sm: 1.5, md: 2 },
+            alignContent: "start",
             p: 1,
             width: "100%",
             maxWidth: "1400px",
@@ -1384,70 +1394,35 @@ export default function POSInterface() {
                 borderRadius: { xs: "12px", sm: "16px" },
                 overflow: "hidden",
                 cursor: "pointer",
-                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                bgcolor: category.color,
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
                 "&:active": {
                   transform: "scale(0.98)",
                 },
                 "&:hover": {
                   transform: "translateY(-4px)",
-                  "& .category-content": {
-                    transform: "translateY(0)",
-                    opacity: 1,
-                  },
-                  "& .category-overlay": {
-                    opacity: 0.85,
-                  },
+                  boxShadow: 4,
                 },
               }}
             >
-              {/* Fondo con gradiente */}
+              {/* Scrim inferior: solo para legibilidad del texto sobre el color de la categoría */}
               <Box
                 sx={{
                   position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: `linear-gradient(135deg, ${category.color} 0%, ${category.color}dd 100%)`,
-                  zIndex: 1,
-                }}
-              />
-              {/* Overlay que se oscurece al hover */}
-              <Box
-                className="category-overlay"
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
+                  inset: 0,
                   background:
-                    "linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6))",
-                  opacity: 0.6,
-                  transition: "opacity 0.3s ease",
-                  zIndex: 2,
+                    "linear-gradient(to top, rgba(0,0,0,0.55), transparent 60%)",
                 }}
               />
-              {/* Contenido de la categoría */}
               <Box
-                className="category-content"
                 sx={{
                   position: "absolute",
                   bottom: 0,
                   left: 0,
                   right: 0,
                   p: { xs: 1.5, sm: 2 },
-                  transform: "translateY(10px)",
-                  opacity: 0.9,
-                  transition: "all 0.3s ease",
-                  zIndex: 3,
                   display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "flex-end",
-                  height: "100%",
-                  background:
-                    "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
+                  justifyContent: "center",
                 }}
               >
                 <Typography
@@ -1464,12 +1439,6 @@ export default function POSInterface() {
                         }
                       : { xs: "1.25rem", sm: "1.5rem" },
                     textAlign: "center",
-                    textShadow: `
-              0 0 1px rgba(0,0,0,0.8),
-              0 0 2px rgba(0,0,0,0.8),
-              0 0 3px rgba(0,0,0,0.8)
-            `,
-                    mb: 0.5,
                     width: "100%",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -1478,33 +1447,7 @@ export default function POSInterface() {
                 >
                   {category.nombre}
                 </Typography>
-
-                {/* Indicador de toque */}
-                <Box
-                  sx={{
-                    width: "30%",
-                    height: "3px",
-                    background: "rgba(255,255,255,0.8)",
-                    borderRadius: "2px",
-                    mt: 1,
-                    opacity: 0.7,
-                  }}
-                />
               </Box>
-              {/* Efecto de brillo */}
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background:
-                    "linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)",
-                  zIndex: 2,
-                  pointerEvents: "none",
-                }}
-              />
             </Box>
           ))}
         </Box>
@@ -1517,7 +1460,6 @@ export default function POSInterface() {
             allProductosTienda={productosTienda}
             category={selectedCategory}
             closeModal={() => setShowProducts(false)}
-            openCart={() => setOpenCart(true)}
             isCartPinned={isCartPinned}
           />
         )}
@@ -1779,8 +1721,7 @@ export default function POSInterface() {
             right: isCartPinned && !isMobile ? getCartWidth() : 0,
             p: 1,
             zIndex: 1200,
-            background:
-              "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
+            background: `linear-gradient(to top, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
             backdropFilter: "blur(10px)",
             boxSizing: "border-box",
             maxWidth: "100vw",
@@ -1817,7 +1758,7 @@ export default function POSInterface() {
                   </InputAdornment>
                 ),
                 sx: {
-                  bgcolor: "white",
+                  bgcolor: "background.paper",
                   borderRadius: "12px",
                   "& .MuiOutlinedInput-root": {
                     borderRadius: "12px",
@@ -1847,7 +1788,7 @@ export default function POSInterface() {
           </Stack>
         </Box>
 
-        {showSearchResults && searchResults.length > 0 && (
+        {showSearchResults && searchQuery.trim() !== "" && (
           <Portal>
             <Box
               sx={{
@@ -1869,8 +1810,19 @@ export default function POSInterface() {
               }}
             >
               <MuiPaper
+                ref={searchResultsRef}
                 elevation={3}
-                onMouseDown={(e) => e.preventDefault()}
+                onMouseDown={(e) => {
+                  // Evita que el buscador pierda foco (y el panel se
+                  // cierre) al tocar cards/botones dentro del panel — pero
+                  // sin bloquear el foco cuando el toque es sobre un input
+                  // real (ej. edición inline de cantidad), que sí debe
+                  // poder recibir foco normalmente.
+                  const target = e.target as HTMLElement;
+                  if (target.closest("input, textarea")) return;
+                  e.preventDefault();
+                }}
+                onBlur={handleSearchBlur}
                 sx={{
                   width: "100%",
                   maxWidth: "100%",
@@ -1879,37 +1831,42 @@ export default function POSInterface() {
                   overflowX: "hidden",
                   overflowY: "auto",
                   borderRadius: "12px",
-                  bgcolor: "rgba(255,255,255,0.98)",
+                  bgcolor: alpha(theme.palette.background.paper, 0.98),
                   backdropFilter: "blur(10px)",
                   boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
                   border: "1px solid",
                   borderColor: "divider",
                 }}
               >
-                <Box
-                  sx={{
-                    p: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 1,
-                    minWidth: 0,
-                  }}
-                >
-                  {searchResults.map((product) => (
-                    <PosProductItemLayout
-                      key={product.id}
-                      productoTienda={product}
-                      allProductosTienda={productosTienda}
-                      highlightName={normalizeSearch(
-                        product.producto.nombre,
-                      ).startsWith(normalizeSearch(searchQuery))}
-                      onClick={() => {
-                        handleProductSelect(product);
-                        setIntentToSearch(false);
-                      }}
-                    />
-                  ))}
-                </Box>
+                {searchResults.length > 0 ? (
+                  <Box
+                    sx={{
+                      p: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    {searchResults.map((product) => (
+                      <PosProductItemLayout
+                        key={product.id}
+                        productoTienda={product}
+                        allProductosTienda={productosTienda}
+                        highlightName={normalizeSearch(
+                          product.producto.nombre,
+                        ).startsWith(normalizeSearch(searchQuery))}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Box sx={{ p: 3, textAlign: "center" }}>
+                    <Typography color="text.secondary" variant="body2">
+                      No se encontraron productos para &quot;{searchQuery}
+                      &quot;
+                    </Typography>
+                  </Box>
+                )}
               </MuiPaper>
             </Box>
           </Portal>

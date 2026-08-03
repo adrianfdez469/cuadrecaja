@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Box, IconButton, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -8,6 +9,12 @@ import { useCartStore } from "@/store/cartStore";
 import { calcularDisponibilidadReal } from "../utils/calcularDisponibilidadReal";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
+import SelectableTextField from "@/components/SelectableTextField";
+import {
+  clampQuantity,
+  parseQuantityText,
+  sanitizeQuantityDraft,
+} from "@/app/pos/utils/quantityInput";
 
 interface ProductQuickActionsProps {
   productoTienda: IProductoTiendaV2;
@@ -17,7 +24,8 @@ interface ProductQuickActionsProps {
 }
 
 /**
- * Controles rápidos +/- para agregar/decrementar cantidad en el carrito.
+ * Controles rápidos de cantidad en el carrito: +/-1 y el número tocable
+ * para escribir una cantidad exacta directamente, sin abrir ningún modal.
  * Sincronizado en tiempo real con el carrito y respeta stock/disponibilidad.
  */
 export function ProductQuickActions({
@@ -28,6 +36,10 @@ export function ProductQuickActions({
 }: ProductQuickActionsProps) {
   const { items, addToCart, updateQuantity, removeFromCart } = useCartStore();
   const { tasasVigentes, monedaBase } = useAppContext();
+  const [editing, setEditing] = useState(false);
+  const [draftText, setDraftText] = useState("");
+
+  const allowDecimal = Boolean(productoTienda.producto?.permiteDecimal);
 
   const getCartQuantity = (productoTiendaId: string) => {
     return (
@@ -45,46 +57,35 @@ export function ProductQuickActions({
     return Math.max(0, maxPorTransaccion - cartQty);
   };
 
+  const buildCartLine = () => ({
+    id: productoTienda.id,
+    name: productoTienda.producto.nombre,
+    price: productoTienda.precio,
+    productoTiendaId: productoTienda.id,
+    fechaVencimiento: productoTienda.fechaVencimiento ?? null,
+    monedaPrecioCode: productoTienda.monedaPrecioCode ?? null,
+    priceBase: convertToBase(
+      productoTienda.precio,
+      productoTienda.monedaPrecioCode ?? monedaBase,
+      tasasVigentes,
+      monedaBase,
+    ),
+  });
+
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     onStopPropagation?.(e);
-    const { maxPorTransaccion } = calcularDisponibilidadReal(
-      productoTienda,
-      allProductosTienda,
-    );
-    const cartQty = getCartQuantity(productoTienda.id);
-    const disponible = maxPorTransaccion - cartQty;
-    const permiteDecimal = productoTienda.producto?.permiteDecimal;
-    const incremento = permiteDecimal ? 0.1 : 1;
-    if (disponible >= incremento) {
-      addToCart(
-        {
-          id: productoTienda.id,
-          name: productoTienda.producto.nombre,
-          price: productoTienda.precio,
-          productoTiendaId: productoTienda.id,
-          fechaVencimiento: productoTienda.fechaVencimiento ?? null,
-          monedaPrecioCode: productoTienda.monedaPrecioCode ?? null,
-          priceBase: convertToBase(
-            productoTienda.precio,
-            productoTienda.monedaPrecioCode ?? monedaBase,
-            tasasVigentes,
-            monedaBase,
-          ),
-        },
-        incremento,
-      );
+    if (getMaxDisponible() >= 1) {
+      addToCart(buildCartLine(), 1);
     }
   };
 
   const handleQuickDecrement = (e: React.MouseEvent) => {
     e.stopPropagation();
     onStopPropagation?.(e);
-    const item = items.find((i) => i.productoTiendaId === productoTienda.id);
-    if (!item) return;
-    const permiteDecimal = productoTienda.producto?.permiteDecimal;
-    const decremento = permiteDecimal ? 0.1 : 1;
-    const nuevaCantidad = Math.round((item.quantity - decremento) * 100) / 100;
+    const cartQuantity = getCartQuantity(productoTienda.id);
+    if (cartQuantity <= 0) return;
+    const nuevaCantidad = Math.round((cartQuantity - 1) * 100) / 100;
     if (nuevaCantidad <= 0) {
       removeFromCart(productoTienda.id);
     } else {
@@ -94,8 +95,72 @@ export function ProductQuickActions({
 
   const cartQuantity = getCartQuantity(productoTienda.id);
   const maxDisponible = getMaxDisponible();
-  const incrementoMin = productoTienda.producto?.permiteDecimal ? 0.1 : 1;
-  const canAdd = maxDisponible >= incrementoMin;
+  const canAdd = maxDisponible >= 1;
+
+  const startEditing = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onStopPropagation?.(e);
+    setDraftText(cartQuantity > 0 ? String(cartQuantity) : "");
+    setEditing(true);
+  };
+
+  // Aplica la cantidad al carrito de inmediato — se llama en cada tecleo
+  // válido, no solo al perder foco. En móvil el teclado numérico no
+  // siempre tiene una tecla "Enter"/"Listo", así que depender del blur
+  // para confirmar deja la edición atascada; el cambio debe verse al
+  // instante, sin requerir tocar afuera.
+  // Devuelve la cantidad efectivamente aplicada (ya limitada al máximo
+  // disponible), para que quien la llama pueda reflejarla en el texto
+  // visible cuando el tope obligó a bajarla.
+  const applyQuantity = (value: number): number => {
+    if (value <= 0) {
+      if (cartQuantity > 0) removeFromCart(productoTienda.id);
+      return 0;
+    }
+
+    const { maxPorTransaccion } = calcularDisponibilidadReal(
+      productoTienda,
+      allProductosTienda,
+    );
+    const clamped = clampQuantity(
+      value,
+      allowDecimal ? 0.01 : 1,
+      maxPorTransaccion,
+      allowDecimal,
+    );
+
+    if (cartQuantity > 0) {
+      updateQuantity(productoTienda.id, clamped);
+    } else if (clamped > 0) {
+      addToCart(buildCartLine(), clamped);
+    }
+    return clamped;
+  };
+
+  const handleDraftChange = (text: string) => {
+    // Limita a 2 decimales visualmente mientras se escribe (no solo al
+    // aplicar) — ninguna card de cantidad debe mostrar más de 2 lugares
+    // después de la coma/punto.
+    const cleaned = sanitizeQuantityDraft(text, allowDecimal);
+    const parsed = parseQuantityText(cleaned, allowDecimal);
+
+    if (parsed === null) {
+      setDraftText(cleaned);
+      return;
+    }
+
+    const applied = applyQuantity(parsed);
+    // Si el tope disponible obligó a bajar el valor, el texto visible debe
+    // reflejarlo al instante — no solo el carrito por detrás, tocar afuera
+    // no debería ser necesario para verlo.
+    setDraftText(applied !== parsed ? String(applied) : cleaned);
+  };
+
+  // Solo cierra el modo edición — el valor ya se aplicó tecla a tecla en
+  // handleDraftChange. Sirve como respaldo por si queda un estado
+  // intermedio inválido (ej. "." solo): no se pierde nada, se queda con
+  // la última cantidad válida aplicada.
+  const stopEditing = () => setEditing(false);
 
   return (
     <Box
@@ -136,21 +201,63 @@ export function ProductQuickActions({
       >
         <RemoveIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
       </IconButton>
-      <Typography
-        variant="body2"
+
+      <Box
+        onClick={startEditing}
         sx={{
-          minWidth: 24,
-          textAlign: "center",
-          fontWeight: 600,
-          fontSize: { xs: "0.875rem", sm: "1rem" },
+          width: { xs: 72, sm: 80 },
+          minWidth: { xs: 72, sm: 80 },
+          minHeight: { xs: 44, sm: 36 },
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "text",
         }}
-        aria-live="polite"
-        aria-atomic="true"
       >
-        {productoTienda.producto?.permiteDecimal
-          ? cartQuantity.toFixed(1)
-          : cartQuantity}
-      </Typography>
+        {editing ? (
+          <SelectableTextField
+            autoFocus
+            value={draftText}
+            onChange={(e) => handleDraftChange(e.target.value)}
+            onBlur={stopEditing}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                // Ver comentario equivalente en QuantityStepper: onKeyDown
+                // llega al wrapper de MUI, no al <input> — currentTarget no
+                // sirve, hay que usar target.
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            inputProps={{
+              inputMode: allowDecimal ? "decimal" : "numeric",
+              "aria-label": `Escribir cantidad de ${productoTienda.producto.nombre}`,
+              style: {
+                textAlign: "center",
+                fontWeight: 600,
+                fontSize: "1.125rem",
+                padding: 0,
+              },
+            }}
+            variant="standard"
+            sx={{ width: "100%", minWidth: 0 }}
+          />
+        ) : (
+          <Typography
+            variant="body2"
+            sx={{
+              width: "100%",
+              textAlign: "center",
+              fontWeight: 600,
+              fontSize: { xs: "1rem", sm: "1.125rem" },
+            }}
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {allowDecimal ? cartQuantity.toFixed(2) : cartQuantity}
+          </Typography>
+        )}
+      </Box>
+
       <IconButton
         size="small"
         onClick={handleQuickAdd}

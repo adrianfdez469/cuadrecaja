@@ -9,9 +9,11 @@ import {
   Tooltip,
   useMediaQuery,
   useTheme,
+  alpha,
 } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import PushPinIcon from "@mui/icons-material/PushPin";
+import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
@@ -80,6 +82,7 @@ function CartItemCard({
   onRemove,
   canUpdateQuantity,
 }: CartItemCardProps) {
+  const theme = useTheme();
   // Use priceBase (monedaBase equivalent) for MultiCurrencyAmount display; fall back to raw price if not set
   const lineTotal = (item.priceBase ?? item.price) * item.quantity;
 
@@ -133,7 +136,7 @@ function CartItemCard({
               flexShrink: 0,
               color: "error.main",
               mt: -0.25,
-              "&:hover": { bgcolor: "error.50" },
+              "&:hover": { bgcolor: alpha(theme.palette.error.main, 0.08) },
             }}
           >
             <Delete fontSize="small" />
@@ -274,38 +277,28 @@ export const CartContent = ({
 
   const handleRemoveItem = (item: ICartItem) => {
     if (removeItem) {
-      confirmDialog(
-        `¿Estás seguro de que deseas eliminar "${item.name}" del carrito?`,
-        () => {
-          removeItem(item.id);
-        },
-      );
+      removeItem(item.id);
     }
   };
 
-  const decreseQty = (id: string) => {
-    const prevQuantity = cart.find((p) => p.id === id).quantity;
-    if (prevQuantity === 1) {
+  const decreaseQty = (id: string) => {
+    const product = cart.find((p) => p.id === id);
+    if (!product) return;
+    if (product.quantity === 1) {
       if (removeItem) {
-        // Confirmar antes de eliminar completamente el producto
-        const product = cart.find((p) => p.id === id);
-        confirmDialog(
-          `¿Estás seguro de que deseas eliminar "${product?.name}" del carrito?`,
-          () => {
-            removeItem(id);
-          },
-        );
+        removeItem(id);
       } else {
         showMessage("No puede elminar completamente el producto", "warning");
       }
     } else {
-      updateQuantity(id, prevQuantity - 1);
+      updateQuantity(id, product.quantity - 1);
     }
   };
 
-  const increseQty = (id: string) => {
-    const prevQuantity = cart.find((p) => p.id === id).quantity;
-    updateQuantity(id, prevQuantity + 1);
+  const increaseQty = (id: string) => {
+    const product = cart.find((p) => p.id === id);
+    if (!product) return;
+    updateQuantity(id, product.quantity + 1);
   };
 
   const handleClearCart = () => {
@@ -371,21 +364,30 @@ export const CartContent = ({
           >
             <Typography variant="h6">Venta</Typography>
             {!isMobile && (
-              <IconButton
-                onClick={() => handlePinCart()}
-                size="small"
-                sx={{
-                  color: isCartPinned ? "primary.main" : "secondary.main",
-                  "&:hover": {
-                    backgroundColor: isCartPinned ? "primary.50" : "grey.100",
-                  },
-                }}
+              <Tooltip
+                title={isCartPinned ? "Desanclar carrito" : "Anclar carrito"}
               >
-                {isCartPinned ? <PushPinIcon /> : <PushPinIcon />}
-              </IconButton>
+                <IconButton
+                  onClick={() => handlePinCart()}
+                  size="small"
+                  aria-label={
+                    isCartPinned ? "Desanclar carrito" : "Anclar carrito"
+                  }
+                  sx={{
+                    color: isCartPinned ? "primary.main" : "secondary.main",
+                    "&:hover": {
+                      bgcolor: isCartPinned
+                        ? alpha(theme.palette.primary.main, 0.08)
+                        : "action.hover",
+                    },
+                  }}
+                >
+                  {isCartPinned ? <PushPinIcon /> : <PushPinOutlinedIcon />}
+                </IconButton>
+              </Tooltip>
             )}
           </Box>
-          <Typography variant="body2" color="green">
+          <Typography variant="body2" color="success.main">
             Productos ({cart.length})
           </Typography>
         </Box>
@@ -441,8 +443,8 @@ export const CartContent = ({
           <CartItemCard
             key={item.id}
             item={item}
-            onDecrease={decreseQty}
-            onIncrease={increseQty}
+            onDecrease={decreaseQty}
+            onIncrease={increaseQty}
             onRemove={removeItem ? handleRemoveItem : undefined}
             canUpdateQuantity={Boolean(updateQuantity)}
           />

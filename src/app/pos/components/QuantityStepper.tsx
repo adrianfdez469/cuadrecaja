@@ -7,7 +7,9 @@ import {
   clampQuantity,
   getDefaultStep,
   getStepChips,
+  parseQuantityText,
   resolveCommittedQuantity,
+  sanitizeQuantityDraft,
 } from "@/app/pos/utils/quantityInput";
 
 interface QuantityStepperProps {
@@ -36,16 +38,17 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
   const theme = useTheme();
   const [editing, setEditing] = useState(false);
   const [draftText, setDraftText] = useState("");
-  const [activeStep, setActiveStep] = useState(getDefaultStep(allowDecimal));
+  const [activeStep, setActiveStep] = useState(getDefaultStep());
 
   // Defensive companion to the QuantityDialog fix: QuantityStepper doesn't
   // unmount between product switches (e.g. scanner selecting a new product
   // while the dialog is already open), so activeStep can otherwise survive
   // a switch between decimal and integer products, referencing a step value
-  // that isn't in the new product's chip set. Reset it whenever allowDecimal
-  // changes so it always matches the current product's step domain.
+  // (e.g. 10/50/100) that isn't in the new product's chip set. Reset it back
+  // to the default whenever allowDecimal changes so it always matches the
+  // current product's step domain.
   useEffect(() => {
-    setActiveStep(getDefaultStep(allowDecimal));
+    setActiveStep(getDefaultStep());
   }, [allowDecimal]);
 
   const chips = getStepChips(
@@ -61,26 +64,35 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
     setEditing(true);
   };
 
-  const commitEditing = () => {
-    const next = resolveCommittedQuantity(
-      draftText,
+  // Aplica en cada tecleo válido (no solo al perder foco) — en móvil el
+  // teclado numérico no siempre tiene "Enter"/"Listo", y una cantidad por
+  // encima del máximo debe caer automáticamente al máximo permitido al
+  // instante, sin esperar a que se toque afuera.
+  const stopEditing = () => setEditing(false);
+
+  const handleDraftChange = (text: string) => {
+    // Normaliza "," a "." (teclados numéricos en español) y limita a 2
+    // decimales visualmente mientras se escribe, no solo al confirmar.
+    const cleaned = sanitizeQuantityDraft(text, allowDecimal);
+    const parsed = parseQuantityText(cleaned, allowDecimal);
+
+    if (parsed === null) {
+      setDraftText(cleaned);
+      return;
+    }
+
+    const clamped = resolveCommittedQuantity(
+      cleaned,
       value,
       min,
       max,
       allowDecimal,
     );
-    onChange(next);
-    setEditing(false);
-  };
-
-  const handleDraftChange = (text: string) => {
-    // Mobile decimal keypads emit "," instead of "." under many locales
-    // (e.g. Spanish) — normalize it before stripping so it isn't silently
-    // dropped, since parseQuantityText only recognizes ".".
-    const cleaned = allowDecimal
-      ? text.replace(/,/g, ".").replace(/[^0-9.]/g, "")
-      : text.replace(/[^0-9]/g, "");
-    setDraftText(cleaned);
+    onChange(clamped);
+    // Si el tope obligó a bajar el valor, el texto visible debe reflejarlo
+    // al instante — no solo el estado interno, tocar afuera no debería ser
+    // necesario para verlo.
+    setDraftText(clamped !== parsed ? String(clamped) : cleaned);
   };
 
   const step = (delta: number) => {
@@ -136,7 +148,7 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
               autoFocus
               value={draftText}
               onChange={(e) => handleDraftChange(e.target.value)}
-              onBlur={commitEditing}
+              onBlur={stopEditing}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   // SelectableTextField spreads onKeyDown into MUI's TextField,

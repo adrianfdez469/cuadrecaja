@@ -5,7 +5,34 @@ import {
   resolveCommittedQuantity,
   getStepChips,
   getDefaultStep,
+  sanitizeQuantityDraft,
 } from "@/app/pos/utils/quantityInput";
+
+describe("sanitizeQuantityDraft", () => {
+  it("strips non-digits when decimals are not allowed", () => {
+    expect(sanitizeQuantityDraft("1a2.3b", false)).toBe("123");
+  });
+
+  it("keeps up to 2 decimal digits when allowed", () => {
+    expect(sanitizeQuantityDraft("2.35", true)).toBe("2.35");
+  });
+
+  it("truncates beyond 2 decimal digits as they're typed", () => {
+    expect(sanitizeQuantityDraft("2.34567", true)).toBe("2.34");
+  });
+
+  it("normalizes a comma to a decimal point", () => {
+    expect(sanitizeQuantityDraft("2,35", true)).toBe("2.35");
+  });
+
+  it("collapses a second decimal point instead of leaving it in", () => {
+    expect(sanitizeQuantityDraft("2.3.5", true)).toBe("2.35");
+  });
+
+  it("leaves a lone decimal point as-is so typing can continue", () => {
+    expect(sanitizeQuantityDraft("2.", true)).toBe("2.");
+  });
+});
 
 describe("parseQuantityText", () => {
   it("parses a plain integer", () => {
@@ -100,11 +127,7 @@ describe("getStepChips", () => {
 });
 
 describe("getDefaultStep", () => {
-  it("defaults to 0.1 for decimal-allowed products", () => {
-    expect(getDefaultStep(true)).toBe(0.1);
-  });
-
-  it("defaults to 1 for integer products", () => {
-    expect(getDefaultStep(false)).toBe(1);
+  it("is always 1, even for decimal-allowed products", () => {
+    expect(getDefaultStep()).toBe(1);
   });
 });

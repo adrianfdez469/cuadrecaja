@@ -3,6 +3,30 @@ export interface QuantityStepChip {
   label: string;
 }
 
+// Limpia el texto tecleado y lo limita a 2 decimales VISUALMENTE mientras
+// se escribe (no solo al confirmar) — normaliza "," a "." (teclados
+// numéricos en español), colapsa puntos de más a uno solo, y trunca la
+// parte decimal a 2 dígitos.
+export function sanitizeQuantityDraft(
+  text: string,
+  allowDecimal: boolean,
+): string {
+  if (!allowDecimal) {
+    return text.replace(/[^0-9]/g, "");
+  }
+
+  const cleaned = text.replace(/,/g, ".").replace(/[^0-9.]/g, "");
+  const dotIndex = cleaned.indexOf(".");
+  if (dotIndex === -1) return cleaned;
+
+  const integerPart = cleaned.slice(0, dotIndex);
+  const decimalPart = cleaned
+    .slice(dotIndex + 1)
+    .replace(/\./g, "")
+    .slice(0, 2);
+  return `${integerPart}.${decimalPart}`;
+}
+
 export function parseQuantityText(
   text: string,
   allowDecimal: boolean,
@@ -64,6 +88,9 @@ export function getStepChips(
   return chips;
 }
 
-export function getDefaultStep(allowDecimal: boolean): number {
-  return allowDecimal ? 0.1 : 1;
+// Always 1, even for decimal-allowed products — finer steps (0.1/0.5/0.01)
+// are opt-in via the step chips, not the default, so a stray tap doesn't
+// silently switch someone into fractional increments.
+export function getDefaultStep(): number {
+  return 1;
 }
