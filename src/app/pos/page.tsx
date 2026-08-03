@@ -38,7 +38,6 @@ import { ProductModal } from "./components/ProductModal";
 import { ICategory } from "@/schemas/categoria";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import CartDrawer from "@/components/cartDrawer/CartDrawer";
-import PaymentModal from "./components/PaymentModal";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import type { IMultimonedaExtras } from "@/schemas/pago";
@@ -111,7 +110,6 @@ export default function POSInterface() {
   );
   const [showProducts, setShowProducts] = useState(false);
   const [openCart, setOpenCart] = useState(false);
-  const [paymentDialog, setPaymentDialog] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
   const [noLocalActual, setNoLocalActual] = useState(false);
   const { user, loadingContext, gotToPath, tasasVigentes, monedaBase } =
@@ -309,7 +307,6 @@ export default function POSInterface() {
   const scannerEnabled =
     !editingCartId &&
     !intentToSearch &&
-    !paymentDialog &&
     !asociarCodigoOpen &&
     !selectedProduct &&
     !cameraScannerOpen;
@@ -787,7 +784,6 @@ export default function POSInterface() {
         // todo lo que pueda seguir abierto del flujo de venta para arrancar
         // limpio en la próxima venta.
         removeActiveCart();
-        setPaymentDialog(false);
         setOpenCart(false);
         setShowProducts(false);
         setSelectedProduct(null);
@@ -961,7 +957,6 @@ export default function POSInterface() {
       showMessage("❌ Error al procesar el pago", "error");
       // En caso de error, también limpiar el carrito para evitar estados inconsistentes
       clearCart();
-      setPaymentDialog(false);
       setOpenCart(false);
       throw error;
     }
@@ -1479,38 +1474,6 @@ export default function POSInterface() {
           updateQuantity={handleUpdateQuantity}
           isCartPinned={isCartPinned}
           setIsCartPinned={setIsCartPinned}
-        />
-
-        {/* Modal de pago */}
-        <PaymentModal
-          open={paymentDialog}
-          onClose={() => setPaymentDialog(false)}
-          total={total}
-          makePay={(
-            total,
-            totalchash,
-            totaltransfer,
-            transferDestinationId,
-            discountCodes,
-            multimoneda,
-          ) =>
-            handleMakePay(
-              total,
-              totalchash,
-              totaltransfer,
-              transferDestinationId,
-              discountCodes,
-              multimoneda,
-            )
-          }
-          transferDestinations={transferDestinations}
-          tiendaId={user.localActual.id}
-          cierreId={periodo?.id ?? ""}
-          products={cart.map((prod) => ({
-            productoTiendaId: prod.productoTiendaId,
-            cantidad: prod.quantity,
-            precio: prod.price,
-          }))}
         />
 
         {/* Modal de resumen del período */}
