@@ -74,8 +74,11 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
   };
 
   const handleDraftChange = (text: string) => {
+    // Mobile decimal keypads emit "," instead of "." under many locales
+    // (e.g. Spanish) — normalize it before stripping so it isn't silently
+    // dropped, since parseQuantityText only recognizes ".".
     const cleaned = allowDecimal
-      ? text.replace(/[^0-9.]/g, "")
+      ? text.replace(/,/g, ".").replace(/[^0-9.]/g, "")
       : text.replace(/[^0-9]/g, "");
     setDraftText(cleaned);
   };
@@ -124,7 +127,10 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
           −{activeStep}
         </Button>
 
-        <Box onClick={startEditing} sx={{ ...boxSx, flex: 1, cursor: "text" }}>
+        <Box
+          onClick={startEditing}
+          sx={{ ...boxSx, flex: 1, minWidth: 0, cursor: "text" }}
+        >
           {editing ? (
             <SelectableTextField
               autoFocus

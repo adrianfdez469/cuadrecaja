@@ -8,7 +8,6 @@ import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
 import { QuantityStepper } from "./QuantityStepper";
-import { ProductAvatarPlaceholder } from "./ProductAvatarPlaceholder";
 import { clampQuantity } from "@/app/pos/utils/quantityInput";
 
 interface QuantityDialogProps {
@@ -198,7 +197,12 @@ export const QuantityDialog = ({
     : 0;
 
   return (
-    <Dialog open={Boolean(productoTienda)} onClose={onClose}>
+    <Dialog
+      open={Boolean(productoTienda)}
+      onClose={onClose}
+      fullWidth
+      maxWidth="xs"
+    >
       {productoTienda && (
         <Box
           p={3}
@@ -208,8 +212,6 @@ export const QuantityDialog = ({
           justifyContent="center"
           gap={1}
         >
-          <ProductAvatarPlaceholder />
-
           <Typography variant="h6" textAlign="center">
             {productoTienda.producto.nombre}
           </Typography>
@@ -285,9 +287,7 @@ export const QuantityDialog = ({
             fullWidth
             onClick={handleConfirmQuantity}
             disabled={
-              quantity <= 0 ||
-              quantity > getMaxQuantity() ||
-              maxForDisplay <= 0
+              quantity <= 0 || quantity > getMaxQuantity() || maxForDisplay <= 0
             }
             sx={{ mt: 2 }}
           >
