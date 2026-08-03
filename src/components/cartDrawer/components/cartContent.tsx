@@ -20,7 +20,7 @@ import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { useAppContext } from "@/context/AppContext";
@@ -364,12 +364,41 @@ export const CartContent = ({
   }, [cartSignature]);
 
   // ─── Fast-path payment fields ──────────────────────────────────────────────
-  const [quickPay, setQuickPay] = useState<QuickPayValues>({
+  const initialQuickPay: QuickPayValues = {
     cash: 0,
     transferEnabled: false,
     transfer: 0,
     transferDestId: "",
-  });
+  };
+  const [quickPay, setQuickPay] = useState<QuickPayValues>(initialQuickPay);
+
+  // ─── Reset checkout state after a completed sale (pinned cart never unmounts) ──
+  const [saleResetKey, setSaleResetKey] = useState(0);
+  const prevCartLengthRef = useRef(cart.length);
+  useEffect(() => {
+    if (prevCartLengthRef.current > 0 && cart.length === 0) {
+      setPaymentMode("cart");
+      setPromoCode("");
+      setDiscountTotal(0);
+      setApplied([]);
+      setQuickPay(initialQuickPay);
+      setSaleResetKey((k) => k + 1);
+    }
+    prevCartLengthRef.current = cart.length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart.length]);
+
+  // ─── Drawer cash balance (for fast-path change validation) ─────────────────
+  const [drawerBalance, setDrawerBalance] = useState<Record<string, number>>(
+    {},
+  );
+  useEffect(() => {
+    if (!tiendaId || !cierreId) return;
+    fetch(`/api/cierre/${tiendaId}/${cierreId}/cash-balance`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((bal: Record<string, number>) => setDrawerBalance(bal))
+      .catch(() => setDrawerBalance({}));
+  }, [tiendaId, cierreId]);
 
   const touchedPayment = quickPay.transferEnabled || quickPay.cash > 0;
   const effectiveCash = touchedPayment ? quickPay.cash : finalTotal;
@@ -379,12 +408,17 @@ export const CartContent = ({
     touchedPayment &&
     Math.round(totalPaidFast * 100) < Math.round(finalTotal * 100);
   const fastCambio = Math.max(0, totalPaidFast - finalTotal);
+  const fastVueltoAvailable = (drawerBalance[monedaBase] ?? 0) + effectiveCash;
+  const fastVueltoError =
+    fastCambio > fastVueltoAvailable + 0.001
+      ? `Disponible en caja: ${fastVueltoAvailable.toFixed(2)} ${monedaBase}`
+      : null;
   const needsTransferDest =
     quickPay.transferEnabled &&
     quickPay.transfer > 0 &&
-    transferDestinations.length > 1 &&
     !quickPay.transferDestId;
-  const canSellFast = cart.length > 0 && !fastFalta && !needsTransferDest;
+  const canSellFast =
+    cart.length > 0 && !fastFalta && !needsTransferDest && !fastVueltoError;
 
   const handleFastSell = async () => {
     const pagosDetalle: IPagoLinea[] = [];
@@ -402,7 +436,7 @@ export const CartContent = ({
         moneda: monedaBase,
         monto: effectiveTransfer,
         equivalenteBase: effectiveTransfer,
-        transferDestinationId: quickPay.transferDestId,
+        transferDestinationId: quickPay.transferDestId || undefined,
       });
     }
     const vueltoDetalle: IVueltoLinea[] =
@@ -569,183 +603,210 @@ export const CartContent = ({
         </Box>
       </Box>
 
-      {/* Productos */}
-      {paymentMode === "cart" && (
-        <Box
-          flex={1}
-          overflow="auto"
-          sx={{
-            "&::-webkit-scrollbar": {
-              width: "6px",
-            },
-            "&::-webkit-scrollbar-track": {
-              background: "rgba(0,0,0,0.05)",
-              borderRadius: "3px",
-            },
-            "&::-webkit-scrollbar-thumb": {
-              background: "rgba(0,0,0,0.2)",
-              borderRadius: "3px",
-              "&:hover": {
-                background: "rgba(0,0,0,0.3)",
-              },
-            },
-          }}
-        >
-          {cart.map((item) => (
-            <CartItemCard
-              key={item.id}
-              item={item}
-              onDecrease={decreaseQty}
-              onIncrease={increaseQty}
-              onRemove={removeItem ? handleRemoveItem : undefined}
-              canUpdateQuantity={Boolean(updateQuantity)}
-            />
-          ))}
-        </Box>
-      )}
-
-      {/* Footer */}
+      {/* Scrollable region: product list + footer content share a single scroll
+          container so the confirm button is always reachable, even when the
+          multi-currency panel or the bill-breakdown collapse grow tall. */}
       <Box
-        mt={2}
+        flex={1}
+        minWidth={0}
+        overflow="auto"
         sx={{
-          pt: 2,
-          borderTop: "1px solid",
-          borderColor: "divider",
+          "&::-webkit-scrollbar": {
+            width: "6px",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "rgba(0,0,0,0.05)",
+            borderRadius: "3px",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: "rgba(0,0,0,0.2)",
+            borderRadius: "3px",
+            "&:hover": {
+              background: "rgba(0,0,0,0.3)",
+            },
+          },
         }}
       >
-        <Box
-          display="flex"
-          alignItems="flex-end"
-          justifyContent="space-between"
-          gap={1.5}
-          mb={1.5}
-        >
-          <Box minWidth={0} flex={1}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              sx={{ mb: 0.25, textTransform: "uppercase", letterSpacing: 0.4 }}
-            >
-              Total venta
-            </Typography>
-            {discountTotal > 0 && (
-              <Typography
-                variant="caption"
-                sx={{ textDecoration: "line-through", color: "text.disabled" }}
-                display="block"
-              >
-                {total.toFixed(2)} {monedaBase}
-              </Typography>
-            )}
-            <MultiCurrencyAmount
-              amount={finalTotal}
-              variant="emphasized"
-              color="success.main"
-            />
+        {/* Productos */}
+        {paymentMode === "cart" && (
+          <Box>
+            {cart.map((item) => (
+              <CartItemCard
+                key={item.id}
+                item={item}
+                onDecrease={decreaseQty}
+                onIncrease={increaseQty}
+                onRemove={removeItem ? handleRemoveItem : undefined}
+                canUpdateQuantity={Boolean(updateQuantity)}
+              />
+            ))}
           </Box>
-        </Box>
+        )}
 
-        <Button
-          variant="text"
-          size="small"
-          onClick={() => setShowDiscount((v) => !v)}
-          startIcon={discountExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        {/* Footer */}
+        <Box
+          mt={2}
           sx={{
-            textTransform: "none",
-            color: applied.length > 0 ? "success.main" : "text.secondary",
-            mb: discountExpanded ? 1 : 1.5,
+            pt: 2,
+            borderTop: "1px solid",
+            borderColor: "divider",
           }}
         >
-          {applied.length > 0
-            ? `Descuento aplicado: -${discountTotal.toFixed(2)} ${monedaBase}`
-            : "¿Tienes un código de descuento?"}
-        </Button>
-        <Collapse in={discountExpanded}>
-          <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
-            <TextField
-              label="Código de descuento"
-              value={promoCode}
-              onChange={(e) => setPromoCode(e.target.value.trim())}
-              onKeyDown={(e) => {
-                if (e.key === "Enter")
-                  previewDiscount(promoCode ? [promoCode] : undefined);
-              }}
-              size="small"
-              fullWidth
-            />
-            <Button
-              variant="contained"
-              onClick={() =>
-                previewDiscount(promoCode ? [promoCode] : undefined)
-              }
-              sx={{ minWidth: 90 }}
-              size="small"
-            >
-              Aplicar
-            </Button>
-          </Box>
-        </Collapse>
-
-        {paymentMode === "cart" ? (
-          <>
-            <QuickPayFields
-              finalTotal={finalTotal}
-              monedaBase={monedaBase}
-              transferDestinations={transferDestinations}
-              onChange={setQuickPay}
-            />
-
-            {touchedPayment && (
+          <Box
+            display="flex"
+            alignItems="flex-end"
+            justifyContent="space-between"
+            gap={1.5}
+            mb={1.5}
+          >
+            <Box minWidth={0} flex={1}>
               <Typography
-                variant="body2"
-                fontWeight={600}
-                color={fastFalta ? "error.main" : "success.main"}
-                sx={{ mt: 1, mb: 1 }}
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={{
+                  mb: 0.25,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.4,
+                }}
               >
-                {fastFalta
-                  ? `Falta: ${(finalTotal - totalPaidFast).toFixed(2)} ${monedaBase}`
-                  : fastCambio > 0
-                    ? `Cambio: ${fastCambio.toFixed(2)} ${monedaBase}`
-                    : "Pago exacto"}
+                Total venta
               </Typography>
-            )}
+              {discountTotal > 0 && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    textDecoration: "line-through",
+                    color: "text.disabled",
+                  }}
+                  display="block"
+                >
+                  {total.toFixed(2)} {monedaBase}
+                </Typography>
+              )}
+              <MultiCurrencyAmount
+                amount={finalTotal}
+                variant="emphasized"
+                color="success.main"
+              />
+            </Box>
+          </Box>
 
-            <Button
-              variant="contained"
-              color="success"
-              disabled={!canSellFast}
-              onClick={handleFastSell}
-              fullWidth
-              size="large"
-              sx={{ mt: 1, fontWeight: "bold", py: 1.25, minHeight: 48 }}
-            >
-              VENDER
-            </Button>
-
-            {hasExtraCurrencies && (
-              <Button
-                variant="text"
+          <Button
+            variant="text"
+            size="small"
+            onClick={() => setShowDiscount((v) => !v)}
+            startIcon={
+              discountExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />
+            }
+            sx={{
+              textTransform: "none",
+              color: applied.length > 0 ? "success.main" : "text.secondary",
+              mb: discountExpanded ? 1 : 1.5,
+            }}
+          >
+            {applied.length > 0
+              ? `Descuento aplicado: -${discountTotal.toFixed(2)} ${monedaBase}`
+              : "¿Tienes un código de descuento?"}
+          </Button>
+          <Collapse in={discountExpanded}>
+            <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
+              <TextField
+                label="Código de descuento"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value.trim())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter")
+                    previewDiscount(promoCode ? [promoCode] : undefined);
+                }}
                 size="small"
-                onClick={() => setPaymentMode("multimoneda")}
-                sx={{ mt: 1, textTransform: "none" }}
+                fullWidth
+              />
+              <Button
+                variant="contained"
+                onClick={() =>
+                  previewDiscount(promoCode ? [promoCode] : undefined)
+                }
+                sx={{ minWidth: 90 }}
+                size="small"
               >
-                Multimoneda
+                Aplicar
               </Button>
-            )}
-          </>
-        ) : (
-          <MultiCurrencyPaymentPanel
-            finalTotal={finalTotal}
-            discountTotal={discountTotal}
-            promoCode={promoCode}
-            makePay={makePay}
-            transferDestinations={transferDestinations}
-            tiendaId={tiendaId}
-            cierreId={cierreId}
-            onBack={() => setPaymentMode("cart")}
-          />
-        )}
+            </Box>
+          </Collapse>
+
+          {paymentMode === "cart" ? (
+            <>
+              <QuickPayFields
+                key={saleResetKey}
+                finalTotal={finalTotal}
+                monedaBase={monedaBase}
+                transferDestinations={transferDestinations}
+                onChange={setQuickPay}
+              />
+
+              {touchedPayment && (
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  color={fastFalta ? "error.main" : "success.main"}
+                  sx={{ mt: 1, mb: fastVueltoError ? 0.5 : 1 }}
+                >
+                  {fastFalta
+                    ? `Falta: ${(finalTotal - totalPaidFast).toFixed(2)} ${monedaBase}`
+                    : fastCambio > 0
+                      ? `Cambio: ${fastCambio.toFixed(2)} ${monedaBase}`
+                      : "Pago exacto"}
+                </Typography>
+              )}
+
+              {fastVueltoError && (
+                <Typography
+                  variant="caption"
+                  color="error"
+                  display="block"
+                  sx={{ mb: 1 }}
+                >
+                  {fastVueltoError}
+                </Typography>
+              )}
+
+              <Button
+                variant="contained"
+                color="success"
+                disabled={!canSellFast}
+                onClick={handleFastSell}
+                fullWidth
+                size="large"
+                sx={{ mt: 1, fontWeight: "bold", py: 1.25, minHeight: 48 }}
+              >
+                VENDER
+              </Button>
+
+              {hasExtraCurrencies && (
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={() => setPaymentMode("multimoneda")}
+                  sx={{ mt: 1, textTransform: "none" }}
+                >
+                  Multimoneda
+                </Button>
+              )}
+            </>
+          ) : (
+            <MultiCurrencyPaymentPanel
+              finalTotal={finalTotal}
+              discountTotal={discountTotal}
+              promoCode={promoCode}
+              makePay={makePay}
+              transferDestinations={transferDestinations}
+              tiendaId={tiendaId}
+              cierreId={cierreId}
+              onBack={() => setPaymentMode("cart")}
+            />
+          )}
+        </Box>
       </Box>
 
       {ConfirmDialogComponent}
