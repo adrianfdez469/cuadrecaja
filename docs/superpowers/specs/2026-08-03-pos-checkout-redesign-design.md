@@ -54,7 +54,9 @@ CartDrawer
             └─ ChangeSheet          reparto del vuelto por moneda
 ```
 
-`CartContent` alterna `step` con la misma transición `Fade` que ya usa hoy para alternar entre modos. En mobile el `Drawer` ya ocupa `100vw` / `100dvh`, así que el paso 2 es full-screen sin tocar `CartDrawer.tsx`. En anclado ocupa el panel.
+`CartContent` alterna `step` con la misma transición `Fade` que ya usa hoy para alternar entre modos.
+
+**El paso 2 no se desmonta al volver al carrito**: volver a revisar la canasta no puede tirar un pago a medio cargar. Lo que fuerza un remonte limpio es una `key` compuesta por la identidad del carrito activo y un contador de ventas — es decir, exactamente dos situaciones: se completó una venta, o el cajero cambió de cuenta. Esto último no es opcional: con el carrito anclado `CartContent` nunca se desmonta, y sin esa `key` las líneas de pago de una canasta sobreviven al cambio y el vuelto se calcula contra el total de otra. En mobile el `Drawer` ya ocupa `100vw` / `100dvh`, así que el paso 2 es full-screen sin tocar `CartDrawer.tsx`. En anclado ocupa el panel.
 
 ### Archivos nuevos — `src/app/pos/components/checkout/`
 
