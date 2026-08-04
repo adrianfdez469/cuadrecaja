@@ -335,7 +335,13 @@ export const CartContent = ({
           </Box>
         </Fade>
 
-        <Fade in={step === "checkout"} timeout={200} unmountOnExit>
+        {/*
+          Deliberately NOT unmountOnExit: stepping back to the cart to check
+          the basket must not throw away a half-entered payment. `checkoutKey`
+          is what forces a clean remount, and only when it should happen — a
+          completed sale, or a switch to another cart.
+        */}
+        <Fade in={step === "checkout"} timeout={200}>
           <Box sx={{ position: "absolute", inset: 0 }}>
             <CheckoutView
               key={checkoutKey}
