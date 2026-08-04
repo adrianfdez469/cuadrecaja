@@ -2452,7 +2452,7 @@ Crear `src/app/pos/components/checkout/CheckoutView.tsx`:
 ```tsx
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Box, Button, IconButton, Stack, Typography } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AddIcon from "@mui/icons-material/Add";
@@ -2576,6 +2576,11 @@ export function CheckoutView({
   // The exit transition keeps this view mounted for ~200 ms after a sale is
   // submitted; without this guard a second tap would send a second sale.
   const [submitting, setSubmitting] = useState(false);
+  // The ref is the actual guard — state updates are asynchronous, so two taps
+  // landing in the same tick would both read `submitting === false` and both
+  // submit. Ghost double-fire is a real failure mode on POS touch hardware and
+  // the cost is a duplicate sale. The state flag only drives `disabled`.
+  const submittingRef = useRef(false);
 
   const allCurrencies = useMemo(() => {
     const codes = new Set<string>([monedaBase]);
@@ -2656,7 +2661,8 @@ export function CheckoutView({
     !hasErrors;
 
   const handleSell = async () => {
-    if (submitting) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
 
     const pagosDetalle = toPagoLineas(lines, tasasVigentes, monedaBase);
@@ -2772,6 +2778,12 @@ export function CheckoutView({
         </Stack>
       </Box>
 
+      {/*
+        No safe-area padding here on purpose: CartContent already applies
+        `env(safe-area-inset-bottom)` to the container this view is absolutely
+        positioned inside. Adding it again would double the gap. If CheckoutView
+        is ever mounted somewhere else, that container owes it the same padding.
+      */}
       <Box
         flex="0 0 auto"
         sx={{
