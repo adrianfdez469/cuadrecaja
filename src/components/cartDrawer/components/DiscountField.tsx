@@ -55,6 +55,7 @@ export function DiscountField({
             }}
             size="small"
             fullWidth
+            sx={{ "& .MuiOutlinedInput-root": { minHeight: 44 } }}
           />
           <Button
             variant="contained"
