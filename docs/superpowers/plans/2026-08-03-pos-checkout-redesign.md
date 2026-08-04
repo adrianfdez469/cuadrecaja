@@ -1834,7 +1834,7 @@ export function AddPaymentSheet({
                   secondary={
                     option.suggested > 0
                       ? option.equivalentBase !== null
-                        ? `Sugerido: ${option.suggested} · ≈ ${option.equivalentBase.toFixed(2)} ${base}`
+                        ? `Sugerido: ${option.suggested.toFixed(2)} · ≈ ${option.equivalentBase.toFixed(2)} ${base}`
                         : `Sugerido: ${option.suggested.toFixed(2)}`
                       : "Ya está cubierto el total"
                   }
