@@ -1266,16 +1266,19 @@ export function AmountKeypad({
     setPristine(true);
   }, [open, value]);
 
-  const amount = tab === "bills" ? sumBills(bills) : Number(draft || 0);
+  // The typed draft is never destroyed. An empty tally falls back to it, so
+  // switching to Billetes with an amount the denominations cannot build
+  // leaves the cashier's value intact instead of silently zeroing it.
+  const usingBills = tab === "bills" && bills.length > 0;
+  const amount = usingBills ? sumBills(bills) : Number(draft || 0);
 
   const handleTab = (next: KeypadTab) => {
     if (next === tab) return;
     if (next === "bills") {
       // Carry the typed amount over as a tally when it is representable.
       setBills(breakdownGreedy(Number(draft || 0), denominations) ?? []);
-    } else {
-      const carried = sumBills(bills);
-      setDraft(carried > 0 ? String(carried) : "");
+    } else if (bills.length > 0) {
+      setDraft(String(sumBills(bills)));
       setPristine(true);
     }
     setTab(next);
@@ -1330,7 +1333,7 @@ export function AmountKeypad({
         sx={{ borderBottom: "2px solid", borderColor: "primary.main", pb: 0.5 }}
       >
         <Typography variant="h4" fontWeight={700} sx={{ fontVariantNumeric: "tabular-nums" }}>
-          {tab === "bills" ? sumBills(bills) : draft || "0"}
+          {usingBills ? sumBills(bills) : draft || "0"}
         </Typography>
         <Typography variant="caption" color="text.secondary" fontWeight={600}>
           {currency}
