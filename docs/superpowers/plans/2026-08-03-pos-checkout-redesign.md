@@ -2601,10 +2601,16 @@ export function CheckoutView({
     [errors],
   );
 
+  // A business with no transfer destinations configured must still be able to
+  // sell — the line simply carries none (spec §6). Only demand a destination
+  // when there is one to pick.
+  const needsTransferDestination =
+    transferDestinations.length > 0 && hasMissingTransferDestination(lines);
+
   const canSell =
     !submitting &&
     (finalTotal === 0 ? lines.length > 0 : !missing) &&
-    !hasMissingTransferDestination(lines) &&
+    !needsTransferDestination &&
     !hasErrors;
 
   const handleSell = async () => {
