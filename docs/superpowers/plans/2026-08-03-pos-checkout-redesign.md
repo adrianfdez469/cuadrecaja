@@ -669,6 +669,13 @@ describe("breakdownGreedy", () => {
     expect(breakdownGreedy(100, [])).toBeNull();
   });
 
+  it("ignores denominations too small to step by a whole cent", () => {
+    // 0.001 is positive but rounds to a zero-cent step; without filtering it
+    // out the greedy loop would never terminate.
+    expect(breakdownGreedy(100, [0.001])).toBeNull();
+    expect(breakdownGreedy(1550, [...CUP, 0.001])).toEqual([1000, 500, 50]);
+  });
+
   it("tolerates unsorted denominations", () => {
     expect(breakdownGreedy(1550, [50, 1000, 500, 1])).toEqual([1000, 500, 50]);
   });
@@ -723,8 +730,11 @@ export function breakdownGreedy(
   if (amount < 0) return null;
   if (amount === 0) return [];
 
+  // Filter on the cents step, not on the raw value: a denomination between
+  // 0 and half a cent is positive but steps by zero, and the loop below
+  // would never terminate.
   const sorted = denominations
-    .filter((d) => d > 0)
+    .filter((d) => Math.round(d * 100) > 0)
     .sort((a, b) => b - a);
   if (sorted.length === 0) return null;
 
