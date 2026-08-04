@@ -91,7 +91,9 @@ CartDrawer
 
 ### Se reutiliza sin cambios
 
-`MultiCurrencyAmount`, `MoneyField`, `SelectableTextField`, `convertToBase` / `convertFromBase` de `@/lib/currency`, `ceilCash` y `reduceCashForTransfer` de `@/app/pos/utils/cashPayment`, y `DENOMINACIONES` como fallback de CUP.
+`MultiCurrencyAmount`, `MoneyField`, `SelectableTextField`, `convertToBase` / `convertFromBase` de `@/lib/currency`, `formatMontoEnMoneda` de `@/utils/formatters` —**todo importe que se le muestre al cajero pasa por ahí**, para que el checkout no invente un segundo formato de dinero— y `DENOMINACIONES` como fallback de CUP.
+
+`@/app/pos/utils/cashPayment` (`ceilCash`, `reduceCashForTransfer`) **se elimina**: `suggestedAmounts` absorbe el redondeo por exceso, y la compensación entre efectivo y transferencia la hace ahora `CheckoutView` al agregar una forma de pago (§5.3).
 
 `BillBreakdownInput` y `BillBreakdownDynamic` **no** se usan en el nuevo cobro: su interacción es `+/−` por fila, y el diseño elegido es tocar-para-sumar. Siguen en uso en otras pantallas y no se tocan.
 
@@ -138,7 +140,7 @@ suggestedAmounts(pending: number, denominations: number[]): {
 }
 ```
 
-**El exacto.** `minDenom = min(denominations)`; `exact = ceilToStep(pending, minDenom)`, donde `ceilToStep(v, s) = ceil(round2(v) / s) * s`. Para CUP (`minDenom = 1`) equivale al `ceilCash` actual: 1.249,50 → 1.250. Sin denominaciones cargadas, `exact = round2(pending)`.
+**El exacto.** `minDenom = min(denominations)`; `exact = ceilToStep(pending, minDenom)`, donde `ceilToStep(v, s) = ceil(round2(v) / s) * s`. Para CUP (`minDenom = 1`) redondea por exceso al entero: 1.249,50 → 1.250. Sin denominaciones cargadas, `exact = round2(pending)`.
 
 **Las sugerencias** se derivan de la magnitud del monto, no de las denominaciones:
 
@@ -189,7 +191,9 @@ El chip activo es el que coincide con el monto actual de la línea; si ninguno c
 - Efectivo en una moneda con `admiteEfectivo`
 - Transferencia en una moneda con `admiteTransferencia`
 
-Cada opción muestra el **monto que falta** ya convertido a esa moneda (`suggestedAmounts(pending, …).exact`) y lo precarga al agregarse, de modo que agregar una forma de pago sea un solo toque.
+Cada opción muestra el **monto que falta** ya convertido a esa moneda y lo precarga al agregarse, de modo que agregar una forma de pago sea un solo toque. El equivalente `≈` de cada opción se calcula a partir del monto que esa misma opción muestra, no del de otra.
+
+**La línea inicial de efectivo no cuenta como pagada mientras no se la toque.** Viene precargada con el total, así que si contara, el pendiente sería 0 y todas las opciones dirían «Ya está cubierto el total» — el sheet quedaría inerte justo para el caso mixto más común. Mientras `dirty === false` esa línea se excluye del cálculo del pendiente, y al elegir una opción su equivalente en base se descuenta de ella, de modo que el total pagado no cambia: en una venta de 1.250, elegir «Transferencia» deja efectivo en 0 y transferencia en 1.250, con el pie en «Pago exacto». Es lo que antes hacía `reduceCashForTransfer` al teclear el monto de la transferencia.
 
 La moneda base siempre admite efectivo y transferencia, igual que hoy.
 
@@ -206,7 +210,8 @@ Lógica idéntica a la actual, solo cambia dónde se muestra:
 - Se calcula solo en la **moneda de efectivo principal** (la de mayor equivalente en base) por la diferencia exacta, sin redondear a denominación.
 - Se congela (`locked`) en cuanto el usuario edita el reparto, y se reinicia si vuelve a faltar dinero.
 - Validación contra `GET /api/cierre/[tiendaId]/[cierreId]/cash-balance`: disponible por moneda = saldo del período + efectivo recibido en esa moneda en esta venta.
-- El error de saldo se muestra **inline en el pie**, junto al botón deshabilitado, y dice qué hacer: «En caja hay 400,00 CUP. Repartí el cambio en otra moneda.» Hoy vive dentro del reparto, que puede estar cerrado.
+- El error de saldo se muestra **inline en el pie**, junto al botón deshabilitado, y dice qué hacer: «En caja hay 400,00 CUP. Reparte el cambio en otra moneda.» Hoy vive dentro del reparto, que puede estar cerrado.
+- `changeErrors` devuelve **datos** (`{ available, currency } | null`), no una frase. La oración se compone en cada superficie que la muestra —el pie y el sheet de reparto—, para que ninguna quede con media frase ni con la mitad accionable ausente.
 
 ### 5.6 Estados del pie
 
@@ -231,6 +236,8 @@ cart.length > 0
 ```
 
 Las líneas con `amount <= 0` se ignoran al construir `IPagoLinea[]`; no bloquean la venta. Se conserva el caso de venta con total 0.
+
+> **La primera cláusula no es decorativa.** El plan de implementación la omitió, y eso bastó para abrir un fallo grave: al completar una venta el checkout se remonta con un `submittingRef` nuevo, y como `removeActiveCart()` corre sincrónicamente dentro de `handleMakePay`, ese montaje ocurre con la canasta ya vacía. Sin `cart.length > 0`, la rama `finalTotal === 0` daba `canSell === true` y un toque fantasma sobre el overlay que aún no terminó de desvanecerse registraba una venta de total 0 sin productos —y volvía a llamar a `removeActiveCart()`, borrando el carrito de otro cliente. El overlay saliente lleva además `pointerEvents: none`, porque MUI solo aplica `visibility: hidden` cuando la transición termina.
 
 ### 5.8 Reset tras la venta
 
@@ -270,7 +277,7 @@ Se mantiene el disparo **explícito** en el punto de envío —nunca inferido de
 
 ## 8. Convenciones
 
-Según `CLAUDE.md`: identificadores, comentarios y JSDoc en **inglés**; los textos de interfaz en español. `@/` para todos los imports de `src/`. Sin `any`. Sin Prisma fuera de `src/lib/` y las API routes. Los tipos compartidos siguen viniendo de `src/schemas/` (`IPagoLinea`, `IVueltoLinea`, `IMultimonedaExtras`, `ITransferDestination`) — `PaymentLine` es estado local de UI y vive junto a su hook.
+Según `CLAUDE.md`: identificadores, comentarios y JSDoc en **inglés**; los textos de interfaz en español —**español de tuteo**, que es el registro del resto de la app y el del usuario final cubano: «Toca», «Reparte», «¿Tienes…?», nunca «Tocá», «Repartí», «¿Tenés…?». `@/` para todos los imports de `src/`. Sin `any`. Sin Prisma fuera de `src/lib/` y las API routes. Los tipos compartidos siguen viniendo de `src/schemas/` (`IPagoLinea`, `IVueltoLinea`, `IMultimonedaExtras`, `ITransferDestination`) — `PaymentLine` es estado local de UI y vive junto a su hook.
 
 ## 9. Riesgos
 
