@@ -23,7 +23,12 @@ export function breakdownGreedy(
   if (amount < 0) return null;
   if (amount === 0) return [];
 
-  const sorted = denominations.filter((d) => d > 0).sort((a, b) => b - a);
+  // Filter on the cents step, not on the raw value: a denomination between
+  // 0 and half a cent is positive but steps by zero, and the loop below
+  // would never terminate.
+  const sorted = denominations
+    .filter((d) => Math.round(d * 100) > 0)
+    .sort((a, b) => b - a);
   if (sorted.length === 0) return null;
 
   const bills: number[] = [];
