@@ -1932,6 +1932,9 @@ export function ChangeSheet({
 }: ChangeSheetProps) {
   const [addAnchor, setAddAnchor] = useState<null | HTMLElement>(null);
   const entries = Object.entries(distribution);
+  // The totals box must not read as "done" while a per-currency split is
+  // invalid — the footer would be saying the opposite at the same time.
+  const hasErrors = Object.values(errors).some(Boolean);
 
   return (
     <Drawer
@@ -1964,7 +1967,10 @@ export function ChangeSheet({
                   onChange(currency, parseFloat(event.target.value) || 0)
                 }
                 inputProps={{ inputMode: "decimal" }}
-                sx={{ flex: 1 }}
+                sx={{
+                  flex: 1,
+                  "& .MuiOutlinedInput-root": { minHeight: 44 },
+                }}
                 error={Boolean(errors[currency])}
               />
               <IconButton
@@ -2023,10 +2029,19 @@ export function ChangeSheet({
           justifyContent="space-between"
           sx={{ p: 1.25, borderRadius: 2, bgcolor: "action.hover" }}
         >
-          <Typography variant="body2" fontWeight={600}>
+          <Typography
+            variant="body2"
+            fontWeight={600}
+            color={hasErrors ? "error.main" : "text.primary"}
+          >
             Repartido
           </Typography>
-          <Typography variant="body2" fontWeight={700} sx={{ fontVariantNumeric: "tabular-nums" }}>
+          <Typography
+            variant="body2"
+            fontWeight={700}
+            color={hasErrors ? "error.main" : "text.primary"}
+            sx={{ fontVariantNumeric: "tabular-nums" }}
+          >
             {distributedBaseAmount.toFixed(2)} / {changeTotalBase.toFixed(2)}
           </Typography>
         </Stack>
@@ -2047,6 +2062,7 @@ Crear `src/app/pos/components/checkout/ChangeSummary.tsx`:
 ```tsx
 "use client";
 
+import type { KeyboardEvent } from "react";
 import { alpha, Box, Button, Stack, Typography, useTheme } from "@mui/material";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
@@ -2097,12 +2113,33 @@ export function ChangeSummary({
         alignItems="center"
         justifyContent="space-between"
         aria-live="polite"
-        onClick={hasChange ? onOpenDetail : undefined}
+        // Only interactive when there is a split to open. Without the role,
+        // tabIndex and key handler this row is mouse-only, and "focus visible
+        // on everything interactive" could never be satisfied — there would be
+        // nothing to focus.
+        {...(hasChange
+          ? {
+              role: "button",
+              tabIndex: 0,
+              onClick: onOpenDetail,
+              onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onOpenDetail();
+                }
+              },
+            }
+          : {})}
         sx={{
           p: 1.25,
           borderRadius: 2,
           cursor: hasChange ? "pointer" : "default",
           minHeight: 44,
+          "&:focus-visible": {
+            outline: "2px solid",
+            outlineColor: "primary.main",
+            outlineOffset: 2,
+          },
           bgcolor:
             tone === "error"
               ? alpha(theme.palette.error.main, 0.12)
