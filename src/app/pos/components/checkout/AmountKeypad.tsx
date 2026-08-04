@@ -1,0 +1,228 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  Box,
+  Button,
+  Dialog,
+  Drawer,
+  Stack,
+  Tab,
+  Tabs,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import BackspaceOutlinedIcon from "@mui/icons-material/BackspaceOutlined";
+import { BillPad } from "@/app/pos/components/checkout/BillPad";
+import { breakdownGreedy, sumBills } from "@/app/pos/utils/billMath";
+
+interface AmountKeypadProps {
+  open: boolean;
+  /** Currency code shown next to the amount. */
+  currency: string;
+  /** Active denominations for this currency; empty hides the bills tab. */
+  denominations: number[];
+  /** Amount the field currently holds. */
+  value: number;
+  /** e.g. "Efectivo CUP" */
+  label: string;
+  /** e.g. "Total 1.250,00" */
+  pendingLabel: string;
+  onClose: () => void;
+  onConfirm: (amount: number) => void;
+}
+
+type KeypadTab = "keys" | "bills";
+
+export function AmountKeypad({
+  open,
+  currency,
+  denominations,
+  value,
+  label,
+  pendingLabel,
+  onClose,
+  onConfirm,
+}: AmountKeypadProps) {
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+
+  const minDenomination = useMemo(
+    () => (denominations.length > 0 ? Math.min(...denominations) : 0.01),
+    [denominations],
+  );
+  const allowsDecimals = minDenomination < 1;
+  const hasBillsTab = denominations.length > 0;
+
+  const [tab, setTab] = useState<KeypadTab>("keys");
+  const [draft, setDraft] = useState("");
+  const [bills, setBills] = useState<number[]>([]);
+  // A fresh entry replaces the preloaded value instead of appending to it.
+  const [pristine, setPristine] = useState(true);
+
+  useEffect(() => {
+    if (!open) return;
+    setTab("keys");
+    setDraft(value > 0 ? String(value) : "");
+    setBills([]);
+    setPristine(true);
+  }, [open, value]);
+
+  const amount = tab === "bills" ? sumBills(bills) : Number(draft || 0);
+
+  const handleTab = (next: KeypadTab) => {
+    if (next === tab) return;
+    if (next === "bills") {
+      // Carry the typed amount over as a tally when it is representable.
+      setBills(breakdownGreedy(Number(draft || 0), denominations) ?? []);
+    } else {
+      const carried = sumBills(bills);
+      setDraft(carried > 0 ? String(carried) : "");
+      setPristine(true);
+    }
+    setTab(next);
+  };
+
+  const press = (key: string) => {
+    setDraft((prev) => {
+      const base = pristine ? "" : prev;
+      if (key === ",") {
+        return base.includes(".") ? base : `${base || "0"}.`;
+      }
+      return `${base}${key}`;
+    });
+    setPristine(false);
+  };
+
+  const backspace = () => {
+    setDraft((prev) => (pristine ? "" : prev.slice(0, -1)));
+    setPristine(false);
+  };
+
+  const keys = [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    allowsDecimals ? "," : "",
+    "0",
+    "backspace",
+  ];
+
+  const content = (
+    <Stack
+      gap={1.25}
+      sx={{
+        p: 2,
+        pb: isDesktop ? 2 : "calc(16px + env(safe-area-inset-bottom))",
+      }}
+    >
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="baseline"
+      >
+        <Typography variant="caption" color="text.secondary">
+          {label}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {pendingLabel}
+        </Typography>
+      </Stack>
+
+      <Stack
+        direction="row"
+        alignItems="baseline"
+        justifyContent="space-between"
+        sx={{ borderBottom: "2px solid", borderColor: "primary.main", pb: 0.5 }}
+      >
+        <Typography
+          variant="h4"
+          fontWeight={700}
+          sx={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          {tab === "bills" ? sumBills(bills) : draft || "0"}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" fontWeight={600}>
+          {currency}
+        </Typography>
+      </Stack>
+
+      {hasBillsTab && (
+        <Tabs
+          value={tab}
+          onChange={(_, next: KeypadTab) => handleTab(next)}
+          variant="fullWidth"
+        >
+          <Tab value="keys" label="Teclado" sx={{ minHeight: 44 }} />
+          <Tab value="bills" label="Billetes" sx={{ minHeight: 44 }} />
+        </Tabs>
+      )}
+
+      {tab === "keys" ? (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 0.75,
+          }}
+        >
+          {keys.map((key, index) =>
+            key === "" ? (
+              <Box key={`empty-${index}`} />
+            ) : (
+              <Button
+                key={key}
+                variant="outlined"
+                onClick={() => (key === "backspace" ? backspace() : press(key))}
+                sx={{ minHeight: 48, fontSize: "1.1rem", fontWeight: 600 }}
+              >
+                {key === "backspace" ? <BackspaceOutlinedIcon /> : key}
+              </Button>
+            ),
+          )}
+        </Box>
+      ) : (
+        <BillPad
+          denominations={denominations}
+          bills={bills}
+          onChange={setBills}
+        />
+      )}
+
+      <Button
+        variant="contained"
+        color="success"
+        onClick={() => onConfirm(amount)}
+        sx={{ minHeight: 48, fontWeight: 700 }}
+      >
+        Listo
+      </Button>
+    </Stack>
+  );
+
+  if (isDesktop) {
+    return (
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+        {content}
+      </Dialog>
+    );
+  }
+
+  return (
+    <Drawer
+      anchor="bottom"
+      open={open}
+      onClose={onClose}
+      PaperProps={{ sx: { borderRadius: "16px 16px 0 0" } }}
+    >
+      {content}
+    </Drawer>
+  );
+}
