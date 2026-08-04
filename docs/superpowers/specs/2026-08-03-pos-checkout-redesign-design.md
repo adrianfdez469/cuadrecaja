@@ -173,7 +173,7 @@ El chip activo es el que coincide con el monto actual de la línea; si ninguno c
 
 ### 5.2 Teclado y billetes
 
-- El campo de monto es un `<input inputMode="none" readOnly>`: acepta teclado físico en desktop, **no levanta el teclado virtual** en mobile, y al tocarlo abre `AmountKeypad`. Un solo comportamiento en todos los tamaños.
+- El campo de monto es un `<input inputMode="none">`: acepta teclado físico en desktop, **no levanta el teclado virtual** en mobile, y al tocarlo abre `AmountKeypad`. Un solo comportamiento en todos los tamaños. El campo **no** lleva `readOnly`: `readOnly` bloquea toda entrada del usuario —incluido el teclado físico—, con lo que la mitad «desktop» del objetivo no se cumpliría y el `onChange` quedaría muerto.
 - **Pestaña Teclado:** el valor entra preseleccionado — el primer dígito lo reemplaza, no concatena. `⌫` borra dígito a dígito. La tecla de separador decimal se ofrece solo cuando `minDenom < 1`; con la denominación mínima en 1 (CUP hoy) los decimales no son alcanzables en efectivo y la tecla se omite.
 - **Pestaña Billetes:** tocar una denominación suma su valor y agrega una ficha a la tally; deshacer quita la última.
 - **Al cambiar de pestaña** se intenta representar el monto actual con el *greedy* de denominaciones (1.550 → `1×1000 1×500 1×50`) y esa es la tally inicial. Si el monto no es representable exacto, la tally arranca vacía y el monto en 0.

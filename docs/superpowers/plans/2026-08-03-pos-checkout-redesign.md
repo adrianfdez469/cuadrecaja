@@ -1625,12 +1625,13 @@ export function PaymentLineCard({
       </Stack>
 
       {/*
-        inputMode="none" keeps the OS keyboard down on mobile while still
-        accepting a physical keyboard on desktop; tapping opens AmountKeypad.
+        inputMode="none" keeps the on-screen keyboard down on mobile while a
+        physical keyboard still types into it on desktop; tapping opens
+        AmountKeypad. The field must NOT be readOnly — that would block the
+        physical keyboard too and leave onChange dead.
       */}
       <Box
         component="input"
-        readOnly
         inputMode="none"
         value={line.amount || ""}
         placeholder="0"
@@ -1675,7 +1676,11 @@ export function PaymentLineCard({
       )}
 
       {!isCash && line.amount > 0 && transferDestinations.length > 1 && (
-        <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+        <FormControl
+          fullWidth
+          size="small"
+          sx={{ mt: 1, "& .MuiOutlinedInput-root": { minHeight: 44 } }}
+        >
           <InputLabel>Destino</InputLabel>
           <Select
             label="Destino"
