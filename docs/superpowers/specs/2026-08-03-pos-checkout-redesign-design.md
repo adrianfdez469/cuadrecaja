@@ -141,7 +141,7 @@ suggestedAmounts(pending: number, denominations: number[]): {
 **Las sugerencias** se derivan de la magnitud del monto, no de las denominaciones:
 
 ```
-mag   = 10 ^ floor(log10(exact))
+mag   = 10 ^ floor(log10(max(exact, minDenom * 10)))
 steps = [mag/10, mag/2, mag, mag*2, mag*5].filter(s => s >= minDenom * 5)
 cand  = steps.map(s => (floor(exact / s) + 1) * s)   // múltiplo estrictamente mayor
 ```
@@ -158,6 +158,8 @@ Si `exact <= 0` —línea ya cubierta por otras, o venta con total 0— no se ca
 | 3,57 USD | 4 | 5 · 10 · 20 |
 
 **Por qué la magnitud y no las denominaciones:** CUP tiene billete de 3. Usar las denominaciones como escalón de redondeo produce sugerencias como 1.002. La magnitud da siempre montos que un cliente entrega de verdad. `minDenom` sigue participando en el exacto y como piso de los steps.
+
+**Por qué el piso `minDenom * 10` dentro de la magnitud:** las sugerencias no pueden ser más finas que los billetes que circulan. Sin ese piso, un total de 4 USD (billete mínimo 1) deriva magnitud 1, y el filtro `>= minDenom * 5` descarta todos sus steps salvo uno — quedaría un único chip en vez de 5 · 10 · 20.
 
 **Sobre qué monto se calculan:** sobre el pendiente de **esa línea**, no sobre el total.
 

@@ -187,6 +187,15 @@ const MAX_SUGGESTIONS = 3;
 /** Smallest step that is worth suggesting, relative to the smallest bill. */
 const STEP_FLOOR_FACTOR = 5;
 
+/**
+ * Suggestions can never be finer-grained than the bills in circulation, so
+ * below this many minimum bills the scale comes from the denominations
+ * rather than from the amount. Without it, a 4 USD total (minimum bill 1)
+ * derives a magnitude of 1, whose steps are all filtered out by
+ * STEP_FLOOR_FACTOR, leaving a single suggestion instead of 5 · 10 · 20.
+ */
+const MAGNITUDE_FLOOR_FACTOR = 10;
+
 /** Rounds up to the next multiple of `step`, immune to float noise. */
 export function ceilToStep(value: number, step: number): number {
   if (step <= 0) return round2(value);
@@ -219,7 +228,10 @@ export function suggestedAmounts(
   const minDenom = Math.min(...positive);
   const exact = ceilToStep(pending, minDenom);
 
-  const magnitude = Math.pow(10, Math.floor(Math.log10(exact)));
+  const magnitude = Math.pow(
+    10,
+    Math.floor(Math.log10(Math.max(exact, minDenom * MAGNITUDE_FLOOR_FACTOR))),
+  );
   const steps = [
     magnitude / 10,
     magnitude / 2,
