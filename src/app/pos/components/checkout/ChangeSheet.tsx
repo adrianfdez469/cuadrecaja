@@ -14,12 +14,16 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import SelectableTextField from "@/components/SelectableTextField";
-import type { ChangeDistribution } from "@/app/pos/utils/changeMath";
+import { formatMontoEnMoneda } from "@/utils/formatters";
+import type {
+  ChangeDistribution,
+  ChangeErrors,
+} from "@/app/pos/utils/changeMath";
 
 interface ChangeSheetProps {
   open: boolean;
   distribution: ChangeDistribution;
-  errors: Record<string, string | null>;
+  errors: ChangeErrors;
   /** Currencies with denominations that are not in the distribution yet. */
   eligibleCurrencies: string[];
   changeTotalBase: number;
@@ -70,7 +74,7 @@ export function ChangeSheet({
             REPARTIR CAMBIO
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {changeTotalBase.toFixed(2)} {base} a dar
+            {formatMontoEnMoneda(changeTotalBase, base)} a dar
           </Typography>
         </Stack>
 
@@ -102,7 +106,12 @@ export function ChangeSheet({
             </Stack>
             {errors[currency] && (
               <Typography variant="caption" color="error" ml={1}>
-                {errors[currency]}
+                En caja hay{" "}
+                {formatMontoEnMoneda(
+                  errors[currency].available,
+                  errors[currency].currency,
+                )}
+                . Reparte el cambio en otra moneda.
               </Typography>
             )}
           </Stack>
@@ -164,7 +173,8 @@ export function ChangeSheet({
             color={hasErrors ? "error.main" : "text.primary"}
             sx={{ fontVariantNumeric: "tabular-nums" }}
           >
-            {distributedBaseAmount.toFixed(2)} / {changeTotalBase.toFixed(2)}
+            {formatMontoEnMoneda(distributedBaseAmount, base)} /{" "}
+            {formatMontoEnMoneda(changeTotalBase, base)}
           </Typography>
         </Stack>
 

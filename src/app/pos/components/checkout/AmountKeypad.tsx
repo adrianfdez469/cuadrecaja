@@ -67,7 +67,12 @@ export function AmountKeypad({
     setDraft(value > 0 ? String(value) : "");
     setBills([]);
     setPristine(true);
-  }, [open, value]);
+    // Deliberately only [open]: a `value` resync while the sheet is open
+    // (e.g. usePaymentLines re-syncing the base line after a product is
+    // added) must not wipe an in-progress draft. The preloaded value is
+    // only meant to seed the draft at the moment the sheet opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // The typed draft is never destroyed. An empty tally falls back to it, so
   // switching to Billetes with an amount the denominations cannot build
@@ -150,7 +155,11 @@ export function AmountKeypad({
           fontWeight={700}
           sx={{ fontVariantNumeric: "tabular-nums" }}
         >
-          {usingBills ? sumBills(bills) : draft || "0"}
+          {usingBills
+            ? sumBills(bills)
+            : // Displayed with the es-ES decimal comma the rest of the app
+              // uses; the draft itself stays a parseable dot-decimal string.
+              (draft || "0").replace(".", ",")}
         </Typography>
         <Typography variant="caption" color="text.secondary" fontWeight={600}>
           {currency}

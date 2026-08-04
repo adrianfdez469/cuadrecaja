@@ -99,12 +99,6 @@ export function useChangeDistribution({
     });
   }, []);
 
-  const reset = useCallback(() => {
-    setDistribution({});
-    setLocked(false);
-    refreshBalance();
-  }, [refreshBalance]);
-
   return {
     distribution,
     errors,
@@ -113,7 +107,5 @@ export function useChangeDistribution({
     setAmount,
     addCurrency,
     removeCurrency,
-    refreshBalance,
-    reset,
   };
 }

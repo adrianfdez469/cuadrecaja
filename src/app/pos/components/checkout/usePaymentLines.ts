@@ -84,10 +84,5 @@ export function usePaymentLines({
     setLines((prev) => prev.filter((line) => line.id !== id));
   }, []);
 
-  const reset = useCallback(() => {
-    setDirty(false);
-    setLines([buildInitialLine()]);
-  }, [buildInitialLine]);
-
-  return { lines, dirty, addLine, updateLine, removeLine, reset };
+  return { lines, dirty, addLine, updateLine, removeLine };
 }

@@ -3,6 +3,7 @@
 import type { KeyboardEvent } from "react";
 import { alpha, Box, Button, Stack, Typography, useTheme } from "@mui/material";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { formatMontoEnMoneda } from "@/utils/formatters";
 
 interface ChangeSummaryProps {
   missing: boolean;
@@ -11,8 +12,8 @@ interface ChangeSummaryProps {
   /** How much change to give, in base currency. */
   changeAmount: number;
   base: string;
-  /** Drawer balance error, shown inline next to the disabled button. */
-  error: string | null;
+  /** Drawer balance shortfall, shown inline next to the disabled button. */
+  error: { available: number; currency: string } | null;
   canSell: boolean;
   onOpenDetail: () => void;
   onSell: () => void;
@@ -35,10 +36,10 @@ export function ChangeSummary({
   const label = missing ? "Falta" : hasChange ? "Cambio" : "Pago exacto";
 
   const value = missing
-    ? `${missingAmount.toFixed(2)} ${base}`
+    ? formatMontoEnMoneda(missingAmount, base)
     : hasChange
-      ? `${changeAmount.toFixed(2)} ${base}`
-      : `0.00 ${base}`;
+      ? formatMontoEnMoneda(changeAmount, base)
+      : formatMontoEnMoneda(0, base);
 
   return (
     <Stack gap={1}>
@@ -108,7 +109,8 @@ export function ChangeSummary({
 
       {error && (
         <Typography variant="caption" color="error" fontWeight={600}>
-          {error} Repartí el cambio en otra moneda.
+          En caja hay {formatMontoEnMoneda(error.available, error.currency)}.
+          Reparte el cambio en otra moneda.
         </Typography>
       )}
 

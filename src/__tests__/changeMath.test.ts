@@ -112,13 +112,13 @@ describe("changeErrors", () => {
   it("reports how much is actually available when it falls short", () => {
     const lines: PaymentLine[] = [];
     expect(changeErrors({ CUP: 750 }, lines, { CUP: 400 })).toEqual({
-      CUP: "En caja hay 400.00 CUP",
+      CUP: { available: 400, currency: "CUP" },
     });
   });
 
   it("treats a missing drawer entry as zero", () => {
     expect(changeErrors({ USD: 1 }, [], {})).toEqual({
-      USD: "En caja hay 0.00 USD",
+      USD: { available: 0, currency: "USD" },
     });
   });
 });
@@ -129,9 +129,9 @@ describe("hasChangeErrors", () => {
   });
 
   it("is true when any entry has a message", () => {
-    expect(hasChangeErrors({ CUP: null, USD: "En caja hay 0.00 USD" })).toBe(
-      true,
-    );
+    expect(
+      hasChangeErrors({ CUP: null, USD: { available: 0, currency: "USD" } }),
+    ).toBe(true);
   });
 });
 

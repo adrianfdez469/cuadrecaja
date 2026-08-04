@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
+import { formatMontoEnMoneda } from "@/utils/formatters";
 import type { PaymentLineKind } from "@/app/pos/utils/paymentMath";
 
 export interface PaymentOption {
@@ -82,8 +83,8 @@ export function AddPaymentSheet({
                   secondary={
                     option.suggested > 0
                       ? option.equivalentBase !== null
-                        ? `Sugerido: ${option.suggested.toFixed(2)} · ≈ ${option.equivalentBase.toFixed(2)} ${base}`
-                        : `Sugerido: ${option.suggested.toFixed(2)}`
+                        ? `Sugerido: ${formatMontoEnMoneda(option.suggested, option.currency)} · ≈ ${formatMontoEnMoneda(option.equivalentBase, base)}`
+                        : `Sugerido: ${formatMontoEnMoneda(option.suggested, option.currency)}`
                       : "Ya está cubierto el total"
                   }
                   primaryTypographyProps={{ fontWeight: 600, variant: "body2" }}

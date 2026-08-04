@@ -4,6 +4,16 @@ import { Box, Button, Chip, Stack, Typography } from "@mui/material";
 import UndoIcon from "@mui/icons-material/Undo";
 import { tallyBills } from "@/app/pos/utils/billMath";
 
+/**
+ * Bare amounts with no currency code beside them: es-ES grouping/decimal
+ * convention, but a whole number stays whole (no forced ".00").
+ */
+const formatBareAmount = (amount: number): string =>
+  amount.toLocaleString("es-ES", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+
 interface BillPadProps {
   denominations: number[];
   bills: number[];
@@ -30,7 +40,7 @@ export function BillPad({ denominations, bills, onChange }: BillPadProps) {
             onClick={() => onChange([...bills, denomination])}
             sx={{ minHeight: 44, fontWeight: 600 }}
           >
-            {denomination}
+            {formatBareAmount(denomination)}
           </Button>
         ))}
       </Box>
@@ -49,7 +59,7 @@ export function BillPad({ denominations, bills, onChange }: BillPadProps) {
       >
         {grouped.length === 0 ? (
           <Typography variant="caption" color="text.secondary">
-            Tocá los billetes que recibís
+            Toca los billetes que recibes
           </Typography>
         ) : (
           grouped.map(({ denomination, count }) => (

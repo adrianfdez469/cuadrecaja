@@ -22,6 +22,7 @@ import { AmountKeypad } from "@/app/pos/components/checkout/AmountKeypad";
 import { suggestedAmounts } from "@/app/pos/utils/suggestedAmounts";
 import type { PaymentLine } from "@/app/pos/utils/paymentMath";
 import { convertToBase } from "@/lib/currency";
+import { formatMontoEnMoneda } from "@/utils/formatters";
 import type { ITransferDestination } from "@/schemas/transferDestination";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
@@ -144,7 +145,7 @@ export function PaymentLineCard({
           display="block"
           mt={0.5}
         >
-          ≈ {equivalentBase.toFixed(2)} {base}
+          ≈ {formatMontoEnMoneda(equivalentBase, base)}
         </Typography>
       )}
 
@@ -189,7 +190,7 @@ export function PaymentLineCard({
         denominations={denominations}
         value={line.amount}
         label={`${isCash ? "Efectivo" : "Transferencia"} ${line.currency}`}
-        pendingLabel={`Falta ${pending.toFixed(2)}`}
+        pendingLabel={`Falta ${formatMontoEnMoneda(pending, line.currency)}`}
         onClose={() => setKeypadOpen(false)}
         onConfirm={(amount) => {
           onChange({ amount });

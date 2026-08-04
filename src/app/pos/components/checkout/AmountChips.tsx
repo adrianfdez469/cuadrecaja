@@ -2,6 +2,16 @@
 
 import { Box, Button } from "@mui/material";
 
+/**
+ * Bare amounts with no currency code beside them: es-ES grouping/decimal
+ * convention, but a whole number stays whole (no forced ".00").
+ */
+const formatBareAmount = (amount: number): string =>
+  amount.toLocaleString("es-ES", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+
 interface AmountChipsProps {
   /** Smallest payable amount covering the pending total. */
   exact: number;
@@ -21,7 +31,10 @@ export function AmountChips({
 }: AmountChipsProps) {
   const chips: Array<{ label: string; amount: number }> = [
     ...(exact > 0 ? [{ label: "Exacto", amount: exact }] : []),
-    ...suggestions.map((amount) => ({ label: String(amount), amount })),
+    ...suggestions.map((amount) => ({
+      label: formatBareAmount(amount),
+      amount,
+    })),
   ];
 
   return (

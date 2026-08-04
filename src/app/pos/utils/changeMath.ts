@@ -69,28 +69,37 @@ export function changeAvailability(
   return available;
 }
 
+/** Drawer shortfall for a currency whose distributed change exceeds it. */
+export interface ChangeError {
+  available: number;
+  currency: string;
+}
+
+export type ChangeErrors = Record<string, ChangeError | null>;
+
+/**
+ * Structured so each call site composes its own sentence — the caller knows
+ * whether it is rendering the error alone or alongside other copy, and
+ * `formatMontoEnMoneda` needs both `available` and `currency` to format.
+ */
 export function changeErrors(
   distribution: ChangeDistribution,
   lines: PaymentLine[],
   drawerBalance: Record<string, number>,
-): Record<string, string | null> {
+): ChangeErrors {
   const available = changeAvailability(lines, drawerBalance);
   return Object.fromEntries(
     Object.entries(distribution).map(([currency, amount]) => {
       const cap = available[currency] ?? 0;
       return [
         currency,
-        amount > cap + BALANCE_EPSILON
-          ? `En caja hay ${cap.toFixed(2)} ${currency}`
-          : null,
+        amount > cap + BALANCE_EPSILON ? { available: cap, currency } : null,
       ];
     }),
   );
 }
 
-export function hasChangeErrors(
-  errors: Record<string, string | null>,
-): boolean {
+export function hasChangeErrors(errors: ChangeErrors): boolean {
   return Object.values(errors).some((error) => error !== null);
 }
 

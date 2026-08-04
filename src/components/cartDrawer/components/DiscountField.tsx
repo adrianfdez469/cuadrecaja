@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Box, Button, Collapse, TextField, Typography } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import { formatMontoEnMoneda } from "@/utils/formatters";
 import type { DiscountApplicationResultItem } from "@/lib/discounts";
 
 interface DiscountFieldProps {
@@ -30,7 +31,7 @@ export function DiscountField({
     <Box>
       {hasDiscount && (
         <Typography variant="body2" fontWeight={600} color="success.main">
-          Descuento aplicado: −{discountTotal.toFixed(2)} {base}
+          Descuento aplicado: −{formatMontoEnMoneda(discountTotal, base)}
         </Typography>
       )}
 
@@ -41,7 +42,7 @@ export function DiscountField({
         startIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
         sx={{ textTransform: "none", color: "text.secondary", minHeight: 44 }}
       >
-        {hasDiscount ? "Cambiar código" : "¿Tenés un código de descuento?"}
+        {hasDiscount ? "Cambiar código" : "¿Tienes un código de descuento?"}
       </Button>
 
       <Collapse in={open}>

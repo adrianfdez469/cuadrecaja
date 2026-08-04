@@ -3,6 +3,7 @@
 import { Box, Button, Divider, Stack, Typography } from "@mui/material";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { DiscountField } from "@/components/cartDrawer/components/DiscountField";
+import { formatMontoEnMoneda } from "@/utils/formatters";
 import type { DiscountApplicationResultItem } from "@/lib/discounts";
 
 interface CartSummaryFooterProps {
@@ -51,7 +52,7 @@ export function CartSummaryFooter({
             variant="caption"
             sx={{ textDecoration: "line-through", color: "text.disabled" }}
           >
-            {total.toFixed(2)} {base}
+            {formatMontoEnMoneda(total, base)}
           </Typography>
         </Stack>
       )}
