@@ -1,5 +1,6 @@
 "use client";
 
+import type { KeyboardEvent } from "react";
 import { alpha, Box, Button, Stack, Typography, useTheme } from "@mui/material";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
@@ -46,7 +47,23 @@ export function ChangeSummary({
         alignItems="center"
         justifyContent="space-between"
         aria-live="polite"
-        onClick={hasChange ? onOpenDetail : undefined}
+        // Only interactive when there is a split to open. Without the role,
+        // tabIndex and key handler this row is mouse-only, and "focus visible
+        // on everything interactive" could never be satisfied — there would be
+        // nothing to focus.
+        {...(hasChange
+          ? {
+              role: "button",
+              tabIndex: 0,
+              onClick: onOpenDetail,
+              onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onOpenDetail();
+                }
+              },
+            }
+          : {})}
         sx={{
           p: 1.25,
           borderRadius: 2,
@@ -56,6 +73,11 @@ export function ChangeSummary({
             tone === "error"
               ? alpha(theme.palette.error.main, 0.12)
               : "action.hover",
+          "&:focus-visible": {
+            outline: "2px solid",
+            outlineColor: "primary.main",
+            outlineOffset: 2,
+          },
         }}
       >
         <Typography

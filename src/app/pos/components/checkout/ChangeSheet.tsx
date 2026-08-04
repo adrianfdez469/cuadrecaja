@@ -46,6 +46,9 @@ export function ChangeSheet({
 }: ChangeSheetProps) {
   const [addAnchor, setAddAnchor] = useState<null | HTMLElement>(null);
   const entries = Object.entries(distribution);
+  // The totals box must not read as "done" while a per-currency split is
+  // invalid — the footer would be saying the opposite at the same time.
+  const hasErrors = Object.values(errors).some(Boolean);
 
   return (
     <Drawer
@@ -82,7 +85,10 @@ export function ChangeSheet({
                   onChange(currency, parseFloat(event.target.value) || 0)
                 }
                 inputProps={{ inputMode: "decimal" }}
-                sx={{ flex: 1 }}
+                sx={{
+                  flex: 1,
+                  "& .MuiOutlinedInput-root": { minHeight: 44 },
+                }}
                 error={Boolean(errors[currency])}
               />
               <IconButton
@@ -145,12 +151,17 @@ export function ChangeSheet({
           justifyContent="space-between"
           sx={{ p: 1.25, borderRadius: 2, bgcolor: "action.hover" }}
         >
-          <Typography variant="body2" fontWeight={600}>
+          <Typography
+            variant="body2"
+            fontWeight={600}
+            color={hasErrors ? "error.main" : "text.primary"}
+          >
             Repartido
           </Typography>
           <Typography
             variant="body2"
             fontWeight={700}
+            color={hasErrors ? "error.main" : "text.primary"}
             sx={{ fontVariantNumeric: "tabular-nums" }}
           >
             {distributedBaseAmount.toFixed(2)} / {changeTotalBase.toFixed(2)}
