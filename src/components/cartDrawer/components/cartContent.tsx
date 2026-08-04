@@ -342,7 +342,16 @@ export const CartContent = ({
           completed sale, or a switch to another cart.
         */}
         <Fade in={step === "checkout"} timeout={200}>
-          <Box sx={{ position: "absolute", inset: 0 }}>
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              // The Fade only sets visibility:hidden once the exit transition
+              // finishes, so without this the outgoing checkout stays
+              // hit-testable above the cart for the whole 200ms.
+              pointerEvents: step === "checkout" ? "auto" : "none",
+            }}
+          >
             <CheckoutView
               key={checkoutKey}
               finalTotal={finalTotal}

@@ -92,12 +92,25 @@ export function CheckoutView({
     [monedasActivas],
   );
 
-  const { lines, addLine, updateLine, removeLine } = usePaymentLines({
+  const { lines, dirty, addLine, updateLine, removeLine } = usePaymentLines({
     finalTotal,
     monedaBase,
     denominationsFor,
     defaultTransferDestId: defaultDestId(transferDestinations),
   });
+
+  // The base cash line the hook preloads at the full total. While untouched
+  // (`dirty === false`) it does not represent a real cashier decision yet, so
+  // "Agregar forma de pago" must be able to both (a) build its suggestions as
+  // if that amount were not committed, and (b) shrink it when a suggestion is
+  // picked, so the total paid does not silently double.
+  const baseCashLine = useMemo(
+    () =>
+      lines.find(
+        (line) => line.kind === "cash" && line.currency === monedaBase,
+      ),
+    [lines, monedaBase],
+  );
 
   const paid = paidBase(lines, tasasVigentes, monedaBase);
   const missing = finalTotal === 0 ? false : isMissing(paid, finalTotal);
@@ -140,6 +153,11 @@ export function CheckoutView({
 
   const paymentOptions = useMemo<PaymentOption[]>(() => {
     const options: PaymentOption[] = [];
+    // The initial base cash line is a placeholder, not a cashier decision,
+    // until something is touched. Excluding it here means "1000 cash + 250
+    // transfer" suggests 250 for the transfer on first open instead of 0 —
+    // the whole line would otherwise count as already covering the total.
+    const excludeId = !dirty && baseCashLine ? baseCashLine.id : undefined;
     for (const currency of allCurrencies) {
       const isBase = currency === monedaBase;
       const info = monedasActivas.find((m) => m.monedaCode === currency);
@@ -151,28 +169,42 @@ export function CheckoutView({
         currency,
         tasasVigentes,
         monedaBase,
+        excludeId,
       );
       const suggested = suggestedAmounts(
         pending,
         denominationsFor(currency),
       ).exact;
-      const equivalentBase =
+      // Computed separately per option, each from the value it actually
+      // displays: the cash row shows the ceiled `suggested`, the transfer
+      // row shows the raw `pending` — reusing one for the other made the
+      // transfer row's "≈" disagree with its own suggested amount.
+      const cashEquivalentBase =
         isBase || suggested <= 0
           ? null
           : convertToBase(suggested, currency, tasasVigentes, monedaBase);
+      const transferEquivalentBase =
+        isBase || pending <= 0
+          ? null
+          : convertToBase(pending, currency, tasasVigentes, monedaBase);
 
       const hasCashLine = lines.some(
         (line) => line.kind === "cash" && line.currency === currency,
       );
       if (allowsCash && !hasCashLine) {
-        options.push({ kind: "cash", currency, suggested, equivalentBase });
+        options.push({
+          kind: "cash",
+          currency,
+          suggested,
+          equivalentBase: cashEquivalentBase,
+        });
       }
       if (allowsTransfer) {
         options.push({
           kind: "transfer",
           currency,
           suggested: pending,
-          equivalentBase,
+          equivalentBase: transferEquivalentBase,
         });
       }
     }
@@ -185,6 +217,8 @@ export function CheckoutView({
     finalTotal,
     tasasVigentes,
     denominationsFor,
+    dirty,
+    baseCashLine,
   ]);
 
   const eligibleChangeCurrencies = useMemo(
@@ -209,6 +243,10 @@ export function CheckoutView({
 
   const canSell =
     !submitting &&
+    // Spec section 5.7: never submit against an empty basket. Without this a
+    // post-sale remount lands on finalTotal === 0 with a fresh submit ref and
+    // re-enables the button.
+    itemCount > 0 &&
     (finalTotal === 0 ? lines.length > 0 : !missing) &&
     !needsTransferDestination &&
     !hasErrors;
@@ -371,6 +409,25 @@ export function CheckoutView({
         base={monedaBase}
         onClose={() => setAddOpen(false)}
         onPick={(option) => {
+          // Mirrors the exclusion above: while the base cash line is still
+          // untouched it stands for the whole total, so picking a second
+          // form of payment must carve the picked amount out of it —
+          // otherwise the total paid would silently double.
+          if (!dirty && baseCashLine && baseCashLine.amount > 0) {
+            const pickedBase =
+              option.currency === monedaBase
+                ? option.suggested
+                : convertToBase(
+                    option.suggested,
+                    option.currency,
+                    tasasVigentes,
+                    monedaBase,
+                  );
+            const reduceBy = Math.min(pickedBase, baseCashLine.amount);
+            const newAmount =
+              Math.round((baseCashLine.amount - reduceBy) * 100) / 100;
+            updateLine(baseCashLine.id, { amount: Math.max(0, newAmount) });
+          }
           addLine(option.kind, option.currency, option.suggested);
           setAddOpen(false);
         }}
