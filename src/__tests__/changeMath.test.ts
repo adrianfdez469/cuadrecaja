@@ -37,6 +37,18 @@ describe("autoChangeDistribution", () => {
     expect(autoChangeDistribution(lines, 350, RATES, BASE)).toEqual({ USD: 1 });
   });
 
+  it("sums cash lines that share a currency before choosing", () => {
+    // CUP totals 200 across two lines, beating the USD line's 175 base
+    // equivalent. Comparing individual lines (100, 100, 175) would wrongly
+    // pick USD.
+    const lines = [
+      cash("CUP", 100, "a"),
+      cash("CUP", 100, "b"),
+      cash("USD", 0.5, "usd"),
+    ];
+    expect(autoChangeDistribution(lines, 50, RATES, BASE)).toEqual({ CUP: 50 });
+  });
+
   it("ignores transfer lines when choosing the currency", () => {
     const lines: PaymentLine[] = [
       cash("CUP", 100),

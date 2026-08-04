@@ -26,13 +26,22 @@ export function autoChangeDistribution(
 ): ChangeDistribution {
   if (changeAmountBase <= 0) return {};
 
-  const mainCurrency = lines
-    .filter((line) => line.kind === "cash" && line.amount > 0)
-    .map((line) => ({
-      currency: line.currency,
-      base: convertToBase(line.amount, line.currency, rates, base),
-    }))
-    .sort((a, b) => b.base - a.base)[0]?.currency;
+  // Aggregate per currency before comparing: nothing stops two cash lines
+  // from sharing a currency, and picking the largest single line would
+  // then choose the wrong one.
+  const baseByCurrency = new Map<string, number>();
+  for (const line of lines) {
+    if (line.kind !== "cash" || line.amount <= 0) continue;
+    const lineBase = convertToBase(line.amount, line.currency, rates, base);
+    baseByCurrency.set(
+      line.currency,
+      (baseByCurrency.get(line.currency) ?? 0) + lineBase,
+    );
+  }
+
+  const mainCurrency = Array.from(baseByCurrency.entries()).sort(
+    (a, b) => b[1] - a[1],
+  )[0]?.[0];
 
   if (!mainCurrency) return {};
 
