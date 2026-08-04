@@ -293,8 +293,8 @@ export default function POSInterface() {
   // Calcular ancho del carrito según la pantalla
   const getCartWidth = () => {
     if (isMobile) return "100%";
-    if (isTablet) return "40vw";
-    return "35vw";
+    if (isTablet) return "48vw";
+    return "42vw";
   };
 
   const getMainContentWidth = () => {

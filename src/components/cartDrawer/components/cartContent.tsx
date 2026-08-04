@@ -1,4 +1,4 @@
-import { Close, Delete, Remove, Add } from "@mui/icons-material";
+import { Close, Delete, Remove, Add, ArrowBack } from "@mui/icons-material";
 import {
   Box,
   Typography,
@@ -11,6 +11,7 @@ import {
   useTheme,
   alpha,
   Collapse,
+  Fade,
   TextField,
 } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
@@ -512,7 +513,10 @@ export const CartContent = ({
       // Cuando está pineado, usar 100% del contenedor padre que ya está limitado
       return "100%";
     }
-    return 360; // Ancho estándar para drawer
+    // En móvil ocupa toda la pantalla para no recortar la información del
+    // pago multimoneda/desglose de billetes.
+    if (isMobile) return "100vw";
+    return 400;
   };
 
   return (
@@ -528,7 +532,7 @@ export const CartContent = ({
         maxHeight: isCartPinned ? "calc(100vh - 120px)" : "100dvh",
         boxSizing: "border-box",
         ...(isCartPinned && {
-          maxWidth: isMobile ? "100%" : isTablet ? "40vw" : "35vw",
+          maxWidth: isMobile ? "100%" : isTablet ? "48vw" : "42vw",
           minWidth: 360,
           position: "sticky",
           top: 0,
@@ -606,178 +610,218 @@ export const CartContent = ({
         </Box>
       </Box>
 
-      {/* Scrollable region: product list + footer content share a single scroll
-          container so the confirm button is always reachable, even when the
-          multi-currency panel or the bill-breakdown collapse grow tall. */}
-      <Box
-        flex={1}
-        minWidth={0}
-        overflow="auto"
-        sx={{
-          "&::-webkit-scrollbar": {
-            width: "6px",
-          },
-          "&::-webkit-scrollbar-track": {
-            background: "rgba(0,0,0,0.05)",
-            borderRadius: "3px",
-          },
-          "&::-webkit-scrollbar-thumb": {
-            background: "rgba(0,0,0,0.2)",
-            borderRadius: "3px",
-            "&:hover": {
-              background: "rgba(0,0,0,0.3)",
-            },
-          },
-        }}
-      >
-        {/* Productos */}
-        {paymentMode === "cart" && (
-          <Box>
-            {cart.map((item) => (
-              <CartItemCard
-                key={item.id}
-                item={item}
-                onDecrease={decreaseQty}
-                onIncrease={increaseQty}
-                onRemove={removeItem ? handleRemoveItem : undefined}
-                canUpdateQuantity={Boolean(updateQuantity)}
-              />
-            ))}
-          </Box>
-        )}
-
-        {/* Footer */}
+      {/* Barra de "volver" del modo multimoneda: fija, siempre visible —
+          reemplaza al botón "Volver" que antes vivía al final del panel,
+          donde había que scrollear para encontrarlo. */}
+      {paymentMode === "multimoneda" && (
         <Box
-          mt={2}
+          onClick={() => setPaymentMode("cart")}
           sx={{
-            pt: 2,
-            borderTop: "1px solid",
-            borderColor: "divider",
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            py: 1,
+            px: 1.5,
+            mb: 1,
+            borderRadius: 2,
+            bgcolor: "action.hover",
+            cursor: "pointer",
+            "&:hover": { bgcolor: "action.selected" },
           }}
         >
-          <Box
-            display="flex"
-            alignItems="flex-end"
-            justifyContent="space-between"
-            gap={1.5}
-            mb={1.5}
-          >
-            <Box minWidth={0} flex={1}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                sx={{
-                  mb: 0.25,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.4,
-                }}
-              >
-                Total venta
-              </Typography>
-              {discountTotal > 0 && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    textDecoration: "line-through",
-                    color: "text.disabled",
-                  }}
-                  display="block"
-                >
-                  {total.toFixed(2)} {monedaBase}
-                </Typography>
-              )}
-              <MultiCurrencyAmount
-                amount={finalTotal}
-                variant="emphasized"
-                color="success.main"
-              />
-            </Box>
-          </Box>
+          <ArrowBack fontSize="small" />
+          <Typography variant="body2" fontWeight={600}>
+            Pago multimoneda
+          </Typography>
+        </Box>
+      )}
 
-          {applied.length > 0 && (
-            <Typography
-              variant="body2"
-              fontWeight={600}
-              color="success.main"
-              sx={{ mb: 0.5 }}
-            >
-              Descuento aplicado: -{discountTotal.toFixed(2)} {monedaBase}
-            </Typography>
-          )}
-          <Button
-            variant="text"
-            size="small"
-            onClick={() => setShowDiscount((v) => !v)}
-            startIcon={showDiscount ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+      {/* Contenido según el modo. Ambos paneles se posicionan absolutos
+          dentro de un contenedor relativo de tamaño fijo — si en cambio
+          compitieran por flex:1 mientras los dos están montados a mitad de
+          la transición (entrando uno, saliendo el otro), el alto saltaría
+          a la mitad por un instante. */}
+      <Box sx={{ position: "relative", flex: 1, minHeight: 0 }}>
+        <Fade in={paymentMode === "cart"} timeout={200} unmountOnExit>
+          <Box
             sx={{
-              textTransform: "none",
-              color: "text.secondary",
-              mb: showDiscount ? 1 : 1.5,
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            {applied.length > 0
-              ? "Cambiar código de descuento"
-              : "¿Tienes un código de descuento?"}
-          </Button>
-          <Collapse in={showDiscount}>
-            <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
-              <TextField
-                label="Código de descuento"
-                value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value.trim())}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter")
-                    previewDiscount(promoCode ? [promoCode] : undefined);
-                }}
-                size="small"
-                fullWidth
-              />
-              <Button
-                variant="contained"
-                onClick={() =>
-                  previewDiscount(promoCode ? [promoCode] : undefined)
-                }
-                sx={{ minWidth: 90 }}
-                size="small"
-              >
-                Aplicar
-              </Button>
+            {/* Productos: la mayoría del espacio, scroll propio. */}
+            <Box
+              flex={1}
+              minHeight={0}
+              minWidth={0}
+              overflow="auto"
+              sx={{
+                "&::-webkit-scrollbar": {
+                  width: "6px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "rgba(0,0,0,0.05)",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "rgba(0,0,0,0.2)",
+                  borderRadius: "3px",
+                  "&:hover": {
+                    background: "rgba(0,0,0,0.3)",
+                  },
+                },
+              }}
+            >
+              {cart.map((item) => (
+                <CartItemCard
+                  key={item.id}
+                  item={item}
+                  onDecrease={decreaseQty}
+                  onIncrease={increaseQty}
+                  onRemove={removeItem ? handleRemoveItem : undefined}
+                  canUpdateQuantity={Boolean(updateQuantity)}
+                />
+              ))}
             </Box>
-          </Collapse>
 
-          {paymentMode === "cart" ? (
-            <>
-              <QuickPayFields
-                key={saleResetKey}
-                finalTotal={finalTotal}
-                transferDestinations={transferDestinations}
-                onChange={setQuickPay}
-              />
-
-              <Typography
-                variant="body2"
-                fontWeight={600}
-                color={fastFalta ? "error.main" : "success.main"}
-                sx={{ mt: 1, mb: fastVueltoError ? 0.5 : 1 }}
-              >
-                {fastFalta
-                  ? `Falta: ${(finalTotal - totalPaidFast).toFixed(2)} ${monedaBase}`
-                  : fastCambio > 0
-                    ? `Cambio: ${fastCambio.toFixed(2)} ${monedaBase}`
-                    : "Pago exacto"}
-              </Typography>
-
-              {fastVueltoError && (
+            {/* Franja de pago: un solo bloque fijo (Total, descuento, campos
+                de pago, Falta/Cambio, Vender) — límite marcado con borde
+                grueso + sombra para separarla claramente de los productos.
+                Tiene su propio tope de altura con scroll interno para
+                cuando "Desglosar billetes" o el destino de transferencia
+                hacen crecer el contenido — nunca le quita espacio a la
+                lista de productos de arriba. */}
+            <Box
+              flex="0 0 auto"
+              sx={{
+                mt: 1,
+                pt: 1.5,
+                px: 0.5,
+                borderTop: "2px solid",
+                borderColor: "divider",
+                boxShadow: "0px -4px 12px rgba(0,0,0,0.08)",
+                maxHeight: "60%",
+                overflowY: "auto",
+              }}
+            >
+              <Box minWidth={0}>
                 <Typography
                   variant="caption"
-                  color="error"
+                  color="text.secondary"
                   display="block"
-                  sx={{ mb: 1 }}
+                  sx={{
+                    mb: 0.25,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.4,
+                  }}
                 >
-                  {fastVueltoError}
+                  Total venta
+                </Typography>
+                {discountTotal > 0 && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      textDecoration: "line-through",
+                      color: "text.disabled",
+                    }}
+                    display="block"
+                  >
+                    {total.toFixed(2)} {monedaBase}
+                  </Typography>
+                )}
+                <MultiCurrencyAmount
+                  amount={finalTotal}
+                  variant="emphasized"
+                  color="success.main"
+                />
+              </Box>
+
+              {applied.length > 0 && (
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  color="success.main"
+                  sx={{ mt: 1, mb: 0.5 }}
+                >
+                  Descuento aplicado: -{discountTotal.toFixed(2)} {monedaBase}
                 </Typography>
               )}
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => setShowDiscount((v) => !v)}
+                startIcon={
+                  showDiscount ? <ExpandLessIcon /> : <ExpandMoreIcon />
+                }
+                sx={{
+                  mt: applied.length > 0 ? 0 : 1,
+                  textTransform: "none",
+                  color: "text.secondary",
+                }}
+              >
+                {applied.length > 0
+                  ? "Cambiar código de descuento"
+                  : "¿Tienes un código de descuento?"}
+              </Button>
+              <Collapse in={showDiscount}>
+                <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                  <TextField
+                    label="Código de descuento"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value.trim())}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter")
+                        previewDiscount(promoCode ? [promoCode] : undefined);
+                    }}
+                    size="small"
+                    fullWidth
+                  />
+                  <Button
+                    variant="contained"
+                    onClick={() =>
+                      previewDiscount(promoCode ? [promoCode] : undefined)
+                    }
+                    sx={{ minWidth: 90 }}
+                    size="small"
+                  >
+                    Aplicar
+                  </Button>
+                </Box>
+              </Collapse>
+
+              <Box sx={{ mt: 1.5 }}>
+                <QuickPayFields
+                  key={saleResetKey}
+                  finalTotal={finalTotal}
+                  transferDestinations={transferDestinations}
+                  onChange={setQuickPay}
+                />
+
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  color={fastFalta ? "error.main" : "success.main"}
+                  sx={{ mt: 1, mb: fastVueltoError ? 0.5 : 1 }}
+                >
+                  {fastFalta
+                    ? `Falta: ${(finalTotal - totalPaidFast).toFixed(2)} ${monedaBase}`
+                    : fastCambio > 0
+                      ? `Cambio: ${fastCambio.toFixed(2)} ${monedaBase}`
+                      : "Pago exacto"}
+                </Typography>
+
+                {fastVueltoError && (
+                  <Typography
+                    variant="caption"
+                    color="error"
+                    display="block"
+                    sx={{ mb: 1 }}
+                  >
+                    {fastVueltoError}
+                  </Typography>
+                )}
+              </Box>
 
               <Button
                 variant="contained"
@@ -801,8 +845,12 @@ export const CartContent = ({
                   Multimoneda
                 </Button>
               )}
-            </>
-          ) : (
+            </Box>
+          </Box>
+        </Fade>
+
+        <Fade in={paymentMode === "multimoneda"} timeout={200} unmountOnExit>
+          <Box sx={{ position: "absolute", inset: 0 }}>
             <MultiCurrencyPaymentPanel
               finalTotal={finalTotal}
               discountTotal={discountTotal}
@@ -814,8 +862,8 @@ export const CartContent = ({
               onBack={() => setPaymentMode("cart")}
               onSaleComplete={resetCheckoutState}
             />
-          )}
-        </Box>
+          </Box>
+        </Fade>
       </Box>
 
       {ConfirmDialogComponent}

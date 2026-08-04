@@ -467,149 +467,120 @@ export function MultiCurrencyPaymentPanel({
     !hasVueltoErrors;
 
   // ─── Render ───────────────────────────────────────────────────────────────
+  // El "Volver" vive ahora en la barra superior fija de CartContent (siempre
+  // visible, no hay que scrollear para encontrarlo) — este panel solo
+  // controla su propio contenido scrolleable y el botón de confirmar, que
+  // queda fijo abajo del todo, igual que "VENDER" en el camino rápido.
   return (
-    <Box sx={{ width: "100%" }}>
-      {/* ── Payment sections ── */}
-      {monedas.map((moneda, idx) => {
-        const isBase = moneda === monedaBase;
-        const pago = pagosMap[moneda];
-        const info = monedasActivas.find((m) => m.monedaCode === moneda);
-        const admiteEfectivo = isBase || (info?.admiteEfectivo ?? true);
-        const admiteTransfer = isBase || (info?.admiteTransferencia ?? false);
-        const totalMoneda = pago.cash + pago.transfer;
-        const eqBase =
-          !isBase && totalMoneda > 0
-            ? convertToBase(totalMoneda, moneda, tasasVigentes, monedaBase)
-            : null;
+    <Box
+      sx={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <Box flex={1} minWidth={0} sx={{ overflow: "auto" }}>
+        {/* ── Payment sections ── */}
+        {monedas.map((moneda, idx) => {
+          const isBase = moneda === monedaBase;
+          const pago = pagosMap[moneda];
+          const info = monedasActivas.find((m) => m.monedaCode === moneda);
+          const admiteEfectivo = isBase || (info?.admiteEfectivo ?? true);
+          const admiteTransfer = isBase || (info?.admiteTransferencia ?? false);
+          const totalMoneda = pago.cash + pago.transfer;
+          const eqBase =
+            !isBase && totalMoneda > 0
+              ? convertToBase(totalMoneda, moneda, tasasVigentes, monedaBase)
+              : null;
 
-        return (
-          <Box key={moneda}>
-            {idx > 0 && <Divider sx={{ my: 2 }} />}
+          return (
+            <Box key={moneda}>
+              {idx > 0 && <Divider sx={{ my: 2 }} />}
 
-            <Stack
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              mb={1.5}
-            >
-              <Chip
-                label={moneda}
-                size="small"
-                color={isBase ? "primary" : "default"}
-                variant={isBase ? "filled" : "outlined"}
-              />
-              {!isBase && (
-                <IconButton size="small" onClick={() => removeCurrency(moneda)}>
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              )}
-            </Stack>
-
-            {/* Efectivo */}
-            {admiteEfectivo && (
-              <>
-                <MoneyField
-                  fullWidth
-                  label="Efectivo"
-                  currencySymbol={<AttachMoneyIcon />}
-                  InputProps={{
-                    endAdornment: admiteTransfer ? (
-                      <InputAdornment position="end">
-                        <IconButton
-                          edge="end"
-                          size="small"
-                          onClick={() => toggleTransfer(moneda)}
-                          title={
-                            (showTransfer[moneda] ?? false)
-                              ? "Ocultar transferencia"
-                              : "Mostrar transferencia"
-                          }
-                        >
-                          <CreditCardIcon fontSize="small" />
-                        </IconButton>
-                      </InputAdornment>
-                    ) : undefined,
-                  }}
-                  value={pago.cash || ""}
-                  onChange={(e) => {
-                    const bdActive = isBase
-                      ? showBreakdown
-                      : (showPayBreakdown[moneda] ?? false);
-                    if (bdActive) return;
-
-                    const v = e.target.value;
-                    if (moneyRegex.test(v))
-                      updatePago(moneda, { cash: Number(v) });
-                    else if (v === "") updatePago(moneda, { cash: 0 });
-                  }}
-                  inputProps={{
-                    readOnly: isBase
-                      ? showBreakdown
-                      : (showPayBreakdown[moneda] ?? false),
-                  }}
-                  sx={
-                    (
-                      isBase
-                        ? showBreakdown
-                        : (showPayBreakdown[moneda] ?? false)
-                    )
-                      ? { bgcolor: "action.hover" }
-                      : {}
-                  }
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                mb={1.5}
+              >
+                <Chip
+                  label={moneda}
+                  size="small"
+                  color={isBase ? "primary" : "default"}
+                  variant={isBase ? "filled" : "outlined"}
                 />
+                {!isBase && (
+                  <IconButton
+                    size="small"
+                    onClick={() => removeCurrency(moneda)}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Stack>
 
-                {isBase ? (
-                  <>
-                    <Button
-                      variant="text"
-                      size="small"
-                      onClick={handleToggleBreakdown}
-                      startIcon={
-                        showBreakdown ? <ExpandLessIcon /> : <ExpandMoreIcon />
-                      }
-                      sx={{
-                        mt: 0.5,
-                        mb: 0.5,
-                        textTransform: "none",
-                        color: "text.secondary",
-                      }}
-                    >
-                      {showBreakdown
-                        ? "Ocultar desglose"
-                        : "Desglosar billetes"}
-                    </Button>
-                    <Collapse in={showBreakdown}>
-                      {showBreakdown && (
-                        <Box
-                          sx={{
-                            border: "1px solid",
-                            borderColor: "divider",
-                            borderRadius: 1,
-                            px: { xs: 0.5, sm: 1.5 },
-                            pb: 1,
-                          }}
-                        >
-                          <BillBreakdownInput
-                            currency={DEFAULT_CURRENCY}
-                            targetAmount={finalTotal}
-                            onChange={(t) =>
-                              updatePago(monedaBase, { cash: t })
+              {/* Efectivo */}
+              {admiteEfectivo && (
+                <>
+                  <MoneyField
+                    fullWidth
+                    label="Efectivo"
+                    currencySymbol={<AttachMoneyIcon />}
+                    InputProps={{
+                      endAdornment: admiteTransfer ? (
+                        <InputAdornment position="end">
+                          <IconButton
+                            edge="end"
+                            size="small"
+                            onClick={() => toggleTransfer(moneda)}
+                            title={
+                              (showTransfer[moneda] ?? false)
+                                ? "Ocultar transferencia"
+                                : "Mostrar transferencia"
                             }
-                            resetKey={breakdownResetKey}
-                          />
-                        </Box>
-                      )}
-                    </Collapse>
-                  </>
-                ) : (
-                  (denominaciones[moneda]?.length ?? 0) > 0 && (
+                          >
+                            <CreditCardIcon fontSize="small" />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : undefined,
+                    }}
+                    value={pago.cash || ""}
+                    onChange={(e) => {
+                      const bdActive = isBase
+                        ? showBreakdown
+                        : (showPayBreakdown[moneda] ?? false);
+                      if (bdActive) return;
+
+                      const v = e.target.value;
+                      if (moneyRegex.test(v))
+                        updatePago(moneda, { cash: Number(v) });
+                      else if (v === "") updatePago(moneda, { cash: 0 });
+                    }}
+                    inputProps={{
+                      readOnly: isBase
+                        ? showBreakdown
+                        : (showPayBreakdown[moneda] ?? false),
+                    }}
+                    sx={
+                      (
+                        isBase
+                          ? showBreakdown
+                          : (showPayBreakdown[moneda] ?? false)
+                      )
+                        ? { bgcolor: "action.hover" }
+                        : {}
+                    }
+                  />
+
+                  {isBase ? (
                     <>
                       <Button
                         variant="text"
                         size="small"
-                        onClick={() => togglePayBreakdown(moneda)}
+                        onClick={handleToggleBreakdown}
                         startIcon={
-                          (showPayBreakdown[moneda] ?? false) ? (
+                          showBreakdown ? (
                             <ExpandLessIcon />
                           ) : (
                             <ExpandMoreIcon />
@@ -622,12 +593,12 @@ export function MultiCurrencyPaymentPanel({
                           color: "text.secondary",
                         }}
                       >
-                        {(showPayBreakdown[moneda] ?? false)
+                        {showBreakdown
                           ? "Ocultar desglose"
                           : "Desglosar billetes"}
                       </Button>
-                      <Collapse in={showPayBreakdown[moneda] ?? false}>
-                        {(showPayBreakdown[moneda] ?? false) && (
+                      <Collapse in={showBreakdown}>
+                        {showBreakdown && (
                           <Box
                             sx={{
                               border: "1px solid",
@@ -637,35 +608,105 @@ export function MultiCurrencyPaymentPanel({
                               pb: 1,
                             }}
                           >
-                            <BillBreakdownDynamic
-                              denominations={denominaciones[moneda]}
-                              targetAmount={pago.cash}
-                              onChange={(t) => updatePago(moneda, { cash: t })}
-                              resetKey={payBreakdownKeys[moneda] ?? 0}
+                            <BillBreakdownInput
+                              currency={DEFAULT_CURRENCY}
+                              targetAmount={finalTotal}
+                              onChange={(t) =>
+                                updatePago(monedaBase, { cash: t })
+                              }
+                              resetKey={breakdownResetKey}
                             />
                           </Box>
                         )}
                       </Collapse>
                     </>
-                  )
-                )}
-              </>
-            )}
+                  ) : (
+                    (denominaciones[moneda]?.length ?? 0) > 0 && (
+                      <>
+                        <Button
+                          variant="text"
+                          size="small"
+                          onClick={() => togglePayBreakdown(moneda)}
+                          startIcon={
+                            (showPayBreakdown[moneda] ?? false) ? (
+                              <ExpandLessIcon />
+                            ) : (
+                              <ExpandMoreIcon />
+                            )
+                          }
+                          sx={{
+                            mt: 0.5,
+                            mb: 0.5,
+                            textTransform: "none",
+                            color: "text.secondary",
+                          }}
+                        >
+                          {(showPayBreakdown[moneda] ?? false)
+                            ? "Ocultar desglose"
+                            : "Desglosar billetes"}
+                        </Button>
+                        <Collapse in={showPayBreakdown[moneda] ?? false}>
+                          {(showPayBreakdown[moneda] ?? false) && (
+                            <Box
+                              sx={{
+                                border: "1px solid",
+                                borderColor: "divider",
+                                borderRadius: 1,
+                                px: { xs: 0.5, sm: 1.5 },
+                                pb: 1,
+                              }}
+                            >
+                              <BillBreakdownDynamic
+                                denominations={denominaciones[moneda]}
+                                targetAmount={pago.cash}
+                                onChange={(t) =>
+                                  updatePago(moneda, { cash: t })
+                                }
+                                resetKey={payBreakdownKeys[moneda] ?? 0}
+                              />
+                            </Box>
+                          )}
+                        </Collapse>
+                      </>
+                    )
+                  )}
+                </>
+              )}
 
-            {/* Transferencia (Collapse bajo Efectivo) */}
-            {admiteTransfer && (
-              <Collapse in={showTransfer[moneda] ?? false}>
-                <Box sx={{ mt: 1 }}>
-                  <MoneyField
-                    fullWidth
-                    label="Transferencia"
-                    currencySymbol={<CreditCardIcon />}
-                    value={pago.transfer || ""}
-                    onChange={(e) => {
-                      if (isBase) {
-                        const v = e.target.value;
-                        if (moneyRegex.test(v)) {
-                          const newTransfer = Number(v);
+              {/* Transferencia (Collapse bajo Efectivo) */}
+              {admiteTransfer && (
+                <Collapse in={showTransfer[moneda] ?? false}>
+                  <Box sx={{ mt: 1 }}>
+                    <MoneyField
+                      fullWidth
+                      label="Transferencia"
+                      currencySymbol={<CreditCardIcon />}
+                      value={pago.transfer || ""}
+                      onChange={(e) => {
+                        if (isBase) {
+                          const v = e.target.value;
+                          if (moneyRegex.test(v)) {
+                            const newTransfer = Number(v);
+                            updatePago(moneda, {
+                              transfer: newTransfer,
+                              cash: reduceCashForTransfer(
+                                pago.cash,
+                                pago.transfer,
+                                newTransfer,
+                              ),
+                            });
+                          } else if (v === "") {
+                            updatePago(moneda, {
+                              transfer: 0,
+                              cash: reduceCashForTransfer(
+                                pago.cash,
+                                pago.transfer,
+                                0,
+                              ),
+                            });
+                          }
+                        } else {
+                          const newTransfer = parseFloat(e.target.value) || 0;
                           updatePago(moneda, {
                             transfer: newTransfer,
                             cash: reduceCashForTransfer(
@@ -674,212 +715,193 @@ export function MultiCurrencyPaymentPanel({
                               newTransfer,
                             ),
                           });
-                        } else if (v === "") {
-                          updatePago(moneda, {
-                            transfer: 0,
-                            cash: reduceCashForTransfer(
-                              pago.cash,
-                              pago.transfer,
-                              0,
-                            ),
-                          });
                         }
-                      } else {
-                        const newTransfer = parseFloat(e.target.value) || 0;
-                        updatePago(moneda, {
-                          transfer: newTransfer,
-                          cash: reduceCashForTransfer(
-                            pago.cash,
-                            pago.transfer,
-                            newTransfer,
-                          ),
-                        });
-                      }
-                    }}
-                  />
+                      }}
+                    />
 
-                  {/* Transfer destination */}
-                  {pago.transfer > 0 && transferDestinations.length > 0 && (
-                    <FormControl fullWidth margin="normal">
-                      <InputLabel>Destino</InputLabel>
-                      <Select
-                        value={pago.transferDestId}
-                        onChange={(e) =>
-                          updatePago(moneda, {
-                            transferDestId: e.target.value,
-                          })
-                        }
-                      >
-                        {transferDestinations.map((d) => (
-                          <MenuItem key={d.id} value={d.id}>
-                            {d.nombre}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                    {/* Transfer destination */}
+                    {pago.transfer > 0 && transferDestinations.length > 0 && (
+                      <FormControl fullWidth margin="normal">
+                        <InputLabel>Destino</InputLabel>
+                        <Select
+                          value={pago.transferDestId}
+                          onChange={(e) =>
+                            updatePago(moneda, {
+                              transferDestId: e.target.value,
+                            })
+                          }
+                        >
+                          {transferDestinations.map((d) => (
+                            <MenuItem key={d.id} value={d.id}>
+                              {d.nombre}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  </Box>
+                </Collapse>
+              )}
+
+              {/* Equivalente en base */}
+              {eqBase !== null && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  mt={0.5}
+                >
+                  ≈ {eqBase.toFixed(2)} {monedaBase}
+                </Typography>
+              )}
+            </Box>
+          );
+        })}
+
+        {/* Add payment currency */}
+        {hasExtraCurrencies && monedasDisponibles.length > 0 && (
+          <Box mt={2}>
+            <Button
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={(e) =>
+                monedasDisponibles.length === 1
+                  ? addCurrency(monedasDisponibles[0])
+                  : setAddPayAnchor(e.currentTarget)
+              }
+              sx={{ textTransform: "none" }}
+            >
+              Agregar moneda
+            </Button>
+            <Menu
+              anchorEl={addPayAnchor}
+              open={Boolean(addPayAnchor)}
+              onClose={() => setAddPayAnchor(null)}
+            >
+              {monedasDisponibles.map((code) => (
+                <MenuItem key={code} onClick={() => addCurrency(code)}>
+                  {code}
+                </MenuItem>
+              ))}
+            </Menu>
+          </Box>
+        )}
+
+        {/* ── Change section ── */}
+        {!falta && vueltoTotalBase >= 0.0001 && (
+          <>
+            <Divider sx={{ my: 2 }} />
+
+            <Stack
+              direction="row"
+              alignItems="baseline"
+              justifyContent="space-between"
+              mb={1.5}
+            >
+              <Typography variant="subtitle2" color="text.secondary">
+                Cambio a dar
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {vueltoTotalBase.toFixed(4)} {monedaBase} equiv
+              </Typography>
+            </Stack>
+
+            {Object.entries(vueltoMap).map(([moneda, monto], idx) => {
+              const err = vueltoErrors[moneda];
+              return (
+                <Box key={moneda} sx={{ mt: idx > 0 ? 1.5 : 0 }}>
+                  <Stack direction="row" gap={1} alignItems="center">
+                    <Chip label={moneda} size="small" variant="outlined" />
+                    <SelectableTextField
+                      size="small"
+                      value={monto || ""}
+                      onChange={(e) =>
+                        updateVuelto(moneda, parseFloat(e.target.value) || 0)
+                      }
+                      inputProps={{ inputMode: "decimal" }}
+                      sx={{ flex: 1 }}
+                      error={!!err}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={() => removeVueltoMoneda(moneda)}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                  {err && (
+                    <Typography
+                      variant="caption"
+                      color="error"
+                      display="block"
+                      mt={0.25}
+                      ml={1}
+                    >
+                      {err}
+                    </Typography>
                   )}
                 </Box>
-              </Collapse>
-            )}
+              );
+            })}
 
-            {/* Equivalente en base */}
-            {eqBase !== null && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                mt={0.5}
-              >
-                ≈ {eqBase.toFixed(2)} {monedaBase}
-              </Typography>
-            )}
-          </Box>
-        );
-      })}
-
-      {/* Add payment currency */}
-      {hasExtraCurrencies && monedasDisponibles.length > 0 && (
-        <Box mt={2}>
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={(e) =>
-              monedasDisponibles.length === 1
-                ? addCurrency(monedasDisponibles[0])
-                : setAddPayAnchor(e.currentTarget)
-            }
-            sx={{ textTransform: "none" }}
-          >
-            Agregar moneda
-          </Button>
-          <Menu
-            anchorEl={addPayAnchor}
-            open={Boolean(addPayAnchor)}
-            onClose={() => setAddPayAnchor(null)}
-          >
-            {monedasDisponibles.map((code) => (
-              <MenuItem key={code} onClick={() => addCurrency(code)}>
-                {code}
-              </MenuItem>
-            ))}
-          </Menu>
-        </Box>
-      )}
-
-      {/* ── Change section ── */}
-      {!falta && vueltoTotalBase >= 0.0001 && (
-        <>
-          <Divider sx={{ my: 2 }} />
-
-          <Stack
-            direction="row"
-            alignItems="baseline"
-            justifyContent="space-between"
-            mb={1.5}
-          >
-            <Typography variant="subtitle2" color="text.secondary">
-              Cambio a dar
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {vueltoTotalBase.toFixed(4)} {monedaBase} equiv
-            </Typography>
-          </Stack>
-
-          {Object.entries(vueltoMap).map(([moneda, monto], idx) => {
-            const err = vueltoErrors[moneda];
-            return (
-              <Box key={moneda} sx={{ mt: idx > 0 ? 1.5 : 0 }}>
-                <Stack direction="row" gap={1} alignItems="center">
-                  <Chip label={moneda} size="small" variant="outlined" />
-                  <SelectableTextField
-                    size="small"
-                    value={monto || ""}
-                    onChange={(e) =>
-                      updateVuelto(moneda, parseFloat(e.target.value) || 0)
-                    }
-                    inputProps={{ inputMode: "decimal" }}
-                    sx={{ flex: 1 }}
-                    error={!!err}
-                  />
-                  <IconButton
-                    size="small"
-                    onClick={() => removeVueltoMoneda(moneda)}
-                  >
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                </Stack>
-                {err && (
-                  <Typography
-                    variant="caption"
-                    color="error"
-                    display="block"
-                    mt={0.25}
-                    ml={1}
-                  >
-                    {err}
-                  </Typography>
-                )}
+            {/* Add change currency */}
+            {monedasEligiblesVuelto.length > 0 && (
+              <Box mt={1.5}>
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={(e) =>
+                    monedasEligiblesVuelto.length === 1
+                      ? addVueltoMoneda(monedasEligiblesVuelto[0])
+                      : setAddVueltoAnchor(e.currentTarget)
+                  }
+                  sx={{ textTransform: "none" }}
+                >
+                  Dar cambio en otra moneda
+                </Button>
+                <Menu
+                  anchorEl={addVueltoAnchor}
+                  open={Boolean(addVueltoAnchor)}
+                  onClose={() => setAddVueltoAnchor(null)}
+                >
+                  {monedasEligiblesVuelto.map((code) => (
+                    <MenuItem key={code} onClick={() => addVueltoMoneda(code)}>
+                      {code}
+                    </MenuItem>
+                  ))}
+                </Menu>
               </Box>
-            );
-          })}
-
-          {/* Add change currency */}
-          {monedasEligiblesVuelto.length > 0 && (
-            <Box mt={1.5}>
-              <Button
-                size="small"
-                startIcon={<AddIcon />}
-                onClick={(e) =>
-                  monedasEligiblesVuelto.length === 1
-                    ? addVueltoMoneda(monedasEligiblesVuelto[0])
-                    : setAddVueltoAnchor(e.currentTarget)
-                }
-                sx={{ textTransform: "none" }}
-              >
-                Dar cambio en otra moneda
-              </Button>
-              <Menu
-                anchorEl={addVueltoAnchor}
-                open={Boolean(addVueltoAnchor)}
-                onClose={() => setAddVueltoAnchor(null)}
-              >
-                {monedasEligiblesVuelto.map((code) => (
-                  <MenuItem key={code} onClick={() => addVueltoMoneda(code)}>
-                    {code}
-                  </MenuItem>
-                ))}
-              </Menu>
-            </Box>
-          )}
-        </>
-      )}
-
-      <Divider sx={{ my: 2 }} />
-
-      {/* ── Summary ── */}
-      <Stack spacing={0.5} mt={2} mb={1}>
-        {falta ? (
-          <Stack direction="row" justifyContent="space-between">
-            <Typography variant="h6" color="error">
-              Falta:
-            </Typography>
-            <Typography variant="h6" color="error">
-              {(finalTotal - totalPagado).toFixed(2)} {monedaBase}
-            </Typography>
-          </Stack>
-        ) : (
-          <Stack direction="row" justifyContent="space-between">
-            <Typography variant="h6" color="success.main">
-              Cambio:
-            </Typography>
-            <Typography variant="h6" color="success.main">
-              {vueltoTotalBase.toFixed(2)} {monedaBase}
-            </Typography>
-          </Stack>
+            )}
+          </>
         )}
-      </Stack>
 
-      {/* ── Actions ── */}
+        <Divider sx={{ my: 2 }} />
+
+        {/* ── Summary ── */}
+        <Stack spacing={0.5} mt={2} mb={1}>
+          {falta ? (
+            <Stack direction="row" justifyContent="space-between">
+              <Typography variant="h6" color="error">
+                Falta:
+              </Typography>
+              <Typography variant="h6" color="error">
+                {(finalTotal - totalPagado).toFixed(2)} {monedaBase}
+              </Typography>
+            </Stack>
+          ) : (
+            <Stack direction="row" justifyContent="space-between">
+              <Typography variant="h6" color="success.main">
+                Cambio:
+              </Typography>
+              <Typography variant="h6" color="success.main">
+                {vueltoTotalBase.toFixed(2)} {monedaBase}
+              </Typography>
+            </Stack>
+          )}
+        </Stack>
+      </Box>
+
+      {/* ── Actions (fijo, fuera del scroll) ── */}
       <Button
         variant="contained"
         color="primary"
@@ -889,9 +911,6 @@ export function MultiCurrencyPaymentPanel({
         disabled={!canConfirm}
       >
         🚀 Confirmar Pago
-      </Button>
-      <Button variant="outlined" fullWidth sx={{ mt: 1 }} onClick={onBack}>
-        Volver
       </Button>
     </Box>
   );
