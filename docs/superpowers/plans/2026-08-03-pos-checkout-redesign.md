@@ -3116,7 +3116,7 @@ import {
 } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
-import { ICartItem } from "@/store/cartStore";
+import { ICartItem, useCartStore } from "@/store/cartStore";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
@@ -3177,6 +3177,18 @@ export const CartContent = ({
 
   const [step, setStep] = useState<CartStep>("cart");
 
+  // Payment lines belong to ONE basket. The checkout is remounted when the
+  // sale is submitted or when the cashier switches to another cart/account,
+  // because a pinned cart never unmounts on its own. Without this, lines
+  // entered for cart A survive a switch to cart B and `missing`/`change` are
+  // computed against B's total — the footer can show a plausible "Cambio" and
+  // VENDER stays enabled, submitting mismatched cash/transfer figures.
+  // The old fast path was safe only because it resynced the cash amount on
+  // every total change; the `dirty` flag deliberately stops doing that.
+  const activeCartId = useCartStore((state) => state.activeCartId);
+  const [saleCount, setSaleCount] = useState(0);
+  const checkoutKey = `${activeCartId}:${saleCount}`;
+
   // ─── Discount ─────────────────────────────────────────────────────────────
   const [promoCode, setPromoCode] = useState("");
   const [discountTotal, setDiscountTotal] = useState(0);
@@ -3229,6 +3241,9 @@ export const CartContent = ({
     setPromoCode("");
     setDiscountTotal(0);
     setApplied([]);
+    // Bumps `checkoutKey`, so the next sale starts from a clean checkout
+    // rather than inheriting this one's payment lines.
+    setSaleCount((count) => count + 1);
   };
 
   const handleRemoveItem = (item: ICartItem) => {
@@ -3422,6 +3437,7 @@ export const CartContent = ({
         <Fade in={step === "checkout"} timeout={200} unmountOnExit>
           <Box sx={{ position: "absolute", inset: 0 }}>
             <CheckoutView
+              key={checkoutKey}
               finalTotal={finalTotal}
               discountTotal={discountTotal}
               promoCode={promoCode}
