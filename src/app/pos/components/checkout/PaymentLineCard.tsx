@@ -5,13 +5,16 @@ import type { ChangeEvent } from "react";
 import {
   Box,
   Chip,
+  Collapse,
   FormControl,
+  FormControlLabel,
   IconButton,
   InputLabel,
   MenuItem,
   Paper,
   Select,
   Stack,
+  Switch,
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -128,22 +131,6 @@ export function PaymentLineCard({
           sx={{ height: 20, fontSize: "0.7rem" }}
         />
         <Box flex={1} />
-        {isCash && canToggleTransfer && onToggleTransfer && (
-          <IconButton
-            size="small"
-            onClick={onToggleTransfer}
-            color={transferLine ? "primary" : "default"}
-            aria-label={
-              transferLine
-                ? `Quitar transferencia en ${line.currency}`
-                : `Agregar transferencia en ${line.currency}`
-            }
-            aria-pressed={Boolean(transferLine)}
-            sx={{ minWidth: 44, minHeight: 44 }}
-          >
-            <CreditCardIcon fontSize="small" />
-          </IconButton>
-        )}
         {onRemove && (
           <IconButton
             size="small"
@@ -212,9 +199,31 @@ export function PaymentLineCard({
             suggestions={suggestions}
             value={line.amount}
             onSelect={(amount) => onChange({ amount })}
-            onOther={() => setKeypadOpen(true)}
           />
         </Box>
+      )}
+
+      {/* Self-labeled, full-width, and always visible when this currency
+          admits transfer — a small icon among three others in the header
+          was too easy to miss. Same switch-based pattern the panel this
+          replaced used, so it's familiar rather than novel. */}
+      {isCash && canToggleTransfer && onToggleTransfer && (
+        <FormControlLabel
+          labelPlacement="start"
+          onChange={onToggleTransfer}
+          sx={{
+            mt: 1,
+            ml: 0,
+            width: "100%",
+            justifyContent: "space-between",
+          }}
+          control={<Switch checked={Boolean(transferLine)} />}
+          label={
+            <Typography variant="body2" fontWeight={600} color="text.secondary">
+              Transferencia
+            </Typography>
+          }
+        />
       )}
 
       {/* Standalone transfer-only currency: this line IS the transfer, its
@@ -244,99 +253,106 @@ export function PaymentLineCard({
 
       {/* Transfer embedded in a cash card: typing here moves money out of
           the cash amount above, it never adds to what's already been
-          counted as paid. */}
-      {showTransferSection && transferLine && (
-        <Box
-          mt={1.25}
-          pt={1.25}
-          sx={{ borderTop: "1px dashed", borderColor: "divider" }}
-        >
-          <Stack direction="row" alignItems="center" gap={0.75} mb={0.75}>
-            <CreditCardIcon fontSize="small" color="action" />
-            <Typography
-              variant="caption"
-              fontWeight={700}
-              color="text.secondary"
-            >
-              Transferencia
-            </Typography>
-          </Stack>
-
-          <Box
-            component="input"
-            inputMode="none"
-            value={transferLine.amount || ""}
-            placeholder="0"
-            aria-label={`Monto por transferencia en ${transferLine.currency}`}
-            onClick={() => setTransferKeypadOpen(true)}
-            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-              onTransferAmountChange?.(Number(event.target.value) || 0)
-            }
-            sx={{
-              width: "100%",
-              border: 0,
-              borderBottom: "2px solid",
-              borderColor: "divider",
-              bgcolor: "transparent",
-              color: "text.primary",
-              font: "inherit",
-              fontSize: "1.1rem",
-              fontWeight: 700,
-              fontVariantNumeric: "tabular-nums",
-              py: 0.5,
-              outline: "none",
-              "&:focus": { borderColor: "primary.main" },
-            }}
-          />
-
-          {transferEquivalentBase !== null && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              mt={0.5}
-            >
-              ≈ {formatMontoEnMoneda(transferEquivalentBase, base)}
-            </Typography>
-          )}
-
-          {transferLine.amount > 0 && transferDestinations.length > 1 && (
-            <FormControl
-              fullWidth
-              size="small"
-              sx={{ mt: 1, "& .MuiOutlinedInput-root": { minHeight: 44 } }}
-            >
-              <InputLabel>Destino</InputLabel>
-              <Select
-                label="Destino"
-                value={transferLine.transferDestinationId ?? ""}
-                onChange={(event) =>
-                  onTransferDestinationChange?.(event.target.value)
-                }
+          counted as paid. A local fallback keeps the fields renderable
+          while the switch-off animates the section closed — `transferLine`
+          is gone from state the instant the switch flips, but Collapse
+          needs a frame or two of content to animate against. */}
+      {isCash && canToggleTransfer && (
+        <Collapse in={showTransferSection}>
+          {(() => {
+            const t = transferLine ?? {
+              id: "",
+              kind: "transfer" as const,
+              currency: line.currency,
+              amount: 0,
+            };
+            return (
+              <Box
+                mt={1.25}
+                pt={1.25}
+                sx={{ borderTop: "1px dashed", borderColor: "divider" }}
               >
-                {transferDestinations.map((destination) => (
-                  <MenuItem key={destination.id} value={destination.id}>
-                    {destination.nombre}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
+                <Box
+                  component="input"
+                  inputMode="none"
+                  value={t.amount || ""}
+                  placeholder="0"
+                  aria-label={`Monto por transferencia en ${t.currency}`}
+                  onClick={() => setTransferKeypadOpen(true)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    onTransferAmountChange?.(Number(event.target.value) || 0)
+                  }
+                  sx={{
+                    width: "100%",
+                    border: 0,
+                    borderBottom: "2px solid",
+                    borderColor: "divider",
+                    bgcolor: "transparent",
+                    color: "text.primary",
+                    font: "inherit",
+                    fontSize: "1.1rem",
+                    fontWeight: 700,
+                    fontVariantNumeric: "tabular-nums",
+                    py: 0.5,
+                    outline: "none",
+                    "&:focus": { borderColor: "primary.main" },
+                  }}
+                />
 
-          <AmountKeypad
-            open={transferKeypadOpen}
-            currency={transferLine.currency}
-            denominations={[]}
-            value={transferLine.amount}
-            label={`Transferencia ${transferLine.currency}`}
-            pendingLabel={`Falta ${formatMontoEnMoneda(transferPending, transferLine.currency)}`}
-            onClose={() => setTransferKeypadOpen(false)}
-            onConfirm={(amount) => {
-              onTransferAmountChange?.(amount);
-              setTransferKeypadOpen(false);
-            }}
-          />
-        </Box>
+                {transferEquivalentBase !== null && (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    mt={0.5}
+                  >
+                    ≈ {formatMontoEnMoneda(transferEquivalentBase, base)}
+                  </Typography>
+                )}
+
+                {t.amount > 0 && transferDestinations.length > 1 && (
+                  <FormControl
+                    fullWidth
+                    size="small"
+                    sx={{
+                      mt: 1,
+                      "& .MuiOutlinedInput-root": { minHeight: 44 },
+                    }}
+                  >
+                    <InputLabel>Destino</InputLabel>
+                    <Select
+                      label="Destino"
+                      value={t.transferDestinationId ?? ""}
+                      onChange={(event) =>
+                        onTransferDestinationChange?.(event.target.value)
+                      }
+                    >
+                      {transferDestinations.map((destination) => (
+                        <MenuItem key={destination.id} value={destination.id}>
+                          {destination.nombre}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
+                <AmountKeypad
+                  open={transferKeypadOpen}
+                  currency={t.currency}
+                  denominations={[]}
+                  value={t.amount}
+                  label={`Transferencia ${t.currency}`}
+                  pendingLabel={`Falta ${formatMontoEnMoneda(transferPending, t.currency)}`}
+                  onClose={() => setTransferKeypadOpen(false)}
+                  onConfirm={(amount) => {
+                    onTransferAmountChange?.(amount);
+                    setTransferKeypadOpen(false);
+                  }}
+                />
+              </Box>
+            );
+          })()}
+        </Collapse>
       )}
 
       <AmountKeypad

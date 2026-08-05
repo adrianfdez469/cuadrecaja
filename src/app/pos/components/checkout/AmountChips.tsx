@@ -19,7 +19,6 @@ interface AmountChipsProps {
   /** Amount the line currently holds, used to highlight the active chip. */
   value: number;
   onSelect: (amount: number) => void;
-  onOther: () => void;
 }
 
 export function AmountChips({
@@ -27,7 +26,6 @@ export function AmountChips({
   suggestions,
   value,
   onSelect,
-  onOther,
 }: AmountChipsProps) {
   const chips: Array<{ label: string; amount: number }> = [
     ...(exact > 0 ? [{ label: "Exacto", amount: exact }] : []),
@@ -59,19 +57,6 @@ export function AmountChips({
           </Button>
         );
       })}
-      <Button
-        variant="outlined"
-        onClick={onOther}
-        sx={{
-          minHeight: 44,
-          flex: "1 1 100%",
-          textTransform: "none",
-          borderStyle: "dashed",
-          color: "text.secondary",
-        }}
-      >
-        Otro monto…
-      </Button>
     </Box>
   );
 }

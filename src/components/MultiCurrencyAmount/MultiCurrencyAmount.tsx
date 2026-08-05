@@ -5,7 +5,7 @@ import { Box, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import { useMonedasAlternativas } from "./useMonedasAlternativas";
 
-type MultiCurrencyVariant = "default" | "compact" | "emphasized";
+type MultiCurrencyVariant = "default" | "compact" | "emphasized" | "hero";
 
 interface MultiCurrencyAmountProps {
   amount: number;
@@ -57,6 +57,14 @@ const VARIANT_STYLES: Record<
     primary: "body1",
     secondary: "caption",
     primaryWeight: 700,
+  },
+  // The sale's bottom-line total: the one number the cashier and the
+  // customer both actually look at, so it gets real weight on screen
+  // instead of reading like any other line item.
+  hero: {
+    primary: "h5",
+    secondary: "body2",
+    primaryWeight: 800,
   },
 };
 
