@@ -12,6 +12,14 @@ interface MultiCurrencyAmountProps {
   variant?: MultiCurrencyVariant;
   color?: string;
   align?: "left" | "right" | "center";
+  /**
+   * "stacked" (default) puts the alternate-currency line below the primary
+   * amount — the right call in narrow columns (item rows, unit prices).
+   * "inline" runs them on the same line, wrapping only if they don't fit —
+   * for standalone totals with room to breathe, so the total doesn't read
+   * as two disconnected numbers.
+   */
+  layout?: "stacked" | "inline";
   sx?: SxProps<Theme>;
 }
 
@@ -57,6 +65,7 @@ export function MultiCurrencyAmount({
   variant = "default",
   color,
   align = "left",
+  layout = "stacked",
   sx,
 }: MultiCurrencyAmountProps) {
   const { monedasAlternativas, hasAlternativas, monedaBase, convertToMoneda } =
@@ -77,18 +86,24 @@ export function MultiCurrencyAmount({
     [monedasAlternativas, amount, convertToMoneda],
   );
 
+  const isInline = layout === "inline";
+  const justify =
+    align === "right"
+      ? "flex-end"
+      : align === "center"
+        ? "center"
+        : "flex-start";
+
   return (
     <Box
       sx={{
         display: "flex",
-        flexDirection: "column",
-        alignItems:
-          align === "right"
-            ? "flex-end"
-            : align === "center"
-              ? "center"
-              : "flex-start",
-        gap: 0.25,
+        flexDirection: isInline ? "row" : "column",
+        flexWrap: isInline ? "wrap" : "nowrap",
+        alignItems: isInline ? "baseline" : justify,
+        justifyContent: isInline ? justify : undefined,
+        columnGap: isInline ? 0.75 : 0,
+        rowGap: isInline ? 0.25 : 0.25,
         minWidth: 0,
         maxWidth: "100%",
         ...sx,
@@ -116,12 +131,7 @@ export function MultiCurrencyAmount({
             flexWrap: "wrap",
             gap: 0.5,
             lineHeight: 1.35,
-            justifyContent:
-              align === "right"
-                ? "flex-end"
-                : align === "center"
-                  ? "center"
-                  : "flex-start",
+            justifyContent: isInline ? "flex-start" : justify,
             maxWidth: "100%",
           }}
         >

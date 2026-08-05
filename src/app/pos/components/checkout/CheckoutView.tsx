@@ -1,9 +1,17 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Box, Button, IconButton, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  Stack,
+  Typography,
+} from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AddIcon from "@mui/icons-material/Add";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { useAppContext } from "@/context/AppContext";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { PaymentLineCard } from "@/app/pos/components/checkout/PaymentLineCard";
@@ -92,7 +100,16 @@ export function CheckoutView({
     [monedasActivas],
   );
 
-  const { lines, dirty, addLine, updateLine, removeLine } = usePaymentLines({
+  const {
+    lines,
+    dirty,
+    addLine,
+    updateLine,
+    removeCurrencyGroup,
+    toggleTransfer,
+    setTransferAmount,
+    setTransferDestination,
+  } = usePaymentLines({
     finalTotal,
     monedaBase,
     denominationsFor,
@@ -111,6 +128,25 @@ export function CheckoutView({
       ),
     [lines, monedaBase],
   );
+
+  // One card per currency: a cash line and its embedded transfer line (if
+  // the toggle is on) group together, so cash and transfer for the same
+  // currency never appear as two separate cards.
+  const currencyGroups = useMemo(() => {
+    const order: string[] = [];
+    const cashByCurrency = new Map<string, (typeof lines)[number]>();
+    const transferByCurrency = new Map<string, (typeof lines)[number]>();
+    for (const line of lines) {
+      if (!order.includes(line.currency)) order.push(line.currency);
+      if (line.kind === "cash") cashByCurrency.set(line.currency, line);
+      else transferByCurrency.set(line.currency, line);
+    }
+    return order.map((currency) => ({
+      currency,
+      cashLine: cashByCurrency.get(currency),
+      transferLine: transferByCurrency.get(currency),
+    }));
+  }, [lines]);
 
   const paid = paidBase(lines, tasasVigentes, monedaBase);
   const missing = finalTotal === 0 ? false : isMissing(paid, finalTotal);
@@ -199,7 +235,16 @@ export function CheckoutView({
           equivalentBase: cashEquivalentBase,
         });
       }
-      if (allowsTransfer) {
+      // Transfer for a cash-capable currency is no longer offered here: once
+      // that currency has a cash card, its transfer toggle lives on the card
+      // itself (see PaymentLineCard) and typing into it reduces the cash
+      // amount, like the old per-currency panel did. This sheet only needs
+      // to offer transfer as a standalone option for a currency that can't
+      // take cash at all — there's no cash card to embed a toggle into.
+      const hasTransferLine = lines.some(
+        (line) => line.kind === "transfer" && line.currency === currency,
+      );
+      if (allowsTransfer && !allowsCash && !hasTransferLine) {
         options.push({
           kind: "transfer",
           currency,
@@ -308,12 +353,17 @@ export function CheckoutView({
         >
           <ArrowBackIcon />
         </IconButton>
-        <Box>
+        <Stack direction="row" alignItems="center" gap={1}>
           <Typography variant="h6">Cobrar</Typography>
-          <Typography variant="caption" color="text.secondary">
-            {itemCount} producto{itemCount !== 1 ? "s" : ""}
-          </Typography>
-        </Box>
+          <Chip
+            icon={<ShoppingCartIcon sx={{ fontSize: "1rem !important" }} />}
+            label={itemCount}
+            size="small"
+            color="success"
+            variant="outlined"
+            sx={{ height: 24, fontWeight: 700 }}
+          />
+        </Stack>
       </Stack>
 
       <Box flex={1} minHeight={0} sx={{ overflowY: "auto" }}>
@@ -330,33 +380,95 @@ export function CheckoutView({
             amount={finalTotal}
             variant="emphasized"
             color="success.main"
+            layout="inline"
           />
         </Box>
 
         <Stack gap={1}>
-          {lines.map((line) => (
-            <PaymentLineCard
-              key={line.id}
-              line={line}
-              pending={pendingInCurrency(
-                lines,
-                finalTotal,
-                line.currency,
-                tasasVigentes,
-                monedaBase,
-                line.id,
-              )}
-              denominations={denominationsFor(line.currency)}
-              isBase={line.currency === monedaBase}
-              transferDestinations={transferDestinations}
-              rates={tasasVigentes}
-              base={monedaBase}
-              onChange={(patch) => updateLine(line.id, patch)}
-              onRemove={
-                lines.length > 1 ? () => removeLine(line.id) : undefined
-              }
-            />
-          ))}
+          {currencyGroups.map((group) => {
+            const isBase = group.currency === monedaBase;
+            const info = monedasActivas.find(
+              (m) => m.monedaCode === group.currency,
+            );
+            const allowsTransfer =
+              isBase || (info?.admiteTransferencia ?? false);
+            const onRemove =
+              currencyGroups.length > 1
+                ? () => removeCurrencyGroup(group.currency)
+                : undefined;
+
+            if (group.cashLine) {
+              const cashLine = group.cashLine;
+              return (
+                <PaymentLineCard
+                  key={group.currency}
+                  line={cashLine}
+                  pending={pendingInCurrency(
+                    lines,
+                    finalTotal,
+                    group.currency,
+                    tasasVigentes,
+                    monedaBase,
+                    cashLine.id,
+                  )}
+                  denominations={denominationsFor(group.currency)}
+                  isBase={isBase}
+                  transferDestinations={transferDestinations}
+                  rates={tasasVigentes}
+                  base={monedaBase}
+                  onChange={(patch) => updateLine(cashLine.id, patch)}
+                  onRemove={onRemove}
+                  canToggleTransfer={allowsTransfer}
+                  transferLine={group.transferLine}
+                  transferPending={
+                    group.transferLine
+                      ? pendingInCurrency(
+                          lines,
+                          finalTotal,
+                          group.currency,
+                          tasasVigentes,
+                          monedaBase,
+                          group.transferLine.id,
+                        )
+                      : undefined
+                  }
+                  onToggleTransfer={() => toggleTransfer(group.currency)}
+                  onTransferAmountChange={(amount) =>
+                    setTransferAmount(group.currency, amount)
+                  }
+                  onTransferDestinationChange={(destId) =>
+                    setTransferDestination(group.currency, destId)
+                  }
+                />
+              );
+            }
+
+            // Transfer-only currency: no cash line to embed a toggle into,
+            // so this line stands alone exactly like it did before.
+            if (!group.transferLine) return null;
+            const transferLine = group.transferLine;
+            return (
+              <PaymentLineCard
+                key={group.currency}
+                line={transferLine}
+                pending={pendingInCurrency(
+                  lines,
+                  finalTotal,
+                  group.currency,
+                  tasasVigentes,
+                  monedaBase,
+                  transferLine.id,
+                )}
+                denominations={denominationsFor(group.currency)}
+                isBase={isBase}
+                transferDestinations={transferDestinations}
+                rates={tasasVigentes}
+                base={monedaBase}
+                onChange={(patch) => updateLine(transferLine.id, patch)}
+                onRemove={onRemove}
+              />
+            );
+          })}
 
           {paymentOptions.length > 0 && (
             <Button

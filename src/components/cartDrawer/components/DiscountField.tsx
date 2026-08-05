@@ -42,7 +42,9 @@ export function DiscountField({
         startIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
         sx={{ textTransform: "none", color: "text.secondary", minHeight: 44 }}
       >
-        {hasDiscount ? "Cambiar código" : "¿Tienes un código de descuento?"}
+        {hasDiscount
+          ? "Código de descuento"
+          : "¿Tienes un código de descuento?"}
       </Button>
 
       <Collapse in={open}>

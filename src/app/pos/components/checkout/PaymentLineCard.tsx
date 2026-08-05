@@ -27,6 +27,8 @@ import type { ITransferDestination } from "@/schemas/transferDestination";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
 interface PaymentLineCardProps {
+  /** The cash line for this currency, or the standalone transfer line for a
+   * currency that doesn't admit cash at all. */
   line: PaymentLine;
   /** Amount still owed, expressed in this line's currency. */
   pending: number;
@@ -37,6 +39,17 @@ interface PaymentLineCardProps {
   base: string;
   onChange: (patch: Partial<PaymentLine>) => void;
   onRemove?: () => void;
+  /** Present only when `line` is a cash line and this currency also admits
+   * transfer: shows the toggle that reveals the embedded transfer field. */
+  canToggleTransfer?: boolean;
+  /** The paired transfer line for this currency, once the toggle is on. */
+  transferLine?: PaymentLine;
+  /** Amount still owed, expressed in this currency, excluding the transfer
+   * line itself. */
+  transferPending?: number;
+  onToggleTransfer?: () => void;
+  onTransferAmountChange?: (amount: number) => void;
+  onTransferDestinationChange?: (destinationId: string) => void;
 }
 
 export function PaymentLineCard({
@@ -49,8 +62,15 @@ export function PaymentLineCard({
   base,
   onChange,
   onRemove,
+  canToggleTransfer,
+  transferLine,
+  transferPending = 0,
+  onToggleTransfer,
+  onTransferAmountChange,
+  onTransferDestinationChange,
 }: PaymentLineCardProps) {
   const [keypadOpen, setKeypadOpen] = useState(false);
+  const [transferKeypadOpen, setTransferKeypadOpen] = useState(false);
 
   const { exact, suggestions } = useMemo(
     () => suggestedAmounts(pending, denominations),
@@ -65,6 +85,21 @@ export function PaymentLineCard({
         : convertToBase(line.amount, line.currency, rates, base),
     [isBase, line.amount, line.currency, rates, base],
   );
+
+  const transferEquivalentBase = useMemo(
+    () =>
+      !transferLine || isBase || transferLine.amount <= 0
+        ? null
+        : convertToBase(
+            transferLine.amount,
+            transferLine.currency,
+            rates,
+            base,
+          ),
+    [transferLine, isBase, rates, base],
+  );
+
+  const showTransferSection = isCash && Boolean(transferLine);
 
   return (
     <Paper
@@ -93,12 +128,33 @@ export function PaymentLineCard({
           sx={{ height: 20, fontSize: "0.7rem" }}
         />
         <Box flex={1} />
+        {isCash && canToggleTransfer && onToggleTransfer && (
+          <IconButton
+            size="small"
+            onClick={onToggleTransfer}
+            color={transferLine ? "primary" : "default"}
+            aria-label={
+              transferLine
+                ? `Quitar transferencia en ${line.currency}`
+                : `Agregar transferencia en ${line.currency}`
+            }
+            aria-pressed={Boolean(transferLine)}
+            sx={{ minWidth: 44, minHeight: 44 }}
+          >
+            <CreditCardIcon fontSize="small" />
+          </IconButton>
+        )}
         {onRemove && (
           <IconButton
             size="small"
             onClick={onRemove}
-            aria-label={`Quitar ${isCash ? "efectivo" : "transferencia"} en ${line.currency}`}
-            sx={{ minWidth: 44, minHeight: 44 }}
+            aria-label={`Quitar ${line.currency}`}
+            sx={{
+              flexShrink: 0,
+              minWidth: 44,
+              minHeight: 44,
+              color: "error.main",
+            }}
           >
             <CloseIcon fontSize="small" />
           </IconButton>
@@ -161,6 +217,8 @@ export function PaymentLineCard({
         </Box>
       )}
 
+      {/* Standalone transfer-only currency: this line IS the transfer, its
+          own destination selector lives here directly. */}
       {!isCash && line.amount > 0 && transferDestinations.length > 1 && (
         <FormControl
           fullWidth
@@ -182,6 +240,103 @@ export function PaymentLineCard({
             ))}
           </Select>
         </FormControl>
+      )}
+
+      {/* Transfer embedded in a cash card: typing here moves money out of
+          the cash amount above, it never adds to what's already been
+          counted as paid. */}
+      {showTransferSection && transferLine && (
+        <Box
+          mt={1.25}
+          pt={1.25}
+          sx={{ borderTop: "1px dashed", borderColor: "divider" }}
+        >
+          <Stack direction="row" alignItems="center" gap={0.75} mb={0.75}>
+            <CreditCardIcon fontSize="small" color="action" />
+            <Typography
+              variant="caption"
+              fontWeight={700}
+              color="text.secondary"
+            >
+              Transferencia
+            </Typography>
+          </Stack>
+
+          <Box
+            component="input"
+            inputMode="none"
+            value={transferLine.amount || ""}
+            placeholder="0"
+            aria-label={`Monto por transferencia en ${transferLine.currency}`}
+            onClick={() => setTransferKeypadOpen(true)}
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              onTransferAmountChange?.(Number(event.target.value) || 0)
+            }
+            sx={{
+              width: "100%",
+              border: 0,
+              borderBottom: "2px solid",
+              borderColor: "divider",
+              bgcolor: "transparent",
+              color: "text.primary",
+              font: "inherit",
+              fontSize: "1.1rem",
+              fontWeight: 700,
+              fontVariantNumeric: "tabular-nums",
+              py: 0.5,
+              outline: "none",
+              "&:focus": { borderColor: "primary.main" },
+            }}
+          />
+
+          {transferEquivalentBase !== null && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              mt={0.5}
+            >
+              ≈ {formatMontoEnMoneda(transferEquivalentBase, base)}
+            </Typography>
+          )}
+
+          {transferLine.amount > 0 && transferDestinations.length > 1 && (
+            <FormControl
+              fullWidth
+              size="small"
+              sx={{ mt: 1, "& .MuiOutlinedInput-root": { minHeight: 44 } }}
+            >
+              <InputLabel>Destino</InputLabel>
+              <Select
+                label="Destino"
+                value={transferLine.transferDestinationId ?? ""}
+                onChange={(event) =>
+                  onTransferDestinationChange?.(event.target.value)
+                }
+              >
+                {transferDestinations.map((destination) => (
+                  <MenuItem key={destination.id} value={destination.id}>
+                    {destination.nombre}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
+          <AmountKeypad
+            open={transferKeypadOpen}
+            currency={transferLine.currency}
+            denominations={[]}
+            value={transferLine.amount}
+            label={`Transferencia ${transferLine.currency}`}
+            pendingLabel={`Falta ${formatMontoEnMoneda(transferPending, transferLine.currency)}`}
+            onClose={() => setTransferKeypadOpen(false)}
+            onConfirm={(amount) => {
+              onTransferAmountChange?.(amount);
+              setTransferKeypadOpen(false);
+            }}
+          />
+        </Box>
       )}
 
       <AmountKeypad

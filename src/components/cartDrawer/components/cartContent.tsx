@@ -6,7 +6,9 @@ import {
   Box,
   Typography,
   Button,
+  Chip,
   IconButton,
+  Stack,
   Tooltip,
   useMediaQuery,
   useTheme,
@@ -15,6 +17,7 @@ import {
 } from "@mui/material";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { ICartItem, useCartStore } from "@/store/cartStore";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
@@ -224,7 +227,19 @@ export const CartContent = ({
               justifyContent="space-between"
               mb={1}
             >
-              <Typography variant="h6">Venta</Typography>
+              <Stack direction="row" alignItems="center" gap={1}>
+                <Typography variant="h6">Venta</Typography>
+                <Chip
+                  icon={
+                    <ShoppingCartIcon sx={{ fontSize: "1rem !important" }} />
+                  }
+                  label={cart.length}
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                  sx={{ height: 24, fontWeight: 700 }}
+                />
+              </Stack>
               {!isMobile && (
                 <Tooltip
                   title={isCartPinned ? "Desanclar carrito" : "Anclar carrito"}
@@ -249,9 +264,6 @@ export const CartContent = ({
                 </Tooltip>
               )}
             </Box>
-            <Typography variant="body2" color="success.main">
-              Productos ({cart.length})
-            </Typography>
           </Box>
 
           <Box display="flex" flexDirection="row" alignItems="flex-start">

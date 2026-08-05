@@ -81,6 +81,7 @@ export function CartSummaryFooter({
           amount={finalTotal}
           variant="emphasized"
           color="success.main"
+          layout="inline"
         />
       </Box>
 
