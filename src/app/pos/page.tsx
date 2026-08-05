@@ -218,6 +218,32 @@ export default function POSInterface() {
 
   const [isCartPinned, setIsCartPinned] = useState(false);
 
+  // The floating cart-pills bar, search bar and search-results panel all
+  // need to stop exactly where the pinned cart panel begins. They used to
+  // compute that offset independently via getCartWidth() (a guessed vw
+  // string) — the same "two numbers that must coincidentally agree" bug
+  // already fixed once for the main content column, recurring here because
+  // these three bars stayed position:fixed with their own hand-computed
+  // right offset instead of becoming real flex layout. Measuring the
+  // panel's actual rendered width sidesteps the class of bug entirely,
+  // rather than guessing a value that has to match it.
+  const cartPanelRef = useRef<HTMLDivElement | null>(null);
+  const [cartPanelWidth, setCartPanelWidth] = useState(0);
+
+  useEffect(() => {
+    const el = cartPanelRef.current;
+    if (!el) {
+      setCartPanelWidth(0);
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width !== undefined) setCartPanelWidth(width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isCartPinned]);
+
   useEffect(() => {
     if (openCart && !isCartPinned) {
       searchInputRef.current?.blur();
@@ -1536,7 +1562,10 @@ export default function POSInterface() {
             position: "fixed",
             bottom: 60,
             left: 0,
-            right: isCartPinned && !isMobile ? getCartWidth() : 0,
+            // Measured, not guessed: getCartWidth() is a vw string that has
+            // to coincidentally match the panel's real rendered width
+            // (including its minWidth floor) for this to ever line up.
+            right: isCartPinned && !isMobile ? cartPanelWidth : 0,
             p: 1,
             zIndex: 1200,
             background:
@@ -1686,7 +1715,7 @@ export default function POSInterface() {
             position: "fixed",
             bottom: 0,
             left: 0,
-            right: isCartPinned && !isMobile ? getCartWidth() : 0,
+            right: isCartPinned && !isMobile ? cartPanelWidth : 0,
             p: 1,
             zIndex: 1200,
             background: `linear-gradient(to top, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
@@ -1762,10 +1791,7 @@ export default function POSInterface() {
               sx={{
                 position: "fixed",
                 left: 8,
-                right:
-                  isCartPinned && !isMobile
-                    ? `calc(${getCartWidth()} + 8px)`
-                    : 8,
+                right: isCartPinned && !isMobile ? cartPanelWidth + 8 : 8,
                 bottom: searchPanelLayout.bottom,
                 maxHeight: searchPanelLayout.maxHeight,
                 zIndex: 1300,
@@ -1866,6 +1892,7 @@ export default function POSInterface() {
 
       {isCartPinned && (
         <Box
+          ref={cartPanelRef}
           sx={{
             // A real flex sibling, not a position:fixed overlay floating
             // above the content on hand-computed coordinates. That's what
@@ -1879,27 +1906,34 @@ export default function POSInterface() {
             maxWidth: getCartWidth(),
             minWidth: "360px",
             height: "100%",
-            overflow: "hidden",
             // A shadow reads as "a distinct panel sitting beside this one,"
             // not just a line marking where the two happen to touch — same
-            // language used for the checkout/cart footers.
+            // language used for the checkout/cart footers. It has to live
+            // on THIS box, not the inner one below: box-shadow paints
+            // outside the border box, and a sibling `overflow: hidden` on
+            // the very same box clips its own shadow away — which is why
+            // the delimiting shadow wasn't actually showing.
             boxShadow: "-8px 0px 24px rgba(0,0,0,0.12)",
             backgroundColor: "background.paper",
           }}
         >
-          <CartContent
-            cart={cart}
-            total={total}
-            clear={clearCart}
-            updateQuantity={handleUpdateQuantity}
-            onClose={() => setOpenCart(false)}
-            removeItem={removeFromCart}
-            makePay={handleMakePay}
-            transferDestinations={transferDestinations}
-            cierreId={periodo?.id ?? ""}
-            isCartPinned={isCartPinned}
-            setIsCartPinned={setIsCartPinned}
-          />
+          {/* Only THIS box clips — CartContent's internal scrolling needs
+              containment, but it must not clip the outer box's shadow. */}
+          <Box sx={{ height: "100%", overflow: "hidden" }}>
+            <CartContent
+              cart={cart}
+              total={total}
+              clear={clearCart}
+              updateQuantity={handleUpdateQuantity}
+              onClose={() => setOpenCart(false)}
+              removeItem={removeFromCart}
+              makePay={handleMakePay}
+              transferDestinations={transferDestinations}
+              cierreId={periodo?.id ?? ""}
+              isCartPinned={isCartPinned}
+              setIsCartPinned={setIsCartPinned}
+            />
+          </Box>
         </Box>
       )}
     </Box>
