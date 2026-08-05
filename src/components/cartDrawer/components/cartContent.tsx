@@ -5,7 +5,6 @@ import { Close, Delete } from "@mui/icons-material";
 import {
   Box,
   Typography,
-  Button,
   Chip,
   IconButton,
   Stack,
@@ -268,16 +267,18 @@ export const CartContent = ({
 
           <Box display="flex" flexDirection="row" alignItems="flex-start">
             {clear && (
-              <Button
-                startIcon={<Delete />}
-                variant="contained"
-                onClick={handleClearCart}
-                disabled={cart.length === 0}
-                size={isCartPinned && !isTablet ? "medium" : "small"}
-                sx={{ mr: 1 }}
-              >
-                Vaciar
-              </Button>
+              <Tooltip title="Vaciar carrito">
+                <span>
+                  <IconButton
+                    onClick={handleClearCart}
+                    disabled={cart.length === 0}
+                    aria-label="Vaciar carrito"
+                    sx={{ mr: 0.5 }}
+                  >
+                    <Delete color={cart.length === 0 ? "disabled" : "action"} />
+                  </IconButton>
+                </span>
+              </Tooltip>
             )}
             <IconButton onClick={onClose} disabled={isCartPinned}>
               <Close color={isCartPinned ? "disabled" : "error"} />

@@ -120,15 +120,20 @@ export function PaymentLineCard({
         ) : (
           <CreditCardIcon fontSize="small" color="action" />
         )}
-        <Typography variant="body2" fontWeight={700}>
-          {isCash ? "Efectivo" : "Transferencia"}
-        </Typography>
+        {/* "Efectivo" doesn't earn its place: the icon already says "cash",
+            and the currency is what actually distinguishes one card from
+            the next, so it gets the emphasis instead. Standalone transfer
+            cards keep their label — there's no switch there to say so. */}
+        {!isCash && (
+          <Typography variant="body2" fontWeight={700}>
+            Transferencia
+          </Typography>
+        )}
         <Chip
           label={line.currency}
-          size="small"
-          color={isBase ? "primary" : "default"}
-          variant={isBase ? "filled" : "outlined"}
-          sx={{ height: 20, fontSize: "0.7rem" }}
+          color="primary"
+          variant="filled"
+          sx={{ height: 28, fontSize: "0.9rem", fontWeight: 700, px: 0.5 }}
         />
         <Box flex={1} />
         {onRemove && (

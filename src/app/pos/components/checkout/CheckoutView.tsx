@@ -368,14 +368,6 @@ export function CheckoutView({
 
       <Box flex={1} minHeight={0} sx={{ overflowY: "auto" }}>
         <Box mb={1.5}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-            sx={{ textTransform: "uppercase", letterSpacing: 0.4 }}
-          >
-            Total a cobrar
-          </Typography>
           <MultiCurrencyAmount
             amount={finalTotal}
             variant="hero"

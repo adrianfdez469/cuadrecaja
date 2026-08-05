@@ -1,12 +1,18 @@
 "use client";
 
+import { useState } from "react";
+import type { MouseEvent } from "react";
 import { Delete, Remove, Add } from "@mui/icons-material";
 import {
   Box,
+  ButtonBase,
+  Divider,
   Typography,
   Chip,
   IconButton,
   Paper,
+  Popover,
+  Stack,
   Tooltip,
   useTheme,
   alpha,
@@ -78,14 +84,20 @@ export function CartItemCard({
   canUpdateQuantity,
 }: CartItemCardProps) {
   const theme = useTheme();
+  const [detailAnchor, setDetailAnchor] = useState<HTMLElement | null>(null);
   // Use priceBase (monedaBase equivalent) for MultiCurrencyAmount display; fall back to raw price if not set
-  const lineTotal = (item.priceBase ?? item.price) * item.quantity;
+  const unitPrice = item.priceBase ?? item.price;
+  const lineTotal = unitPrice * item.quantity;
+
+  const openDetail = (event: MouseEvent<HTMLElement>) =>
+    setDetailAnchor(event.currentTarget);
+  const closeDetail = () => setDetailAnchor(null);
 
   return (
     <Paper
       elevation={0}
       sx={{
-        p: { xs: 1.25, sm: 1.5 },
+        p: { xs: 1, sm: 1.25 },
         mb: 1,
         borderRadius: 2,
         border: "1px solid",
@@ -99,7 +111,7 @@ export function CartItemCard({
         alignItems="flex-start"
         justifyContent="space-between"
         gap={1}
-        mb={1}
+        mb={0.75}
       >
         <Box flex={1} minWidth={0}>
           <Typography
@@ -139,76 +151,26 @@ export function CartItemCard({
         )}
       </Box>
 
-      {/* Fila 2: precios en dos columnas */}
+      {/* Fila 2: cantidad y subtotal en una sola línea; el detalle (precio
+          unitario + conversiones) queda oculto hasta que se toca el monto,
+          en vez de ocupar espacio siempre. */}
       <Box
-        display="grid"
-        gridTemplateColumns="1fr 1fr"
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
         gap={1}
-        mb={1.25}
-        sx={{
-          borderTop: "1px dashed",
-          borderColor: "divider",
-          pt: 1,
-        }}
       >
-        <Box minWidth={0}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-            sx={{
-              mb: 0.25,
-              fontSize: "0.65rem",
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-            }}
-          >
-            Unitario
-          </Typography>
-          <MultiCurrencyAmount
-            amount={item.priceBase ?? item.price}
-            variant="compact"
-          />
-        </Box>
-
-        <Box minWidth={0}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-            align="right"
-            sx={{
-              mb: 0.25,
-              fontSize: "0.65rem",
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-            }}
-          >
-            Subtotal
-          </Typography>
-          <MultiCurrencyAmount
-            amount={lineTotal}
-            variant="compact"
-            align="right"
-            color="success.main"
-          />
-        </Box>
-      </Box>
-
-      {/* Fila 3: cantidad centrada a ancho completo */}
-      {canUpdateQuantity && (
-        <Box display="flex" justifyContent="center">
-          <Box
-            display="flex"
+        {canUpdateQuantity ? (
+          <Stack
+            direction="row"
             alignItems="center"
             justifyContent="space-between"
             sx={{
-              width: "100%",
-              maxWidth: 200,
               bgcolor: "action.hover",
               borderRadius: 2,
               px: 0.5,
               py: 0.25,
+              flexShrink: 0,
             }}
           >
             <IconButton
@@ -222,7 +184,7 @@ export function CartItemCard({
             <Typography
               variant="body1"
               fontWeight={700}
-              sx={{ minWidth: 32, textAlign: "center" }}
+              sx={{ minWidth: 28, textAlign: "center" }}
             >
               {item.quantity}
             </Typography>
@@ -234,9 +196,78 @@ export function CartItemCard({
             >
               <Add />
             </IconButton>
+          </Stack>
+        ) : (
+          <Typography variant="body2" color="text.secondary" fontWeight={600}>
+            ×{item.quantity}
+          </Typography>
+        )}
+
+        <ButtonBase
+          onClick={openDetail}
+          aria-label={`Ver detalle de precio de ${item.name}`}
+          sx={{
+            borderRadius: 1.5,
+            px: 0.75,
+            py: 0.5,
+            minHeight: 44,
+          }}
+        >
+          <MultiCurrencyAmount
+            amount={lineTotal}
+            color="success.main"
+            showAlternatives={false}
+          />
+        </ButtonBase>
+      </Box>
+
+      <Popover
+        open={Boolean(detailAnchor)}
+        anchorEl={detailAnchor}
+        onClose={closeDetail}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Stack gap={1} sx={{ p: 1.5, minWidth: 200 }}>
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{
+                mb: 0.25,
+                fontSize: "0.65rem",
+                textTransform: "uppercase",
+                letterSpacing: 0.4,
+              }}
+            >
+              Unitario
+            </Typography>
+            <MultiCurrencyAmount amount={unitPrice} variant="compact" />
           </Box>
-        </Box>
-      )}
+          <Divider />
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{
+                mb: 0.25,
+                fontSize: "0.65rem",
+                textTransform: "uppercase",
+                letterSpacing: 0.4,
+              }}
+            >
+              Subtotal ({item.quantity} ×)
+            </Typography>
+            <MultiCurrencyAmount
+              amount={lineTotal}
+              variant="compact"
+              color="success.main"
+            />
+          </Box>
+        </Stack>
+      </Popover>
     </Paper>
   );
 }

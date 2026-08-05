@@ -69,14 +69,6 @@ export function CartSummaryFooter({
       <Divider sx={{ my: 1 }} />
 
       <Box mb={1}>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          display="block"
-          sx={{ textTransform: "uppercase", letterSpacing: 0.4 }}
-        >
-          Total
-        </Typography>
         <MultiCurrencyAmount
           amount={finalTotal}
           variant="hero"

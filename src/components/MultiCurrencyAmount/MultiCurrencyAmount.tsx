@@ -20,6 +20,9 @@ interface MultiCurrencyAmountProps {
    * as two disconnected numbers.
    */
   layout?: "stacked" | "inline";
+  /** Set false to show only the base-currency amount, e.g. a compact row
+   * where the conversions belong behind a tap instead of always on screen. */
+  showAlternatives?: boolean;
   sx?: SxProps<Theme>;
 }
 
@@ -60,9 +63,10 @@ const VARIANT_STYLES: Record<
   },
   // The sale's bottom-line total: the one number the cashier and the
   // customer both actually look at, so it gets real weight on screen
-  // instead of reading like any other line item.
+  // instead of reading like any other line item. No caption sits above it
+  // at either call site, so it can afford to be this big.
   hero: {
-    primary: "h5",
+    primary: "h4",
     secondary: "body2",
     primaryWeight: 800,
   },
@@ -74,6 +78,7 @@ export function MultiCurrencyAmount({
   color,
   align = "left",
   layout = "stacked",
+  showAlternatives = true,
   sx,
 }: MultiCurrencyAmountProps) {
   const { monedasAlternativas, hasAlternativas, monedaBase, convertToMoneda } =
@@ -129,7 +134,7 @@ export function MultiCurrencyAmount({
         {formatAmount(amount)} {monedaBase}
       </Typography>
 
-      {hasAlternativas && (
+      {hasAlternativas && showAlternatives && (
         <Typography
           variant={styles.secondary as "caption"}
           color="text.secondary"
