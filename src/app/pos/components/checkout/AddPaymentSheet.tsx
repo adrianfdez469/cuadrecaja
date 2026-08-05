@@ -43,6 +43,11 @@ export function AddPaymentSheet({
       anchor="bottom"
       open={open}
       onClose={onClose}
+      // See AmountKeypad.tsx: the pinned cart sidebar and the mobile
+      // CartDrawer sit at theme.zIndex.drawer + 1, and this Drawer portals to
+      // document.body regardless of nesting, so it needs an explicit zIndex
+      // above them or it renders behind whichever one is on screen.
+      sx={{ zIndex: (theme) => theme.zIndex.modal }}
       PaperProps={{ sx: { borderRadius: "16px 16px 0 0" } }}
     >
       <Stack

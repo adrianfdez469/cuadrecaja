@@ -232,6 +232,12 @@ export function AmountKeypad({
       anchor="bottom"
       open={open}
       onClose={onClose}
+      // The pinned cart sidebar and the mobile CartDrawer both sit at
+      // theme.zIndex.drawer + 1, and MUI portals this Drawer straight to
+      // document.body regardless of where it's mounted in the React tree —
+      // without an explicit zIndex it defaults to theme.zIndex.drawer and
+      // renders behind them.
+      sx={{ zIndex: (theme) => theme.zIndex.modal }}
       PaperProps={{ sx: { borderRadius: "16px 16px 0 0" } }}
     >
       {content}
