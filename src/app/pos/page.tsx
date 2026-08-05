@@ -297,16 +297,6 @@ export default function POSInterface() {
     return "42vw";
   };
 
-  const getMainContentWidth = () => {
-    if (!isCartPinned) return "100%";
-    if (isMobile) return "100%";
-    // Must subtract exactly what getCartWidth() reserves — the two used to
-    // be hand-kept in sync (35vw/40vw vs the cart's actual 42vw/48vw) and
-    // drifted, leaving the category grid a few vw too wide and running
-    // underneath the fixed-position cart panel instead of stopping at it.
-    return `calc(100% - ${getCartWidth()})`;
-  };
-
   const scannerEnabled =
     !editingCartId &&
     !intentToSearch &&
@@ -1275,8 +1265,14 @@ export default function POSInterface() {
       <Box
         ref={posScrollRef}
         sx={{
+          // The pinned cart panel is a real flex sibling now (not a
+          // position:fixed overlay with a hand-computed complementary
+          // width), so `flex: 1` alone is what guarantees this always
+          // takes exactly "whatever space the cart panel doesn't" —
+          // correct at any viewport width, including when the cart's own
+          // minWidth floor kicks in.
           flex: isCartPinned ? "1" : "none",
-          width: getMainContentWidth(),
+          minWidth: 0,
           overflow: "auto",
           height: "100%", // Use parent height
           p: 0,
@@ -1868,20 +1864,24 @@ export default function POSInterface() {
       {isCartPinned && (
         <Box
           sx={{
-            position: "fixed",
-            right: 0,
-            top: { xs: 56, sm: 64 },
+            // A real flex sibling, not a position:fixed overlay floating
+            // above the content on hand-computed coordinates. That's what
+            // made the two ever line up "by luck" instead of by
+            // construction — the main content's width was a separately
+            // maintained calc() string that had to exactly match this
+            // panel's width, including its minWidth floor, and drifted.
+            // As a flex item, the browser computes both correctly, always.
+            flexShrink: 0,
             width: getCartWidth(),
             maxWidth: getCartWidth(),
             minWidth: "360px",
-            height: { xs: "calc(100vh - 56px)", sm: "calc(100vh - 64px)" },
+            height: "100%",
             overflow: "hidden",
             // A shadow reads as "a distinct panel sitting beside this one,"
             // not just a line marking where the two happen to touch — same
             // language used for the checkout/cart footers.
             boxShadow: "-8px 0px 24px rgba(0,0,0,0.12)",
             backgroundColor: "background.paper",
-            zIndex: (theme) => theme.zIndex.drawer + 1,
           }}
         >
           <CartContent
