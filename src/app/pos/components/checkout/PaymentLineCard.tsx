@@ -234,7 +234,7 @@ export function PaymentLineCard({
         <FormControl
           fullWidth
           size="small"
-          sx={{ mt: 1, "& .MuiOutlinedInput-root": { minHeight: 44 } }}
+          sx={{ mt: 2, "& .MuiOutlinedInput-root": { minHeight: 44 } }}
         >
           <InputLabel>Destino</InputLabel>
           <Select
@@ -317,7 +317,7 @@ export function PaymentLineCard({
                     fullWidth
                     size="small"
                     sx={{
-                      mt: 1,
+                      mt: 2,
                       "& .MuiOutlinedInput-root": { minHeight: 44 },
                     }}
                   >

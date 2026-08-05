@@ -384,7 +384,7 @@ export function CheckoutView({
         >
           <MultiCurrencyAmount
             amount={finalTotal}
-            variant="emphasized"
+            variant="prominent"
             color="success.main"
             showAlternatives={false}
           />
