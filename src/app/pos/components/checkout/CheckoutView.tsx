@@ -491,8 +491,12 @@ export function CheckoutView({
         sx={{
           mt: 1,
           pt: 1.5,
-          borderTop: "2px solid",
-          borderColor: "divider",
+          bgcolor: "background.paper",
+          // The shadow alone reads as "a panel floating above the content
+          // below it" — a divider line reads as a boundary, not elevation.
+          // Unlike the cart step's footer, this one is not full-bleed: it
+          // keeps the same horizontal inset as the rest of the checkout.
+          boxShadow: "0px -6px 16px rgba(0,0,0,0.12)",
         }}
       >
         <ChangeSummary

@@ -37,10 +37,16 @@ export function CartSummaryFooter({
       sx={{
         mt: 1,
         pt: 1.5,
-        px: 0.5,
-        borderTop: "2px solid",
-        borderColor: "divider",
-        boxShadow: "0px -4px 12px rgba(0,0,0,0.08)",
+        pb: 1.5,
+        px: 2,
+        // Cancels the parent drawer's own horizontal padding (theme.spacing(2))
+        // so this panel reaches the drawer's true edges instead of sitting
+        // inset like the rest of the content — "occupies the whole space."
+        mx: -2,
+        bgcolor: "background.paper",
+        // The shadow alone reads as "a panel floating above the content
+        // below it" — a divider line reads as a boundary, not elevation.
+        boxShadow: "0px -6px 16px rgba(0,0,0,0.12)",
       }}
     >
       {discountTotal > 0 && (
