@@ -300,8 +300,11 @@ export default function POSInterface() {
   const getMainContentWidth = () => {
     if (!isCartPinned) return "100%";
     if (isMobile) return "100%";
-    if (isTablet) return "calc(100% - 40vw)";
-    return "calc(100% - 35vw)";
+    // Must subtract exactly what getCartWidth() reserves — the two used to
+    // be hand-kept in sync (35vw/40vw vs the cart's actual 42vw/48vw) and
+    // drifted, leaving the category grid a few vw too wide and running
+    // underneath the fixed-position cart panel instead of stopping at it.
+    return `calc(100% - ${getCartWidth()})`;
   };
 
   const scannerEnabled =
@@ -1873,7 +1876,10 @@ export default function POSInterface() {
             minWidth: "360px",
             height: { xs: "calc(100vh - 56px)", sm: "calc(100vh - 64px)" },
             overflow: "hidden",
-            borderLeft: "1px solid rgba(0,0,0,0.1)",
+            // A shadow reads as "a distinct panel sitting beside this one,"
+            // not just a line marking where the two happen to touch — same
+            // language used for the checkout/cart footers.
+            boxShadow: "-8px 0px 24px rgba(0,0,0,0.12)",
             backgroundColor: "background.paper",
             zIndex: (theme) => theme.zIndex.drawer + 1,
           }}

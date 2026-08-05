@@ -215,57 +215,49 @@ export const CartContent = ({
       {step === "cart" && (
         <Box
           display="flex"
+          alignItems="center"
           justifyContent="space-between"
-          alignItems="flex-start"
           mb={2}
         >
-          <Box display="flex" flexDirection="column" flex={1}>
-            <Box
-              display="flex"
-              alignItems="center"
-              justifyContent="space-between"
-              mb={1}
-            >
-              <Stack direction="row" alignItems="center" gap={1}>
-                <Typography variant="h6">Venta</Typography>
-                <Chip
-                  icon={
-                    <ShoppingCartIcon sx={{ fontSize: "1rem !important" }} />
-                  }
-                  label={cart.length}
-                  size="small"
-                  color="success"
-                  variant="outlined"
-                  sx={{ height: 24, fontWeight: 700 }}
-                />
-              </Stack>
-              {!isMobile && (
-                <Tooltip
-                  title={isCartPinned ? "Desanclar carrito" : "Anclar carrito"}
-                >
-                  <IconButton
-                    onClick={handlePinCart}
-                    size="small"
-                    aria-label={
-                      isCartPinned ? "Desanclar carrito" : "Anclar carrito"
-                    }
-                    sx={{
-                      color: isCartPinned ? "primary.main" : "secondary.main",
-                      "&:hover": {
-                        bgcolor: isCartPinned
-                          ? alpha(theme.palette.primary.main, 0.08)
-                          : "action.hover",
-                      },
-                    }}
-                  >
-                    {isCartPinned ? <PushPinIcon /> : <PushPinOutlinedIcon />}
-                  </IconButton>
-                </Tooltip>
-              )}
-            </Box>
-          </Box>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Typography variant="h6">Venta</Typography>
+            <Chip
+              icon={<ShoppingCartIcon sx={{ fontSize: "1rem !important" }} />}
+              label={cart.length}
+              size="small"
+              color="success"
+              variant="outlined"
+              sx={{ height: 24, fontWeight: 700 }}
+            />
+          </Stack>
 
-          <Box display="flex" flexDirection="row" alignItems="flex-start">
+          {/* Pin, Vaciar and Close all share this one row so they line up
+              at the same height — the pin used to live in a separate,
+              shorter row next to the title and sat visibly off from the
+              other two. */}
+          <Stack direction="row" alignItems="center" gap={0.5}>
+            {!isMobile && (
+              <Tooltip
+                title={isCartPinned ? "Desanclar carrito" : "Anclar carrito"}
+              >
+                <IconButton
+                  onClick={handlePinCart}
+                  aria-label={
+                    isCartPinned ? "Desanclar carrito" : "Anclar carrito"
+                  }
+                  sx={{
+                    color: isCartPinned ? "primary.main" : "secondary.main",
+                    "&:hover": {
+                      bgcolor: isCartPinned
+                        ? alpha(theme.palette.primary.main, 0.08)
+                        : "action.hover",
+                    },
+                  }}
+                >
+                  {isCartPinned ? <PushPinIcon /> : <PushPinOutlinedIcon />}
+                </IconButton>
+              </Tooltip>
+            )}
             {clear && (
               <Tooltip title="Vaciar carrito">
                 <span>
@@ -273,7 +265,6 @@ export const CartContent = ({
                     onClick={handleClearCart}
                     disabled={cart.length === 0}
                     aria-label="Vaciar carrito"
-                    sx={{ mr: 0.5 }}
                   >
                     <Delete color={cart.length === 0 ? "disabled" : "action"} />
                   </IconButton>
@@ -283,7 +274,7 @@ export const CartContent = ({
             <IconButton onClick={onClose} disabled={isCartPinned}>
               <Close color={isCartPinned ? "disabled" : "error"} />
             </IconButton>
-          </Box>
+          </Stack>
         </Box>
       )}
 
