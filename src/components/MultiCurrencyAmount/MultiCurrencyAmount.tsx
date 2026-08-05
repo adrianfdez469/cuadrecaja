@@ -5,8 +5,7 @@ import { Box, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import { useMonedasAlternativas } from "./useMonedasAlternativas";
 
-type MultiCurrencyVariant =
-  "default" | "compact" | "emphasized" | "prominent" | "hero";
+type MultiCurrencyVariant = "default" | "compact" | "emphasized" | "hero";
 
 interface MultiCurrencyAmountProps {
   amount: number;
@@ -61,14 +60,6 @@ const VARIANT_STYLES: Record<
     primary: "body1",
     secondary: "caption",
     primaryWeight: 700,
-  },
-  // A big number that still has to share a single header row with a title,
-  // a back button and a chip — bigger than "emphasized", but not the
-  // full-width "hero" treatment, which would overwhelm that row.
-  prominent: {
-    primary: "h5",
-    secondary: "caption",
-    primaryWeight: 800,
   },
   // The sale's bottom-line total: the one number the cashier and the
   // customer both actually look at, so it gets real weight on screen

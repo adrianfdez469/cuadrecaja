@@ -350,7 +350,14 @@ export function CheckoutView({
         flexDirection: "column",
       }}
     >
-      <Stack direction="row" alignItems="center" gap={1} mb={1.5}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        flexWrap="wrap"
+        rowGap={0.5}
+        gap={1}
+        mb={1.5}
+      >
         <IconButton
           onClick={onBack}
           aria-label="Volver al carrito"
@@ -370,11 +377,12 @@ export function CheckoutView({
           />
         </Stack>
 
-        <Box flex={1} />
+        <Box flex={1} sx={{ minWidth: 8 }} />
 
         {/* The total lives in the header now instead of its own block below
             — the conversions it used to always show move into a popover on
-            tap, same pattern as the cart's item cards. */}
+            tap, same pattern as the cart's item cards. Same "hero" size as
+            the cart step's total, so the two screens read consistently. */}
         <ButtonBase
           onClick={(event: MouseEvent<HTMLElement>) =>
             setTotalDetailAnchor(event.currentTarget)
@@ -384,7 +392,7 @@ export function CheckoutView({
         >
           <MultiCurrencyAmount
             amount={finalTotal}
-            variant="prominent"
+            variant="hero"
             color="success.main"
             showAlternatives={false}
           />
