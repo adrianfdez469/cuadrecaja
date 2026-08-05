@@ -18,7 +18,6 @@ import {
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import { AmountChips } from "@/app/pos/components/checkout/AmountChips";
 import { AmountKeypad } from "@/app/pos/components/checkout/AmountKeypad";
@@ -115,19 +114,17 @@ export function PaymentLineCard({
       }}
     >
       <Stack direction="row" alignItems="center" gap={0.75} mb={1}>
-        {isCash ? (
-          <PaymentsOutlinedIcon fontSize="small" color="action" />
-        ) : (
-          <CreditCardIcon fontSize="small" color="action" />
-        )}
-        {/* "Efectivo" doesn't earn its place: the icon already says "cash",
-            and the currency is what actually distinguishes one card from
-            the next, so it gets the emphasis instead. Standalone transfer
-            cards keep their label — there's no switch there to say so. */}
+        {/* Cash gets neither icon nor label: the currency is what actually
+            distinguishes one card from the next, so it gets the emphasis
+            instead. Standalone transfer cards keep both — there's no switch
+            there to say so otherwise. */}
         {!isCash && (
-          <Typography variant="body2" fontWeight={700}>
-            Transferencia
-          </Typography>
+          <>
+            <CreditCardIcon fontSize="small" color="action" />
+            <Typography variant="body2" fontWeight={700}>
+              Transferencia
+            </Typography>
+          </>
         )}
         <Chip
           label={line.currency}
@@ -295,7 +292,7 @@ export function PaymentLineCard({
                     bgcolor: "transparent",
                     color: "text.primary",
                     font: "inherit",
-                    fontSize: "1.1rem",
+                    fontSize: "1.4rem",
                     fontWeight: 700,
                     fontVariantNumeric: "tabular-nums",
                     py: 0.5,

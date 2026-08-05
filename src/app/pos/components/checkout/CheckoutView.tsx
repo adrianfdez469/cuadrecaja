@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
 import {
   Box,
   Button,
+  ButtonBase,
   Chip,
   IconButton,
+  Popover,
   Stack,
   Typography,
 } from "@mui/material";
@@ -172,6 +175,8 @@ export function CheckoutView({
 
   const [addOpen, setAddOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
+  const [totalDetailAnchor, setTotalDetailAnchor] =
+    useState<HTMLElement | null>(null);
   // The exit transition keeps this view mounted for ~200 ms after a sale is
   // submitted; without this guard a second tap would send a second sale.
   const [submitting, setSubmitting] = useState(false);
@@ -364,18 +369,53 @@ export function CheckoutView({
             sx={{ height: 24, fontWeight: 700 }}
           />
         </Stack>
-      </Stack>
 
-      <Box flex={1} minHeight={0} sx={{ overflowY: "auto" }}>
-        <Box mb={1.5}>
+        <Box flex={1} />
+
+        {/* The total lives in the header now instead of its own block below
+            — the conversions it used to always show move into a popover on
+            tap, same pattern as the cart's item cards. */}
+        <ButtonBase
+          onClick={(event: MouseEvent<HTMLElement>) =>
+            setTotalDetailAnchor(event.currentTarget)
+          }
+          aria-label="Ver detalle del total a cobrar"
+          sx={{ borderRadius: 1.5, px: 0.75, py: 0.5, minHeight: 44 }}
+        >
           <MultiCurrencyAmount
             amount={finalTotal}
-            variant="hero"
+            variant="emphasized"
             color="success.main"
-            layout="inline"
+            showAlternatives={false}
           />
-        </Box>
+        </ButtonBase>
+      </Stack>
 
+      <Popover
+        open={Boolean(totalDetailAnchor)}
+        anchorEl={totalDetailAnchor}
+        onClose={() => setTotalDetailAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Stack gap={1} sx={{ p: 1.5, minWidth: 200 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            sx={{
+              fontSize: "0.65rem",
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+            }}
+          >
+            Total a cobrar
+          </Typography>
+          <MultiCurrencyAmount amount={finalTotal} color="success.main" />
+        </Stack>
+      </Popover>
+
+      <Box flex={1} minHeight={0} sx={{ overflowY: "auto" }}>
         <Stack gap={1}>
           {currencyGroups.map((group) => {
             const isBase = group.currency === monedaBase;
@@ -491,11 +531,16 @@ export function CheckoutView({
         sx={{
           mt: 1,
           pt: 1.5,
+          pb: 1.5,
+          px: 2,
+          // Cancels the parent drawer's own horizontal padding (theme.spacing(2))
+          // so this panel reaches the drawer's true edges instead of sitting
+          // inset like the rest of the content — same treatment as the cart
+          // step's footer.
+          mx: -2,
           bgcolor: "background.paper",
           // The shadow alone reads as "a panel floating above the content
           // below it" — a divider line reads as a boundary, not elevation.
-          // Unlike the cart step's footer, this one is not full-bleed: it
-          // keeps the same horizontal inset as the rest of the checkout.
           boxShadow: "0px -6px 16px rgba(0,0,0,0.12)",
         }}
       >
