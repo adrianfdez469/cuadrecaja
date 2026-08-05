@@ -1267,11 +1267,14 @@ export default function POSInterface() {
         sx={{
           // The pinned cart panel is a real flex sibling now (not a
           // position:fixed overlay with a hand-computed complementary
-          // width), so `flex: 1` alone is what guarantees this always
-          // takes exactly "whatever space the cart panel doesn't" —
-          // correct at any viewport width, including when the cart's own
-          // minWidth floor kicks in.
-          flex: isCartPinned ? "1" : "none",
+          // width), so `flex: 1` is what guarantees this always takes
+          // exactly "whatever space the cart panel doesn't" — correct at
+          // any viewport width, including when the cart's own minWidth
+          // floor kicks in. Unconditional: when unpinned there's no sibling
+          // at all, and flex:1 is what makes this fill the whole row —
+          // `flex:"none"` shrinks it to its own content width instead,
+          // leaving the rest of the row empty.
+          flex: 1,
           minWidth: 0,
           overflow: "auto",
           height: "100%", // Use parent height
