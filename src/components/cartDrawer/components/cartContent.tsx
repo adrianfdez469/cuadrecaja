@@ -9,13 +9,8 @@ import {
   IconButton,
   Stack,
   Tooltip,
-  useMediaQuery,
-  useTheme,
-  alpha,
   Fade,
 } from "@mui/material";
-import PushPinIcon from "@mui/icons-material/PushPin";
-import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { ICartItem, useCartStore } from "@/store/cartStore";
 import useConfirmDialog from "@/components/confirmDialog";
@@ -31,11 +26,10 @@ import type {
   DiscountApplicationResultItem,
 } from "@/lib/discounts";
 
-interface IProps {
+interface ICommonProps {
   clear?: () => void;
   cart: ICartItem[];
   updateQuantity?: (id: string, quantity: number) => void;
-  onClose: () => void;
   removeItem?: (id: string) => void;
   total: number;
   makePay: (
@@ -48,30 +42,32 @@ interface IProps {
   ) => Promise<void>;
   transferDestinations: ITransferDestination[];
   cierreId: string;
-  isCartPinned: boolean;
-  setIsCartPinned: (isCartPinned: boolean) => void;
 }
+
+// A "panel" cart has no way to close — it's a permanent sidebar — so
+// `onClose` is only representable on the "drawer" variant. This makes the
+// previously-possible invalid state (a panel passed a close handler that
+// nothing ever calls) impossible to construct.
+type IProps =
+  | (ICommonProps & { variant: "drawer"; onClose: () => void })
+  | (ICommonProps & { variant: "panel" });
 
 type CartStep = "cart" | "checkout";
 
-export const CartContent = ({
-  cart,
-  total,
-  isCartPinned,
-  clear,
-  updateQuantity,
-  onClose,
-  removeItem,
-  makePay,
-  transferDestinations,
-  cierreId,
-  setIsCartPinned,
-}: IProps) => {
+export const CartContent = (props: IProps) => {
+  const {
+    cart,
+    total,
+    variant,
+    clear,
+    updateQuantity,
+    removeItem,
+    makePay,
+    transferDestinations,
+    cierreId,
+  } = props;
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { showMessage } = useMessageContext();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
 
   const { user, monedaBase } = useAppContext();
   const tiendaId = user?.localActual?.id ?? "";
@@ -180,36 +176,24 @@ export const CartContent = ({
     }
   };
 
-  const handlePinCart = () => {
-    if (!isMobile) setIsCartPinned(!isCartPinned);
-  };
-
-  const getContainerWidth = () => {
-    if (isCartPinned) return "100%";
-    // Full width on mobile so the checkout never gets clipped.
-    if (isMobile) return "100vw";
-    return 400;
-  };
-
   return (
     <Box
       sx={{
-        width: getContainerWidth(),
+        // In "panel" the real width comes from the wrapping Box that
+        // page.tsx renders around this component (single source of truth
+        // for the panel's width) — this just fills it. "drawer" is only
+        // ever mounted on mobile, so it fills the full viewport width.
+        width: variant === "panel" ? "100%" : "100vw",
         p: 2,
-        pt: !isCartPinned ? "calc(16px + env(safe-area-inset-top))" : 2,
-        pb: !isCartPinned ? "calc(16px + env(safe-area-inset-bottom))" : 2,
+        pt: variant === "drawer" ? "calc(16px + env(safe-area-inset-top))" : 2,
+        pb:
+          variant === "drawer" ? "calc(16px + env(safe-area-inset-bottom))" : 2,
         display: "flex",
         flexDirection: "column",
-        height: isCartPinned ? "calc(100vh - 120px)" : "100dvh",
-        maxHeight: isCartPinned ? "calc(100vh - 120px)" : "100dvh",
+        height: variant === "panel" ? "100%" : "100dvh",
+        maxHeight: variant === "panel" ? "100%" : "100dvh",
         boxSizing: "border-box",
-        ...(isCartPinned && {
-          maxWidth: isMobile ? "100%" : isTablet ? "48vw" : "42vw",
-          minWidth: 360,
-          position: "sticky",
-          top: 0,
-          overflow: "hidden",
-        }),
+        ...(variant === "panel" && { overflow: "hidden" }),
       }}
     >
       {step === "cart" && (
@@ -231,33 +215,10 @@ export const CartContent = ({
             />
           </Stack>
 
-          {/* Pin, Vaciar and Close all share this one row so they line up
-              at the same height — the pin used to live in a separate,
-              shorter row next to the title and sat visibly off from the
-              other two. */}
+          {/* Vaciar and Close share this row so they line up at the same
+              height. Close only renders in "drawer": a "panel" cart can't
+              be closed, so there's nothing to disable-and-show. */}
           <Stack direction="row" alignItems="center" gap={0.5}>
-            {!isMobile && (
-              <Tooltip
-                title={isCartPinned ? "Desanclar carrito" : "Anclar carrito"}
-              >
-                <IconButton
-                  onClick={handlePinCart}
-                  aria-label={
-                    isCartPinned ? "Desanclar carrito" : "Anclar carrito"
-                  }
-                  sx={{
-                    color: isCartPinned ? "primary.main" : "secondary.main",
-                    "&:hover": {
-                      bgcolor: isCartPinned
-                        ? alpha(theme.palette.primary.main, 0.08)
-                        : "action.hover",
-                    },
-                  }}
-                >
-                  {isCartPinned ? <PushPinIcon /> : <PushPinOutlinedIcon />}
-                </IconButton>
-              </Tooltip>
-            )}
             {clear && (
               <Tooltip title="Vaciar carrito">
                 <span>
@@ -271,9 +232,11 @@ export const CartContent = ({
                 </span>
               </Tooltip>
             )}
-            <IconButton onClick={onClose} disabled={isCartPinned}>
-              <Close color={isCartPinned ? "disabled" : "error"} />
-            </IconButton>
+            {props.variant === "drawer" && (
+              <IconButton onClick={props.onClose} aria-label="Cerrar">
+                <Close color="error" />
+              </IconButton>
+            )}
           </Stack>
         </Box>
       )}

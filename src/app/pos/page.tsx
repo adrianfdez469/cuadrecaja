@@ -1,40 +1,24 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useMemo,
-  useCallback,
-} from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Typography,
   CircularProgress,
   Box,
-  Paper as MuiPaper,
-  Portal,
-  InputAdornment,
   IconButton,
   Alert,
   Button,
   useTheme,
   useMediaQuery,
-  Chip,
-  Stack,
-  Grid2 as Grid,
   Tooltip,
-  alpha,
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import CloseIcon from "@mui/icons-material/Close";
-import EditIcon from "@mui/icons-material/Edit";
 
 import { useCartStore } from "@/store/cartStore";
 import { getProductosVenta } from "@/services/costoPrecioServices";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import { ProductModal } from "./components/ProductModal";
+import { CategoryPillsBar } from "./components/CategoryPillsBar";
+import { PosProductGrid } from "./components/PosProductGrid";
 import { ICategory } from "@/schemas/categoria";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import CartDrawer from "@/components/cartDrawer/CartDrawer";
@@ -49,15 +33,14 @@ import { SalesDrawer } from "./components/SalesDrawer";
 import { UserSalesDrawer } from "./components/UserSalesDrawer";
 
 import { QuantityDialog } from "./components/QuantityDialog";
-import { PosProductItemLayout } from "./components/PosProductItemLayout";
+import { PosBottomBar } from "./components/PosBottomBar";
+import { PosSearchHeader } from "./components/PosSearchHeader";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useVisualViewportHeight } from "@/hooks/useVisualViewportHeight";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
 import { useCartTotal } from "@/hooks/useCartTotal";
 import { convertToBase } from "@/lib/currency";
-import SelectableTextField from "@/components/SelectableTextField";
-
-import ProductProcessorData from "@/components/ProductProcessorData/ProductProcessorData";
 
 import { IProcessedData } from "@/schemas/processedData";
 import { ITransferDestination } from "@/schemas/transferDestination";
@@ -104,11 +87,12 @@ import { Sale } from "@/store/salesStore";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<ICategory>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null,
+  );
   const [productosTienda, setProductosTienda] = useState<IProductoTiendaV2[]>(
     [],
   );
-  const [showProducts, setShowProducts] = useState(false);
   const [openCart, setOpenCart] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
   const [noLocalActual, setNoLocalActual] = useState(false);
@@ -127,25 +111,30 @@ export default function POSInterface() {
   const [showUserSales, setShowUserSales] = useState(false);
   const [showSyncView, setShowSyncView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const searchAnchorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchResultsRef = useRef<HTMLDivElement>(null);
   const posScrollRef = useRef<HTMLDivElement>(null);
-  const [searchPanelLayout, setSearchPanelLayout] = useState({
-    bottom: 80,
-    maxHeight: 300,
-  });
-
-  const updateSearchPanelLayout = useCallback(() => {
-    const el = searchAnchorRef.current;
+  const searchResultsRef = useRef<HTMLDivElement>(null);
+  // Espacio que la grilla debe reservar abajo para no quedar tapada por
+  // PosBottomBar (position:fixed en mobile). Medido en vivo en vez de un
+  // número fijo: la altura real de la barra varía según cuántos carritos
+  // hay y si se muestra el error del scanner, y un valor fijo dejaba un
+  // hueco visible cuando la barra real era más baja que el estimado.
+  const [bottomBarHeight, setBottomBarHeight] = useState(150);
+  const bottomBarObserverRef = useRef<ResizeObserver | null>(null);
+  // Callback ref, no useRef+useEffect: mientras carga, este componente
+  // devuelve un spinner y PosBottomBar todavía no existe en el DOM, así
+  // que un useEffect de montaje ([]) mediría un ref todavía nulo y nunca
+  // volvería a intentarlo. El callback ref se dispara cuando el nodo
+  // realmente aparece (o desaparece), sin depender del timing del render.
+  const posBottomBarRef = useCallback((el: HTMLDivElement | null) => {
+    bottomBarObserverRef.current?.disconnect();
+    bottomBarObserverRef.current = null;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const gap = 4;
-    setSearchPanelLayout({
-      bottom: Math.max(0, window.innerHeight - rect.top + gap),
-      maxHeight: Math.max(120, rect.top - 16 - gap),
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setBottomBarHeight(entry.contentRect.height);
     });
+    observer.observe(el);
+    bottomBarObserverRef.current = observer;
   }, []);
   const [selectedProduct, setSelectedProduct] =
     useState<IProductoTiendaV2 | null>(null);
@@ -216,47 +205,43 @@ export default function POSInterface() {
     "camera" | "search" | "hardware" | null
   >(null);
 
-  const [isCartPinned, setIsCartPinned] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
+  // The cart panel needs its own threshold, decoupled from the general
+  // "is this a phone" breakpoint (isMobile, 600px): with the panel's
+  // minWidth:360px floor (protects the checkout UI's own layout), showing
+  // it below ~700px left too little room for the product grid, category
+  // pills and search bar. isMobile keeps governing everything else that
+  // already used it (text sizes, the hardware scanner, etc.) — this is a
+  // narrower, purpose-specific question. Below 700px it falls back to the
+  // CartDrawer overlay, same as mobile.
+  const showCartPanel = useMediaQuery(theme.breakpoints.up(700));
 
-  // The floating cart-pills bar, search bar and search-results panel all
-  // need to stop exactly where the pinned cart panel begins. They used to
-  // compute that offset independently via getCartWidth() (a guessed vw
-  // string) — the same "two numbers that must coincidentally agree" bug
-  // already fixed once for the main content column, recurring here because
-  // these three bars stayed position:fixed with their own hand-computed
-  // right offset instead of becoming real flex layout. Measuring the
-  // panel's actual rendered width sidesteps the class of bug entirely,
-  // rather than guessing a value that has to match it.
-  const cartPanelRef = useRef<HTMLDivElement | null>(null);
-  const [cartPanelWidth, setCartPanelWidth] = useState(0);
+  // Searching on a phone is its own mode, not a tweak of the browsing
+  // layout: PosBottomBar expands into an overlay that covers the visible
+  // area, with the field at the bottom and results stacking up from it.
+  // Gated on `showCartPanel`'s 700px threshold — the same one that decides
+  // whether the bar is position:fixed — so the overlay only exists exactly
+  // where the fixed bar it grows out of does.
+  const searchMode = intentToSearch && !showCartPanel;
 
-  useEffect(() => {
-    const el = cartPanelRef.current;
-    if (!el) {
-      setCartPanelWidth(0);
-      return;
-    }
-    const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width;
-      if (width !== undefined) setCartPanelWidth(width);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [isCartPinned]);
+  // Real visible height above the keyboard, only tracked while it's
+  // actually relevant (see useVisualViewportHeight for why `dvh` alone
+  // can't be trusted here). Null until the first measurement lands.
+  const visualViewportHeight = useVisualViewportHeight(searchMode);
 
   useEffect(() => {
-    if (openCart && !isCartPinned) {
+    if (openCart && !showCartPanel) {
       searchInputRef.current?.blur();
       setIntentToSearch(false);
-      setShowSearchResults(false);
     }
-  }, [openCart, isCartPinned]);
+  }, [openCart, showCartPanel]);
 
   useEffect(() => {
     if (showSyncView || resumenDiaOpen) {
       searchInputRef.current?.blur();
       setIntentToSearch(false);
-      setShowSearchResults(false);
     }
   }, [showSyncView, resumenDiaOpen]);
 
@@ -295,19 +280,15 @@ export default function POSInterface() {
   const [codigoNoEncontrado, setCodigoNoEncontrado] = useState<string>("");
   const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
 
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
-
   useEffect(() => {
     if (!onboardingRun || !isMobile) return;
     const step = activeStepDefinitions[onboardingStepIndex];
     if (!step) return;
 
     const { target } = step;
-    const needsPosScroll =
-      isPosTopToolbarTourTarget(target) ||
-      target.includes("pos-category-first");
+    // pos-category-first now lives in the fixed pills row above the
+    // scrollable grid — always visible, no scroll needed to reveal it.
+    const needsPosScroll = isPosTopToolbarTourTarget(target);
 
     if (!needsPosScroll) return;
 
@@ -316,9 +297,9 @@ export default function POSInterface() {
     });
   }, [onboardingRun, onboardingStepIndex, activeStepDefinitions, isMobile]);
 
-  // Calcular ancho del carrito según la pantalla
+  // Calcular ancho del panel del carrito (sm+ solamente; en mobile se usa
+  // el Drawer, que no llama a esta función).
   const getCartWidth = () => {
-    if (isMobile) return "100%";
     if (isTablet) return "48vw";
     return "42vw";
   };
@@ -446,7 +427,6 @@ export default function POSInterface() {
     const product = findProductByCode(code);
     if (product) {
       setSelectedProduct(product);
-      setShowProducts(false); // Cierra modal de categorías si está abierto
       // El modal de cantidad se abre automáticamente por el estado selectedProduct
       setScannerError(null);
       setProductOrigin("camera"); // Marcar como escaneo de cámara
@@ -716,10 +696,6 @@ export default function POSInterface() {
     // setProductosTienda(productosTiendaEditados);
   };
 
-  const handleOpenProducts = (category: ICategory) => {
-    setSelectedCategory(category);
-    setShowProducts(true);
-  };
   const handleCartIcon = () => {
     setOpenCart(true);
   };
@@ -804,10 +780,9 @@ export default function POSInterface() {
         // limpio en la próxima venta.
         removeActiveCart();
         setOpenCart(false);
-        setShowProducts(false);
         setSelectedProduct(null);
-        setShowSearchResults(false);
         setSearchQuery("");
+        setIntentToSearch(false);
         setProductOrigin(null);
         setCameraScannerOpen(false);
 
@@ -1018,19 +993,64 @@ export default function POSInterface() {
   };
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    setShowSearchResults(query.trim() !== "");
   };
 
-  const searchResults = useMemo(() => {
-    if (searchQuery.trim() === "") return [];
+  // Category and search combine as AND: with a category marked, the
+  // search box filters within it rather than across the whole catalog.
+  const filteredProducts = useMemo(() => {
     return productosTienda
+      .filter(
+        (p) =>
+          selectedCategoryId === null ||
+          p.producto.categoria.id === selectedCategoryId,
+      )
       .filter((p) =>
         normalizeSearch(p.producto.nombre).includes(
           normalizeSearch(searchQuery),
         ),
-      )
-      .slice(0, 10);
-  }, [productosTienda, searchQuery]);
+      );
+  }, [productosTienda, selectedCategoryId, searchQuery]);
+
+  const selectedCategoryName = categories.find(
+    (c) => c.id === selectedCategoryId,
+  )?.nombre;
+
+  const emptyMessage =
+    searchQuery.trim() !== ""
+      ? selectedCategoryName
+        ? `No se encontraron productos para "${searchQuery}" en «${selectedCategoryName}». Toca «Todas» para buscar en todo el catálogo.`
+        : `No se encontraron productos para "${searchQuery}"`
+      : selectedCategoryName
+        ? "No hay productos en esta categoría"
+        : "No hay productos disponibles";
+
+  // El overlay de búsqueda oculta las píldoras de categorías, así que su
+  // vacío no puede mandar a tocar «Todas»: ahí la salida es un botón real
+  // (searchEmptyAction) en vez de una instrucción imposible de seguir.
+  const searchEmptyMessage =
+    searchQuery.trim() !== ""
+      ? selectedCategoryName
+        ? `Sin resultados para "${searchQuery}" en «${selectedCategoryName}»`
+        : `Sin resultados para "${searchQuery}"`
+      : selectedCategoryName
+        ? `No hay productos en «${selectedCategoryName}»`
+        : "No hay productos disponibles";
+
+  // Reset scroll position on filter change: the old per-category modal
+  // always opened fresh, so keeping scrollTop across a pill/search change
+  // would land the cashier mid-list in a usually shorter result.
+  useEffect(() => {
+    if (posScrollRef.current) posScrollRef.current.scrollTop = 0;
+  }, [selectedCategoryId, searchQuery]);
+
+  // Same intent for the search overlay's list, mirrored for its
+  // `column-reverse` axis: there the first result sits at the *physical*
+  // bottom (pinned to the field), so "back to the top of the results" is
+  // scrollTop at its maximum, which the browser clamps for us.
+  useEffect(() => {
+    const el = searchResultsRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [searchQuery, searchMode]);
 
   const handleResetProductQuantity = () => {
     setSelectedProduct(null);
@@ -1043,9 +1063,6 @@ export default function POSInterface() {
   };
 
   const handleSearchFocus = () => {
-    if (searchQuery.length > 0) {
-      setShowSearchResults(true);
-    }
     setIntentToSearch(true);
   };
 
@@ -1055,36 +1072,23 @@ export default function POSInterface() {
     setIntentToSearch(true);
   };
 
+  // On desktop `intentToSearch` is purely "the box has focus" — it only
+  // guards the hardware scanner, and must clear on blur so the gun re-arms
+  // as soon as the cashier leaves the field. On mobile it also drives the
+  // search overlay, which owns its own lifetime: tapping a result's
+  // quantity field moves focus into that input, and tearing the overlay
+  // down on that blur would close the keyboard mid-interaction. There it
+  // closes explicitly instead (Cancelar, or anything that opens over it).
   const handleSearchBlur = () => {
-    // Delay para permitir que los clicks en los resultados funcionen.
-    // También se dispara desde el propio panel de resultados (ver su
-    // onBlur) para reevaluar cuando el foco se mueve DENTRO del panel
-    // (ej. edición inline de cantidad) — en ese caso no debe cerrarse.
-    setTimeout(() => {
-      if (searchResultsRef.current?.contains(document.activeElement)) {
-        return;
-      }
-      setIntentToSearch(false);
-      setShowSearchResults(false);
-    }, 150);
+    if (!showCartPanel) return;
+    setIntentToSearch(false);
   };
 
-  useLayoutEffect(() => {
-    if (!showSearchResults || searchQuery.trim() === "") return;
-
-    updateSearchPanelLayout();
-    window.addEventListener("resize", updateSearchPanelLayout);
-    window.addEventListener("scroll", updateSearchPanelLayout, true);
-    const ro = new ResizeObserver(updateSearchPanelLayout);
-    const el = searchAnchorRef.current;
-    if (el) ro.observe(el);
-
-    return () => {
-      window.removeEventListener("resize", updateSearchPanelLayout);
-      window.removeEventListener("scroll", updateSearchPanelLayout, true);
-      ro.disconnect();
-    };
-  }, [showSearchResults, searchQuery, updateSearchPanelLayout]);
+  const handleCloseSearch = () => {
+    searchInputRef.current?.blur();
+    setIntentToSearch(false);
+    setSearchQuery("");
+  };
 
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
@@ -1284,215 +1288,138 @@ export default function POSInterface() {
       display={"flex"}
       flexDirection={"row"}
       sx={{
-        height: { xs: "calc(100vh - 56px)", sm: "calc(100vh - 64px)" },
+        // Browsing layout only — it never has to account for the on-screen
+        // keyboard. When the keyboard is up the cashier is in search mode,
+        // and that whole UI is a position:fixed overlay sized from
+        // visualViewport, so it doesn't derive anything from this box.
+        // 56/64px are the top AppBar's heights (see Layout.tsx).
+        height: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
         overflow: "hidden",
       }}
     >
       <Box
-        ref={posScrollRef}
         sx={{
-          // The pinned cart panel is a real flex sibling now (not a
-          // position:fixed overlay with a hand-computed complementary
-          // width), so `flex: 1` is what guarantees this always takes
-          // exactly "whatever space the cart panel doesn't" — correct at
-          // any viewport width, including when the cart's own minWidth
-          // floor kicks in. Unconditional: when unpinned there's no sibling
-          // at all, and flex:1 is what makes this fill the whole row —
-          // `flex:"none"` shrinks it to its own content width instead,
-          // leaving the rest of the row empty.
+          // The cart panel is a real flex sibling (fixed sidebar from
+          // sm+), so `flex: 1` guarantees this always takes exactly
+          // "whatever space the cart panel doesn't" — correct at any
+          // viewport width, including when the cart's own minWidth floor
+          // kicks in. On mobile there's no sibling at all, and flex:1 is
+          // what makes this fill the whole row.
           flex: 1,
           minWidth: 0,
-          overflow: "auto",
-          height: "100%", // Use parent height
-          p: 0,
-          position: "relative",
+          height: "100%",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
           ...(posOnboardingBlocksInteraction
             ? { pointerEvents: "none", userSelect: "none" }
             : {}),
         }}
       >
-        {/* Barra superior con información del sistema - posicionada debajo del menú */}
-        <Box
-          sx={{
-            position: "sticky",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 100,
-            bgcolor: "rgba(255, 255, 255, 0.95)",
-            backdropFilter: "blur(10px)",
-            borderBottom: "1px solid rgba(0,0,0,0.1)",
-            px: 2,
-            py: 1,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-            mb: 1,
-          }}
-        >
+        {/* Barra superior + píldoras de categorías. Ya no se ocultan al
+            buscar en mobile: la capa de búsqueda las tapa por completo, así
+            que no compiten por el espacio arriba del teclado. */}
+        <Box sx={{ flexShrink: 0 }}>
           <Box
-            data-tour="pos-toolbar-periodo"
-            sx={{ display: "flex", alignItems: "center", minHeight: 32 }}
+            sx={{
+              flexShrink: 0,
+              bgcolor: "rgba(255, 255, 255, 0.95)",
+              backdropFilter: "blur(10px)",
+              borderBottom: "1px solid rgba(0,0,0,0.1)",
+              px: 2,
+              py: 1,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            }}
           >
-            <PeriodoBadge periodo={periodo} isMobile={isMobile} />
-          </Box>
+            <Box
+              data-tour="pos-toolbar-periodo"
+              sx={{ display: "flex", alignItems: "center", minHeight: 32 }}
+            >
+              <PeriodoBadge periodo={periodo} isMobile={isMobile} />
+            </Box>
 
-          <Box
-            display="flex"
-            flexDirection="row"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <RefreshButton onRefresh={handleRefresh} />
-            <Tooltip title="Punto de partida">
-              <IconButton
-                size="small"
-                data-tour="pos-toolbar-punto-partida"
-                onClick={() => setResumenDiaOpen(true)}
-              >
-                <FlagIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {puedeDevolucionVenta && (
-              <Tooltip title="Devolución de venta">
+            <Box
+              display="flex"
+              flexDirection="row"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <RefreshButton onRefresh={handleRefresh} />
+              <Tooltip title="Punto de partida">
                 <IconButton
                   size="small"
-                  onClick={() => setDevolucionVentaOpen(true)}
+                  data-tour="pos-toolbar-punto-partida"
+                  onClick={() => setResumenDiaOpen(true)}
                 >
-                  <UndoIcon fontSize="small" />
+                  <FlagIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-            )}
-            <PosStatusToolBar
-              handleShowSyncView={handleShowSyncView}
-              handleShowUserSales={handleShowUserSales}
-            />
-            {puedeImprimir && user?.localActual?.id && (
-              <PrintQueueIndicator
-                tiendaId={user.localActual.id}
-                onOpenSetup={() => setPrinterSetupOpen(true)}
+              {puedeDevolucionVenta && (
+                <Tooltip title="Devolución de venta">
+                  <IconButton
+                    size="small"
+                    onClick={() => setDevolucionVentaOpen(true)}
+                  >
+                    <UndoIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <PosStatusToolBar
+                handleShowSyncView={handleShowSyncView}
+                handleShowUserSales={handleShowUserSales}
               />
-            )}
-            <ConnectionStatus isOnline={isOnline} />
+              {puedeImprimir && user?.localActual?.id && (
+                <PrintQueueIndicator
+                  tiendaId={user.localActual.id}
+                  onOpenSetup={() => setPrinterSetupOpen(true)}
+                />
+              )}
+              <ConnectionStatus isOnline={isOnline} />
+            </Box>
           </Box>
+          {/* Fila fija de píldoras de categorías */}
+          <CategoryPillsBar
+            categories={categories}
+            selectedCategoryId={selectedCategoryId}
+            onSelectCategory={setSelectedCategoryId}
+          />
         </Box>
-        {/* Contenido principal */}
+
+        {/* Contenido principal: grilla de productos filtrada, scrolleable. */}
         <Box
+          ref={posScrollRef}
           sx={{
-            display: "grid",
-            gridTemplateColumns: isCartPinned
-              ? {
-                  xs: "repeat(2, 1fr)",
-                  sm: "repeat(2, 1fr)",
-                  md: "repeat(3, 1fr)",
-                  lg: "repeat(4, 1fr)",
-                }
-              : {
-                  xs: "repeat(2, 1fr)",
-                  sm: "repeat(3, 1fr)",
-                  md: "repeat(4, 1fr)",
-                  lg: "repeat(5, 1fr)",
-                },
-            gap: { xs: 0.5, sm: 1.5, md: 2 },
-            alignContent: "start",
-            p: 1,
-            width: "100%",
-            maxWidth: "1400px",
-            pb: "120px",
-            minHeight: "90vh",
-            position: "relative",
-            zIndex: 1,
+            flex: 1,
+            minWidth: 0,
+            overflow: "auto",
+            // Matches PosBottomBar's own 700px threshold for switching
+            // between position:fixed (mobile) and normal flow (desktop):
+            // below it the footer is fixed and needs this space reserved
+            // so it doesn't cover the tail end of the grid. The value
+            // itself comes from measuring PosBottomBar live (see
+            // bottomBarHeight above) rather than a guessed constant.
+            pb: `${bottomBarHeight}px`,
+            "@media (min-width:700px)": {
+              pb: 0,
+            },
           }}
         >
-          {categories.map((category, categoryIndex) => (
-            <Box
-              key={category.id}
-              {...(categoryIndex === 0
-                ? { "data-tour": "pos-category-first" }
-                : {})}
-              onClick={() => handleOpenProducts(category)}
-              sx={{
-                position: "relative",
-                aspectRatio: "1/1", // Mantiene proporción cuadrada
-                borderRadius: { xs: "12px", sm: "16px" },
-                overflow: "hidden",
-                cursor: "pointer",
-                bgcolor: category.color,
-                transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                "&:active": {
-                  transform: "scale(0.98)",
-                },
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: 4,
-                },
-              }}
-            >
-              {/* Scrim inferior: solo para legibilidad del texto sobre el color de la categoría */}
-              <Box
-                sx={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(to top, rgba(0,0,0,0.55), transparent 60%)",
-                }}
-              />
-              <Box
-                sx={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  p: { xs: 1.5, sm: 2 },
-                  display: "flex",
-                  justifyContent: "center",
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: "white",
-                    fontWeight: 600,
-                    fontSize: isCartPinned
-                      ? {
-                          xs: "0.7rem",
-                          sm: "0.8rem",
-                          md: "1rem",
-                          lg: "1.25rem",
-                        }
-                      : { xs: "1.25rem", sm: "1.5rem" },
-                    textAlign: "center",
-                    width: "100%",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {category.nombre}
-                </Typography>
-              </Box>
-            </Box>
-          ))}
-        </Box>
-        {selectedCategory && (!openCart || isCartPinned) && (
-          <ProductModal
-            open={showProducts}
-            productosTienda={productosTienda.filter(
-              (p) => p.producto.categoria.id === selectedCategory.id,
-            )}
+          <PosProductGrid
+            products={filteredProducts}
             allProductosTienda={productosTienda}
-            category={selectedCategory}
-            closeModal={() => setShowProducts(false)}
-            isCartPinned={isCartPinned}
+            emptyMessage={emptyMessage}
+            searchQuery={searchQuery}
           />
-        )}
+        </Box>
 
-        {/* Carrito de compras */}
+        {/* Carrito de compras (overlay, solo mobile) */}
         <CartDrawer
           cart={cart}
           onClose={() => setOpenCart(false)}
-          open={!isCartPinned && openCart}
+          open={!showCartPanel && openCart}
           makePay={handleMakePay}
           transferDestinations={transferDestinations}
           cierreId={periodo?.id ?? ""}
@@ -1500,8 +1427,6 @@ export default function POSInterface() {
           clear={clearCart}
           removeItem={removeFromCart}
           updateQuantity={handleUpdateQuantity}
-          isCartPinned={isCartPinned}
-          setIsCartPinned={setIsCartPinned}
         />
 
         {/* Modal de resumen del período */}
@@ -1550,321 +1475,87 @@ export default function POSInterface() {
           />
         )}
 
+        {/* En modo búsqueda el FAB quedaría flotando justo encima del
+            primer resultado (el más importante); ahí el acceso al carrito
+            vive en el encabezado de la capa. */}
         <ShoppingCartComponent
           openCart={openCart}
           handleCartIcon={handleCartIcon}
-          hidden={false}
+          hidden={showCartPanel || searchMode}
         />
 
-        <Box
-          sx={{
-            m: 0,
-            position: "fixed",
-            bottom: 60,
-            left: 0,
-            // Measured, not guessed: getCartWidth() is a vw string that has
-            // to coincidentally match the panel's real rendered width
-            // (including its minWidth floor) for this to ever line up.
-            right: isCartPinned && !isMobile ? cartPanelWidth : 0,
-            p: 1,
-            zIndex: 1200,
-            background:
-              "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
-            backdropFilter: "blur(10px)",
-            borderTop: "1px solid rgba(0,0,0,0.1)",
-            boxShadow: "0 -2px 1px rgba(0,0,0,0.1)",
-          }}
-        >
-          {/* Píldoras de carritos */}
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ overflowX: "auto", pb: 0.5 }}
-          >
-            {carts.map((c) => (
-              <Box key={c.id} sx={{ display: "flex", alignItems: "center" }}>
-                {editingCartId === c.id ? (
-                  <SelectableTextField
+        <PosBottomBar
+          rootRef={posBottomBarRef}
+          searchMode={searchMode}
+          overlayHeight={visualViewportHeight}
+          searchResultsRef={searchResultsRef}
+          searchHeader={
+            <PosSearchHeader
+              activeCartName={
+                carts.find((c) => c.id === activeCartId)?.name ?? "Cuenta"
+              }
+              cartItemCount={cart.length}
+              resultCount={filteredProducts.length}
+              hasQuery={searchQuery.trim() !== ""}
+              onOpenCart={handleCartIcon}
+              onClose={handleCloseSearch}
+            />
+          }
+          searchResults={
+            <PosProductGrid
+              products={filteredProducts}
+              allProductosTienda={productosTienda}
+              emptyMessage={searchEmptyMessage}
+              searchQuery={searchQuery}
+              bottomUp
+              emptyAction={
+                selectedCategoryId !== null ? (
+                  <Button
                     size="small"
-                    value={editingCartName}
-                    autoFocus
-                    ref={editCartInputRef}
-                    onChange={(e) => setEditingCartName(e.target.value)}
-                    onBlur={() => {
-                      if (editingCartId) {
-                        const newName =
-                          (editingCartName || "").trim() || c.name;
-                        renameCart(editingCartId, newName);
-                      }
-                      setEditingCartId(null);
-                    }}
-                    onKeyDown={(e) => {
-                      const key = e.key;
-                      // Evitar interferencia de IME y de manejadores globales
-                      const composing = e?.nativeEvent?.isComposing ?? false;
-                      if (
-                        !composing &&
-                        (key === "Enter" || key === "NumpadEnter")
-                      ) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (editingCartId) {
-                          const newName =
-                            (editingCartName || "").trim() || c.name;
-                          renameCart(editingCartId, newName);
-                        }
-                        setEditingCartId(null);
-                      } else if (key === "Escape") {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setEditingCartId(null);
-                      }
-                    }}
-                    InputProps={{
-                      inputProps: {
-                        inputMode: "text",
-                        autoComplete: "off",
-                        autoCorrect: "off",
-                        autoCapitalize: "off",
-                        spellCheck: false,
-                      },
-                    }}
-                    sx={{ minWidth: 140 }}
-                  />
-                ) : (
-                  <Chip
-                    tabIndex={-1}
-                    label={
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                      >
-                        <Box
-                          sx={{
-                            maxWidth: 140,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {c.name}
-                        </Box>
-                        <IconButton
-                          aria-label="Editar nombre"
-                          size="small"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setEditingCartId(c.id);
-                            setEditingCartName(c.name);
-                          }}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                          onTouchStart={(e) => {
-                            e.stopPropagation();
-                          }}
-                          onTouchEnd={(e) => {
-                            e.stopPropagation();
-                          }}
-                          onTouchMove={(e) => {
-                            e.stopPropagation();
-                          }}
-                          edge="end"
-                          sx={{ p: 0.25 }}
-                        >
-                          <EditIcon fontSize="inherit" />
-                        </IconButton>
-                      </Box>
-                    }
-                    color={c.id === activeCartId ? "primary" : "default"}
-                    variant={c.id === activeCartId ? "filled" : "outlined"}
-                    onClick={() => setActiveCart(c.id)}
-                    onDelete={() => {
-                      if (carts.length <= 1) return; // mantener al menos uno
-                      if (c.id !== activeCartId) {
-                        setActiveCart(c.id);
-                      }
-                      removeActiveCart();
-                    }}
-                    sx={{
-                      cursor: "pointer",
-                      "& .MuiChip-label": {
-                        maxWidth: 160,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      },
-                    }}
-                  />
-                )}
-              </Box>
-            ))}
-            <Chip
-              label="Nueva cuenta"
-              variant="outlined"
-              onClick={() => createCart()}
-              sx={{ cursor: "pointer" }}
-            />
-          </Stack>
-        </Box>
-
-        {/* Buscador flotante */}
-        <Box
-          ref={searchAnchorRef}
-          data-tour="pos-search"
-          sx={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: isCartPinned && !isMobile ? cartPanelWidth : 0,
-            p: 1,
-            zIndex: 1200,
-            background: `linear-gradient(to top, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
-            backdropFilter: "blur(10px)",
-            boxSizing: "border-box",
-            maxWidth: "100vw",
-          }}
-        >
-          <Stack direction="row" spacing={1}>
-            <SelectableTextField
-              ref={searchInputRef}
-              fullWidth
-              variant="outlined"
-              placeholder="Buscar productos..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
-              onFocus={() => handleSearchFocus()}
-              onBlur={() => handleSearchBlur()}
-              onMouseDown={() => handleSearchMouseDown()}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-                endAdornment: searchQuery && (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        setSearchQuery("");
-                      }}
-                    >
-                      <CloseIcon />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                sx: {
-                  bgcolor: "background.paper",
-                  borderRadius: "12px",
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "12px",
-                  },
-                },
-              }}
-            />
-            <Grid size={{ xs: 7, sm: 10 }} data-tour="pos-toolbar-scanner">
-              <ProductProcessorData
-                ref={scannerRef}
-                onProcessedData={(data: IProcessedData) => {
-                  if (data?.code) handleProductScan(data.code);
-                }}
-                enableHardwareScanner={false}
-                onCameraOpenChange={setCameraScannerOpen}
-              />
-              {scannerError && (
-                <Alert
-                  severity="warning"
-                  onClose={() => setScannerError(null)}
-                  sx={{ mt: 1 }}
-                >
-                  {scannerError}
-                </Alert>
-              )}
-            </Grid>
-          </Stack>
-        </Box>
-
-        {showSearchResults && searchQuery.trim() !== "" && (
-          <Portal>
-            <Box
-              sx={{
-                position: "fixed",
-                left: 8,
-                right: isCartPinned && !isMobile ? cartPanelWidth + 8 : 8,
-                bottom: searchPanelLayout.bottom,
-                maxHeight: searchPanelLayout.maxHeight,
-                zIndex: 1300,
-                minWidth: 0,
-                boxSizing: "border-box",
-                maxWidth:
-                  !isMobile && !isCartPinned
-                    ? "min(700px, calc(100vw - 16px))"
-                    : "calc(100vw - 16px)",
-              }}
-            >
-              <MuiPaper
-                ref={searchResultsRef}
-                elevation={3}
-                onMouseDown={(e) => {
-                  // Evita que el buscador pierda foco (y el panel se
-                  // cierre) al tocar cards/botones dentro del panel — pero
-                  // sin bloquear el foco cuando el toque es sobre un input
-                  // real (ej. edición inline de cantidad), que sí debe
-                  // poder recibir foco normalmente.
-                  const target = e.target as HTMLElement;
-                  if (target.closest("input, textarea")) return;
-                  e.preventDefault();
-                }}
-                onBlur={handleSearchBlur}
-                sx={{
-                  width: "100%",
-                  maxWidth: "100%",
-                  boxSizing: "border-box",
-                  maxHeight: "inherit",
-                  overflowX: "hidden",
-                  overflowY: "auto",
-                  borderRadius: "12px",
-                  bgcolor: alpha(theme.palette.background.paper, 0.98),
-                  backdropFilter: "blur(10px)",
-                  boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
-                {searchResults.length > 0 ? (
-                  <Box
-                    sx={{
-                      p: 1,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 1,
-                      minWidth: 0,
-                    }}
+                    variant="outlined"
+                    onClick={() => setSelectedCategoryId(null)}
                   >
-                    {searchResults.map((product) => (
-                      <PosProductItemLayout
-                        key={product.id}
-                        productoTienda={product}
-                        allProductosTienda={productosTienda}
-                        highlightName={normalizeSearch(
-                          product.producto.nombre,
-                        ).startsWith(normalizeSearch(searchQuery))}
-                      />
-                    ))}
-                  </Box>
-                ) : (
-                  <Box sx={{ p: 3, textAlign: "center" }}>
-                    <Typography color="text.secondary" variant="body2">
-                      No se encontraron productos para &quot;{searchQuery}
-                      &quot;
-                    </Typography>
-                  </Box>
-                )}
-              </MuiPaper>
-            </Box>
-          </Portal>
-        )}
+                    Buscar en todo el catálogo
+                  </Button>
+                ) : null
+              }
+            />
+          }
+          carts={carts}
+          activeCartId={activeCartId}
+          onSelectCart={setActiveCart}
+          onCreateCart={() => createCart()}
+          onRemoveActiveCart={removeActiveCart}
+          onRenameCart={renameCart}
+          editingCartId={editingCartId}
+          onStartEditingCart={(id, name) => {
+            setEditingCartId(id);
+            setEditingCartName(name);
+          }}
+          editingCartName={editingCartName}
+          onEditingCartNameChange={setEditingCartName}
+          onStopEditingCart={() => {
+            if (editingCartId) {
+              const cart = carts.find((c) => c.id === editingCartId);
+              const newName =
+                (editingCartName || "").trim() || cart?.name || "";
+              renameCart(editingCartId, newName);
+            }
+            setEditingCartId(null);
+          }}
+          editCartInputRef={editCartInputRef}
+          searchInputRef={searchInputRef}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearch}
+          onSearchFocus={handleSearchFocus}
+          onSearchBlur={handleSearchBlur}
+          onSearchMouseDown={handleSearchMouseDown}
+          scannerRef={scannerRef}
+          onProductScan={handleProductScan}
+          onCameraOpenChange={setCameraScannerOpen}
+          scannerError={scannerError}
+          onDismissScannerError={() => setScannerError(null)}
+        />
 
         {/* Dialog de cantidad */}
         <QuantityDialog
@@ -1890,9 +1581,8 @@ export default function POSInterface() {
         />
       </Box>
 
-      {isCartPinned && (
+      {showCartPanel && (
         <Box
-          ref={cartPanelRef}
           sx={{
             // A real flex sibling, not a position:fixed overlay floating
             // above the content on hand-computed coordinates. That's what
@@ -1906,13 +1596,16 @@ export default function POSInterface() {
             maxWidth: getCartWidth(),
             minWidth: "360px",
             height: "100%",
-            // A shadow reads as "a distinct panel sitting beside this one,"
-            // not just a line marking where the two happen to touch — same
-            // language used for the checkout/cart footers. It has to live
-            // on THIS box, not the inner one below: box-shadow paints
-            // outside the border box, and a sibling `overflow: hidden` on
-            // the very same box clips its own shadow away — which is why
-            // the delimiting shadow wasn't actually showing.
+            // The shadow alone reads as "something sits near this edge,"
+            // not as a hard line — both panels share the same background
+            // color, so without an actual border the seam was hard to
+            // spot. The border is the delimiter; the shadow adds depth on
+            // top of it. It has to live on THIS box, not the inner one
+            // below: box-shadow paints outside the border box, and a
+            // sibling `overflow: hidden` on the very same box clips its
+            // own shadow away.
+            borderLeft: "1px solid",
+            borderColor: "divider",
             boxShadow: "-8px 0px 24px rgba(0,0,0,0.12)",
             backgroundColor: "background.paper",
           }}
@@ -1925,13 +1618,11 @@ export default function POSInterface() {
               total={total}
               clear={clearCart}
               updateQuantity={handleUpdateQuantity}
-              onClose={() => setOpenCart(false)}
               removeItem={removeFromCart}
               makePay={handleMakePay}
               transferDestinations={transferDestinations}
               cierreId={periodo?.id ?? ""}
-              isCartPinned={isCartPinned}
-              setIsCartPinned={setIsCartPinned}
+              variant="panel"
             />
           </Box>
         </Box>

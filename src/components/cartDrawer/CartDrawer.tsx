@@ -23,8 +23,6 @@ interface IProps {
   clear?: () => void;
   removeItem?: (id: string) => void;
   total: number;
-  isCartPinned: boolean;
-  setIsCartPinned: (isCartPinned: boolean) => void;
 }
 
 const CartDrawer: FC<IProps> = ({
@@ -38,8 +36,6 @@ const CartDrawer: FC<IProps> = ({
   clear,
   removeItem,
   total,
-  isCartPinned,
-  setIsCartPinned,
 }) => {
   useEffect(() => {
     if (cart.length === 0) {
@@ -74,8 +70,7 @@ const CartDrawer: FC<IProps> = ({
           makePay={makePay}
           transferDestinations={transferDestinations}
           cierreId={cierreId}
-          isCartPinned={isCartPinned}
-          setIsCartPinned={setIsCartPinned}
+          variant="drawer"
         />
       </Drawer>
     </>

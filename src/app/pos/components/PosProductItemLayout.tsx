@@ -1,6 +1,14 @@
 "use client";
 
-import { Box, Paper, Typography } from "@mui/material";
+import { useState, MouseEvent } from "react";
+import {
+  Box,
+  ButtonBase,
+  Paper,
+  Popover,
+  Stack,
+  Typography,
+} from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
@@ -10,18 +18,10 @@ import { useCartStore } from "@/store/cartStore";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
 
-const sectionLabelSx = {
-  mb: 0.25,
-  fontSize: "0.65rem",
-  textTransform: "uppercase" as const,
-  letterSpacing: 0.4,
-};
-
 interface PosProductItemLayoutProps {
   productoTienda: IProductoTiendaV2;
   allProductosTienda: IProductoTiendaV2[];
   onClick?: () => void;
-  showDescription?: boolean;
   highlightName?: boolean;
   sx?: SxProps<Theme>;
 }
@@ -40,15 +40,13 @@ function getDisponibilidadInfo(
   if (esFraccion) {
     const existenciaReal = Math.max(0, productoTienda.existencia || 0);
     return {
-      primary: `Máx: ${disponible}`,
-      secondary: `Stock: ${existenciaReal}`,
+      label: `Disp: ${disponible} · Stock: ${existenciaReal}`,
       sinStock: disponible === 0,
     };
   }
 
   return {
-    primary: `Cant: ${disponible}`,
-    secondary: null,
+    label: `Disp: ${disponible}`,
     sinStock: disponible === 0,
   };
 }
@@ -57,12 +55,13 @@ export function PosProductItemLayout({
   productoTienda,
   allProductosTienda,
   onClick,
-  showDescription = false,
   highlightName = false,
   sx,
 }: PosProductItemLayoutProps) {
   const { items } = useCartStore();
   const { tasasVigentes, monedaBase } = useAppContext();
+  const [priceDetailAnchor, setPriceDetailAnchor] =
+    useState<HTMLElement | null>(null);
   const cartQty =
     items.find((item) => item.productoTiendaId === productoTienda.id)
       ?.quantity || 0;
@@ -71,13 +70,25 @@ export function PosProductItemLayout({
     allProductosTienda,
     cartQty,
   );
+  const priceBase = convertToBase(
+    productoTienda.precio,
+    productoTienda.monedaPrecioCode ?? monedaBase,
+    tasasVigentes,
+    monedaBase,
+  );
+
+  const openPriceDetail = (e: MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    setPriceDetailAnchor(e.currentTarget);
+  };
+  const closePriceDetail = () => setPriceDetailAnchor(null);
 
   return (
     <Paper
       elevation={0}
       onClick={onClick}
       sx={{
-        p: { xs: 1.25, sm: 1.5 },
+        p: 1,
         borderRadius: 2,
         border: "1px solid",
         borderColor: "divider",
@@ -96,142 +107,92 @@ export function PosProductItemLayout({
         ...sx,
       }}
     >
-      {/* Fila 1: nombre */}
-      <Box
-        mb={showDescription && productoTienda.producto.descripcion ? 0.5 : 1}
+      {/* Fila 1: nombre, una sola línea */}
+      <Typography
+        variant="body2"
+        fontWeight={highlightName ? 700 : 600}
+        noWrap
+        sx={{ lineHeight: 1.35, mb: 0.75 }}
       >
-        <Typography
-          variant="body2"
-          fontWeight={highlightName ? 700 : 600}
-          sx={{
-            lineHeight: 1.35,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          {productoTienda.producto.nombre}
-        </Typography>
-        {showDescription && productoTienda.producto.descripcion && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              mt: 0.25,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-              lineHeight: 1.3,
-            }}
-          >
-            {productoTienda.producto.descripcion}
-          </Typography>
-        )}
-      </Box>
+        {productoTienda.producto.nombre}
+      </Typography>
 
-      {/* Fila 2: precio | disponibilidad */}
+      {/* Fila 2: precio (toca para ver el detalle en otras monedas) +
+          disponibilidad a la izquierda, cantidad a la derecha — antes eran
+          dos filas separadas. */}
       <Box
-        display="grid"
-        gridTemplateColumns="1fr 1fr"
-        gap={1}
-        mb={1.25}
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        gap={0.5}
         sx={{
           borderTop: "1px dashed",
           borderColor: "divider",
-          pt: 1,
+          pt: 0.75,
         }}
       >
-        <Box minWidth={0} sx={{ overflow: "hidden" }}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-            sx={sectionLabelSx}
-          >
-            Precio
-          </Typography>
-          <MultiCurrencyAmount
-            amount={convertToBase(
-              productoTienda.precio,
-              productoTienda.monedaPrecioCode ?? monedaBase,
-              tasasVigentes,
-              monedaBase,
-            )}
-            variant="compact"
-          />
-        </Box>
-
-        <Box minWidth={0} sx={{ overflow: "hidden" }}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-            align="right"
-            sx={sectionLabelSx}
-          >
-            Disponible
-          </Typography>
-          <Typography
-            variant="body2"
-            fontWeight={600}
-            align="right"
-            color={disponibilidad.sinStock ? "error.main" : "text.primary"}
-            sx={{ lineHeight: 1.35 }}
-          >
-            {disponibilidad.primary}
-          </Typography>
-          {disponibilidad.secondary && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              align="right"
-              display="block"
-            >
-              {disponibilidad.secondary}
-            </Typography>
-          )}
-          {/* Siempre montado (visibility en vez de unmount condicional) para
-              reservar el espacio de esta línea y evitar que la card salte de
-              tamaño cuando la cantidad pasa de 0 a >0. */}
-          <Typography
-            variant="caption"
-            color="primary.main"
-            align="right"
-            display="block"
-            fontWeight={600}
-            sx={{ mt: 0.25, visibility: cartQty > 0 ? "visible" : "hidden" }}
-          >
-            En carrito:{" "}
-            {productoTienda.producto?.permiteDecimal
-              ? cartQty.toFixed(2)
-              : cartQty}
-          </Typography>
-        </Box>
-      </Box>
-
-      {/* Fila 3: acciones rápidas centradas (no propagan el click de la card) */}
-      <Box
-        display="flex"
-        justifyContent="center"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Box
+        <ButtonBase
+          onClick={openPriceDetail}
+          aria-label={`Ver detalle de precio de ${productoTienda.producto.nombre}`}
           sx={{
-            width: "100%",
-            maxWidth: 200,
-            display: "flex",
-            justifyContent: "center",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            borderRadius: 1,
+            px: 0.5,
+            py: 0.25,
+            minHeight: 44,
+            minWidth: 0,
           }}
         >
+          <MultiCurrencyAmount
+            amount={priceBase}
+            variant="compact"
+            showAlternatives={false}
+          />
+          <Typography
+            variant="caption"
+            color={disponibilidad.sinStock ? "error.main" : "text.secondary"}
+            noWrap
+            sx={{ fontSize: "0.65rem", lineHeight: 1.2 }}
+          >
+            {disponibilidad.label}
+          </Typography>
+        </ButtonBase>
+
+        <Box onClick={(e) => e.stopPropagation()} sx={{ flexShrink: 0 }}>
           <ProductQuickActions
             productoTienda={productoTienda}
             allProductosTienda={allProductosTienda}
-            centered
           />
         </Box>
       </Box>
+
+      <Popover
+        open={Boolean(priceDetailAnchor)}
+        anchorEl={priceDetailAnchor}
+        onClose={closePriceDetail}
+        anchorOrigin={{ vertical: "top", horizontal: "left" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "left" }}
+      >
+        <Stack gap={1} sx={{ p: 1.5, minWidth: 200 }}>
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{
+                mb: 0.25,
+                fontSize: "0.65rem",
+                textTransform: "uppercase",
+                letterSpacing: 0.4,
+              }}
+            >
+              Precio
+            </Typography>
+            <MultiCurrencyAmount amount={priceBase} variant="compact" />
+          </Box>
+        </Stack>
+      </Popover>
     </Paper>
   );
 }
