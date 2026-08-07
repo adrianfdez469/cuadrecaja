@@ -66,6 +66,12 @@ export function PosProductGrid({
             productoTienda={productoTienda}
             allProductosTienda={allProductosTienda}
             highlightName={highlightFor(productoTienda)}
+            // Aquí son items flex, y `flex-shrink: 1` es el valor por
+            // defecto: en cuanto los resultados superan el alto visible,
+            // el navegador los aplasta en vez de dejar que la lista haga
+            // scroll. Las tarjetas deben medir siempre lo mismo que en la
+            // grilla normal, haya 2 resultados o 40.
+            sx={{ flexShrink: 0 }}
           />
         ))}
       </>

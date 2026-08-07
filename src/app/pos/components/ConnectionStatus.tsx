@@ -6,9 +6,7 @@ interface Props {
   isOnline: boolean;
 }
 
-export default function ConnectionStatus({  isOnline }: Props) {
-
-
+export default function ConnectionStatus({ isOnline }: Props) {
   return (
     <Box
       data-tour="pos-toolbar-connection"

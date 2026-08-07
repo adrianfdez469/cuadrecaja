@@ -20,7 +20,6 @@ interface ProductQuickActionsProps {
   productoTienda: IProductoTiendaV2;
   allProductosTienda: IProductoTiendaV2[];
   onStopPropagation?: (e: React.MouseEvent) => void;
-  centered?: boolean;
 }
 
 /**
@@ -32,7 +31,6 @@ export function ProductQuickActions({
   productoTienda,
   allProductosTienda,
   onStopPropagation,
-  centered = false,
 }: ProductQuickActionsProps) {
   const { items, addToCart, updateQuantity, removeFromCart } = useCartStore();
   const { tasasVigentes, monedaBase } = useAppContext();
@@ -168,23 +166,20 @@ export function ProductQuickActions({
       aria-label={`Cantidad de ${productoTienda.producto.nombre} en carrito`}
       display="flex"
       alignItems="center"
-      justifyContent={centered ? "space-between" : "flex-end"}
       gap={0.25}
       onClick={(e) => {
         e.stopPropagation();
         onStopPropagation?.(e);
       }}
-      sx={
-        centered
-          ? {
-              width: "100%",
-              bgcolor: "action.hover",
-              borderRadius: 2,
-              px: 0.5,
-              py: 0.25,
-            }
-          : undefined
-      }
+      // Misma píldora agrupada que el stepper de CartItemCard: −, cantidad
+      // y + leen como un único control en vez de tres piezas sueltas.
+      sx={{
+        flexShrink: 0,
+        bgcolor: "action.hover",
+        borderRadius: 2,
+        px: 0.5,
+        py: 0.25,
+      }}
     >
       <IconButton
         size="small"
@@ -194,8 +189,6 @@ export function ProductQuickActions({
         sx={{
           minWidth: { xs: 44, sm: 36 },
           minHeight: { xs: 44, sm: 36 },
-          bgcolor: "action.hover",
-          "&:hover": { bgcolor: "action.selected" },
           "&:disabled": { opacity: 0.5 },
         }}
       >
@@ -205,8 +198,10 @@ export function ProductQuickActions({
       <Box
         onClick={startEditing}
         sx={{
-          width: { xs: 72, sm: 80 },
-          minWidth: { xs: 72, sm: 80 },
+          // Ancho de la cifra del stepper del carrito, con algo más de
+          // aire porque aquí además se puede tocar para escribirla.
+          width: 44,
+          minWidth: 44,
           minHeight: { xs: 44, sm: 36 },
           display: "flex",
           alignItems: "center",

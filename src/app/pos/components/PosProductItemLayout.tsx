@@ -88,7 +88,7 @@ export function PosProductItemLayout({
       elevation={0}
       onClick={onClick}
       sx={{
-        p: 1,
+        p: { xs: 1, sm: 1.25 },
         borderRadius: 2,
         border: "1px solid",
         borderColor: "divider",
@@ -107,72 +107,73 @@ export function PosProductItemLayout({
         ...sx,
       }}
     >
-      {/* Fila 1: nombre, una sola línea */}
-      <Typography
-        variant="body2"
-        fontWeight={highlightName ? 700 : 600}
-        noWrap
-        sx={{ lineHeight: 1.35, mb: 0.75 }}
-      >
-        {productoTienda.producto.nombre}
-      </Typography>
+      {/* Fila 1: nombre + disponibilidad. Mismo esquema que CartItemCard
+          (identidad arriba, metadato debajo del nombre): las dos tarjetas
+          que ve el cajero en la misma venta ya no colocan el mismo dato en
+          lugares distintos. El nombre se recorta a dos líneas en vez de
+          truncarse: con el sufijo del proveedor, una sola línea escondía
+          justo la parte que distingue un producto de otro. */}
+      <Box sx={{ mb: 0.75 }}>
+        <Typography
+          variant="body2"
+          fontWeight={highlightName ? 700 : 600}
+          sx={{
+            lineHeight: 1.35,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {productoTienda.producto.nombre}
+        </Typography>
+        <Typography
+          variant="caption"
+          color={disponibilidad.sinStock ? "error.main" : "text.secondary"}
+          noWrap
+          sx={{ display: "block", fontSize: "0.7rem", lineHeight: 1.4 }}
+        >
+          {disponibilidad.label}
+        </Typography>
+      </Box>
 
-      {/* Fila 2: precio (toca para ver el detalle en otras monedas) +
-          disponibilidad a la izquierda, cantidad a la derecha — antes eran
-          dos filas separadas. */}
+      {/* Fila 2: cantidad a la izquierda, importe a la derecha — el orden
+          de CartItemCard. Los importes alineados a la derecha forman una
+          columna legible de arriba abajo, como en un ticket. */}
       <Box
         display="flex"
         alignItems="center"
         justifyContent="space-between"
-        gap={0.5}
-        sx={{
-          borderTop: "1px dashed",
-          borderColor: "divider",
-          pt: 0.75,
-        }}
+        gap={1}
       >
-        <ButtonBase
-          onClick={openPriceDetail}
-          aria-label={`Ver detalle de precio de ${productoTienda.producto.nombre}`}
-          sx={{
-            flexDirection: "column",
-            alignItems: "flex-start",
-            borderRadius: 1,
-            px: 0.5,
-            py: 0.25,
-            minHeight: 44,
-            minWidth: 0,
-          }}
-        >
-          <MultiCurrencyAmount
-            amount={priceBase}
-            variant="compact"
-            showAlternatives={false}
-          />
-          <Typography
-            variant="caption"
-            color={disponibilidad.sinStock ? "error.main" : "text.secondary"}
-            noWrap
-            sx={{ fontSize: "0.65rem", lineHeight: 1.2 }}
-          >
-            {disponibilidad.label}
-          </Typography>
-        </ButtonBase>
-
         <Box onClick={(e) => e.stopPropagation()} sx={{ flexShrink: 0 }}>
           <ProductQuickActions
             productoTienda={productoTienda}
             allProductosTienda={allProductosTienda}
           />
         </Box>
+
+        <ButtonBase
+          onClick={openPriceDetail}
+          aria-label={`Ver detalle de precio de ${productoTienda.producto.nombre}`}
+          sx={{
+            borderRadius: 1.5,
+            px: 0.75,
+            py: 0.5,
+            minHeight: 44,
+            minWidth: 0,
+          }}
+        >
+          <MultiCurrencyAmount amount={priceBase} showAlternatives={false} />
+        </ButtonBase>
       </Box>
 
       <Popover
         open={Boolean(priceDetailAnchor)}
         anchorEl={priceDetailAnchor}
         onClose={closePriceDetail}
-        anchorOrigin={{ vertical: "top", horizontal: "left" }}
-        transformOrigin={{ vertical: "bottom", horizontal: "left" }}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
         <Stack gap={1} sx={{ p: 1.5, minWidth: 200 }}>
           <Box>

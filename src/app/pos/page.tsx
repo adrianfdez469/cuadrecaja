@@ -5,6 +5,7 @@ import {
   Typography,
   CircularProgress,
   Box,
+  Collapse,
   IconButton,
   Alert,
   Button,
@@ -34,7 +35,6 @@ import { UserSalesDrawer } from "./components/UserSalesDrawer";
 
 import { QuantityDialog } from "./components/QuantityDialog";
 import { PosBottomBar } from "./components/PosBottomBar";
-import { PosSearchHeader } from "./components/PosSearchHeader";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useVisualViewportHeight } from "@/hooks/useVisualViewportHeight";
@@ -113,7 +113,6 @@ export default function POSInterface() {
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const posScrollRef = useRef<HTMLDivElement>(null);
-  const searchResultsRef = useRef<HTMLDivElement>(null);
   // Espacio que la grilla debe reservar abajo para no quedar tapada por
   // PosBottomBar (position:fixed en mobile). Medido en vivo en vez de un
   // número fijo: la altura real de la barra varía según cuántos carritos
@@ -1040,17 +1039,14 @@ export default function POSInterface() {
   // always opened fresh, so keeping scrollTop across a pill/search change
   // would land the cashier mid-list in a usually shorter result.
   useEffect(() => {
-    if (posScrollRef.current) posScrollRef.current.scrollTop = 0;
-  }, [selectedCategoryId, searchQuery]);
-
-  // Same intent for the search overlay's list, mirrored for its
-  // `column-reverse` axis: there the first result sits at the *physical*
-  // bottom (pinned to the field), so "back to the top of the results" is
-  // scrollTop at its maximum, which the browser clamps for us.
-  useEffect(() => {
-    const el = searchResultsRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [searchQuery, searchMode]);
+    const el = posScrollRef.current;
+    if (!el) return;
+    // Mientras se busca la lista es `column-reverse`: el primer resultado
+    // está en el extremo *físico* de abajo (pegado al buscador), así que
+    // "volver al principio" es el scrollTop máximo, que el navegador
+    // recorta solo.
+    el.scrollTop = searchMode ? el.scrollHeight : 0;
+  }, [selectedCategoryId, searchQuery, searchMode]);
 
   const handleResetProductQuantity = () => {
     setSelectedProduct(null);
@@ -1072,22 +1068,18 @@ export default function POSInterface() {
     setIntentToSearch(true);
   };
 
-  // On desktop `intentToSearch` is purely "the box has focus" — it only
-  // guards the hardware scanner, and must clear on blur so the gun re-arms
-  // as soon as the cashier leaves the field. On mobile it also drives the
-  // search overlay, which owns its own lifetime: tapping a result's
-  // quantity field moves focus into that input, and tearing the overlay
-  // down on that blur would close the keyboard mid-interaction. There it
-  // closes explicitly instead (Cancelar, or anything that opens over it).
+  // Salir del campo termina la búsqueda, con una excepción: tocar la
+  // cantidad de un producto abre su editor inline y le pasa el foco, y
+  // ahí seguimos buscando — cerrar el modo en ese blur reexpandiría la
+  // barra superior justo mientras el cajero escribe la cantidad. El
+  // chequeo va en un timeout porque en el momento del blur el foco
+  // todavía no se movió a su destino.
   const handleSearchBlur = () => {
-    if (!showCartPanel) return;
-    setIntentToSearch(false);
-  };
-
-  const handleCloseSearch = () => {
-    searchInputRef.current?.blur();
-    setIntentToSearch(false);
-    setSearchQuery("");
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (active && posScrollRef.current?.contains(active)) return;
+      setIntentToSearch(false);
+    }, 0);
   };
 
   // Sincronización automática cuando regresa la conexión
@@ -1288,13 +1280,30 @@ export default function POSInterface() {
       display={"flex"}
       flexDirection={"row"}
       sx={{
-        // Browsing layout only — it never has to account for the on-screen
-        // keyboard. When the keyboard is up the cashier is in search mode,
-        // and that whole UI is a position:fixed overlay sized from
-        // visualViewport, so it doesn't derive anything from this box.
         // 56/64px are the top AppBar's heights (see Layout.tsx).
         height: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
         overflow: "hidden",
+        // Con el teclado abierto, iOS Safari no encoge el viewport de
+        // layout: desplaza el *visual viewport* dentro de él. Todo lo que
+        // esté en flujo normal del documento queda entonces corrido hacia
+        // arriba respecto de lo que se ve (la AppBar sticky se va fuera de
+        // pantalla) y `dvh` sigue midiendo el alto sin teclado, así que
+        // este box se extendía por debajo del teclado y los productos
+        // quedaban tapados. Solo `position: fixed` sigue al área visible:
+        // mientras se busca, este contenedor pasa a estar anclado a ella y
+        // toda la maquetación de adentro —barra, píldoras, grilla— vuelve
+        // a resolver contra coordenadas reales, sin tocar su estructura.
+        ...(searchMode &&
+          visualViewportHeight != null && {
+            position: "fixed",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: `${visualViewportHeight}px`,
+            // Por encima de la AppBar (zIndex.drawer - 1), que en este
+            // momento no aporta nada y solo robaría espacio.
+            zIndex: 1200,
+          }),
       }}
     >
       <Box
@@ -1316,10 +1325,10 @@ export default function POSInterface() {
             : {}),
         }}
       >
-        {/* Barra superior + píldoras de categorías. Ya no se ocultan al
-            buscar en mobile: la capa de búsqueda las tapa por completo, así
-            que no compiten por el espacio arriba del teclado. */}
-        <Box sx={{ flexShrink: 0 }}>
+        {/* Barra superior + píldoras de categorías: se ocultan mientras se
+            busca en mobile, para darle más aire a la grilla de resultados
+            arriba del teclado. */}
+        <Collapse in={!searchMode} sx={{ flexShrink: 0 }}>
           <Box
             sx={{
               flexShrink: 0,
@@ -1386,15 +1395,28 @@ export default function POSInterface() {
             selectedCategoryId={selectedCategoryId}
             onSelectCategory={setSelectedCategoryId}
           />
-        </Box>
+        </Collapse>
 
-        {/* Contenido principal: grilla de productos filtrada, scrolleable. */}
+        {/* Contenido principal: la misma grilla de productos de siempre.
+            Mientras se busca en mobile se apila en una sola columna
+            invertida, para que el primer resultado quede pegado al
+            buscador en vez de al borde de arriba. */}
         <Box
           ref={posScrollRef}
+          // Evita que tocar «+», «−» o la cantidad de un producto le robe
+          // el foco al buscador: sin esto, cada producto agregado cerraba
+          // el teclado y la maquetación daba un salto a media venta.
+          onMouseDown={searchMode ? (e) => e.preventDefault() : undefined}
           sx={{
             flex: 1,
             minWidth: 0,
             overflow: "auto",
+            ...(searchMode && {
+              display: "flex",
+              flexDirection: "column-reverse",
+              gap: 1.5,
+              p: 1.5,
+            }),
             // Matches PosBottomBar's own 700px threshold for switching
             // between position:fixed (mobile) and normal flow (desktop):
             // below it the footer is fixed and needs this space reserved
@@ -1410,8 +1432,22 @@ export default function POSInterface() {
           <PosProductGrid
             products={filteredProducts}
             allProductosTienda={productosTienda}
-            emptyMessage={emptyMessage}
+            emptyMessage={searchMode ? searchEmptyMessage : emptyMessage}
             searchQuery={searchQuery}
+            bottomUp={searchMode}
+            emptyAction={
+              // Al buscar, las píldoras de categorías están colapsadas: el
+              // mensaje no puede mandar a tocar «Todas» porque no se ve.
+              searchMode && selectedCategoryId !== null ? (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setSelectedCategoryId(null)}
+                >
+                  Buscar en todo el catálogo
+                </Button>
+              ) : null
+            }
           />
         </Box>
 
@@ -1475,52 +1511,15 @@ export default function POSInterface() {
           />
         )}
 
-        {/* En modo búsqueda el FAB quedaría flotando justo encima del
-            primer resultado (el más importante); ahí el acceso al carrito
-            vive en el encabezado de la capa. */}
         <ShoppingCartComponent
           openCart={openCart}
           handleCartIcon={handleCartIcon}
-          hidden={showCartPanel || searchMode}
+          hidden={showCartPanel}
         />
 
         <PosBottomBar
           rootRef={posBottomBarRef}
           searchMode={searchMode}
-          overlayHeight={visualViewportHeight}
-          searchResultsRef={searchResultsRef}
-          searchHeader={
-            <PosSearchHeader
-              activeCartName={
-                carts.find((c) => c.id === activeCartId)?.name ?? "Cuenta"
-              }
-              cartItemCount={cart.length}
-              resultCount={filteredProducts.length}
-              hasQuery={searchQuery.trim() !== ""}
-              onOpenCart={handleCartIcon}
-              onClose={handleCloseSearch}
-            />
-          }
-          searchResults={
-            <PosProductGrid
-              products={filteredProducts}
-              allProductosTienda={productosTienda}
-              emptyMessage={searchEmptyMessage}
-              searchQuery={searchQuery}
-              bottomUp
-              emptyAction={
-                selectedCategoryId !== null ? (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => setSelectedCategoryId(null)}
-                  >
-                    Buscar en todo el catálogo
-                  </Button>
-                ) : null
-              }
-            />
-          }
           carts={carts}
           activeCartId={activeCartId}
           onSelectCart={setActiveCart}
