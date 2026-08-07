@@ -108,25 +108,46 @@ export function PosProductItemLayout({
       }}
     >
       {/* Fila 1: nombre + disponibilidad. Mismo esquema que CartItemCard
-          (identidad arriba, metadato debajo del nombre): las dos tarjetas
-          que ve el cajero en la misma venta ya no colocan el mismo dato en
-          lugares distintos. El nombre se recorta a dos líneas en vez de
-          truncarse: con el sufijo del proveedor, una sola línea escondía
-          justo la parte que distingue un producto de otro. */}
-      <Typography
-        variant="body2"
-        fontWeight={highlightName ? 700 : 600}
-        sx={{
-          mb: 0.5,
-          lineHeight: 1.35,
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-        }}
+          (identidad arriba, metadato al lado): las dos tarjetas que ve el
+          cajero en la misma venta ya no colocan el mismo dato en lugares
+          distintos. La disponibilidad va aquí y no abajo junto al precio
+          porque su largo es variable ("Disp: 2" vs "Disp: 8 · Stock: 37") y
+          allí decidía si la fila envolvía o no: dos tarjetas vecinas
+          quedaban con el precio a distinta altura. El nombre se recorta a
+          dos líneas en vez de truncarse: con el sufijo del proveedor, una
+          sola línea escondía justo la parte que distingue un producto de
+          otro. */}
+      <Box
+        display="flex"
+        alignItems="flex-start"
+        justifyContent="space-between"
+        gap={1}
+        mb={0.75}
       >
-        {productoTienda.producto.nombre}
-      </Typography>
+        <Typography
+          variant="body2"
+          fontWeight={highlightName ? 700 : 600}
+          sx={{
+            minWidth: 0,
+            lineHeight: 1.35,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {productoTienda.producto.nombre}
+        </Typography>
+
+        <Typography
+          variant="caption"
+          color={disponibilidad.sinStock ? "error.main" : "text.secondary"}
+          noWrap
+          sx={{ flexShrink: 0, fontSize: "0.7rem", lineHeight: 1.9 }}
+        >
+          {disponibilidad.label}
+        </Typography>
+      </Box>
 
       {/* Fila 2: cantidad a la izquierda, importe a la derecha — el orden
           de CartItemCard. Los importes alineados a la derecha forman una
@@ -136,6 +157,12 @@ export function PosProductItemLayout({
         alignItems="center"
         justifyContent="space-between"
         gap={1}
+        // Red de seguridad para columnas muy estrechas: el stepper no
+        // encoge, así que el precio baja a su propia línea antes que
+        // comprimirse — sin esto se quedaba con unos pocos píxeles y
+        // `wordBreak` lo partía en una letra por renglón.
+        flexWrap="wrap"
+        rowGap={0.5}
       >
         <Box
           onClick={(e) => e.stopPropagation()}
@@ -152,34 +179,23 @@ export function PosProductItemLayout({
           />
         </Box>
 
-        {/* Disponibilidad apilada sobre el precio, no en una línea propia
-            bajo el nombre: es el mismo dato en el mismo sitio y ahorra una
-            fila entera de alto por tarjeta. */}
         <ButtonBase
           onClick={openPriceDetail}
           aria-label={`Ver detalle de precio de ${productoTienda.producto.nombre}`}
           sx={{
-            flexDirection: "column",
-            alignItems: "flex-end",
-            // Los dos datos son de naturaleza distinta (cuántos quedan vs
-            // cuánto cuesta) y comparten un solo control tocable: sin aire
-            // entre ellos se leen como una sola cifra partida en dos.
-            gap: 0.5,
+            justifyContent: "flex-end",
             borderRadius: 1.5,
             px: 0.75,
             py: 0.5,
             minHeight: 44,
-            minWidth: 0,
+            // Nunca por debajo de su contenido: antes que encogerse tiene
+            // que envolver a la línea de abajo. `flexGrow` es para que una
+            // vez ahí ocupe el ancho completo y siga alineado a la derecha.
+            flexShrink: 0,
+            flexGrow: 1,
+            maxWidth: "100%",
           }}
         >
-          <Typography
-            variant="caption"
-            color={disponibilidad.sinStock ? "error.main" : "text.secondary"}
-            noWrap
-            sx={{ fontSize: "0.7rem", lineHeight: 1.3 }}
-          >
-            {disponibilidad.label}
-          </Typography>
           <MultiCurrencyAmount amount={priceBase} showAlternatives={false} />
         </ButtonBase>
       </Box>

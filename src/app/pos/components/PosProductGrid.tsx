@@ -72,7 +72,12 @@ export function PosProductGrid({
   return (
     <Grid container spacing={1.5} sx={{ p: 1 }}>
       {products.map((productoTienda) => (
-        <Grid item xs={12} sm={6} md={4} lg={3} key={productoTienda.id}>
+        // Un escalón por encima de lo que sugeriría el ancho de pantalla:
+        // desde 700px esta grilla comparte el viewport con el panel del
+        // carrito, así que el contenedor real ronda dos tercios de lo que
+        // miden los breakpoints. Con los valores directos, una pantalla
+        // de 1200px pintaba cuatro columnas de ~200px.
+        <Grid item xs={12} sm={6} md={6} lg={4} xl={3} key={productoTienda.id}>
           <PosProductItemLayout
             productoTienda={productoTienda}
             allProductosTienda={allProductosTienda}

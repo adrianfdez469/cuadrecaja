@@ -336,9 +336,14 @@ export default function POSInterface() {
 
   // Calcular ancho del panel del carrito (sm+ solamente; en mobile se usa
   // el Drawer, que no llama a esta función).
+  // Con techo: el contenido del carrito (líneas, total, botón de cobrar) no
+  // gana nada por encima de ~420px, y cada píxel de más se lo quita a la
+  // grilla, que sí lo aprovecha. Sin el tope, una pantalla de 1280px le daba
+  // 538px al panel y dejaba las tarjetas en 234px — demasiado estrechas para
+  // el stepper y el precio en la misma fila.
   const getCartWidth = () => {
-    if (isTablet) return "48vw";
-    return "42vw";
+    if (isTablet) return "min(48vw, 420px)";
+    return "clamp(360px, 42vw, 420px)";
   };
 
   const scannerEnabled =
