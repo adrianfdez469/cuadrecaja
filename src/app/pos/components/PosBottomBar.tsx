@@ -105,9 +105,9 @@ export function PosBottomBar({
         },
       }}
     >
-      {/* Píldoras de carritos: mientras se busca ceden su espacio a los
-          productos — el catálogo es lo que el cajero está mirando, y la
-          cuenta activa no cambia por teclear. */}
+      {/* Píldoras de carritos: se ocultan mientras se busca. La cuenta
+          activa no cambia por teclear, y es la fila que está justo encima
+          del teclado, donde el espacio es más caro. */}
       {!searchMode && (
         <Box
           sx={{
@@ -256,12 +256,6 @@ export function PosBottomBar({
             `linear-gradient(to top, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
           backdropFilter: "blur(10px)",
           boxSizing: "border-box",
-          // Sin las píldoras encima, el buscador necesita su propio
-          // borde para no fundirse con los productos.
-          ...(searchMode && {
-            borderTop: "1px solid rgba(0,0,0,0.1)",
-            boxShadow: "0 -2px 8px rgba(0,0,0,0.06)",
-          }),
         }}
       >
         <Stack direction="row" spacing={1}>

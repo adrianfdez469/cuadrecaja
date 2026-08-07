@@ -113,29 +113,20 @@ export function PosProductItemLayout({
           lugares distintos. El nombre se recorta a dos líneas en vez de
           truncarse: con el sufijo del proveedor, una sola línea escondía
           justo la parte que distingue un producto de otro. */}
-      <Box sx={{ mb: 0.75 }}>
-        <Typography
-          variant="body2"
-          fontWeight={highlightName ? 700 : 600}
-          sx={{
-            lineHeight: 1.35,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          {productoTienda.producto.nombre}
-        </Typography>
-        <Typography
-          variant="caption"
-          color={disponibilidad.sinStock ? "error.main" : "text.secondary"}
-          noWrap
-          sx={{ display: "block", fontSize: "0.7rem", lineHeight: 1.4 }}
-        >
-          {disponibilidad.label}
-        </Typography>
-      </Box>
+      <Typography
+        variant="body2"
+        fontWeight={highlightName ? 700 : 600}
+        sx={{
+          mb: 0.5,
+          lineHeight: 1.35,
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
+      >
+        {productoTienda.producto.nombre}
+      </Typography>
 
       {/* Fila 2: cantidad a la izquierda, importe a la derecha — el orden
           de CartItemCard. Los importes alineados a la derecha forman una
@@ -146,24 +137,45 @@ export function PosProductItemLayout({
         justifyContent="space-between"
         gap={1}
       >
-        <Box onClick={(e) => e.stopPropagation()} sx={{ flexShrink: 0 }}>
+        <Box
+          onClick={(e) => e.stopPropagation()}
+          // Ajustar cantidades no debe quitarle el foco al buscador: sin
+          // esto, cada producto agregado cerraba el teclado a media venta.
+          // Va solo sobre estos controles y no sobre la tarjeta entera, para
+          // que tocar cualquier otro sitio sí cierre la búsqueda.
+          onMouseDown={(e) => e.preventDefault()}
+          sx={{ flexShrink: 0 }}
+        >
           <ProductQuickActions
             productoTienda={productoTienda}
             allProductosTienda={allProductosTienda}
           />
         </Box>
 
+        {/* Disponibilidad apilada sobre el precio, no en una línea propia
+            bajo el nombre: es el mismo dato en el mismo sitio y ahorra una
+            fila entera de alto por tarjeta. */}
         <ButtonBase
           onClick={openPriceDetail}
           aria-label={`Ver detalle de precio de ${productoTienda.producto.nombre}`}
           sx={{
+            flexDirection: "column",
+            alignItems: "flex-end",
             borderRadius: 1.5,
             px: 0.75,
-            py: 0.5,
+            py: 0.25,
             minHeight: 44,
             minWidth: 0,
           }}
         >
+          <Typography
+            variant="caption"
+            color={disponibilidad.sinStock ? "error.main" : "text.secondary"}
+            noWrap
+            sx={{ fontSize: "0.7rem", lineHeight: 1.3 }}
+          >
+            {disponibilidad.label}
+          </Typography>
           <MultiCurrencyAmount amount={priceBase} showAlternatives={false} />
         </ButtonBase>
       </Box>

@@ -5,7 +5,6 @@ import {
   Typography,
   CircularProgress,
   Box,
-  Collapse,
   IconButton,
   Alert,
   Button,
@@ -37,7 +36,7 @@ import { QuantityDialog } from "./components/QuantityDialog";
 import { PosBottomBar } from "./components/PosBottomBar";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
-import { useVisualViewportHeight } from "@/hooks/useVisualViewportHeight";
+import { useOnScreenKeyboard } from "@/hooks/useOnScreenKeyboard";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
 import { useCartTotal } from "@/hooks/useCartTotal";
 import { convertToBase } from "@/lib/currency";
@@ -135,6 +134,24 @@ export default function POSInterface() {
     observer.observe(el);
     bottomBarObserverRef.current = observer;
   }, []);
+  // Cuánto hay que desplazar la barra de herramientas para sacarla de vista
+  // al buscar. Medida en vivo por la misma razón que bottomBarHeight: su
+  // alto depende de qué botones tenga el usuario según sus permisos.
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+  const toolbarObserverRef = useRef<ResizeObserver | null>(null);
+  const posToolbarRef = useCallback((el: HTMLDivElement | null) => {
+    toolbarObserverRef.current?.disconnect();
+    toolbarObserverRef.current = null;
+    if (!el) return;
+    // offsetHeight, no contentRect: esta barra tiene padding propio y un
+    // borde inferior, y contentRect los excluye — desplazarla por ese valor
+    // dejaría una franja asomando.
+    const observer = new ResizeObserver(() =>
+      setToolbarHeight(el.offsetHeight),
+    );
+    observer.observe(el);
+    toolbarObserverRef.current = observer;
+  }, []);
   const [selectedProduct, setSelectedProduct] =
     useState<IProductoTiendaV2 | null>(null);
   const {
@@ -217,18 +234,40 @@ export default function POSInterface() {
   // CartDrawer overlay, same as mobile.
   const showCartPanel = useMediaQuery(theme.breakpoints.up(700));
 
-  // Searching on a phone is its own mode, not a tweak of the browsing
-  // layout: PosBottomBar expands into an overlay that covers the visible
-  // area, with the field at the bottom and results stacking up from it.
-  // Gated on `showCartPanel`'s 700px threshold — the same one that decides
-  // whether the bar is position:fixed — so the overlay only exists exactly
-  // where the fixed bar it grows out of does.
+  const { keyboardOpen, viewportHeight } = useOnScreenKeyboard();
+
+  // Buscar en el teléfono no oculta nada ni abre ninguna capa: lo único
+  // que cambia es que los resultados se apilan hacia arriba, para que el
+  // primero quede pegado al campo donde se está escribiendo. Se limita al
+  // umbral de 700px de `showCartPanel` — el mismo con el que PosBottomBar
+  // decide ser position:fixed — porque arriba de eso no hay teclado en
+  // pantalla que justifique invertir nada.
   const searchMode = intentToSearch && !showCartPanel;
 
-  // Real visible height above the keyboard, only tracked while it's
-  // actually relevant (see useVisualViewportHeight for why `dvh` alone
-  // can't be trusted here). Null until the first measurement lands.
-  const visualViewportHeight = useVisualViewportHeight(searchMode);
+  // El teclado abierto es lo único que rompe las coordenadas del layout
+  // (ver el comentario del box raíz), así que es lo único que decide si
+  // hay que anclar el POS al área visible. Al bajarlo, todo vuelve solo.
+  const pinToVisibleArea = searchMode && keyboardOpen && viewportHeight != null;
+
+  // Sin teclado no hay búsqueda. Chrome en Android no dispara `blur` cuando
+  // el usuario baja el teclado con el botón del sistema: el campo conserva
+  // el foco y el POS se quedaba en modo búsqueda sin forma obvia de salir.
+  // El ref evita el falso positivo del arranque, entre el toque en el campo
+  // y el momento en que el teclado realmente aparece.
+  const keyboardWasOpenRef = useRef(false);
+  useEffect(() => {
+    if (!searchMode) {
+      keyboardWasOpenRef.current = false;
+      return;
+    }
+    if (keyboardOpen) {
+      keyboardWasOpenRef.current = true;
+      return;
+    }
+    if (!keyboardWasOpenRef.current) return;
+    searchInputRef.current?.blur();
+    setIntentToSearch(false);
+  }, [searchMode, keyboardOpen]);
 
   useEffect(() => {
     if (openCart && !showCartPanel) {
@@ -1023,18 +1062,6 @@ export default function POSInterface() {
         ? "No hay productos en esta categoría"
         : "No hay productos disponibles";
 
-  // El overlay de búsqueda oculta las píldoras de categorías, así que su
-  // vacío no puede mandar a tocar «Todas»: ahí la salida es un botón real
-  // (searchEmptyAction) en vez de una instrucción imposible de seguir.
-  const searchEmptyMessage =
-    searchQuery.trim() !== ""
-      ? selectedCategoryName
-        ? `Sin resultados para "${searchQuery}" en «${selectedCategoryName}»`
-        : `Sin resultados para "${searchQuery}"`
-      : selectedCategoryName
-        ? `No hay productos en «${selectedCategoryName}»`
-        : "No hay productos disponibles";
-
   // Reset scroll position on filter change: the old per-category modal
   // always opened fresh, so keeping scrollTop across a pill/search change
   // would land the cashier mid-list in a usually shorter result.
@@ -1293,17 +1320,16 @@ export default function POSInterface() {
         // mientras se busca, este contenedor pasa a estar anclado a ella y
         // toda la maquetación de adentro —barra, píldoras, grilla— vuelve
         // a resolver contra coordenadas reales, sin tocar su estructura.
-        ...(searchMode &&
-          visualViewportHeight != null && {
-            position: "fixed",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: `${visualViewportHeight}px`,
-            // Por encima de la AppBar (zIndex.drawer - 1), que en este
-            // momento no aporta nada y solo robaría espacio.
-            zIndex: 1200,
-          }),
+        ...(pinToVisibleArea && {
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: `${viewportHeight}px`,
+          // Por encima de la AppBar (zIndex.drawer - 1), que con el teclado
+          // abierto ya está fuera del área visible de todos modos.
+          zIndex: 1200,
+        }),
       }}
     >
       <Box
@@ -1325,13 +1351,25 @@ export default function POSInterface() {
             : {}),
         }}
       >
-        {/* Barra superior + píldoras de categorías: se ocultan mientras se
-            busca en mobile, para darle más aire a la grilla de resultados
-            arriba del teclado. */}
-        <Collapse in={!searchMode} sx={{ flexShrink: 0 }}>
+        {/* Al buscar, arriba quedan visibles solo las categorías: filtrar
+            mientras se escribe es una combinación útil, y período/sync/
+            impresora no sirven de nada en ese momento. */}
+        <Box sx={{ flexShrink: 0, overflow: "hidden" }}>
           <Box
+            ref={posToolbarRef}
             sx={{
               flexShrink: 0,
+              // Al buscar, la barra de herramientas no se aplasta a altura
+              // 0: conserva su tamaño y se desplaza fuera de vista con un
+              // margen negativo. Así el alto que deja libre lo hereda la
+              // grilla y arriba solo quedan las categorías, que sí sirven
+              // mientras se escribe. Al salir de la búsqueda vuelve sola.
+              // El `overflow: hidden` del padre hace dos cosas necesarias,
+              // no una: recorta la barra desplazada, y crea un contexto de
+              // formato de bloque sin el cual este margen negativo se
+              // colapsaría con el del padre y arrastraría todo hacia arriba.
+              mt: searchMode ? `-${toolbarHeight}px` : 0,
+              transition: "margin-top 0.2s ease",
               bgcolor: "rgba(255, 255, 255, 0.95)",
               backdropFilter: "blur(10px)",
               borderBottom: "1px solid rgba(0,0,0,0.1)",
@@ -1395,7 +1433,7 @@ export default function POSInterface() {
             selectedCategoryId={selectedCategoryId}
             onSelectCategory={setSelectedCategoryId}
           />
-        </Collapse>
+        </Box>
 
         {/* Contenido principal: la misma grilla de productos de siempre.
             Mientras se busca en mobile se apila en una sola columna
@@ -1403,10 +1441,6 @@ export default function POSInterface() {
             buscador en vez de al borde de arriba. */}
         <Box
           ref={posScrollRef}
-          // Evita que tocar «+», «−» o la cantidad de un producto le robe
-          // el foco al buscador: sin esto, cada producto agregado cerraba
-          // el teclado y la maquetación daba un salto a media venta.
-          onMouseDown={searchMode ? (e) => e.preventDefault() : undefined}
           sx={{
             flex: 1,
             minWidth: 0,
@@ -1432,22 +1466,9 @@ export default function POSInterface() {
           <PosProductGrid
             products={filteredProducts}
             allProductosTienda={productosTienda}
-            emptyMessage={searchMode ? searchEmptyMessage : emptyMessage}
+            emptyMessage={emptyMessage}
             searchQuery={searchQuery}
             bottomUp={searchMode}
-            emptyAction={
-              // Al buscar, las píldoras de categorías están colapsadas: el
-              // mensaje no puede mandar a tocar «Todas» porque no se ve.
-              searchMode && selectedCategoryId !== null ? (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => setSelectedCategoryId(null)}
-                >
-                  Buscar en todo el catálogo
-                </Button>
-              ) : null
-            }
           />
         </Box>
 

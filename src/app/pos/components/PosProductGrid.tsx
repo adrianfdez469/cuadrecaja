@@ -1,6 +1,5 @@
 "use client";
 
-import { ReactNode } from "react";
 import { Box, Grid, Typography } from "@mui/material";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { PosProductItemLayout } from "./PosProductItemLayout";
@@ -19,12 +18,6 @@ interface PosProductGridProps {
    * result sits within thumb reach rather than at the top of the screen.
    */
   bottomUp?: boolean;
-  /**
-   * Way out of the empty state, rendered under the message. The search
-   * overlay needs this: it hides the category pills, so telling the
-   * cashier to "tap Todas" there points at something they can't see.
-   */
-  emptyAction?: ReactNode;
 }
 
 export function PosProductGrid({
@@ -33,7 +26,6 @@ export function PosProductGrid({
   emptyMessage,
   searchQuery,
   bottomUp = false,
-  emptyAction,
 }: PosProductGridProps) {
   if (products.length === 0) {
     return (
@@ -41,7 +33,6 @@ export function PosProductGrid({
         <Typography color="text.secondary" variant="body2">
           {emptyMessage}
         </Typography>
-        {emptyAction && <Box sx={{ mt: 1.5 }}>{emptyAction}</Box>}
       </Box>
     );
   }
