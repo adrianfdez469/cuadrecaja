@@ -161,9 +161,13 @@ export function PosProductItemLayout({
           sx={{
             flexDirection: "column",
             alignItems: "flex-end",
+            // Los dos datos son de naturaleza distinta (cuántos quedan vs
+            // cuánto cuesta) y comparten un solo control tocable: sin aire
+            // entre ellos se leen como una sola cifra partida en dos.
+            gap: 0.5,
             borderRadius: 1.5,
             px: 0.75,
-            py: 0.25,
+            py: 0.5,
             minHeight: 44,
             minWidth: 0,
           }}

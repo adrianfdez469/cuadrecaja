@@ -198,10 +198,11 @@ export function ProductQuickActions({
       <Box
         onClick={startEditing}
         sx={{
-          // Ancho de la cifra del stepper del carrito, con algo más de
-          // aire porque aquí además se puede tocar para escribirla.
-          width: 44,
-          minWidth: 44,
+          // Más ancho que la cifra del stepper del carrito porque aquí
+          // además es un campo de escritura: con productos decimales el
+          // valor llega a "12.50" y a 44px se recortaba al teclear.
+          width: 60,
+          minWidth: 60,
           minHeight: { xs: 44, sm: 36 },
           display: "flex",
           alignItems: "center",

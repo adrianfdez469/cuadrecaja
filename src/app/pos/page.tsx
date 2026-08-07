@@ -134,23 +134,22 @@ export default function POSInterface() {
     observer.observe(el);
     bottomBarObserverRef.current = observer;
   }, []);
-  // Cuánto hay que desplazar la barra de herramientas para sacarla de vista
-  // al buscar. Medida en vivo por la misma razón que bottomBarHeight: su
-  // alto depende de qué botones tenga el usuario según sus permisos.
-  const [toolbarHeight, setToolbarHeight] = useState(0);
-  const toolbarObserverRef = useRef<ResizeObserver | null>(null);
-  const posToolbarRef = useCallback((el: HTMLDivElement | null) => {
-    toolbarObserverRef.current?.disconnect();
-    toolbarObserverRef.current = null;
+  // Cuánto hay que desplazar la cabecera (herramientas + categorías) para
+  // sacarla de vista al buscar. Medida en vivo por la misma razón que
+  // bottomBarHeight: su alto depende de qué botones tenga el usuario según
+  // sus permisos y de cuántas categorías tenga el negocio.
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const headerObserverRef = useRef<ResizeObserver | null>(null);
+  const posHeaderRef = useCallback((el: HTMLDivElement | null) => {
+    headerObserverRef.current?.disconnect();
+    headerObserverRef.current = null;
     if (!el) return;
-    // offsetHeight, no contentRect: esta barra tiene padding propio y un
-    // borde inferior, y contentRect los excluye — desplazarla por ese valor
+    // offsetHeight, no contentRect: estas barras tienen padding propio y
+    // bordes, y contentRect los excluye — desplazarlas por ese valor
     // dejaría una franja asomando.
-    const observer = new ResizeObserver(() =>
-      setToolbarHeight(el.offsetHeight),
-    );
+    const observer = new ResizeObserver(() => setHeaderHeight(el.offsetHeight));
     observer.observe(el);
-    toolbarObserverRef.current = observer;
+    headerObserverRef.current = observer;
   }, []);
   const [selectedProduct, setSelectedProduct] =
     useState<IProductoTiendaV2 | null>(null);
@@ -1351,88 +1350,89 @@ export default function POSInterface() {
             : {}),
         }}
       >
-        {/* Al buscar, arriba quedan visibles solo las categorías: filtrar
-            mientras se escribe es una combinación útil, y período/sync/
-            impresora no sirven de nada en ese momento. */}
+        {/* Al buscar, la cabecera entera (herramientas + categorías) sale de
+            vista: escribir el nombre ya filtra mejor que cualquiera de las
+            dos, y el alto que dejan libre lo hereda la grilla. Ninguna se
+            aplasta a altura 0 — conservan su tamaño y se desplazan con un
+            margen negativo, así que al salir de la búsqueda vuelven solas.
+            El `overflow: hidden` del padre hace dos cosas necesarias, no
+            una: recorta lo desplazado, y crea un contexto de formato de
+            bloque sin el cual este margen negativo se colapsaría con el del
+            padre y arrastraría todo hacia arriba. */}
         <Box sx={{ flexShrink: 0, overflow: "hidden" }}>
           <Box
-            ref={posToolbarRef}
+            ref={posHeaderRef}
             sx={{
-              flexShrink: 0,
-              // Al buscar, la barra de herramientas no se aplasta a altura
-              // 0: conserva su tamaño y se desplaza fuera de vista con un
-              // margen negativo. Así el alto que deja libre lo hereda la
-              // grilla y arriba solo quedan las categorías, que sí sirven
-              // mientras se escribe. Al salir de la búsqueda vuelve sola.
-              // El `overflow: hidden` del padre hace dos cosas necesarias,
-              // no una: recorta la barra desplazada, y crea un contexto de
-              // formato de bloque sin el cual este margen negativo se
-              // colapsaría con el del padre y arrastraría todo hacia arriba.
-              mt: searchMode ? `-${toolbarHeight}px` : 0,
+              mt: searchMode ? `-${headerHeight}px` : 0,
               transition: "margin-top 0.2s ease",
-              bgcolor: "rgba(255, 255, 255, 0.95)",
-              backdropFilter: "blur(10px)",
-              borderBottom: "1px solid rgba(0,0,0,0.1)",
-              px: 2,
-              py: 1,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
             }}
           >
             <Box
-              data-tour="pos-toolbar-periodo"
-              sx={{ display: "flex", alignItems: "center", minHeight: 32 }}
+              sx={{
+                bgcolor: "rgba(255, 255, 255, 0.95)",
+                backdropFilter: "blur(10px)",
+                borderBottom: "1px solid rgba(0,0,0,0.1)",
+                px: 2,
+                py: 1,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              }}
             >
-              <PeriodoBadge periodo={periodo} isMobile={isMobile} />
-            </Box>
+              <Box
+                data-tour="pos-toolbar-periodo"
+                sx={{ display: "flex", alignItems: "center", minHeight: 32 }}
+              >
+                <PeriodoBadge periodo={periodo} isMobile={isMobile} />
+              </Box>
 
-            <Box
-              display="flex"
-              flexDirection="row"
-              justifyContent="center"
-              alignItems="center"
-            >
-              <RefreshButton onRefresh={handleRefresh} />
-              <Tooltip title="Punto de partida">
-                <IconButton
-                  size="small"
-                  data-tour="pos-toolbar-punto-partida"
-                  onClick={() => setResumenDiaOpen(true)}
-                >
-                  <FlagIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              {puedeDevolucionVenta && (
-                <Tooltip title="Devolución de venta">
+              <Box
+                display="flex"
+                flexDirection="row"
+                justifyContent="center"
+                alignItems="center"
+              >
+                <RefreshButton onRefresh={handleRefresh} />
+                <Tooltip title="Punto de partida">
                   <IconButton
                     size="small"
-                    onClick={() => setDevolucionVentaOpen(true)}
+                    data-tour="pos-toolbar-punto-partida"
+                    onClick={() => setResumenDiaOpen(true)}
                   >
-                    <UndoIcon fontSize="small" />
+                    <FlagIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              )}
-              <PosStatusToolBar
-                handleShowSyncView={handleShowSyncView}
-                handleShowUserSales={handleShowUserSales}
-              />
-              {puedeImprimir && user?.localActual?.id && (
-                <PrintQueueIndicator
-                  tiendaId={user.localActual.id}
-                  onOpenSetup={() => setPrinterSetupOpen(true)}
+                {puedeDevolucionVenta && (
+                  <Tooltip title="Devolución de venta">
+                    <IconButton
+                      size="small"
+                      onClick={() => setDevolucionVentaOpen(true)}
+                    >
+                      <UndoIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                <PosStatusToolBar
+                  handleShowSyncView={handleShowSyncView}
+                  handleShowUserSales={handleShowUserSales}
                 />
-              )}
-              <ConnectionStatus isOnline={isOnline} />
+                {puedeImprimir && user?.localActual?.id && (
+                  <PrintQueueIndicator
+                    tiendaId={user.localActual.id}
+                    onOpenSetup={() => setPrinterSetupOpen(true)}
+                  />
+                )}
+                <ConnectionStatus isOnline={isOnline} />
+              </Box>
             </Box>
+            {/* Fila fija de píldoras de categorías */}
+            <CategoryPillsBar
+              categories={categories}
+              selectedCategoryId={selectedCategoryId}
+              onSelectCategory={setSelectedCategoryId}
+            />
           </Box>
-          {/* Fila fija de píldoras de categorías */}
-          <CategoryPillsBar
-            categories={categories}
-            selectedCategoryId={selectedCategoryId}
-            onSelectCategory={setSelectedCategoryId}
-          />
         </Box>
 
         {/* Contenido principal: la misma grilla de productos de siempre.
