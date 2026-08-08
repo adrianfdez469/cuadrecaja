@@ -1,7 +1,8 @@
-import { z } from 'zod';
+import { z } from "zod";
+import { tasaSnapshotSchema } from "./tasaCambio";
 
 export const pagoLineaSchema = z.object({
-  tipo: z.enum(['cash', 'transfer']),
+  tipo: z.enum(["cash", "transfer"]),
   moneda: z.string().min(1),
   monto: z.number().positive(),
   equivalenteBase: z.number().nonnegative(),
@@ -17,8 +18,9 @@ export const pagosDetalleSchema = z.array(pagoLineaSchema);
 export const vueltoDetalleSchema = z.array(vueltoLineaSchema);
 
 /** Validación app: requiere transferDestinationId en líneas transfer con monto > 0 */
-export const pagosDetalleAppSchema = pagosDetalleSchema.min(1).superRefine(
-  (pagos, ctx) => {
+export const pagosDetalleAppSchema = pagosDetalleSchema
+  .min(1)
+  .superRefine((pagos, ctx) => {
     pagos.forEach((p, i) => {
       if (p.tipo === "transfer" && p.monto > 0 && !p.transferDestinationId) {
         ctx.addIssue({
@@ -29,8 +31,7 @@ export const pagosDetalleAppSchema = pagosDetalleSchema.min(1).superRefine(
         });
       }
     });
-  },
-);
+  });
 
 export const resumenMonedaCierreSchema = z.object({
   id: z.string().uuid(),
@@ -41,8 +42,17 @@ export const resumenMonedaCierreSchema = z.object({
   equivalenteBase: z.number(),
 });
 
+export const multimonedaExtrasSchema = z.object({
+  monedaCobro: z.string().min(1),
+  pagosDetalle: pagosDetalleSchema,
+  vueltoDetalle: vueltoDetalleSchema,
+  tasaSnapshot: tasaSnapshotSchema,
+  discountTotal: z.number().nonnegative().optional(),
+});
+
 export type IPagoLinea = z.infer<typeof pagoLineaSchema>;
 export type IVueltoLinea = z.infer<typeof vueltoLineaSchema>;
 export type IPagosDetalle = z.infer<typeof pagosDetalleSchema>;
 export type IVueltoDetalle = z.infer<typeof vueltoDetalleSchema>;
 export type IResumenMonedaCierre = z.infer<typeof resumenMonedaCierreSchema>;
+export type IMultimonedaExtras = z.infer<typeof multimonedaExtrasSchema>;

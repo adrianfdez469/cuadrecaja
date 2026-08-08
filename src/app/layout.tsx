@@ -1,17 +1,19 @@
-"use client"; // Esto hace que todo el layout sea un Client Component
-
-import { ThemeProvider, CssBaseline } from "@mui/material";
-import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
-import theme from "@/theme";
-import Layout from "@/components/Layout";
-import { AppProvider } from "@/context/AppContext";
-import { SessionProvider } from "next-auth/react";
-import { MessageProvider } from "@/context/MessageContext";
-import { OnboardingProvider } from "@/features/onboarding";
-import { LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { usePathname } from "next/navigation";
+import { Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { Providers } from "./Providers";
+
+// A manually-rendered <meta name="viewport"> tag in a "use client" layout
+// doesn't suppress Next's own automatic one — App Router injects its
+// default viewport tag regardless unless a `viewport` export overrides it,
+// so the two used to coexist (harmlessly, while their content matched).
+// `interactiveWidget: "resizes-content"` needs this export specifically:
+// without it, iOS Safari doesn't shrink the layout viewport when the
+// on-screen keyboard opens, so `dvh`-sized layouts don't reflow around it.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+};
 
 export default function RootLayout({
   children,
@@ -21,7 +23,6 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#1976d2" />
         <meta
           name="description"
@@ -32,51 +33,8 @@ export default function RootLayout({
       </head>
       <body>
         <Analytics />
-        <AppRouterCacheProvider>
-          <SessionProvider refetchOnWindowFocus={false}>
-            <AppProvider>
-              <ThemeProvider theme={theme}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <MessageProvider>
-                    <OnboardingProvider>
-                      <CssBaseline />
-                      <LayoutWrapper>{children}</LayoutWrapper>
-                    </OnboardingProvider>
-                  </MessageProvider>
-                </LocalizationProvider>
-              </ThemeProvider>
-            </AppProvider>
-          </SessionProvider>
-        </AppRouterCacheProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
-}
-
-// Componente wrapper que decide qué layout usar
-function LayoutWrapper({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
-  // Landing, descarga, activación, cuentas (invitación / reset), promotores (público) y páginas de error: sin Layout principal
-  const noLayoutPaths = [
-    "/",
-    "/descargar",
-    "/activar",
-    "/activar-usuario",
-    "/activar-cambio-correo",
-    "/restablecer-contrasena",
-    "/olvide-contrasena",
-    "/login",
-    "/forbidden",
-    "/activar-promotor",
-    "/subscription-expired",
-  ];
-  const isPromotorPublicArea =
-    pathname === "/promotor" || pathname.startsWith("/promotor/");
-  if (noLayoutPaths.includes(pathname) || isPromotorPublicArea) {
-    return <>{children}</>;
-  }
-
-  // Para todas las demás rutas, usar el Layout principal con autenticación
-  return <Layout>{children}</Layout>;
 }
