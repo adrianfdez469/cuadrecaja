@@ -3,13 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 // Rutas que requieren verificación de suscripción
 const PROTECTED_ROUTES = [
   "/home",
-  "/dashboard",
   "/dashboard-resumen",
   "/pos",
   "/ventas",
   "/inventario",
   "/cierre",
   "/resumen_cierre",
+  "/reportes",
   "/cpp-analysis",
   "/proveedores",
   "/configuracion",

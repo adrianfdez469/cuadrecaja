@@ -56,6 +56,24 @@
   "recuperaciones.proveedoresconsignación.acceder": {
     "descripcion": "Permite acceder y realizar todas las funciones disponibles en la recuperacion de los proveedores y productos en consignación."
   },
+  "recuperaciones.reportes.acceder": {
+    "descripcion": "Permite acceder al módulo de reportes analíticos"
+  },
+  "recuperaciones.reportes.tendencias": {
+    "descripcion": "Permite ver la evolución de ventas y ganancias, y los horarios de mayor venta"
+  },
+  "recuperaciones.reportes.inventario": {
+    "descripcion": "Permite ver rotación de inventario, capital inmovilizado, análisis ABC y valor en riesgo por vencimiento"
+  },
+  "recuperaciones.reportes.rentabilidad": {
+    "descripcion": "Permite ver el estado de resultados, la rentabilidad por categoría y la efectividad de los descuentos"
+  },
+  "recuperaciones.reportes.operacion": {
+    "descripcion": "Permite ver el rendimiento por vendedor y el mix de métodos de pago y monedas"
+  },
+  "recuperaciones.reportes.mermas": {
+    "descripcion": "Permite ver el detalle de mermas y devoluciones por producto y causa"
+  },
   "operaciones.pos-venta.acceder": {
     "descripcion": "Permite acceder a la interfaz de ventas (POS)"
   },
