@@ -1,7 +1,7 @@
 import React, { FC, useEffect } from "react";
 import { Drawer } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
-import { CartContent } from "./components/cartContent";
+import { CartContent, type CartStep } from "./components/cartContent";
 import type { IMultimonedaExtras } from "@/schemas/pago";
 import type { ITransferDestination } from "@/schemas/transferDestination";
 
@@ -23,6 +23,7 @@ interface IProps {
   clear?: () => void;
   removeItem?: (id: string) => void;
   total: number;
+  onStepChange?: (step: CartStep) => void;
 }
 
 const CartDrawer: FC<IProps> = ({
@@ -36,6 +37,7 @@ const CartDrawer: FC<IProps> = ({
   clear,
   removeItem,
   total,
+  onStepChange,
 }) => {
   useEffect(() => {
     if (cart.length === 0) {
@@ -71,6 +73,7 @@ const CartDrawer: FC<IProps> = ({
           transferDestinations={transferDestinations}
           cierreId={cierreId}
           variant="drawer"
+          onStepChange={onStepChange}
         />
       </Drawer>
     </>

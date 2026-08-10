@@ -1,14 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { MouseEvent } from "react";
 import {
   Box,
   Button,
-  ButtonBase,
   Chip,
   IconButton,
-  Popover,
   Stack,
   Typography,
 } from "@mui/material";
@@ -36,7 +33,7 @@ import {
 } from "@/app/pos/utils/paymentMath";
 import { toVueltoLineas } from "@/app/pos/utils/changeMath";
 import { suggestedAmounts } from "@/app/pos/utils/suggestedAmounts";
-import { convertToBase } from "@/lib/currency";
+import { convertFromBase, convertToBase } from "@/lib/currency";
 import { DENOMINACIONES } from "@/constants/billDenominations";
 import type { IMultimonedaExtras } from "@/schemas/pago";
 import type { ITransferDestination } from "@/schemas/transferDestination";
@@ -103,12 +100,26 @@ export function CheckoutView({
     [monedasActivas],
   );
 
+  const convertAmount = useCallback(
+    (amount: number, from: string, to: string) =>
+      from === to
+        ? amount
+        : convertFromBase(
+            convertToBase(amount, from, tasasVigentes, monedaBase),
+            to,
+            tasasVigentes,
+            monedaBase,
+          ),
+    [tasasVigentes, monedaBase],
+  );
+
   const {
     lines,
     dirty,
     addLine,
     updateLine,
     removeCurrencyGroup,
+    changeCurrency,
     toggleTransfer,
     setTransferAmount,
     setTransferDestination,
@@ -117,6 +128,7 @@ export function CheckoutView({
     monedaBase,
     denominationsFor,
     defaultTransferDestId: defaultDestId(transferDestinations),
+    convertAmount,
   });
 
   // The base cash line the hook preloads at the full total. While untouched
@@ -175,8 +187,6 @@ export function CheckoutView({
 
   const [addOpen, setAddOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
-  const [totalDetailAnchor, setTotalDetailAnchor] =
-    useState<HTMLElement | null>(null);
   // The exit transition keeps this view mounted for ~200 ms after a sale is
   // submitted; without this guard a second tap would send a second sale.
   const [submitting, setSubmitting] = useState(false);
@@ -192,6 +202,35 @@ export function CheckoutView({
     return Array.from(codes);
   }, [monedaBase, monedasActivas]);
 
+  /** What a currency is allowed to be paid with, per the business setup. */
+  const supportFor = useCallback(
+    (currency: string) => {
+      const isBase = currency === monedaBase;
+      const info = monedasActivas.find((m) => m.monedaCode === currency);
+      return {
+        isBase,
+        allowsCash: isBase || (info?.admiteEfectivo ?? true),
+        allowsTransfer: isBase || (info?.admiteTransferencia ?? false),
+      };
+    },
+    [monedaBase, monedasActivas],
+  );
+
+  /**
+   * Currencies a card can be re-denominated to: those with no card of their
+   * own yet — a merge would mean two cash lines for one currency — and that
+   * admit every kind of payment the card currently holds.
+   */
+  const currencyOptionsFor = useCallback(
+    (hasCash: boolean, hasTransfer: boolean) =>
+      allCurrencies.filter((currency) => {
+        if (lines.some((line) => line.currency === currency)) return false;
+        const { allowsCash, allowsTransfer } = supportFor(currency);
+        return (!hasCash || allowsCash) && (!hasTransfer || allowsTransfer);
+      }),
+    [allCurrencies, lines, supportFor],
+  );
+
   const paymentOptions = useMemo<PaymentOption[]>(() => {
     const options: PaymentOption[] = [];
     // The initial base cash line is a placeholder, not a cashier decision,
@@ -200,10 +239,7 @@ export function CheckoutView({
     // the whole line would otherwise count as already covering the total.
     const excludeId = !dirty && baseCashLine ? baseCashLine.id : undefined;
     for (const currency of allCurrencies) {
-      const isBase = currency === monedaBase;
-      const info = monedasActivas.find((m) => m.monedaCode === currency);
-      const allowsCash = isBase || (info?.admiteEfectivo ?? true);
-      const allowsTransfer = isBase || (info?.admiteTransferencia ?? false);
+      const { isBase, allowsCash, allowsTransfer } = supportFor(currency);
       const pending = pendingInCurrency(
         lines,
         finalTotal,
@@ -262,7 +298,7 @@ export function CheckoutView({
   }, [
     allCurrencies,
     monedaBase,
-    monedasActivas,
+    supportFor,
     lines,
     finalTotal,
     tasasVigentes,
@@ -379,63 +415,34 @@ export function CheckoutView({
 
         <Box flex={1} sx={{ minWidth: 8 }} />
 
-        {/* The total lives in the header now instead of its own block below
-            — the conversions it used to always show move into a popover on
-            tap, same pattern as the cart's item cards. Same "hero" size as
-            the cart step's total, so the two screens read consistently. */}
-        <ButtonBase
-          onClick={(event: MouseEvent<HTMLElement>) =>
-            setTotalDetailAnchor(event.currentTarget)
-          }
-          aria-label="Ver detalle del total a cobrar"
-          sx={{ borderRadius: 1.5, px: 0.75, py: 0.5, minHeight: 44 }}
-        >
-          <MultiCurrencyAmount
-            amount={finalTotal}
-            variant="hero"
-            color="success.main"
-            showAlternatives={false}
-          />
-        </ButtonBase>
+        {/* The equivalents stay on screen rather than behind a tap: this is
+            the number the cashier reads out loud, and a customer paying in
+            another currency asks for it every time. Same "hero" size and
+            inline layout as the cart step's total, so the two screens read
+            consistently. */}
+        <MultiCurrencyAmount
+          amount={finalTotal}
+          variant="hero"
+          color="success.main"
+          align="right"
+          layout="inline"
+        />
       </Stack>
-
-      <Popover
-        open={Boolean(totalDetailAnchor)}
-        anchorEl={totalDetailAnchor}
-        onClose={() => setTotalDetailAnchor(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Stack gap={1} sx={{ p: 1.5, minWidth: 200 }}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-            sx={{
-              fontSize: "0.65rem",
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-            }}
-          >
-            Total a cobrar
-          </Typography>
-          <MultiCurrencyAmount amount={finalTotal} color="success.main" />
-        </Stack>
-      </Popover>
 
       <Box flex={1} minHeight={0} sx={{ overflowY: "auto" }}>
         <Stack gap={1}>
           {currencyGroups.map((group) => {
-            const isBase = group.currency === monedaBase;
-            const info = monedasActivas.find(
-              (m) => m.monedaCode === group.currency,
-            );
-            const allowsTransfer =
-              isBase || (info?.admiteTransferencia ?? false);
+            const { isBase, allowsTransfer } = supportFor(group.currency);
             const onRemove =
               currencyGroups.length > 1
                 ? () => removeCurrencyGroup(group.currency)
                 : undefined;
+            const currencyOptions = currencyOptionsFor(
+              Boolean(group.cashLine),
+              Boolean(group.transferLine),
+            );
+            const onCurrencyChange = (currency: string) =>
+              changeCurrency(group.currency, currency);
 
             if (group.cashLine) {
               const cashLine = group.cashLine;
@@ -458,6 +465,8 @@ export function CheckoutView({
                   base={monedaBase}
                   onChange={(patch) => updateLine(cashLine.id, patch)}
                   onRemove={onRemove}
+                  currencyOptions={currencyOptions}
+                  onCurrencyChange={onCurrencyChange}
                   canToggleTransfer={allowsTransfer}
                   transferLine={group.transferLine}
                   transferPending={
@@ -506,6 +515,8 @@ export function CheckoutView({
                 base={monedaBase}
                 onChange={(patch) => updateLine(transferLine.id, patch)}
                 onRemove={onRemove}
+                currencyOptions={currencyOptions}
+                onCurrencyChange={onCurrencyChange}
               />
             );
           })}

@@ -19,6 +19,7 @@ import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { CategoryPillsBar } from "./components/CategoryPillsBar";
 import { PosProductGrid } from "./components/PosProductGrid";
+import { CheckoutLockOverlay } from "./components/CheckoutLockOverlay";
 import { ICategory } from "@/schemas/categoria";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import CartDrawer from "@/components/cartDrawer/CartDrawer";
@@ -44,7 +45,10 @@ import { convertToBase } from "@/lib/currency";
 import { IProcessedData } from "@/schemas/processedData";
 import { ITransferDestination } from "@/schemas/transferDestination";
 import { fetchTransferDestinations } from "@/services/transferDestinationsService";
-import { CartContent } from "@/components/cartDrawer/components/cartContent";
+import {
+  CartContent,
+  type CartStep,
+} from "@/components/cartDrawer/components/cartContent";
 import { ProductProcessorDataRef } from "@/components/ProductProcessorData/ProductProcessorData";
 import audioService from "@/utils/audioService";
 import { normalizeSearch } from "@/utils/formatters";
@@ -233,6 +237,16 @@ export default function POSInterface() {
   // CartDrawer overlay, same as mobile.
   const showCartPanel = useMediaQuery(theme.breakpoints.up(700));
 
+  // The step of whichever cart is on screen. It lives here, not inside the
+  // cart, because the products need both to read it (dimming while a sale is
+  // charged) and to write it (touching a product brings the cart back). The
+  // mobile drawer only reports into it — it covers the products anyway — but
+  // both variants need the hardware scanner out of the way (see
+  // scannerEnabled).
+  const [cartStep, setCartStep] = useState<CartStep>("cart");
+  const checkoutInProgress = cartStep === "checkout";
+  const productsLocked = showCartPanel && checkoutInProgress;
+
   const { keyboardOpen, viewportHeight } = useOnScreenKeyboard();
 
   // Buscar en el teléfono no oculta nada ni abre ninguna capa: lo único
@@ -351,7 +365,12 @@ export default function POSInterface() {
     !intentToSearch &&
     !asociarCodigoOpen &&
     !selectedProduct &&
-    !cameraScannerOpen;
+    !cameraScannerOpen &&
+    // While charging, the physical keyboard belongs to the amount keypad.
+    // Its digits reach this global listener too (the keypad's fields are not
+    // editable targets), and a burst of them was being flushed as a scanned
+    // barcode — a "Código no reconocido" dialog on top of the sale.
+    !checkoutInProgress;
 
   useHardwareScanner({
     enabled: scannerEnabled,
@@ -1350,11 +1369,21 @@ export default function POSInterface() {
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          ...(posOnboardingBlocksInteraction
+          // Anchors CheckoutLockOverlay to this pane, and only this pane —
+          // the cart panel next to it stays fully usable while locked.
+          position: "relative",
+          ...(posOnboardingBlocksInteraction || productsLocked
             ? { pointerEvents: "none", userSelect: "none" }
             : {}),
         }}
       >
+        {/* Clicking the scrim only releases the lock — the click never
+            reaches a product, so dismissing it can't add anything by
+            accident. */}
+        <CheckoutLockOverlay
+          active={productsLocked}
+          onDismiss={() => setCartStep("cart")}
+        />
         {/* Al buscar, la cabecera entera (herramientas + categorías) sale de
             vista: escribir el nombre ya filtra mejor que cualquiera de las
             dos, y el alto que dejan libre lo hereda la grilla. Ninguna se
@@ -1489,6 +1518,7 @@ export default function POSInterface() {
           clear={clearCart}
           removeItem={removeFromCart}
           updateQuantity={handleUpdateQuantity}
+          onStepChange={setCartStep}
         />
 
         {/* Modal de resumen del período */}
@@ -1648,6 +1678,8 @@ export default function POSInterface() {
               transferDestinations={transferDestinations}
               cierreId={periodo?.id ?? ""}
               variant="panel"
+              step={cartStep}
+              onStepChange={setCartStep}
             />
           </Box>
         </Box>

@@ -1,25 +1,24 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ChangeEvent } from "react";
 import {
   Box,
-  Chip,
   Collapse,
   FormControl,
-  FormControlLabel,
   IconButton,
   InputLabel,
   MenuItem,
   Paper,
   Select,
   Stack,
-  Switch,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import { AmountChips } from "@/app/pos/components/checkout/AmountChips";
+import { AmountField } from "@/app/pos/components/checkout/AmountField";
+import { CurrencyChipSelect } from "@/app/pos/components/checkout/CurrencyChipSelect";
 import { AmountKeypad } from "@/app/pos/components/checkout/AmountKeypad";
 import { suggestedAmounts } from "@/app/pos/utils/suggestedAmounts";
 import type { PaymentLine } from "@/app/pos/utils/paymentMath";
@@ -41,6 +40,9 @@ interface PaymentLineCardProps {
   base: string;
   onChange: (patch: Partial<PaymentLine>) => void;
   onRemove?: () => void;
+  /** Currencies this card can be re-denominated to; empty disables the menu. */
+  currencyOptions: string[];
+  onCurrencyChange: (currency: string) => void;
   /** Present only when `line` is a cash line and this currency also admits
    * transfer: shows the toggle that reveals the embedded transfer field. */
   canToggleTransfer?: boolean;
@@ -64,6 +66,8 @@ export function PaymentLineCard({
   base,
   onChange,
   onRemove,
+  currencyOptions,
+  onCurrencyChange,
   canToggleTransfer,
   transferLine,
   transferPending = 0,
@@ -126,11 +130,10 @@ export function PaymentLineCard({
             </Typography>
           </>
         )}
-        <Chip
-          label={line.currency}
-          color="primary"
-          variant="filled"
-          sx={{ height: 28, fontSize: "0.9rem", fontWeight: 700, px: 0.5 }}
+        <CurrencyChipSelect
+          value={line.currency}
+          options={currencyOptions}
+          onChange={onCurrencyChange}
         />
         <Box flex={1} />
         {onRemove && (
@@ -150,37 +153,44 @@ export function PaymentLineCard({
         )}
       </Stack>
 
-      {/*
-        inputMode="none" keeps the on-screen keyboard down on mobile while a
-        physical keyboard still types into it on desktop; tapping opens
-        AmountKeypad. The field must NOT be readOnly — that would block the
-        physical keyboard too and leave onChange dead.
-      */}
-      <Box
-        component="input"
-        inputMode="none"
-        value={line.amount || ""}
-        placeholder="0"
-        aria-label={`Monto en ${line.currency}`}
-        onClick={() => setKeypadOpen(true)}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange({ amount: Number(event.target.value) || 0 })
+      {/* The transfer control lives inside the amount field's own underline —
+          a card icon at its right edge — instead of as a separate labeled
+          row below the chips: paying part of this currency by transfer is a
+          property of this amount, so it belongs on the amount. */}
+      <AmountField
+        value={line.amount}
+        ariaLabel={`Monto en ${line.currency}`}
+        keypadOpen={keypadOpen}
+        onOpenKeypad={() => setKeypadOpen(true)}
+        onChange={(amount) => onChange({ amount })}
+        action={
+          isCash &&
+          canToggleTransfer &&
+          onToggleTransfer && (
+            <Tooltip
+              title={
+                transferLine
+                  ? "Quitar transferencia"
+                  : "Pagar parte con transferencia"
+              }
+            >
+              <IconButton
+                size="small"
+                onClick={onToggleTransfer}
+                color={transferLine ? "primary" : "default"}
+                aria-pressed={Boolean(transferLine)}
+                aria-label={
+                  transferLine
+                    ? `Quitar transferencia en ${line.currency}`
+                    : `Agregar transferencia en ${line.currency}`
+                }
+                sx={{ flexShrink: 0, minWidth: 44, minHeight: 44 }}
+              >
+                <CreditCardIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )
         }
-        sx={{
-          width: "100%",
-          border: 0,
-          borderBottom: "2px solid",
-          borderColor: "divider",
-          bgcolor: "transparent",
-          color: "text.primary",
-          font: "inherit",
-          fontSize: "1.4rem",
-          fontWeight: 700,
-          fontVariantNumeric: "tabular-nums",
-          py: 0.5,
-          outline: "none",
-          "&:focus": { borderColor: "primary.main" },
-        }}
       />
 
       {equivalentBase !== null && (
@@ -203,29 +213,6 @@ export function PaymentLineCard({
             onSelect={(amount) => onChange({ amount })}
           />
         </Box>
-      )}
-
-      {/* Self-labeled, full-width, and always visible when this currency
-          admits transfer — a small icon among three others in the header
-          was too easy to miss. Same switch-based pattern the panel this
-          replaced used, so it's familiar rather than novel. */}
-      {isCash && canToggleTransfer && onToggleTransfer && (
-        <FormControlLabel
-          labelPlacement="start"
-          onChange={onToggleTransfer}
-          sx={{
-            mt: 1,
-            ml: 0,
-            width: "100%",
-            justifyContent: "space-between",
-          }}
-          control={<Switch checked={Boolean(transferLine)} />}
-          label={
-            <Typography variant="body2" fontWeight={600} color="text.secondary">
-              Transferencia
-            </Typography>
-          }
-        />
       )}
 
       {/* Standalone transfer-only currency: this line IS the transfer, its
@@ -256,8 +243,8 @@ export function PaymentLineCard({
       {/* Transfer embedded in a cash card: typing here moves money out of
           the cash amount above, it never adds to what's already been
           counted as paid. A local fallback keeps the fields renderable
-          while the switch-off animates the section closed — `transferLine`
-          is gone from state the instant the switch flips, but Collapse
+          while the toggle-off animates the section closed — `transferLine`
+          is gone from state the instant the icon is tapped, but Collapse
           needs a frame or two of content to animate against. */}
       {isCash && canToggleTransfer && (
         <Collapse in={showTransferSection}>
@@ -274,31 +261,25 @@ export function PaymentLineCard({
                 pt={1.25}
                 sx={{ borderTop: "1px dashed", borderColor: "divider" }}
               >
-                <Box
-                  component="input"
-                  inputMode="none"
-                  value={t.amount || ""}
-                  placeholder="0"
-                  aria-label={`Monto por transferencia en ${t.currency}`}
-                  onClick={() => setTransferKeypadOpen(true)}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    onTransferAmountChange?.(Number(event.target.value) || 0)
-                  }
-                  sx={{
-                    width: "100%",
-                    border: 0,
-                    borderBottom: "2px solid",
-                    borderColor: "divider",
-                    bgcolor: "transparent",
-                    color: "text.primary",
-                    font: "inherit",
-                    fontSize: "1.4rem",
-                    fontWeight: 700,
-                    fontVariantNumeric: "tabular-nums",
-                    py: 0.5,
-                    outline: "none",
-                    "&:focus": { borderColor: "primary.main" },
-                  }}
+                {/* The section needs to say what it is now that the control
+                    revealing it is an icon rather than a labeled switch. */}
+                <Stack direction="row" alignItems="center" gap={0.75} mb={0.5}>
+                  <CreditCardIcon fontSize="small" color="primary" />
+                  <Typography
+                    variant="body2"
+                    fontWeight={600}
+                    color="text.secondary"
+                  >
+                    Transferencia
+                  </Typography>
+                </Stack>
+
+                <AmountField
+                  value={t.amount}
+                  ariaLabel={`Monto por transferencia en ${t.currency}`}
+                  keypadOpen={transferKeypadOpen}
+                  onOpenKeypad={() => setTransferKeypadOpen(true)}
+                  onChange={(amount) => onTransferAmountChange?.(amount)}
                 />
 
                 {transferEquivalentBase !== null && (

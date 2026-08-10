@@ -42,6 +42,15 @@ interface ICommonProps {
   ) => Promise<void>;
   transferDestinations: ITransferDestination[];
   cierreId: string;
+  /**
+   * Drives the step from outside. Passing it makes this component
+   * controlled — the pinned desktop panel does, because tapping the dimmed
+   * product area has to bring the cart back. Leave it out and the step is
+   * kept internally, which is all the mobile drawer needs.
+   */
+  step?: CartStep;
+  /** Notifies every step change, controlled or not. */
+  onStepChange?: (step: CartStep) => void;
 }
 
 // A "panel" cart has no way to close — it's a permanent sidebar — so
@@ -52,7 +61,7 @@ type IProps =
   | (ICommonProps & { variant: "drawer"; onClose: () => void })
   | (ICommonProps & { variant: "panel" });
 
-type CartStep = "cart" | "checkout";
+export type CartStep = "cart" | "checkout";
 
 export const CartContent = (props: IProps) => {
   const {
@@ -65,6 +74,8 @@ export const CartContent = (props: IProps) => {
     makePay,
     transferDestinations,
     cierreId,
+    step: controlledStep,
+    onStepChange,
   } = props;
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { showMessage } = useMessageContext();
@@ -72,7 +83,24 @@ export const CartContent = (props: IProps) => {
   const { user, monedaBase } = useAppContext();
   const tiendaId = user?.localActual?.id ?? "";
 
-  const [step, setStep] = useState<CartStep>("cart");
+  const [uncontrolledStep, setUncontrolledStep] = useState<CartStep>("cart");
+  const step = controlledStep ?? uncontrolledStep;
+
+  // Kept in sync even while controlled, so removing the `step` prop can never
+  // leave the internal state stranded on a step the cart is no longer on.
+  const goToStep = (next: CartStep) => {
+    setUncontrolledStep(next);
+    onStepChange?.(next);
+  };
+
+  useEffect(() => {
+    // Reports back to the cart step on unmount: the drawer variant is
+    // destroyed when it closes, and a listener left believing a checkout is
+    // still in progress would keep the POS dimmed with nothing on screen to
+    // bring it back.
+    return () => onStepChange?.("cart");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Payment lines belong to ONE basket. The checkout is remounted when the
   // sale is submitted or when the cashier switches to another cart/account,
@@ -134,7 +162,7 @@ export const CartContent = (props: IProps) => {
    * while the cart is pinned and therefore never unmounts.
    */
   const resetCheckoutState = () => {
-    setStep("cart");
+    goToStep("cart");
     setPromoCode("");
     setDiscountTotal(0);
     setApplied([]);
@@ -297,7 +325,7 @@ export const CartContent = (props: IProps) => {
               onApply={() =>
                 previewDiscount(promoCode ? [promoCode] : undefined)
               }
-              onCheckout={() => setStep("checkout")}
+              onCheckout={() => goToStep("checkout")}
             />
           </Box>
         </Fade>
@@ -328,7 +356,7 @@ export const CartContent = (props: IProps) => {
               tiendaId={tiendaId}
               cierreId={cierreId}
               itemCount={cart.length}
-              onBack={() => setStep("cart")}
+              onBack={() => goToStep("cart")}
               makePay={makePay}
               onSaleComplete={resetCheckoutState}
             />

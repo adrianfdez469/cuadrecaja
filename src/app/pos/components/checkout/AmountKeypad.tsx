@@ -108,6 +108,55 @@ export function AmountKeypad({
     setPristine(false);
   };
 
+  /*
+    On desktop the field that opens this sheet cannot receive the physical
+    keyboard: MUI's Dialog traps focus, so every keystroke lands on the
+    dialog itself and used to be dropped. Listening here makes the physical
+    keyboard drive the same draft the on-screen keys do — typing digits,
+    Backspace to erase, Enter to confirm. Typing while the Billetes tab is
+    open switches back to the keys tab, so a keystroke is never swallowed.
+  */
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      const { key } = event;
+      const isDigit = key.length === 1 && key >= "0" && key <= "9";
+      const isDecimalSeparator = key === "." || key === ",";
+
+      if (key === "Enter") {
+        event.preventDefault();
+        onConfirm(amount);
+        return;
+      }
+      if (!isDigit && !(isDecimalSeparator && allowsDecimals)) {
+        if (key !== "Backspace") return;
+      }
+      event.preventDefault();
+
+      // A keystroke while the Billetes tab is open returns to the keys tab
+      // and starts a fresh amount — continuing a bill tally digit by digit
+      // would mean nothing.
+      if (tab !== "keys") {
+        setTab("keys");
+        setBills([]);
+        setDraft("");
+      }
+
+      if (key === "Backspace") backspace();
+      else press(isDecimalSeparator ? "," : key);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // `press`/`backspace`/`handleTab` are recreated every render and only
+    // read state through setState updaters, so they are safe to leave out;
+    // `amount` is what Enter must confirm and is listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab, amount, allowsDecimals, pristine, onConfirm]);
+
   const keys = [
     "1",
     "2",

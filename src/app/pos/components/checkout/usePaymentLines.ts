@@ -9,6 +9,8 @@ interface UsePaymentLinesArgs {
   monedaBase: string;
   denominationsFor: (currency: string) => number[];
   defaultTransferDestId: string;
+  /** Converts an amount between two currencies at the current rates. */
+  convertAmount: (amount: number, from: string, to: string) => number;
 }
 
 let lineCounter = 0;
@@ -23,6 +25,7 @@ export function usePaymentLines({
   monedaBase,
   denominationsFor,
   defaultTransferDestId,
+  convertAmount,
 }: UsePaymentLinesArgs) {
   const buildInitialLine = useCallback(
     (): PaymentLine => ({
@@ -94,6 +97,41 @@ export function usePaymentLines({
     setDirty(true);
     setLines((prev) => prev.filter((line) => line.currency !== currency));
   }, []);
+
+  /**
+   * Re-denominates a whole card: every line for `from` (its cash line and,
+   * if present, its embedded transfer line) moves to `to`, carrying the same
+   * money over at the current rate. This is what lets a cashier correct the
+   * currency of the payment already on screen instead of removing the card
+   * and adding another one. Cash lands on a payable amount (rounded up to
+   * the target currency's smallest bill); a transfer keeps the exact
+   * equivalent, since no bill has to exist for it.
+   */
+  const changeCurrency = useCallback(
+    (from: string, to: string) => {
+      if (from === to) return;
+      setDirty(true);
+      setLines((prev) => {
+        // Merging into a currency that already has its own card would leave
+        // two cash lines for it; the caller only offers free currencies, this
+        // is the guard that makes that a precondition rather than a hope.
+        if (prev.some((line) => line.currency === to)) return prev;
+        return prev.map((line) => {
+          if (line.currency !== from) return line;
+          const converted = convertAmount(line.amount, from, to);
+          return {
+            ...line,
+            currency: to,
+            amount:
+              line.kind === "cash"
+                ? suggestedAmounts(converted, denominationsFor(to)).exact
+                : round2(converted),
+          };
+        });
+      });
+    },
+    [convertAmount, denominationsFor],
+  );
 
   /**
    * Turns the embedded transfer field on a currency's cash card on or off.
@@ -184,6 +222,7 @@ export function usePaymentLines({
     updateLine,
     removeLine,
     removeCurrencyGroup,
+    changeCurrency,
     toggleTransfer,
     setTransferAmount,
     setTransferDestination,
