@@ -21,19 +21,22 @@ interface StockAvailabilityBadgeProps {
  * to say what the icon already says. What is left is the number, which is
  * what actually gets read, at a size that survives a glance.
  *
- * Fractioned products keep their parent stock as a second, deliberately
- * quieter figure: it is context, not the number a sale depends on.
+ * One number, always. A fractioned product used to show its loose stock
+ * beside it, which read as a contradiction ("9 available, 3 in stock")
+ * because the two counted different things; now the single figure is the
+ * whole truth — loose units plus everything inside the unopened packs, which
+ * the sale opens by itself.
  */
 export function StockAvailabilityBadge({
   productoTienda,
   allProductosTienda,
   cartQty,
 }: StockAvailabilityBadgeProps) {
-  const { maxPorTransaccion, esFraccion } = calcularDisponibilidadReal(
+  const { disponible: total, esFraccion } = calcularDisponibilidadReal(
     productoTienda,
     allProductosTienda,
   );
-  const disponible = Math.max(0, maxPorTransaccion - cartQty);
+  const disponible = Math.max(0, total - cartQty);
   const sinStock = disponible === 0;
   const color = sinStock ? "error.main" : "text.secondary";
 
@@ -44,10 +47,12 @@ export function StockAvailabilityBadge({
       gap={0.375}
       sx={{ flexShrink: 0 }}
       // An icon is not self-describing the first time it is seen, and this
-      // number decides whether a sale can happen.
+      // number decides whether a sale can happen. For a fraction it also
+      // says where the units are, which is what the second figure used to be
+      // there for.
       title={
         esFraccion
-          ? `${disponible} disponibles para vender · ${Math.max(0, productoTienda.existencia || 0)} en stock`
+          ? `${disponible} disponibles para vender (${Math.max(0, productoTienda.existencia || 0)} sueltas, el resto dentro de paquetes sin abrir)`
           : `${disponible} disponibles para vender`
       }
     >
@@ -65,16 +70,6 @@ export function StockAvailabilityBadge({
       >
         {disponible}
       </Typography>
-      {esFraccion && (
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          noWrap
-          sx={{ fontSize: "0.7rem", lineHeight: 1.9 }}
-        >
-          · Stock {Math.max(0, productoTienda.existencia || 0)}
-        </Typography>
-      )}
     </Stack>
   );
 }

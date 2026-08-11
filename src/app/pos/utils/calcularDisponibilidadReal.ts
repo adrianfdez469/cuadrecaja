@@ -1,57 +1,55 @@
 import { IProductoTiendaV2 } from "@/schemas/producto";
 
 /**
- * Calcula la disponibilidad real de un producto, considerando desagregación para productos fracción.
- * @param producto - El producto para calcular disponibilidad
- * @param allProductos - Lista completa de productos para buscar el padre (si es fracción)
- * @returns Objeto con disponibilidadReal, maxPorTransaccion y esFraccion
+ * Cuántas unidades de un producto se pueden vender ahora mismo.
+ *
+ * Para un producto normal es su existencia. Para un producto fracción es su
+ * existencia MÁS lo que hay dentro de los padres sin abrir: al vender, el POS
+ * desagrega tantos padres como haga falta (ver `packsToOpen` en
+ * `src/lib/fractionStock.ts`), así que esas unidades están realmente
+ * disponibles aunque todavía estén dentro de una caja.
+ *
+ * Antes esto se limitaba además a `unidadesPorFraccion - 1` por venta —
+ * vender una caja entera suelta debía hacerse desde el padre. Ese tope ya no
+ * existe: el vendedor pone la cantidad que necesite y la desagregación se
+ * ajusta sola.
  */
 export function calcularDisponibilidadReal(
   producto: IProductoTiendaV2 | null | undefined,
-  allProductos: IProductoTiendaV2[]
-): { disponibilidadReal: number; maxPorTransaccion: number; esFraccion: boolean } {
+  allProductos: IProductoTiendaV2[],
+): { disponible: number; esFraccion: boolean } {
   if (!producto) {
-    return { disponibilidadReal: 0, maxPorTransaccion: 0, esFraccion: false };
-  }
-
-  if (!producto.producto) {
-    return {
-      disponibilidadReal: Math.max(0, producto.existencia || 0),
-      maxPorTransaccion: Math.max(0, producto.existencia || 0),
-      esFraccion: false,
-    };
+    return { disponible: 0, esFraccion: false };
   }
 
   const existenciaProducto = Math.max(0, producto.existencia || 0);
+
+  if (!producto.producto) {
+    return { disponible: existenciaProducto, esFraccion: false };
+  }
+
   const fraccionDeId = producto.producto.fraccionDeId;
   const unidadesPorFraccion = producto.producto.unidadesPorFraccion;
 
   if (!fraccionDeId || !unidadesPorFraccion || unidadesPorFraccion <= 0) {
-    return {
-      disponibilidadReal: existenciaProducto,
-      maxPorTransaccion: existenciaProducto,
-      esFraccion: false,
-    };
+    return { disponible: existenciaProducto, esFraccion: false };
   }
 
+  // Sin la lista completa no hay forma de saber cuántos padres hay; queda lo
+  // que esté suelto, que es lo único que se puede afirmar.
   if (!Array.isArray(allProductos) || allProductos.length === 0) {
-    const maxFraccion = Math.max(0, unidadesPorFraccion - 1);
-    return {
-      disponibilidadReal: Math.min(existenciaProducto, maxFraccion),
-      maxPorTransaccion: Math.min(existenciaProducto, maxFraccion),
-      esFraccion: true,
-    };
+    return { disponible: existenciaProducto, esFraccion: true };
   }
 
-  const productoPadre = allProductos.find((p) => p && p.productoId === fraccionDeId);
-  const existenciaPadre = productoPadre ? Math.max(0, productoPadre.existencia || 0) : 0;
-  const disponibilidadTotal = existenciaProducto + existenciaPadre * unidadesPorFraccion;
-  const maxFraccion = Math.max(0, unidadesPorFraccion - 1);
-  const maxPorTransaccion = Math.min(disponibilidadTotal, maxFraccion);
+  const productoPadre = allProductos.find(
+    (p) => p && p.productoId === fraccionDeId,
+  );
+  const existenciaPadre = productoPadre
+    ? Math.max(0, productoPadre.existencia || 0)
+    : 0;
 
   return {
-    disponibilidadReal: disponibilidadTotal,
-    maxPorTransaccion: Math.max(0, maxPorTransaccion),
+    disponible: existenciaProducto + existenciaPadre * unidadesPorFraccion,
     esFraccion: true,
   };
 }

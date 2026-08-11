@@ -7,6 +7,7 @@ import { IVenta } from "@/schemas/venta";
 import { pagosDetalleAppSchema, vueltoDetalleSchema } from "@/schemas/pago";
 import { tasaSnapshotSchema } from "@/schemas/tasaCambio";
 import { mapVentaToIVenta } from "@/lib/ventaMapper";
+import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 
 // Tipos auxiliares
 interface IncomingProduct {
@@ -260,243 +261,256 @@ export async function POST(
     }
 
     // Transacción atómica: SOLO escrituras
-    const result = await prisma.$transaction(async (tx) => {
-      // 3. Crear la venta
-      const venta = await tx.venta.create({
-        data: {
-          tiendaId,
-          usuarioId,
-          total: discountCalcResult
-            ? Number(discountCalcResult.finalTotal)
-            : Math.max(0, Number(total) || 0),
-          totalcash: totalcash || 0,
-          totaltransfer: totaltransfer || 0,
-          cierrePeriodoId: ultimoPeriodo.id,
-          syncId,
-          frontendCreatedAt: createdAt ? new Date(createdAt) : null,
-          wasOffline: wasOffline || false,
-          syncAttempts: syncAttempts || 0,
-          discountTotal: discountTotalCalc || 0,
-          productos: {
-            create: productosMergeados.map((p) => ({
-              productoTiendaId: p.productoTiendaId,
-              cantidad: p.cantidad,
-              costo: p.costo,
-              precio: p.precio,
-              monedaCostoCode: p.monedaCostoCode ?? null,
-              monedaPrecioCode: p.monedaPrecioCode ?? null,
-            })),
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 3. Crear la venta
+        const venta = await tx.venta.create({
+          data: {
+            tiendaId,
+            usuarioId,
+            total: discountCalcResult
+              ? Number(discountCalcResult.finalTotal)
+              : Math.max(0, Number(total) || 0),
+            totalcash: totalcash || 0,
+            totaltransfer: totaltransfer || 0,
+            cierrePeriodoId: ultimoPeriodo.id,
+            syncId,
+            frontendCreatedAt: createdAt ? new Date(createdAt) : null,
+            wasOffline: wasOffline || false,
+            syncAttempts: syncAttempts || 0,
+            discountTotal: discountTotalCalc || 0,
+            productos: {
+              create: productosMergeados.map((p) => ({
+                productoTiendaId: p.productoTiendaId,
+                cantidad: p.cantidad,
+                costo: p.costo,
+                precio: p.precio,
+                monedaCostoCode: p.monedaCostoCode ?? null,
+                monedaPrecioCode: p.monedaPrecioCode ?? null,
+              })),
+            },
+            ...(transferDestinationId &&
+              totaltransfer > 0 && { transferDestinationId }),
+            // Multimoneda
+            ...(monedaCobro && { monedaCobro }),
+            ...(pagosDetalle && { pagosDetalle }),
+            ...(vueltoDetalle && { vueltoDetalle }),
+            ...(tasaSnapshot && { tasaSnapshot }),
           },
-          ...(transferDestinationId &&
-            totaltransfer > 0 && { transferDestinationId }),
-          // Multimoneda
-          ...(monedaCobro && { monedaCobro }),
-          ...(pagosDetalle && { pagosDetalle }),
-          ...(vueltoDetalle && { vueltoDetalle }),
-          ...(tasaSnapshot && { tasaSnapshot }),
-        },
-        include: { productos: true },
-      });
-
-      // 3.1 Guardar descuentos aplicados (batch, un solo round-trip)
-      if ((discountTotalCalc || 0) > 0 && discountCalcResult?.applied?.length) {
-        await tx.appliedDiscount.createMany({
-          data: discountCalcResult.applied.map((a) => ({
-            ventaId: venta.id,
-            discountRuleId: a.discountRuleId,
-            amount: a.amount,
-            productsAffected: a.productsAffected ?? null,
-          })),
+          include: { productos: true },
         });
-      }
 
-      // 4. Manejar productos fraccionables
-      const productosFraccionables = await tx.productoTienda.findMany({
-        where: {
-          id: { in: productos.map((p: IncomingProduct) => p.productoTiendaId) },
-          producto: { fraccionDeId: { not: null } },
-        },
-        include: {
-          producto: {
-            select: {
-              fraccionDeId: true,
-              unidadesPorFraccion: true,
-              nombre: true,
+        // 3.1 Guardar descuentos aplicados (batch, un solo round-trip)
+        if (
+          (discountTotalCalc || 0) > 0 &&
+          discountCalcResult?.applied?.length
+        ) {
+          await tx.appliedDiscount.createMany({
+            data: discountCalcResult.applied.map((a) => ({
+              ventaId: venta.id,
+              discountRuleId: a.discountRuleId,
+              amount: a.amount,
+              productsAffected: a.productsAffected ?? null,
+            })),
+          });
+        }
+
+        // 4. Manejar productos fraccionables
+        const productosFraccionables = await tx.productoTienda.findMany({
+          where: {
+            id: {
+              in: productos.map((p: IncomingProduct) => p.productoTiendaId),
+            },
+            producto: { fraccionDeId: { not: null } },
+          },
+          include: {
+            producto: {
+              select: {
+                fraccionDeId: true,
+                unidadesPorFraccion: true,
+                nombre: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      if (productosFraccionables.length > 0) {
-        const productosFraccionablesData = productosFraccionables.filter(
-          (pf) => pf.producto.fraccionDeId,
-        );
+        if (productosFraccionables.length > 0) {
+          const productosFraccionablesData = productosFraccionables.filter(
+            (pf) => pf.producto.fraccionDeId,
+          );
 
-        const productosFraccionablesNeedDesagregateData =
-          productosFraccionablesData.filter((prodFracc) => {
+          const itemsDesagregacionBaja: Array<{
+            cantidad: number;
+            productoId: string | null;
+          }> = [];
+          const itemsDesagregacionAlta: Array<{
+            cantidad: number;
+            productoId: string;
+          }> = [];
+
+          // Cuántos padres hay que abrir por producto fracción, calculado sobre
+          // la existencia ORIGINAL. Sin tope de una caja por venta: vender 25
+          // sueltas teniendo 3 abre las tres cajas que hagan falta.
+          for (const prodFracc of productosFraccionablesData) {
             const prod = productos.find(
               (p: IncomingProduct) => p.productoTiendaId === prodFracc.id,
             );
-            if (prod) {
-              if (
-                prodFracc.producto.unidadesPorFraccion &&
-                prodFracc.producto.unidadesPorFraccion <= prod.cantidad
-              ) {
+            if (!prod) continue;
+
+            const paquetes = packsToOpen(
+              prod.cantidad,
+              prodFracc.existencia,
+              prodFracc.producto.unidadesPorFraccion,
+            );
+            if (paquetes === 0) continue;
+
+            itemsDesagregacionAlta.push({
+              cantidad: unitsFromPacks(
+                paquetes,
+                prodFracc.producto.unidadesPorFraccion,
+              ),
+              productoId: prodFracc.productoId,
+            });
+            itemsDesagregacionBaja.push({
+              cantidad: paquetes,
+              productoId: prodFracc.producto.fraccionDeId,
+            });
+          }
+
+          // Procesar DESAGREGACION_BAJA
+          for (const item of itemsDesagregacionBaja) {
+            if (!item.productoId) continue;
+
+            const productoTiendaDesagregar = await tx.productoTienda.findFirst({
+              where: {
+                tiendaId,
+                productoId: item.productoId,
+                proveedorId: null,
+              },
+              include: { producto: { select: { nombre: true } } },
+            });
+
+            if (productoTiendaDesagregar) {
+              const existenciaAnterior = productoTiendaDesagregar.existencia;
+
+              if (existenciaAnterior < item.cantidad) {
                 throw new Error(
-                  `Vendes más unidades sueltas de las que lleva una caja en una misma venta. Producto: ${prodFracc.producto.nombre}, Cantidad: ${prod.cantidad}, Unidades por fracción: ${prodFracc.producto.unidadesPorFraccion}`,
+                  `Existencia insuficiente para desagregar. Producto: ${productoTiendaDesagregar.producto.nombre}, Cantidad: ${item.cantidad}, Existencia anterior: ${existenciaAnterior}`,
                 );
               }
-              return prodFracc.existencia < prod.cantidad;
+
+              await tx.productoTienda.update({
+                where: { id: productoTiendaDesagregar.id },
+                data: { existencia: { decrement: item.cantidad } },
+              });
+
+              await tx.movimientoStock.create({
+                data: {
+                  tipo: "DESAGREGACION_BAJA",
+                  cantidad: item.cantidad,
+                  productoTiendaId: productoTiendaDesagregar.id,
+                  tiendaId,
+                  usuarioId,
+                  existenciaAnterior,
+                  referenciaId: venta.id,
+                  motivo: `Desagregación para venta ${venta.id}`,
+                },
+              });
             }
-            return false;
-          });
-
-        const itemsDesagregacionBaja: Array<{
-          cantidad: number;
-          productoId: string | null;
-        }> = [];
-        const itemsDesagregacionAlta: Array<{
-          cantidad: number;
-          productoId: string;
-        }> = [];
-
-        productosFraccionablesNeedDesagregateData.forEach((item) => {
-          if (item.producto.unidadesPorFraccion) {
-            itemsDesagregacionAlta.push({
-              cantidad: item.producto.unidadesPorFraccion,
-              productoId: item.productoId,
-            });
           }
-          itemsDesagregacionBaja.push({
-            cantidad: 1,
-            productoId: item.producto.fraccionDeId,
-          });
-        });
 
-        // Procesar DESAGREGACION_BAJA
-        for (const item of itemsDesagregacionBaja) {
-          if (!item.productoId) continue;
-
-          const productoTiendaDesagregar = await tx.productoTienda.findFirst({
-            where: { tiendaId, productoId: item.productoId, proveedorId: null },
-            include: { producto: { select: { nombre: true } } },
-          });
-
-          if (productoTiendaDesagregar) {
-            const existenciaAnterior = productoTiendaDesagregar.existencia;
-
-            if (existenciaAnterior < item.cantidad) {
-              throw new Error(
-                `Existencia insuficiente para desagregar. Producto: ${productoTiendaDesagregar.producto.nombre}, Cantidad: ${item.cantidad}, Existencia anterior: ${existenciaAnterior}`,
-              );
-            }
-
-            await tx.productoTienda.update({
-              where: { id: productoTiendaDesagregar.id },
-              data: { existencia: { decrement: item.cantidad } },
-            });
-
-            await tx.movimientoStock.create({
-              data: {
-                tipo: "DESAGREGACION_BAJA",
-                cantidad: item.cantidad,
-                productoTiendaId: productoTiendaDesagregar.id,
+          // Procesar DESAGREGACION_ALTA
+          for (const item of itemsDesagregacionAlta) {
+            const productoTiendaAgregar = await tx.productoTienda.findFirst({
+              where: {
                 tiendaId,
-                usuarioId,
-                existenciaAnterior,
-                referenciaId: venta.id,
-                motivo: `Desagregación para venta ${venta.id}`,
+                productoId: item.productoId,
+                proveedorId: null,
               },
             });
+
+            if (productoTiendaAgregar) {
+              const existenciaAnterior = productoTiendaAgregar.existencia;
+
+              await tx.productoTienda.update({
+                where: { id: productoTiendaAgregar.id },
+                data: { existencia: { increment: item.cantidad } },
+              });
+
+              await tx.movimientoStock.create({
+                data: {
+                  tipo: "DESAGREGACION_ALTA",
+                  cantidad: item.cantidad,
+                  productoTiendaId: productoTiendaAgregar.id,
+                  tiendaId,
+                  usuarioId,
+                  existenciaAnterior,
+                  referenciaId: venta.id,
+                  motivo: `Desagregación para venta ${venta.id}`,
+                },
+              });
+            }
           }
         }
 
-        // Procesar DESAGREGACION_ALTA
-        for (const item of itemsDesagregacionAlta) {
-          const productoTiendaAgregar = await tx.productoTienda.findFirst({
-            where: { tiendaId, productoId: item.productoId, proveedorId: null },
-          });
-
-          if (productoTiendaAgregar) {
-            const existenciaAnterior = productoTiendaAgregar.existencia;
-
-            await tx.productoTienda.update({
-              where: { id: productoTiendaAgregar.id },
-              data: { existencia: { increment: item.cantidad } },
-            });
-
-            await tx.movimientoStock.create({
-              data: {
-                tipo: "DESAGREGACION_ALTA",
-                cantidad: item.cantidad,
-                productoTiendaId: productoTiendaAgregar.id,
-                tiendaId,
-                usuarioId,
-                existenciaAnterior,
-                referenciaId: venta.id,
-                motivo: `Desagregación para venta ${venta.id}`,
-              },
-            });
-          }
-        }
-      }
-
-      // 5. Actualizar existencias y acumular movimientos de venta
-      const movimientosVenta: Prisma.MovimientoStockCreateManyInput[] = [];
-      for (const producto of productos as IncomingProduct[]) {
-        const productoTienda = productosExistentes.find(
-          (p) => p.id === producto.productoTiendaId,
-        );
-        if (!productoTienda) continue;
-
-        // Releer existencia dentro del tx: la desagregación de fraccionables
-        // pudo haberla modificado para este producto.
-        const productoTiendaActual = await tx.productoTienda.findUnique({
-          where: { id: producto.productoTiendaId },
-          select: { existencia: true },
-        });
-
-        if (!productoTiendaActual) continue;
-
-        const existenciaAnterior = productoTiendaActual.existencia;
-
-        if (existenciaAnterior < producto.cantidad) {
-          throw new Error(
-            `Existencia insuficiente para ${producto.name || producto.productoTiendaId}`,
+        // 5. Actualizar existencias y acumular movimientos de venta
+        const movimientosVenta: Prisma.MovimientoStockCreateManyInput[] = [];
+        for (const producto of productos as IncomingProduct[]) {
+          const productoTienda = productosExistentes.find(
+            (p) => p.id === producto.productoTiendaId,
           );
+          if (!productoTienda) continue;
+
+          // Releer existencia dentro del tx: la desagregación de fraccionables
+          // pudo haberla modificado para este producto.
+          const productoTiendaActual = await tx.productoTienda.findUnique({
+            where: { id: producto.productoTiendaId },
+            select: { existencia: true },
+          });
+
+          if (!productoTiendaActual) continue;
+
+          const existenciaAnterior = productoTiendaActual.existencia;
+
+          if (existenciaAnterior < producto.cantidad) {
+            throw new Error(
+              `Existencia insuficiente para ${producto.name || producto.productoTiendaId}`,
+            );
+          }
+
+          await tx.productoTienda.update({
+            where: { id: producto.productoTiendaId },
+            data: { existencia: { decrement: producto.cantidad } },
+          });
+
+          movimientosVenta.push({
+            tipo: "VENTA",
+            cantidad: producto.cantidad,
+            productoTiendaId: producto.productoTiendaId,
+            tiendaId,
+            usuarioId,
+            existenciaAnterior,
+            referenciaId: venta.id,
+            motivo: `Venta ${venta.id}`,
+            ...(productoTienda.proveedorId && {
+              proveedorId: productoTienda.proveedorId,
+            }),
+          });
         }
 
-        await tx.productoTienda.update({
-          where: { id: producto.productoTiendaId },
-          data: { existencia: { decrement: producto.cantidad } },
-        });
+        // Insertar todos los movimientos de venta en un solo round-trip
+        if (movimientosVenta.length > 0) {
+          await tx.movimientoStock.createMany({ data: movimientosVenta });
+        }
 
-        movimientosVenta.push({
-          tipo: "VENTA",
-          cantidad: producto.cantidad,
-          productoTiendaId: producto.productoTiendaId,
-          tiendaId,
-          usuarioId,
-          existenciaAnterior,
-          referenciaId: venta.id,
-          motivo: `Venta ${venta.id}`,
-          ...(productoTienda.proveedorId && {
-            proveedorId: productoTienda.proveedorId,
-          }),
-        });
-      }
-
-      // Insertar todos los movimientos de venta en un solo round-trip
-      if (movimientosVenta.length > 0) {
-        await tx.movimientoStock.createMany({ data: movimientosVenta });
-      }
-
-      return venta;
-    }, {
-      // Red de seguridad ante la latencia del transaction pooler.
-      maxWait: 10000,
-      timeout: 20000,
-    });
+        return venta;
+      },
+      {
+        // Red de seguridad ante la latencia del transaction pooler.
+        maxWait: 10000,
+        timeout: 20000,
+      },
+    );
 
     return NextResponse.json(
       {

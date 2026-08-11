@@ -47,12 +47,12 @@ export function ProductQuickActions({
   };
 
   const getMaxDisponible = () => {
-    const { maxPorTransaccion } = calcularDisponibilidadReal(
+    const { disponible } = calcularDisponibilidadReal(
       productoTienda,
       allProductosTienda,
     );
     const cartQty = getCartQuantity(productoTienda.id);
-    return Math.max(0, maxPorTransaccion - cartQty);
+    return Math.max(0, disponible - cartQty);
   };
 
   const buildCartLine = () => ({
@@ -116,14 +116,14 @@ export function ProductQuickActions({
       return 0;
     }
 
-    const { maxPorTransaccion } = calcularDisponibilidadReal(
+    const { disponible } = calcularDisponibilidadReal(
       productoTienda,
       allProductosTienda,
     );
     const clamped = clampQuantity(
       value,
       allowDecimal ? 0.01 : 1,
-      maxPorTransaccion,
+      disponible,
       allowDecimal,
     );
 

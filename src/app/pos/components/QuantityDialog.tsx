@@ -34,92 +34,41 @@ export const QuantityDialog = ({
   // allowDecimal on the very render that mounts it.
   const isDecimalInput = productoTienda?.producto?.permiteDecimal ?? false;
 
-  const getInitialMaxQuantity = useCallback((): number => {
-    if (!productoTienda) return 0;
-
-    const cartQuantity =
-      items.find((item) => item.id === productoTienda.id)?.quantity || 0;
-
-    if (
-      typeof maxDisponibleOverride === "number" &&
-      maxDisponibleOverride >= 0
-    ) {
-      return Math.max(0, maxDisponibleOverride - cartQuantity);
-    }
-
-    const unidadesPorFraccion = productoTienda.producto?.unidadesPorFraccion;
-    const existencia = productoTienda.existencia || 0;
-
-    if (unidadesPorFraccion && unidadesPorFraccion > 0) {
-      return Math.max(0, unidadesPorFraccion - 1 - cartQuantity);
-    } else {
-      return Math.max(0, existencia - cartQuantity);
-    }
-  }, [productoTienda, items, maxDisponibleOverride]);
-
-  useEffect(() => {
-    const maxDisponible = getInitialMaxQuantity();
-    const minValue = productoTienda?.producto?.permiteDecimal ? 0.1 : 1;
-    setQuantity(maxDisponible >= minValue ? minValue : 0);
-  }, [productoTienda, getInitialMaxQuantity]);
-
+  /**
+   * Cuánto se puede agregar todavía.
+   *
+   * Era el mismo cálculo escrito tres veces —una para el valor inicial, otra
+   * para validar y otra para mostrar— y las tres topaban las fracciones en
+   * `unidadesPorFraccion - 1`. Ese tope ya no existe: quien llama pasa
+   * `maxDisponibleOverride` con la disponibilidad real (incluye lo que hay
+   * dentro de los padres sin abrir) y, si no lo pasa, queda la existencia
+   * del producto, que es todo lo que se puede afirmar sin la lista completa
+   * de productos de la tienda.
+   */
   const getMaxQuantity = useCallback(
     (decrementForPrecision: number = 0): number => {
       if (!productoTienda) return 0;
 
       const cartQuantity =
         items.find((item) => item.id === productoTienda.id)?.quantity || 0;
+      const disponible =
+        typeof maxDisponibleOverride === "number" && maxDisponibleOverride >= 0
+          ? maxDisponibleOverride
+          : Math.max(0, productoTienda.existencia || 0);
 
-      if (
-        typeof maxDisponibleOverride === "number" &&
-        maxDisponibleOverride >= 0
-      ) {
-        return Math.max(
-          0,
-          maxDisponibleOverride - cartQuantity - decrementForPrecision,
-        );
-      }
-
-      const unidadesPorFraccion = productoTienda.producto?.unidadesPorFraccion;
-      const existencia = productoTienda.existencia || 0;
-
-      if (unidadesPorFraccion && unidadesPorFraccion > 0) {
-        return Math.max(
-          0,
-          unidadesPorFraccion - 1 - cartQuantity - decrementForPrecision,
-        );
-      } else {
-        return Math.max(0, existencia - cartQuantity - decrementForPrecision);
-      }
+      return Math.max(0, disponible - cartQuantity - decrementForPrecision);
     },
     [productoTienda, items, maxDisponibleOverride],
   );
 
-  const getMaxForDisplay = useCallback((): number => {
-    if (!productoTienda) return 0;
-
-    const cartQuantity =
-      items.find((item) => item.id === productoTienda.id)?.quantity || 0;
-
-    if (
-      typeof maxDisponibleOverride === "number" &&
-      maxDisponibleOverride >= 0
-    ) {
-      return Math.max(0, maxDisponibleOverride - cartQuantity);
-    }
-
-    const unidadesPorFraccion = productoTienda.producto?.unidadesPorFraccion;
-    const existencia = productoTienda.existencia || 0;
-
-    if (unidadesPorFraccion && unidadesPorFraccion > 0) {
-      return Math.max(0, unidadesPorFraccion - 1 - cartQuantity);
-    } else {
-      return Math.max(0, existencia - cartQuantity);
-    }
-  }, [productoTienda, items, maxDisponibleOverride]);
+  useEffect(() => {
+    const maxDisponible = getMaxQuantity();
+    const minValue = productoTienda?.producto?.permiteDecimal ? 0.1 : 1;
+    setQuantity(maxDisponible >= minValue ? minValue : 0);
+  }, [productoTienda, getMaxQuantity]);
 
   const handleConfirmQuantity = () => {
-    const maxDisponible = getMaxForDisplay();
+    const maxDisponible = getMaxQuantity();
     if (
       !productoTienda ||
       quantity <= 0 ||
@@ -153,7 +102,7 @@ export const QuantityDialog = ({
   };
 
   const handlePayAll = () => {
-    const maxDisponible = getMaxForDisplay();
+    const maxDisponible = getMaxQuantity();
     if (
       !productoTienda ||
       quantity <= 0 ||
@@ -186,15 +135,13 @@ export const QuantityDialog = ({
     }
   };
 
-  const maxForDisplay = getMaxForDisplay();
+  const maxForDisplay = getMaxQuantity();
   const hasStock = maxForDisplay > 0;
   const minQuantity = isDecimalInput ? 0.01 : 1;
-  const stockReferenceValue = productoTienda
-    ? Math.max(
-        productoTienda.existencia || 0,
-        productoTienda.producto?.unidadesPorFraccion || 0,
-      )
-    : 0;
+  // Los atajos de 10/50/100 se ofrecen contra lo que realmente se puede
+  // vender. Antes se comparaba también con `unidadesPorFraccion` para que las
+  // fracciones no se quedaran sin atajos por culpa del tope de una caja.
+  const stockReferenceValue = maxForDisplay;
 
   return (
     <Dialog
@@ -237,11 +184,11 @@ export const QuantityDialog = ({
             />
           </Box>
 
+          {/* Un solo número también aquí: "Máx. por venta" solo tenía sentido
+              cuando una fracción no podía pasar de una caja. */}
           {hasStock ? (
             <Typography variant="body2" color="text.secondary">
-              {productoTienda.producto.unidadesPorFraccion
-                ? `Stock: ${Math.max(0, productoTienda.existencia || 0)} | Máx. por venta: ${maxForDisplay}`
-                : `Disponibles: ${maxForDisplay}`}
+              {`Disponibles: ${maxForDisplay}`}
             </Typography>
           ) : (
             <Typography variant="body2" color="error.main">

@@ -37,6 +37,7 @@ import { UserSalesDrawer } from "./components/UserSalesDrawer";
 import { QuantityDialog } from "./components/QuantityDialog";
 import { PosBottomBar } from "./components/PosBottomBar";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
+import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOnScreenKeyboard } from "@/hooks/useOnScreenKeyboard";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
@@ -873,15 +874,22 @@ export default function POSInterface() {
             (p) => p.id === cartProd.productoTiendaId,
           );
           if (productoEnTienda && productoEnTienda.producto.fraccionDeId) {
-            // Es un producto fracción
-            if (productoEnTienda.existencia < cartProd.quantity) {
-              // Necesita desagregación
+            // Es un producto fracción: se abren tantos padres como haga falta,
+            // con la misma cuenta que hace el backend al registrar la venta.
+            const paquetes = packsToOpen(
+              cartProd.quantity,
+              productoEnTienda.existencia,
+              productoEnTienda.producto.unidadesPorFraccion,
+            );
+            if (paquetes > 0) {
               desagregaciones.push({
                 padreProductoId: productoEnTienda.producto.fraccionDeId,
-                cantidad: 1, // Siempre desagrega 1 unidad del padre
+                cantidad: paquetes,
                 hijoId: productoEnTienda.id,
-                unidadesPorFraccion:
-                  productoEnTienda.producto.unidadesPorFraccion || 0,
+                unidadesPorFraccion: unitsFromPacks(
+                  paquetes,
+                  productoEnTienda.producto.unidadesPorFraccion,
+                ),
               });
             }
           }
@@ -895,7 +903,7 @@ export default function POSInterface() {
             (d) => d.padreProductoId === p.productoId,
           );
           if (desagregacionPadre) {
-            // Restar 1 del producto padre
+            // Restar los padres abiertos
             nuevaExistencia -= desagregacionPadre.cantidad;
           }
 
@@ -904,7 +912,7 @@ export default function POSInterface() {
             (d) => d.hijoId === p.id,
           );
           if (desagregacionHijo) {
-            // Sumar las unidades por fracción
+            // Sumar las unidades que salieron de los padres abiertos
             nuevaExistencia += desagregacionHijo.unidadesPorFraccion;
           }
 
@@ -1024,17 +1032,15 @@ export default function POSInterface() {
       const productoTienda = productosTienda.find((p) => p.id === id);
       if (!productoTienda) return;
 
-      // Si el producto tiene unidades por fracción, se usa ese valor.
-      // Si no son productos con fracción se debe verificar que ese producto no esté ya en el carrito,
-      // si no está en el carrito la cantidad maxima seria igual a la existencia del producto.
-      // si está en el carrito la cantidad maxima seria igual a la existencia del producto menos la cantidad de productos en el carrito.
+      // El tope es lo que realmente se puede vender: la existencia del
+      // producto y, si es fracción, lo que haya dentro de los padres sin
+      // abrir (la venta los desagrega sola). Ya no se limita a una caja.
+      const { disponible } = calcularDisponibilidadReal(
+        productoTienda,
+        productosTienda,
+      );
 
-      // Calcular el máximo permitido para este producto
-      const maxQuantity = productoTienda.producto.unidadesPorFraccion
-        ? productoTienda.producto.unidadesPorFraccion - 1
-        : productoTienda.existencia;
-
-      if (quantity > maxQuantity) {
+      if (quantity > disponible) {
         return;
       }
     }
@@ -1623,7 +1629,7 @@ export default function POSInterface() {
           maxDisponibleOverride={
             selectedProduct
               ? calcularDisponibilidadReal(selectedProduct, productosTienda)
-                  .maxPorTransaccion
+                  .disponible
               : undefined
           }
         />
