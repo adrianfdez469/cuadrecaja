@@ -60,6 +60,19 @@ describe("pendingInCurrency", () => {
     expect(pendingInCurrency(lines, 1250, "CUP", RATES, BASE, "b")).toBe(750);
   });
 
+  it("excludes a whole card when given several ids", () => {
+    // A cash line and the transfer embedded in it, both re-denominated at
+    // once: what the card owes must ignore everything the card itself holds.
+    const lines = [
+      cash("CUP", 500, "a"),
+      cash("CUP", 300, "b"),
+      { id: "c", kind: "transfer" as const, currency: "CUP", amount: 200 },
+    ];
+    expect(pendingInCurrency(lines, 1250, "CUP", RATES, BASE, ["b", "c"])).toBe(
+      750,
+    );
+  });
+
   it("never goes negative when the payment overshoots", () => {
     const lines = [cash("CUP", 5000)];
     expect(pendingInCurrency(lines, 1250, "CUP", RATES, BASE)).toBe(0);

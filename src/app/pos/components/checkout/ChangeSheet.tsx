@@ -1,58 +1,50 @@
 "use client";
 
-import { useState } from "react";
 import {
+  Box,
   Button,
-  Chip,
   Drawer,
-  IconButton,
-  Menu,
-  MenuItem,
+  Radio,
   Stack,
   Typography,
+  alpha,
+  useTheme,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import CloseIcon from "@mui/icons-material/Close";
-import SelectableTextField from "@/components/SelectableTextField";
-import { formatMontoEnMoneda } from "@/utils/formatters";
-import type {
-  ChangeDistribution,
-  ChangeErrors,
-} from "@/app/pos/utils/changeMath";
+import { formatChangeSplit, formatMontoEnMoneda } from "@/utils/formatters";
+import type { ChangeErrors, ChangeOption } from "@/app/pos/utils/changeMath";
 
 interface ChangeSheetProps {
   open: boolean;
-  distribution: ChangeDistribution;
+  options: ChangeOption[];
+  selectedId: string | null;
+  /** Splits the drawer cannot cover — still selectable, but marked. */
+  unavailableIds: Set<string>;
+  /** Drawer shortfalls for the currently selected split. */
   errors: ChangeErrors;
-  /** Currencies with denominations that are not in the distribution yet. */
-  eligibleCurrencies: string[];
   changeTotalBase: number;
-  distributedBaseAmount: number;
   base: string;
   onClose: () => void;
-  onChange: (currency: string, amount: number) => void;
-  onAdd: (currency: string) => void;
-  onRemove: (currency: string) => void;
+  onSelect: (id: string) => void;
 }
 
+/**
+ * Picks how to hand the change over. Every row is a complete, pre-computed
+ * split, so there is no arithmetic for the cashier to get wrong and no way
+ * to leave the drawer holding an amount that does not add up.
+ */
 export function ChangeSheet({
   open,
-  distribution,
+  options,
+  selectedId,
+  unavailableIds,
   errors,
-  eligibleCurrencies,
   changeTotalBase,
-  distributedBaseAmount,
   base,
   onClose,
-  onChange,
-  onAdd,
-  onRemove,
+  onSelect,
 }: ChangeSheetProps) {
-  const [addAnchor, setAddAnchor] = useState<null | HTMLElement>(null);
-  const entries = Object.entries(distribution);
-  // The totals box must not read as "done" while a per-currency split is
-  // invalid — the footer would be saying the opposite at the same time.
-  const hasErrors = Object.values(errors).some(Boolean);
+  const theme = useTheme();
+  const firstError = Object.values(errors).find((error) => error !== null);
 
   return (
     <Drawer
@@ -76,112 +68,77 @@ export function ChangeSheet({
           alignItems="baseline"
         >
           <Typography variant="caption" color="text.secondary">
-            REPARTIR CAMBIO
+            CÓMO DAR EL CAMBIO
           </Typography>
           <Typography variant="caption" color="text.secondary">
             {formatMontoEnMoneda(changeTotalBase, base)} a dar
           </Typography>
         </Stack>
 
-        {entries.map(([currency, amount]) => (
-          <Stack key={currency} gap={0.25}>
-            <Stack direction="row" gap={1} alignItems="center">
-              <Chip label={currency} size="small" variant="outlined" />
-              <SelectableTextField
-                size="small"
-                value={amount || ""}
-                onChange={(event) =>
-                  onChange(currency, parseFloat(event.target.value) || 0)
-                }
-                inputProps={{ inputMode: "decimal" }}
-                sx={{
-                  flex: 1,
-                  "& .MuiOutlinedInput-root": { minHeight: 44 },
+        <Stack gap={0.75}>
+          {options.map((option) => {
+            const selected = option.id === selectedId;
+            const unavailable = unavailableIds.has(option.id);
+            return (
+              <Box
+                key={option.id}
+                role="radio"
+                aria-checked={selected}
+                tabIndex={0}
+                onClick={() => onSelect(option.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelect(option.id);
+                  }
                 }}
-                error={Boolean(errors[currency])}
-              />
-              <IconButton
-                size="small"
-                onClick={() => onRemove(currency)}
-                aria-label={`Quitar cambio en ${currency}`}
-                sx={{ minWidth: 44, minHeight: 44 }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  p: 1.25,
+                  minHeight: 56,
+                  borderRadius: 2,
+                  cursor: "pointer",
+                  border: "1px solid",
+                  borderColor: selected ? "primary.main" : "divider",
+                  bgcolor: selected
+                    ? alpha(theme.palette.primary.main, 0.08)
+                    : "transparent",
+                  "&:focus-visible": {
+                    outline: "2px solid",
+                    outlineColor: "primary.main",
+                    outlineOffset: 2,
+                  },
+                }}
               >
-                <CloseIcon fontSize="small" />
-              </IconButton>
-            </Stack>
-            {errors[currency] && (
-              <Typography variant="caption" color="error" ml={1}>
-                En caja hay{" "}
-                {formatMontoEnMoneda(
-                  errors[currency].available,
-                  errors[currency].currency,
-                )}
-                . Reparte el cambio en otra moneda.
-              </Typography>
-            )}
-          </Stack>
-        ))}
-
-        {eligibleCurrencies.length > 0 && (
-          <>
-            <Button
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={(event) =>
-                eligibleCurrencies.length === 1
-                  ? onAdd(eligibleCurrencies[0])
-                  : setAddAnchor(event.currentTarget)
-              }
-              sx={{
-                textTransform: "none",
-                alignSelf: "flex-start",
-                minHeight: 44,
-              }}
-            >
-              Dar cambio en otra moneda
-            </Button>
-            <Menu
-              anchorEl={addAnchor}
-              open={Boolean(addAnchor)}
-              onClose={() => setAddAnchor(null)}
-            >
-              {eligibleCurrencies.map((currency) => (
-                <MenuItem
-                  key={currency}
-                  onClick={() => {
-                    onAdd(currency);
-                    setAddAnchor(null);
-                  }}
+                <Radio checked={selected} tabIndex={-1} size="small" />
+                <Typography
+                  variant="body1"
+                  fontWeight={selected ? 700 : 500}
+                  color={unavailable ? "text.disabled" : "text.primary"}
+                  sx={{ fontVariantNumeric: "tabular-nums" }}
                 >
-                  {currency}
-                </MenuItem>
-              ))}
-            </Menu>
-          </>
-        )}
-
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          sx={{ p: 1.25, borderRadius: 2, bgcolor: "action.hover" }}
-        >
-          <Typography
-            variant="body2"
-            fontWeight={600}
-            color={hasErrors ? "error.main" : "text.primary"}
-          >
-            Repartido
-          </Typography>
-          <Typography
-            variant="body2"
-            fontWeight={700}
-            color={hasErrors ? "error.main" : "text.primary"}
-            sx={{ fontVariantNumeric: "tabular-nums" }}
-          >
-            {formatMontoEnMoneda(distributedBaseAmount, base)} /{" "}
-            {formatMontoEnMoneda(changeTotalBase, base)}
-          </Typography>
+                  {formatChangeSplit(option.distribution)}
+                </Typography>
+                <Box flex={1} />
+                {unavailable && (
+                  <Typography variant="caption" color="error">
+                    Sin saldo
+                  </Typography>
+                )}
+              </Box>
+            );
+          })}
         </Stack>
+
+        {firstError && (
+          <Typography variant="caption" color="error">
+            En caja hay{" "}
+            {formatMontoEnMoneda(firstError.available, firstError.currency)}.
+            Elige otra forma de dar el cambio.
+          </Typography>
+        )}
 
         <Button variant="contained" onClick={onClose} sx={{ minHeight: 48 }}>
           Listo

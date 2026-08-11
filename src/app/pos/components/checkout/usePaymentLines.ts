@@ -11,6 +11,16 @@ interface UsePaymentLinesArgs {
   defaultTransferDestId: string;
   /** Converts an amount between two currencies at the current rates. */
   convertAmount: (amount: number, from: string, to: string) => number;
+  /**
+   * How much is still owed, expressed in `currency`, ignoring the lines in
+   * `ignoreIds`. Lives outside the hook because only the view holds the
+   * rates and the total.
+   */
+  pendingFor: (
+    lines: PaymentLine[],
+    currency: string,
+    ignoreIds: string[],
+  ) => number;
 }
 
 let lineCounter = 0;
@@ -26,6 +36,7 @@ export function usePaymentLines({
   denominationsFor,
   defaultTransferDestId,
   convertAmount,
+  pendingFor,
 }: UsePaymentLinesArgs) {
   const buildInitialLine = useCallback(
     (): PaymentLine => ({
@@ -100,12 +111,15 @@ export function usePaymentLines({
 
   /**
    * Re-denominates a whole card: every line for `from` (its cash line and,
-   * if present, its embedded transfer line) moves to `to`, carrying the same
-   * money over at the current rate. This is what lets a cashier correct the
-   * currency of the payment already on screen instead of removing the card
-   * and adding another one. Cash lands on a payable amount (rounded up to
-   * the target currency's smallest bill); a transfer keeps the exact
-   * equivalent, since no bill has to exist for it.
+   * if present, its embedded transfer line) moves to `to`. This is what lets
+   * a cashier correct the currency of the payment already on screen instead
+   * of removing the card and adding another one.
+   *
+   * The cash line lands on what is actually owed in the new currency, NOT on
+   * a conversion of whatever the field happened to hold: converting a 1234
+   * typed over a 400 total would carry the overpayment across as if it were
+   * the price. An explicit transfer amount is a decision the cashier already
+   * made, so it does carry over at the rate, and cash covers the rest.
    */
   const changeCurrency = useCallback(
     (from: string, to: string) => {
@@ -116,21 +130,37 @@ export function usePaymentLines({
         // two cash lines for it; the caller only offers free currencies, this
         // is the guard that makes that a precondition rather than a hope.
         if (prev.some((line) => line.currency === to)) return prev;
+
+        const group = prev.filter((line) => line.currency === from);
+        const owed = pendingFor(
+          prev,
+          to,
+          group.map((line) => line.id),
+        );
+        const transferLine = group.find((line) => line.kind === "transfer");
+        const transferAmount = transferLine
+          ? round2(convertAmount(transferLine.amount, from, to))
+          : 0;
+
         return prev.map((line) => {
           if (line.currency !== from) return line;
-          const converted = convertAmount(line.amount, from, to);
+          if (line.kind === "transfer") {
+            return { ...line, currency: to, amount: transferAmount };
+          }
           return {
             ...line,
             currency: to,
-            amount:
-              line.kind === "cash"
-                ? suggestedAmounts(converted, denominationsFor(to)).exact
-                : round2(converted),
+            // Rounded up to the target currency's smallest bill: cash can
+            // only be handed over in the denominations that circulate.
+            amount: suggestedAmounts(
+              Math.max(0, round2(owed - transferAmount)),
+              denominationsFor(to),
+            ).exact,
           };
         });
       });
     },
-    [convertAmount, denominationsFor],
+    [convertAmount, pendingFor, denominationsFor],
   );
 
   /**

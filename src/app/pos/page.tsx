@@ -20,6 +20,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import { CategoryPillsBar } from "./components/CategoryPillsBar";
 import { PosProductGrid } from "./components/PosProductGrid";
 import { CheckoutLockOverlay } from "./components/CheckoutLockOverlay";
+import { CurrencyDisplayToggle } from "./components/CurrencyDisplayToggle";
 import { ICategory } from "@/schemas/categoria";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import CartDrawer from "@/components/cartDrawer/CartDrawer";
@@ -1428,6 +1429,7 @@ export default function POSInterface() {
                 alignItems="center"
               >
                 <RefreshButton onRefresh={handleRefresh} />
+                <CurrencyDisplayToggle />
                 <Tooltip title="Punto de partida">
                   <IconButton
                     size="small"

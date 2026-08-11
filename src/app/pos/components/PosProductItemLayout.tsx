@@ -13,10 +13,11 @@ import type { SxProps, Theme } from "@mui/material";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { ProductQuickActions } from "./ProductQuickActions";
-import { calcularDisponibilidadReal } from "../utils/calcularDisponibilidadReal";
+import { StockAvailabilityBadge } from "./StockAvailabilityBadge";
 import { useCartStore } from "@/store/cartStore";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
+import { useShowAlternativeCurrencies } from "@/hooks/useShowAlternativeCurrencies";
 
 interface PosProductItemLayoutProps {
   productoTienda: IProductoTiendaV2;
@@ -24,31 +25,6 @@ interface PosProductItemLayoutProps {
   onClick?: () => void;
   highlightName?: boolean;
   sx?: SxProps<Theme>;
-}
-
-function getDisponibilidadInfo(
-  productoTienda: IProductoTiendaV2,
-  allProductosTienda: IProductoTiendaV2[],
-  cartQty: number,
-) {
-  const { maxPorTransaccion, esFraccion } = calcularDisponibilidadReal(
-    productoTienda,
-    allProductosTienda,
-  );
-  const disponible = Math.max(0, maxPorTransaccion - cartQty);
-
-  if (esFraccion) {
-    const existenciaReal = Math.max(0, productoTienda.existencia || 0);
-    return {
-      label: `Disp: ${disponible} · Stock: ${existenciaReal}`,
-      sinStock: disponible === 0,
-    };
-  }
-
-  return {
-    label: `Disp: ${disponible}`,
-    sinStock: disponible === 0,
-  };
 }
 
 export function PosProductItemLayout({
@@ -60,16 +36,12 @@ export function PosProductItemLayout({
 }: PosProductItemLayoutProps) {
   const { items } = useCartStore();
   const { tasasVigentes, monedaBase } = useAppContext();
+  const { show: showAlternatives } = useShowAlternativeCurrencies();
   const [priceDetailAnchor, setPriceDetailAnchor] =
     useState<HTMLElement | null>(null);
   const cartQty =
     items.find((item) => item.productoTiendaId === productoTienda.id)
       ?.quantity || 0;
-  const disponibilidad = getDisponibilidadInfo(
-    productoTienda,
-    allProductosTienda,
-    cartQty,
-  );
   const priceBase = convertToBase(
     productoTienda.precio,
     productoTienda.monedaPrecioCode ?? monedaBase,
@@ -111,7 +83,7 @@ export function PosProductItemLayout({
           (identidad arriba, metadato al lado): las dos tarjetas que ve el
           cajero en la misma venta ya no colocan el mismo dato en lugares
           distintos. La disponibilidad va aquí y no abajo junto al precio
-          porque su largo es variable ("Disp: 2" vs "Disp: 8 · Stock: 37") y
+          porque su largo es variable (un número suelto vs "8 · Stock 37") y
           allí decidía si la fila envolvía o no: dos tarjetas vecinas
           quedaban con el precio a distinta altura. El nombre se recorta a
           dos líneas en vez de truncarse: con el sufijo del proveedor, una
@@ -139,14 +111,11 @@ export function PosProductItemLayout({
           {productoTienda.producto.nombre}
         </Typography>
 
-        <Typography
-          variant="caption"
-          color={disponibilidad.sinStock ? "error.main" : "text.secondary"}
-          noWrap
-          sx={{ flexShrink: 0, fontSize: "0.7rem", lineHeight: 1.9 }}
-        >
-          {disponibilidad.label}
-        </Typography>
+        <StockAvailabilityBadge
+          productoTienda={productoTienda}
+          allProductosTienda={allProductosTienda}
+          cartQty={cartQty}
+        />
       </Box>
 
       {/* Fila 2: cantidad a la izquierda, importe a la derecha — el orden
@@ -179,15 +148,26 @@ export function PosProductItemLayout({
           />
         </Box>
 
+        {/* The popover is the fallback for a card that only shows the base
+            price: once the equivalents are on the card itself, tapping the
+            price would just repeat what is already there, so it stops being
+            a target at all. */}
         <ButtonBase
-          onClick={openPriceDetail}
-          aria-label={`Ver detalle de precio de ${productoTienda.producto.nombre}`}
+          onClick={showAlternatives ? undefined : openPriceDetail}
+          disableRipple={showAlternatives}
+          component={showAlternatives ? "div" : "button"}
+          aria-label={
+            showAlternatives
+              ? undefined
+              : `Ver detalle de precio de ${productoTienda.producto.nombre}`
+          }
           sx={{
             justifyContent: "flex-end",
             borderRadius: 1.5,
             px: 0.75,
             py: 0.5,
             minHeight: 44,
+            cursor: showAlternatives ? "default" : "pointer",
             // Nunca por debajo de su contenido: antes que encogerse tiene
             // que envolver a la línea de abajo. `flexGrow` es para que una
             // vez ahí ocupe el ancho completo y siga alineado a la derecha.
@@ -196,7 +176,11 @@ export function PosProductItemLayout({
             maxWidth: "100%",
           }}
         >
-          <MultiCurrencyAmount amount={priceBase} showAlternatives={false} />
+          <MultiCurrencyAmount
+            amount={priceBase}
+            align="right"
+            showAlternatives={showAlternatives}
+          />
         </ButtonBase>
       </Box>
 

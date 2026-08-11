@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  autoChangeDistribution,
   changeErrors,
-  distributedBase,
+  changeOptions,
   hasChangeErrors,
   type ChangeDistribution,
 } from "@/app/pos/utils/changeMath";
-import { convertFromBase } from "@/lib/currency";
 import type { PaymentLine } from "@/app/pos/utils/paymentMath";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
@@ -18,6 +16,9 @@ interface UseChangeDistributionArgs {
   missing: boolean;
   rates: ITasaSnapshot;
   base: string;
+  /** Every currency the business can hand change in. */
+  currencies: string[];
+  denominationsFor: (currency: string) => number[];
   tiendaId: string;
   cierreId: string;
 }
@@ -28,11 +29,12 @@ export function useChangeDistribution({
   missing,
   rates,
   base,
+  currencies,
+  denominationsFor,
   tiendaId,
   cierreId,
 }: UseChangeDistributionArgs) {
-  const [distribution, setDistribution] = useState<ChangeDistribution>({});
-  const [locked, setLocked] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerBalance, setDrawerBalance] = useState<Record<string, number>>(
     {},
   );
@@ -49,63 +51,91 @@ export function useChangeDistribution({
     refreshBalance();
   }, [refreshBalance]);
 
-  // Auto-distribute until the cashier edits the split by hand.
-  useEffect(() => {
-    if (missing) {
-      setDistribution({});
-      setLocked(false);
-      return;
-    }
-    if (locked) return;
-    setDistribution(
-      autoChangeDistribution(lines, changeAmountBase, rates, base),
-    );
-  }, [missing, locked, lines, changeAmountBase, rates, base]);
+  const options = useMemo(
+    () =>
+      missing
+        ? []
+        : changeOptions(
+            lines,
+            changeAmountBase,
+            rates,
+            base,
+            currencies,
+            denominationsFor,
+          ),
+    [
+      missing,
+      lines,
+      changeAmountBase,
+      rates,
+      base,
+      currencies,
+      denominationsFor,
+    ],
+  );
+
+  const optionErrors = useMemo(
+    () =>
+      options.map((option) =>
+        changeErrors(option.distribution, lines, drawerBalance),
+      ),
+    [options, lines, drawerBalance],
+  );
+
+  /**
+   * Splits the drawer cannot actually cover. Surfaced so the sheet can mark
+   * them instead of letting the cashier pick one and only then discover that
+   * VENDER is disabled.
+   */
+  const unavailableIds = useMemo(
+    () =>
+      new Set(
+        options
+          .filter((_, index) => hasChangeErrors(optionErrors[index]))
+          .map((option) => option.id),
+      ),
+    [options, optionErrors],
+  );
+
+  /**
+   * The default is the best split the drawer can actually cover — normally
+   * the first, the largest deliverable amount in the currency the customer
+   * paid with. Falling back to the first one regardless would block the sale
+   * on a shortfall the cashier never chose and, since every split is
+   * pre-computed, could leave no reachable way out.
+   */
+  const defaultOption = useMemo(
+    () =>
+      options.find((_, index) => !hasChangeErrors(optionErrors[index])) ??
+      options[0],
+    [options, optionErrors],
+  );
+
+  // A selection only survives while the split it names still exists — option
+  // ids are derived from the amounts, so any change to what is owed drops the
+  // cashier back to the default rather than keeping a stale split.
+  const selected = useMemo(
+    () => options.find((option) => option.id === selectedId) ?? defaultOption,
+    [options, selectedId, defaultOption],
+  );
+
+  const distribution: ChangeDistribution = useMemo(
+    () => selected?.distribution ?? {},
+    [selected],
+  );
 
   const errors = useMemo(
     () => changeErrors(distribution, lines, drawerBalance),
     [distribution, lines, drawerBalance],
   );
 
-  const distributedBaseAmount = useMemo(
-    () => distributedBase(distribution, rates, base),
-    [distribution, rates, base],
-  );
-
-  const setAmount = useCallback((currency: string, amount: number) => {
-    setLocked(true);
-    setDistribution((prev) => ({ ...prev, [currency]: amount }));
-  }, []);
-
-  const addCurrency = useCallback(
-    (currency: string) => {
-      setLocked(true);
-      const remaining = Math.max(0, changeAmountBase - distributedBaseAmount);
-      const suggested =
-        remaining > 0
-          ? Number(convertFromBase(remaining, currency, rates, base).toFixed(2))
-          : 0;
-      setDistribution((prev) => ({ ...prev, [currency]: suggested }));
-    },
-    [changeAmountBase, distributedBaseAmount, rates, base],
-  );
-
-  const removeCurrency = useCallback((currency: string) => {
-    setLocked(true);
-    setDistribution((prev) => {
-      const next = { ...prev };
-      delete next[currency];
-      return next;
-    });
-  }, []);
-
   return {
+    options,
+    unavailableIds,
+    selectedId: selected?.id ?? null,
+    select: setSelectedId,
     distribution,
     errors,
     hasErrors: hasChangeErrors(errors),
-    distributedBaseAmount,
-    setAmount,
-    addCurrency,
-    removeCurrency,
   };
 }

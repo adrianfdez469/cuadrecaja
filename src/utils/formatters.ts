@@ -149,6 +149,20 @@ export const formatMontoEnMoneda = (
   })} ${monedaCode}`;
 
 /**
+ * Formatea un reparto de vuelto por moneda: "63,00 USD + 225,00 CUP".
+ * Respeta el orden de inserción del objeto — quien construye el reparto pone
+ * primero la moneda principal, y ese es el orden en que el cajero cuenta el
+ * dinero.
+ */
+export const formatChangeSplit = (
+  distribution: Record<string, number>,
+): string =>
+  Object.entries(distribution)
+    .filter(([, amount]) => amount > 0)
+    .map(([monedaCode, amount]) => formatMontoEnMoneda(amount, monedaCode))
+    .join(" + ");
+
+/**
  * Formatea una moneda con CUP (formato secundario)
  */
 export const formatCurrencyCUP = (amount: number): string => {

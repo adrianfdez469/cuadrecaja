@@ -31,6 +31,7 @@ import {
   pendingInCurrency,
   toPagoLineas,
 } from "@/app/pos/utils/paymentMath";
+import type { PaymentLine } from "@/app/pos/utils/paymentMath";
 import { toVueltoLineas } from "@/app/pos/utils/changeMath";
 import { suggestedAmounts } from "@/app/pos/utils/suggestedAmounts";
 import { convertFromBase, convertToBase } from "@/lib/currency";
@@ -113,6 +114,19 @@ export function CheckoutView({
     [tasasVigentes, monedaBase],
   );
 
+  const pendingFor = useCallback(
+    (currentLines: PaymentLine[], currency: string, ignoreIds: string[]) =>
+      pendingInCurrency(
+        currentLines,
+        finalTotal,
+        currency,
+        tasasVigentes,
+        monedaBase,
+        ignoreIds,
+      ),
+    [finalTotal, tasasVigentes, monedaBase],
+  );
+
   const {
     lines,
     dirty,
@@ -129,6 +143,7 @@ export function CheckoutView({
     denominationsFor,
     defaultTransferDestId: defaultDestId(transferDestinations),
     convertAmount,
+    pendingFor,
   });
 
   // The base cash line the hook preloads at the full total. While untouched
@@ -167,20 +182,28 @@ export function CheckoutView({
   const missing = finalTotal === 0 ? false : isMissing(paid, finalTotal);
   const change = changeBase(paid, finalTotal);
 
+  const allCurrencies = useMemo(() => {
+    const codes = new Set<string>([monedaBase]);
+    for (const m of monedasActivas) codes.add(m.monedaCode);
+    return Array.from(codes);
+  }, [monedaBase, monedasActivas]);
+
   const {
+    options,
+    unavailableIds,
+    selectedId,
+    select,
     distribution,
     errors,
     hasErrors,
-    distributedBaseAmount,
-    setAmount,
-    addCurrency,
-    removeCurrency,
   } = useChangeDistribution({
     lines,
     changeAmountBase: change,
     missing,
     rates: tasasVigentes,
     base: monedaBase,
+    currencies: allCurrencies,
+    denominationsFor,
     tiendaId,
     cierreId,
   });
@@ -195,12 +218,6 @@ export function CheckoutView({
   // submit. Ghost double-fire is a real failure mode on POS touch hardware and
   // the cost is a duplicate sale. The state flag only drives `disabled`.
   const submittingRef = useRef(false);
-
-  const allCurrencies = useMemo(() => {
-    const codes = new Set<string>([monedaBase]);
-    for (const m of monedasActivas) codes.add(m.monedaCode);
-    return Array.from(codes);
-  }, [monedaBase, monedasActivas]);
 
   /** What a currency is allowed to be paid with, per the business setup. */
   const supportFor = useCallback(
@@ -307,15 +324,6 @@ export function CheckoutView({
     baseCashLine,
   ]);
 
-  const eligibleChangeCurrencies = useMemo(
-    () =>
-      allCurrencies.filter(
-        (currency) =>
-          !(currency in distribution) && denominationsFor(currency).length > 0,
-      ),
-    [allCurrencies, distribution, denominationsFor],
-  );
-
   const firstError = useMemo(
     () => Object.values(errors).find((error) => error !== null) ?? null,
     [errors],
@@ -417,15 +425,15 @@ export function CheckoutView({
 
         {/* The equivalents stay on screen rather than behind a tap: this is
             the number the cashier reads out loud, and a customer paying in
-            another currency asks for it every time. Same "hero" size and
-            inline layout as the cart step's total, so the two screens read
-            consistently. */}
+            another currency asks for it every time. Stacked under the total
+            rather than beside it — on this screen the header competes with
+            the payment cards for height, and a second line costs less width
+            than a row that wraps. */}
         <MultiCurrencyAmount
           amount={finalTotal}
           variant="hero"
           color="success.main"
           align="right"
-          layout="inline"
         />
       </Stack>
 
@@ -567,6 +575,8 @@ export function CheckoutView({
           missing={missing}
           missingAmount={Math.max(0, finalTotal - paid)}
           changeAmount={change}
+          distribution={distribution}
+          hasAlternatives={options.length > 1}
           base={monedaBase}
           error={firstError}
           canSell={canSell}
@@ -607,16 +617,14 @@ export function CheckoutView({
 
       <ChangeSheet
         open={changeOpen}
-        distribution={distribution}
+        options={options}
+        selectedId={selectedId}
+        unavailableIds={unavailableIds}
         errors={errors}
-        eligibleCurrencies={eligibleChangeCurrencies}
         changeTotalBase={change}
-        distributedBaseAmount={distributedBaseAmount}
         base={monedaBase}
         onClose={() => setChangeOpen(false)}
-        onChange={setAmount}
-        onAdd={addCurrency}
-        onRemove={removeCurrency}
+        onSelect={select}
       />
     </Box>
   );

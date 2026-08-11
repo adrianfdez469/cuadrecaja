@@ -19,6 +19,7 @@ import {
 } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+import { useShowAlternativeCurrencies } from "@/hooks/useShowAlternativeCurrencies";
 
 function ExpiryChip({ fechaVencimiento }: { fechaVencimiento: string }) {
   const ahora = new Date();
@@ -84,6 +85,7 @@ export function CartItemCard({
   canUpdateQuantity,
 }: CartItemCardProps) {
   const theme = useTheme();
+  const { show: showAlternatives } = useShowAlternativeCurrencies();
   const [detailAnchor, setDetailAnchor] = useState<HTMLElement | null>(null);
   // Use priceBase (monedaBase equivalent) for MultiCurrencyAmount display; fall back to raw price if not set
   const unitPrice = item.priceBase ?? item.price;
@@ -203,20 +205,32 @@ export function CartItemCard({
           </Typography>
         )}
 
+        {/* Same rule as the product card: the popover exists because the
+            equivalents are hidden, so it stops being a target once they are
+            on the card. The unit price it also carries stays reachable from
+            the product card in the grid. */}
         <ButtonBase
-          onClick={openDetail}
-          aria-label={`Ver detalle de precio de ${item.name}`}
+          onClick={showAlternatives ? undefined : openDetail}
+          disableRipple={showAlternatives}
+          component={showAlternatives ? "div" : "button"}
+          aria-label={
+            showAlternatives
+              ? undefined
+              : `Ver detalle de precio de ${item.name}`
+          }
           sx={{
             borderRadius: 1.5,
             px: 0.75,
             py: 0.5,
             minHeight: 44,
+            cursor: showAlternatives ? "default" : "pointer",
           }}
         >
           <MultiCurrencyAmount
             amount={lineTotal}
             color="success.main"
-            showAlternatives={false}
+            align="right"
+            showAlternatives={showAlternatives}
           />
         </ButtonBase>
       </Box>

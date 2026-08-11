@@ -42,7 +42,9 @@ export function paidBase(
 
 /**
  * How much is still owed, expressed in `currency`. `excludeId` leaves the
- * line being edited out of the sum so it does not cancel its own suggestion.
+ * line being edited out of the sum so it does not cancel its own suggestion;
+ * pass several ids to leave out a whole card (a cash line and the transfer
+ * embedded in it).
  */
 export function pendingInCurrency(
   lines: PaymentLine[],
@@ -50,10 +52,17 @@ export function pendingInCurrency(
   currency: string,
   rates: ITasaSnapshot,
   base: string,
-  excludeId?: string,
+  excludeId?: string | string[],
 ): number {
+  const excluded = new Set(
+    excludeId === undefined
+      ? []
+      : Array.isArray(excludeId)
+        ? excludeId
+        : [excludeId],
+  );
   const covered = paidBase(
-    lines.filter((line) => line.id !== excludeId),
+    lines.filter((line) => !excluded.has(line.id)),
     rates,
     base,
   );
