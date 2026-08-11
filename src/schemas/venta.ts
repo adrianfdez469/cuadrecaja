@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { usuarioSchema } from "./usuario";
-import { pagoLineaSchema, vueltoLineaSchema } from "./pago";
+import { pagoLineaSchema, tipDetalleSchema, vueltoLineaSchema } from "./pago";
 import { tasaSnapshotSchema } from "./tasaCambio";
 
 export const ventaProductoSchema = z.object({
@@ -58,6 +58,9 @@ export const ventaSchema = z.object({
   pagosDetalle: z.array(pagoLineaSchema).optional(),
   vueltoDetalle: z.array(vueltoLineaSchema).optional(),
   tasaSnapshot: tasaSnapshotSchema.optional(),
+  // Propina — parte de pagosDetalle que no es del negocio. Nunca entra en `total`.
+  tipTotal: z.number().optional(),
+  tipDetail: tipDetalleSchema.optional(),
 });
 
 export type IVenta = z.infer<typeof ventaSchema>;

@@ -6,10 +6,7 @@ import {
   TICKET_MARKETING_URL,
 } from "@/constants/ticket";
 import { convertFromBase } from "@/lib/currency";
-import {
-  ITicketPayload,
-  ITicketRenderedLine,
-} from "../types/ITicketData";
+import { ITicketPayload, ITicketRenderedLine } from "../types/ITicketData";
 import {
   formatTicketAmount,
   formatRenderedLine,
@@ -44,7 +41,10 @@ function qrLine(url: string): ITicketRenderedLine {
   return { kind: "qr", url, align: "center" };
 }
 
-function buildPaymentLines(payload: ITicketPayload, width: number): ITicketRenderedLine[] {
+function buildPaymentLines(
+  payload: ITicketPayload,
+  width: number,
+): ITicketRenderedLine[] {
   const lines: ITicketRenderedLine[] = [];
 
   if (payload.pagosDetalle?.length) {
@@ -57,14 +57,22 @@ function buildPaymentLines(payload: ITicketPayload, width: number): ITicketRende
     if (payload.totalCash > 0) {
       lines.push(
         left(
-          padLine("Pago Efectivo", formatTicketAmount(payload.totalCash), width),
+          padLine(
+            "Pago Efectivo",
+            formatTicketAmount(payload.totalCash),
+            width,
+          ),
         ),
       );
     }
     if (payload.totalTransfer > 0) {
       lines.push(
         left(
-          padLine("Pago Transf", formatTicketAmount(payload.totalTransfer), width),
+          padLine(
+            "Pago Transf",
+            formatTicketAmount(payload.totalTransfer),
+            width,
+          ),
         ),
       );
     }
@@ -75,10 +83,12 @@ function buildPaymentLines(payload: ITicketPayload, width: number): ITicketRende
     payload.totalCash > 0 ||
     payload.totalTransfer > 0;
 
-  const vueltoItems =
-    payload.vueltoDetalle?.filter((v) => v.monto > 0) ?? [];
+  const vueltoItems = payload.vueltoDetalle?.filter((v) => v.monto > 0) ?? [];
 
-  if (vueltoItems.length > 0) {
+  const tipTotal = payload.tipTotal ?? 0;
+  const showTip = tipTotal > 0 && payload.plantilla.mostrarPropina;
+
+  if (vueltoItems.length > 0 || showTip) {
     if (hasPayments) {
       lines.push(left(fullSeparator(width, "-")));
     }
@@ -89,6 +99,11 @@ function buildPaymentLines(payload: ITicketPayload, width: number): ITicketRende
         ),
       );
     }
+    // Impresa aparte del total: el cliente debe poder ver que lo que dejó al
+    // personal no formó parte del precio de lo que compró.
+    if (showTip) {
+      lines.push(left(padLine("Propina", formatTicketAmount(tipTotal), width)));
+    }
   }
 
   return lines;
@@ -98,7 +113,9 @@ function boldHeaderLabel(text: string): ITicketRenderedLine {
   return center(`** ${text} **`);
 }
 
-export function buildTicketLines(payload: ITicketPayload): ITicketRenderedLine[] {
+export function buildTicketLines(
+  payload: ITicketPayload,
+): ITicketRenderedLine[] {
   const { plantilla, monedaBase } = payload;
   const ancho = (plantilla.anchoPapel === 80 ? 80 : 58) as 58 | 80;
   const width = getCharsPerLine(ancho);
@@ -127,10 +144,7 @@ export function buildTicketLines(payload: ITicketPayload): ITicketRenderedLine[]
   }
   lines.push(left(`Fecha: ${payload.fechaCompleta}`));
 
-  if (
-    plantilla.mostrarTasas &&
-    payload.monedasParaTasas.length > 0
-  ) {
+  if (plantilla.mostrarTasas && payload.monedasParaTasas.length > 0) {
     lines.push(left(fullSeparator(width, "=")));
     for (const moneda of payload.monedasParaTasas) {
       lines.push(left(formatTasaLine(moneda, tasas)));
@@ -138,7 +152,10 @@ export function buildTicketLines(payload: ITicketPayload): ITicketRenderedLine[]
     lines.push(left(fullSeparator(width, "=")));
   }
 
-  const productAmounts = payload.productos.flatMap((p) => [p.subtotal, p.precioUnitario]);
+  const productAmounts = payload.productos.flatMap((p) => [
+    p.subtotal,
+    p.precioUnitario,
+  ]);
   const priceColWidth = getPriceColumnWidth(productAmounts);
 
   lines.push(left(fullSeparator(width, "-")));
@@ -171,7 +188,9 @@ export function buildTicketLines(payload: ITicketPayload): ITicketRenderedLine[]
 
   lines.push(left(fullSeparator(width, "-")));
   lines.push(
-    left(padLine(`TOTAL ${monedaBase}`, formatTicketAmount(payload.total), width)),
+    left(
+      padLine(`TOTAL ${monedaBase}`, formatTicketAmount(payload.total), width),
+    ),
   );
 
   if (
@@ -186,13 +205,7 @@ export function buildTicketLines(payload: ITicketPayload): ITicketRenderedLine[]
         monedaBase,
       );
       lines.push(
-        left(
-          padLine(
-            `TOTAL ${moneda}`,
-            formatTicketAmount(converted),
-            width,
-          ),
-        ),
+        left(padLine(`TOTAL ${moneda}`, formatTicketAmount(converted), width)),
       );
     }
   }

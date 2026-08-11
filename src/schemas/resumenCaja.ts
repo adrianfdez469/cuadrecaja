@@ -6,6 +6,9 @@ export const resumenCajaMonedaSchema = z.object({
   ventasEfectivo: z.number(),
   totalEsperado: z.number(),
   equivalenteBase: z.number(),
+  // Propina en efectivo ya incluida en ventasEfectivo/totalEsperado. Se
+  // reporta aparte para que el cajero sepa cuánto de la gaveta no es suyo.
+  tipCash: z.number(),
 });
 
 export const resumenCajaResponseSchema = z.object({

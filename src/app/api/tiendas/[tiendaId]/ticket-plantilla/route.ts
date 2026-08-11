@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
-import { verificarPermisoUsuario, verificarPermisosUsuario } from "@/utils/permisos_back";
+import {
+  verificarPermisoUsuario,
+  verificarPermisosUsuario,
+} from "@/utils/permisos_back";
 import {
   DEFAULT_TICKET_PLANTILLA,
   updateTicketPlantillaSchema,
@@ -34,12 +37,18 @@ export async function GET(
         user.rol,
       )
     ) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 },
+      );
     }
 
     const tienda = await assertTiendaAccess(tiendaId, user.negocio.id);
     if (!tienda) {
-      return NextResponse.json({ error: "Tienda no encontrada" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 },
+      );
     }
 
     const plantilla = await prisma.ticketPlantilla.findUnique({
@@ -83,12 +92,18 @@ export async function PUT(
         user.rol,
       )
     ) {
-      return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Acceso no autorizado" },
+        { status: 403 },
+      );
     }
 
     const tienda = await assertTiendaAccess(tiendaId, user.negocio.id);
     if (!tienda) {
-      return NextResponse.json({ error: "Tienda no encontrada" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 },
+      );
     }
 
     const body = await request.json();
@@ -111,6 +126,7 @@ export async function PUT(
         mostrarTienda: data.mostrarTienda,
         mostrarCajero: data.mostrarCajero,
         mostrarDescuentos: data.mostrarDescuentos,
+        mostrarPropina: data.mostrarPropina,
         mostrarMultimoneda: data.mostrarMultimoneda,
         mostrarTasas: data.mostrarTasas,
         mostrarTotalesSecundarios: data.mostrarTotalesSecundarios,
@@ -125,6 +141,7 @@ export async function PUT(
         mostrarTienda: data.mostrarTienda,
         mostrarCajero: data.mostrarCajero,
         mostrarDescuentos: data.mostrarDescuentos,
+        mostrarPropina: data.mostrarPropina,
         mostrarMultimoneda: data.mostrarMultimoneda,
         mostrarTasas: data.mostrarTasas,
         mostrarTotalesSecundarios: data.mostrarTotalesSecundarios,

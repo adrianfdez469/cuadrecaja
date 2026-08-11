@@ -46,6 +46,15 @@ export const createSell = async (
               pagosDetalle: multimoneda.pagosDetalle,
               vueltoDetalle: multimoneda.vueltoDetalle,
               tasaSnapshot: multimoneda.tasaSnapshot,
+              // A diferencia de discountTotal —que el servidor recalcula desde
+              // las reglas— la propina es una decisión del cajero y no se puede
+              // derivar: hay que transportarla. El servidor la valida.
+              ...(multimoneda.tipTotal && multimoneda.tipTotal > 0
+                ? {
+                    tipTotal: multimoneda.tipTotal,
+                    tipDetail: multimoneda.tipDetail,
+                  }
+                : {}),
             }
           : {}),
       },

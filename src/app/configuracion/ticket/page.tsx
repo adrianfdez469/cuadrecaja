@@ -88,7 +88,9 @@ export default function TicketConfigPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [form, setForm] = useState<IUpdateTicketPlantilla>(DEFAULT_TICKET_PLANTILLA);
+  const [form, setForm] = useState<IUpdateTicketPlantilla>(
+    DEFAULT_TICKET_PLANTILLA,
+  );
 
   const tiendaId = user?.localActual?.id;
   const canEdit = verificarPermiso("configuracion.ticket.editar");
@@ -112,6 +114,7 @@ export default function TicketConfigPage() {
         mostrarTienda: data.mostrarTienda ?? true,
         mostrarCajero: data.mostrarCajero,
         mostrarDescuentos: data.mostrarDescuentos,
+        mostrarPropina: data.mostrarPropina ?? true,
         mostrarMultimoneda: data.mostrarMultimoneda,
         mostrarTasas: data.mostrarTasas ?? false,
         mostrarTotalesSecundarios: data.mostrarTotalesSecundarios ?? true,
@@ -163,7 +166,9 @@ export default function TicketConfigPage() {
   if (!canEdit) {
     return (
       <PageContainer title="Ticket de venta">
-        <Alert severity="warning">No tiene permiso para configurar tickets.</Alert>
+        <Alert severity="warning">
+          No tiene permiso para configurar tickets.
+        </Alert>
       </PageContainer>
     );
   }
@@ -171,7 +176,9 @@ export default function TicketConfigPage() {
   if (!tiendaId) {
     return (
       <PageContainer title="Ticket de venta">
-        <Alert severity="info">Seleccione una tienda activa para configurar el ticket.</Alert>
+        <Alert severity="info">
+          Seleccione una tienda activa para configurar el ticket.
+        </Alert>
       </PageContainer>
     );
   }
@@ -230,7 +237,9 @@ export default function TicketConfigPage() {
             <TextField
               label="Pie personalizado"
               value={form.pie ?? ""}
-              onChange={(e) => setForm({ ...form, pie: e.target.value || null })}
+              onChange={(e) =>
+                setForm({ ...form, pie: e.target.value || null })
+              }
               multiline
               minRows={2}
               placeholder="GRACIAS POR SU COMPRA"
@@ -287,6 +296,17 @@ export default function TicketConfigPage() {
             <FormControlLabel
               control={
                 <Switch
+                  checked={form.mostrarPropina}
+                  onChange={(e) =>
+                    setForm({ ...form, mostrarPropina: e.target.checked })
+                  }
+                />
+              }
+              label="Mostrar propina"
+            />
+            <FormControlLabel
+              control={
+                <Switch
                   checked={form.mostrarMultimoneda}
                   onChange={(e) =>
                     setForm({ ...form, mostrarMultimoneda: e.target.checked })
@@ -300,7 +320,10 @@ export default function TicketConfigPage() {
                 <Switch
                   checked={form.mostrarTotalesSecundarios}
                   onChange={(e) =>
-                    setForm({ ...form, mostrarTotalesSecundarios: e.target.checked })
+                    setForm({
+                      ...form,
+                      mostrarTotalesSecundarios: e.target.checked,
+                    })
                   }
                 />
               }
@@ -317,15 +340,24 @@ export default function TicketConfigPage() {
               }
               label="Marcar renglones vacíos con caracteres"
             />
-            <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mt: -1 }}
+            >
               Actívelo solo si su impresora no avanza el papel en renglones en
-              blanco. Agrega un carácter en los bordes de los renglones de avance
-              para forzar el salto de línea.
+              blanco. Agrega un carácter en los bordes de los renglones de
+              avance para forzar el salto de línea.
             </Typography>
 
             {previewPayload ? (
               <Box>
-                <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  mb={1}
+                >
                   Vista previa compacta
                 </Typography>
                 <TicketPreviewContent payload={previewPayload} />

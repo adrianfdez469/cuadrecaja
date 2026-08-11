@@ -235,6 +235,7 @@ model TicketPlantilla {
   mostrarTienda             Boolean  @default(true)
   mostrarCajero             Boolean  @default(true)
   mostrarDescuentos         Boolean  @default(true)
+  mostrarPropina            Boolean  @default(true)
   mostrarMultimoneda        Boolean  @default(true)
   mostrarTasas              Boolean  @default(false)
   mostrarTotalesSecundarios Boolean  @default(true)
@@ -441,6 +442,14 @@ model Venta {
   pagosDetalle  Json? // [{tipo, moneda, monto, equivalenteBase, transferDestinationId?}]
   vueltoDetalle Json? // [{moneda, monto}]
   tasaSnapshot  Json? // {USD: 120, MLC: 75} — tasas vigentes al momento de la venta
+
+  // Propina. No es un flujo de dinero aparte: es una anotación sobre pagosDetalle
+  // que marca qué parte de lo recibido no pertenece al negocio. Invariante:
+  // Σ pagosDetalle.equivalenteBase − Σ vueltoDetalle(base) = total + tipTotal.
+  // Por eso la caja (buildResumenMonedas) no necesita saber de propinas: el
+  // billete ya está contado en la gaveta.
+  tipTotal  Float @default(0) // En monedaBase
+  tipDetail Json? // IPagoLinea[] — subconjunto etiquetado de pagosDetalle
 }
 
 // Tabla intermedia para manejar la relación muchos a muchos entre Venta y ProductoTienda.
@@ -491,6 +500,9 @@ model CierrePeriodo {
   totalMerma        Float @default(0)
   // Devoluciones de venta reconocidas en este período (aunque la venta original sea de otro cierre) — resta de ganancia y de caja
   totalDevoluciones Float @default(0)
+  // Propinas del período. Están dentro del efectivo/transferencia de caja (el
+  // dinero entró), pero nunca dentro de totalVentas ni de la ganancia.
+  totalTips         Float @default(0)
 
   cashBreakdown       CashBreakdownCierre?
   resumenMonedas      ResumenMonedaCierre[]
@@ -902,8 +914,8 @@ model TasaCambio {
   id          String   @id @default(uuid())
   negocioId   String
   negocio     Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
-  monedaCode  String // Moneda origen (ej. "USD"); siempre contra monedaBase del negocio
-  tasa        Float // Cuántas unidades de monedaBase por 1 unidad de esta moneda
+  monedaCode  String // Moneda origen (ej. "USD"); siempre contra CUP, el ancla universal
+  tasa        Float // Cuántos CUP vale 1 unidad de esta moneda (CUP nunca se guarda: vale 1)
   creadoPorId String
   creadoPor   Usuario  @relation(fields: [creadoPorId], references: [id])
   createdAt   DateTime @default(now())
@@ -948,6 +960,10 @@ model ResumenMonedaCierre {
   totalEfectivo   Float         @default(0) // En esa moneda
   totalTransfer   Float         @default(0) // En esa moneda
   equivalenteBase Float         @default(0) // Convertido a moneda base del negocio
+  // Parte de totalEfectivo/totalTransfer que es propina. Informativo: no se
+  // resta de la caja, el conteo físico sigue cuadrando contra totalEfectivo.
+  tipCash         Float         @default(0) // En esa moneda
+  tipTransfer     Float         @default(0) // En esa moneda
 
   @@unique([cierrePeriodoId, monedaCode])
   @@index([cierrePeriodoId])

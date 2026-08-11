@@ -538,6 +538,9 @@ export default function POSInterface() {
               pagosDetalle: sale.pagosDetalle,
               vueltoDetalle: sale.vueltoDetalle ?? [],
               tasaSnapshot: sale.tasaSnapshot ?? {},
+              ...(sale.tipTotal && sale.tipTotal > 0
+                ? { tipTotal: sale.tipTotal, tipDetail: sale.tipDetail ?? [] }
+                : {}),
             }
           : undefined;
         const ventaDb = await createSell(
@@ -834,6 +837,12 @@ export default function POSInterface() {
             ...(multimoneda.discountTotal != null &&
             multimoneda.discountTotal > 0
               ? { discountTotal: multimoneda.discountTotal }
+              : {}),
+            ...(multimoneda.tipTotal != null && multimoneda.tipTotal > 0
+              ? {
+                  tipTotal: multimoneda.tipTotal,
+                  tipDetail: multimoneda.tipDetail ?? [],
+                }
               : {}),
           }),
         };

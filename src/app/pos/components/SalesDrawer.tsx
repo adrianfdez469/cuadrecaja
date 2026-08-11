@@ -341,6 +341,10 @@ export const SalesDrawer: FC<IProps> = ({
           pagosDetalle: venta.pagosDetalle,
           vueltoDetalle: venta.vueltoDetalle,
           tasaSnapshot: venta.tasaSnapshot,
+          // Propina — sin esto el detalle de una venta recargada del servidor
+          // mostraría el vuelto pero no la propina que sí se cobró.
+          tipTotal: venta.tipTotal,
+          tipDetail: venta.tipDetail,
           productos: venta.productos.map((p) => {
             return {
               name: p.name,

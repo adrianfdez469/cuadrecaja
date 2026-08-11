@@ -23,6 +23,8 @@ export interface ITicketPayload {
   totalTransfer: number;
   discountTotal?: number;
   discountCodes?: string[];
+  /** Tip left on this sale, in base currency. Never part of `total`. */
+  tipTotal?: number;
   pagosDetalle?: IPagoLinea[];
   vueltoDetalle?: IVueltoLinea[];
   monedaCobro?: string;
@@ -61,6 +63,4 @@ export interface ITicketFeedLine {
 }
 
 export type ITicketRenderedLine =
-  | ITicketTextLine
-  | ITicketQrLine
-  | ITicketFeedLine;
+  ITicketTextLine | ITicketQrLine | ITicketFeedLine;

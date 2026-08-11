@@ -37,6 +37,10 @@ export interface Sale {
   vueltoDetalle?: IVueltoLinea[];
   tasaSnapshot?: ITasaSnapshot;
   discountTotal?: number;
+  // Propina — persistida como el resto del pago para poder reenviarla en el
+  // sync offline. El servidor no la puede recalcular.
+  tipTotal?: number;
+  tipDetail?: IPagoLinea[];
 }
 
 export interface Products {

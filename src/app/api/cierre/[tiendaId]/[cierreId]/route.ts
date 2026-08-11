@@ -17,6 +17,7 @@ import {
   getCurrentInitialCashFundAmounts,
   montoCompraEnCaja,
 } from "@/lib/movimiento/caja";
+import { buildResumenPropinas, totalPropinasBase } from "@/lib/tips";
 
 type Params = { tiendaId: string; cierreId: string };
 
@@ -138,6 +139,12 @@ export async function GET(
       nombre: string;
       total: number;
     }[] = [];
+    // Propinas por cajero — es el desglose que hace falta para repartirlas.
+    const tipsPorUsuario: {
+      id: string;
+      nombre: string;
+      total: number;
+    }[] = [];
 
     const productosVendidos: Record<string, ProductoVentaAcumulado> = {};
 
@@ -167,6 +174,18 @@ export async function GET(
           nombre: venta.usuario.nombre,
           total: 0,
         });
+      }
+
+      const tipVenta = Number(venta.tipTotal ?? 0);
+      if (tipVenta > 0) {
+        const entry = tipsPorUsuario.find((u) => u.id === venta.usuario.id);
+        if (entry) entry.total += tipVenta;
+        else
+          tipsPorUsuario.push({
+            id: venta.usuario.id,
+            nombre: venta.usuario.nombre,
+            total: tipVenta,
+          });
       }
 
       const tasasVenta = {
@@ -531,6 +550,19 @@ export async function GET(
       return acc;
     }, {});
 
+    // Propinas por moneda. Deliberadamente fuera de resumenMonedaMap: el
+    // dinero ya está contado en la caja vía pagosDetalle, y restarlo aquí
+    // descuadraría el conteo físico de billetes.
+    const propinaPorMoneda = Object.fromEntries(
+      buildResumenPropinas(cierre.ventas, monedaBase, tasasFallback).map(
+        (p) => [
+          p.monedaCode,
+          { tipCash: p.tipCash, tipTransfer: p.tipTransfer },
+        ],
+      ),
+    );
+    const totalTips = totalPropinasBase(cierre.ventas);
+
     // El fondo inicial no es una deducción — es el punto de partida del
     // efectivo, igual que las ventas del día — por eso se suma ANTES del
     // snapshot "bruto" para que quede reflejado tanto en bruto como en final.
@@ -603,6 +635,8 @@ export async function GET(
       totalGananciasConsignacion: totalGananciasConsignacionNet,
       totalTransferenciasByDestination,
       totalVentasPorUsuario,
+      totalTips,
+      tipsPorUsuario,
       totalGastos,
       totalGananciaFinal,
       totalComprasCaja,
@@ -622,6 +656,8 @@ export async function GET(
             resumenMonedaBrutoMap[monedaCode]?.equivalenteBase ??
             vals.equivalenteBase,
           initialFund: initialFundAmounts[monedaCode] ?? 0,
+          tipCash: propinaPorMoneda[monedaCode]?.tipCash ?? 0,
+          tipTransfer: propinaPorMoneda[monedaCode]?.tipTransfer ?? 0,
         }),
       ),
       productosVendidos: Object.values(productosVendidos)

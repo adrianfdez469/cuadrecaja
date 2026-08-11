@@ -2,10 +2,7 @@ import { Sale } from "@/store/salesStore";
 import { ITicketPlantilla } from "@/schemas/ticketPlantilla";
 import { ITicketPayload, IPrintSaleContext } from "../types/ITicketData";
 import { convertToBase } from "@/lib/currency";
-import {
-  formatTicketDateFull,
-  shortTicketId,
-} from "./ticketLayout";
+import { formatTicketDateFull, shortTicketId } from "./ticketLayout";
 
 function collectMonedasUsadas(
   sale: Sale,
@@ -61,7 +58,9 @@ export function buildTicketPayload(
   const subtotalBase = productos.reduce((sum, p) => sum + p.subtotal, 0);
 
   const discountTotal =
-    plantilla.mostrarDescuentos && sale.discountTotal != null && sale.discountTotal > 0
+    plantilla.mostrarDescuentos &&
+    sale.discountTotal != null &&
+    sale.discountTotal > 0
       ? sale.discountTotal
       : undefined;
 
@@ -81,8 +80,11 @@ export function buildTicketPayload(
       plantilla.mostrarDescuentos && sale.discountCodes?.length
         ? sale.discountCodes
         : undefined,
+    tipTotal: sale.tipTotal,
     pagosDetalle: plantilla.mostrarMultimoneda ? sale.pagosDetalle : undefined,
-    vueltoDetalle: plantilla.mostrarMultimoneda ? sale.vueltoDetalle : undefined,
+    vueltoDetalle: plantilla.mostrarMultimoneda
+      ? sale.vueltoDetalle
+      : undefined,
     monedaCobro: sale.monedaCobro,
     tasaSnapshot: sale.tasaSnapshot,
     monedasUsadasEnVenta: collectMonedasUsadas(sale, monedaBase, {

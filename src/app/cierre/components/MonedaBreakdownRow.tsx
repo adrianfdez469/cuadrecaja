@@ -32,6 +32,10 @@ interface Props {
   totalEfectivoBruto?: number;
   equivalenteBaseBruto?: number;
   initialFund?: number;
+  /** Propina incluida en totalEfectivo — informativa, no se resta de la caja. */
+  tipCash?: number;
+  /** Propina incluida en totalTransfer. */
+  tipTransfer?: number;
   tiendaId: string;
   cierreId: string;
   isOpen: boolean;
@@ -68,6 +72,8 @@ const MonedaBreakdownRow: FC<Props> = ({
   totalEfectivoBruto,
   equivalenteBaseBruto,
   initialFund = 0,
+  tipCash = 0,
+  tipTransfer = 0,
   tiendaId,
   cierreId,
   isOpen,
@@ -195,6 +201,15 @@ const MonedaBreakdownRow: FC<Props> = ({
                 {formatMontoEnMoneda(totalEfectivo, monedaCode)}
               </Typography>
             </Box>
+            {/* Informativo, no una deducción: el billete sigue en la gaveta y
+                el conteo físico de abajo se compara contra Efectivo. Esto solo
+                dice cuánto de ese efectivo hay que repartir. */}
+            {tipCash > 0 && (
+              <Typography variant="caption" color="secondary.main">
+                Propina {formatMontoEnMoneda(tipCash, monedaCode)} · neto{" "}
+                {formatMontoEnMoneda(totalEfectivo - tipCash, monedaCode)}
+              </Typography>
+            )}
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">
@@ -203,6 +218,11 @@ const MonedaBreakdownRow: FC<Props> = ({
             <Typography variant="body2" fontWeight="medium">
               {formatMontoEnMoneda(totalTransfer, monedaCode)}
             </Typography>
+            {tipTransfer > 0 && (
+              <Typography variant="caption" color="secondary.main">
+                Propina {formatMontoEnMoneda(tipTransfer, monedaCode)}
+              </Typography>
+            )}
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">

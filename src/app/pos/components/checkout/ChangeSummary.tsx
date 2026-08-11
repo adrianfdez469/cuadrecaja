@@ -1,8 +1,18 @@
 "use client";
 
 import type { KeyboardEvent } from "react";
-import { alpha, Box, Button, Stack, Typography, useTheme } from "@mui/material";
+import {
+  alpha,
+  Box,
+  Button,
+  Chip,
+  Stack,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import VolunteerActivismIcon from "@mui/icons-material/VolunteerActivism";
+import CloseIcon from "@mui/icons-material/Close";
 import { formatChangeSplit, formatMontoEnMoneda } from "@/utils/formatters";
 import type { ChangeDistribution } from "@/app/pos/utils/changeMath";
 
@@ -20,6 +30,14 @@ interface ChangeSummaryProps {
   /** Drawer balance shortfall, shown inline next to the disabled button. */
   error: { available: number; currency: string } | null;
   canSell: boolean;
+  /** Tip already committed on this sale, in base currency. */
+  tipAmount: number;
+  /** Turns the pending change into a tip. Absent when there is no change. */
+  onLeaveTip?: () => void;
+  /** Opens the per-currency tip sheet. */
+  onOpenTip: () => void;
+  /** Takes the tip back off the sale. */
+  onClearTip?: () => void;
   onOpenDetail: () => void;
   onSell: () => void;
 }
@@ -33,6 +51,10 @@ export function ChangeSummary({
   base,
   error,
   canSell,
+  tipAmount,
+  onLeaveTip,
+  onOpenTip,
+  onClearTip,
   onOpenDetail,
   onSell,
 }: ChangeSummaryProps) {
@@ -138,6 +160,48 @@ export function ChangeSummary({
             ? " Elige otra forma de dar el cambio."
             : " Reparte el cambio en otra moneda."}
         </Typography>
+      )}
+
+      {/* The tip lives here, next to the change, and not among the payment
+          cards: it is not a form of payment, and sitting inline it read as
+          one more line the business was charging. This is also the moment
+          the customer says "quédate con el vuelto". */}
+      {tipAmount > 0 ? (
+        <Chip
+          icon={<VolunteerActivismIcon />}
+          label={`Propina ${formatMontoEnMoneda(tipAmount, base)}`}
+          color="secondary"
+          variant="outlined"
+          size="small"
+          onClick={onOpenTip}
+          onDelete={onClearTip}
+          deleteIcon={<CloseIcon />}
+          sx={{ alignSelf: "flex-start", fontWeight: 600 }}
+        />
+      ) : (
+        <Stack direction="row" gap={0.5} flexWrap="wrap">
+          {hasChange && onLeaveTip && (
+            <Button
+              size="small"
+              startIcon={<VolunteerActivismIcon />}
+              onClick={onLeaveTip}
+              sx={{ textTransform: "none", minHeight: 36 }}
+            >
+              Dejar como propina
+            </Button>
+          )}
+          <Button
+            size="small"
+            color="inherit"
+            // Sin icono cuando acompaña al botón de dejar el vuelto: dos
+            // iconos iguales en fila leen como dos acciones distintas.
+            startIcon={hasChange ? undefined : <VolunteerActivismIcon />}
+            onClick={onOpenTip}
+            sx={{ textTransform: "none", minHeight: 36, opacity: 0.75 }}
+          >
+            {hasChange ? "Otro monto" : "Agregar propina"}
+          </Button>
+        </Stack>
       )}
 
       <Box>

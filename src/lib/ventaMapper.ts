@@ -29,6 +29,8 @@ type VentaPrismaRow = {
   pagosDetalle?: unknown;
   vueltoDetalle?: unknown;
   tasaSnapshot?: unknown;
+  tipTotal?: unknown;
+  tipDetail?: unknown;
   transferDestinationId?: string | null;
   transferDestination?: { id: string; nombre: string } | null;
   usuario: { id: string; nombre: string };
@@ -97,6 +99,8 @@ export function mapVentaToIVenta(venta: VentaPrismaRow): IVenta {
     vueltoDetalle:
       (venta.vueltoDetalle as IVenta["vueltoDetalle"]) ?? undefined,
     tasaSnapshot: (venta.tasaSnapshot as IVenta["tasaSnapshot"]) ?? undefined,
+    tipTotal: Number(venta.tipTotal ?? 0),
+    tipDetail: (venta.tipDetail as IVenta["tipDetail"]) ?? undefined,
   };
 }
 
@@ -107,5 +111,7 @@ export function mapMultimonedaFields(venta: VentaPrismaRow) {
     vueltoDetalle:
       (venta.vueltoDetalle as IVenta["vueltoDetalle"]) ?? undefined,
     tasaSnapshot: (venta.tasaSnapshot as IVenta["tasaSnapshot"]) ?? undefined,
+    tipTotal: Number(venta.tipTotal ?? 0),
+    tipDetail: (venta.tipDetail as IVenta["tipDetail"]) ?? undefined,
   };
 }

@@ -131,9 +131,7 @@ export async function DELETE(
       // Lock the sale line and confirm it is still there before returning stock:
       // repeating the return would increment the quantity twice. The second
       // execution waits here and finds it already deleted.
-      if (
-        !(await lockExistingRow(tx, "VentaProducto", ventaProductoId))
-      ) {
+      if (!(await lockExistingRow(tx, "VentaProducto", ventaProductoId))) {
         return;
       }
 
@@ -220,6 +218,10 @@ export async function DELETE(
         ];
       }
 
+      // `tipTotal`/`tipDetail` se dejan intactos a propósito: la propina no
+      // es proporcional a los productos de la venta, es un monto que el
+      // cliente decidió. Quitar un producto no reduce lo que dejó al
+      // personal, y el dinero sigue físicamente en la caja.
       await tx.venta.update({
         where: { id: ventaId },
         data: {

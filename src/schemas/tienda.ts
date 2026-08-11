@@ -1,13 +1,13 @@
-import { z } from 'zod';
-import { usuarioSchema } from './usuario';
-import { rolSchema } from './rol';
+import { z } from "zod";
+import { usuarioSchema } from "./usuario";
+import { rolSchema } from "./rol";
 
-export const TipoLocalEnum = z.enum(['TIENDA', 'ALMACEN']);
+export const TipoLocalEnum = z.enum(["TIENDA", "ALMACEN"]);
 
 /** Backward-compatible TypeScript enum (consumed as TipoLocal.TIENDA etc.) */
 export enum TipoLocal {
-  TIENDA = 'TIENDA',
-  ALMACEN = 'ALMACEN',
+  TIENDA = "TIENDA",
+  ALMACEN = "ALMACEN",
 }
 
 export const usuarioTiendaSchema = z.object({
@@ -23,7 +23,7 @@ export const usuarioTiendaSchema = z.object({
 
 export const tiendaSchema = z.object({
   id: z.string().uuid(),
-  nombre: z.string().min(1, 'El nombre es requerido'),
+  nombre: z.string().min(1, "El nombre es requerido"),
   negocioId: z.string().uuid(),
   tipo: z.string(),
   usuarios: z.array(usuarioSchema).optional(),
@@ -31,12 +31,16 @@ export const tiendaSchema = z.object({
 });
 
 export const createTiendaSchema = z.object({
-  nombre: z.string().min(1, 'El nombre es requerido'),
+  nombre: z.string().min(1, "El nombre es requerido"),
   tipo: z.string(),
-  usuariosRoles: z.array(z.object({
-    usuarioId: z.string().uuid(),
-    rolId: z.string().uuid().optional(),
-  })).optional(),
+  usuariosRoles: z
+    .array(
+      z.object({
+        usuarioId: z.string().uuid(),
+        rolId: z.string().uuid().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const updateTiendaSchema = createTiendaSchema.partial();

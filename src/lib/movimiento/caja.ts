@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
 import { applyGastosToResumenMap } from "@/lib/gastos";
+import { buildResumenPropinas } from "@/lib/tips";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { Prisma } from "@prisma/client";
@@ -257,6 +258,10 @@ export type ResumenCajaMoneda = {
   // fondoInicial + ventasEfectivo - gastos - compras/devoluciones en efectivo.
   totalEsperado: number;
   equivalenteBase: number;
+  // Propina en efectivo, ya incluida en ventasEfectivo y totalEsperado. Se
+  // expone aparte para que el cajero sepa cuánto de la gaveta no es del
+  // negocio, sin alterar el total contra el que se cuenta el efectivo.
+  tipCash: number;
 };
 
 /**
@@ -285,7 +290,12 @@ async function construirResumenCajaAbierta(
   ] = await Promise.all([
     client.venta.findMany({
       where: { cierrePeriodoId: periodoAbierto.id },
-      select: { pagosDetalle: true, vueltoDetalle: true, tasaSnapshot: true },
+      select: {
+        pagosDetalle: true,
+        vueltoDetalle: true,
+        tasaSnapshot: true,
+        tipDetail: true,
+      },
     }),
     client.gastoCierre.findMany({ where: { cierreId: periodoAbierto.id } }),
     client.movimientoStock.findMany({
@@ -343,12 +353,21 @@ async function construirResumenCajaAbierta(
     tasas,
   );
 
+  // Las propinas se agregan aparte y NO se restan de la caja: el billete
+  // sigue en la gaveta hasta que alguien lo reparta, así que el efectivo
+  // esperado debe seguir incluyéndolo.
+  const propinasPorMoneda = buildResumenPropinas(ventas, monedaBase, tasas);
+  const tipCashPorMoneda = Object.fromEntries(
+    propinasPorMoneda.map((p) => [p.monedaCode, p.tipCash]),
+  );
+
   return Object.entries(resumenMonedaMap).map(([monedaCode, vals]) => ({
     monedaCode,
     fondoInicial: initialFundAmounts[monedaCode] ?? 0,
     ventasEfectivo: ventasEfectivoPorMoneda[monedaCode] ?? 0,
     totalEsperado: vals.totalEfectivo,
     equivalenteBase: vals.equivalenteBase,
+    tipCash: tipCashPorMoneda[monedaCode] ?? 0,
   }));
 }
 

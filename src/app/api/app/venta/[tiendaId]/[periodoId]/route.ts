@@ -7,6 +7,7 @@ import { IVenta } from "@/schemas/venta";
 import { pagosDetalleAppSchema, vueltoDetalleSchema } from "@/schemas/pago";
 import { tasaSnapshotSchema } from "@/schemas/tasaCambio";
 import { mapVentaToIVenta } from "@/lib/ventaMapper";
+import { validateTip } from "@/lib/tips";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 
 // Tipos auxiliares
@@ -69,6 +70,8 @@ export async function POST(
       pagosDetalle,
       vueltoDetalle,
       tasaSnapshot,
+      tipTotal,
+      tipDetail,
     } = await request.json();
 
     syncId = syncIdBody;
@@ -260,6 +263,31 @@ export async function POST(
       discountCalcResult = null;
     }
 
+    const tiendaConNegocio = await prisma.tienda.findUnique({
+      where: { id: tiendaId },
+      select: { negocio: { select: { monedaBase: true } } },
+    });
+    const monedaBase = tiendaConNegocio?.negocio?.monedaBase ?? "CUP";
+
+    // Igual que en el POS web: la propina no se deriva, se valida contra el
+    // excedente realmente cobrado.
+    const ventaTotal = discountCalcResult
+      ? Number(discountCalcResult.finalTotal)
+      : Math.max(0, Number(total) || 0);
+    const tipCheck = validateTip({
+      tipTotal,
+      tipDetail,
+      pagosDetalle,
+      vueltoDetalle,
+      tasaSnapshot,
+      total: ventaTotal,
+      monedaBase,
+    });
+    if (!tipCheck.ok) {
+      console.error("❌ [APP/VENTA/POST] Propina inválida:", tipCheck.error);
+      return NextResponse.json({ error: tipCheck.error }, { status: 400 });
+    }
+
     // Transacción atómica: SOLO escrituras
     const result = await prisma.$transaction(
       async (tx) => {
@@ -296,6 +324,9 @@ export async function POST(
             ...(pagosDetalle && { pagosDetalle }),
             ...(vueltoDetalle && { vueltoDetalle }),
             ...(tasaSnapshot && { tasaSnapshot }),
+            // Propina — validada arriba contra el excedente cobrado.
+            tipTotal: tipCheck.tipTotal,
+            ...(tipCheck.tipDetail && { tipDetail: tipCheck.tipDetail }),
           },
           include: { productos: true },
         });

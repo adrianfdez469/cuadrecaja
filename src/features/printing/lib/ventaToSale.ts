@@ -38,5 +38,7 @@ export function ventaToSale(venta: IVenta): Sale {
       ?.map((d) => d.ruleName)
       .filter((n): n is string => !!n),
     discountTotal: venta.discountTotal,
+    tipTotal: venta.tipTotal,
+    tipDetail: venta.tipDetail,
   };
 }

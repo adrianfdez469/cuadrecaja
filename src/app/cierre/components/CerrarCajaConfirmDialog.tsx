@@ -334,6 +334,24 @@ export default function CerrarCajaConfirmDialog({
                   {formatCurrency(gananciaFinalEstimada)}
                 </Typography>
               </Box>
+
+              {/* Fuera del cálculo a propósito: la propina no resta de la
+                  ganancia ni de la caja. Se recuerda aquí porque el cierre es
+                  el momento en que hay que sacarla de la gaveta. */}
+              {(cierreData.totalTips || 0) > 0 && (
+                <Box display="flex" justifyContent="space-between">
+                  <Typography variant="body2" color="secondary.main">
+                    Propinas a repartir (aparte)
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="secondary.main"
+                    fontWeight="bold"
+                  >
+                    {formatCurrency(cierreData.totalTips || 0)}
+                  </Typography>
+                </Box>
+              )}
             </Stack>
             {esNegativa && (
               <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>

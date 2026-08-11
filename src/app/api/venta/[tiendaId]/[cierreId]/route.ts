@@ -5,6 +5,7 @@ import { IVenta } from "@/schemas/venta";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import { applyDiscountsForSale } from "@/lib/discounts";
 import { calcularEfectivoDisponiblePorMoneda } from "@/lib/movimiento/caja";
+import { validateTip } from "@/lib/tips";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 
 // El vuelto solicitado en una venta en tiempo real supera el efectivo
@@ -72,6 +73,10 @@ export async function POST(
       pagosDetalle,
       vueltoDetalle,
       tasaSnapshot,
+      // Propina — a diferencia del descuento, el servidor no puede derivarla
+      // (es una decisión del cajero), solo validar que tenga respaldo en caja.
+      tipTotal,
+      tipDetail,
     } = await req.json();
 
     syncId = syncIdBody;
@@ -272,6 +277,23 @@ export async function POST(
     });
     const monedaBase = tiendaConNegocio?.negocio?.monedaBase ?? "CUP";
 
+    // La propina se valida fuera de la transacción: solo compara números del
+    // propio payload, no toca la base. Una propina sin respaldo en lo cobrado
+    // inflaría todos los reportes de propina sin que la caja cambie.
+    const tipCheck = validateTip({
+      tipTotal,
+      tipDetail,
+      pagosDetalle: pagosDetalle as IPagoLinea[] | undefined,
+      vueltoDetalle: vueltoDetalle as IVueltoLinea[] | undefined,
+      tasaSnapshot,
+      total: Math.max(0, Number(total) || 0),
+      monedaBase,
+    });
+    if (!tipCheck.ok) {
+      console.error("❌ [POST /api/venta] Propina inválida:", tipCheck.error);
+      return NextResponse.json({ error: tipCheck.error }, { status: 400 });
+    }
+
     // **TRANSACCIÓN ATÓMICA: Todo o nada (SOLO escrituras)**
     const result = await prisma.$transaction(
       async (tx) => {
@@ -358,6 +380,9 @@ export async function POST(
             ...(pagosDetalle && { pagosDetalle }),
             ...(vueltoDetalle && { vueltoDetalle }),
             ...(tasaSnapshot && { tasaSnapshot }),
+            // Propina — ya validada contra el excedente realmente cobrado.
+            tipTotal: tipCheck.tipTotal,
+            ...(tipCheck.tipDetail && { tipDetail: tipCheck.tipDetail }),
           },
           include: {
             productos: true,
@@ -740,6 +765,9 @@ export async function GET(
         undefined,
       tasaSnapshot:
         (venta.tasaSnapshot as unknown as IVenta["tasaSnapshot"]) ?? undefined,
+      tipTotal: Number(venta.tipTotal ?? 0),
+      tipDetail:
+        (venta.tipDetail as unknown as IVenta["tipDetail"]) ?? undefined,
     }));
 
     return NextResponse.json(ventas);

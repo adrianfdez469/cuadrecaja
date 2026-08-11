@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -21,6 +21,7 @@ import {
 } from "@/app/pos/components/checkout/AddPaymentSheet";
 import { ChangeSheet } from "@/app/pos/components/checkout/ChangeSheet";
 import { ChangeSummary } from "@/app/pos/components/checkout/ChangeSummary";
+import { TipSheet } from "@/app/pos/components/checkout/TipSheet";
 import { usePaymentLines } from "@/app/pos/components/checkout/usePaymentLines";
 import { useChangeDistribution } from "@/app/pos/components/checkout/useChangeDistribution";
 import {
@@ -34,9 +35,16 @@ import {
 import type { PaymentLine } from "@/app/pos/utils/paymentMath";
 import { toVueltoLineas } from "@/app/pos/utils/changeMath";
 import { suggestedAmounts } from "@/app/pos/utils/suggestedAmounts";
+import {
+  tipLinesFromAmounts,
+  tipLinesFromChange,
+  tipTotalBase,
+  tipTotalFromAmounts,
+  type TipAmounts,
+} from "@/app/pos/utils/tipMath";
 import { convertFromBase, convertToBase } from "@/lib/currency";
 import { DENOMINACIONES } from "@/constants/billDenominations";
-import type { IMultimonedaExtras } from "@/schemas/pago";
+import type { IMultimonedaExtras, IPagoLinea } from "@/schemas/pago";
 import type { ITransferDestination } from "@/schemas/transferDestination";
 
 interface CheckoutViewProps {
@@ -80,6 +88,34 @@ export function CheckoutView({
 }: CheckoutViewProps) {
   const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
 
+  /**
+   * Tip taken from the change the cashier was about to hand back. Stored as
+   * the already-resolved split rather than an amount, because committing it
+   * makes the change zero — recomputing it afterwards would find nothing.
+   * The signature is the payment state it was captured against; editing the
+   * payment invalidates it (see the effect below) so a stale tip can never
+   * outlive the overpayment that backed it.
+   */
+  const [tipFromChange, setTipFromChange] = useState<{
+    signature: string;
+    detail: IPagoLinea[];
+  } | null>(null);
+  /**
+   * Tip typed per currency, each amount in its own currency. Not a single
+   * base-currency number: the tip need not be in the currency the sale was
+   * paid with, and it can be split across several.
+   */
+  const [explicitTip, setExplicitTip] = useState<TipAmounts>({});
+
+  const tipTotal = tipFromChange
+    ? tipTotalBase(tipFromChange.detail)
+    : tipTotalFromAmounts(explicitTip, tasasVigentes, monedaBase);
+
+  // What the customer actually has to cover. Everything downstream — the
+  // preloaded line, "falta", the change — is measured against this, never
+  // against finalTotal, which is the business's share alone.
+  const amountDue = Math.round((finalTotal + tipTotal) * 100) / 100;
+
   const monedasActivas = useMemo(
     () => monedasNegocio.filter((m) => m.activo),
     [monedasNegocio],
@@ -118,13 +154,13 @@ export function CheckoutView({
     (currentLines: PaymentLine[], currency: string, ignoreIds: string[]) =>
       pendingInCurrency(
         currentLines,
-        finalTotal,
+        amountDue,
         currency,
         tasasVigentes,
         monedaBase,
         ignoreIds,
       ),
-    [finalTotal, tasasVigentes, monedaBase],
+    [amountDue, tasasVigentes, monedaBase],
   );
 
   const {
@@ -138,7 +174,7 @@ export function CheckoutView({
     setTransferAmount,
     setTransferDestination,
   } = usePaymentLines({
-    finalTotal,
+    finalTotal: amountDue,
     monedaBase,
     denominationsFor,
     defaultTransferDestId: defaultDestId(transferDestinations),
@@ -179,8 +215,30 @@ export function CheckoutView({
   }, [lines]);
 
   const paid = paidBase(lines, tasasVigentes, monedaBase);
-  const missing = finalTotal === 0 ? false : isMissing(paid, finalTotal);
-  const change = changeBase(paid, finalTotal);
+  const missing = amountDue === 0 ? false : isMissing(paid, amountDue);
+  const change = changeBase(paid, amountDue);
+
+  /** The payment state a committed tip was captured against. */
+  const linesSignature = useMemo(
+    () =>
+      lines
+        .map(
+          (line) =>
+            `${line.kind}:${line.currency}:${line.amount}:${line.transferDestinationId ?? ""}`,
+        )
+        .join("|"),
+    [lines],
+  );
+
+  // Editing the payment after leaving the change as a tip drops the tip
+  // rather than carrying it onto an overpayment that may no longer exist.
+  // Re-tapping is one gesture; a tip with no cash behind it would be
+  // rejected by the server at the end of the sale, which is far worse.
+  useEffect(() => {
+    if (tipFromChange && tipFromChange.signature !== linesSignature) {
+      setTipFromChange(null);
+    }
+  }, [linesSignature, tipFromChange]);
 
   const allCurrencies = useMemo(() => {
     const codes = new Set<string>([monedaBase]);
@@ -210,6 +268,7 @@ export function CheckoutView({
 
   const [addOpen, setAddOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
+  const [tipOpen, setTipOpen] = useState(false);
   // The exit transition keeps this view mounted for ~200 ms after a sale is
   // submitted; without this guard a second tap would send a second sale.
   const [submitting, setSubmitting] = useState(false);
@@ -259,7 +318,7 @@ export function CheckoutView({
       const { isBase, allowsCash, allowsTransfer } = supportFor(currency);
       const pending = pendingInCurrency(
         lines,
-        finalTotal,
+        amountDue,
         currency,
         tasasVigentes,
         monedaBase,
@@ -317,7 +376,7 @@ export function CheckoutView({
     monedaBase,
     supportFor,
     lines,
-    finalTotal,
+    amountDue,
     tasasVigentes,
     denominationsFor,
     dirty,
@@ -338,10 +397,10 @@ export function CheckoutView({
   const canSell =
     !submitting &&
     // Spec section 5.7: never submit against an empty basket. Without this a
-    // post-sale remount lands on finalTotal === 0 with a fresh submit ref and
+    // post-sale remount lands on amountDue === 0 with a fresh submit ref and
     // re-enables the button.
     itemCount > 0 &&
-    (finalTotal === 0 ? lines.length > 0 : !missing) &&
+    (amountDue === 0 ? lines.length > 0 : !missing) &&
     !needsTransferDestination &&
     !hasErrors;
 
@@ -353,12 +412,27 @@ export function CheckoutView({
     const pagosDetalle = toPagoLineas(lines, tasasVigentes, monedaBase);
     const vueltoDetalle = toVueltoLineas(distribution);
 
-    const totalCashBase = pagosDetalle
-      .filter((p) => p.tipo === "cash")
-      .reduce((sum, p) => sum + p.equivalenteBase, 0);
-    const totalTransferBase = pagosDetalle
-      .filter((p) => p.tipo === "transfer")
-      .reduce((sum, p) => sum + p.equivalenteBase, 0);
+    // Where the tip sits, by currency and method. The split kept from the
+    // change is exact by construction; an explicit tip has to be attributed
+    // to the payments actually taken.
+    const tipDetail = tipFromChange
+      ? tipFromChange.detail
+      : tipLinesFromAmounts(explicitTip, lines, tasasVigentes, monedaBase);
+
+    const sumBase = (source: IPagoLinea[], kind: "cash" | "transfer") =>
+      source
+        .filter((p) => p.tipo === kind)
+        .reduce((sum, p) => sum + p.equivalenteBase, 0);
+
+    // The aggregates stand for the sale's own money, so the tip comes out of
+    // them — `Venta.totalcash + totaltransfer` must still add up to `total`,
+    // and a tip settled by transfer would otherwise push totaltransfer past
+    // it. The untouched `pagosDetalle` keeps the full amount handed over, so
+    // the drawer is unaffected.
+    const totalCashBase =
+      sumBase(pagosDetalle, "cash") - sumBase(tipDetail, "cash");
+    const totalTransferBase =
+      sumBase(pagosDetalle, "transfer") - sumBase(tipDetail, "transfer");
     const firstTransferDestId = pagosDetalle.find(
       (p) => p.tipo === "transfer",
     )?.transferDestinationId;
@@ -369,12 +443,15 @@ export function CheckoutView({
       vueltoDetalle,
       tasaSnapshot: tasasVigentes,
       ...(discountTotal > 0 ? { discountTotal } : {}),
+      ...(tipTotal > 0 ? { tipTotal, tipDetail } : {}),
     };
 
     // The parent switches back to the cart step, which unmounts this view and
     // therefore resets both hooks — no explicit reset needed here.
     onSaleComplete();
 
+    // The sale's own total, never amountDue: the tip is not revenue and must
+    // not reach `Venta.total`.
     await makePay(
       finalTotal,
       totalCashBase,
@@ -429,8 +506,11 @@ export function CheckoutView({
             rather than beside it — on this screen the header competes with
             the payment cards for height, and a second line costs less width
             than a row that wraps. */}
+        {/* The amount to collect, tip included — it is the figure the cashier
+            reads out to the customer. What the tip is made of stays in the
+            footer, next to the change it usually comes from. */}
         <MultiCurrencyAmount
-          amount={finalTotal}
+          amount={amountDue}
           variant="hero"
           color="success.main"
           align="right"
@@ -460,7 +540,7 @@ export function CheckoutView({
                   line={cashLine}
                   pending={pendingInCurrency(
                     lines,
-                    finalTotal,
+                    amountDue,
                     group.currency,
                     tasasVigentes,
                     monedaBase,
@@ -481,7 +561,7 @@ export function CheckoutView({
                     group.transferLine
                       ? pendingInCurrency(
                           lines,
-                          finalTotal,
+                          amountDue,
                           group.currency,
                           tasasVigentes,
                           monedaBase,
@@ -510,7 +590,7 @@ export function CheckoutView({
                 line={transferLine}
                 pending={pendingInCurrency(
                   lines,
-                  finalTotal,
+                  amountDue,
                   group.currency,
                   tasasVigentes,
                   monedaBase,
@@ -573,13 +653,36 @@ export function CheckoutView({
       >
         <ChangeSummary
           missing={missing}
-          missingAmount={Math.max(0, finalTotal - paid)}
+          missingAmount={Math.max(0, amountDue - paid)}
           changeAmount={change}
           distribution={distribution}
           hasAlternatives={options.length > 1}
           base={monedaBase}
           error={firstError}
           canSell={canSell}
+          tipAmount={tipTotal}
+          onLeaveTip={() => {
+            setExplicitTip({});
+            setTipFromChange({
+              signature: linesSignature,
+              // The split already chosen and checked against the drawer: the
+              // currency kept is the currency that was about to leave it.
+              detail: tipLinesFromChange(
+                distribution,
+                tasasVigentes,
+                monedaBase,
+              ),
+            });
+          }}
+          onOpenTip={() => setTipOpen(true)}
+          onClearTip={
+            tipTotal > 0
+              ? () => {
+                  setTipFromChange(null);
+                  setExplicitTip({});
+                }
+              : undefined
+          }
           onOpenDetail={() => setChangeOpen(true)}
           onSell={handleSell}
         />
@@ -612,6 +715,33 @@ export function CheckoutView({
           }
           addLine(option.kind, option.currency, option.suggested);
           setAddOpen(false);
+        }}
+      />
+
+      <TipSheet
+        open={tipOpen}
+        currencies={allCurrencies}
+        // Reabrir la propina tomada del vuelto la muestra en la moneda en que
+        // realmente quedó, no vacía: editarla desde ahí es continuar, no
+        // empezar de cero.
+        value={
+          tipFromChange
+            ? Object.fromEntries(
+                tipFromChange.detail.map((linea) => [
+                  linea.moneda,
+                  linea.monto,
+                ]),
+              )
+            : explicitTip
+        }
+        rates={tasasVigentes}
+        base={monedaBase}
+        onClose={() => setTipOpen(false)}
+        onConfirm={(amounts) => {
+          // Escribir un monto sustituye la propina tomada del vuelto: dos
+          // orígenes para un mismo número serían ambiguos de deshacer.
+          setTipFromChange(null);
+          setExplicitTip(amounts);
         }}
       />
 

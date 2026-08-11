@@ -43,6 +43,7 @@ import {
   formatMoneda,
   pagadaConUnSoloPago,
 } from "@/lib/currency";
+import { SaleExtrasSummary } from "@/components/SaleExtrasSummary";
 import { usePermisos } from "@/utils/permisos_front";
 import { usePrinter } from "@/features/printing/hooks/usePrinter";
 import { ventaToSale } from "@/features/printing/lib/ventaToSale";
@@ -232,9 +233,10 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
           </Grid>
         </Grid>
 
-        {/* Detalle de pago, vuelto y tasa de cambio de la venta */}
+        {/* Detalle de pago, vuelto, propina y tasa de cambio de la venta */}
         {(venta.pagosDetalle?.length ||
           venta.vueltoDetalle?.length ||
+          Number(venta.tipTotal || 0) > 0 ||
           venta.tasaSnapshot) && (
           <Card sx={{ mb: 3 }}>
             <CardContent>
@@ -287,37 +289,14 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                 </Box>
               )}
 
-              {!!venta.vueltoDetalle?.length && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Vuelto entregado
-                  </Typography>
-                  <Stack spacing={0.5}>
-                    {venta.vueltoDetalle.map((vuelto, idx) => (
-                      <Box
-                        key={idx}
-                        display="flex"
-                        justifyContent="space-between"
-                        sx={{
-                          py: 0.5,
-                          px: 1,
-                          borderRadius: 1,
-                          bgcolor: "warning.50",
-                        }}
-                      >
-                        <Typography variant="body2">Vuelto</Typography>
-                        <Typography
-                          variant="body2"
-                          fontWeight="medium"
-                          color="warning.main"
-                        >
-                          {formatMoneda(vuelto.monto, "", 2)} {vuelto.moneda}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Stack>
-                </Box>
-              )}
+              <Box sx={{ mb: 2 }}>
+                <SaleExtrasSummary
+                  vueltoDetalle={venta.vueltoDetalle}
+                  tipTotal={venta.tipTotal}
+                  tipDetail={venta.tipDetail}
+                  monedaBase={monedaBase}
+                />
+              </Box>
 
               {!!venta.tasaSnapshot &&
                 Object.keys(venta.tasaSnapshot).length > 0 && (
@@ -326,11 +305,14 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                       Tasas de cambio vigentes al momento de la venta
                     </Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {/* Las tasas se guardan siempre contra CUP, el ancla
+                          universal (ver `cupTasa` en @/lib/currency) — no
+                          contra la moneda base del negocio. */}
                       {Object.entries(venta.tasaSnapshot).map(
                         ([moneda, tasa]) => (
                           <Chip
                             key={moneda}
-                            label={`1 ${moneda} = ${formatMoneda(tasa, "", 2)} ${monedaBase}`}
+                            label={`1 ${moneda} = ${formatMoneda(tasa, "", 2)} CUP`}
                             size="small"
                             variant="outlined"
                           />

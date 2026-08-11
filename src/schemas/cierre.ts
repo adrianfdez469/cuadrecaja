@@ -22,6 +22,7 @@ export const cierrePeriodoSchema = z.object({
   totalComprasCaja: z.number().optional(),
   totalMerma: z.number().optional(),
   totalDevoluciones: z.number().optional(),
+  totalTips: z.number().optional(),
 });
 
 const cierreProductoVendidosSchema = z.object({
@@ -48,6 +49,10 @@ const resumenMonedaCierreSchema = z.object({
   equivalenteBaseBruto: z.number().optional(),
   // Fondo inicial de caja de esta moneda, ya incluido en totalEfectivo/equivalenteBase
   initialFund: z.number().optional(),
+  // Propina incluida en totalEfectivo/totalTransfer. Informativa: no se resta
+  // de la caja, el conteo de billetes sigue cuadrando contra totalEfectivo.
+  tipCash: z.number().optional(),
+  tipTransfer: z.number().optional(),
 });
 
 export type IResumenMonedaCierre = z.infer<typeof resumenMonedaCierreSchema>;
@@ -97,6 +102,18 @@ export const cierreDataSchema = z.object({
       total: z.number(),
     }),
   ),
+  // Propinas del período, en moneda base. Nunca forman parte de totalVentas
+  // ni de la ganancia: el desglose por cajero es lo que permite repartirlas.
+  totalTips: z.number().optional(),
+  tipsPorUsuario: z
+    .array(
+      z.object({
+        id: z.string(),
+        nombre: z.string(),
+        total: z.number(),
+      }),
+    )
+    .optional(),
   resumenMonedas: z.array(resumenMonedaCierreSchema).optional(),
   totalGastos: z.number().optional(),
   totalGananciaFinal: z.number().optional(),
@@ -143,6 +160,7 @@ export const summaryCierreSchema = z.object({
   sumTotalDevoluciones: z.number().optional(),
   sumTotalComprasCaja: z.number().optional(),
   sumTotalGananciaFinal: z.number().optional(),
+  sumTotalTips: z.number().optional(),
 });
 
 export type ICierrePeriodo = z.infer<typeof cierrePeriodoSchema>;
