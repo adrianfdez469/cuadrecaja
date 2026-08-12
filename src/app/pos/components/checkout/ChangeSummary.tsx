@@ -29,6 +29,8 @@ interface ChangeSummaryProps {
   base: string;
   /** Drawer balance shortfall, shown inline next to the disabled button. */
   error: { available: number; currency: string } | null;
+  /** How much a hand-typed split exceeds the change by, in base. 0 otherwise. */
+  overshootBase: number;
   canSell: boolean;
   /** Tip already committed on this sale, in base currency. */
   tipAmount: number;
@@ -50,6 +52,7 @@ export function ChangeSummary({
   hasAlternatives,
   base,
   error,
+  overshootBase,
   canSell,
   tipAmount,
   onLeaveTip,
@@ -60,7 +63,12 @@ export function ChangeSummary({
 }: ChangeSummaryProps) {
   const theme = useTheme();
   const hasChange = !missing && changeAmount > 0;
-  const tone = missing || error ? "error" : hasChange ? "success" : "neutral";
+  const tone =
+    missing || error || overshootBase > 0
+      ? "error"
+      : hasChange
+        ? "success"
+        : "neutral";
   // Only worth opening when there is something else to pick. A single
   // possible split makes the sheet a dead end.
   const interactive = hasChange && hasAlternatives;
@@ -159,6 +167,15 @@ export function ChangeSummary({
           {hasAlternatives
             ? " Elige otra forma de dar el cambio."
             : " Reparte el cambio en otra moneda."}
+        </Typography>
+      )}
+
+      {/* Only a hand-typed split can overshoot, and the row that produced it
+          is one tap away — the fix is in the sheet, not here. */}
+      {overshootBase > 0 && (
+        <Typography variant="caption" color="error" fontWeight={600}>
+          El reparto entrega {formatMontoEnMoneda(overshootBase, base)} de más.
+          Ajústalo.
         </Typography>
       )}
 

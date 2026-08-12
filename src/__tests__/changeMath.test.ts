@@ -3,6 +3,7 @@ import {
   changeAvailability,
   changeErrors,
   changeOptions,
+  customChangeSplit,
   hasChangeErrors,
   mainCashCurrency,
   toVueltoLineas,
@@ -308,6 +309,87 @@ describe("changeOptions", () => {
       STANDARD,
     );
     expect(other[0].id).not.toBe(first[0].id);
+  });
+});
+
+describe("customChangeSplit", () => {
+  const split = (amounts: Record<string, number>, changeBase: number) =>
+    customChangeSplit(amounts, changeBase, RATES, BASE, CURRENCIES, STANDARD);
+
+  it("settles what the typed amounts leave over in the finest currency", () => {
+    // 2 USD = 700 CUP of a 1750 CUP change.
+    expect(split({ USD: 2 }, 1750).distribution).toEqual({
+      USD: 2,
+      CUP: 1050,
+    });
+  });
+
+  it("gives the whole change in the finest currency when nothing is typed", () => {
+    expect(split({}, 1750).distribution).toEqual({ CUP: 1750 });
+  });
+
+  it("adds up to the change owed for any typed amount", () => {
+    for (const usd of [0, 1, 2.5, 3, 4.75]) {
+      const { distribution } = split({ USD: usd }, 1750);
+      const total =
+        (distribution.USD ?? 0) * RATES.USD + (distribution.CUP ?? 0);
+      expect(total).toBeGreaterThanOrEqual(1750);
+      // Never over by more than the finest bill it had to round up to.
+      expect(total).toBeLessThan(1750 + 1);
+    }
+  });
+
+  it("accepts amounts off the denomination grid — that is what it is for", () => {
+    expect(split({ USD: 2.5 }, 1750).distribution).toEqual({
+      USD: 2.5,
+      CUP: 875,
+    });
+  });
+
+  it("ignores an amount typed for the remainder currency itself", () => {
+    // It is computed, not stated: honouring it would let the split miss.
+    expect(split({ CUP: 9999, USD: 1 }, 1750).distribution).toEqual({
+      USD: 1,
+      CUP: 1400,
+    });
+  });
+
+  it("drops the remainder when the typed amounts cover the change exactly", () => {
+    expect(split({ USD: 5 }, 1750).distribution).toEqual({ USD: 5 });
+  });
+
+  it("reports how far past the change the typed amounts go", () => {
+    const { distribution, overshootBase } = split({ USD: 6 }, 1750);
+    expect(overshootBase).toBe(350);
+    expect(distribution).toEqual({ USD: 6 });
+  });
+
+  it("has no overshoot while the typed amounts still fit", () => {
+    expect(split({ USD: 4 }, 1750).overshootBase).toBe(0);
+  });
+
+  it("keeps the typed currencies ahead of the remainder, as they are counted", () => {
+    expect(Object.keys(split({ USD: 2 }, 1750).distribution)).toEqual([
+      "USD",
+      "CUP",
+    ]);
+  });
+
+  it("settles the remainder away from base when base is the coarse currency", () => {
+    // Casa de Cristal: base USD, remainders in CUP. Rounding a 0.33 USD
+    // leftover up to a whole dollar would hand over money never owed.
+    // Base is USD, so a CUP is worth 1/350 of the base unit.
+    const rates: ITasaSnapshot = { USD: 350 };
+    const result = customChangeSplit(
+      {},
+      63.33,
+      rates,
+      "USD",
+      ["USD", "CUP"],
+      STANDARD,
+    );
+    expect(result.remainderCurrency).toBe("CUP");
+    expect(result.distribution).toEqual({ CUP: 22166 });
   });
 });
 

@@ -1,17 +1,25 @@
 "use client";
 
-import {
-  Box,
-  Button,
-  Drawer,
-  Radio,
-  Stack,
-  Typography,
-  alpha,
-  useTheme,
-} from "@mui/material";
+import { Button, Drawer, Stack, Typography } from "@mui/material";
+import { ChangeOptionRow } from "@/app/pos/components/checkout/ChangeOptionRow";
+import { CustomChangeFields } from "@/app/pos/components/checkout/CustomChangeFields";
 import { formatChangeSplit, formatMontoEnMoneda } from "@/utils/formatters";
-import type { ChangeErrors, ChangeOption } from "@/app/pos/utils/changeMath";
+import {
+  CUSTOM_CHANGE_ID,
+  type ChangeDistribution,
+  type ChangeErrors,
+  type ChangeOption,
+} from "@/app/pos/utils/changeMath";
+import type { ITasaSnapshot } from "@/schemas/tasaCambio";
+
+/** Everything the hand-typed row needs, as the hook hands it over. */
+interface CustomChangeState {
+  amounts: ChangeDistribution;
+  currencies: string[];
+  remainderCurrency: string;
+  remainderAmount: number;
+  setAmount: (currency: string, amount: number) => void;
+}
 
 interface ChangeSheetProps {
   open: boolean;
@@ -21,16 +29,24 @@ interface ChangeSheetProps {
   unavailableIds: Set<string>;
   /** Drawer shortfalls for the currently selected split. */
   errors: ChangeErrors;
+  /** How much the typed split exceeds the change by, in base. 0 otherwise. */
+  overshootBase: number;
+  custom: CustomChangeState;
   changeTotalBase: number;
+  rates: ITasaSnapshot;
   base: string;
   onClose: () => void;
   onSelect: (id: string) => void;
 }
 
 /**
- * Picks how to hand the change over. Every row is a complete, pre-computed
- * split, so there is no arithmetic for the cashier to get wrong and no way
- * to leave the drawer holding an amount that does not add up.
+ * Picks how to hand the change over. Every pre-computed row is a complete
+ * split, so there is no arithmetic for the cashier to get wrong and no way to
+ * leave the drawer holding an amount that does not add up.
+ *
+ * The last row is the way out for what those cannot express — a third
+ * currency, an amount off the denomination grid. It sits below them, and only
+ * when there is a currency to type into: it is the exception, not the offer.
  */
 export function ChangeSheet({
   open,
@@ -38,13 +54,16 @@ export function ChangeSheet({
   selectedId,
   unavailableIds,
   errors,
+  overshootBase,
+  custom,
   changeTotalBase,
+  rates,
   base,
   onClose,
   onSelect,
 }: ChangeSheetProps) {
-  const theme = useTheme();
   const firstError = Object.values(errors).find((error) => error !== null);
+  const customSelected = selectedId === CUSTOM_CHANGE_ID;
 
   return (
     <Drawer
@@ -80,39 +99,18 @@ export function ChangeSheet({
             const selected = option.id === selectedId;
             const unavailable = unavailableIds.has(option.id);
             return (
-              <Box
+              <ChangeOptionRow
                 key={option.id}
-                role="radio"
-                aria-checked={selected}
-                tabIndex={0}
-                onClick={() => onSelect(option.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelect(option.id);
-                  }
-                }}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  p: 1.25,
-                  minHeight: 56,
-                  borderRadius: 2,
-                  cursor: "pointer",
-                  border: "1px solid",
-                  borderColor: selected ? "primary.main" : "divider",
-                  bgcolor: selected
-                    ? alpha(theme.palette.primary.main, 0.08)
-                    : "transparent",
-                  "&:focus-visible": {
-                    outline: "2px solid",
-                    outlineColor: "primary.main",
-                    outlineOffset: 2,
-                  },
-                }}
+                selected={selected}
+                onSelect={() => onSelect(option.id)}
+                end={
+                  unavailable && (
+                    <Typography variant="caption" color="error">
+                      Sin saldo
+                    </Typography>
+                  )
+                }
               >
-                <Radio checked={selected} tabIndex={-1} size="small" />
                 <Typography
                   variant="body1"
                   fontWeight={selected ? 700 : 500}
@@ -121,15 +119,38 @@ export function ChangeSheet({
                 >
                   {formatChangeSplit(option.distribution)}
                 </Typography>
-                <Box flex={1} />
-                {unavailable && (
-                  <Typography variant="caption" color="error">
-                    Sin saldo
-                  </Typography>
-                )}
-              </Box>
+              </ChangeOptionRow>
             );
           })}
+
+          {custom.currencies.length > 0 && (
+            <ChangeOptionRow
+              selected={customSelected}
+              onSelect={() => onSelect(CUSTOM_CHANGE_ID)}
+              detail={
+                customSelected && (
+                  <CustomChangeFields
+                    currencies={custom.currencies}
+                    amounts={custom.amounts}
+                    remainderCurrency={custom.remainderCurrency}
+                    remainderAmount={custom.remainderAmount}
+                    overshootBase={overshootBase}
+                    rates={rates}
+                    base={base}
+                    onChange={custom.setAmount}
+                  />
+                )
+              }
+            >
+              <Typography
+                variant="body1"
+                fontWeight={customSelected ? 700 : 500}
+                color="text.primary"
+              >
+                Otro reparto
+              </Typography>
+            </ChangeOptionRow>
+          )}
         </Stack>
 
         {firstError && (

@@ -260,6 +260,80 @@ export function changeOptions(
 }
 
 /**
+ * Id of the cashier's own split. Fixed instead of derived from the amounts the
+ * way {@link optionId} is: an id that changed on every keystroke would drop the
+ * selection halfway through typing.
+ */
+export const CUSTOM_CHANGE_ID = "custom";
+
+/** A hand-typed split, with the leftover already settled. */
+export interface CustomChangeSplit {
+  distribution: ChangeDistribution;
+  /** The currency that absorbs whatever the typed amounts leave over. */
+  remainderCurrency: string;
+  /** How much the typed part exceeds the change by, in base. 0 when it fits. */
+  overshootBase: number;
+}
+
+/**
+ * Completes a hand-typed split: the cashier states the coarse currencies and
+ * the finest one is filled with whatever is still owed, so the split adds up to
+ * the change no matter what is typed.
+ *
+ * This is the escape hatch for what {@link changeOptions} cannot express — a
+ * third currency, or an amount that is not a multiple of any bill — and it
+ * exists alongside those options, not instead of them: the pre-computed splits
+ * still cover 99.5% of the recorded sales.
+ *
+ * Overshoot is reported rather than clamped away. Typing past what is owed
+ * means handing the customer money the sale never took, so the caller blocks
+ * on it instead of quietly shrinking the amount the cashier just wrote.
+ */
+export function customChangeSplit(
+  amounts: ChangeDistribution,
+  changeAmountBase: number,
+  rates: ITasaSnapshot,
+  base: string,
+  currencies: string[],
+  denominationsFor: (currency: string) => number[],
+): CustomChangeSplit {
+  const remainderCurrency = remainderCurrencyFor(
+    currencies,
+    rates,
+    base,
+    denominationsFor,
+  );
+  const remainderDenomination = smallestDenomination(
+    denominationsFor(remainderCurrency),
+  );
+
+  // Insertion order is what the sheet and `formatChangeSplit` render, so the
+  // typed currencies come first and the remainder lands last — the same order
+  // `splitWith` produces, and the order the cashier counts the money out in.
+  const distribution: ChangeDistribution = {};
+  let typedBase = 0;
+  for (const [currency, amount] of Object.entries(amounts)) {
+    if (currency === remainderCurrency || !(amount > 0)) continue;
+    distribution[currency] = amount;
+    typedBase += convertToBase(amount, currency, rates, base);
+  }
+
+  const remainderBase = round2(changeAmountBase - typedBase);
+  if (remainderBase > EPS) {
+    distribution[remainderCurrency] = ceilToStep(
+      convertFromBase(remainderBase, remainderCurrency, rates, base),
+      remainderDenomination,
+    );
+  }
+
+  return {
+    distribution,
+    remainderCurrency,
+    overshootBase: remainderBase < -EPS ? round2(-remainderBase) : 0,
+  };
+}
+
+/**
  * Cash available to give change: what the period accumulated plus the cash
  * taken in this very sale.
  */

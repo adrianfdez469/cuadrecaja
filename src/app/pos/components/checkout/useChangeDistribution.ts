@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   changeErrors,
   changeOptions,
+  customChangeSplit,
   hasChangeErrors,
+  CUSTOM_CHANGE_ID,
   type ChangeDistribution,
 } from "@/app/pos/utils/changeMath";
 import type { PaymentLine } from "@/app/pos/utils/paymentMath";
@@ -35,6 +37,7 @@ export function useChangeDistribution({
   cierreId,
 }: UseChangeDistributionArgs) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [customAmounts, setCustomAmounts] = useState<ChangeDistribution>({});
   const [drawerBalance, setDrawerBalance] = useState<Record<string, number>>(
     {},
   );
@@ -74,6 +77,54 @@ export function useChangeDistribution({
     ],
   );
 
+  /**
+   * The cashier's own split, kept alive next to the pre-computed ones: it is
+   * the way out for the handful of cases the generated list cannot express, not
+   * a replacement for it.
+   */
+  const custom = useMemo(
+    () =>
+      customChangeSplit(
+        customAmounts,
+        changeAmountBase,
+        rates,
+        base,
+        currencies,
+        denominationsFor,
+      ),
+    [
+      customAmounts,
+      changeAmountBase,
+      rates,
+      base,
+      currencies,
+      denominationsFor,
+    ],
+  );
+
+  /** Currencies the cashier types into — every one but the auto-filled remainder. */
+  const customCurrencies = useMemo(
+    () =>
+      currencies.filter((currency) => currency !== custom.remainderCurrency),
+    [currencies, custom.remainderCurrency],
+  );
+
+  // A typed split is a statement about one amount owed. Editing the payment
+  // makes it a claim about a number that no longer exists, so it is dropped
+  // rather than left to silently overshoot — the same thing that happens to a
+  // selected option, whose id is derived from the amounts and stops existing.
+  useEffect(() => {
+    setCustomAmounts({});
+    setSelectedId(null);
+  }, [changeAmountBase]);
+
+  const setCustomAmount = useCallback((currency: string, amount: number) => {
+    setCustomAmounts((prev) => ({ ...prev, [currency]: amount }));
+    // Typing is the selection: reaching for a field and then having to also
+    // tick its radio is a step that can only be forgotten.
+    setSelectedId(CUSTOM_CHANGE_ID);
+  }, []);
+
   const optionErrors = useMemo(
     () =>
       options.map((option) =>
@@ -111,6 +162,9 @@ export function useChangeDistribution({
     [options, optionErrors],
   );
 
+  const isCustom =
+    selectedId === CUSTOM_CHANGE_ID && customCurrencies.length > 0;
+
   // A selection only survives while the split it names still exists — option
   // ids are derived from the amounts, so any change to what is owed drops the
   // cashier back to the default rather than keeping a stale split.
@@ -120,8 +174,8 @@ export function useChangeDistribution({
   );
 
   const distribution: ChangeDistribution = useMemo(
-    () => selected?.distribution ?? {},
-    [selected],
+    () => (isCustom ? custom.distribution : (selected?.distribution ?? {})),
+    [isCustom, custom.distribution, selected],
   );
 
   const errors = useMemo(
@@ -129,13 +183,26 @@ export function useChangeDistribution({
     [distribution, lines, drawerBalance],
   );
 
+  // Overshoot only exists for the typed split, and it blocks the sale for the
+  // same reason a drawer shortfall does: the money cannot actually be handed
+  // over as stated.
+  const overshootBase = isCustom ? custom.overshootBase : 0;
+
   return {
     options,
     unavailableIds,
-    selectedId: selected?.id ?? null,
+    selectedId: isCustom ? CUSTOM_CHANGE_ID : (selected?.id ?? null),
     select: setSelectedId,
     distribution,
     errors,
-    hasErrors: hasChangeErrors(errors),
+    overshootBase,
+    hasErrors: hasChangeErrors(errors) || overshootBase > 0,
+    custom: {
+      amounts: customAmounts,
+      currencies: customCurrencies,
+      remainderCurrency: custom.remainderCurrency,
+      remainderAmount: custom.distribution[custom.remainderCurrency] ?? 0,
+      setAmount: setCustomAmount,
+    },
   };
 }

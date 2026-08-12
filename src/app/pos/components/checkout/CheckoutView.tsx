@@ -253,7 +253,9 @@ export function CheckoutView({
     select,
     distribution,
     errors,
+    overshootBase,
     hasErrors,
+    custom,
   } = useChangeDistribution({
     lines,
     changeAmountBase: change,
@@ -656,9 +658,13 @@ export function CheckoutView({
           missingAmount={Math.max(0, amountDue - paid)}
           changeAmount={change}
           distribution={distribution}
-          hasAlternatives={options.length > 1}
+          // The typed split is always one more way to give the change, so the
+          // sheet stops being a dead end as soon as there is a currency to
+          // type into — even when the generated list has a single row.
+          hasAlternatives={options.length > 1 || custom.currencies.length > 0}
           base={monedaBase}
           error={firstError}
+          overshootBase={overshootBase}
           canSell={canSell}
           tipAmount={tipTotal}
           onLeaveTip={() => {
@@ -751,7 +757,10 @@ export function CheckoutView({
         selectedId={selectedId}
         unavailableIds={unavailableIds}
         errors={errors}
+        overshootBase={overshootBase}
+        custom={custom}
         changeTotalBase={change}
+        rates={tasasVigentes}
         base={monedaBase}
         onClose={() => setChangeOpen(false)}
         onSelect={select}
