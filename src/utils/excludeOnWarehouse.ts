@@ -1,1 +1,6 @@
-export const excludeOnWarehouse = ['/pos', '/ventas', '/cierre', '/resumen_cierre', '/dashboard'];
+export const excludeOnWarehouse = [
+  "/pos",
+  "/ventas",
+  "/cierre",
+  "/resumen_cierre",
+];

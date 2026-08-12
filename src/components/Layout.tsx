@@ -48,6 +48,7 @@ import { useAppContext } from "@/context/AppContext";
 import {
   AccountBalanceWallet,
   AccountCircle,
+  Assessment,
   CardGiftcardOutlined,
   ExpandMore,
   Handshake,
@@ -264,6 +265,19 @@ const RESUMEN_MENU_ITEMS = [
     path: "/proveedores",
     icon: Handshake,
     permission: "recuperaciones.proveedoresconsignación.acceder",
+  },
+  {
+    label: "Reportes",
+    path: "/reportes",
+    icon: Assessment,
+    permission: "recuperaciones.reportes.acceder",
+    anyOf: [
+      "recuperaciones.reportes.tendencias",
+      "recuperaciones.reportes.inventario",
+      "recuperaciones.reportes.rentabilidad",
+      "recuperaciones.reportes.operacion",
+      "recuperaciones.reportes.mermas",
+    ],
   },
 ];
 
