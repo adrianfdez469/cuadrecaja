@@ -10,6 +10,7 @@ import { calcularDisponibilidadReal } from "../utils/calcularDisponibilidadReal"
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
 import SelectableTextField from "@/components/SelectableTextField";
+import { formatQuantity } from "@/utils/formatters";
 import {
   clampQuantity,
   parseQuantityText,
@@ -98,7 +99,9 @@ export function ProductQuickActions({
   const startEditing = (e: React.MouseEvent) => {
     e.stopPropagation();
     onStopPropagation?.(e);
-    setDraftText(cartQuantity > 0 ? String(cartQuantity) : "");
+    // La cantidad del carrito hereda el tope disponible, que puede traer
+    // ruido de coma flotante; el borrador arranca ya recortado a 2 decimales.
+    setDraftText(cartQuantity > 0 ? formatQuantity(cartQuantity) : "");
     setEditing(true);
   };
 
@@ -151,7 +154,7 @@ export function ProductQuickActions({
     // Si el tope disponible obligó a bajar el valor, el texto visible debe
     // reflejarlo al instante — no solo el carrito por detrás, tocar afuera
     // no debería ser necesario para verlo.
-    setDraftText(applied !== parsed ? String(applied) : cleaned);
+    setDraftText(applied !== parsed ? formatQuantity(applied) : cleaned);
   };
 
   // Solo cierra el modo edición — el valor ya se aplicó tecla a tecla en
@@ -249,7 +252,9 @@ export function ProductQuickActions({
             aria-live="polite"
             aria-atomic="true"
           >
-            {allowDecimal ? cartQuantity.toFixed(2) : cartQuantity}
+            {allowDecimal
+              ? cartQuantity.toFixed(2)
+              : formatQuantity(cartQuantity)}
           </Typography>
         )}
       </Box>

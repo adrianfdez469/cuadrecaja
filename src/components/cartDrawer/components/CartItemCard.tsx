@@ -19,6 +19,7 @@ import {
 } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+import { formatQuantity } from "@/utils/formatters";
 import { useShowAlternativeCurrencies } from "@/hooks/useShowAlternativeCurrencies";
 
 function ExpiryChip({ fechaVencimiento }: { fechaVencimiento: string }) {
@@ -188,7 +189,7 @@ export function CartItemCard({
               fontWeight={700}
               sx={{ minWidth: 28, textAlign: "center" }}
             >
-              {item.quantity}
+              {formatQuantity(item.quantity)}
             </Typography>
             <IconButton
               size="small"
@@ -201,7 +202,7 @@ export function CartItemCard({
           </Stack>
         ) : (
           <Typography variant="body2" color="text.secondary" fontWeight={600}>
-            ×{item.quantity}
+            ×{formatQuantity(item.quantity)}
           </Typography>
         )}
 

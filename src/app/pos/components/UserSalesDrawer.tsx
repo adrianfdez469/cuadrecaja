@@ -41,7 +41,7 @@ import { ICierrePeriodo } from "@/schemas/cierre";
 import { ITransferDestination } from "@/schemas/transferDestination";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { IResumenCajaMoneda } from "@/schemas/resumenCaja";
-import { formatDateTime } from "@/utils/formatters";
+import { formatDateTime, formatQuantity } from "@/utils/formatters";
 import { convertToBase, pagadaConUnSoloPago } from "@/lib/currency";
 import CajaResumenCards from "./CajaResumenCards";
 
@@ -171,7 +171,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
   const handleDeleteProduct = (producto: ProductoDataHistorial) => {
     const { sale, product } = producto;
     confirmDialog(
-      `¿Eliminar "${product.name}" (${product.cantidad} unidad/es) de la venta?`,
+      `¿Eliminar "${product.name}" (${formatQuantity(product.cantidad)} unidad/es) de la venta?`,
       async () => {
         const key =
           product.ventaProductoId ??
@@ -669,7 +669,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                         <TableRow key={index} hover>
                           <TableCell>{producto.nombre}</TableCell>
                           <TableCell align="center">
-                            {producto.cantidad}
+                            {formatQuantity(producto.cantidad)}
                           </TableCell>
                           <TableCell align="right">
                             ${producto?.precio?.toFixed(2)}
@@ -797,7 +797,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                         <TableRow key={index} hover>
                           <TableCell>{producto.nombre}</TableCell>
                           <TableCell align="center">
-                            {producto.cantidad}
+                            {formatQuantity(producto.cantidad)}
                           </TableCell>
                           <TableCell align="right">
                             ${producto.precio?.toFixed(2)}

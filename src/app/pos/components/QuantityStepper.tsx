@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Box, Button, Chip, Typography, useTheme } from "@mui/material";
 import SelectableTextField from "@/components/SelectableTextField";
+import { formatQuantity } from "@/utils/formatters";
 import {
   clampQuantity,
   getDefaultStep,
@@ -60,7 +61,7 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
 
   const startEditing = () => {
     if (disabled || editing) return;
-    setDraftText(String(value));
+    setDraftText(formatQuantity(value));
     setEditing(true);
   };
 
@@ -92,7 +93,7 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
     // Si el tope obligó a bajar el valor, el texto visible debe reflejarlo
     // al instante — no solo el estado interno, tocar afuera no debería ser
     // necesario para verlo.
-    setDraftText(clamped !== parsed ? String(clamped) : cleaned);
+    setDraftText(clamped !== parsed ? formatQuantity(clamped) : cleaned);
   };
 
   const step = (delta: number) => {
@@ -178,7 +179,7 @@ export const QuantityStepper: React.FC<QuantityStepperProps> = ({
                 fontVariantNumeric: "tabular-nums",
               }}
             >
-              {value}
+              {formatQuantity(value)}
             </Typography>
           )}
         </Box>

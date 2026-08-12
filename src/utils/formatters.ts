@@ -203,6 +203,24 @@ export const formatDecimal = (amount: number, decimals: number = 2): string => {
 };
 
 /**
+ * Formatea una cantidad de producto: como mucho 2 decimales, sin ceros de
+ * relleno — "3", "2.5", "12.6".
+ *
+ * `existencia` y `cantidad` son Float y el stock se acumula sumando y
+ * restando, así que arrastran ruido de coma flotante: en producción hay
+ * existencias como 8.69999999999999 y 12.6000000000001, que se pintaban con
+ * toda la cola. Redondear con la misma expresión que `clampQuantity` mantiene
+ * lo que se muestra alineado con lo que se puede teclear.
+ *
+ * A diferencia de `formatDecimal`, no rellena con ceros ni agrupa millares:
+ * las existencias enteras (lo normal) deben seguir leyéndose "1111".
+ */
+export const formatQuantity = (value: number): string =>
+  // El `+ 0` evita que un residuo negativo minúsculo (los hay en producción,
+  // del orden de -1e-16) se imprima como "-0".
+  String(Math.round((value || 0) * 100) / 100 + 0);
+
+/**
  * Formatea un porcentaje
  */
 export const formatPercentage = (

@@ -3,6 +3,7 @@
 import { Stack, Typography } from "@mui/material";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import { IProductoTiendaV2 } from "@/schemas/producto";
+import { formatQuantity } from "@/utils/formatters";
 import { calcularDisponibilidadReal } from "../utils/calcularDisponibilidadReal";
 
 interface StockAvailabilityBadgeProps {
@@ -52,8 +53,8 @@ export function StockAvailabilityBadge({
       // there for.
       title={
         esFraccion
-          ? `${disponible} disponibles para vender (${Math.max(0, productoTienda.existencia || 0)} sueltas, el resto dentro de paquetes sin abrir)`
-          : `${disponible} disponibles para vender`
+          ? `${formatQuantity(disponible)} disponibles para vender (${formatQuantity(Math.max(0, productoTienda.existencia || 0))} sueltas, el resto dentro de paquetes sin abrir)`
+          : `${formatQuantity(disponible)} disponibles para vender`
       }
     >
       <Inventory2OutlinedIcon sx={{ fontSize: "0.95rem", color }} />
@@ -68,7 +69,7 @@ export function StockAvailabilityBadge({
           fontVariantNumeric: "tabular-nums",
         }}
       >
-        {disponible}
+        {formatQuantity(disponible)}
       </Typography>
     </Stack>
   );

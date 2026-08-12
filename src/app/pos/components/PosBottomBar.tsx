@@ -1,6 +1,7 @@
 "use client";
 
 import { Ref, RefObject } from "react";
+import type { MouseEvent } from "react";
 import {
   Box,
   Chip,
@@ -293,6 +294,21 @@ export function PosBottomBar({
                 autoComplete: "off",
                 autoCorrect: "off",
                 spellCheck: false,
+                // Selecting on focus is not enough here. The quantity
+                // controls on a product card preventDefault their mousedown
+                // (see PosProductItemLayout) so adding a product does not
+                // close the keyboard mid-sale — which means the search never
+                // blurs, and tapping it again to look up the next product
+                // fires no focus event. Without this the cashier lands on a
+                // stray caret and has to wipe the previous term by hand.
+                // Deferred for the same reason SelectableTextField defers its
+                // own: the browser settles the caret on the mouseup that
+                // follows the click — and when the click lands inside an
+                // already selected term it collapses it after this runs.
+                onClick: (event: MouseEvent<HTMLInputElement>) => {
+                  const input = event.currentTarget;
+                  setTimeout(() => input.select(), 0);
+                },
               },
               sx: {
                 bgcolor: "background.paper",

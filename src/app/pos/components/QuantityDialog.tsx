@@ -8,6 +8,7 @@ import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
 import { QuantityStepper } from "./QuantityStepper";
+import { formatQuantity } from "@/utils/formatters";
 import { clampQuantity } from "@/app/pos/utils/quantityInput";
 
 interface QuantityDialogProps {
@@ -188,7 +189,7 @@ export const QuantityDialog = ({
               cuando una fracción no podía pasar de una caja. */}
           {hasStock ? (
             <Typography variant="body2" color="text.secondary">
-              {`Disponibles: ${maxForDisplay}`}
+              {`Disponibles: ${formatQuantity(maxForDisplay)}`}
             </Typography>
           ) : (
             <Typography variant="body2" color="error.main">
