@@ -310,6 +310,25 @@ describe("changeOptions", () => {
     );
     expect(other[0].id).not.toBe(first[0].id);
   });
+
+  // Regression: USD-based business, 1 USD = 670 CUP, 500-CUP sale paid with
+  // 1 USD. The true change is 170 CUP; when the amount due was quantized to
+  // base cents upstream (0.75 USD) this produced 168 CUP instead.
+  it("gives exact CUP change for a coarse-base overpayment", () => {
+    const usdRates: ITasaSnapshot = { USD: 670 };
+    const due = 500 / 670;
+    const changeAmountBase = 1 - due; // paid 1 USD
+    const options = changeOptions(
+      [cash("USD", 1)],
+      changeAmountBase,
+      usdRates,
+      "USD",
+      CURRENCIES,
+      STANDARD,
+    );
+    // 0.2537 USD is below the smallest USD bill, so all change lands in CUP.
+    expect(splits(options)).toEqual([{ CUP: 170 }]);
+  });
 });
 
 describe("customChangeSplit", () => {

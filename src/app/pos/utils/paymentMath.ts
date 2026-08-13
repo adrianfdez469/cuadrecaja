@@ -1,4 +1,9 @@
-import { convertToBase, convertFromBase } from "@/lib/currency";
+import {
+  convertToBase,
+  convertFromBase,
+  roundBaseToAnchorCents,
+  anchorCents,
+} from "@/lib/currency";
 import type { IPagoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
@@ -17,26 +22,21 @@ export interface PaymentLine {
   transferDestinationId?: string;
 }
 
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-/** Compares money in cents so float noise never decides a sale. */
-function cents(value: number): number {
-  return Math.round(value * 100);
-}
-
 export function paidBase(
   lines: PaymentLine[],
   rates: ITasaSnapshot,
   base: string,
 ): number {
-  return round2(
+  // Anchor-cent grid, not base cents: quantizing a coarse base (USD) to its
+  // own cents shifts the sum by several CUP (see roundBaseToAnchorCents).
+  return roundBaseToAnchorCents(
     lines.reduce(
       (sum, line) =>
         sum + convertToBase(line.amount, line.currency, rates, base),
       0,
     ),
+    rates,
+    base,
   );
 }
 
@@ -68,15 +68,32 @@ export function pendingInCurrency(
   );
   const remaining = Math.max(0, finalTotal - covered);
   if (remaining === 0) return 0;
-  return round2(convertFromBase(remaining, currency, rates, base));
+  const raw = convertFromBase(remaining, currency, rates, base);
+  // Ceiled to the target currency's cent, never nearest-rounded: paying the
+  // stated amount must always clear the debt. Rounding 0.7463 USD down to
+  // 0.74 would leave the sale short by real CUP after the customer paid
+  // exactly what was asked. The epsilon keeps float noise (500.0000000006)
+  // from ceiling an exact amount up a cent.
+  return Math.ceil(raw * 100 - 1e-6) / 100;
 }
 
-export function isMissing(paid: number, finalTotal: number): boolean {
-  return cents(paid) < cents(finalTotal);
+/** Compares money in anchor (CUP) cents so float noise never decides a sale. */
+export function isMissing(
+  paid: number,
+  finalTotal: number,
+  rates: ITasaSnapshot,
+  base: string,
+): boolean {
+  return anchorCents(paid, rates, base) < anchorCents(finalTotal, rates, base);
 }
 
-export function changeBase(paid: number, finalTotal: number): number {
-  return Math.max(0, round2(paid - finalTotal));
+export function changeBase(
+  paid: number,
+  finalTotal: number,
+  rates: ITasaSnapshot,
+  base: string,
+): number {
+  return Math.max(0, roundBaseToAnchorCents(paid - finalTotal, rates, base));
 }
 
 export function hasMissingTransferDestination(lines: PaymentLine[]): boolean {

@@ -8,6 +8,7 @@ import {
   toPagoLineas,
   type PaymentLine,
 } from "@/app/pos/utils/paymentMath";
+import { convertFromBase } from "@/lib/currency";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
 // 1 USD = 350 CUP; base is CUP.
@@ -81,25 +82,67 @@ describe("pendingInCurrency", () => {
 
 describe("isMissing", () => {
   it("is true when the paid amount falls short", () => {
-    expect(isMissing(1000, 1250)).toBe(true);
+    expect(isMissing(1000, 1250, RATES, BASE)).toBe(true);
   });
 
   it("is false on an exact payment", () => {
-    expect(isMissing(1250, 1250)).toBe(false);
+    expect(isMissing(1250, 1250, RATES, BASE)).toBe(false);
   });
 
   it("ignores sub-cent float noise", () => {
-    expect(isMissing(0.1 + 0.2, 0.3)).toBe(false);
+    expect(isMissing(0.1 + 0.2, 0.3, RATES, BASE)).toBe(false);
   });
 });
 
 describe("changeBase", () => {
   it("returns the overshoot", () => {
-    expect(changeBase(1500, 1250)).toBe(250);
+    expect(changeBase(1500, 1250, RATES, BASE)).toBe(250);
   });
 
   it("returns zero when the payment falls short", () => {
-    expect(changeBase(1000, 1250)).toBe(0);
+    expect(changeBase(1000, 1250, RATES, BASE)).toBe(0);
+  });
+});
+
+// Regression: business based in a coarse currency (USD) selling CUP-priced
+// products. 1 USD = 670 CUP, two 250-CUP items → 500 CUP = 0.746268… USD.
+// Quantizing that total to base cents (0.75 USD) used to corrupt everything
+// derived from it: it asked 503 CUP when paying in CUP and returned 168 CUP
+// of change on a 1-USD payment instead of 170.
+describe("coarse base currency (USD business, CUP prices)", () => {
+  const USD_RATES: ITasaSnapshot = { USD: 670 };
+  const USD_BASE = "USD";
+  /** 500 CUP expressed in the USD base, exactly as useCartTotal computes it. */
+  const DUE = 500 / 670;
+
+  it("asks exactly 500 CUP when paying in CUP", () => {
+    expect(pendingInCurrency([], DUE, "CUP", USD_RATES, USD_BASE)).toBe(500);
+  });
+
+  it("suggests 0.75 USD (cent-ceiled) when paying in USD", () => {
+    expect(pendingInCurrency([], DUE, "USD", USD_RATES, USD_BASE)).toBe(0.75);
+  });
+
+  it("returns 170 CUP of change on a 1 USD payment", () => {
+    const paid = paidBase([cash("USD", 1)], USD_RATES, USD_BASE);
+    const change = changeBase(paid, DUE, USD_RATES, USD_BASE);
+    expect(convertFromBase(change, "CUP", USD_RATES, USD_BASE)).toBeCloseTo(
+      170,
+      6,
+    );
+  });
+
+  it("considers an exact 500 CUP payment complete", () => {
+    const paid = paidBase([cash("CUP", 500)], USD_RATES, USD_BASE);
+    expect(isMissing(paid, DUE, USD_RATES, USD_BASE)).toBe(false);
+    expect(changeBase(paid, DUE, USD_RATES, USD_BASE)).toBe(0);
+  });
+
+  it("flags a payment short by real CUP even below a base cent", () => {
+    // 497 CUP short of 500: 3 CUP ≈ 0.0045 USD — under half a base cent,
+    // which the old base-cents comparison silently accepted.
+    const paid = paidBase([cash("CUP", 497)], USD_RATES, USD_BASE);
+    expect(isMissing(paid, DUE, USD_RATES, USD_BASE)).toBe(true);
   });
 });
 

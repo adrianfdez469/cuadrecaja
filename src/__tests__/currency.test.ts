@@ -4,6 +4,8 @@ import {
   convertToBase,
   convertFromBase,
   buildTasaSnapshot,
+  roundBaseToAnchorCents,
+  anchorCents,
 } from "@/lib/currency";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
@@ -1060,5 +1062,28 @@ describe("calcularVuelto - floating point noise regression", () => {
 
     // denomMin for CUP is 0.01, genuine remainder must still round up
     expect(result).toEqual([{ moneda: "CUP", monto: 20.01 }]);
+  });
+});
+
+describe("roundBaseToAnchorCents / anchorCents", () => {
+  const rates: ITasaSnapshot = { USD: 670 };
+
+  it("is a plain round-to-cents when the base is the anchor", () => {
+    expect(roundBaseToAnchorCents(1.006, {}, "CUP")).toBeCloseTo(1.01, 10);
+    expect(anchorCents(12.34, {}, "CUP")).toBe(1234);
+  });
+
+  it("keeps CUP-cent precision for a coarse USD base", () => {
+    // 500 CUP in a USD base: rounding to base cents would give 0.75 USD
+    // (502.5 CUP); anchor-cent rounding preserves the exact 500.
+    const due = roundBaseToAnchorCents(500 / 670, rates, "USD");
+    expect(convertFromBase(due, "CUP", rates, "USD")).toBeCloseTo(500, 6);
+  });
+
+  it("compares in anchor cents, catching sub-base-cent differences", () => {
+    // 3 CUP apart — under half a USD cent, invisible to base-cent compares.
+    expect(anchorCents(497 / 670, rates, "USD")).toBeLessThan(
+      anchorCents(500 / 670, rates, "USD"),
+    );
   });
 });

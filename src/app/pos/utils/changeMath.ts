@@ -1,4 +1,8 @@
-import { convertToBase, convertFromBase } from "@/lib/currency";
+import {
+  convertToBase,
+  convertFromBase,
+  roundBaseToAnchorCents,
+} from "@/lib/currency";
 import { ceilToStep } from "@/app/pos/utils/suggestedAmounts";
 import type { PaymentLine } from "@/app/pos/utils/paymentMath";
 import type { IVueltoLinea } from "@/schemas/pago";
@@ -318,7 +322,13 @@ export function customChangeSplit(
     typedBase += convertToBase(amount, currency, rates, base);
   }
 
-  const remainderBase = round2(changeAmountBase - typedBase);
+  // Anchor-cent grid, not base cents: with a USD base, round2 here would
+  // erase a remainder worth several CUP (0.0037 USD ≈ 2.5 CUP → 0).
+  const remainderBase = roundBaseToAnchorCents(
+    changeAmountBase - typedBase,
+    rates,
+    base,
+  );
   if (remainderBase > EPS) {
     distribution[remainderCurrency] = ceilToStep(
       convertFromBase(remainderBase, remainderCurrency, rates, base),
@@ -329,7 +339,7 @@ export function customChangeSplit(
   return {
     distribution,
     remainderCurrency,
-    overshootBase: remainderBase < -EPS ? round2(-remainderBase) : 0,
+    overshootBase: remainderBase < -EPS ? -remainderBase : 0,
   };
 }
 
