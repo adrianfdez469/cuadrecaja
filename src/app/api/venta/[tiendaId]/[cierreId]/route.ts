@@ -5,6 +5,8 @@ import { IVenta } from "@/schemas/venta";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import { applyDiscountsForSale } from "@/lib/discounts";
 import { calcularEfectivoDisponiblePorMoneda } from "@/lib/movimiento/caja";
+import { validateTip } from "@/lib/tips";
+import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 
 // El vuelto solicitado en una venta en tiempo real supera el efectivo
 // realmente disponible en esa moneda. Ver la validación dentro de la
@@ -71,6 +73,10 @@ export async function POST(
       pagosDetalle,
       vueltoDetalle,
       tasaSnapshot,
+      // Propina — a diferencia del descuento, el servidor no puede derivarla
+      // (es una decisión del cajero), solo validar que tenga respaldo en caja.
+      tipTotal,
+      tipDetail,
     } = await req.json();
 
     syncId = syncIdBody;
@@ -271,6 +277,23 @@ export async function POST(
     });
     const monedaBase = tiendaConNegocio?.negocio?.monedaBase ?? "CUP";
 
+    // La propina se valida fuera de la transacción: solo compara números del
+    // propio payload, no toca la base. Una propina sin respaldo en lo cobrado
+    // inflaría todos los reportes de propina sin que la caja cambie.
+    const tipCheck = validateTip({
+      tipTotal,
+      tipDetail,
+      pagosDetalle: pagosDetalle as IPagoLinea[] | undefined,
+      vueltoDetalle: vueltoDetalle as IVueltoLinea[] | undefined,
+      tasaSnapshot,
+      total: Math.max(0, Number(total) || 0),
+      monedaBase,
+    });
+    if (!tipCheck.ok) {
+      console.error("❌ [POST /api/venta] Propina inválida:", tipCheck.error);
+      return NextResponse.json({ error: tipCheck.error }, { status: 400 });
+    }
+
     // **TRANSACCIÓN ATÓMICA: Todo o nada (SOLO escrituras)**
     const result = await prisma.$transaction(
       async (tx) => {
@@ -357,6 +380,9 @@ export async function POST(
             ...(pagosDetalle && { pagosDetalle }),
             ...(vueltoDetalle && { vueltoDetalle }),
             ...(tasaSnapshot && { tasaSnapshot }),
+            // Propina — ya validada contra el excedente realmente cobrado.
+            tipTotal: tipCheck.tipTotal,
+            ...(tipCheck.tipDetail && { tipDetail: tipCheck.tipDetail }),
           },
           include: {
             productos: true,
@@ -411,37 +437,38 @@ export async function POST(
             (pf) => pf.producto.fraccionDeId,
           );
 
-          // Usar existencias originales para el cálculo
-          const productosFraccionablesNeedDesagregateData =
-            productosFraccionablesData.filter((prodFracc) => {
-              const prod = productos.find(
-                (p) => p.productoTiendaId === prodFracc.id,
-              );
-              if (prod) {
-                if (prodFracc.producto.unidadesPorFraccion <= prod.cantidad) {
-                  throw new Error(
-                    `Vendes más unidades sueltas de las que lleva una caja en una misma venta`,
-                  );
-                }
-                // Usar existencia original (antes de cualquier modificación)
-                return prodFracc.existencia < prod.cantidad;
-              }
-              return false;
-            });
-
           const itemsDesagregaciónBaja = [];
           const itemsDesagregaciónAlta = [];
 
-          productosFraccionablesNeedDesagregateData.forEach((item) => {
+          // Cuántos padres hay que abrir por producto fracción. Se calcula
+          // sobre la existencia ORIGINAL (antes de tocar nada) y ya no hay
+          // tope de una caja por venta: vender 25 sueltas teniendo 3 abre
+          // las tres cajas que hagan falta.
+          for (const prodFracc of productosFraccionablesData) {
+            const prod = productos.find(
+              (p) => p.productoTiendaId === prodFracc.id,
+            );
+            if (!prod) continue;
+
+            const paquetes = packsToOpen(
+              prod.cantidad,
+              prodFracc.existencia,
+              prodFracc.producto.unidadesPorFraccion,
+            );
+            if (paquetes === 0) continue;
+
             itemsDesagregaciónAlta.push({
-              cantidad: item.producto.unidadesPorFraccion,
-              productoId: item.productoId,
+              cantidad: unitsFromPacks(
+                paquetes,
+                prodFracc.producto.unidadesPorFraccion,
+              ),
+              productoId: prodFracc.productoId,
             });
             itemsDesagregaciónBaja.push({
-              cantidad: 1,
-              productoId: item.producto.fraccionDeId,
+              cantidad: paquetes,
+              productoId: prodFracc.producto.fraccionDeId,
             });
-          });
+          }
 
           // Crear movimientos de desagregación dentro de la misma transacción
           if (itemsDesagregaciónBaja.length > 0) {
@@ -738,6 +765,9 @@ export async function GET(
         undefined,
       tasaSnapshot:
         (venta.tasaSnapshot as unknown as IVenta["tasaSnapshot"]) ?? undefined,
+      tipTotal: Number(venta.tipTotal ?? 0),
+      tipDetail:
+        (venta.tipDetail as unknown as IVenta["tipDetail"]) ?? undefined,
     }));
 
     return NextResponse.json(ventas);

@@ -20,7 +20,14 @@ npx prisma migrate dev --name <name>  # Create and apply a new migration
 npx prisma studio             # Visual DB browser
 ```
 
-> No automated tests exist in this project.
+```bash
+npm test             # Vitest suite (src/__tests__/)
+npm run test:watch   # Watch mode
+```
+
+> Los tests cubren lógica pura (`src/lib/`, `src/app/pos/utils/`). No hay
+> `@testing-library/react`: los componentes se verifican con `npx tsc --noEmit`,
+> `npm run lint` y QA manual.
 
 ## Architecture
 

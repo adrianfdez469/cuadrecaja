@@ -4,7 +4,7 @@ import axiosClient, {
 } from "@/lib/axiosClient";
 import { IVenta } from "@/schemas/venta";
 import { IProductoVenta } from "@/schemas/producto";
-import type { IMultimonedaExtras } from "@/app/pos/components/PaymentModal";
+import type { IMultimonedaExtras } from "@/schemas/pago";
 
 const API_URL = (tiendaId: string, cierreId: string) =>
   `/api/venta/${tiendaId}/${cierreId}`;
@@ -46,6 +46,15 @@ export const createSell = async (
               pagosDetalle: multimoneda.pagosDetalle,
               vueltoDetalle: multimoneda.vueltoDetalle,
               tasaSnapshot: multimoneda.tasaSnapshot,
+              // A diferencia de discountTotal —que el servidor recalcula desde
+              // las reglas— la propina es una decisión del cajero y no se puede
+              // derivar: hay que transportarla. El servidor la valida.
+              ...(multimoneda.tipTotal && multimoneda.tipTotal > 0
+                ? {
+                    tipTotal: multimoneda.tipTotal,
+                    tipDetail: multimoneda.tipDetail,
+                  }
+                : {}),
             }
           : {}),
       },

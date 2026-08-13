@@ -134,11 +134,15 @@ export function calcularVuelto(
       .slice()
       .sort((a, b) => b - a);
     const denomMin = denomsOrdenadas.at(-1) ?? 1;
-    // Siempre redondear el vuelto hacia arriba a la denominación disponible
-    // (nunca hacia abajo): igual que el resto en monedaBase más abajo, para
-    // no dar de menos por redondeo — Math.round podía rondar a la baja.
+    // Redondear el vuelto en monedaCobro hacia ABAJO a su denominación
+    // disponible — nunca hacia arriba, porque monedaCobro suele ser la
+    // moneda de denominación más gruesa (ej. USD con mínimo 0.1) y
+    // redondear hacia arriba ahí puede sobrepasar el vuelto total adeudado.
+    // El resto exacto se cubre justo abajo en monedaBase, cuya denominación
+    // mínima es más fina (ej. CUP con mínimo 0.01) y sí se redondea hacia
+    // arriba para no dar de menos.
     const vueltoEnMonedaCobro =
-      Math.ceil((vueltoEnMonedaCobroRaw - EPS) / denomMin) * denomMin;
+      Math.floor((vueltoEnMonedaCobroRaw + EPS) / denomMin) * denomMin;
 
     if (vueltoEnMonedaCobro > 0) {
       result.push({ moneda: monedaCobro, monto: vueltoEnMonedaCobro });
@@ -162,10 +166,15 @@ export function calcularVuelto(
       .slice()
       .sort((a, b) => b - a);
     const denomMinBase = denomsBase.at(-1) ?? 1;
-    const vueltoEnBase =
-      Math.ceil((vueltoTotalBase - EPS) / denomMinBase) * denomMinBase;
-    if (vueltoEnBase > 0) {
-      result.push({ moneda: monedaBase, monto: vueltoEnBase });
+    // Un vuelto por debajo de la denominación mínima no se puede entregar
+    // — se absorbe como error de redondeo en vez de redondearlo hacia
+    // arriba a una denominación completa.
+    if (vueltoTotalBase >= denomMinBase - EPS) {
+      const vueltoEnBase =
+        Math.ceil((vueltoTotalBase - EPS) / denomMinBase) * denomMinBase;
+      if (vueltoEnBase > 0) {
+        result.push({ moneda: monedaBase, monto: vueltoEnBase });
+      }
     }
   }
 

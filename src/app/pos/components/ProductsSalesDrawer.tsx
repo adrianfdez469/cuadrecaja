@@ -8,16 +8,15 @@ import { usePermisos } from "@/utils/permisos_front";
 interface IProps {
   showProducts: boolean;
   setShowProducts: (show: boolean) => void;
-  productos: Products[]
+  productos: Products[];
 }
 
 export const ProducsSalesDrawer: React.FC<IProps> = ({
   showProducts,
   setShowProducts,
-  productos
+  productos,
 }) => {
-
-  const { verificarPermiso } = usePermisos()
+  const { verificarPermiso } = usePermisos();
 
   return (
     <Drawer
@@ -53,14 +52,16 @@ export const ProducsSalesDrawer: React.FC<IProps> = ({
                 id: prod.id,
                 nombre: prod.nombre,
                 total: 0,
-                productoId: prod.id
+                productoId: prod.id,
               };
             }),
-            totalVentasPorUsuario: []
+            totalVentasPorUsuario: [],
           }}
           totales={{ totalCantidad: 0, totalGanancia: 0, totalMonto: 0 }}
           hideTotales
-          showOnlyCants={!verificarPermiso("operaciones.pos-venta.gananciascostos")}
+          showOnlyCants={
+            !verificarPermiso("operaciones.pos-venta.gananciascostos")
+          }
         />
       </Box>
     </Drawer>

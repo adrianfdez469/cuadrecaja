@@ -1,45 +1,32 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useMemo,
-  useCallback,
-} from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Typography,
   CircularProgress,
   Box,
-  Paper as MuiPaper,
-  Portal,
-  InputAdornment,
   IconButton,
   Alert,
   Button,
   useTheme,
   useMediaQuery,
-  Chip,
-  Stack,
-  Grid2 as Grid,
   Tooltip,
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import CloseIcon from "@mui/icons-material/Close";
-import EditIcon from "@mui/icons-material/Edit";
 
 import { useCartStore } from "@/store/cartStore";
 import { getProductosVenta } from "@/services/costoPrecioServices";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
-import { ProductModal } from "./components/ProductModal";
+import { CategoryPillsBar } from "./components/CategoryPillsBar";
+import { PosProductGrid } from "./components/PosProductGrid";
+import { CheckoutLockOverlay } from "./components/CheckoutLockOverlay";
+import { CurrencyDisplayToggle } from "./components/CurrencyDisplayToggle";
 import { ICategory } from "@/schemas/categoria";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import CartDrawer from "@/components/cartDrawer/CartDrawer";
-import PaymentModal from "./components/PaymentModal";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { ICierrePeriodo } from "@/schemas/cierre";
+import type { IMultimonedaExtras } from "@/schemas/pago";
 import useConfirmDialog from "@/components/confirmDialog";
 import { createSell } from "@/services/sellService";
 import { useSalesStore } from "@/store/salesStore";
@@ -48,20 +35,22 @@ import { SalesDrawer } from "./components/SalesDrawer";
 import { UserSalesDrawer } from "./components/UserSalesDrawer";
 
 import { QuantityDialog } from "./components/QuantityDialog";
-import { PosProductItemLayout } from "./components/PosProductItemLayout";
+import { PosBottomBar } from "./components/PosBottomBar";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
+import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useOnScreenKeyboard } from "@/hooks/useOnScreenKeyboard";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
 import { useCartTotal } from "@/hooks/useCartTotal";
 import { convertToBase } from "@/lib/currency";
-import SelectableTextField from "@/components/SelectableTextField";
-
-import ProductProcessorData from "@/components/ProductProcessorData/ProductProcessorData";
 
 import { IProcessedData } from "@/schemas/processedData";
 import { ITransferDestination } from "@/schemas/transferDestination";
 import { fetchTransferDestinations } from "@/services/transferDestinationsService";
-import { CartContent } from "@/components/cartDrawer/components/cartContent";
+import {
+  CartContent,
+  type CartStep,
+} from "@/components/cartDrawer/components/cartContent";
 import { ProductProcessorDataRef } from "@/components/ProductProcessorData/ProductProcessorData";
 import audioService from "@/utils/audioService";
 import { normalizeSearch } from "@/utils/formatters";
@@ -103,13 +92,13 @@ import { Sale } from "@/store/salesStore";
 
 export default function POSInterface() {
   const [categories, setCategories] = useState<ICategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<ICategory>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null,
+  );
   const [productosTienda, setProductosTienda] = useState<IProductoTiendaV2[]>(
     [],
   );
-  const [showProducts, setShowProducts] = useState(false);
   const [openCart, setOpenCart] = useState(false);
-  const [paymentDialog, setPaymentDialog] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
   const [noLocalActual, setNoLocalActual] = useState(false);
   const { user, loadingContext, gotToPath, tasasVigentes, monedaBase } =
@@ -127,24 +116,46 @@ export default function POSInterface() {
   const [showUserSales, setShowUserSales] = useState(false);
   const [showSyncView, setShowSyncView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const searchAnchorRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const posScrollRef = useRef<HTMLDivElement>(null);
-  const [searchPanelLayout, setSearchPanelLayout] = useState({
-    bottom: 80,
-    maxHeight: 300,
-  });
-
-  const updateSearchPanelLayout = useCallback(() => {
-    const el = searchAnchorRef.current;
+  // Espacio que la grilla debe reservar abajo para no quedar tapada por
+  // PosBottomBar (position:fixed en mobile). Medido en vivo en vez de un
+  // número fijo: la altura real de la barra varía según cuántos carritos
+  // hay y si se muestra el error del scanner, y un valor fijo dejaba un
+  // hueco visible cuando la barra real era más baja que el estimado.
+  const [bottomBarHeight, setBottomBarHeight] = useState(150);
+  const bottomBarObserverRef = useRef<ResizeObserver | null>(null);
+  // Callback ref, no useRef+useEffect: mientras carga, este componente
+  // devuelve un spinner y PosBottomBar todavía no existe en el DOM, así
+  // que un useEffect de montaje ([]) mediría un ref todavía nulo y nunca
+  // volvería a intentarlo. El callback ref se dispara cuando el nodo
+  // realmente aparece (o desaparece), sin depender del timing del render.
+  const posBottomBarRef = useCallback((el: HTMLDivElement | null) => {
+    bottomBarObserverRef.current?.disconnect();
+    bottomBarObserverRef.current = null;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const gap = 4;
-    setSearchPanelLayout({
-      bottom: Math.max(0, window.innerHeight - rect.top + gap),
-      maxHeight: Math.max(120, rect.top - 16 - gap),
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setBottomBarHeight(entry.contentRect.height);
     });
+    observer.observe(el);
+    bottomBarObserverRef.current = observer;
+  }, []);
+  // Cuánto hay que desplazar la cabecera (herramientas + categorías) para
+  // sacarla de vista al buscar. Medida en vivo por la misma razón que
+  // bottomBarHeight: su alto depende de qué botones tenga el usuario según
+  // sus permisos y de cuántas categorías tenga el negocio.
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const headerObserverRef = useRef<ResizeObserver | null>(null);
+  const posHeaderRef = useCallback((el: HTMLDivElement | null) => {
+    headerObserverRef.current?.disconnect();
+    headerObserverRef.current = null;
+    if (!el) return;
+    // offsetHeight, no contentRect: estas barras tienen padding propio y
+    // bordes, y contentRect los excluye — desplazarlas por ese valor
+    // dejaría una franja asomando.
+    const observer = new ResizeObserver(() => setHeaderHeight(el.offsetHeight));
+    observer.observe(el);
+    headerObserverRef.current = observer;
   }, []);
   const [selectedProduct, setSelectedProduct] =
     useState<IProductoTiendaV2 | null>(null);
@@ -215,21 +226,75 @@ export default function POSInterface() {
     "camera" | "search" | "hardware" | null
   >(null);
 
-  const [isCartPinned, setIsCartPinned] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
+  // The cart panel needs its own threshold, decoupled from the general
+  // "is this a phone" breakpoint (isMobile, 600px): with the panel's
+  // minWidth:360px floor (protects the checkout UI's own layout), showing
+  // it below ~700px left too little room for the product grid, category
+  // pills and search bar. isMobile keeps governing everything else that
+  // already used it (text sizes, the hardware scanner, etc.) — this is a
+  // narrower, purpose-specific question. Below 700px it falls back to the
+  // CartDrawer overlay, same as mobile.
+  const showCartPanel = useMediaQuery(theme.breakpoints.up(700));
+
+  // The step of whichever cart is on screen. It lives here, not inside the
+  // cart, because the products need both to read it (dimming while a sale is
+  // charged) and to write it (touching a product brings the cart back). The
+  // mobile drawer only reports into it — it covers the products anyway — but
+  // both variants need the hardware scanner out of the way (see
+  // scannerEnabled).
+  const [cartStep, setCartStep] = useState<CartStep>("cart");
+  const checkoutInProgress = cartStep === "checkout";
+  const productsLocked = showCartPanel && checkoutInProgress;
+
+  const { keyboardOpen, viewportHeight } = useOnScreenKeyboard();
+
+  // Buscar en el teléfono no oculta nada ni abre ninguna capa: lo único
+  // que cambia es que los resultados se apilan hacia arriba, para que el
+  // primero quede pegado al campo donde se está escribiendo. Se limita al
+  // umbral de 700px de `showCartPanel` — el mismo con el que PosBottomBar
+  // decide ser position:fixed — porque arriba de eso no hay teclado en
+  // pantalla que justifique invertir nada.
+  const searchMode = intentToSearch && !showCartPanel;
+
+  // El teclado abierto es lo único que rompe las coordenadas del layout
+  // (ver el comentario del box raíz), así que es lo único que decide si
+  // hay que anclar el POS al área visible. Al bajarlo, todo vuelve solo.
+  const pinToVisibleArea = searchMode && keyboardOpen && viewportHeight != null;
+
+  // Sin teclado no hay búsqueda. Chrome en Android no dispara `blur` cuando
+  // el usuario baja el teclado con el botón del sistema: el campo conserva
+  // el foco y el POS se quedaba en modo búsqueda sin forma obvia de salir.
+  // El ref evita el falso positivo del arranque, entre el toque en el campo
+  // y el momento en que el teclado realmente aparece.
+  const keyboardWasOpenRef = useRef(false);
+  useEffect(() => {
+    if (!searchMode) {
+      keyboardWasOpenRef.current = false;
+      return;
+    }
+    if (keyboardOpen) {
+      keyboardWasOpenRef.current = true;
+      return;
+    }
+    if (!keyboardWasOpenRef.current) return;
+    searchInputRef.current?.blur();
+    setIntentToSearch(false);
+  }, [searchMode, keyboardOpen]);
 
   useEffect(() => {
-    if (openCart && !isCartPinned) {
+    if (openCart && !showCartPanel) {
       searchInputRef.current?.blur();
       setIntentToSearch(false);
-      setShowSearchResults(false);
     }
-  }, [openCart, isCartPinned]);
+  }, [openCart, showCartPanel]);
 
   useEffect(() => {
     if (showSyncView || resumenDiaOpen) {
       searchInputRef.current?.blur();
       setIntentToSearch(false);
-      setShowSearchResults(false);
     }
   }, [showSyncView, resumenDiaOpen]);
 
@@ -268,19 +333,15 @@ export default function POSInterface() {
   const [codigoNoEncontrado, setCodigoNoEncontrado] = useState<string>("");
   const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
 
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
-
   useEffect(() => {
     if (!onboardingRun || !isMobile) return;
     const step = activeStepDefinitions[onboardingStepIndex];
     if (!step) return;
 
     const { target } = step;
-    const needsPosScroll =
-      isPosTopToolbarTourTarget(target) ||
-      target.includes("pos-category-first");
+    // pos-category-first now lives in the fixed pills row above the
+    // scrollable grid — always visible, no scroll needed to reveal it.
+    const needsPosScroll = isPosTopToolbarTourTarget(target);
 
     if (!needsPosScroll) return;
 
@@ -289,27 +350,29 @@ export default function POSInterface() {
     });
   }, [onboardingRun, onboardingStepIndex, activeStepDefinitions, isMobile]);
 
-  // Calcular ancho del carrito según la pantalla
+  // Calcular ancho del panel del carrito (sm+ solamente; en mobile se usa
+  // el Drawer, que no llama a esta función).
+  // Con techo: el contenido del carrito (líneas, total, botón de cobrar) no
+  // gana nada por encima de ~420px, y cada píxel de más se lo quita a la
+  // grilla, que sí lo aprovecha. Sin el tope, una pantalla de 1280px le daba
+  // 538px al panel y dejaba las tarjetas en 234px — demasiado estrechas para
+  // el stepper y el precio en la misma fila.
   const getCartWidth = () => {
-    if (isMobile) return "100%";
-    if (isTablet) return "40vw";
-    return "35vw";
-  };
-
-  const getMainContentWidth = () => {
-    if (!isCartPinned) return "100%";
-    if (isMobile) return "100%";
-    if (isTablet) return "calc(100% - 40vw)";
-    return "calc(100% - 35vw)";
+    if (isTablet) return "min(48vw, 420px)";
+    return "clamp(360px, 42vw, 420px)";
   };
 
   const scannerEnabled =
     !editingCartId &&
     !intentToSearch &&
-    !paymentDialog &&
     !asociarCodigoOpen &&
     !selectedProduct &&
-    !cameraScannerOpen;
+    !cameraScannerOpen &&
+    // While charging, the physical keyboard belongs to the amount keypad.
+    // Its digits reach this global listener too (the keypad's fields are not
+    // editable targets), and a burst of them was being flushed as a scanned
+    // barcode — a "Código no reconocido" dialog on top of the sale.
+    !checkoutInProgress;
 
   useHardwareScanner({
     enabled: scannerEnabled,
@@ -427,7 +490,6 @@ export default function POSInterface() {
     const product = findProductByCode(code);
     if (product) {
       setSelectedProduct(product);
-      setShowProducts(false); // Cierra modal de categorías si está abierto
       // El modal de cantidad se abre automáticamente por el estado selectedProduct
       setScannerError(null);
       setProductOrigin("camera"); // Marcar como escaneo de cámara
@@ -476,6 +538,9 @@ export default function POSInterface() {
               pagosDetalle: sale.pagosDetalle,
               vueltoDetalle: sale.vueltoDetalle ?? [],
               tasaSnapshot: sale.tasaSnapshot ?? {},
+              ...(sale.tipTotal && sale.tipTotal > 0
+                ? { tipTotal: sale.tipTotal, tipDetail: sale.tipDetail ?? [] }
+                : {}),
             }
           : undefined;
         const ventaDb = await createSell(
@@ -697,10 +762,6 @@ export default function POSInterface() {
     // setProductosTienda(productosTiendaEditados);
   };
 
-  const handleOpenProducts = (category: ICategory) => {
-    setSelectedCategory(category);
-    setShowProducts(true);
-  };
   const handleCartIcon = () => {
     setOpenCart(true);
   };
@@ -710,7 +771,7 @@ export default function POSInterface() {
     totalTransfer: number,
     transferDestinationId?: string,
     discountCodes?: string[],
-    multimoneda?: import("@/app/pos/components/PaymentModal").IMultimonedaExtras,
+    multimoneda?: IMultimonedaExtras,
   ) => {
     try {
       // Comparación en céntimos para tolerar ruido de punto flotante: sin esto,
@@ -777,13 +838,25 @@ export default function POSInterface() {
             multimoneda.discountTotal > 0
               ? { discountTotal: multimoneda.discountTotal }
               : {}),
+            ...(multimoneda.tipTotal != null && multimoneda.tipTotal > 0
+              ? {
+                  tipTotal: multimoneda.tipTotal,
+                  tipDetail: multimoneda.tipDetail ?? [],
+                }
+              : {}),
           }),
         };
 
-        // 1. INMEDIATAMENTE: Eliminar carrito activo (y su píldora), cerrar modal y drawer
+        // 1. INMEDIATAMENTE: Eliminar carrito activo (y su píldora), y cerrar
+        // todo lo que pueda seguir abierto del flujo de venta para arrancar
+        // limpio en la próxima venta.
         removeActiveCart();
-        setPaymentDialog(false);
         setOpenCart(false);
+        setSelectedProduct(null);
+        setSearchQuery("");
+        setIntentToSearch(false);
+        setProductOrigin(null);
+        setCameraScannerOpen(false);
 
         // 2. Agregar la venta al store local
         addSale(newSale);
@@ -810,15 +883,22 @@ export default function POSInterface() {
             (p) => p.id === cartProd.productoTiendaId,
           );
           if (productoEnTienda && productoEnTienda.producto.fraccionDeId) {
-            // Es un producto fracción
-            if (productoEnTienda.existencia < cartProd.quantity) {
-              // Necesita desagregación
+            // Es un producto fracción: se abren tantos padres como haga falta,
+            // con la misma cuenta que hace el backend al registrar la venta.
+            const paquetes = packsToOpen(
+              cartProd.quantity,
+              productoEnTienda.existencia,
+              productoEnTienda.producto.unidadesPorFraccion,
+            );
+            if (paquetes > 0) {
               desagregaciones.push({
                 padreProductoId: productoEnTienda.producto.fraccionDeId,
-                cantidad: 1, // Siempre desagrega 1 unidad del padre
+                cantidad: paquetes,
                 hijoId: productoEnTienda.id,
-                unidadesPorFraccion:
-                  productoEnTienda.producto.unidadesPorFraccion || 0,
+                unidadesPorFraccion: unitsFromPacks(
+                  paquetes,
+                  productoEnTienda.producto.unidadesPorFraccion,
+                ),
               });
             }
           }
@@ -832,7 +912,7 @@ export default function POSInterface() {
             (d) => d.padreProductoId === p.productoId,
           );
           if (desagregacionPadre) {
-            // Restar 1 del producto padre
+            // Restar los padres abiertos
             nuevaExistencia -= desagregacionPadre.cantidad;
           }
 
@@ -841,7 +921,7 @@ export default function POSInterface() {
             (d) => d.hijoId === p.id,
           );
           if (desagregacionHijo) {
-            // Sumar las unidades por fracción
+            // Sumar las unidades que salieron de los padres abiertos
             nuevaExistencia += desagregacionHijo.unidadesPorFraccion;
           }
 
@@ -950,7 +1030,6 @@ export default function POSInterface() {
       showMessage("❌ Error al procesar el pago", "error");
       // En caso de error, también limpiar el carrito para evitar estados inconsistentes
       clearCart();
-      setPaymentDialog(false);
       setOpenCart(false);
       throw error;
     }
@@ -962,17 +1041,15 @@ export default function POSInterface() {
       const productoTienda = productosTienda.find((p) => p.id === id);
       if (!productoTienda) return;
 
-      // Si el producto tiene unidades por fracción, se usa ese valor.
-      // Si no son productos con fracción se debe verificar que ese producto no esté ya en el carrito,
-      // si no está en el carrito la cantidad maxima seria igual a la existencia del producto.
-      // si está en el carrito la cantidad maxima seria igual a la existencia del producto menos la cantidad de productos en el carrito.
+      // El tope es lo que realmente se puede vender: la existencia del
+      // producto y, si es fracción, lo que haya dentro de los padres sin
+      // abrir (la venta los desagrega sola). Ya no se limita a una caja.
+      const { disponible } = calcularDisponibilidadReal(
+        productoTienda,
+        productosTienda,
+      );
 
-      // Calcular el máximo permitido para este producto
-      const maxQuantity = productoTienda.producto.unidadesPorFraccion
-        ? productoTienda.producto.unidadesPorFraccion - 1
-        : productoTienda.existencia;
-
-      if (quantity > maxQuantity) {
+      if (quantity > disponible) {
         return;
       }
     }
@@ -993,26 +1070,49 @@ export default function POSInterface() {
   };
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    setShowSearchResults(query.trim() !== "");
   };
 
-  const searchResults = useMemo(() => {
-    if (searchQuery.trim() === "") return [];
+  // Category and search combine as AND: with a category marked, the
+  // search box filters within it rather than across the whole catalog.
+  const filteredProducts = useMemo(() => {
     return productosTienda
+      .filter(
+        (p) =>
+          selectedCategoryId === null ||
+          p.producto.categoria.id === selectedCategoryId,
+      )
       .filter((p) =>
         normalizeSearch(p.producto.nombre).includes(
           normalizeSearch(searchQuery),
         ),
-      )
-      .slice(0, 10);
-  }, [productosTienda, searchQuery]);
+      );
+  }, [productosTienda, selectedCategoryId, searchQuery]);
 
-  const handleProductSelect = (product: IProductoTiendaV2) => {
-    setSelectedProduct(product);
-    setProductOrigin("search"); // Marcar como selección manual
-    setShowSearchResults(false);
-    setSearchQuery("");
-  };
+  const selectedCategoryName = categories.find(
+    (c) => c.id === selectedCategoryId,
+  )?.nombre;
+
+  const emptyMessage =
+    searchQuery.trim() !== ""
+      ? selectedCategoryName
+        ? `No se encontraron productos para "${searchQuery}" en «${selectedCategoryName}». Toca «Todas» para buscar en todo el catálogo.`
+        : `No se encontraron productos para "${searchQuery}"`
+      : selectedCategoryName
+        ? "No hay productos en esta categoría"
+        : "No hay productos disponibles";
+
+  // Reset scroll position on filter change: the old per-category modal
+  // always opened fresh, so keeping scrollTop across a pill/search change
+  // would land the cashier mid-list in a usually shorter result.
+  useEffect(() => {
+    const el = posScrollRef.current;
+    if (!el) return;
+    // Mientras se busca la lista es `column-reverse`: el primer resultado
+    // está en el extremo *físico* de abajo (pegado al buscador), así que
+    // "volver al principio" es el scrollTop máximo, que el navegador
+    // recorta solo.
+    el.scrollTop = searchMode ? el.scrollHeight : 0;
+  }, [selectedCategoryId, searchQuery, searchMode]);
 
   const handleResetProductQuantity = () => {
     setSelectedProduct(null);
@@ -1025,9 +1125,6 @@ export default function POSInterface() {
   };
 
   const handleSearchFocus = () => {
-    if (searchQuery.length > 0) {
-      setShowSearchResults(true);
-    }
     setIntentToSearch(true);
   };
 
@@ -1037,30 +1134,19 @@ export default function POSInterface() {
     setIntentToSearch(true);
   };
 
+  // Salir del campo termina la búsqueda, con una excepción: tocar la
+  // cantidad de un producto abre su editor inline y le pasa el foco, y
+  // ahí seguimos buscando — cerrar el modo en ese blur reexpandiría la
+  // barra superior justo mientras el cajero escribe la cantidad. El
+  // chequeo va en un timeout porque en el momento del blur el foco
+  // todavía no se movió a su destino.
   const handleSearchBlur = () => {
-    // Delay para permitir que los clicks en los resultados funcionen
     setTimeout(() => {
+      const active = document.activeElement;
+      if (active && posScrollRef.current?.contains(active)) return;
       setIntentToSearch(false);
-      setShowSearchResults(false);
-    }, 150);
+    }, 0);
   };
-
-  useLayoutEffect(() => {
-    if (!showSearchResults || searchResults.length === 0) return;
-
-    updateSearchPanelLayout();
-    window.addEventListener("resize", updateSearchPanelLayout);
-    window.addEventListener("scroll", updateSearchPanelLayout, true);
-    const ro = new ResizeObserver(updateSearchPanelLayout);
-    const el = searchAnchorRef.current;
-    if (el) ro.observe(el);
-
-    return () => {
-      window.removeEventListener("resize", updateSearchPanelLayout);
-      window.removeEventListener("scroll", updateSearchPanelLayout, true);
-      ro.disconnect();
-    };
-  }, [showSearchResults, searchResults.length, updateSearchPanelLayout]);
 
   // Sincronización automática cuando regresa la conexión
   useEffect(() => {
@@ -1260,312 +1346,196 @@ export default function POSInterface() {
       display={"flex"}
       flexDirection={"row"}
       sx={{
-        height: { xs: "calc(100vh - 56px)", sm: "calc(100vh - 64px)" },
+        // 56/64px are the top AppBar's heights (see Layout.tsx).
+        height: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
         overflow: "hidden",
+        // Con el teclado abierto, iOS Safari no encoge el viewport de
+        // layout: desplaza el *visual viewport* dentro de él. Todo lo que
+        // esté en flujo normal del documento queda entonces corrido hacia
+        // arriba respecto de lo que se ve (la AppBar sticky se va fuera de
+        // pantalla) y `dvh` sigue midiendo el alto sin teclado, así que
+        // este box se extendía por debajo del teclado y los productos
+        // quedaban tapados. Solo `position: fixed` sigue al área visible:
+        // mientras se busca, este contenedor pasa a estar anclado a ella y
+        // toda la maquetación de adentro —barra, píldoras, grilla— vuelve
+        // a resolver contra coordenadas reales, sin tocar su estructura.
+        ...(pinToVisibleArea && {
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: `${viewportHeight}px`,
+          // Por encima de la AppBar (zIndex.drawer - 1), que con el teclado
+          // abierto ya está fuera del área visible de todos modos.
+          zIndex: 1200,
+        }),
       }}
     >
       <Box
-        ref={posScrollRef}
         sx={{
-          flex: isCartPinned ? "1" : "none",
-          width: getMainContentWidth(),
-          overflow: "auto",
-          height: "100%", // Use parent height
-          p: 0,
+          // The cart panel is a real flex sibling (fixed sidebar from
+          // sm+), so `flex: 1` guarantees this always takes exactly
+          // "whatever space the cart panel doesn't" — correct at any
+          // viewport width, including when the cart's own minWidth floor
+          // kicks in. On mobile there's no sibling at all, and flex:1 is
+          // what makes this fill the whole row.
+          flex: 1,
+          minWidth: 0,
+          height: "100%",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          // Anchors CheckoutLockOverlay to this pane, and only this pane —
+          // the cart panel next to it stays fully usable while locked.
           position: "relative",
-          ...(posOnboardingBlocksInteraction
+          ...(posOnboardingBlocksInteraction || productsLocked
             ? { pointerEvents: "none", userSelect: "none" }
             : {}),
         }}
       >
-        {/* Barra superior con información del sistema - posicionada debajo del menú */}
-        <Box
-          sx={{
-            position: "sticky",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 100,
-            bgcolor: "rgba(255, 255, 255, 0.95)",
-            backdropFilter: "blur(10px)",
-            borderBottom: "1px solid rgba(0,0,0,0.1)",
-            px: 2,
-            py: 1,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-            mb: 1,
-          }}
-        >
+        {/* Clicking the scrim only releases the lock — the click never
+            reaches a product, so dismissing it can't add anything by
+            accident. */}
+        <CheckoutLockOverlay
+          active={productsLocked}
+          onDismiss={() => setCartStep("cart")}
+        />
+        {/* Al buscar, la cabecera entera (herramientas + categorías) sale de
+            vista: escribir el nombre ya filtra mejor que cualquiera de las
+            dos, y el alto que dejan libre lo hereda la grilla. Ninguna se
+            aplasta a altura 0 — conservan su tamaño y se desplazan con un
+            margen negativo, así que al salir de la búsqueda vuelven solas.
+            El `overflow: hidden` del padre hace dos cosas necesarias, no
+            una: recorta lo desplazado, y crea un contexto de formato de
+            bloque sin el cual este margen negativo se colapsaría con el del
+            padre y arrastraría todo hacia arriba. */}
+        <Box sx={{ flexShrink: 0, overflow: "hidden" }}>
           <Box
-            data-tour="pos-toolbar-periodo"
-            sx={{ display: "flex", alignItems: "center", minHeight: 32 }}
+            ref={posHeaderRef}
+            sx={{
+              mt: searchMode ? `-${headerHeight}px` : 0,
+              transition: "margin-top 0.2s ease",
+            }}
           >
-            <PeriodoBadge periodo={periodo} isMobile={isMobile} />
-          </Box>
-
-          <Box
-            display="flex"
-            flexDirection="row"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <RefreshButton onRefresh={handleRefresh} />
-            <Tooltip title="Punto de partida">
-              <IconButton
-                size="small"
-                data-tour="pos-toolbar-punto-partida"
-                onClick={() => setResumenDiaOpen(true)}
-              >
-                <FlagIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {puedeDevolucionVenta && (
-              <Tooltip title="Devolución de venta">
-                <IconButton
-                  size="small"
-                  onClick={() => setDevolucionVentaOpen(true)}
-                >
-                  <UndoIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-            <PosStatusToolBar
-              handleShowSyncView={handleShowSyncView}
-              handleShowUserSales={handleShowUserSales}
-            />
-            {puedeImprimir && user?.localActual?.id && (
-              <PrintQueueIndicator
-                tiendaId={user.localActual.id}
-                onOpenSetup={() => setPrinterSetupOpen(true)}
-              />
-            )}
-            <ConnectionStatus isOnline={isOnline} />
-          </Box>
-        </Box>
-        {/* Contenido principal */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: isCartPinned
-              ? {
-                  xs: "repeat(2, 1fr)",
-                  sm: "repeat(2, 1fr)",
-                  md: "repeat(3, 1fr)",
-                  lg: "repeat(4, 1fr)",
-                }
-              : {
-                  xs: "repeat(2, 1fr)",
-                  sm: "repeat(3, 1fr)",
-                  md: "repeat(4, 1fr)",
-                  lg: "repeat(5, 1fr)",
-                },
-            gap: { xs: 0.5, sm: 1.5, md: 2 },
-            p: 1,
-            width: "100%",
-            maxWidth: "1400px",
-            pb: "120px",
-            minHeight: "90vh",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          {categories.map((category, categoryIndex) => (
             <Box
-              key={category.id}
-              {...(categoryIndex === 0
-                ? { "data-tour": "pos-category-first" }
-                : {})}
-              onClick={() => handleOpenProducts(category)}
               sx={{
-                position: "relative",
-                aspectRatio: "1/1", // Mantiene proporción cuadrada
-                borderRadius: { xs: "12px", sm: "16px" },
-                overflow: "hidden",
-                cursor: "pointer",
-                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                "&:active": {
-                  transform: "scale(0.98)",
-                },
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  "& .category-content": {
-                    transform: "translateY(0)",
-                    opacity: 1,
-                  },
-                  "& .category-overlay": {
-                    opacity: 0.85,
-                  },
-                },
+                bgcolor: "rgba(255, 255, 255, 0.95)",
+                backdropFilter: "blur(10px)",
+                borderBottom: "1px solid rgba(0,0,0,0.1)",
+                px: 2,
+                py: 1,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
               }}
             >
-              {/* Fondo con gradiente */}
               <Box
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: `linear-gradient(135deg, ${category.color} 0%, ${category.color}dd 100%)`,
-                  zIndex: 1,
-                }}
-              />
-              {/* Overlay que se oscurece al hover */}
-              <Box
-                className="category-overlay"
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background:
-                    "linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6))",
-                  opacity: 0.6,
-                  transition: "opacity 0.3s ease",
-                  zIndex: 2,
-                }}
-              />
-              {/* Contenido de la categoría */}
-              <Box
-                className="category-content"
-                sx={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  p: { xs: 1.5, sm: 2 },
-                  transform: "translateY(10px)",
-                  opacity: 0.9,
-                  transition: "all 0.3s ease",
-                  zIndex: 3,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "flex-end",
-                  height: "100%",
-                  background:
-                    "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
-                }}
+                data-tour="pos-toolbar-periodo"
+                sx={{ display: "flex", alignItems: "center", minHeight: 32 }}
               >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: "white",
-                    fontWeight: 600,
-                    fontSize: isCartPinned
-                      ? {
-                          xs: "0.7rem",
-                          sm: "0.8rem",
-                          md: "1rem",
-                          lg: "1.25rem",
-                        }
-                      : { xs: "1.25rem", sm: "1.5rem" },
-                    textAlign: "center",
-                    textShadow: `
-              0 0 1px rgba(0,0,0,0.8),
-              0 0 2px rgba(0,0,0,0.8),
-              0 0 3px rgba(0,0,0,0.8)
-            `,
-                    mb: 0.5,
-                    width: "100%",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {category.nombre}
-                </Typography>
-
-                {/* Indicador de toque */}
-                <Box
-                  sx={{
-                    width: "30%",
-                    height: "3px",
-                    background: "rgba(255,255,255,0.8)",
-                    borderRadius: "2px",
-                    mt: 1,
-                    opacity: 0.7,
-                  }}
-                />
+                <PeriodoBadge periodo={periodo} isMobile={isMobile} />
               </Box>
-              {/* Efecto de brillo */}
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background:
-                    "linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)",
-                  zIndex: 2,
-                  pointerEvents: "none",
-                }}
-              />
-            </Box>
-          ))}
-        </Box>
-        {selectedCategory && (!openCart || isCartPinned) && (
-          <ProductModal
-            open={showProducts}
-            productosTienda={productosTienda.filter(
-              (p) => p.producto.categoria.id === selectedCategory.id,
-            )}
-            allProductosTienda={productosTienda}
-            category={selectedCategory}
-            closeModal={() => setShowProducts(false)}
-            openCart={() => setOpenCart(true)}
-            isCartPinned={isCartPinned}
-          />
-        )}
 
-        {/* Carrito de compras */}
+              <Box
+                display="flex"
+                flexDirection="row"
+                justifyContent="center"
+                alignItems="center"
+              >
+                <RefreshButton onRefresh={handleRefresh} />
+                <CurrencyDisplayToggle />
+                <Tooltip title="Punto de partida">
+                  <IconButton
+                    size="small"
+                    data-tour="pos-toolbar-punto-partida"
+                    onClick={() => setResumenDiaOpen(true)}
+                  >
+                    <FlagIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                {puedeDevolucionVenta && (
+                  <Tooltip title="Devolución de venta">
+                    <IconButton
+                      size="small"
+                      onClick={() => setDevolucionVentaOpen(true)}
+                    >
+                      <UndoIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                <PosStatusToolBar
+                  handleShowSyncView={handleShowSyncView}
+                  handleShowUserSales={handleShowUserSales}
+                />
+                {puedeImprimir && user?.localActual?.id && (
+                  <PrintQueueIndicator
+                    tiendaId={user.localActual.id}
+                    onOpenSetup={() => setPrinterSetupOpen(true)}
+                  />
+                )}
+                <ConnectionStatus isOnline={isOnline} />
+              </Box>
+            </Box>
+            {/* Fila fija de píldoras de categorías */}
+            <CategoryPillsBar
+              categories={categories}
+              selectedCategoryId={selectedCategoryId}
+              onSelectCategory={setSelectedCategoryId}
+            />
+          </Box>
+        </Box>
+
+        {/* Contenido principal: la misma grilla de productos de siempre.
+            Mientras se busca en mobile se apila en una sola columna
+            invertida, para que el primer resultado quede pegado al
+            buscador en vez de al borde de arriba. */}
+        <Box
+          ref={posScrollRef}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            overflow: "auto",
+            ...(searchMode && {
+              display: "flex",
+              flexDirection: "column-reverse",
+              gap: 1.5,
+              p: 1.5,
+            }),
+            // Matches PosBottomBar's own 700px threshold for switching
+            // between position:fixed (mobile) and normal flow (desktop):
+            // below it the footer is fixed and needs this space reserved
+            // so it doesn't cover the tail end of the grid. The value
+            // itself comes from measuring PosBottomBar live (see
+            // bottomBarHeight above) rather than a guessed constant.
+            pb: `${bottomBarHeight}px`,
+            "@media (min-width:700px)": {
+              pb: 0,
+            },
+          }}
+        >
+          <PosProductGrid
+            products={filteredProducts}
+            allProductosTienda={productosTienda}
+            emptyMessage={emptyMessage}
+            searchQuery={searchQuery}
+            bottomUp={searchMode}
+          />
+        </Box>
+
+        {/* Carrito de compras (overlay, solo mobile) */}
         <CartDrawer
           cart={cart}
           onClose={() => setOpenCart(false)}
-          open={!isCartPinned && openCart}
-          onOkButtonClick={async () => setPaymentDialog(true)}
+          open={!showCartPanel && openCart}
+          makePay={handleMakePay}
+          transferDestinations={transferDestinations}
+          cierreId={periodo?.id ?? ""}
           total={total}
           clear={clearCart}
           removeItem={removeFromCart}
           updateQuantity={handleUpdateQuantity}
-          isCartPinned={isCartPinned}
-          setIsCartPinned={setIsCartPinned}
-        />
-
-        {/* Modal de pago */}
-        <PaymentModal
-          open={paymentDialog}
-          onClose={() => setPaymentDialog(false)}
-          total={total}
-          makePay={(
-            total,
-            totalchash,
-            totaltransfer,
-            transferDestinationId,
-            discountCodes,
-            multimoneda,
-          ) =>
-            handleMakePay(
-              total,
-              totalchash,
-              totaltransfer,
-              transferDestinationId,
-              discountCodes,
-              multimoneda,
-            )
-          }
-          transferDestinations={transferDestinations}
-          tiendaId={user.localActual.id}
-          cierreId={periodo?.id ?? ""}
-          products={cart.map((prod) => ({
-            productoTiendaId: prod.productoTiendaId,
-            cantidad: prod.quantity,
-            precio: prod.price,
-          }))}
+          onStepChange={setCartStep}
         />
 
         {/* Modal de resumen del período */}
@@ -1617,303 +1587,47 @@ export default function POSInterface() {
         <ShoppingCartComponent
           openCart={openCart}
           handleCartIcon={handleCartIcon}
-          hidden={false}
+          hidden={showCartPanel}
         />
 
-        <Box
-          sx={{
-            m: 0,
-            position: "fixed",
-            bottom: 60,
-            left: 0,
-            right: isCartPinned && !isMobile ? getCartWidth() : 0,
-            p: 1,
-            zIndex: 1200,
-            background:
-              "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
-            backdropFilter: "blur(10px)",
-            borderTop: "1px solid rgba(0,0,0,0.1)",
-            boxShadow: "0 -2px 1px rgba(0,0,0,0.1)",
+        <PosBottomBar
+          rootRef={posBottomBarRef}
+          searchMode={searchMode}
+          carts={carts}
+          activeCartId={activeCartId}
+          onSelectCart={setActiveCart}
+          onCreateCart={() => createCart()}
+          onRemoveActiveCart={removeActiveCart}
+          onRenameCart={renameCart}
+          editingCartId={editingCartId}
+          onStartEditingCart={(id, name) => {
+            setEditingCartId(id);
+            setEditingCartName(name);
           }}
-        >
-          {/* Píldoras de carritos */}
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ overflowX: "auto", pb: 0.5 }}
-          >
-            {carts.map((c) => (
-              <Box key={c.id} sx={{ display: "flex", alignItems: "center" }}>
-                {editingCartId === c.id ? (
-                  <SelectableTextField
-                    size="small"
-                    value={editingCartName}
-                    autoFocus
-                    ref={editCartInputRef}
-                    onChange={(e) => setEditingCartName(e.target.value)}
-                    onBlur={() => {
-                      if (editingCartId) {
-                        const newName =
-                          (editingCartName || "").trim() || c.name;
-                        renameCart(editingCartId, newName);
-                      }
-                      setEditingCartId(null);
-                    }}
-                    onKeyDown={(e) => {
-                      const key = e.key;
-                      // Evitar interferencia de IME y de manejadores globales
-                      const composing = e?.nativeEvent?.isComposing ?? false;
-                      if (
-                        !composing &&
-                        (key === "Enter" || key === "NumpadEnter")
-                      ) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (editingCartId) {
-                          const newName =
-                            (editingCartName || "").trim() || c.name;
-                          renameCart(editingCartId, newName);
-                        }
-                        setEditingCartId(null);
-                      } else if (key === "Escape") {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setEditingCartId(null);
-                      }
-                    }}
-                    InputProps={{
-                      inputProps: {
-                        inputMode: "text",
-                        autoComplete: "off",
-                        autoCorrect: "off",
-                        autoCapitalize: "off",
-                        spellCheck: false,
-                      },
-                    }}
-                    sx={{ minWidth: 140 }}
-                  />
-                ) : (
-                  <Chip
-                    tabIndex={-1}
-                    label={
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                      >
-                        <Box
-                          sx={{
-                            maxWidth: 140,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {c.name}
-                        </Box>
-                        <IconButton
-                          aria-label="Editar nombre"
-                          size="small"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setEditingCartId(c.id);
-                            setEditingCartName(c.name);
-                          }}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                          onTouchStart={(e) => {
-                            e.stopPropagation();
-                          }}
-                          onTouchEnd={(e) => {
-                            e.stopPropagation();
-                          }}
-                          onTouchMove={(e) => {
-                            e.stopPropagation();
-                          }}
-                          edge="end"
-                          sx={{ p: 0.25 }}
-                        >
-                          <EditIcon fontSize="inherit" />
-                        </IconButton>
-                      </Box>
-                    }
-                    color={c.id === activeCartId ? "primary" : "default"}
-                    variant={c.id === activeCartId ? "filled" : "outlined"}
-                    onClick={() => setActiveCart(c.id)}
-                    onDelete={() => {
-                      if (carts.length <= 1) return; // mantener al menos uno
-                      if (c.id !== activeCartId) {
-                        setActiveCart(c.id);
-                      }
-                      removeActiveCart();
-                    }}
-                    sx={{
-                      cursor: "pointer",
-                      "& .MuiChip-label": {
-                        maxWidth: 160,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      },
-                    }}
-                  />
-                )}
-              </Box>
-            ))}
-            <Chip
-              label="Nueva cuenta"
-              variant="outlined"
-              onClick={() => createCart()}
-              sx={{ cursor: "pointer" }}
-            />
-          </Stack>
-        </Box>
-
-        {/* Buscador flotante */}
-        <Box
-          ref={searchAnchorRef}
-          data-tour="pos-search"
-          sx={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: isCartPinned && !isMobile ? getCartWidth() : 0,
-            p: 1,
-            zIndex: 1200,
-            background:
-              "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
-            backdropFilter: "blur(10px)",
-            boxSizing: "border-box",
-            maxWidth: "100vw",
+          editingCartName={editingCartName}
+          onEditingCartNameChange={setEditingCartName}
+          onStopEditingCart={() => {
+            if (editingCartId) {
+              const cart = carts.find((c) => c.id === editingCartId);
+              const newName =
+                (editingCartName || "").trim() || cart?.name || "";
+              renameCart(editingCartId, newName);
+            }
+            setEditingCartId(null);
           }}
-        >
-          <Stack direction="row" spacing={1}>
-            <SelectableTextField
-              ref={searchInputRef}
-              fullWidth
-              variant="outlined"
-              placeholder="Buscar productos..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              // onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
-              onFocus={() => handleSearchFocus()}
-              onBlur={() => handleSearchBlur()}
-              onMouseDown={() => handleSearchMouseDown()}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-                endAdornment: searchQuery && (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        setSearchQuery("");
-                      }}
-                    >
-                      <CloseIcon />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                sx: {
-                  bgcolor: "white",
-                  borderRadius: "12px",
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "12px",
-                  },
-                },
-              }}
-            />
-            <Grid size={{ xs: 7, sm: 10 }} data-tour="pos-toolbar-scanner">
-              <ProductProcessorData
-                ref={scannerRef}
-                onProcessedData={(data: IProcessedData) => {
-                  if (data?.code) handleProductScan(data.code);
-                }}
-                enableHardwareScanner={false}
-                onCameraOpenChange={setCameraScannerOpen}
-              />
-              {scannerError && (
-                <Alert
-                  severity="warning"
-                  onClose={() => setScannerError(null)}
-                  sx={{ mt: 1 }}
-                >
-                  {scannerError}
-                </Alert>
-              )}
-            </Grid>
-          </Stack>
-        </Box>
-
-        {showSearchResults && searchResults.length > 0 && (
-          <Portal>
-            <Box
-              sx={{
-                position: "fixed",
-                left: 8,
-                right:
-                  isCartPinned && !isMobile
-                    ? `calc(${getCartWidth()} + 8px)`
-                    : 8,
-                bottom: searchPanelLayout.bottom,
-                maxHeight: searchPanelLayout.maxHeight,
-                zIndex: 1300,
-                minWidth: 0,
-                boxSizing: "border-box",
-                maxWidth:
-                  !isMobile && !isCartPinned
-                    ? "min(700px, calc(100vw - 16px))"
-                    : "calc(100vw - 16px)",
-              }}
-            >
-              <MuiPaper
-                elevation={3}
-                onMouseDown={(e) => e.preventDefault()}
-                sx={{
-                  width: "100%",
-                  maxWidth: "100%",
-                  boxSizing: "border-box",
-                  maxHeight: "inherit",
-                  overflowX: "hidden",
-                  overflowY: "auto",
-                  borderRadius: "12px",
-                  bgcolor: "rgba(255,255,255,0.98)",
-                  backdropFilter: "blur(10px)",
-                  boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
-                <Box
-                  sx={{
-                    p: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 1,
-                    minWidth: 0,
-                  }}
-                >
-                  {searchResults.map((product) => (
-                    <PosProductItemLayout
-                      key={product.id}
-                      productoTienda={product}
-                      allProductosTienda={productosTienda}
-                      highlightName={normalizeSearch(
-                        product.producto.nombre,
-                      ).startsWith(normalizeSearch(searchQuery))}
-                      onClick={() => {
-                        handleProductSelect(product);
-                        setIntentToSearch(false);
-                      }}
-                    />
-                  ))}
-                </Box>
-              </MuiPaper>
-            </Box>
-          </Portal>
-        )}
+          editCartInputRef={editCartInputRef}
+          searchInputRef={searchInputRef}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearch}
+          onSearchFocus={handleSearchFocus}
+          onSearchBlur={handleSearchBlur}
+          onSearchMouseDown={handleSearchMouseDown}
+          scannerRef={scannerRef}
+          onProductScan={handleProductScan}
+          onCameraOpenChange={setCameraScannerOpen}
+          scannerError={scannerError}
+          onDismissScannerError={() => setScannerError(null)}
+        />
 
         {/* Dialog de cantidad */}
         <QuantityDialog
@@ -1924,7 +1638,7 @@ export default function POSInterface() {
           maxDisponibleOverride={
             selectedProduct
               ? calcularDisponibilidadReal(selectedProduct, productosTienda)
-                  .maxPorTransaccion
+                  .disponible
               : undefined
           }
         />
@@ -1939,33 +1653,52 @@ export default function POSInterface() {
         />
       </Box>
 
-      {isCartPinned && (
+      {showCartPanel && (
         <Box
           sx={{
-            position: "fixed",
-            right: 0,
-            top: { xs: 56, sm: 64 },
+            // A real flex sibling, not a position:fixed overlay floating
+            // above the content on hand-computed coordinates. That's what
+            // made the two ever line up "by luck" instead of by
+            // construction — the main content's width was a separately
+            // maintained calc() string that had to exactly match this
+            // panel's width, including its minWidth floor, and drifted.
+            // As a flex item, the browser computes both correctly, always.
+            flexShrink: 0,
             width: getCartWidth(),
             maxWidth: getCartWidth(),
             minWidth: "360px",
-            height: { xs: "calc(100vh - 56px)", sm: "calc(100vh - 64px)" },
-            overflow: "hidden",
-            borderLeft: "1px solid rgba(0,0,0,0.1)",
+            height: "100%",
+            // The shadow alone reads as "something sits near this edge,"
+            // not as a hard line — both panels share the same background
+            // color, so without an actual border the seam was hard to
+            // spot. The border is the delimiter; the shadow adds depth on
+            // top of it. It has to live on THIS box, not the inner one
+            // below: box-shadow paints outside the border box, and a
+            // sibling `overflow: hidden` on the very same box clips its
+            // own shadow away.
+            borderLeft: "1px solid",
+            borderColor: "divider",
+            boxShadow: "-8px 0px 24px rgba(0,0,0,0.12)",
             backgroundColor: "background.paper",
-            zIndex: (theme) => theme.zIndex.drawer + 1,
           }}
         >
-          <CartContent
-            cart={cart}
-            total={total}
-            clear={clearCart}
-            updateQuantity={handleUpdateQuantity}
-            onClose={() => setOpenCart(false)}
-            removeItem={removeFromCart}
-            onOkButtonClick={async () => setPaymentDialog(true)}
-            isCartPinned={isCartPinned}
-            setIsCartPinned={setIsCartPinned}
-          />
+          {/* Only THIS box clips — CartContent's internal scrolling needs
+              containment, but it must not clip the outer box's shadow. */}
+          <Box sx={{ height: "100%", overflow: "hidden" }}>
+            <CartContent
+              cart={cart}
+              total={total}
+              clear={clearCart}
+              updateQuantity={handleUpdateQuantity}
+              removeItem={removeFromCart}
+              makePay={handleMakePay}
+              transferDestinations={transferDestinations}
+              cierreId={periodo?.id ?? ""}
+              variant="panel"
+              step={cartStep}
+              onStepChange={setCartStep}
+            />
+          </Box>
         </Box>
       )}
     </Box>

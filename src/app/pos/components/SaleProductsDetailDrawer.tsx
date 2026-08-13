@@ -3,6 +3,8 @@ import { Sale } from "@/store/salesStore";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase, pagadaConUnSoloPago } from "@/lib/currency";
 import { IProductoTiendaV2 } from "@/schemas/producto";
+import { SaleExtrasSummary } from "@/components/SaleExtrasSummary";
+import { formatQuantity } from "@/utils/formatters";
 import { Close, Delete } from "@mui/icons-material";
 import {
   Box,
@@ -156,7 +158,9 @@ export const SaleProductsDetailDrawer: React.FC<
                 return (
                   <TableRow key={key} hover>
                     <TableCell>{product.name}</TableCell>
-                    <TableCell align="center">{product.cantidad}</TableCell>
+                    <TableCell align="center">
+                      {formatQuantity(product.cantidad)}
+                    </TableCell>
                     <TableCell align="right">
                       ${precioBase?.toFixed(2)}
                     </TableCell>
@@ -212,6 +216,18 @@ export const SaleProductsDetailDrawer: React.FC<
             </TableBody>
           </Table>
         </TableContainer>
+
+        {/* Fuera de la tabla a propósito: el vuelto y la propina no son
+            líneas de la venta —no suman al total— sino lo que pasó con el
+            dinero al cobrarla. */}
+        <Box sx={{ mt: 2, flexShrink: 0 }}>
+          <SaleExtrasSummary
+            vueltoDetalle={sale.vueltoDetalle}
+            tipTotal={sale.tipTotal}
+            tipDetail={sale.tipDetail}
+            monedaBase={monedaBase}
+          />
+        </Box>
       </Box>
     </Drawer>
   );

@@ -9,7 +9,7 @@ interface Props {
 
 export default function SyncIndicator({ sales }: Props) {
   const pendingOrSyncing = sales.filter(
-    (s) => s.syncState === "not_synced" || s.syncState === "syncing"
+    (s) => s.syncState === "not_synced" || s.syncState === "syncing",
   );
   const syncing = sales.filter((s) => s.syncState === "syncing");
   const isSyncing = syncing.length > 0;

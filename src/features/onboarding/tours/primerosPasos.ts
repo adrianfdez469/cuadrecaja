@@ -180,7 +180,7 @@ const posToolbarTourSteps: OnboardingTourDefinition["steps"] = [
     target: '[data-tour="pos-category-first"]',
     title: "Categorías de productos",
     content:
-      "Cada tarjeta es una categoría (como esta). Al tocarla verás sus productos para añadirlos al carrito sin usar el buscador.",
+      "Cada píldora es una categoría (como esta). Tócala para ver solo sus productos; tócala de nuevo (o toca «Todas») para quitar el filtro.",
     pathname: "/pos",
     placement: "bottom",
     showNextButton: true,

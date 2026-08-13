@@ -96,7 +96,12 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
         <Grid container spacing={1} mb={1.5}>
           <Grid size={6}>
             <Box sx={{ bgcolor: "action.hover", borderRadius: 2, p: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                mb={0.5}
+              >
                 Inicial
               </Typography>
               <Typography
@@ -112,18 +117,29 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
             <Box
               sx={{
                 bgcolor: (t) => {
-                  if (p.cantidadFinal <= 0) return alpha(t.palette.error.main, 0.18);
-                  if (p.cantidadFinal <= 5) return alpha(t.palette.warning.main, 0.18);
+                  if (p.cantidadFinal <= 0)
+                    return alpha(t.palette.error.main, 0.18);
+                  if (p.cantidadFinal <= 5)
+                    return alpha(t.palette.warning.main, 0.18);
                   return alpha(t.palette.success.main, 0.15);
                 },
                 borderRadius: 2,
                 p: 1.5,
               }}
             >
-              <Typography variant="caption" color={getExistenciaColor(p.cantidadFinal)} display="block" mb={0.5}>
+              <Typography
+                variant="caption"
+                color={getExistenciaColor(p.cantidadFinal)}
+                display="block"
+                mb={0.5}
+              >
                 Existencia actual
               </Typography>
-              <Typography variant="h5" fontWeight={700} color={getExistenciaColor(p.cantidadFinal)}>
+              <Typography
+                variant="h5"
+                fontWeight={700}
+                color={getExistenciaColor(p.cantidadFinal)}
+              >
                 {formatDecimal(p.cantidadFinal, dec)}
               </Typography>
             </Box>
@@ -136,37 +152,90 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
         <Typography
           variant="caption"
           color="text.disabled"
-          sx={{ textTransform: "uppercase", letterSpacing: 0.8, display: "block", mb: 1 }}
+          sx={{
+            textTransform: "uppercase",
+            letterSpacing: 0.8,
+            display: "block",
+            mb: 1,
+          }}
         >
           Movimientos
         </Typography>
         <Grid container spacing={1}>
           <Grid size={4}>
-            <Box sx={{ bgcolor: "action.hover", borderRadius: 2, p: 1, textAlign: "center" }}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.25}>
+            <Box
+              sx={{
+                bgcolor: "action.hover",
+                borderRadius: 2,
+                p: 1,
+                textAlign: "center",
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                mb={0.25}
+              >
                 Ventas
               </Typography>
-              <Typography variant="subtitle1" fontWeight={700} color="error.light">
+              <Typography
+                variant="subtitle1"
+                fontWeight={700}
+                color="error.light"
+              >
                 {formatDecimal(p.ventas, dec)}
               </Typography>
             </Box>
           </Grid>
           <Grid size={4}>
-            <Box sx={{ bgcolor: "action.hover", borderRadius: 2, p: 1, textAlign: "center" }}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.25}>
+            <Box
+              sx={{
+                bgcolor: "action.hover",
+                borderRadius: 2,
+                p: 1,
+                textAlign: "center",
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                mb={0.25}
+              >
                 Entradas
               </Typography>
-              <Typography variant="subtitle1" fontWeight={700} color="success.main">
+              <Typography
+                variant="subtitle1"
+                fontWeight={700}
+                color="success.main"
+              >
                 {formatDecimal(p.entradas, dec)}
               </Typography>
             </Box>
           </Grid>
           <Grid size={4}>
-            <Box sx={{ bgcolor: "action.hover", borderRadius: 2, p: 1, textAlign: "center" }}>
-              <Typography variant="caption" color="text.secondary" display="block" mb={0.25}>
+            <Box
+              sx={{
+                bgcolor: "action.hover",
+                borderRadius: 2,
+                p: 1,
+                textAlign: "center",
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                mb={0.25}
+              >
                 Salidas
               </Typography>
-              <Typography variant="subtitle1" fontWeight={700} color="warning.main">
+              <Typography
+                variant="subtitle1"
+                fontWeight={700}
+                color="warning.main"
+              >
                 {formatDecimal(p.salidas, dec)}
               </Typography>
             </Box>
@@ -190,7 +259,11 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
     if (!cierreId) return;
     setLoading(true);
     try {
-      const result = await getResumenDia(tiendaId, cierreId, soloConMovimientos);
+      const result = await getResumenDia(
+        tiendaId,
+        cierreId,
+        soloConMovimientos,
+      );
       setData(result);
       setAllLoaded(!soloConMovimientos);
     } catch (error) {
@@ -232,10 +305,21 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
       return matchSearch && matchToggle;
     });
 
-    const groupMap = new Map<string, { categoriaNombre: string; categoriaColor: string; productos: IResumenDiaProducto[] }>();
+    const groupMap = new Map<
+      string,
+      {
+        categoriaNombre: string;
+        categoriaColor: string;
+        productos: IResumenDiaProducto[];
+      }
+    >();
     for (const p of filtered) {
       if (!groupMap.has(p.categoriaId)) {
-        groupMap.set(p.categoriaId, { categoriaNombre: p.categoriaNombre, categoriaColor: p.categoriaColor, productos: [] });
+        groupMap.set(p.categoriaId, {
+          categoriaNombre: p.categoriaNombre,
+          categoriaColor: p.categoriaColor,
+          productos: [],
+        });
       }
       groupMap.get(p.categoriaId)!.productos.push(p);
     }
@@ -252,11 +336,14 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
 
     // Ordenar grupos alfabéticamente
     return Array.from(groupMap.values()).sort((a, b) =>
-      a.categoriaNombre.localeCompare(b.categoriaNombre)
+      a.categoriaNombre.localeCompare(b.categoriaNombre),
     );
   }, [data?.productos, filterTerm, showAll]);
 
-  const totalProductos = gruposProductos.reduce((acc, g) => acc + g.productos.length, 0);
+  const totalProductos = gruposProductos.reduce(
+    (acc, g) => acc + g.productos.length,
+    0,
+  );
 
   return (
     <Dialog
@@ -269,15 +356,34 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
       fullScreen={isMobile}
       maxWidth="lg"
       fullWidth
-      PaperProps={{ sx: { height: isMobile ? "100%" : "90vh", display: "flex", flexDirection: "column" } }}
+      PaperProps={{
+        sx: {
+          height: isMobile ? "100%" : "90vh",
+          display: "flex",
+          flexDirection: "column",
+        },
+      }}
     >
       {/* Título */}
-      <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", py: 1.5, px: 2 }}>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          py: 1.5,
+          px: 2,
+        }}
+      >
         <Typography variant="h6" fontWeight={700} component="span">
           Punto de partida y comportamiento
         </Typography>
         <Stack direction="row" spacing={0.5}>
-          <IconButton size="small" onClick={handleRefresh} disabled={loading} title="Actualizar">
+          <IconButton
+            size="small"
+            onClick={handleRefresh}
+            disabled={loading}
+            title="Actualizar"
+          >
             <RefreshIcon fontSize="small" />
           </IconButton>
           <IconButton size="small" onClick={onClose} title="Cerrar">
@@ -286,7 +392,16 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
         </Stack>
       </DialogTitle>
 
-      <DialogContent sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", px: 2, pt: 1 }}>
+      <DialogContent
+        sx={{
+          flex: 1,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          px: 2,
+          pt: 1,
+        }}
+      >
         {/* Cards de totales */}
         {data && (
           <Stack direction="row" spacing={1} mb={2}>
@@ -319,14 +434,24 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
               placeholder="Buscar producto... (mín. 3 letras)"
             />
           </Box>
-          <Tooltip title={showAll ? "Mostrando todos los productos" : "Mostrando solo productos con movimientos"}>
+          <Tooltip
+            title={
+              showAll
+                ? "Mostrando todos los productos"
+                : "Mostrando solo productos con movimientos"
+            }
+          >
             <IconButton
               size="small"
               onClick={handleToggleShowAll}
               color={showAll ? "primary" : "default"}
               sx={{ flexShrink: 0 }}
             >
-              {showAll ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+              {showAll ? (
+                <VisibilityIcon fontSize="small" />
+              ) : (
+                <VisibilityOffIcon fontSize="small" />
+              )}
             </IconButton>
           </Tooltip>
         </Stack>
@@ -352,9 +477,17 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
 
           {/* Sin datos */}
           {!loading && data && totalProductos === 0 && (
-            <Box display="flex" flexDirection="column" alignItems="center" py={6} color="text.secondary">
+            <Box
+              display="flex"
+              flexDirection="column"
+              alignItems="center"
+              py={6}
+              color="text.secondary"
+            >
               <AssessmentIcon sx={{ fontSize: 48, mb: 1, opacity: 0.4 }} />
-              <Typography variant="body2">No hay productos para mostrar</Typography>
+              <Typography variant="body2">
+                No hay productos para mostrar
+              </Typography>
             </Box>
           )}
 
@@ -364,8 +497,21 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
               {gruposProductos.map((group) => (
                 <Box key={group.categoriaNombre}>
                   <Stack direction="row" spacing={1} alignItems="center" mb={1}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: group.categoriaColor, flexShrink: 0 }} />
-                    <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+                    <Box
+                      sx={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        bgcolor: group.categoriaColor,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Typography
+                      variant="caption"
+                      fontWeight={700}
+                      color="text.secondary"
+                      sx={{ textTransform: "uppercase", letterSpacing: 0.8 }}
+                    >
                       {group.categoriaNombre}
                     </Typography>
                   </Stack>
@@ -387,9 +533,15 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
                   <TableRow>
                     <TableCell>Producto</TableCell>
                     <TableCell align="right">Inicial</TableCell>
-                    <TableCell align="right" sx={{ color: "error.light" }}>Ventas</TableCell>
-                    <TableCell align="right" sx={{ color: "success.main" }}>Entradas</TableCell>
-                    <TableCell align="right" sx={{ color: "warning.main" }}>Salidas</TableCell>
+                    <TableCell align="right" sx={{ color: "error.light" }}>
+                      Ventas
+                    </TableCell>
+                    <TableCell align="right" sx={{ color: "success.main" }}>
+                      Entradas
+                    </TableCell>
+                    <TableCell align="right" sx={{ color: "warning.main" }}>
+                      Salidas
+                    </TableCell>
                     <TableCell align="right">Existencia</TableCell>
                   </TableRow>
                 </TableHead>
@@ -397,10 +549,32 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
                   {gruposProductos.map((group) => (
                     <>
                       <TableRow key={`cat-${group.categoriaNombre}`}>
-                        <TableCell colSpan={6} sx={{ py: 0.5, bgcolor: "action.hover" }}>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: group.categoriaColor }} />
-                            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+                        <TableCell
+                          colSpan={6}
+                          sx={{ py: 0.5, bgcolor: "action.hover" }}
+                        >
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                          >
+                            <Box
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                bgcolor: group.categoriaColor,
+                              }}
+                            />
+                            <Typography
+                              variant="caption"
+                              fontWeight={700}
+                              color="text.secondary"
+                              sx={{
+                                textTransform: "uppercase",
+                                letterSpacing: 0.8,
+                              }}
+                            >
                               {group.categoriaNombre}
                             </Typography>
                           </Stack>
@@ -411,24 +585,43 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
                         return (
                           <TableRow key={p.productoTiendaId} hover>
                             <TableCell>
-                              <Typography variant="body2" fontWeight={500}>{p.nombre}</Typography>
+                              <Typography variant="body2" fontWeight={500}>
+                                {p.nombre}
+                              </Typography>
                             </TableCell>
                             <TableCell align="right">
-                              <Typography variant="body2" color={p.cantidadInicial < 0 ? "error.main" : "text.primary"}>
+                              <Typography
+                                variant="body2"
+                                color={
+                                  p.cantidadInicial < 0
+                                    ? "error.main"
+                                    : "text.primary"
+                                }
+                              >
                                 {formatDecimal(p.cantidadInicial, dec)}
                               </Typography>
                             </TableCell>
                             <TableCell align="right">
-                              <Typography variant="body2" color="error.light">{formatDecimal(p.ventas, dec)}</Typography>
+                              <Typography variant="body2" color="error.light">
+                                {formatDecimal(p.ventas, dec)}
+                              </Typography>
                             </TableCell>
                             <TableCell align="right">
-                              <Typography variant="body2" color="success.main">{formatDecimal(p.entradas, dec)}</Typography>
+                              <Typography variant="body2" color="success.main">
+                                {formatDecimal(p.entradas, dec)}
+                              </Typography>
                             </TableCell>
                             <TableCell align="right">
-                              <Typography variant="body2" color="warning.main">{formatDecimal(p.salidas, dec)}</Typography>
+                              <Typography variant="body2" color="warning.main">
+                                {formatDecimal(p.salidas, dec)}
+                              </Typography>
                             </TableCell>
                             <TableCell align="right">
-                              <Typography variant="body2" fontWeight={600} color={getExistenciaColor(p.cantidadFinal)}>
+                              <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                color={getExistenciaColor(p.cantidadFinal)}
+                              >
                                 {formatDecimal(p.cantidadFinal, dec)}
                               </Typography>
                             </TableCell>

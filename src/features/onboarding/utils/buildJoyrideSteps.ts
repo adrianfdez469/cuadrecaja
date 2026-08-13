@@ -12,10 +12,6 @@ export interface BuildJoyrideStepsOptions {
   productTablePrimaryLabel?: string;
 }
 
-function isPosFloatingTourTarget(target: string): boolean {
-  return target.includes("pos-category-first");
-}
-
 /**
  * En móvil, el desplazamiento de estos pasos lo gestiona el contenedor del POS
  * o del drawer. Dejamos que react-joyride NO haga scroll de la ventana, porque
@@ -32,44 +28,29 @@ function shouldSkipJoyrideScroll(target: string, isMobile: boolean): boolean {
 
 function hasPrimaryButton(def: OnboardingStepDefinition): boolean {
   return Boolean(
-    def.showStartButton || def.showNextButton || def.primaryButtonLabel
+    def.showStartButton || def.showNextButton || def.primaryButtonLabel,
   );
 }
 
 export function buildJoyrideSteps(
   definitions: OnboardingStepDefinition[],
   isMobile: boolean,
-  options?: BuildJoyrideStepsOptions
+  options?: BuildJoyrideStepsOptions,
 ): Step[] {
   return definitions.map((def, index) => {
-    const isPosFloating = isPosFloatingTourTarget(def.target);
     const mobileFixedPlacement = isMobile
       ? getMobileFixedTooltipPlacement(def.target)
       : null;
     const showBack =
       index > 0 &&
-      Boolean(def.showNextButton || def.showStartButton || def.primaryButtonLabel);
+      Boolean(
+        def.showNextButton || def.showStartButton || def.primaryButtonLabel,
+      );
 
-    let placement =
-      def.placement === "right" && isMobile ? "bottom" : (def.placement ?? "bottom");
-
-    if (isMobile && isPosFloating) {
-      placement = "center";
-    }
-
-    const mobilePosFloaterProps =
-      isMobile && isPosFloating
-        ? {
-            floaterProps: {
-              options: {
-                preventOverflow: {
-                  altAxis: true,
-                  padding: 12,
-                },
-              },
-            },
-          }
-        : {};
+    const placement =
+      def.placement === "right" && isMobile
+        ? "bottom"
+        : (def.placement ?? "bottom");
 
     const mobileFixedConfig = mobileFixedPlacement
       ? getMobileFixedTooltipStepConfig(mobileFixedPlacement)
@@ -80,7 +61,7 @@ export function buildJoyrideSteps(
       title: def.title,
       content: def.content,
       placement: mobileFixedConfig?.placement ?? placement,
-      ...(mobileFixedConfig ?? mobilePosFloaterProps),
+      ...mobileFixedConfig,
       skipBeacon: true,
       buttons: hasPrimaryButton(def)
         ? showBack
@@ -99,8 +80,7 @@ export function buildJoyrideSteps(
           return { next: def.primaryButtonLabel, last: def.primaryButtonLabel };
         }
         if (def.target.includes("gi-product-table")) {
-          const label =
-            options?.productTablePrimaryLabel ?? "Continuar";
+          const label = options?.productTablePrimaryLabel ?? "Continuar";
           return { next: label, last: label };
         }
         if (def.showStartButton) {

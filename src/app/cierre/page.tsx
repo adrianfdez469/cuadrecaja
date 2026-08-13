@@ -55,6 +55,7 @@ import { IGastoAdHocCreate, IGastoPreview } from "@/schemas/gastos";
 import MonedaBreakdownRow from "@/app/cierre/components/MonedaBreakdownRow";
 import { DENOMINACIONES } from "@/constants/billDenominations";
 import GananciaCard from "@/app/cierre/components/GananciaCard";
+import PropinasCard from "@/app/cierre/components/PropinasCard";
 import InitialCashFundDialog from "@/app/cierre/components/InitialCashFundDialog";
 import SavingsIcon from "@mui/icons-material/Savings";
 
@@ -519,6 +520,20 @@ const CierreCajaPage = () => {
             </Grid>
           )}
 
+          {/* Propinas — solo aparece si las hubo. No forma parte de ninguna
+              cifra de ventas ni de ganancia: es dinero que pasó por la caja
+              pero pertenece al personal. */}
+          {(cierreData.totalTips || 0) > 0 && (
+            <Grid item xs={12} sm={6} md={4}>
+              <PropinasCard
+                totalTips={cierreData.totalTips || 0}
+                tipsPorUsuario={cierreData.tipsPorUsuario}
+                resumenMonedas={cierreData.resumenMonedas}
+                isMobile={isMobile}
+              />
+            </Grid>
+          )}
+
           {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
           <Grid item xs={12} sm={6} md={4}>
             <StatCard
@@ -571,6 +586,8 @@ const CierreCajaPage = () => {
                     totalEfectivoBruto={rm.totalEfectivoBruto}
                     equivalenteBaseBruto={rm.equivalenteBaseBruto}
                     initialFund={rm.initialFund}
+                    tipCash={rm.tipCash}
+                    tipTransfer={rm.tipTransfer}
                     tiendaId={user?.localActual?.id ?? ""}
                     cierreId={currentPeriod.id}
                     isOpen={!currentPeriod.fechaFin}

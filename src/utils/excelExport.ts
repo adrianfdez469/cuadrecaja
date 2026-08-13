@@ -349,10 +349,12 @@ export const exportInventarioToExcel = async ({
         Valor: 1,
         Descripción: "Moneda base (referencia)",
       },
+      // Las tasas se guardan siempre contra CUP, el ancla universal (ver
+      // `cupTasa` en @/lib/currency) — no contra la moneda base del negocio.
       ...Object.entries(tasasVigentes).map(([code, tasa]) => ({
         Parámetro: code,
         Valor: tasa,
-        Descripción: `1 ${code} = ${tasa} ${monedaBase}`,
+        Descripción: `1 ${code} = ${tasa} CUP`,
       })),
     ];
     const worksheetConfig = XLSX.utils.json_to_sheet(configData);

@@ -49,6 +49,18 @@ function CajaResumenMonedaCard({ item }: { item: IResumenCajaMoneda }) {
             {formatMontoEnMoneda(item.ventasEfectivo, item.monedaCode)}
           </Typography>
         </Box>
+        {/* Ya está dentro del total esperado — el billete sigue en la gaveta.
+            Se muestra para saber cuánto de lo que hay no es del negocio. */}
+        {item.tipCash > 0 && (
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="caption" color="secondary.main">
+              De ellas, propinas
+            </Typography>
+            <Typography variant="caption" color="secondary.main">
+              {formatMontoEnMoneda(item.tipCash, item.monedaCode)}
+            </Typography>
+          </Box>
+        )}
       </CardContent>
     </Card>
   );

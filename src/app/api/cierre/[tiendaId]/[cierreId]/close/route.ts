@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { getSession } from "@/utils/auth";
-import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
 import { applyGastosToResumenMap, calcularGananciaFinal } from "@/lib/gastos";
 import {
   applyComprasYDevolucionesToResumenMap,
   applyInitialFundToResumenMap,
+  buildResumenMonedas,
   calcularTotalesMovimientosPeriodo,
   getCurrentInitialCashFundAmounts,
 } from "@/lib/movimiento/caja";
+import { buildResumenPropinas, totalPropinasBase } from "@/lib/tips";
 
 export async function PUT(
   req: NextRequest,
@@ -259,6 +260,9 @@ export async function PUT(
       );
 
       // Cerrar el período con resumen
+      // Suma de lo que los clientes dejaron al personal en este período.
+      const totalTips = totalPropinasBase(ultimoPeriodo.ventas);
+
       const periodoCerrado = await tx.cierrePeriodo.update({
         where: { id: ultimoPeriodo.id },
         data: {
@@ -276,72 +280,62 @@ export async function PUT(
           totalComprasCaja,
           totalMerma,
           totalDevoluciones,
+          // Las propinas se denormalizan igual que el resto, pero no entran
+          // en totalVentas ni en totalGananciaFinal: no son ingreso del
+          // negocio, solo dinero que pasó por su caja.
+          totalTips,
         },
       });
 
-      // Calcular ResumenMonedaCierre agrupando pagosDetalle de todas las ventas
-      const resumenMonedaMap: Record<
-        string,
-        {
-          totalEfectivo: number;
-          totalTransfer: number;
-          equivalenteBase: number;
-        }
-      > = {};
-
-      for (const venta of ultimoPeriodo.ventas) {
-        if (!venta.pagosDetalle) continue;
-        const pagos = venta.pagosDetalle as unknown as IPagoLinea[];
-        const tasas = {
-          ...tasasGastos,
+      // Las ventas llevan la tasa vigente al momento de cobrarlas; donde falte,
+      // se rellena con la tasa histórica de esa fecha y, en último término, con
+      // la tasa del cierre. Resolverlo aquí permite usar los mismos helpers que
+      // el cierre en vivo en vez de reimplementar la agregación.
+      const ventasConTasas = ultimoPeriodo.ventas.map((venta) => ({
+        ...venta,
+        tasaSnapshot: {
           ...tasasEnMomento(venta.createdAt),
           ...((venta.tasaSnapshot as unknown as ITasaSnapshot) ?? {}),
+        },
+      }));
+
+      // Calcular ResumenMonedaCierre agrupando pagosDetalle de todas las ventas
+      const resumenMonedaMap = buildResumenMonedas(
+        ventasConTasas,
+        monedaBase,
+        tasasGastos,
+      ).reduce<
+        Record<
+          string,
+          {
+            totalEfectivo: number;
+            totalTransfer: number;
+            equivalenteBase: number;
+          }
+        >
+      >((acc, r) => {
+        acc[r.monedaCode] = {
+          totalEfectivo: r.totalEfectivo,
+          totalTransfer: r.totalTransfer,
+          equivalenteBase: r.equivalenteBase,
         };
+        return acc;
+      }, {});
 
-        for (const pago of pagos) {
-          if (!resumenMonedaMap[pago.moneda]) {
-            resumenMonedaMap[pago.moneda] = {
-              totalEfectivo: 0,
-              totalTransfer: 0,
-              equivalenteBase: 0,
-            };
-          }
-          const enBase = convertToBase(
-            pago.monto,
-            pago.moneda,
-            tasas,
-            monedaBase,
-          );
-          if (pago.tipo === "cash") {
-            resumenMonedaMap[pago.moneda].totalEfectivo += pago.monto;
-          } else {
-            resumenMonedaMap[pago.moneda].totalTransfer += pago.monto;
-          }
-          resumenMonedaMap[pago.moneda].equivalenteBase += enBase;
-        }
-
-        // Subtract change given — vuelto reduces cash on hand per currency
-        if (venta.vueltoDetalle) {
-          const vueltos = venta.vueltoDetalle as unknown as IVueltoLinea[];
-          for (const vuelto of vueltos) {
-            if (!resumenMonedaMap[vuelto.moneda]) {
-              resumenMonedaMap[vuelto.moneda] = {
-                totalEfectivo: 0,
-                totalTransfer: 0,
-                equivalenteBase: 0,
-              };
-            }
-            const enBase = convertToBase(
-              vuelto.monto,
-              vuelto.moneda,
-              tasas,
-              monedaBase,
-            );
-            resumenMonedaMap[vuelto.moneda].totalEfectivo -= vuelto.monto;
-            resumenMonedaMap[vuelto.moneda].equivalenteBase -= enBase;
-          }
-        }
-      }
+      // Propinas: se agregan aparte y no tocan resumenMonedaMap. El dinero ya
+      // está contado en la caja vía pagosDetalle; esto solo dice qué parte de
+      // ese efectivo/transferencia no es del negocio.
+      const propinasPorMoneda = buildResumenPropinas(
+        ventasConTasas,
+        monedaBase,
+        tasasGastos,
+      );
+      const propinaPorMoneda = Object.fromEntries(
+        propinasPorMoneda.map((p) => [
+          p.monedaCode,
+          { tipCash: p.tipCash, tipTransfer: p.tipTransfer },
+        ]),
+      );
 
       // Fondo inicial de caja — no es una deducción, es el punto de partida
       // del efectivo (igual que las ventas en efectivo del período).
@@ -377,6 +371,8 @@ export async function PUT(
             totalEfectivo: vals.totalEfectivo,
             totalTransfer: vals.totalTransfer,
             equivalenteBase: vals.equivalenteBase,
+            tipCash: propinaPorMoneda[monedaCode]?.tipCash ?? 0,
+            tipTransfer: propinaPorMoneda[monedaCode]?.tipTransfer ?? 0,
           })),
           skipDuplicates: true,
         });

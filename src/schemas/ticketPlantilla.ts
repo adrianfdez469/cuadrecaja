@@ -9,6 +9,7 @@ export const ticketPlantillaSchema = z.object({
   mostrarTienda: z.boolean().default(true),
   mostrarCajero: z.boolean().default(true),
   mostrarDescuentos: z.boolean().default(true),
+  mostrarPropina: z.boolean().default(true),
   mostrarMultimoneda: z.boolean().default(true),
   mostrarTasas: z.boolean().default(false),
   mostrarTotalesSecundarios: z.boolean().default(true),
@@ -25,7 +26,9 @@ export const updateTicketPlantillaSchema = ticketPlantillaSchema.omit({
 });
 
 export type ITicketPlantilla = z.infer<typeof ticketPlantillaSchema>;
-export type IUpdateTicketPlantilla = z.infer<typeof updateTicketPlantillaSchema>;
+export type IUpdateTicketPlantilla = z.infer<
+  typeof updateTicketPlantillaSchema
+>;
 
 export const DEFAULT_TICKET_PLANTILLA: Omit<
   ITicketPlantilla,
@@ -37,6 +40,7 @@ export const DEFAULT_TICKET_PLANTILLA: Omit<
   mostrarTienda: true,
   mostrarCajero: true,
   mostrarDescuentos: true,
+  mostrarPropina: true,
   mostrarMultimoneda: true,
   mostrarTasas: false,
   mostrarTotalesSecundarios: true,
