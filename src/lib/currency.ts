@@ -103,6 +103,38 @@ export function convertFromBase(
 }
 
 /**
+ * Rounds an amount expressed in `monedaBase` to the anchor's (CUP) cent grid.
+ *
+ * Base-currency arithmetic must never be quantized to the base's own cents:
+ * with a coarse base (1 USD = 670 CUP) one base cent is worth 6.7 CUP, so
+ * rounding a 500-CUP sale to 0.75 USD invents 2.5 CUP out of thin air — and
+ * every derived number (pending, change, suggestions) inherits the error.
+ * Quantizing on the anchor keeps full precision for any base: when the base
+ * IS the anchor this is a plain round-to-cents.
+ */
+export function roundBaseToAnchorCents(
+  monto: number,
+  tasas: ITasaSnapshot,
+  monedaBase = "CUP",
+): number {
+  const rate = cupTasa(monedaBase, tasas);
+  if (rate === 0) return monto;
+  return Math.round(monto * rate * 100) / 100 / rate;
+}
+
+/**
+ * A base-currency amount in whole anchor (CUP) cents, for float-safe money
+ * comparisons at the finest granularity the business handles.
+ */
+export function anchorCents(
+  monto: number,
+  tasas: ITasaSnapshot,
+  monedaBase = "CUP",
+): number {
+  return Math.round(monto * cupTasa(monedaBase, tasas) * 100);
+}
+
+/**
  * Calculates change distribution across currencies.
  * All arithmetic routes through CUP anchor.
  */

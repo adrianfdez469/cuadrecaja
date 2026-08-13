@@ -49,7 +49,7 @@ describe("tipLinesFromChange", () => {
       { tipo: "cash", moneda: "CUP", monto: 150, equivalenteBase: 150 },
       { tipo: "cash", moneda: "USD", monto: 2, equivalenteBase: 700 },
     ]);
-    expect(tipTotalBase(lines)).toBe(850);
+    expect(tipTotalBase(lines, RATES, BASE)).toBe(850);
   });
 
   it("drops currencies with no amount", () => {
@@ -88,7 +88,7 @@ describe("tipLinesFromAmounts", () => {
       { tipo: "cash", moneda: "CUP", monto: 300, equivalenteBase: 300 },
       { tipo: "cash", moneda: "USD", monto: 2, equivalenteBase: 700 },
     ]);
-    expect(tipTotalBase(lines)).toBe(1000);
+    expect(tipTotalBase(lines, RATES, BASE)).toBe(1000);
   });
 
   it("rides the transfer when that currency was only paid by transfer", () => {
@@ -168,6 +168,6 @@ describe("tipTotalFromAmounts", () => {
 
 describe("tipTotalBase", () => {
   it("returns zero for an empty breakdown", () => {
-    expect(tipTotalBase([])).toBe(0);
+    expect(tipTotalBase([], RATES, BASE)).toBe(0);
   });
 });

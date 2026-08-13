@@ -42,7 +42,11 @@ import {
   tipTotalFromAmounts,
   type TipAmounts,
 } from "@/app/pos/utils/tipMath";
-import { convertFromBase, convertToBase } from "@/lib/currency";
+import {
+  convertFromBase,
+  convertToBase,
+  roundBaseToAnchorCents,
+} from "@/lib/currency";
 import { DENOMINACIONES } from "@/constants/billDenominations";
 import type { IMultimonedaExtras, IPagoLinea } from "@/schemas/pago";
 import type { ITransferDestination } from "@/schemas/transferDestination";
@@ -108,13 +112,20 @@ export function CheckoutView({
   const [explicitTip, setExplicitTip] = useState<TipAmounts>({});
 
   const tipTotal = tipFromChange
-    ? tipTotalBase(tipFromChange.detail)
+    ? tipTotalBase(tipFromChange.detail, tasasVigentes, monedaBase)
     : tipTotalFromAmounts(explicitTip, tasasVigentes, monedaBase);
 
   // What the customer actually has to cover. Everything downstream — the
   // preloaded line, "falta", the change — is measured against this, never
-  // against finalTotal, which is the business's share alone.
-  const amountDue = Math.round((finalTotal + tipTotal) * 100) / 100;
+  // against finalTotal, which is the business's share alone. Quantized on the
+  // anchor's cents, NOT the base's: with a USD base a base cent is worth
+  // several CUP, and rounding a 500-CUP sale to 0.75 USD would corrupt every
+  // pending/change figure derived from it (503 CUP asked, 168 CUP change).
+  const amountDue = roundBaseToAnchorCents(
+    finalTotal + tipTotal,
+    tasasVigentes,
+    monedaBase,
+  );
 
   const monedasActivas = useMemo(
     () => monedasNegocio.filter((m) => m.activo),
@@ -215,8 +226,11 @@ export function CheckoutView({
   }, [lines]);
 
   const paid = paidBase(lines, tasasVigentes, monedaBase);
-  const missing = amountDue === 0 ? false : isMissing(paid, amountDue);
-  const change = changeBase(paid, amountDue);
+  const missing =
+    amountDue === 0
+      ? false
+      : isMissing(paid, amountDue, tasasVigentes, monedaBase);
+  const change = changeBase(paid, amountDue, tasasVigentes, monedaBase);
 
   /** The payment state a committed tip was captured against. */
   const linesSignature = useMemo(

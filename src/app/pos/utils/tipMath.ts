@@ -13,7 +13,7 @@
  * and handed out later.
  */
 
-import { convertToBase } from "@/lib/currency";
+import { convertToBase, roundBaseToAnchorCents } from "@/lib/currency";
 import type { PaymentLine } from "./paymentMath";
 import type { ChangeDistribution } from "./changeMath";
 import type { IPagoLinea } from "@/schemas/pago";
@@ -42,7 +42,13 @@ export function tipLinesFromChange(
       tipo: "cash" as const,
       moneda,
       monto: round2(monto),
-      equivalenteBase: round2(convertToBase(monto, moneda, rates, base)),
+      // Anchor-cent grid: base cents are too coarse when the base is USD
+      // (see roundBaseToAnchorCents) and would shift the tip by real CUP.
+      equivalenteBase: roundBaseToAnchorCents(
+        convertToBase(monto, moneda, rates, base),
+        rates,
+        base,
+      ),
     }));
 }
 
@@ -87,7 +93,11 @@ export function tipLinesFromAmounts(
         tipo: asTransfer ? ("transfer" as const) : ("cash" as const),
         moneda,
         monto: round2(monto),
-        equivalenteBase: round2(convertToBase(monto, moneda, rates, base)),
+        equivalenteBase: roundBaseToAnchorCents(
+          convertToBase(monto, moneda, rates, base),
+          rates,
+          base,
+        ),
         ...(asTransfer && transferLine?.transferDestinationId
           ? { transferDestinationId: transferLine.transferDestinationId }
           : {}),
@@ -101,16 +111,26 @@ export function tipTotalFromAmounts(
   rates: ITasaSnapshot,
   base: string,
 ): number {
-  return round2(
+  return roundBaseToAnchorCents(
     Object.entries(amounts).reduce(
       (sum, [moneda, monto]) =>
         monto > 0 ? sum + convertToBase(monto, moneda, rates, base) : sum,
       0,
     ),
+    rates,
+    base,
   );
 }
 
 /** Total of a tip breakdown in base currency. */
-export function tipTotalBase(tipDetail: IPagoLinea[]): number {
-  return round2(tipDetail.reduce((sum, line) => sum + line.equivalenteBase, 0));
+export function tipTotalBase(
+  tipDetail: IPagoLinea[],
+  rates: ITasaSnapshot,
+  base: string,
+): number {
+  return roundBaseToAnchorCents(
+    tipDetail.reduce((sum, line) => sum + line.equivalenteBase, 0),
+    rates,
+    base,
+  );
 }
