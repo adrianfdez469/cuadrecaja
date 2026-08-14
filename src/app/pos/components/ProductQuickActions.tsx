@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Box, IconButton, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { IProductoTiendaV2 } from "@/schemas/producto";
-import { useCartStore } from "@/store/cartStore";
-import { calcularDisponibilidadReal } from "../utils/calcularDisponibilidadReal";
+import { useCartItemQuantity, useCartStore } from "@/store/cartStore";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
 import SelectableTextField from "@/components/SelectableTextField";
@@ -17,9 +16,71 @@ import {
   sanitizeQuantityDraft,
 } from "@/app/pos/utils/quantityInput";
 
+// Hoisted out of the render: this component is mounted once per product card,
+// and an inline object would make Emotion re-serialize every one of these —
+// several of them responsive, which costs multiple times a flat rule — on
+// every render of the grid.
+const ROOT_SX = {
+  flexShrink: 0,
+  bgcolor: "action.hover",
+  borderRadius: 2,
+  px: 0.5,
+  py: 0.25,
+} as const;
+const STEP_BUTTON_SX = {
+  minWidth: { xs: 44, sm: 36 },
+  minHeight: { xs: 44, sm: 36 },
+  "&:disabled": { opacity: 0.5 },
+} as const;
+const ADD_BUTTON_SX = {
+  minWidth: { xs: 44, sm: 36 },
+  minHeight: { xs: 44, sm: 36 },
+  bgcolor: "primary.main",
+  color: "primary.contrastText",
+  "&:hover": {
+    bgcolor: "primary.dark",
+    color: "primary.contrastText",
+  },
+  "&:disabled": {
+    bgcolor: "action.disabledBackground",
+    color: "action.disabled",
+  },
+} as const;
+const STEP_ICON_SX = { fontSize: { xs: 18, sm: 20 } } as const;
+const QUANTITY_SLOT_SX = {
+  // Más ancho que la cifra del stepper del carrito porque aquí además es un
+  // campo de escritura: con productos decimales el valor llega a "12.50" y a
+  // 44px se recortaba al teclear.
+  width: 60,
+  minWidth: 60,
+  minHeight: { xs: 44, sm: 36 },
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "text",
+} as const;
+const QUANTITY_FIELD_SX = { width: "100%", minWidth: 0 } as const;
+const QUANTITY_TEXT_SX = {
+  width: "100%",
+  textAlign: "center",
+  fontWeight: 600,
+  fontSize: { xs: "1rem", sm: "1.125rem" },
+} as const;
+const QUANTITY_INPUT_STYLE = {
+  textAlign: "center",
+  fontWeight: 600,
+  fontSize: "1.125rem",
+  padding: 0,
+} as const;
+
 interface ProductQuickActionsProps {
   productoTienda: IProductoTiendaV2;
-  allProductosTienda: IProductoTiendaV2[];
+  /**
+   * Sellable units before the cart is deducted, precomputed by
+   * `buildProductIndex`. Taking the number instead of the whole catalog is
+   * what stops every stepper in the grid from scanning it on every render.
+   */
+  disponible: number;
   onStopPropagation?: (e: React.MouseEvent) => void;
 }
 
@@ -28,33 +89,23 @@ interface ProductQuickActionsProps {
  * para escribir una cantidad exacta directamente, sin abrir ningún modal.
  * Sincronizado en tiempo real con el carrito y respeta stock/disponibilidad.
  */
-export function ProductQuickActions({
+function ProductQuickActionsComponent({
   productoTienda,
-  allProductosTienda,
+  disponible,
   onStopPropagation,
 }: ProductQuickActionsProps) {
-  const { items, addToCart, updateQuantity, removeFromCart } = useCartStore();
+  // Only this product's quantity, not the whole store: subscribing to the
+  // full state made every card in the grid re-render on any cart mutation.
+  // The actions are read through `getState()` inside the handlers instead of
+  // being selected, so this component does not subscribe to them at all.
+  const cartQuantity = useCartItemQuantity(productoTienda.id);
   const { tasasVigentes, monedaBase } = useAppContext();
   const [editing, setEditing] = useState(false);
   const [draftText, setDraftText] = useState("");
 
   const allowDecimal = Boolean(productoTienda.producto?.permiteDecimal);
 
-  const getCartQuantity = (productoTiendaId: string) => {
-    return (
-      items.find((item) => item.productoTiendaId === productoTiendaId)
-        ?.quantity || 0
-    );
-  };
-
-  const getMaxDisponible = () => {
-    const { disponible } = calcularDisponibilidadReal(
-      productoTienda,
-      allProductosTienda,
-    );
-    const cartQty = getCartQuantity(productoTienda.id);
-    return Math.max(0, disponible - cartQty);
-  };
+  const getMaxDisponible = () => Math.max(0, disponible - cartQuantity);
 
   const buildCartLine = () => ({
     id: productoTienda.id,
@@ -75,16 +126,16 @@ export function ProductQuickActions({
     e.stopPropagation();
     onStopPropagation?.(e);
     if (getMaxDisponible() >= 1) {
-      addToCart(buildCartLine(), 1);
+      useCartStore.getState().addToCart(buildCartLine(), 1);
     }
   };
 
   const handleQuickDecrement = (e: React.MouseEvent) => {
     e.stopPropagation();
     onStopPropagation?.(e);
-    const cartQuantity = getCartQuantity(productoTienda.id);
     if (cartQuantity <= 0) return;
     const nuevaCantidad = Math.round((cartQuantity - 1) * 100) / 100;
+    const { removeFromCart, updateQuantity } = useCartStore.getState();
     if (nuevaCantidad <= 0) {
       removeFromCart(productoTienda.id);
     } else {
@@ -92,7 +143,6 @@ export function ProductQuickActions({
     }
   };
 
-  const cartQuantity = getCartQuantity(productoTienda.id);
   const maxDisponible = getMaxDisponible();
   const canAdd = maxDisponible >= 1;
 
@@ -114,15 +164,19 @@ export function ProductQuickActions({
   // disponible), para que quien la llama pueda reflejarla en el texto
   // visible cuando el tope obligó a bajarla.
   const applyQuantity = (value: number): number => {
+    // Read live rather than from the render: this fires on every keystroke,
+    // and two of them within the same render pass would both see the old
+    // quantity and add the line twice instead of updating it.
+    const store = useCartStore.getState();
+    const currentQuantity =
+      store.items.find((item) => item.productoTiendaId === productoTienda.id)
+        ?.quantity ?? 0;
+
     if (value <= 0) {
-      if (cartQuantity > 0) removeFromCart(productoTienda.id);
+      if (currentQuantity > 0) store.removeFromCart(productoTienda.id);
       return 0;
     }
 
-    const { disponible } = calcularDisponibilidadReal(
-      productoTienda,
-      allProductosTienda,
-    );
     const clamped = clampQuantity(
       value,
       allowDecimal ? 0.01 : 1,
@@ -130,10 +184,10 @@ export function ProductQuickActions({
       allowDecimal,
     );
 
-    if (cartQuantity > 0) {
-      updateQuantity(productoTienda.id, clamped);
+    if (currentQuantity > 0) {
+      store.updateQuantity(productoTienda.id, clamped);
     } else if (clamped > 0) {
-      addToCart(buildCartLine(), clamped);
+      store.addToCart(buildCartLine(), clamped);
     }
     return clamped;
   };
@@ -176,43 +230,19 @@ export function ProductQuickActions({
       }}
       // Misma píldora agrupada que el stepper de CartItemCard: −, cantidad
       // y + leen como un único control en vez de tres piezas sueltas.
-      sx={{
-        flexShrink: 0,
-        bgcolor: "action.hover",
-        borderRadius: 2,
-        px: 0.5,
-        py: 0.25,
-      }}
+      sx={ROOT_SX}
     >
       <IconButton
         size="small"
         onClick={handleQuickDecrement}
         disabled={cartQuantity <= 0}
         aria-label={`Quitar uno de ${productoTienda.producto.nombre}`}
-        sx={{
-          minWidth: { xs: 44, sm: 36 },
-          minHeight: { xs: 44, sm: 36 },
-          "&:disabled": { opacity: 0.5 },
-        }}
+        sx={STEP_BUTTON_SX}
       >
-        <RemoveIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+        <RemoveIcon sx={STEP_ICON_SX} />
       </IconButton>
 
-      <Box
-        onClick={startEditing}
-        sx={{
-          // Más ancho que la cifra del stepper del carrito porque aquí
-          // además es un campo de escritura: con productos decimales el
-          // valor llega a "12.50" y a 44px se recortaba al teclear.
-          width: 60,
-          minWidth: 60,
-          minHeight: { xs: 44, sm: 36 },
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "text",
-        }}
-      >
+      <Box onClick={startEditing} sx={QUANTITY_SLOT_SX}>
         {editing ? (
           <SelectableTextField
             autoFocus
@@ -230,25 +260,15 @@ export function ProductQuickActions({
             inputProps={{
               inputMode: allowDecimal ? "decimal" : "numeric",
               "aria-label": `Escribir cantidad de ${productoTienda.producto.nombre}`,
-              style: {
-                textAlign: "center",
-                fontWeight: 600,
-                fontSize: "1.125rem",
-                padding: 0,
-              },
+              style: QUANTITY_INPUT_STYLE,
             }}
             variant="standard"
-            sx={{ width: "100%", minWidth: 0 }}
+            sx={QUANTITY_FIELD_SX}
           />
         ) : (
           <Typography
             variant="body2"
-            sx={{
-              width: "100%",
-              textAlign: "center",
-              fontWeight: 600,
-              fontSize: { xs: "1rem", sm: "1.125rem" },
-            }}
+            sx={QUANTITY_TEXT_SX}
             aria-live="polite"
             aria-atomic="true"
           >
@@ -264,23 +284,12 @@ export function ProductQuickActions({
         onClick={handleQuickAdd}
         disabled={!canAdd}
         aria-label={`Agregar uno de ${productoTienda.producto.nombre} al carrito`}
-        sx={{
-          minWidth: { xs: 44, sm: 36 },
-          minHeight: { xs: 44, sm: 36 },
-          bgcolor: "primary.main",
-          color: "primary.contrastText",
-          "&:hover": {
-            bgcolor: "primary.dark",
-            color: "primary.contrastText",
-          },
-          "&:disabled": {
-            bgcolor: "action.disabledBackground",
-            color: "action.disabled",
-          },
-        }}
+        sx={ADD_BUTTON_SX}
       >
-        <AddIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+        <AddIcon sx={STEP_ICON_SX} />
       </IconButton>
     </Box>
   );
 }
+
+export const ProductQuickActions = memo(ProductQuickActionsComponent);

@@ -2,10 +2,18 @@
  * Utilidades para formatear fechas y monedas de manera consistente
  */
 
-// Configuración de localización para España/Cuba
-const LOCALE = "es-ES";
+import { LOCALE, formatAmount, formatNumberWith } from "@/utils/numberFormat";
+
+// Configuración de localización para España/Cuba: LOCALE vive en
+// numberFormat.ts, que es donde se cachean los Intl.NumberFormat.
 const CURRENCY_SYMBOL = "$";
 const SECONDARY_CURRENCY = "CUP";
+
+/** Whole units, no decimals — reused so the cache key is always the same. */
+const INTEGER_OPTIONS: Intl.NumberFormatOptions = {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+};
 
 /**
  * Formatea una fecha en formato corto (dd/mm/aaaa)
@@ -122,10 +130,7 @@ export const getDaysRemainingColor = (
  */
 export const formatCurrency = (amount: number): string => {
   if (amount) {
-    return `${CURRENCY_SYMBOL}${amount.toLocaleString(LOCALE, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    return `${CURRENCY_SYMBOL}${formatAmount(amount, LOCALE)}`;
   } else {
     return `${CURRENCY_SYMBOL}0.00`;
   }
@@ -142,11 +147,7 @@ export const formatCurrency = (amount: number): string => {
 export const formatMontoEnMoneda = (
   amount: number,
   monedaCode: string,
-): string =>
-  `${(amount || 0).toLocaleString(LOCALE, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} ${monedaCode}`;
+): string => `${formatAmount(amount || 0, LOCALE)} ${monedaCode}`;
 
 /**
  * Formatea un reparto de vuelto por moneda: "63,00 USD + 225,00 CUP".
@@ -166,40 +167,32 @@ export const formatChangeSplit = (
  * Formatea una moneda con CUP (formato secundario)
  */
 export const formatCurrencyCUP = (amount: number): string => {
-  return `${amount.toLocaleString(LOCALE, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} ${SECONDARY_CURRENCY}`;
+  return `${formatAmount(amount, LOCALE)} ${SECONDARY_CURRENCY}`;
 };
 
 /**
  * Formatea una moneda sin decimales
  */
 export const formatCurrencyInteger = (amount: number): string => {
-  return `${CURRENCY_SYMBOL}${amount.toLocaleString(LOCALE, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  })}`;
+  return `${CURRENCY_SYMBOL}${formatNumberWith(amount, INTEGER_OPTIONS, LOCALE)}`;
 };
 
 /**
  * Formatea un número sin símbolo de moneda
  */
 export const formatNumber = (amount: number): string => {
-  return amount.toLocaleString(LOCALE, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
+  return formatNumberWith(amount, INTEGER_OPTIONS, LOCALE);
 };
 
 /**
  * Formatea un número con decimales
  */
 export const formatDecimal = (amount: number, decimals: number = 2): string => {
-  return amount.toLocaleString(LOCALE, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
+  return formatNumberWith(
+    amount,
+    { minimumFractionDigits: decimals, maximumFractionDigits: decimals },
+    LOCALE,
+  );
 };
 
 /**
@@ -227,10 +220,11 @@ export const formatPercentage = (
   value: number,
   decimals: number = 1,
 ): string => {
-  return `${value.toLocaleString(LOCALE, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  })}%`;
+  return `${formatNumberWith(
+    value,
+    { minimumFractionDigits: decimals, maximumFractionDigits: decimals },
+    LOCALE,
+  )}%`;
 };
 
 /**

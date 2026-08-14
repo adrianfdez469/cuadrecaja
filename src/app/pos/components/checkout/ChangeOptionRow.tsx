@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Box, Radio, Stack, alpha, useTheme } from "@mui/material";
 
 interface ChangeOptionRowProps {
@@ -19,7 +19,7 @@ interface ChangeOptionRowProps {
 }
 
 /** One pickable way to hand the change over. */
-export function ChangeOptionRow({
+function ChangeOptionRowComponent({
   selected,
   onSelect,
   children,
@@ -74,3 +74,5 @@ export function ChangeOptionRow({
     </Box>
   );
 }
+
+export const ChangeOptionRow = memo(ChangeOptionRowComponent);

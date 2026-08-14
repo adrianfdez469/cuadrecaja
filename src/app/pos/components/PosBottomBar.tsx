@@ -1,6 +1,6 @@
 "use client";
 
-import { Ref, RefObject } from "react";
+import { memo, Ref, RefObject } from "react";
 import type { MouseEvent } from "react";
 import {
   Box,
@@ -55,7 +55,7 @@ interface PosBottomBarProps {
   searchMode?: boolean;
 }
 
-export function PosBottomBar({
+function PosBottomBarComponent({
   carts,
   activeCartId,
   onSelectCart,
@@ -343,3 +343,5 @@ export function PosBottomBar({
     </Box>
   );
 }
+
+export const PosBottomBar = memo(PosBottomBarComponent);

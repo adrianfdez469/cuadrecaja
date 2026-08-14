@@ -1,5 +1,6 @@
 import type { ITasaSnapshot, ITasaCambio } from "@/schemas/tasaCambio";
 import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
+import { formatNumberWith } from "@/utils/numberFormat";
 
 // CUP is the universal anchor — always 1. Rates are always expressed as "1 X = Y CUP".
 const cupTasa = (code: string, tasas: ITasaSnapshot): number =>
@@ -222,7 +223,7 @@ export function formatMoneda(
   simbolo: string,
   decimales = 2,
 ): string {
-  return `${simbolo}${monto.toLocaleString("es-ES", {
+  return `${simbolo}${formatNumberWith(monto, {
     minimumFractionDigits: decimales,
     maximumFractionDigits: decimales,
   })}`;

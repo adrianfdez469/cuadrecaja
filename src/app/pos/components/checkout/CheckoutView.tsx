@@ -71,6 +71,9 @@ interface CheckoutViewProps {
   onSaleComplete: () => void;
 }
 
+/** A currency with no bills configured. Stable so memos keyed on it settle. */
+const EMPTY_DENOMINATIONS: number[] = [];
+
 const defaultDestId = (dests: ITransferDestination[]) =>
   dests.length === 0
     ? ""
@@ -111,9 +114,16 @@ export function CheckoutView({
    */
   const [explicitTip, setExplicitTip] = useState<TipAmounts>({});
 
-  const tipTotal = tipFromChange
-    ? tipTotalBase(tipFromChange.detail, tasasVigentes, monedaBase)
-    : tipTotalFromAmounts(explicitTip, tasasVigentes, monedaBase);
+  // Memoized because the whole checkout hangs off this: it is recomputed on
+  // every keypad press, and `amountDue` below — plus everything derived from
+  // it — depends on the result.
+  const tipTotal = useMemo(
+    () =>
+      tipFromChange
+        ? tipTotalBase(tipFromChange.detail, tasasVigentes, monedaBase)
+        : tipTotalFromAmounts(explicitTip, tasasVigentes, monedaBase),
+    [tipFromChange, explicitTip, tasasVigentes, monedaBase],
+  );
 
   // What the customer actually has to cover. Everything downstream — the
   // preloaded line, "falta", the change — is measured against this, never
@@ -121,10 +131,10 @@ export function CheckoutView({
   // anchor's cents, NOT the base's: with a USD base a base cent is worth
   // several CUP, and rounding a 500-CUP sale to 0.75 USD would corrupt every
   // pending/change figure derived from it (503 CUP asked, 168 CUP change).
-  const amountDue = roundBaseToAnchorCents(
-    finalTotal + tipTotal,
-    tasasVigentes,
-    monedaBase,
+  const amountDue = useMemo(
+    () =>
+      roundBaseToAnchorCents(finalTotal + tipTotal, tasasVigentes, monedaBase),
+    [finalTotal, tipTotal, tasasVigentes, monedaBase],
   );
 
   const monedasActivas = useMemo(
@@ -132,20 +142,35 @@ export function CheckoutView({
     [monedasNegocio],
   );
 
-  const denominationsFor = useCallback(
-    (currency: string): number[] => {
-      const info = monedasActivas.find((m) => m.monedaCode === currency);
+  // Resolved once per currency instead of on every call. This used to run a
+  // find + filter + map + sort each time, and it is invoked from inside the
+  // JSX per currency group as well as from the nine chained memos of
+  // `useChangeDistribution`, all of which key off its identity.
+  const denominationsByCurrency = useMemo(() => {
+    const byCurrency = new Map<string, number[]>();
+    for (const info of monedasActivas) {
       const values = (info?.moneda?.denominaciones ?? [])
         .filter((d) => d.activo)
         .map((d) => d.valor)
         .sort((a, b) => b - a);
-      if (values.length > 0) return values;
-      // CUP keeps a static fallback so the base currency always has bills.
-      return currency === "CUP"
-        ? [...DENOMINACIONES.CUP].sort((a, b) => b - a)
-        : [];
+      byCurrency.set(info.monedaCode, values);
+    }
+    return byCurrency;
+  }, [monedasActivas]);
+
+  // CUP keeps a static fallback so the base currency always has bills.
+  const cupFallback = useMemo(
+    () => [...DENOMINACIONES.CUP].sort((a, b) => b - a),
+    [],
+  );
+
+  const denominationsFor = useCallback(
+    (currency: string): number[] => {
+      const values = denominationsByCurrency.get(currency);
+      if (values && values.length > 0) return values;
+      return currency === "CUP" ? cupFallback : EMPTY_DENOMINATIONS;
     },
-    [monedasActivas],
+    [denominationsByCurrency, cupFallback],
   );
 
   const convertAmount = useCallback(
@@ -225,12 +250,24 @@ export function CheckoutView({
     }));
   }, [lines]);
 
-  const paid = paidBase(lines, tasasVigentes, monedaBase);
-  const missing =
-    amountDue === 0
-      ? false
-      : isMissing(paid, amountDue, tasasVigentes, monedaBase);
-  const change = changeBase(paid, amountDue, tasasVigentes, monedaBase);
+  // The three figures the footer lives on. Each walks every payment line and
+  // converts currencies, and they were recomputed on every render — which, on
+  // the keypad, means on every digit.
+  const paid = useMemo(
+    () => paidBase(lines, tasasVigentes, monedaBase),
+    [lines, tasasVigentes, monedaBase],
+  );
+  const missing = useMemo(
+    () =>
+      amountDue === 0
+        ? false
+        : isMissing(paid, amountDue, tasasVigentes, monedaBase),
+    [paid, amountDue, tasasVigentes, monedaBase],
+  );
+  const change = useMemo(
+    () => changeBase(paid, amountDue, tasasVigentes, monedaBase),
+    [paid, amountDue, tasasVigentes, monedaBase],
+  );
 
   /** The payment state a committed tip was captured against. */
   const linesSignature = useMemo(

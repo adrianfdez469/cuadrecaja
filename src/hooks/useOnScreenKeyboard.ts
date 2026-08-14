@@ -41,12 +41,19 @@ export function useOnScreenKeyboard(): OnScreenKeyboardState {
     if (!vv) return;
 
     const update = () => {
-      const height = vv.height;
+      // `visualViewport` fires `scroll` on every frame of a mobile scroll, and
+      // its height carries sub-pixel noise. Without rounding and the identity
+      // check below, each of those frames produced a fresh state object and
+      // re-rendered the whole POS — grid included — while the cashier was
+      // merely scrolling the product list.
+      const height = Math.round(vv.height);
       maxHeightRef.current = Math.max(maxHeightRef.current, height);
-      setState({
-        keyboardOpen: maxHeightRef.current - height > KEYBOARD_MIN_SHRINK,
-        viewportHeight: height,
-      });
+      const keyboardOpen = maxHeightRef.current - height > KEYBOARD_MIN_SHRINK;
+      setState((prev) =>
+        prev.keyboardOpen === keyboardOpen && prev.viewportHeight === height
+          ? prev
+          : { keyboardOpen, viewportHeight: height },
+      );
     };
 
     update();

@@ -11,6 +11,7 @@ import {
 } from "@/app/pos/utils/changeMath";
 import type { PaymentLine } from "@/app/pos/utils/paymentMath";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
+import { useCashBalance, useCashBalanceStore } from "@/store/cashBalanceStore";
 
 interface UseChangeDistributionArgs {
   lines: PaymentLine[];
@@ -38,21 +39,15 @@ export function useChangeDistribution({
 }: UseChangeDistributionArgs) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [customAmounts, setCustomAmounts] = useState<ChangeDistribution>({});
-  const [drawerBalance, setDrawerBalance] = useState<Record<string, number>>(
-    {},
-  );
 
-  const refreshBalance = useCallback(() => {
-    if (!tiendaId || !cierreId) return;
-    fetch(`/api/cierre/${tiendaId}/${cierreId}/cash-balance`)
-      .then((response) => (response.ok ? response.json() : {}))
-      .then((balance: Record<string, number>) => setDrawerBalance(balance))
-      .catch(() => setDrawerBalance({}));
-  }, [tiendaId, cierreId]);
-
+  // Served from a TTL cache shared across mounts. The checkout is remounted
+  // after every sale and on every switch of cart, and each mount used to fire
+  // this aggregation — five parallel queries over the whole open period —
+  // right as the cashier was about to charge.
+  const drawerBalance = useCashBalance(tiendaId, cierreId);
   useEffect(() => {
-    refreshBalance();
-  }, [refreshBalance]);
+    void useCashBalanceStore.getState().ensure(tiendaId, cierreId);
+  }, [tiendaId, cierreId]);
 
   const options = useMemo(
     () =>
@@ -113,9 +108,12 @@ export function useChangeDistribution({
   // makes it a claim about a number that no longer exists, so it is dropped
   // rather than left to silently overshoot — the same thing that happens to a
   // selected option, whose id is derived from the amounts and stops existing.
+  // Guarded with the functional form so a reset that changes nothing keeps the
+  // same state identity: the effect fires on every keypad digit that moves the
+  // change, and two unconditional setState calls meant an extra render each.
   useEffect(() => {
-    setCustomAmounts({});
-    setSelectedId(null);
+    setCustomAmounts((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+    setSelectedId((prev) => (prev === null ? prev : null));
   }, [changeAmountBase]);
 
   const setCustomAmount = useCallback((currency: string, amount: number) => {

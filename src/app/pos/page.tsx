@@ -13,7 +13,7 @@ import {
   Tooltip,
 } from "@mui/material";
 
-import { useCartStore } from "@/store/cartStore";
+import { flushCartToStorage, useCartStore } from "@/store/cartStore";
 import { getProductosVenta } from "@/services/costoPrecioServices";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
@@ -37,11 +37,18 @@ import { UserSalesDrawer } from "./components/UserSalesDrawer";
 import { QuantityDialog } from "./components/QuantityDialog";
 import { PosBottomBar } from "./components/PosBottomBar";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
+import { buildProductIndex, withBasePrices } from "./utils/buildProductIndex";
+import { isPermanentSyncError } from "./utils/syncErrors";
+import { useDiscountRulesStore } from "@/store/discountRulesStore";
+import { useCashBalanceStore } from "@/store/cashBalanceStore";
+import { readCatalog, writeCatalog } from "@/lib/catalogCache";
+import { MAX_SYNC_ATTEMPTS } from "@/constants/pos";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOnScreenKeyboard } from "@/hooks/useOnScreenKeyboard";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { POS_SEARCH_DEBOUNCE_MS } from "@/constants/pos";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
-import { useCartTotal } from "@/hooks/useCartTotal";
 import { convertToBase } from "@/lib/currency";
 
 import { IProcessedData } from "@/schemas/processedData";
@@ -105,17 +112,24 @@ export default function POSInterface() {
     useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
-  const {
-    sales,
-    addSale,
-    markSynced,
-    markSyncing,
-    checkSyncTimeouts,
-    markSyncError,
-  } = useSalesStore();
+  const { addSale, markSynced, markSyncing, checkSyncTimeouts, markSyncError } =
+    useSalesStore();
+  // A number, not the array: this drives the sync effect, and subscribing to
+  // `sales` re-ran it on every mark the sync itself performed.
+  const pendingSalesCount = useSalesStore(
+    (state) =>
+      state.sales.filter((sale) => sale.syncState === "not_synced").length,
+  );
   const [showUserSales, setShowUserSales] = useState(false);
   const [showSyncView, setShowSyncView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // The field stays fully controlled by `searchQuery` — typing must never
+  // wait on anything. Only the expensive half (filtering the catalog and
+  // rebuilding the grid) reads the trailing value.
+  const debouncedSearchQuery = useDebouncedValue(
+    searchQuery,
+    POS_SEARCH_DEBOUNCE_MS,
+  );
   const searchInputRef = useRef<HTMLInputElement>(null);
   const posScrollRef = useRef<HTMLDivElement>(null);
   // Espacio que la grilla debe reservar abajo para no quedar tapada por
@@ -159,19 +173,21 @@ export default function POSInterface() {
   }, []);
   const [selectedProduct, setSelectedProduct] =
     useState<IProductoTiendaV2 | null>(null);
-  const {
-    items: cart,
-    clearCart,
-    removeFromCart,
-    updateQuantity,
-    carts,
-    activeCartId,
-    createCart,
-    setActiveCart,
-    renameCart,
-    removeActiveCart,
-  } = useCartStore();
-  const total = useCartTotal();
+  // Individual selectors, never the whole store. Subscribing to the state
+  // object meant every cart mutation re-rendered this 1700-line component and
+  // the entire product grid under it — the single biggest source of the lag
+  // the cashiers were feeling on `+`. `items` and `total` are gone entirely:
+  // the cart panel and drawer read them for themselves, and the sale flow
+  // reads the basket with `getState()` at the moment it charges.
+  const carts = useCartStore((state) => state.carts);
+  const activeCartId = useCartStore((state) => state.activeCartId);
+  const clearCart = useCartStore((state) => state.clearCart);
+  const removeFromCart = useCartStore((state) => state.removeFromCart);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const createCart = useCartStore((state) => state.createCart);
+  const setActiveCart = useCartStore((state) => state.setActiveCart);
+  const renameCart = useCartStore((state) => state.renameCart);
+  const removeActiveCart = useCartStore((state) => state.removeActiveCart);
   const [loading, setLoading] = useState(true);
   const { isOnline } = useNetworkStatus();
   useBlockBackNavigation();
@@ -213,10 +229,11 @@ export default function POSInterface() {
     () => {},
   );
 
-  // Estado para prevenir múltiples sincronizaciones simultáneas (no para pagos)
-  const [syncingIdentifiers, setSyncingIdentifiers] = useState<Set<string>>(
-    new Set(),
-  );
+  // Guard against overlapping syncs of the same sale (not for payments). A ref
+  // and not state: it never reaches the UI, and as state it forced a new Set
+  // identity on every mutation, which re-triggered the sync effect that
+  // depended on it — a loop that reprogrammed its own timer mid-round.
+  const syncingIdentifiersRef = useRef<Set<string>>(new Set());
 
   // Estado para el scanner
   const [scannerError, setScannerError] = useState<string | null>(null);
@@ -465,54 +482,66 @@ export default function POSInterface() {
   }, [productosTienda]);
 
   // Busca producto por código (en cualquier código asociado)
-  function findProductByCode(code: string) {
-    const products = productCodeMap.get(code) || [];
+  const findProductByCode = useCallback(
+    (code: string) => {
+      const products = productCodeMap.get(code) || [];
 
-    if (products.length > 1) {
-      return products.sort((a, b) => {
-        // TODO: organizar primero los productos sin proveedor
-        if (a.proveedorId === null) {
-          return -1;
-        } else if (b.proveedorId === null) {
-          return 1;
-        } else {
-          return a.existencia - b.existencia;
-        }
-      })[0];
-    } else if (products.length === 1) {
-      return products[0];
-    } else {
-      return null;
-    }
-  }
-
-  function handleProductScan(code: string) {
-    const product = findProductByCode(code);
-    if (product) {
-      setSelectedProduct(product);
-      // El modal de cantidad se abre automáticamente por el estado selectedProduct
-      setScannerError(null);
-      setProductOrigin("camera"); // Marcar como escaneo de cámara
-    } else {
-      audioService.playErrorSound();
-      if (puedeAsociarCodigo) {
-        setCodigoNoEncontrado(code);
-        setAsociarCodigoOpen(true);
-        setScannerError(null);
+      if (products.length > 1) {
+        // Sorted on a copy: the array is the one held by `productCodeMap`, and
+        // sorting in place would mutate the memoized index.
+        return [...products].sort((a, b) => {
+          // TODO: organizar primero los productos sin proveedor
+          if (a.proveedorId === null) {
+            return -1;
+          } else if (b.proveedorId === null) {
+            return 1;
+          } else {
+            return a.existencia - b.existencia;
+          }
+        })[0];
+      } else if (products.length === 1) {
+        return products[0];
       } else {
-        setScannerError("Producto no encontrado para el código escaneado");
+        return null;
       }
-    }
-  }
+    },
+    [productCodeMap],
+  );
+
+  const handleProductScan = useCallback(
+    (code: string) => {
+      const product = findProductByCode(code);
+      if (product) {
+        setSelectedProduct(product);
+        // El modal de cantidad se abre automáticamente por el estado selectedProduct
+        setScannerError(null);
+        setProductOrigin("camera"); // Marcar como escaneo de cámara
+      } else {
+        audioService.playErrorSound();
+        if (puedeAsociarCodigo) {
+          setCodigoNoEncontrado(code);
+          setAsociarCodigoOpen(true);
+          setScannerError(null);
+        } else {
+          setScannerError("Producto no encontrado para el código escaneado");
+        }
+      }
+    },
+    [findProductByCode, puedeAsociarCodigo],
+  );
 
   const syncPendingSales = async () => {
     if (shouldDeferPosBackgroundOperations(periodo)) return;
 
-    const salesNotSynced = sales.filter(
-      (sale) =>
-        sale.syncState === "not_synced" &&
-        !syncingIdentifiers.has(sale.identifier),
-    );
+    // Read from the store, not from the render: this runs inside a timeout,
+    // and the list of pending sales may well have moved since.
+    const salesNotSynced = useSalesStore
+      .getState()
+      .sales.filter(
+        (sale) =>
+          sale.syncState === "not_synced" &&
+          !syncingIdentifiersRef.current.has(sale.identifier),
+      );
 
     if (salesNotSynced.length === 0) return;
 
@@ -522,9 +551,9 @@ export default function POSInterface() {
     }
 
     // Marcar como "sincronizando" para evitar duplicados
-    const newSyncingIds = new Set(syncingIdentifiers);
-    salesNotSynced.forEach((sale) => newSyncingIds.add(sale.identifier));
-    setSyncingIdentifiers(newSyncingIds);
+    salesNotSynced.forEach((sale) =>
+      syncingIdentifiersRef.current.add(sale.identifier),
+    );
 
     let syncedCount = 0;
     let errorCount = 0;
@@ -601,16 +630,27 @@ export default function POSInterface() {
           );
           // Marcar como error permanente para evitar reintentos
           markSyncError(sale.identifier);
+        } else if (isPermanentSyncError(error)) {
+          // Any other 4xx the server will keep rejecting. Without this, an
+          // unclassified rejection retried forever: `checkSyncTimeouts` puts
+          // the sale back to `not_synced` after 60s, and each attempt can cost
+          // up to ~94s of hanging requests through the axios retry.
+          console.error(
+            `❌ Error permanente en venta ${sale.identifier} (HTTP ${error.response?.status}) - no se reintentará`,
+          );
+          markSyncError(sale.identifier);
+        } else if (sale.syncAttempts >= MAX_SYNC_ATTEMPTS) {
+          // Last resort for errors that look transient but never clear.
+          console.error(
+            `❌ Venta ${sale.identifier} agotó ${MAX_SYNC_ATTEMPTS} intentos - no se reintentará`,
+          );
+          markSyncError(sale.identifier);
         }
 
         errorCount++;
       } finally {
         // Remover del set de sincronización
-        setSyncingIdentifiers((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(sale.identifier);
-          return newSet;
-        });
+        syncingIdentifiersRef.current.delete(sale.identifier);
       }
     }
 
@@ -627,7 +667,10 @@ export default function POSInterface() {
         "success",
       );
 
-      if (isOnline) {
+      // Never while a sale is being charged: rebuilding the catalog swaps
+      // every product object, and the checkout is the one moment the cashier
+      // cannot afford a stutter.
+      if (isOnline && cartStep !== "checkout") {
         fetchProductosAndCategories(true);
       }
     }
@@ -641,12 +684,48 @@ export default function POSInterface() {
     }
   };
 
+  /**
+   * Publishes a catalog to the view, whatever it came from.
+   *
+   * Shared by the network load and by the cached rehydration, so the two can
+   * never drift on what the rest of the POS gets to see.
+   */
+  const applyCatalog = useCallback(
+    (productos: IProductoTiendaV2[], categorias: ICategory[]) => {
+      setProductosTienda(productos);
+      setCategories(categorias);
+      // What each basket line belongs to, so the cart can price its own
+      // discounts locally instead of asking the server on every change.
+      useDiscountRulesStore.getState().setProductMeta(
+        Object.fromEntries(
+          productos.map((p) => [
+            p.id,
+            {
+              productoId: p.productoId,
+              categoriaId: p.producto.categoria.id,
+            },
+          ]),
+        ),
+      );
+    },
+    [],
+  );
+
   const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
       if (!silent) setLoading(true);
       const rawProductos = await getProductosVenta(user.localActual.id, {
         incluseCategories: true,
       });
+      // Existencia por productoId, resuelta una vez. El filtro de abajo hacía
+      // un `find` sobre `rawProductos` por cada producto sin existencia: con
+      // un catálogo de 800 eso son cientos de miles de iteraciones en cada
+      // carga, y esta función corre también tras cada sincronización.
+      const existenciaByProductoId = new Map<string, number>();
+      for (const p of rawProductos) {
+        existenciaByProductoId.set(p.productoId, p.existencia);
+      }
+
       const prods = rawProductos
         // Agregar el nombre del proveedor al producto
         .map((prod) => ({
@@ -665,10 +744,10 @@ export default function POSInterface() {
           if (p.existencia <= 0) {
             // Si el producto tiene unidades por fracción, se debe verificar que el producto padre tenga existencia
             if (p.producto.fraccionDeId !== null) {
-              const pPadre = rawProductos.find(
-                (padre) => padre.productoId === p.producto.fraccionDeId,
+              const existenciaPadre = existenciaByProductoId.get(
+                p.producto.fraccionDeId,
               );
-              if (pPadre && pPadre.existencia > 0) {
+              if (existenciaPadre !== undefined && existenciaPadre > 0) {
                 return true;
               }
             }
@@ -680,7 +759,6 @@ export default function POSInterface() {
       const productosTienda = prods.sort((a, b) => {
         return a.producto.nombre.localeCompare(b.producto.nombre);
       });
-      setProductosTienda(productosTienda);
       const categorias = Object.values(
         prods.reduce((acum, prod) => {
           acum[prod.producto.categoria.id] = prod.producto.categoria;
@@ -689,7 +767,10 @@ export default function POSInterface() {
       ).sort((a: ICategory, b: ICategory) => {
         return a.nombre.localeCompare(b.nombre);
       });
-      setCategories(categorias);
+      applyCatalog(productosTienda, categorias);
+      // Stored already processed: rehydrating on the next open then costs one
+      // IndexedDB read instead of a download plus the whole transform.
+      void writeCatalog(user.localActual.id, productosTienda, categorias);
     } catch (error) {
       console.error("Error al obtener productos", error);
       if (!silent && !shouldDeferPosBackgroundOperations(periodo)) {
@@ -762,9 +843,13 @@ export default function POSInterface() {
     // setProductosTienda(productosTiendaEditados);
   };
 
-  const handleCartIcon = () => {
+  const handleCartIcon = useCallback(() => {
     setOpenCart(true);
-  };
+  }, []);
+
+  const handleCloseCart = useCallback(() => {
+    setOpenCart(false);
+  }, []);
   const handleMakePay = async (
     total: number,
     totalCash: number,
@@ -774,6 +859,13 @@ export default function POSInterface() {
     multimoneda?: IMultimonedaExtras,
   ) => {
     try {
+      // Read at the moment of the sale rather than from the last render: this
+      // is the basket that is actually being charged, and nothing that happens
+      // between renders should be able to leave it behind.
+      const cart = useCartStore.getState().items;
+      // Closes the persistence window before the riskiest moment of the flow:
+      // if the app dies while the sale is in flight, the basket is on disk.
+      flushCartToStorage();
       // Comparación en céntimos para tolerar ruido de punto flotante: sin esto,
       // un total fraccionado podía dar `false` por diferencias ~1e-13 y la venta
       // se descartaba en silencio.
@@ -938,6 +1030,11 @@ export default function POSInterface() {
         });
         setProductosTienda(newProds);
 
+        // The sale moved cash, so the cached drawer balance is stale. Dropped
+        // rather than refetched: the next checkout will pull a fresh one, and
+        // doing it here would put a request back on the sale's own path.
+        useCashBalanceStore.getState().invalidate(tiendaId, cierreId);
+
         // 4. Mostrar notificación inicial (solo una)
         showMessage("💳 Procesando venta...", "info");
 
@@ -1036,7 +1133,8 @@ export default function POSInterface() {
   };
   const handleUpdateQuantity = (id: string, quantity: number) => {
     const oldQuantity =
-      cart.find((item) => item.productoTiendaId === id)?.quantity || 0;
+      useCartStore.getState().items.find((item) => item.productoTiendaId === id)
+        ?.quantity || 0;
     if (oldQuantity < quantity) {
       const productoTienda = productosTienda.find((p) => p.id === id);
       if (!productoTienda) return;
@@ -1068,38 +1166,57 @@ export default function POSInterface() {
   const handleCloseSyncView = () => {
     setShowSyncView(false);
   };
-  const handleSearch = (query: string) => {
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-  };
+  }, []);
+
+  // Everything the grid reads per product — normalized name, real
+  // availability, whether it is a fraction — resolved once per catalog load
+  // instead of once per card per render.
+  const productIndex = useMemo(
+    () => buildProductIndex(productosTienda),
+    [productosTienda],
+  );
+
+  // Split from the index above because the two change on different clocks: a
+  // rate refresh must reprice the catalog without rebuilding it, and a stock
+  // movement must rebuild it without touching the rates.
+  const productCards = useMemo(
+    () => withBasePrices(productIndex, tasasVigentes, monedaBase),
+    [productIndex, tasasVigentes, monedaBase],
+  );
 
   // Category and search combine as AND: with a category marked, the
   // search box filters within it rather than across the whole catalog.
   const filteredProducts = useMemo(() => {
-    return productosTienda
-      .filter(
-        (p) =>
-          selectedCategoryId === null ||
-          p.producto.categoria.id === selectedCategoryId,
-      )
-      .filter((p) =>
-        normalizeSearch(p.producto.nombre).includes(
-          normalizeSearch(searchQuery),
-        ),
-      );
-  }, [productosTienda, selectedCategoryId, searchQuery]);
+    // Normalizing the term once, outside the predicate, instead of once per
+    // product: `normalizeSearch` runs an NFD normalization plus two regex
+    // passes, and the term is the same for the whole catalog.
+    const term = normalizeSearch(debouncedSearchQuery);
+    return productCards.filter(
+      (card) =>
+        (selectedCategoryId === null ||
+          card.categoriaId === selectedCategoryId) &&
+        card.normalizedName.includes(term),
+    );
+  }, [productCards, selectedCategoryId, debouncedSearchQuery]);
 
-  const selectedCategoryName = categories.find(
-    (c) => c.id === selectedCategoryId,
-  )?.nombre;
+  const selectedCategoryName = useMemo(
+    () => categories.find((c) => c.id === selectedCategoryId)?.nombre,
+    [categories, selectedCategoryId],
+  );
 
-  const emptyMessage =
-    searchQuery.trim() !== ""
-      ? selectedCategoryName
-        ? `No se encontraron productos para "${searchQuery}" en «${selectedCategoryName}». Toca «Todas» para buscar en todo el catálogo.`
-        : `No se encontraron productos para "${searchQuery}"`
-      : selectedCategoryName
-        ? "No hay productos en esta categoría"
-        : "No hay productos disponibles";
+  const emptyMessage = useMemo(
+    () =>
+      debouncedSearchQuery.trim() !== ""
+        ? selectedCategoryName
+          ? `No se encontraron productos para "${debouncedSearchQuery}" en «${selectedCategoryName}». Toca «Todas» para buscar en todo el catálogo.`
+          : `No se encontraron productos para "${debouncedSearchQuery}"`
+        : selectedCategoryName
+          ? "No hay productos en esta categoría"
+          : "No hay productos disponibles",
+    [debouncedSearchQuery, selectedCategoryName],
+  );
 
   // Reset scroll position on filter change: the old per-category modal
   // always opened fresh, so keeping scrollTop across a pill/search change
@@ -1107,12 +1224,18 @@ export default function POSInterface() {
   useEffect(() => {
     const el = posScrollRef.current;
     if (!el) return;
-    // Mientras se busca la lista es `column-reverse`: el primer resultado
-    // está en el extremo *físico* de abajo (pegado al buscador), así que
-    // "volver al principio" es el scrollTop máximo, que el navegador
-    // recorta solo.
-    el.scrollTop = searchMode ? el.scrollHeight : 0;
-  }, [selectedCategoryId, searchQuery, searchMode]);
+    // Deferred to the next frame: reading `scrollHeight` forces a synchronous
+    // layout, and running it inline here would do so right after the most
+    // expensive render of the view — the grid rebuilding for a new filter.
+    const raf = requestAnimationFrame(() => {
+      // Mientras se busca la lista es `column-reverse`: el primer resultado
+      // está en el extremo *físico* de abajo (pegado al buscador), así que
+      // "volver al principio" es el scrollTop máximo, que el navegador
+      // recorta solo.
+      el.scrollTop = searchMode ? el.scrollHeight : 0;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [selectedCategoryId, debouncedSearchQuery, searchMode]);
 
   const handleResetProductQuantity = () => {
     setSelectedProduct(null);
@@ -1124,15 +1247,37 @@ export default function POSInterface() {
     setOpenCart(true);
   };
 
-  const handleSearchFocus = () => {
+  const handleSearchFocus = useCallback(() => {
     setIntentToSearch(true);
-  };
+  }, []);
 
-  const handleSearchMouseDown = () => {
+  const handleSearchMouseDown = useCallback(() => {
     // Establecer la intención de búsqueda ANTES del evento de foco
     // para que el escáner no robe el foco
     setIntentToSearch(true);
-  };
+  }, []);
+
+  const handleCreateCart = useCallback(() => {
+    createCart();
+  }, [createCart]);
+
+  const handleStartEditingCart = useCallback((id: string, name: string) => {
+    setEditingCartId(id);
+    setEditingCartName(name);
+  }, []);
+
+  const handleStopEditingCart = useCallback(() => {
+    if (editingCartId) {
+      const cart = carts.find((c) => c.id === editingCartId);
+      const newName = (editingCartName || "").trim() || cart?.name || "";
+      renameCart(editingCartId, newName);
+    }
+    setEditingCartId(null);
+  }, [editingCartId, editingCartName, carts, renameCart]);
+
+  const handleDismissScannerError = useCallback(() => {
+    setScannerError(null);
+  }, []);
 
   // Salir del campo termina la búsqueda, con una excepción: tocar la
   // cantidad de un producto abre su editor inline y le pasa el foco, y
@@ -1140,34 +1285,33 @@ export default function POSInterface() {
   // barra superior justo mientras el cajero escribe la cantidad. El
   // chequeo va en un timeout porque en el momento del blur el foco
   // todavía no se movió a su destino.
-  const handleSearchBlur = () => {
+  const handleSearchBlur = useCallback(() => {
     setTimeout(() => {
       const active = document.activeElement;
       if (active && posScrollRef.current?.contains(active)) return;
       setIntentToSearch(false);
     }, 0);
-  };
+  }, []);
 
-  // Sincronización automática cuando regresa la conexión
+  // Sincronización automática cuando regresa la conexión.
+  // Keyed on `pendingSalesCount`, a plain number, rather than on the `sales`
+  // array and the syncing Set: those changed identity on every mark inside the
+  // sync itself, so the effect re-armed its own 2s timer round after round.
   useEffect(() => {
     if (shouldDeferPosBackgroundOperations(periodo)) return;
     // Solo sincronizar si:
     // 1. Acabamos de recuperar la conexión (isOnline es true)
     // 2. Hay ventas pendientes de sincronizar
     // 3. El periodo está abierto
-    if (
-      isOnline &&
-      periodo &&
-      !periodo.fechaFin &&
-      sales.some((sale) => sale.syncState === "not_synced")
-    ) {
+    if (isOnline && periodo && !periodo.fechaFin && pendingSalesCount > 0) {
       // Pequeño delay para asegurar que la conexión esté estable
       const timeoutId = setTimeout(() => {
         syncPendingSales();
       }, 2000);
       return () => clearTimeout(timeoutId);
     }
-  }, [isOnline, sales, periodo, showMessage, markSynced, syncingIdentifiers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline, pendingSalesCount, periodo]);
 
   // Verificación periódica de timeouts de sincronización
   useEffect(() => {
@@ -1189,10 +1333,15 @@ export default function POSInterface() {
           return;
         }
         try {
-          const data = await fetchTransferDestinations(user.localActual.id);
+          // In parallel: these two are independent, and running them one
+          // after the other kept the POS on its loading spinner for a whole
+          // extra round-trip before the cashier could do anything.
+          const [data, lastPeriod] = await Promise.all([
+            fetchTransferDestinations(user.localActual.id),
+            fetchLastPeriod(user.localActual.id),
+          ]);
           setTransferDestinations(data);
 
-          const lastPeriod = await fetchLastPeriod(user.localActual.id);
           if (!lastPeriod || lastPeriod.fechaFin) {
             if (!shouldDeferPosPeriodPrompt()) {
               promptOpenPeriod(false);
@@ -1244,18 +1393,59 @@ export default function POSInterface() {
     audioService.resumeAudioContext();
   }, []);
 
+  // Cache first, network second. The POS used to hold a spinner until the
+  // whole catalog arrived, on every single open; now the last known catalog
+  // paints immediately and the refresh lands behind it, so a cashier can start
+  // selling before — or without — the network answering.
   useEffect(() => {
-    if (periodo) {
-      fetchProductosAndCategories().catch(() => {
-        if (!shouldDeferPosBackgroundOperations(periodo)) {
+    if (!periodo) return;
+    const tiendaId = user?.localActual?.id;
+    if (!tiendaId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const cached = await readCatalog(tiendaId);
+      if (cancelled) return;
+
+      const hasCache = Boolean(cached && cached.productos.length > 0);
+      if (hasCache) {
+        applyCatalog(cached.productos, cached.categorias);
+        setLoading(false);
+      }
+
+      // Silent when the screen is already usable: a spinner over a working
+      // catalog would undo the whole point.
+      await fetchProductosAndCategories(hasCache).catch(() => {
+        if (!hasCache && !shouldDeferPosBackgroundOperations(periodo)) {
           showMessage(
             "Ocurrió un error intentando cargar las categorías",
             "error",
           );
         }
       });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodo, user?.localActual?.id]);
+
+  // Discount rules travel with the catalog: fetched once when the period
+  // opens, then evaluated locally on every cart change. `getActiveDiscountRules`
+  // swallows its own failures — no rules means no discount, which beats
+  // blocking a sale over a promotion.
+  useEffect(() => {
+    const tiendaId = user?.localActual?.id;
+    if (!periodo || !tiendaId) return;
+    void useDiscountRulesStore.getState().loadRules(tiendaId);
+    // Warmed here rather than when the checkout mounts, so the cash-drawer
+    // aggregation is already done by the time the cashier presses "cobrar".
+    if (periodo.id) {
+      void useCashBalanceStore.getState().ensure(tiendaId, periodo.id);
     }
-  }, [periodo]);
+  }, [periodo, user?.localActual?.id]);
 
   const handleCodigoAsociado = (
     producto: IProductoTiendaV2,
@@ -1516,22 +1706,22 @@ export default function POSInterface() {
         >
           <PosProductGrid
             products={filteredProducts}
-            allProductosTienda={productosTienda}
             emptyMessage={emptyMessage}
-            searchQuery={searchQuery}
+            // Debounced, not raw: the highlight marks which of the *rendered*
+            // results is a prefix match, so it has to be driven by the same
+            // term that produced them.
+            searchQuery={debouncedSearchQuery}
             bottomUp={searchMode}
           />
         </Box>
 
         {/* Carrito de compras (overlay, solo mobile) */}
         <CartDrawer
-          cart={cart}
-          onClose={() => setOpenCart(false)}
+          onClose={handleCloseCart}
           open={!showCartPanel && openCart}
           makePay={handleMakePay}
           transferDestinations={transferDestinations}
           cierreId={periodo?.id ?? ""}
-          total={total}
           clear={clearCart}
           removeItem={removeFromCart}
           updateQuantity={handleUpdateQuantity}
@@ -1596,25 +1786,14 @@ export default function POSInterface() {
           carts={carts}
           activeCartId={activeCartId}
           onSelectCart={setActiveCart}
-          onCreateCart={() => createCart()}
+          onCreateCart={handleCreateCart}
           onRemoveActiveCart={removeActiveCart}
           onRenameCart={renameCart}
           editingCartId={editingCartId}
-          onStartEditingCart={(id, name) => {
-            setEditingCartId(id);
-            setEditingCartName(name);
-          }}
+          onStartEditingCart={handleStartEditingCart}
           editingCartName={editingCartName}
           onEditingCartNameChange={setEditingCartName}
-          onStopEditingCart={() => {
-            if (editingCartId) {
-              const cart = carts.find((c) => c.id === editingCartId);
-              const newName =
-                (editingCartName || "").trim() || cart?.name || "";
-              renameCart(editingCartId, newName);
-            }
-            setEditingCartId(null);
-          }}
+          onStopEditingCart={handleStopEditingCart}
           editCartInputRef={editCartInputRef}
           searchInputRef={searchInputRef}
           searchQuery={searchQuery}
@@ -1626,7 +1805,7 @@ export default function POSInterface() {
           onProductScan={handleProductScan}
           onCameraOpenChange={setCameraScannerOpen}
           scannerError={scannerError}
-          onDismissScannerError={() => setScannerError(null)}
+          onDismissScannerError={handleDismissScannerError}
         />
 
         {/* Dialog de cantidad */}
@@ -1686,8 +1865,6 @@ export default function POSInterface() {
               containment, but it must not clip the outer box's shadow. */}
           <Box sx={{ height: "100%", overflow: "hidden" }}>
             <CartContent
-              cart={cart}
-              total={total}
               clear={clearCart}
               updateQuantity={handleUpdateQuantity}
               removeItem={removeFromCart}

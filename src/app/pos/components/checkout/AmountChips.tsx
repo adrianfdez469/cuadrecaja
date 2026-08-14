@@ -1,16 +1,21 @@
 "use client";
 
+import { memo } from "react";
+
 import { Box, Button } from "@mui/material";
+import { formatNumberWith } from "@/utils/numberFormat";
 
 /**
  * Bare amounts with no currency code beside them: es-ES grouping/decimal
  * convention, but a whole number stays whole (no forced ".00").
  */
+const BARE_AMOUNT_OPTIONS: Intl.NumberFormatOptions = {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+};
+
 const formatBareAmount = (amount: number): string =>
-  amount.toLocaleString("es-ES", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
+  formatNumberWith(amount, BARE_AMOUNT_OPTIONS);
 
 interface AmountChipsProps {
   /** Smallest payable amount covering the pending total. */
@@ -21,7 +26,7 @@ interface AmountChipsProps {
   onSelect: (amount: number) => void;
 }
 
-export function AmountChips({
+function AmountChipsComponent({
   exact,
   suggestions,
   value,
@@ -60,3 +65,5 @@ export function AmountChips({
     </Box>
   );
 }
+
+export const AmountChips = memo(AmountChipsComponent);

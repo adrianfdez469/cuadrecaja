@@ -1,6 +1,7 @@
 import { TICKET_CHARS_PER_LINE } from "@/constants/ticket";
 import { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase } from "@/lib/currency";
+import { formatAmount } from "@/utils/numberFormat";
 
 export function getCharsPerLine(anchoPapel: 58 | 80): number {
   return TICKET_CHARS_PER_LINE[anchoPapel] ?? TICKET_CHARS_PER_LINE[58];
@@ -36,10 +37,7 @@ export function shortTicketId(syncId: string): string {
 
 /** Formato ticket: miles con punto, decimales con coma (ej. 500.000.000,00) */
 export function formatTicketAmount(amount: number): string {
-  return amount.toLocaleString("es-ES", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return formatAmount(amount);
 }
 
 /** Tasas siempre expresadas contra CUP (1 XXX = Y CUP) */
@@ -85,8 +83,7 @@ export function wrapProductBlock(
   const subtotalStr = formatTicketAmount(subtotal);
   const unitPriceStr = formatTicketAmount(precioUnit);
   // Precio unitario + margen derecho (no alinear con el subtotal de la línea 1)
-  const unitPriceWithGap =
-    unitPriceStr + " ".repeat(UNIT_PRICE_RIGHT_GAP);
+  const unitPriceWithGap = unitPriceStr + " ".repeat(UNIT_PRICE_RIGHT_GAP);
 
   let remaining = nombre.trim();
   let line1Name: string;
@@ -141,7 +138,10 @@ export function formatFeedLine(width: number, marker = true): string {
 }
 
 /** Convierte marcadores `** texto **` usados en encabezados del ticket */
-export function stripBoldMarkers(text: string): { text: string; bold: boolean } {
+export function stripBoldMarkers(text: string): {
+  text: string;
+  bold: boolean;
+} {
   const match = text.match(/^\*\*\s*(.+?)\s*\*\*$/);
   if (match) return { text: match[1], bold: true };
   return { text, bold: false };

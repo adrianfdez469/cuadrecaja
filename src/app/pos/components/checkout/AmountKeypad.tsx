@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -35,7 +35,7 @@ interface AmountKeypadProps {
 
 type KeypadTab = "keys" | "bills";
 
-export function AmountKeypad({
+function AmountKeypadComponent({
   open,
   currency,
   denominations,
@@ -293,3 +293,5 @@ export function AmountKeypad({
     </Drawer>
   );
 }
+
+export const AmountKeypad = memo(AmountKeypadComponent);
