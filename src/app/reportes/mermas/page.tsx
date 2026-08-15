@@ -1,17 +1,24 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Alert, Stack } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
 import { StatCard } from "@/components/StatCard";
 import { ShrinkageByProductTable } from "@/components/reports/shrinkage/ShrinkageByProductTable";
-import { ShrinkageByReasonChart } from "@/components/reports/shrinkage/ShrinkageByReasonChart";
 import { useReportFilters } from "@/hooks/useReportFilters";
 import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
 import { useReportData } from "@/hooks/useReportData";
 import { getShrinkageReport } from "@/services/reportsService";
 import { formatDate } from "@/utils/formatters";
 import type { IShrinkageReportResponse } from "@/schemas/reports/shrinkageReport";
+
+// Fuera del bundle inicial: `@mui/x-charts` es la dependencia más
+// pesada de esta pantalla y solo hace falta para pintar el gráfico.
+const ShrinkageByReasonChart = dynamic(
+  () => import("@/components/reports/shrinkage/ShrinkageByReasonChart").then((m) => m.ShrinkageByReasonChart),
+  { ssr: false },
+);
 
 export default function MermasPage() {
   const filters = useReportFilters();
