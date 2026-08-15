@@ -7,11 +7,23 @@ import { useEffect, useRef, useState } from "react";
  */
 const KEYBOARD_MIN_SHRINK = 140;
 
+/**
+ * CSS variable carrying the live height of the visual viewport.
+ *
+ * The height is published this way — a direct write to the root element —
+ * instead of through React state on purpose. While the keyboard animates open
+ * the height changes on every frame, and feeding that through state
+ * re-rendered the entire POS and re-laid out the whole product grid fifteen to
+ * twenty times in a row, which is most of the delay before the keyboard even
+ * appeared. A custom property reaches the same CSS with no render at all.
+ */
+export const VISUAL_VIEWPORT_HEIGHT_VAR = "--pos-visual-vh";
+
 interface OnScreenKeyboardState {
   /** Whether the on-screen keyboard is currently covering the viewport. */
   keyboardOpen: boolean;
-  /** Real visible height, from `visualViewport`. Null until first measured. */
-  viewportHeight: number | null;
+  /** The visual viewport has been measured at least once. */
+  measured: boolean;
 }
 
 /**
@@ -28,11 +40,14 @@ interface OnScreenKeyboardState {
  * keyboard-less height on every browser. Nothing else grows the viewport
  * past it, and a stale maximum can only ever come from a rotation, which
  * fires a resize and re-measures.
+ *
+ * Only `keyboardOpen` is state, and it flips once per keyboard. The height
+ * itself goes out through {@link VISUAL_VIEWPORT_HEIGHT_VAR}.
  */
 export function useOnScreenKeyboard(): OnScreenKeyboardState {
   const [state, setState] = useState<OnScreenKeyboardState>({
     keyboardOpen: false,
-    viewportHeight: null,
+    measured: false,
   });
   const maxHeightRef = useRef(0);
 
@@ -41,12 +56,23 @@ export function useOnScreenKeyboard(): OnScreenKeyboardState {
     if (!vv) return;
 
     const update = () => {
-      const height = vv.height;
+      // `visualViewport` fires `scroll` on every frame of a mobile scroll, and
+      // its height carries sub-pixel noise; rounding keeps that noise out of
+      // both the CSS variable and the state below.
+      const height = Math.round(vv.height);
       maxHeightRef.current = Math.max(maxHeightRef.current, height);
-      setState({
-        keyboardOpen: maxHeightRef.current - height > KEYBOARD_MIN_SHRINK,
-        viewportHeight: height,
-      });
+
+      document.documentElement.style.setProperty(
+        VISUAL_VIEWPORT_HEIGHT_VAR,
+        `${height}px`,
+      );
+
+      const keyboardOpen = maxHeightRef.current - height > KEYBOARD_MIN_SHRINK;
+      setState((prev) =>
+        prev.keyboardOpen === keyboardOpen && prev.measured
+          ? prev
+          : { keyboardOpen, measured: true },
+      );
     };
 
     update();
@@ -55,6 +81,7 @@ export function useOnScreenKeyboard(): OnScreenKeyboardState {
     return () => {
       vv.removeEventListener("resize", update);
       vv.removeEventListener("scroll", update);
+      document.documentElement.style.removeProperty(VISUAL_VIEWPORT_HEIGHT_VAR);
     };
   }, []);
 

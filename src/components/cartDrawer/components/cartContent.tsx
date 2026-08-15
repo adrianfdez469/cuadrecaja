@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Close, Delete } from "@mui/icons-material";
 import {
   Box,
@@ -13,25 +13,23 @@ import {
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { ICartItem, useCartStore } from "@/store/cartStore";
+import { useCartTotal } from "@/hooks/useCartTotal";
+import { useDiscountRulesStore } from "@/store/discountRulesStore";
+import { applyDiscounts } from "@/lib/discounts/engine";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
 import { CartItemCard } from "@/components/cartDrawer/components/CartItemCard";
 import { CartSummaryFooter } from "@/components/cartDrawer/components/CartSummaryFooter";
 import { CheckoutView } from "@/app/pos/components/checkout/CheckoutView";
+import { Frozen } from "@/components/Frozen";
 import type { IMultimonedaExtras } from "@/schemas/pago";
 import type { ITransferDestination } from "@/schemas/transferDestination";
-import type {
-  DiscountApplicationResult,
-  DiscountApplicationResultItem,
-} from "@/lib/discounts";
 
 interface ICommonProps {
   clear?: () => void;
-  cart: ICartItem[];
   updateQuantity?: (id: string, quantity: number) => void;
   removeItem?: (id: string) => void;
-  total: number;
   makePay: (
     total: number,
     totalcash: number,
@@ -65,8 +63,6 @@ export type CartStep = "cart" | "checkout";
 
 export const CartContent = (props: IProps) => {
   const {
-    cart,
-    total,
     variant,
     clear,
     updateQuantity,
@@ -77,6 +73,12 @@ export const CartContent = (props: IProps) => {
     step: controlledStep,
     onStepChange,
   } = props;
+  // Read here instead of taken as props: the POS page used to hold this
+  // subscription and pass it down, which meant every cart mutation re-rendered
+  // the whole 1700-line view — product grid included — just to update the
+  // cart panel.
+  const cart = useCartStore((state) => state.items);
+  const total = useCartTotal();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { showMessage } = useMessageContext();
 
@@ -88,10 +90,13 @@ export const CartContent = (props: IProps) => {
 
   // Kept in sync even while controlled, so removing the `step` prop can never
   // leave the internal state stranded on a step the cart is no longer on.
-  const goToStep = (next: CartStep) => {
-    setUncontrolledStep(next);
-    onStepChange?.(next);
-  };
+  const goToStep = useCallback(
+    (next: CartStep) => {
+      setUncontrolledStep(next);
+      onStepChange?.(next);
+    },
+    [onStepChange],
+  );
 
   useEffect(() => {
     // Reports back to the cart step on unmount: the drawer variant is
@@ -115,46 +120,60 @@ export const CartContent = (props: IProps) => {
   const checkoutKey = `${activeCartId}:${saleCount}`;
 
   // ─── Discount ─────────────────────────────────────────────────────────────
+  // Priced locally, synchronously, from rules loaded once with the catalog.
+  // This used to POST to /api/discounts/preview on every change to the cart:
+  // network traffic on the critical path of a sale, with no debounce and no
+  // cancellation, so five taps on `+` meant five overlapping requests.
+  //
+  // The server recomputes discounts when the sale is confirmed, so it remains
+  // the authority; what happens here is what the cashier sees while deciding.
   const [promoCode, setPromoCode] = useState("");
-  const [discountTotal, setDiscountTotal] = useState(0);
-  const [applied, setApplied] = useState<DiscountApplicationResultItem[]>([]);
-  const finalTotal = Math.max(0, total - discountTotal);
+  const [appliedCodes, setAppliedCodes] = useState<string[]>([]);
+  const rules = useDiscountRulesStore((state) => state.rules);
+  const productMeta = useDiscountRulesStore((state) => state.productMeta);
 
-  const previewDiscount = async (codes?: string[]): Promise<void> => {
-    try {
-      const res = await fetch("/api/discounts/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tiendaId,
-          products: cart.map((item) => ({
-            productoTiendaId: item.productoTiendaId,
-            cantidad: item.quantity,
-            precio: item.price,
-          })),
-          ...(codes?.length ? { discountCodes: codes } : {}),
-        }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error || "Error");
-      const data = (await res.json()) as DiscountApplicationResult;
-      setDiscountTotal(Number(data.discountTotal) || 0);
-      setApplied(Array.isArray(data.applied) ? data.applied : []);
-    } catch (e: unknown) {
-      console.error("Error preview descuento", e);
-      setDiscountTotal(0);
-      setApplied([]);
-      showMessage("No se pudo aplicar el código de descuento", "warning");
-    }
-  };
-
-  const cartSignature = JSON.stringify(
-    cart.map((i) => ({ id: i.productoTiendaId, q: i.quantity })),
+  const discountResult = useMemo(
+    () =>
+      applyDiscounts({
+        rules,
+        products: cart.map((item) => ({
+          productoTiendaId: item.productoTiendaId,
+          cantidad: item.quantity,
+          precio: item.price,
+        })),
+        productMeta,
+        discountCodes: appliedCodes,
+      }),
+    [rules, productMeta, cart, appliedCodes],
   );
 
-  useEffect(() => {
-    if (cart.length > 0) previewDiscount(promoCode ? [promoCode] : undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cartSignature]);
+  const discountTotal = discountResult.discountTotal;
+  const applied = discountResult.applied;
+  const finalTotal = Math.max(0, total - discountTotal);
+
+  // Applying a code is now just adding it to the set the memo above reads.
+  // It still tells the cashier when a code matched nothing, which is the one
+  // piece of feedback the old round-trip actually provided.
+  const handleBackToCart = useCallback(() => goToStep("cart"), [goToStep]);
+
+  const handleApplyPromoCode = useCallback(() => {
+    const code = promoCode.trim();
+    if (!code) {
+      setAppliedCodes([]);
+      return;
+    }
+    setAppliedCodes([code]);
+    const matches = rules.some((rule) => {
+      const ruleCode = (rule.conditions as { code?: unknown } | null)?.code;
+      return (
+        typeof ruleCode === "string" &&
+        ruleCode.toLowerCase() === code.toLowerCase()
+      );
+    });
+    if (!matches) {
+      showMessage("El código de descuento no es válido", "warning");
+    }
+  }, [promoCode, rules, showMessage]);
 
   /**
    * Fired at the point a sale actually submits — never inferred from cart
@@ -164,8 +183,7 @@ export const CartContent = (props: IProps) => {
   const resetCheckoutState = () => {
     goToStep("cart");
     setPromoCode("");
-    setDiscountTotal(0);
-    setApplied([]);
+    setAppliedCodes([]);
     // Bumps `checkoutKey`, so the next sale starts from a clean checkout
     // rather than inheriting this one's payment lines.
     setSaleCount((count) => count + 1);
@@ -322,9 +340,7 @@ export const CartContent = (props: IProps) => {
               promoCode={promoCode}
               canCheckout={cart.length > 0}
               onCodeChange={setPromoCode}
-              onApply={() =>
-                previewDiscount(promoCode ? [promoCode] : undefined)
-              }
+              onApply={handleApplyPromoCode}
               onCheckout={() => goToStep("checkout")}
             />
           </Box>
@@ -347,19 +363,26 @@ export const CartContent = (props: IProps) => {
               pointerEvents: step === "checkout" ? "auto" : "none",
             }}
           >
-            <CheckoutView
-              key={checkoutKey}
-              finalTotal={finalTotal}
-              discountTotal={discountTotal}
-              promoCode={promoCode}
-              transferDestinations={transferDestinations}
-              tiendaId={tiendaId}
-              cierreId={cierreId}
-              itemCount={cart.length}
-              onBack={() => goToStep("cart")}
-              makePay={makePay}
-              onSaleComplete={resetCheckoutState}
-            />
+            {/* Frozen while the cashier is on the basket step. The checkout
+                stays mounted (see the note above) but it is 800 lines with two
+                hooks full of chained memos, and it was re-rendering on every
+                `+` and `−` behind an invisible panel. It picks up the current
+                basket the moment the checkout is opened. */}
+            <Frozen active={step === "checkout"}>
+              <CheckoutView
+                key={checkoutKey}
+                finalTotal={finalTotal}
+                discountTotal={discountTotal}
+                promoCode={promoCode}
+                transferDestinations={transferDestinations}
+                tiendaId={tiendaId}
+                cierreId={cierreId}
+                itemCount={cart.length}
+                onBack={handleBackToCart}
+                makePay={makePay}
+                onSaleComplete={resetCheckoutState}
+              />
+            </Frozen>
           </Box>
         </Fade>
       </Box>

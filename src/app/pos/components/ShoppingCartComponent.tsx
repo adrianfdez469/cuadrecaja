@@ -1,7 +1,14 @@
 import React from "react";
 import { Badge, Fab } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import { useCartStore } from "@/store/cartStore";
+import { useCartItemCount } from "@/store/cartStore";
+
+const FAB_SX = {
+  position: "fixed",
+  bottom: { xs: 92, sm: 122 },
+  right: 16,
+  zIndex: (theme: { zIndex: { modal: number } }) => theme.zIndex.modal + 1,
+} as const;
 
 interface ShoppingCartComponentProps {
   openCart: boolean;
@@ -14,22 +21,19 @@ function ShoppingCartComponent({
   handleCartIcon,
   hidden = false,
 }: ShoppingCartComponentProps) {
-  const { items } = useCartStore();
+  // Only the count, never the items array: this badge has no reason to
+  // re-render when a quantity changes without adding or removing a line.
+  const itemCount = useCartItemCount();
   return (
     <>
-      {items.length > 0 && !openCart && !hidden && (
+      {itemCount > 0 && !openCart && !hidden && (
         <Fab
           color="primary"
           aria-label="cart"
-          sx={{
-            position: "fixed",
-            bottom: { xs: 92, sm: 122 },
-            right: 16,
-            zIndex: (theme) => theme.zIndex.modal + 1,
-          }}
+          sx={FAB_SX}
           onClick={handleCartIcon}
         >
-          <Badge badgeContent={items.length} color="secondary">
+          <Badge badgeContent={itemCount} color="secondary">
             <ShoppingCartIcon />
           </Badge>
         </Fab>
@@ -38,4 +42,4 @@ function ShoppingCartComponent({
   );
 }
 
-export default ShoppingCartComponent;
+export default React.memo(ShoppingCartComponent);

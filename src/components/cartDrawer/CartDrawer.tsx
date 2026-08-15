@@ -1,13 +1,12 @@
 import React, { FC, useEffect } from "react";
 import { Drawer } from "@mui/material";
-import { ICartItem } from "@/store/cartStore";
+import { useCartItemCount } from "@/store/cartStore";
 import { CartContent, type CartStep } from "./components/cartContent";
 import type { IMultimonedaExtras } from "@/schemas/pago";
 import type { ITransferDestination } from "@/schemas/transferDestination";
 
 interface IProps {
   open: boolean;
-  cart: ICartItem[];
   onClose: () => void;
   makePay: (
     total: number,
@@ -22,13 +21,11 @@ interface IProps {
   updateQuantity?: (id: string, quantity: number) => void;
   clear?: () => void;
   removeItem?: (id: string) => void;
-  total: number;
   onStepChange?: (step: CartStep) => void;
 }
 
 const CartDrawer: FC<IProps> = ({
   open,
-  cart,
   onClose,
   makePay,
   transferDestinations,
@@ -36,14 +33,17 @@ const CartDrawer: FC<IProps> = ({
   updateQuantity,
   clear,
   removeItem,
-  total,
   onStepChange,
 }) => {
+  // Only the count: closing on an emptied cart never needed the items array,
+  // and subscribing to it here put the whole POS page in the subscription.
+  const itemCount = useCartItemCount();
   useEffect(() => {
-    if (cart.length === 0) {
+    if (itemCount === 0) {
       onClose();
     }
-  }, [cart]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemCount]);
 
   return (
     <>
@@ -63,8 +63,6 @@ const CartDrawer: FC<IProps> = ({
         }}
       >
         <CartContent
-          cart={cart}
-          total={total}
           clear={clear}
           updateQuantity={updateQuantity}
           onClose={onClose}

@@ -1,18 +1,23 @@
 "use client";
 
+import { memo } from "react";
+
 import { Box, Button, Chip, Stack, Typography } from "@mui/material";
 import UndoIcon from "@mui/icons-material/Undo";
 import { tallyBills } from "@/app/pos/utils/billMath";
+import { formatNumberWith } from "@/utils/numberFormat";
 
 /**
  * Bare amounts with no currency code beside them: es-ES grouping/decimal
  * convention, but a whole number stays whole (no forced ".00").
  */
+const BARE_AMOUNT_OPTIONS: Intl.NumberFormatOptions = {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+};
+
 const formatBareAmount = (amount: number): string =>
-  amount.toLocaleString("es-ES", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
+  formatNumberWith(amount, BARE_AMOUNT_OPTIONS);
 
 interface BillPadProps {
   denominations: number[];
@@ -21,7 +26,7 @@ interface BillPadProps {
 }
 
 /** Tap a denomination to add it; undo pops the last one tapped. */
-export function BillPad({ denominations, bills, onChange }: BillPadProps) {
+function BillPadComponent({ denominations, bills, onChange }: BillPadProps) {
   const grouped = tallyBills(bills);
 
   return (
@@ -85,3 +90,5 @@ export function BillPad({ denominations, bills, onChange }: BillPadProps) {
     </Stack>
   );
 }
+
+export const BillPad = memo(BillPadComponent);

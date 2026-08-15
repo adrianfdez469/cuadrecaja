@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import {
   Box,
   Collapse,
@@ -56,7 +56,7 @@ interface PaymentLineCardProps {
   onTransferDestinationChange?: (destinationId: string) => void;
 }
 
-export function PaymentLineCard({
+function PaymentLineCardComponent({
   line,
   pending,
   denominations,
@@ -354,3 +354,5 @@ export function PaymentLineCard({
     </Paper>
   );
 }
+
+export const PaymentLineCard = memo(PaymentLineCardComponent);

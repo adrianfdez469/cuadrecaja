@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, MouseEvent } from "react";
+import { memo, useState, MouseEvent } from "react";
 import {
   Box,
   ButtonBase,
@@ -10,44 +10,87 @@ import {
   Typography,
 } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import type { PosProductCard } from "../utils/buildProductIndex";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { ProductQuickActions } from "./ProductQuickActions";
 import { StockAvailabilityBadge } from "./StockAvailabilityBadge";
-import { useCartStore } from "@/store/cartStore";
-import { useAppContext } from "@/context/AppContext";
-import { convertToBase } from "@/lib/currency";
+import { useCartItemQuantity } from "@/store/cartStore";
 import { useShowAlternativeCurrencies } from "@/hooks/useShowAlternativeCurrencies";
 
+// Hoisted so Emotion serializes them once for the whole catalog instead of
+// once per card per render. Only the styles that never depend on props or
+// state qualify; the rest stay inline.
+const NAME_SX = {
+  minWidth: 0,
+  lineHeight: 1.35,
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+} as const;
+const QUICK_ACTIONS_SX = { flexShrink: 0 } as const;
+const PRICE_BUTTON_BASE_SX = {
+  justifyContent: "flex-end",
+  borderRadius: 1.5,
+  px: 0.75,
+  py: 0.5,
+  minHeight: 44,
+  // Nunca por debajo de su contenido: antes que encogerse tiene que envolver
+  // a la línea de abajo. `flexGrow` es para que una vez ahí ocupe el ancho
+  // completo y siga alineado a la derecha.
+  flexShrink: 0,
+  flexGrow: 1,
+  maxWidth: "100%",
+} as const;
+/** Tappable: the popover with the currency equivalents is reachable. */
+const PRICE_BUTTON_SX = {
+  ...PRICE_BUTTON_BASE_SX,
+  cursor: "pointer",
+} as const;
+/** Inert: the equivalents are already on the card, so it is not a target. */
+const PRICE_BUTTON_STATIC_SX = {
+  ...PRICE_BUTTON_BASE_SX,
+  cursor: "default",
+} as const;
+const PRICE_DETAIL_SX = { p: 1.5, minWidth: 200 } as const;
+const PRICE_LABEL_SX = {
+  mb: 0.25,
+  fontSize: "0.65rem",
+  textTransform: "uppercase",
+  letterSpacing: 0.4,
+} as const;
+const POPOVER_ANCHOR_ORIGIN = { vertical: "top", horizontal: "right" } as const;
+const POPOVER_TRANSFORM_ORIGIN = {
+  vertical: "bottom",
+  horizontal: "right",
+} as const;
+
 interface PosProductItemLayoutProps {
-  productoTienda: IProductoTiendaV2;
-  allProductosTienda: IProductoTiendaV2[];
+  /**
+   * Everything about this product the card needs, already resolved by
+   * `buildProductIndex`. Passing primitives instead of the whole catalog is
+   * what makes the memo on this component effective: a card used to recompute
+   * its own availability and price on every render of the grid, each one
+   * scanning the full product list.
+   */
+  card: PosProductCard;
   onClick?: () => void;
   highlightName?: boolean;
   sx?: SxProps<Theme>;
 }
 
-export function PosProductItemLayout({
-  productoTienda,
-  allProductosTienda,
+function PosProductItemLayoutComponent({
+  card,
   onClick,
   highlightName = false,
   sx,
 }: PosProductItemLayoutProps) {
-  const { items } = useCartStore();
-  const { tasasVigentes, monedaBase } = useAppContext();
+  const { productoTienda, priceBase, disponible, esFraccion, existencia } =
+    card;
   const { show: showAlternatives } = useShowAlternativeCurrencies();
   const [priceDetailAnchor, setPriceDetailAnchor] =
     useState<HTMLElement | null>(null);
-  const cartQty =
-    items.find((item) => item.productoTiendaId === productoTienda.id)
-      ?.quantity || 0;
-  const priceBase = convertToBase(
-    productoTienda.precio,
-    productoTienda.monedaPrecioCode ?? monedaBase,
-    tasasVigentes,
-    monedaBase,
-  );
+  const cartQty = useCartItemQuantity(productoTienda.id);
 
   const openPriceDetail = (e: MouseEvent<HTMLElement>) => {
     e.stopPropagation();
@@ -73,7 +116,11 @@ export function PosProductItemLayout({
         ...(onClick && {
           cursor: "pointer",
           transition: "background-color 0.15s ease",
-          "&:hover": { bgcolor: "action.hover" },
+          // Solo con puntero real: en táctil el hover se queda pegado tras el
+          // toque, y aquí eso se multiplica por cada producto del catálogo.
+          "@media (hover: hover)": {
+            "&:hover": { bgcolor: "action.hover" },
+          },
           "&:active": { bgcolor: "action.selected" },
         }),
         ...sx,
@@ -99,21 +146,15 @@ export function PosProductItemLayout({
         <Typography
           variant="body2"
           fontWeight={highlightName ? 700 : 600}
-          sx={{
-            minWidth: 0,
-            lineHeight: 1.35,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
+          sx={NAME_SX}
         >
           {productoTienda.producto.nombre}
         </Typography>
 
         <StockAvailabilityBadge
-          productoTienda={productoTienda}
-          allProductosTienda={allProductosTienda}
+          disponible={disponible}
+          esFraccion={esFraccion}
+          existencia={existencia}
           cartQty={cartQty}
         />
       </Box>
@@ -140,11 +181,11 @@ export function PosProductItemLayout({
           // Va solo sobre estos controles y no sobre la tarjeta entera, para
           // que tocar cualquier otro sitio sí cierre la búsqueda.
           onMouseDown={(e) => e.preventDefault()}
-          sx={{ flexShrink: 0 }}
+          sx={QUICK_ACTIONS_SX}
         >
           <ProductQuickActions
             productoTienda={productoTienda}
-            allProductosTienda={allProductosTienda}
+            disponible={disponible}
           />
         </Box>
 
@@ -161,20 +202,7 @@ export function PosProductItemLayout({
               ? undefined
               : `Ver detalle de precio de ${productoTienda.producto.nombre}`
           }
-          sx={{
-            justifyContent: "flex-end",
-            borderRadius: 1.5,
-            px: 0.75,
-            py: 0.5,
-            minHeight: 44,
-            cursor: showAlternatives ? "default" : "pointer",
-            // Nunca por debajo de su contenido: antes que encogerse tiene
-            // que envolver a la línea de abajo. `flexGrow` es para que una
-            // vez ahí ocupe el ancho completo y siga alineado a la derecha.
-            flexShrink: 0,
-            flexGrow: 1,
-            maxWidth: "100%",
-          }}
+          sx={showAlternatives ? PRICE_BUTTON_STATIC_SX : PRICE_BUTTON_SX}
         >
           <MultiCurrencyAmount
             amount={priceBase}
@@ -184,32 +212,34 @@ export function PosProductItemLayout({
         </ButtonBase>
       </Box>
 
-      <Popover
-        open={Boolean(priceDetailAnchor)}
-        anchorEl={priceDetailAnchor}
-        onClose={closePriceDetail}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        transformOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Stack gap={1} sx={{ p: 1.5, minWidth: 200 }}>
-          <Box>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              sx={{
-                mb: 0.25,
-                fontSize: "0.65rem",
-                textTransform: "uppercase",
-                letterSpacing: 0.4,
-              }}
-            >
-              Precio
-            </Typography>
-            <MultiCurrencyAmount amount={priceBase} variant="compact" />
-          </Box>
-        </Stack>
-      </Popover>
+      {/* Mounted only once opened. A closed MUI Popover renders no DOM, but
+          the element and its whole prop tree were still being built for every
+          product in the catalog on every render of the grid. */}
+      {priceDetailAnchor && (
+        <Popover
+          open
+          anchorEl={priceDetailAnchor}
+          onClose={closePriceDetail}
+          anchorOrigin={POPOVER_ANCHOR_ORIGIN}
+          transformOrigin={POPOVER_TRANSFORM_ORIGIN}
+        >
+          <Stack gap={1} sx={PRICE_DETAIL_SX}>
+            <Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={PRICE_LABEL_SX}
+              >
+                Precio
+              </Typography>
+              <MultiCurrencyAmount amount={priceBase} variant="compact" />
+            </Box>
+          </Stack>
+        </Popover>
+      )}
     </Paper>
   );
 }
+
+export const PosProductItemLayout = memo(PosProductItemLayoutComponent);

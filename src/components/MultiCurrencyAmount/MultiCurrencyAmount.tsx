@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Box, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import { useMonedasAlternativas } from "./useMonedasAlternativas";
+import { formatAmount } from "@/utils/numberFormat";
 
 type MultiCurrencyVariant = "default" | "compact" | "emphasized" | "hero";
 
@@ -24,13 +25,6 @@ interface MultiCurrencyAmountProps {
    * where the conversions belong behind a tap instead of always on screen. */
   showAlternatives?: boolean;
   sx?: SxProps<Theme>;
-}
-
-function formatAmount(amount: number): string {
-  return amount.toLocaleString("es-ES", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 }
 
 function formatMonedaLabel(
@@ -72,7 +66,16 @@ const VARIANT_STYLES: Record<
   },
 };
 
-export function MultiCurrencyAmount({
+type Alternativa = { code: string; label: string };
+const NO_ALTERNATIVAS: Alternativa[] = [];
+
+// Hoisted: this component renders once or twice per product card, and these
+// two never depend on props. The first is responsive, which Emotion charges
+// several times a flat rule for.
+const ALT_ITEM_SX = { whiteSpace: { xs: "normal", sm: "nowrap" } } as const;
+const ALT_SEPARATOR_SX = { mr: 0.5, opacity: 0.6 } as const;
+
+function MultiCurrencyAmountComponent({
   amount,
   variant = "default",
   color,
@@ -86,17 +89,23 @@ export function MultiCurrencyAmount({
 
   const styles = VARIANT_STYLES[variant];
 
+  // Guarded on `showAlternatives`: the POS renders this once (sometimes
+  // twice) per product card with the equivalents turned off by default, and
+  // converting plus formatting every business currency for a line that is
+  // never painted was pure waste, multiplied by the whole catalog.
   const alternativas = useMemo(
     () =>
-      monedasAlternativas.map((m) => ({
-        code: m.monedaCode,
-        label: formatMonedaLabel(
-          convertToMoneda(amount, m.monedaCode),
-          m.moneda?.simbolo,
-          m.monedaCode,
-        ),
-      })),
-    [monedasAlternativas, amount, convertToMoneda],
+      showAlternatives
+        ? monedasAlternativas.map((m) => ({
+            code: m.monedaCode,
+            label: formatMonedaLabel(
+              convertToMoneda(amount, m.monedaCode),
+              m.moneda?.simbolo,
+              m.monedaCode,
+            ),
+          }))
+        : NO_ALTERNATIVAS,
+    [showAlternatives, monedasAlternativas, amount, convertToMoneda],
   );
 
   const isInline = layout === "inline";
@@ -149,13 +158,9 @@ export function MultiCurrencyAmount({
           }}
         >
           {alternativas.map((alt, index) => (
-            <Box
-              key={alt.code}
-              component="span"
-              sx={{ whiteSpace: { xs: "normal", sm: "nowrap" } }}
-            >
+            <Box key={alt.code} component="span" sx={ALT_ITEM_SX}>
               {index > 0 && (
-                <Box component="span" sx={{ mr: 0.5, opacity: 0.6 }}>
+                <Box component="span" sx={ALT_SEPARATOR_SX}>
                   ·
                 </Box>
               )}
@@ -167,3 +172,5 @@ export function MultiCurrencyAmount({
     </Box>
   );
 }
+
+export const MultiCurrencyAmount = memo(MultiCurrencyAmountComponent);

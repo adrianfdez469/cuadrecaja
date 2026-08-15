@@ -1,6 +1,11 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type { ICartItem, ICart } from "@/schemas/cart";
+import { CART_PERSIST_DEBOUNCE_MS } from "@/constants/pos";
+import {
+  createDebouncedStorage,
+  flushPendingWrites,
+} from "@/store/debouncedStorage";
 
 export type { ICartItem, ICart };
 
@@ -189,12 +194,30 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "cart-storage",
-      version: 3,
+      version: 4,
+      // Batched writes: `localStorage.setItem` is synchronous, and persisting
+      // on every `+`/`−` blocked the main thread mid-tap.
+      storage: createJSONStorage(() =>
+        createDebouncedStorage(CART_PERSIST_DEBOUNCE_MS),
+      ),
+      // Only the carts. `items`/`total` are a mirror of the active one, so
+      // persisting them wrote every basket twice; they are rebuilt on rehydrate.
+      partialize: (state) => ({
+        carts: state.carts,
+        activeCartId: state.activeCartId,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const active =
+          state.carts.find((c) => c.id === state.activeCartId) ??
+          state.carts[0];
+        state.items = active?.items ?? [];
+        state.total = active?.total ?? 0;
+      },
       migrate: (persistedState: unknown, version: number) => {
         if (version < 2) {
           const legacy = persistedState as
-            | { items?: ICartItem[]; total?: number }
-            | undefined;
+            { items?: ICartItem[]; total?: number } | undefined;
           const items: ICartItem[] = legacy?.items ?? [];
           const total: number = legacy?.total ?? 0;
           const first: ICart = { id: "1", name: "Cuenta #1", items, total };
@@ -209,9 +232,39 @@ export const useCartStore = create<CartState>()(
           };
         }
         // v2→v3: monedaPrecioCode and priceBase are optional — existing items default to null/undefined
+        // v3→v4: `items`/`total` are no longer persisted; onRehydrateStorage
+        // rebuilds them from `carts`, so an older payload needs no reshaping.
         return persistedState as Partial<CartState>;
       },
-      // Ensure partialize keeps full state for now to not break across sessions
     },
   ),
 );
+
+/**
+ * Writes any batched cart state out immediately.
+ *
+ * Call before anything that can end the session abruptly — charging a sale,
+ * above all. The storage layer already flushes on `pagehide` and on the tab
+ * being hidden; this covers the moment that matters most.
+ */
+export const flushCartToStorage = flushPendingWrites;
+
+/**
+ * Quantity of one product in the active cart.
+ *
+ * Subscribing to `useCartStore()` with no selector means subscribing to the
+ * whole state object, whose identity changes on every mutation — so a single
+ * `+` re-rendered every product card in the grid. This returns a number, which
+ * Zustand compares with `Object.is`, so a card only re-renders when its own
+ * quantity moves.
+ */
+export const useCartItemQuantity = (productoTiendaId: string): number =>
+  useCartStore(
+    (state) =>
+      state.items.find((item) => item.productoTiendaId === productoTiendaId)
+        ?.quantity ?? 0,
+  );
+
+/** Number of distinct lines in the active cart, for badges and empty checks. */
+export const useCartItemCount = (): number =>
+  useCartStore((state) => state.items.length);
