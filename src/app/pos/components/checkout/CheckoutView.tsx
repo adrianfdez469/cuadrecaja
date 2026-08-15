@@ -74,6 +74,25 @@ interface CheckoutViewProps {
 /** A currency with no bills configured. Stable so memos keyed on it settle. */
 const EMPTY_DENOMINATIONS: number[] = [];
 
+// Hoisted: this footer repaints on every digit of the keypad (the pending
+// amount and the change both change), and an inline literal made Emotion
+// re-serialize the whole block — shadow included — each time.
+const FOOTER_SX = {
+  mt: 1,
+  pt: 1.5,
+  pb: 1.5,
+  px: 2,
+  // Cancels the parent drawer's own horizontal padding (theme.spacing(2))
+  // so this panel reaches the drawer's true edges instead of sitting
+  // inset like the rest of the content — same treatment as the cart
+  // step's footer.
+  mx: -2,
+  bgcolor: "background.paper",
+  // The shadow alone reads as "a panel floating above the content
+  // below it" — a divider line reads as a boundary, not elevation.
+  boxShadow: "0px -6px 16px rgba(0,0,0,0.12)",
+} as const;
+
 const defaultDestId = (dests: ITransferDestination[]) =>
   dests.length === 0
     ? ""
@@ -686,24 +705,7 @@ export function CheckoutView({
         positioned inside. Adding it again would double the gap. If CheckoutView
         is ever mounted somewhere else, that container owes it the same padding.
       */}
-      <Box
-        flex="0 0 auto"
-        sx={{
-          mt: 1,
-          pt: 1.5,
-          pb: 1.5,
-          px: 2,
-          // Cancels the parent drawer's own horizontal padding (theme.spacing(2))
-          // so this panel reaches the drawer's true edges instead of sitting
-          // inset like the rest of the content — same treatment as the cart
-          // step's footer.
-          mx: -2,
-          bgcolor: "background.paper",
-          // The shadow alone reads as "a panel floating above the content
-          // below it" — a divider line reads as a boundary, not elevation.
-          boxShadow: "0px -6px 16px rgba(0,0,0,0.12)",
-        }}
-      >
+      <Box flex="0 0 auto" sx={FOOTER_SX}>
         <ChangeSummary
           missing={missing}
           missingAmount={Math.max(0, amountDue - paid)}

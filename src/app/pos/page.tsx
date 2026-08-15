@@ -14,15 +14,15 @@ import {
 } from "@mui/material";
 
 import { flushCartToStorage, useCartStore } from "@/store/cartStore";
-import { getProductosVenta } from "@/services/costoPrecioServices";
+import { getCatalogoPos } from "@/services/costoPrecioServices";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { CategoryPillsBar } from "./components/CategoryPillsBar";
 import { PosProductGrid } from "./components/PosProductGrid";
 import { CheckoutLockOverlay } from "./components/CheckoutLockOverlay";
 import { CurrencyDisplayToggle } from "./components/CurrencyDisplayToggle";
-import { ICategory } from "@/schemas/categoria";
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import type { IPosCategoria } from "@/schemas/producto";
+import { IProductoTiendaPos } from "@/schemas/producto";
 import CartDrawer from "@/components/cartDrawer/CartDrawer";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { ICierrePeriodo } from "@/schemas/cierre";
@@ -101,11 +101,11 @@ import { PrinterSetupSheet } from "@/features/printing/components/PrinterSetupSh
 import { Sale } from "@/store/salesStore";
 
 export default function POSInterface() {
-  const [categories, setCategories] = useState<ICategory[]>([]);
+  const [categories, setCategories] = useState<IPosCategoria[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
   );
-  const [productosTienda, setProductosTienda] = useState<IProductoTiendaV2[]>(
+  const [productosTienda, setProductosTienda] = useState<IProductoTiendaPos[]>(
     [],
   );
   const [openCart, setOpenCart] = useState(false);
@@ -135,6 +135,20 @@ export default function POSInterface() {
   );
   const searchInputRef = useRef<HTMLInputElement>(null);
   const posScrollRef = useRef<HTMLDivElement>(null);
+  /**
+   * The same node as `posScrollRef`, held in state as well.
+   *
+   * The virtualized grid needs the scrolling element itself, and a ref cannot
+   * deliver it: refs attach bottom-up, so the child renders while the parent's
+   * ref is still null, and nothing re-renders afterwards to tell it otherwise.
+   * The result was a grid that measured a zero-height scroller and drew no
+   * rows at all.
+   */
+  const [posScrollEl, setPosScrollEl] = useState<HTMLDivElement | null>(null);
+  const posScrollCallbackRef = useCallback((el: HTMLDivElement | null) => {
+    posScrollRef.current = el;
+    setPosScrollEl(el);
+  }, []);
   // Espacio que la grilla debe reservar abajo para no quedar tapada por
   // PosBottomBar (position:fixed en mobile). Medido en vivo en vez de un
   // número fijo: la altura real de la barra varía según cuántos carritos
@@ -193,7 +207,7 @@ export default function POSInterface() {
     headerObserverRef.current = observer;
   }, []);
   const [selectedProduct, setSelectedProduct] =
-    useState<IProductoTiendaV2 | null>(null);
+    useState<IProductoTiendaPos | null>(null);
   // Individual selectors, never the whole store. Subscribing to the state
   // object meant every cart mutation re-rendered this 1700-line component and
   // the entire product grid under it — the single biggest source of the lag
@@ -504,7 +518,7 @@ export default function POSInterface() {
 
   // Crear un Map/índice al cargar productos una sola vez
   const productCodeMap = useMemo(() => {
-    const map = new Map<string, IProductoTiendaV2[]>();
+    const map = new Map<string, IProductoTiendaPos[]>();
     productosTienda.forEach((product) => {
       product.producto.codigosProducto?.forEach((code) => {
         if (!map.has(code.codigo)) map.set(code.codigo, []);
@@ -724,7 +738,7 @@ export default function POSInterface() {
    * never drift on what the rest of the POS gets to see.
    */
   const applyCatalog = useCallback(
-    (productos: IProductoTiendaV2[], categorias: ICategory[]) => {
+    (productos: IProductoTiendaPos[], categorias: IPosCategoria[]) => {
       setProductosTienda(productos);
       setCategories(categorias);
       // What each basket line belongs to, so the cart can price its own
@@ -747,9 +761,11 @@ export default function POSInterface() {
   const fetchProductosAndCategories = async (silent: boolean = false) => {
     try {
       if (!silent) setLoading(true);
-      const rawProductos = await getProductosVenta(user.localActual.id, {
-        incluseCategories: true,
-      });
+      // Catálogo proyectado: sin costos, sin descripciones y con el proveedor
+      // reducido a su nombre. Para una tienda de 2000 productos eso es la
+      // mayor parte de los bytes que antes viajaban por la red y había que
+      // parsear en el teléfono antes de pintar la primera tarjeta.
+      const rawProductos = await getCatalogoPos(user.localActual.id);
       // Existencia por productoId, resuelta una vez. El filtro de abajo hacía
       // un `find` sobre `rawProductos` por cada producto sin existencia: con
       // un catálogo de 800 eso son cientos de miles de iteraciones en cada
@@ -770,8 +786,7 @@ export default function POSInterface() {
               : prod.producto.nombre,
           },
         }))
-        // Filtrar productos con precio positivo
-        .filter((prod) => prod.precio > 0)
+        // El filtro de `precio > 0` ya lo aplica el servidor.
         // Filtrar productos con existencia positiva
         .filter((p) => {
           if (p.existencia <= 0) {
@@ -796,8 +811,8 @@ export default function POSInterface() {
         prods.reduce((acum, prod) => {
           acum[prod.producto.categoria.id] = prod.producto.categoria;
           return acum;
-        }, {}) as ICategory[],
-      ).sort((a: ICategory, b: ICategory) => {
+        }, {}) as IPosCategoria[],
+      ).sort((a: IPosCategoria, b: IPosCategoria) => {
         return a.nombre.localeCompare(b.nombre);
       });
       applyCatalog(productosTienda, categorias);
@@ -1488,7 +1503,7 @@ export default function POSInterface() {
   }, [periodo, user?.localActual?.id]);
 
   const handleCodigoAsociado = (
-    producto: IProductoTiendaV2,
+    producto: IProductoTiendaPos,
     codigoNuevo: string,
   ) => {
     // Actualizar el estado local para que el nuevo código quede indexado
@@ -1740,7 +1755,7 @@ export default function POSInterface() {
             que React desmontara y volviera a montar el catálogo entero en el
             DOM cada vez que se tocaba el buscador. */}
         <Box
-          ref={posScrollRef}
+          ref={posScrollCallbackRef}
           sx={{
             flex: 1,
             minWidth: 0,
@@ -1765,6 +1780,7 @@ export default function POSInterface() {
             // term that produced them.
             searchQuery={debouncedSearchQuery}
             bottomUp={searchMode}
+            scrollElement={posScrollEl}
           />
         </Box>
 

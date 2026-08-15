@@ -21,7 +21,6 @@ import { IProductoTiendaV2 } from "@/schemas/producto";
 import { formatMontoEnMoneda, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import { getRentabilidad } from "./rentabilidad";
-import { generateProductCodesPDF } from "@/utils/productCodesPdf";
 
 interface Props {
   productos: IProductoTiendaV2[];
@@ -114,6 +113,11 @@ function ActionsMenu({
         <MenuItem
           onClick={async () => {
             setAnchor(null);
+            // Importado bajo demanda: `jspdf`, `qrcode` y `bwip-js` solo hacen
+            // falta al descargar el PDF, no al abrir el inventario.
+            const { generateProductCodesPDF } = await import(
+              "@/utils/productCodesPdf"
+            );
             await generateProductCodesPDF(
               producto.producto.nombre,
               producto.producto.codigosProducto,

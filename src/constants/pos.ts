@@ -64,3 +64,22 @@ export const CASH_BALANCE_TTL_MS = 60_000;
  * app being killed from the switcher.
  */
 export const CART_PERSIST_DEBOUNCE_MS = 300;
+
+/**
+ * Catalog size from which the product grid renders only what is on screen.
+ *
+ * Below it the whole catalog is cheap to mount, and the plain layout keeps
+ * behaviours the virtualized path would have to reimplement — pinning a short
+ * search result to the bottom of the screen, above all. Above it the cost is
+ * not optional: a shop with 2000 products would otherwise put roughly sixty
+ * thousand DOM nodes on a cashier's phone.
+ */
+export const POS_VIRTUALIZATION_MIN_ITEMS = 80;
+
+/**
+ * First guess at a product card's height, in pixels, before it is measured.
+ *
+ * Only affects the scrollbar while rows are still unmeasured — every visible
+ * row reports its real height through the virtualizer's `measureElement`.
+ */
+export const POS_CARD_ESTIMATED_HEIGHT = 116;

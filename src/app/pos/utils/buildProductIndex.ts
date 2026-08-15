@@ -1,4 +1,4 @@
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IProductoTiendaPos } from "@/schemas/producto";
 import { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { convertToBase } from "@/lib/currency";
 import { normalizeSearch } from "@/utils/formatters";
@@ -12,7 +12,7 @@ import { normalizeSearch } from "@/utils/formatters";
  * fraction's parent, which made painting the grid quadratic.
  */
 export interface PosProductEntry {
-  productoTienda: IProductoTiendaV2;
+  productoTienda: IProductoTiendaPos;
   /** `normalizeSearch(nombre)`, computed once per catalog load. */
   normalizedName: string;
   categoriaId: string;
@@ -31,7 +31,7 @@ export interface PosProductEntry {
  * whole catalog costs one pass rather than one per fractioned product.
  */
 export function buildProductIndex(
-  products: IProductoTiendaV2[],
+  products: IProductoTiendaPos[],
 ): PosProductEntry[] {
   const existenciaByProductoId = new Map<string, number>();
   for (const p of products) {

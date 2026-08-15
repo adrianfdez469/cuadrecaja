@@ -1,5 +1,4 @@
-import type { ICategory } from "@/schemas/categoria";
-import type { IProductoTiendaV2 } from "@/schemas/producto";
+import type { IPosCategoria, IProductoTiendaPos } from "@/schemas/producto";
 
 /**
  * The POS catalog, cached on the device.
@@ -24,18 +23,18 @@ const DB_VERSION = 1;
  * authoritative and one extra load is a fair price for never rendering a
  * product whose fields moved.
  */
-const CACHE_SCHEMA_VERSION = 1;
+const CACHE_SCHEMA_VERSION = 2;
 
 interface CachedCatalog {
   schemaVersion: number;
   cachedAt: number;
-  productos: IProductoTiendaV2[];
-  categorias: ICategory[];
+  productos: IProductoTiendaPos[];
+  categorias: IPosCategoria[];
 }
 
 export interface CatalogSnapshot {
-  productos: IProductoTiendaV2[];
-  categorias: ICategory[];
+  productos: IProductoTiendaPos[];
+  categorias: IPosCategoria[];
   cachedAt: number;
 }
 
@@ -104,8 +103,8 @@ export async function readCatalog(
 /** Stores the catalog for this store. Failures are silent by design. */
 export async function writeCatalog(
   tiendaId: string,
-  productos: IProductoTiendaV2[],
-  categorias: ICategory[],
+  productos: IProductoTiendaPos[],
+  categorias: IPosCategoria[],
 ): Promise<void> {
   if (!tiendaId) return;
   const db = await openDatabase();

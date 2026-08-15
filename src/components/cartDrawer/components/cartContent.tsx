@@ -189,29 +189,44 @@ export const CartContent = (props: IProps) => {
     setSaleCount((count) => count + 1);
   };
 
-  const handleRemoveItem = (item: ICartItem) => {
-    if (removeItem) removeItem(item.id);
-  };
+  // The three below are memoized because they are the props of every
+  // CartItemCard, and that component is memoized: recreating them on each
+  // render would re-render every line of the basket on every `+`.
+  // They read the basket through `getState()` rather than closing over `cart`,
+  // which is what keeps their identity stable across those changes — and is
+  // also more correct, since the quantity they act on is the current one.
+  const handleRemoveItem = useCallback(
+    (item: ICartItem) => {
+      if (removeItem) removeItem(item.id);
+    },
+    [removeItem],
+  );
 
-  const decreaseQty = (id: string) => {
-    const product = cart.find((p) => p.id === id);
-    if (!product) return;
-    if (product.quantity === 1) {
-      if (removeItem) {
-        removeItem(id);
+  const decreaseQty = useCallback(
+    (id: string) => {
+      const product = useCartStore.getState().items.find((p) => p.id === id);
+      if (!product) return;
+      if (product.quantity === 1) {
+        if (removeItem) {
+          removeItem(id);
+        } else {
+          showMessage("No puede elminar completamente el producto", "warning");
+        }
       } else {
-        showMessage("No puede elminar completamente el producto", "warning");
+        updateQuantity(id, product.quantity - 1);
       }
-    } else {
-      updateQuantity(id, product.quantity - 1);
-    }
-  };
+    },
+    [removeItem, updateQuantity, showMessage],
+  );
 
-  const increaseQty = (id: string) => {
-    const product = cart.find((p) => p.id === id);
-    if (!product) return;
-    updateQuantity(id, product.quantity + 1);
-  };
+  const increaseQty = useCallback(
+    (id: string) => {
+      const product = useCartStore.getState().items.find((p) => p.id === id);
+      if (!product) return;
+      updateQuantity(id, product.quantity + 1);
+    },
+    [updateQuantity],
+  );
 
   const handleClearCart = () => {
     if (clear && cart.length > 0) {

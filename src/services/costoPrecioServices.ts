@@ -1,4 +1,5 @@
 import axiosClient from "@/lib/axiosClient";
+import type { IProductoTiendaPos } from "@/schemas/producto";
 
 const API_URL = `/api/productos_tienda`;
 
@@ -15,6 +16,20 @@ export const getProductosVenta = async (
     `${API_URL}/${tiendaId}/productos_venta`,
     { params },
   );
+  return response.data;
+};
+
+/**
+ * The sale catalog, projected down to what the POS reads.
+ *
+ * Deliberately not `getProductosVenta`: that payload also carries costs,
+ * descriptions and full supplier records for the inventory view, which for a
+ * 2000-product shop is most of the bytes and none of the use.
+ */
+export const getCatalogoPos = async (
+  tiendaId: string,
+): Promise<IProductoTiendaPos[]> => {
+  const response = await axiosClient.get(`${API_URL}/${tiendaId}/catalogo_pos`);
   return response.data;
 };
 

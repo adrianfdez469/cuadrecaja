@@ -1,4 +1,4 @@
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IProductoTiendaPos } from "@/schemas/producto";
 
 /**
  * Cuántas unidades de un producto se pueden vender ahora mismo.
@@ -15,8 +15,8 @@ import { IProductoTiendaV2 } from "@/schemas/producto";
  * ajusta sola.
  */
 export function calcularDisponibilidadReal(
-  producto: IProductoTiendaV2 | null | undefined,
-  allProductos: IProductoTiendaV2[],
+  producto: IProductoTiendaPos | null | undefined,
+  allProductos: IProductoTiendaPos[],
 ): { disponible: number; esFraccion: boolean } {
   if (!producto) {
     return { disponible: 0, esFraccion: false };

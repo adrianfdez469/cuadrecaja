@@ -2,7 +2,7 @@ import React from "react";
 import { Sale } from "@/store/salesStore";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase, pagadaConUnSoloPago } from "@/lib/currency";
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IProductoTiendaPos } from "@/schemas/producto";
 import { SaleExtrasSummary } from "@/components/SaleExtrasSummary";
 import { formatQuantity } from "@/utils/formatters";
 import { Close, Delete } from "@mui/icons-material";
@@ -33,7 +33,7 @@ interface SaleProductsDetailDrawerProps {
   onDeleteProduct: (product: Sale["productos"][0]) => Promise<void>;
   onDeleteSale: (sale: Sale) => Promise<void>;
   disableAll?: boolean;
-  productosTienda?: IProductoTiendaV2[];
+  productosTienda?: IProductoTiendaPos[];
 }
 
 export const SaleProductsDetailDrawer: React.FC<

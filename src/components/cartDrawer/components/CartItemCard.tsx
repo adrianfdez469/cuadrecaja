@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { MouseEvent } from "react";
 import { Delete, Remove, Add } from "@mui/icons-material";
 import {
@@ -14,13 +14,80 @@ import {
   Popover,
   Stack,
   Tooltip,
-  useTheme,
   alpha,
 } from "@mui/material";
+import type { Theme } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { formatQuantity } from "@/utils/formatters";
 import { useShowAlternativeCurrencies } from "@/hooks/useShowAlternativeCurrencies";
+
+// Hoisted out of the render: this component is mounted once per line of the
+// basket and re-renders on every `+` and `−`, so an object literal here means
+// Emotion re-serializing the same styles for every line, every time.
+const ROOT_SX = {
+  p: { xs: 1, sm: 1.25 },
+  mb: 1,
+  borderRadius: 2,
+  border: "1px solid",
+  borderColor: "divider",
+  bgcolor: "background.paper",
+} as const;
+const NAME_SX = {
+  lineHeight: 1.35,
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical",
+  overflow: "hidden",
+} as const;
+// Callback form instead of `useTheme()`: the hook was being called once per
+// basket line purely to read one palette colour.
+const REMOVE_BUTTON_SX = {
+  flexShrink: 0,
+  color: "error.main",
+  mt: -0.25,
+  "@media (hover: hover)": {
+    "&:hover": {
+      bgcolor: (theme: Theme) => alpha(theme.palette.error.main, 0.08),
+    },
+  },
+} as const;
+const STEPPER_SX = {
+  bgcolor: "action.hover",
+  borderRadius: 2,
+  px: 0.5,
+  py: 0.25,
+  flexShrink: 0,
+} as const;
+const STEP_BUTTON_SX = { minWidth: 44, minHeight: 44 } as const;
+const QUANTITY_SX = { minWidth: 28, textAlign: "center" } as const;
+const AMOUNT_BUTTON_BASE_SX = {
+  borderRadius: 1.5,
+  px: 0.75,
+  py: 0.5,
+  minHeight: 44,
+} as const;
+const AMOUNT_BUTTON_SX = {
+  ...AMOUNT_BUTTON_BASE_SX,
+  cursor: "pointer",
+} as const;
+const AMOUNT_BUTTON_STATIC_SX = {
+  ...AMOUNT_BUTTON_BASE_SX,
+  cursor: "default",
+} as const;
+const CHIP_SX = { height: 18, fontSize: "0.65rem" } as const;
+const DETAIL_SX = { p: 1.5, minWidth: 200 } as const;
+const DETAIL_LABEL_SX = {
+  mb: 0.25,
+  fontSize: "0.65rem",
+  textTransform: "uppercase",
+  letterSpacing: 0.4,
+} as const;
+const POPOVER_ANCHOR_ORIGIN = { vertical: "top", horizontal: "right" } as const;
+const POPOVER_TRANSFORM_ORIGIN = {
+  vertical: "bottom",
+  horizontal: "right",
+} as const;
 
 function ExpiryChip({ fechaVencimiento }: { fechaVencimiento: string }) {
   const ahora = new Date();
@@ -32,12 +99,7 @@ function ExpiryChip({ fechaVencimiento }: { fechaVencimiento: string }) {
   if (dias <= 0) {
     return (
       <Tooltip title="Este producto está vencido">
-        <Chip
-          label="Vencido"
-          color="error"
-          size="small"
-          sx={{ height: 18, fontSize: "0.65rem" }}
-        />
+        <Chip label="Vencido" color="error" size="small" sx={CHIP_SX} />
       </Tooltip>
     );
   }
@@ -49,7 +111,7 @@ function ExpiryChip({ fechaVencimiento }: { fechaVencimiento: string }) {
           color="error"
           size="small"
           variant="outlined"
-          sx={{ height: 18, fontSize: "0.65rem" }}
+          sx={CHIP_SX}
         />
       </Tooltip>
     );
@@ -62,7 +124,7 @@ function ExpiryChip({ fechaVencimiento }: { fechaVencimiento: string }) {
           color="warning"
           size="small"
           variant="outlined"
-          sx={{ height: 18, fontSize: "0.65rem" }}
+          sx={CHIP_SX}
         />
       </Tooltip>
     );
@@ -78,14 +140,13 @@ interface CartItemCardProps {
   canUpdateQuantity: boolean;
 }
 
-export function CartItemCard({
+function CartItemCardComponent({
   item,
   onDecrease,
   onIncrease,
   onRemove,
   canUpdateQuantity,
 }: CartItemCardProps) {
-  const theme = useTheme();
   const { show: showAlternatives } = useShowAlternativeCurrencies();
   const [detailAnchor, setDetailAnchor] = useState<HTMLElement | null>(null);
   // Use priceBase (monedaBase equivalent) for MultiCurrencyAmount display; fall back to raw price if not set
@@ -97,17 +158,7 @@ export function CartItemCard({
   const closeDetail = () => setDetailAnchor(null);
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: { xs: 1, sm: 1.25 },
-        mb: 1,
-        borderRadius: 2,
-        border: "1px solid",
-        borderColor: "divider",
-        bgcolor: "background.paper",
-      }}
-    >
+    <Paper elevation={0} sx={ROOT_SX}>
       {/* Fila 1: nombre + eliminar */}
       <Box
         display="flex"
@@ -117,17 +168,7 @@ export function CartItemCard({
         mb={0.75}
       >
         <Box flex={1} minWidth={0}>
-          <Typography
-            variant="body2"
-            fontWeight={700}
-            sx={{
-              lineHeight: 1.35,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
+          <Typography variant="body2" fontWeight={700} sx={NAME_SX}>
             {item.name}
           </Typography>
           {item.fechaVencimiento && (
@@ -142,12 +183,7 @@ export function CartItemCard({
             onClick={() => onRemove(item)}
             size="small"
             aria-label={`Eliminar ${item.name}`}
-            sx={{
-              flexShrink: 0,
-              color: "error.main",
-              mt: -0.25,
-              "&:hover": { bgcolor: alpha(theme.palette.error.main, 0.08) },
-            }}
+            sx={REMOVE_BUTTON_SX}
           >
             <Delete fontSize="small" />
           </IconButton>
@@ -168,34 +204,24 @@ export function CartItemCard({
             direction="row"
             alignItems="center"
             justifyContent="space-between"
-            sx={{
-              bgcolor: "action.hover",
-              borderRadius: 2,
-              px: 0.5,
-              py: 0.25,
-              flexShrink: 0,
-            }}
+            sx={STEPPER_SX}
           >
             <IconButton
               size="small"
               onClick={() => onDecrease(item.id)}
               aria-label={`Reducir cantidad de ${item.name}`}
-              sx={{ minWidth: 44, minHeight: 44 }}
+              sx={STEP_BUTTON_SX}
             >
               <Remove />
             </IconButton>
-            <Typography
-              variant="body1"
-              fontWeight={700}
-              sx={{ minWidth: 28, textAlign: "center" }}
-            >
+            <Typography variant="body1" fontWeight={700} sx={QUANTITY_SX}>
               {formatQuantity(item.quantity)}
             </Typography>
             <IconButton
               size="small"
               onClick={() => onIncrease(item.id)}
               aria-label={`Aumentar cantidad de ${item.name}`}
-              sx={{ minWidth: 44, minHeight: 44 }}
+              sx={STEP_BUTTON_SX}
             >
               <Add />
             </IconButton>
@@ -219,13 +245,7 @@ export function CartItemCard({
               ? undefined
               : `Ver detalle de precio de ${item.name}`
           }
-          sx={{
-            borderRadius: 1.5,
-            px: 0.75,
-            py: 0.5,
-            minHeight: 44,
-            cursor: showAlternatives ? "default" : "pointer",
-          }}
+          sx={showAlternatives ? AMOUNT_BUTTON_STATIC_SX : AMOUNT_BUTTON_SX}
         >
           <MultiCurrencyAmount
             amount={lineTotal}
@@ -236,53 +256,50 @@ export function CartItemCard({
         </ButtonBase>
       </Box>
 
-      <Popover
-        open={Boolean(detailAnchor)}
-        anchorEl={detailAnchor}
-        onClose={closeDetail}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        transformOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Stack gap={1} sx={{ p: 1.5, minWidth: 200 }}>
-          <Box>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              sx={{
-                mb: 0.25,
-                fontSize: "0.65rem",
-                textTransform: "uppercase",
-                letterSpacing: 0.4,
-              }}
-            >
-              Unitario
-            </Typography>
-            <MultiCurrencyAmount amount={unitPrice} variant="compact" />
-          </Box>
-          <Divider />
-          <Box>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              sx={{
-                mb: 0.25,
-                fontSize: "0.65rem",
-                textTransform: "uppercase",
-                letterSpacing: 0.4,
-              }}
-            >
-              Subtotal ({item.quantity} ×)
-            </Typography>
-            <MultiCurrencyAmount
-              amount={lineTotal}
-              variant="compact"
-              color="success.main"
-            />
-          </Box>
-        </Stack>
-      </Popover>
+      {/* Mounted only once opened, as in the product card: a closed Popover
+          paints nothing, but its element and prop tree were still being built
+          for every line of the basket on every render. */}
+      {detailAnchor && (
+        <Popover
+          open
+          anchorEl={detailAnchor}
+          onClose={closeDetail}
+          anchorOrigin={POPOVER_ANCHOR_ORIGIN}
+          transformOrigin={POPOVER_TRANSFORM_ORIGIN}
+        >
+          <Stack gap={1} sx={DETAIL_SX}>
+            <Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={DETAIL_LABEL_SX}
+              >
+                Unitario
+              </Typography>
+              <MultiCurrencyAmount amount={unitPrice} variant="compact" />
+            </Box>
+            <Divider />
+            <Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={DETAIL_LABEL_SX}
+              >
+                Subtotal ({item.quantity} ×)
+              </Typography>
+              <MultiCurrencyAmount
+                amount={lineTotal}
+                variant="compact"
+                color="success.main"
+              />
+            </Box>
+          </Stack>
+        </Popover>
+      )}
     </Paper>
   );
 }
+
+export const CartItemCard = memo(CartItemCardComponent);

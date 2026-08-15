@@ -4,7 +4,7 @@ import { memo, useState } from "react";
 import { Box, IconButton, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IProductoTiendaPos } from "@/schemas/producto";
 import { useCartItemQuantity, useCartStore } from "@/store/cartStore";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
@@ -74,7 +74,7 @@ const QUANTITY_INPUT_STYLE = {
 } as const;
 
 interface ProductQuickActionsProps {
-  productoTienda: IProductoTiendaV2;
+  productoTienda: IProductoTiendaPos;
   /**
    * Sellable units before the cart is deducted, precomputed by
    * `buildProductIndex`. Taking the number instead of the whole catalog is

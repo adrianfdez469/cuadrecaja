@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+// Fuera del bundle de la pantalla: arrastra `xlsx`, que solo hace falta
+// cuando alguien importa un fichero de verdad.
+const ImportarExcelDialog = dynamic(() => import("./importExcelDialog"), {
+  ssr: false,
+});
 import {
   Box,
   Typography,
@@ -63,7 +70,6 @@ import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
 import { formatNumber, formatDateTime } from "@/utils/formatters";
-import ImportarExcelDialog from "./importExcelDialog";
 import {
   IProductoDisponible,
   OperacionTipo,
@@ -1093,13 +1099,16 @@ export default function MovimientosView() {
         tiendaId={user.localActual.id}
         onSuccess={fetchMovimientos}
       />
-      <ImportarExcelDialog
-        open={importDialogOpen}
-        onClose={() => setImportDialogOpen(false)}
-        onSuccess={() => {
-          fetchMovimientos(0);
-        }}
-      />
+      {/* Montado solo al abrirlo: arrastra `xlsx`. */}
+      {importDialogOpen && (
+        <ImportarExcelDialog
+          open={importDialogOpen}
+          onClose={() => setImportDialogOpen(false)}
+          onSuccess={() => {
+            fetchMovimientos(0);
+          }}
+        />
+      )}
       {pendienteRecepcionDialogOpen && (
         <ProductSelectionModal
           open={pendienteRecepcionDialogOpen}

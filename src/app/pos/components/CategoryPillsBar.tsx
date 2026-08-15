@@ -3,7 +3,7 @@
 import { memo } from "react";
 import { Box, Chip, Stack, useTheme } from "@mui/material";
 import type { Theme } from "@mui/material";
-import { ICategory } from "@/schemas/categoria";
+import type { IPosCategoria } from "@/schemas/producto";
 
 const ROOT_SX = {
   flexShrink: 0,
@@ -33,7 +33,7 @@ const PILL_TEXT_SX = {
 } as const;
 
 interface CategoryPillsBarProps {
-  categories: ICategory[];
+  categories: IPosCategoria[];
   selectedCategoryId: string | null;
   onSelectCategory: (categoryId: string | null) => void;
 }
