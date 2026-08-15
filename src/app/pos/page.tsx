@@ -210,6 +210,18 @@ export default function POSInterface() {
   const renameCart = useCartStore((state) => state.renameCart);
   const removeActiveCart = useCartStore((state) => state.removeActiveCart);
   const [loading, setLoading] = useState(true);
+  /**
+   * The catalog has been resolved at least once for the current store —
+   * whether from the cache, from the network, or by failing.
+   *
+   * Separate from `loading`, which only covers the period and the store's
+   * initial data. Conflating the two made the POS paint a fully formed but
+   * empty grid, "No hay productos disponibles" and all, in the gap between
+   * one load finishing and the other starting.
+   */
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  /** Which store the loaded catalog belongs to, to catch a store switch. */
+  const catalogTiendaRef = useRef<string | null>(null);
   const { isOnline } = useNetworkStatus();
   useBlockBackNavigation();
   const [transferDestinations, setTransferDestinations] = useState<
@@ -1423,6 +1435,14 @@ export default function POSInterface() {
     const tiendaId = user?.localActual?.id;
     if (!tiendaId) return;
 
+    // Switching store invalidates whatever is on screen: hold the loading
+    // state until the new store's catalog arrives, rather than showing the
+    // previous one's products for a moment.
+    if (catalogTiendaRef.current !== tiendaId) {
+      catalogTiendaRef.current = tiendaId;
+      setCatalogLoaded(false);
+    }
+
     let cancelled = false;
 
     (async () => {
@@ -1432,19 +1452,18 @@ export default function POSInterface() {
       const hasCache = Boolean(cached && cached.productos.length > 0);
       if (hasCache) {
         applyCatalog(cached.productos, cached.categorias);
-        setLoading(false);
+        // Usable right now: let the grid paint from the cache while the
+        // refresh below lands behind it.
+        setCatalogLoaded(true);
       }
 
       // Silent when the screen is already usable: a spinner over a working
       // catalog would undo the whole point.
-      await fetchProductosAndCategories(hasCache).catch(() => {
-        if (!hasCache && !shouldDeferPosBackgroundOperations(periodo)) {
-          showMessage(
-            "Ocurrió un error intentando cargar las categorías",
-            "error",
-          );
-        }
-      });
+      await fetchProductosAndCategories(hasCache);
+      // Marked resolved even on failure — `fetchProductosAndCategories`
+      // reports its own error, and a permanent spinner would be worse than an
+      // honest empty catalog.
+      if (!cancelled) setCatalogLoaded(true);
     })();
 
     return () => {
@@ -1503,7 +1522,12 @@ export default function POSInterface() {
     setProductOrigin("hardware");
   };
 
-  if (loadingContext || loading) {
+  // `periodo && !catalogLoaded` is what closes the gap the cashier used to
+  // see: the initial load finishing turned the spinner off while the catalog
+  // had not even been asked for yet, so the POS appeared complete and empty
+  // for a moment before the products dropped in. With no period there is
+  // nothing to wait for — that path opens its own dialog.
+  if (loadingContext || loading || (periodo && !catalogLoaded)) {
     return (
       <Box
         display="flex"
