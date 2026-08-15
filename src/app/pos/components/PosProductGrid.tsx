@@ -156,8 +156,8 @@ function PosProductGridComponent({
   const highlightFor = (card: PosProductCard) =>
     normalizedQuery !== null && card.normalizedName.startsWith(normalizedQuery);
 
-  const virtualize =
-    products.length >= POS_VIRTUALIZATION_MIN_ITEMS && scrollElement !== null;
+  const needsVirtualization = products.length >= POS_VIRTUALIZATION_MIN_ITEMS;
+  const virtualize = needsVirtualization && scrollElement !== null;
   const columns = bottomUp ? 1 : isXl ? 4 : isLg ? 3 : isSm ? 2 : 1;
 
   // In search mode the best match must sit at the bottom, nearest the field.
@@ -193,7 +193,12 @@ function PosProductGridComponent({
   // Below the threshold the whole catalog is cheap to mount, and the plain
   // layout keeps behaviours the virtualized one would have to reimplement —
   // pinning a short result list to the bottom, above all.
-  if (!virtualize) {
+  //
+  // Keyed on `needsVirtualization`, not on `virtualize`: while the scroll
+  // container is still being mounted this must not fall back to drawing the
+  // entire catalog, not even for one frame. That single render is worth
+  // seconds of main thread on a large shop.
+  if (!needsVirtualization) {
     return (
       // Siempre un <Box>, nunca un fragmento: mantener el mismo tipo de
       // elemento en esta posición es lo que permite a React reconciliar las

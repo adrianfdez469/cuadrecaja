@@ -16,8 +16,14 @@ import {
   Typography,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { IProductoTiendaV2 } from "@/schemas/producto";
+import {
+  INVENTARIO_ROW_ESTIMATED_HEIGHT,
+  INVENTARIO_TABLE_COLUMNS as COLUMNAS,
+  INVENTARIO_VIRTUALIZATION_MIN_ROWS,
+} from "@/constants/inventario";
 import { formatMontoEnMoneda, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import { getRentabilidad } from "./rentabilidad";
@@ -115,9 +121,8 @@ function ActionsMenu({
             setAnchor(null);
             // Importado bajo demanda: `jspdf`, `qrcode` y `bwip-js` solo hacen
             // falta al descargar el PDF, no al abrir el inventario.
-            const { generateProductCodesPDF } = await import(
-              "@/utils/productCodesPdf"
-            );
+            const { generateProductCodesPDF } =
+              await import("@/utils/productCodesPdf");
             await generateProductCodesPDF(
               producto.producto.nombre,
               producto.producto.codigosProducto,
@@ -150,6 +155,47 @@ export function InventarioTable({
   onDelete,
 }: Props) {
   const { tasasVigentes, monedaBase } = useAppContext();
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const containerRef = useCallback((el: HTMLDivElement | null) => {
+    scrollRef.current = el;
+    setScrollEl(el);
+  }, []);
+
+  // Por encima del umbral solo se pintan las filas visibles. Un inventario de
+  // 2000 productos ponía 47.000 nodos en el DOM y tardaba segundos en aparecer;
+  // por debajo, montarlo entero es barato y no merece la pena cambiar nada.
+  const necesitaVirtualizar =
+    productos.length >= INVENTARIO_VIRTUALIZATION_MIN_ROWS;
+  const virtualizar = necesitaVirtualizar && scrollEl !== null;
+
+  const rowVirtualizer = useVirtualizer({
+    count: virtualizar ? productos.length : 0,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => INVENTARIO_ROW_ESTIMATED_HEIGHT,
+    overscan: 8,
+  });
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  // Dos filas vacías sostienen el alto que ocupan las que no se pintan. Es lo
+  // que permite virtualizar sin romper la tabla: las celdas siguen siendo
+  // celdas, así que las columnas se alinean y la cabecera fija sigue
+  // funcionando, cosa que no ocurre posicionando filas en absoluto.
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
+  const paddingBottom =
+    virtualRows.length > 0
+      ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
+      : 0;
+
+  // Cuando toca virtualizar y el contenedor todavía no está montado no se
+  // pinta nada, ni siquiera una vez. Esa salvedad es el punto entero: dejar
+  // que el primer render dibujara la lista completa costaba 6,4 segundos de
+  // hilo principal antes de que la virtualización llegara a entrar.
+  const filasAPintar = necesitaVirtualizar
+    ? virtualizar
+      ? virtualRows.map((v) => ({ producto: productos[v.index], virtual: v }))
+      : []
+    : productos.map((producto) => ({ producto, virtual: null }));
 
   if (loading) {
     return (
@@ -170,7 +216,18 @@ export function InventarioTable({
   }
 
   return (
-    <TableContainer>
+    // Con muchas filas el contenedor pasa a tener su propio scroll: es lo que
+    // el virtualizador necesita medir, y de paso deja la cabecera fija a la
+    // vista en vez de perderse al desplazar la página. Con pocas filas se
+    // comporta exactamente como antes.
+    <TableContainer
+      ref={containerRef}
+      sx={
+        necesitaVirtualizar
+          ? { maxHeight: "70vh", overflowY: "auto" }
+          : undefined
+      }
+    >
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
@@ -185,10 +242,24 @@ export function InventarioTable({
           </TableRow>
         </TableHead>
         <TableBody>
-          {productos.map((p) => {
+          {paddingTop > 0 && (
+            <TableRow style={{ height: paddingTop }}>
+              <TableCell colSpan={COLUMNAS} sx={{ p: 0, border: 0 }} />
+            </TableRow>
+          )}
+          {filasAPintar.map(({ producto: p, virtual }) => {
             const rentabilidad = getRentabilidad(p, tasasVigentes, monedaBase);
             return (
-              <TableRow key={p.id} hover>
+              <TableRow
+                key={p.id}
+                hover
+                {...(virtual
+                  ? {
+                      "data-index": virtual.index,
+                      ref: rowVirtualizer.measureElement,
+                    }
+                  : {})}
+              >
                 <TableCell>
                   <Box
                     display="flex"
@@ -281,6 +352,11 @@ export function InventarioTable({
               </TableRow>
             );
           })}
+          {paddingBottom > 0 && (
+            <TableRow style={{ height: paddingBottom }}>
+              <TableCell colSpan={COLUMNAS} sx={{ p: 0, border: 0 }} />
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </TableContainer>
