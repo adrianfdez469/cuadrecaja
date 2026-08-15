@@ -45,7 +45,10 @@ import { readCatalog, writeCatalog } from "@/lib/catalogCache";
 import { MAX_SYNC_ATTEMPTS } from "@/constants/pos";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
-import { useOnScreenKeyboard } from "@/hooks/useOnScreenKeyboard";
+import {
+  useOnScreenKeyboard,
+  VISUAL_VIEWPORT_HEIGHT_VAR,
+} from "@/hooks/useOnScreenKeyboard";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { POS_SEARCH_DEBOUNCE_MS } from "@/constants/pos";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
@@ -149,7 +152,15 @@ export default function POSInterface() {
     bottomBarObserverRef.current = null;
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setBottomBarHeight(entry.contentRect.height);
+      if (!entry) return;
+      // Con guarda de igualdad: entrar y salir del modo búsqueda cambia el
+      // alto de esta barra, y cada `setState` de aquí re-renderiza el POS
+      // entero y con él el `pb` del contenedor de scroll — una segunda pasada
+      // de layout de todo el catálogo, encadenada tras la del propio cambio.
+      const height = entry.contentRect.height;
+      setBottomBarHeight((prev) =>
+        Math.abs(prev - height) < 0.5 ? prev : height,
+      );
     });
     observer.observe(el);
     bottomBarObserverRef.current = observer;
@@ -164,10 +175,20 @@ export default function POSInterface() {
     headerObserverRef.current?.disconnect();
     headerObserverRef.current = null;
     if (!el) return;
-    // offsetHeight, no contentRect: estas barras tienen padding propio y
-    // bordes, y contentRect los excluye — desplazarlas por ese valor
-    // dejaría una franja asomando.
-    const observer = new ResizeObserver(() => setHeaderHeight(el.offsetHeight));
+    // borderBoxSize, no contentRect: estas barras tienen padding propio y
+    // bordes, y contentRect los excluye — desplazarlas por ese valor dejaría
+    // una franja asomando. Y no `offsetHeight`: leerlo dentro del callback del
+    // observer fuerza un layout síncrono en plena fase de entrega, que es
+    // justo el patrón que produce "ResizeObserver loop completed with
+    // undelivered notifications". `borderBoxSize` ya viene medido.
+    const observer = new ResizeObserver(([entry]) => {
+      const height =
+        entry?.borderBoxSize?.[0]?.blockSize ??
+        el.getBoundingClientRect().height;
+      setHeaderHeight((prev) =>
+        Math.abs(prev - height) < 0.5 ? prev : height,
+      );
+    });
     observer.observe(el);
     headerObserverRef.current = observer;
   }, []);
@@ -266,7 +287,7 @@ export default function POSInterface() {
   const checkoutInProgress = cartStep === "checkout";
   const productsLocked = showCartPanel && checkoutInProgress;
 
-  const { keyboardOpen, viewportHeight } = useOnScreenKeyboard();
+  const { keyboardOpen, measured } = useOnScreenKeyboard();
 
   // Buscar en el teléfono no oculta nada ni abre ninguna capa: lo único
   // que cambia es que los resultados se apilan hacia arriba, para que el
@@ -279,7 +300,7 @@ export default function POSInterface() {
   // El teclado abierto es lo único que rompe las coordenadas del layout
   // (ver el comentario del box raíz), así que es lo único que decide si
   // hay que anclar el POS al área visible. Al bajarlo, todo vuelve solo.
-  const pinToVisibleArea = searchMode && keyboardOpen && viewportHeight != null;
+  const pinToVisibleArea = searchMode && keyboardOpen && measured;
 
   // Sin teclado no hay búsqueda. Chrome en Android no dispara `blur` cuando
   // el usuario baja el teclado con el botón del sistema: el campo conserva
@@ -1554,7 +1575,12 @@ export default function POSInterface() {
           left: 0,
           right: 0,
           bottom: 0,
-          height: `${viewportHeight}px`,
+          // Leída de la variable CSS que publica useOnScreenKeyboard, no de
+          // estado de React: la altura cambia en cada frame mientras el
+          // teclado se abre, y pasarla por estado re-renderizaba el POS entero
+          // una vez por frame. El fallback cubre el instante previo a la
+          // primera medición.
+          height: `var(${VISUAL_VIEWPORT_HEIGHT_VAR}, 100dvh)`,
           // Por encima de la AppBar (zIndex.drawer - 1), que con el teclado
           // abierto ya está fuera del área visible de todos modos.
           zIndex: 1200,
@@ -1600,17 +1626,20 @@ export default function POSInterface() {
             bloque sin el cual este margen negativo se colapsaría con el del
             padre y arrastraría todo hacia arriba. */}
         <Box sx={{ flexShrink: 0, overflow: "hidden" }}>
+          {/* Sin `transition` sobre `mt`: animar un margen es animar el
+              layout, y aquí abajo cuelga el catálogo entero — eran ~12 frames
+              de re-maquetado de todas las tarjetas justo mientras el teclado
+              intentaba abrirse. El colapso ahora es instantáneo. */}
           <Box
             ref={posHeaderRef}
-            sx={{
-              mt: searchMode ? `-${headerHeight}px` : 0,
-              transition: "margin-top 0.2s ease",
-            }}
+            sx={{ mt: searchMode ? `-${headerHeight}px` : 0 }}
           >
+            {/* El `backdrop-filter` que había aquí desenfocaba un fondo ya
+                opaco al 95%: coste de GPU sin efecto visible, y encima sobre
+                un subárbol que se desplaza al buscar. */}
             <Box
               sx={{
                 bgcolor: "rgba(255, 255, 255, 0.95)",
-                backdropFilter: "blur(10px)",
                 borderBottom: "1px solid rgba(0,0,0,0.1)",
                 px: 2,
                 py: 1,
@@ -1680,18 +1709,18 @@ export default function POSInterface() {
             Mientras se busca en mobile se apila en una sola columna
             invertida, para que el primer resultado quede pegado al
             buscador en vez de al borde de arriba. */}
+        {/* El `column-reverse` del modo búsqueda vive ahora dentro de
+            PosProductGrid, no aquí: mientras estuvo en este contenedor, la
+            grilla tenía que devolver un fragmento para que las tarjetas
+            fueran hijas directas, y alternar entre `<Box>` y fragmento hacía
+            que React desmontara y volviera a montar el catálogo entero en el
+            DOM cada vez que se tocaba el buscador. */}
         <Box
           ref={posScrollRef}
           sx={{
             flex: 1,
             minWidth: 0,
             overflow: "auto",
-            ...(searchMode && {
-              display: "flex",
-              flexDirection: "column-reverse",
-              gap: 1.5,
-              p: 1.5,
-            }),
             // Matches PosBottomBar's own 700px threshold for switching
             // between position:fixed (mobile) and normal flow (desktop):
             // below it the footer is fixed and needs this space reserved

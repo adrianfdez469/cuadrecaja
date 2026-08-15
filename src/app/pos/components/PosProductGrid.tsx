@@ -30,6 +30,25 @@ const GRID_CONTAINER_SX = {
   },
 } as const;
 
+// Search mode: one column stacked bottom-up, so the best match ends up pinned
+// right above the field being typed in.
+//
+// `column-reverse` used to live on the parent scroll container, which forced
+// this component to return a bare fragment so the cards would be its *direct*
+// children. Alternating between a <Box> and a fragment changes the element
+// type in that position, and React answers by unmounting and rebuilding every
+// card in the catalog — on each entry to and exit from search. Owning the
+// layout here keeps the element type stable, so the cards are merely
+// reconciled. `minHeight: 100%` is what keeps a short result list pinned to
+// the bottom, which the parent's own reversed flow used to provide.
+const SEARCH_LIST_SX = {
+  display: "flex",
+  flexDirection: "column-reverse",
+  gap: 1.5,
+  p: 1.5,
+  minHeight: "100%",
+} as const;
+
 // Hoisted out of the render: an object literal inside the map is a new
 // identity per card per render, which alone would defeat the memo on
 // PosProductItemLayout and make Emotion re-serialize the style N times.
@@ -76,44 +95,27 @@ function PosProductGridComponent({
   const highlightFor = (card: PosProductCard) =>
     normalizedQuery !== null && card.normalizedName.startsWith(normalizedQuery);
 
-  if (bottomUp) {
-    // No wrapping Box here on purpose: the parent scroll container owns
-    // `flexDirection: column-reverse` directly, so these need to be its
-    // *direct* children for the reversed stacking/scroll-anchor to apply
-    // to them — an extra level of nesting here would only reverse this
-    // single Box relative to nothing.
-    return (
-      <>
-        {products.map((card) => (
-          <PosProductItemLayout
-            key={card.productoTienda.id}
-            card={card}
-            highlightName={highlightFor(card)}
-            // Aquí son items flex, y `flex-shrink: 1` es el valor por
-            // defecto: en cuanto los resultados superan el alto visible,
-            // el navegador los aplasta en vez de dejar que la lista haga
-            // scroll. Las tarjetas deben medir siempre lo mismo que en la
-            // grilla normal, haya 2 resultados o 40.
-            sx={SEARCH_CARD_SX}
-          />
-        ))}
-      </>
-    );
-  }
-
   return (
-    // Un escalón por encima de lo que sugeriría el ancho de pantalla: desde
-    // 700px esta grilla comparte el viewport con el panel del carrito, así
-    // que el contenedor real ronda dos tercios de lo que miden los
-    // breakpoints. Con los valores directos, una pantalla de 1200px pintaba
-    // cuatro columnas de ~200px.
-    <Box sx={GRID_CONTAINER_SX}>
+    // Siempre un <Box>, nunca un fragmento: mantener el mismo tipo de
+    // elemento en esta posición es lo que permite a React reconciliar las
+    // tarjetas al entrar y salir de la búsqueda en vez de reconstruirlas.
+    //
+    // En modo grilla, un escalón por encima de lo que sugeriría el ancho de
+    // pantalla: desde 700px esta grilla comparte el viewport con el panel del
+    // carrito, así que el contenedor real ronda dos tercios de lo que miden
+    // los breakpoints. Con los valores directos, una pantalla de 1200px
+    // pintaba cuatro columnas de ~200px.
+    <Box sx={bottomUp ? SEARCH_LIST_SX : GRID_CONTAINER_SX}>
       {products.map((card) => (
         <PosProductItemLayout
           key={card.productoTienda.id}
           card={card}
           highlightName={highlightFor(card)}
-          sx={GRID_CARD_SX}
+          // En modo búsqueda son items flex, y `flex-shrink: 1` es el valor
+          // por defecto: en cuanto los resultados superan el alto visible, el
+          // navegador los aplasta en vez de dejar que la lista haga scroll.
+          // Las tarjetas deben medir siempre lo mismo, haya 2 resultados o 40.
+          sx={bottomUp ? SEARCH_CARD_SX : GRID_CARD_SX}
         />
       ))}
     </Box>

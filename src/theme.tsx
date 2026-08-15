@@ -131,9 +131,16 @@ const theme = createTheme({
           fontWeight: 500,
           textTransform: "none",
           boxShadow: "none",
-          transition: "all 0.2s ease",
-          "&:hover": {
-            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
+          // `transition: all` obliga al navegador a evaluar TODAS las
+          // propiedades animables en cada cambio de estilo; aquí solo cambia
+          // la sombra. Y el hover va tras `@media (hover: hover)` porque en
+          // táctil se queda pegado tras cada toque: cada botón pulsado
+          // arrastraba 200ms de transición de sombra.
+          transition: "box-shadow 0.2s ease",
+          "@media (hover: hover)": {
+            "&:hover": {
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
+            },
           },
         },
       },
@@ -145,10 +152,14 @@ const theme = createTheme({
           borderRadius: 12,
           boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
           border: "1px solid #f1f5f9",
-          transition: "all 0.2s ease",
-          "&:hover": {
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.12)",
-            transform: "translateY(-1px)",
+          transition: "box-shadow 0.2s ease, transform 0.2s ease",
+          // Solo con puntero real: en táctil el hover se queda pegado tras el
+          // toque y deja la tarjeta elevada y con sombra grande.
+          "@media (hover: hover)": {
+            "&:hover": {
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.12)",
+              transform: "translateY(-1px)",
+            },
           },
         },
       },

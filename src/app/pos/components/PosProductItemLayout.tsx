@@ -116,7 +116,11 @@ function PosProductItemLayoutComponent({
         ...(onClick && {
           cursor: "pointer",
           transition: "background-color 0.15s ease",
-          "&:hover": { bgcolor: "action.hover" },
+          // Solo con puntero real: en táctil el hover se queda pegado tras el
+          // toque, y aquí eso se multiplica por cada producto del catálogo.
+          "@media (hover: hover)": {
+            "&:hover": { bgcolor: "action.hover" },
+          },
           "&:active": { bgcolor: "action.selected" },
         }),
         ...sx,

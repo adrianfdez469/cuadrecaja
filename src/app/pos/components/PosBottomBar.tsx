@@ -12,6 +12,7 @@ import {
   Alert,
   alpha,
 } from "@mui/material";
+import type { Theme } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
@@ -21,6 +22,33 @@ import ProductProcessorData, {
 } from "@/components/ProductProcessorData/ProductProcessorData";
 import { IProcessedData } from "@/schemas/processedData";
 import { ICart } from "@/store/cartStore";
+
+// These two rows used to carry `backdrop-filter: blur(10px)`. It bought
+// nothing — both sit on a gradient that is 90-100% opaque, so there was
+// nothing showing through to blur — and cost a great deal: a full-width fixed
+// layer that the browser must re-snapshot and re-blur every time anything
+// repaints behind it, which on this screen means the product grid on every
+// scroll frame, every keystroke and every `+`. On a phone GPU that alone is
+// enough to make the whole view feel sticky.
+const CARTS_ROW_SX = {
+  m: 0,
+  p: 1,
+  background:
+    "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
+  borderTop: "1px solid rgba(0,0,0,0.1)",
+  boxShadow: "0 -2px 1px rgba(0,0,0,0.1)",
+} as const;
+
+const searchRowSx = (compact: boolean) =>
+  ({
+    p: compact ? 0.75 : 1,
+    background: (theme: Theme) =>
+      `linear-gradient(to top, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
+    boxSizing: "border-box",
+  }) as const;
+
+const SEARCH_ROW_SX = searchRowSx(false);
+const SEARCH_ROW_COMPACT_SX = searchRowSx(true);
 
 interface PosBottomBarProps {
   carts: ICart[];
@@ -110,17 +138,7 @@ function PosBottomBarComponent({
           activa no cambia por teclear, y es la fila que está justo encima
           del teclado, donde el espacio es más caro. */}
       {!searchMode && (
-        <Box
-          sx={{
-            m: 0,
-            p: 1,
-            background:
-              "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
-            backdropFilter: "blur(10px)",
-            borderTop: "1px solid rgba(0,0,0,0.1)",
-            boxShadow: "0 -2px 1px rgba(0,0,0,0.1)",
-          }}
-        >
+        <Box sx={CARTS_ROW_SX}>
           <Stack
             direction="row"
             spacing={1}
@@ -251,13 +269,7 @@ function PosBottomBarComponent({
       {/* Buscador */}
       <Box
         data-tour="pos-search"
-        sx={{
-          p: searchMode ? 0.75 : 1,
-          background: (theme) =>
-            `linear-gradient(to top, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
-          backdropFilter: "blur(10px)",
-          boxSizing: "border-box",
-        }}
+        sx={searchMode ? SEARCH_ROW_COMPACT_SX : SEARCH_ROW_SX}
       >
         <Stack direction="row" spacing={1}>
           <SelectableTextField

@@ -22,6 +22,7 @@ import { useAppContext } from "@/context/AppContext";
 import { CartItemCard } from "@/components/cartDrawer/components/CartItemCard";
 import { CartSummaryFooter } from "@/components/cartDrawer/components/CartSummaryFooter";
 import { CheckoutView } from "@/app/pos/components/checkout/CheckoutView";
+import { Frozen } from "@/components/Frozen";
 import type { IMultimonedaExtras } from "@/schemas/pago";
 import type { ITransferDestination } from "@/schemas/transferDestination";
 
@@ -89,10 +90,13 @@ export const CartContent = (props: IProps) => {
 
   // Kept in sync even while controlled, so removing the `step` prop can never
   // leave the internal state stranded on a step the cart is no longer on.
-  const goToStep = (next: CartStep) => {
-    setUncontrolledStep(next);
-    onStepChange?.(next);
-  };
+  const goToStep = useCallback(
+    (next: CartStep) => {
+      setUncontrolledStep(next);
+      onStepChange?.(next);
+    },
+    [onStepChange],
+  );
 
   useEffect(() => {
     // Reports back to the cart step on unmount: the drawer variant is
@@ -150,6 +154,8 @@ export const CartContent = (props: IProps) => {
   // Applying a code is now just adding it to the set the memo above reads.
   // It still tells the cashier when a code matched nothing, which is the one
   // piece of feedback the old round-trip actually provided.
+  const handleBackToCart = useCallback(() => goToStep("cart"), [goToStep]);
+
   const handleApplyPromoCode = useCallback(() => {
     const code = promoCode.trim();
     if (!code) {
@@ -357,19 +363,26 @@ export const CartContent = (props: IProps) => {
               pointerEvents: step === "checkout" ? "auto" : "none",
             }}
           >
-            <CheckoutView
-              key={checkoutKey}
-              finalTotal={finalTotal}
-              discountTotal={discountTotal}
-              promoCode={promoCode}
-              transferDestinations={transferDestinations}
-              tiendaId={tiendaId}
-              cierreId={cierreId}
-              itemCount={cart.length}
-              onBack={() => goToStep("cart")}
-              makePay={makePay}
-              onSaleComplete={resetCheckoutState}
-            />
+            {/* Frozen while the cashier is on the basket step. The checkout
+                stays mounted (see the note above) but it is 800 lines with two
+                hooks full of chained memos, and it was re-rendering on every
+                `+` and `−` behind an invisible panel. It picks up the current
+                basket the moment the checkout is opened. */}
+            <Frozen active={step === "checkout"}>
+              <CheckoutView
+                key={checkoutKey}
+                finalTotal={finalTotal}
+                discountTotal={discountTotal}
+                promoCode={promoCode}
+                transferDestinations={transferDestinations}
+                tiendaId={tiendaId}
+                cierreId={cierreId}
+                itemCount={cart.length}
+                onBack={handleBackToCart}
+                makePay={makePay}
+                onSaleComplete={resetCheckoutState}
+              />
+            </Frozen>
           </Box>
         </Fade>
       </Box>
