@@ -41,10 +41,17 @@ export async function GET(
         producto: {
           include: {
             categoria: true,
-            codigosProducto: true,
+            // Solo el código: de cada `CodigoProducto` viajaban además su id y
+            // el del producto, dos UUID por código que nadie lee. Con 2000
+            // productos eso era el 15% del payload.
+            codigosProducto: { select: { codigo: true } },
           },
         },
-        proveedor: true,
+        // El proveedor va recortado a lo que las vistas leen de verdad: su
+        // nombre. Antes viajaba el registro completo —fechas, negocioId, el
+        // usuario asociado— repetido en cada producto, que en un inventario de
+        // 2000 es puro peso muerto en la red y en el `JSON.parse` del móvil.
+        proveedor: { select: { id: true, nombre: true } },
       },
       omit: { precio: proveedores.length > 0 },
       orderBy: {

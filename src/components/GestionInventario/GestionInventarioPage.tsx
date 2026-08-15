@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import {
   Badge,
@@ -26,14 +27,24 @@ import { ChangeQtyDialog } from "./dialogs/ChangeQtyDialog";
 import { CreateMovimientoDialog } from "./dialogs/CreateMovimientoDialog";
 import { CreateProductDialog } from "./dialogs/CreateProductDialog";
 import { DeleteProductDialog } from "./dialogs/DeleteProductDialog";
-import { PrintLabelsModal } from "./dialogs/PrintLabelsModal";
 import { ProductMovementsModal } from "@/app/inventario/components/ProductMovementsModal";
-import ImportarExcelDialog from "./movimientos/importExcelDialog";
-import { exportInventarioToExcel } from "@/utils/excelExport";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { usePermisos } from "@/utils/permisos_front";
 import { usePendingReceptionStore } from "@/store/pendingReceptionStore";
+
+// Cargados aparte del bundle de la pantalla. Entre los tres arrastran `xlsx`,
+// `jspdf`, `bwip-js` y `qrcode` — cientos de kilobytes que solo hacen falta
+// cuando alguien importa, exporta o imprime etiquetas, y que hasta ahora
+// pagaba todo el que abría el inventario.
+const PrintLabelsModal = dynamic(
+  () => import("./dialogs/PrintLabelsModal").then((m) => m.PrintLabelsModal),
+  { ssr: false },
+);
+const ImportarExcelDialog = dynamic(
+  () => import("./movimientos/importExcelDialog"),
+  { ssr: false },
+);
 
 export function GestionInventarioPage() {
   const theme = useTheme();
@@ -110,6 +121,9 @@ export function GestionInventarioPage() {
     }
     try {
       setExporting(true);
+      // Importado aquí y no arriba: `xlsx` solo se necesita al exportar de
+      // verdad, y estáticamente entraba en el bundle inicial de la pantalla.
+      const { exportInventarioToExcel } = await import("@/utils/excelExport");
       await exportInventarioToExcel({
         productos: productosParaExportar,
         tiendaNombre: user.localActual.nombre,
@@ -290,11 +304,16 @@ export function GestionInventarioPage() {
           onConfirm={confirmDeleteProduct}
         />
 
-        <ImportarExcelDialog
-          open={importOpen}
-          onClose={() => setImportOpen(false)}
-          onSuccess={reload}
-        />
+        {/* Montado solo al abrirlo: arrastra `xlsx`, que pesa más que casi
+            todo lo demás de esta pantalla y solo hace falta cuando alguien
+            importa de verdad. */}
+        {importOpen && (
+          <ImportarExcelDialog
+            open={importOpen}
+            onClose={() => setImportOpen(false)}
+            onSuccess={reload}
+          />
+        )}
 
         {printLabelsOpen && (
           <PrintLabelsModal

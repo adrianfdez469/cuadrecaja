@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import { Download } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
-import { exportReportTableToExcel } from "@/utils/reportExcelExport";
 
 export type ReportColumn<TRow> = {
   key: string;
@@ -103,7 +102,11 @@ export function ReportDataTable<TRow>({
     setPage(0);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    // Importado aquí y no arriba: `xlsx` solo hace falta al exportar, y
+    // estáticamente entraba en el bundle inicial de todos los reportes.
+    const { exportReportTableToExcel } =
+      await import("@/utils/reportExcelExport");
     exportReportTableToExcel({
       rows: sortedRows,
       columns: columns.map((column) => ({

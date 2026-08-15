@@ -19,7 +19,7 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import LinkIcon from "@mui/icons-material/Link";
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IProductoTiendaPos } from "@/schemas/producto";
 import { asociarCodigoProducto } from "@/services/productServise";
 import { normalizeSearch } from "@/utils/formatters";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
@@ -30,9 +30,9 @@ import SelectableTextField from "@/components/SelectableTextField";
 interface AsociarCodigoDialogProps {
   open: boolean;
   codigo: string;
-  productosTienda: IProductoTiendaV2[];
+  productosTienda: IProductoTiendaPos[];
   onClose: () => void;
-  onAsociado: (producto: IProductoTiendaV2, codigoNuevo: string) => void;
+  onAsociado: (producto: IProductoTiendaPos, codigoNuevo: string) => void;
 }
 
 export function AsociarCodigoDialog({
@@ -44,7 +44,7 @@ export function AsociarCodigoDialog({
 }: AsociarCodigoDialogProps) {
   const [busqueda, setBusqueda] = useState("");
   const [productoSeleccionado, setProductoSeleccionado] =
-    useState<IProductoTiendaV2 | null>(null);
+    useState<IProductoTiendaPos | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { tasasVigentes, monedaBase } = useAppContext();
@@ -58,7 +58,7 @@ export function AsociarCodigoDialog({
       .slice(0, 8);
   }, [productosTienda, busqueda]);
 
-  const handleSeleccionar = (producto: IProductoTiendaV2) => {
+  const handleSeleccionar = (producto: IProductoTiendaPos) => {
     setProductoSeleccionado(producto);
     setBusqueda(producto.producto.nombre);
     setError(null);

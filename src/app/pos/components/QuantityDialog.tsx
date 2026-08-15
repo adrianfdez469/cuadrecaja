@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Box, Button, Dialog, Typography } from "@mui/material";
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IProductoTiendaPos } from "@/schemas/producto";
 import { useCartStore } from "@/store/cartStore";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
 import { useAppContext } from "@/context/AppContext";
@@ -12,7 +12,7 @@ import { formatQuantity } from "@/utils/formatters";
 import { clampQuantity } from "@/app/pos/utils/quantityInput";
 
 interface QuantityDialogProps {
-  productoTienda: IProductoTiendaV2 | null;
+  productoTienda: IProductoTiendaPos | null;
   onClose: () => void;
   onConfirm: () => void;
   onAddToCart?: () => void; // Nueva prop para callback después de agregar al carrito

@@ -41,7 +41,7 @@ import { useAppContext } from "@/context/AppContext";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import { usePermisos } from "@/utils/permisos_front";
 import { formatDateTime } from "@/utils/formatters";
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IProductoTiendaPos } from "@/schemas/producto";
 import { convertToBase } from "@/lib/currency";
 import { usePrinter } from "@/features/printing/hooks/usePrinter";
 
@@ -51,7 +51,7 @@ interface IProps {
   handleClose: () => void;
   reloadProdsAndCategories: () => void;
   incrementarCantidades: (id: string, nuevaCantidad: number) => void;
-  productosTienda?: IProductoTiendaV2[];
+  productosTienda?: IProductoTiendaPos[];
 }
 
 export const SalesDrawer: FC<IProps> = ({

@@ -63,6 +63,56 @@ export const productoTiendaV2Schema = z.object({
   monedaPrecioCode: z.string().nullable().optional(),
 });
 
+// ─── Catálogo del POS ────────────────────────────────────────────────────────
+
+/**
+ * The POS catalog payload: only what a cashier's screen actually reads.
+ *
+ * A shop with 2000 products was downloading and parsing the full
+ * `productoTiendaV2` shape for every one of them — supplier records repeated
+ * per product, free-text descriptions, and cost figures the POS never shows.
+ * On a low-end phone that is megabytes of JSON before a single card is drawn.
+ *
+ * Costs are deliberately absent, not merely unused: a cashier's device has no
+ * business holding the shop's margins.
+ */
+export const posCategoriaSchema = z.object({
+  id: z.string().uuid(),
+  nombre: z.string(),
+  color: z.string(),
+});
+
+export const posProveedorSchema = z.object({
+  id: z.string().uuid(),
+  nombre: z.string(),
+});
+
+export const posProductoSchema = z.object({
+  id: z.string().uuid(),
+  nombre: z.string(),
+  categoria: posCategoriaSchema,
+  permiteDecimal: z.boolean().optional(),
+  fraccionDeId: z.string().uuid().nullable().optional(),
+  unidadesPorFraccion: z.number().int().nullable().optional(),
+  codigosProducto: z.array(z.object({ codigo: z.string() })),
+});
+
+export const productoTiendaPosSchema = z.object({
+  id: z.string().uuid(),
+  tiendaId: z.string().uuid(),
+  precio: z.number(),
+  existencia: z.number(),
+  proveedor: posProveedorSchema.nullable().optional(),
+  proveedorId: z.string().uuid().nullable().optional(),
+  producto: posProductoSchema,
+  productoId: z.string().uuid(),
+  fechaVencimiento: z.string().nullable().optional(),
+  monedaPrecioCode: z.string().nullable().optional(),
+});
+
+export type IProductoTiendaPos = z.infer<typeof productoTiendaPosSchema>;
+export type IPosCategoria = z.infer<typeof posCategoriaSchema>;
+
 // ─── Info para confirmación de eliminación ───────────────────────────────────
 
 export const productoDeleteStoreInfoSchema = z.object({

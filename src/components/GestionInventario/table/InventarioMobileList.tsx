@@ -14,12 +14,16 @@ import {
   Typography,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { IProductoTiendaV2 } from "@/schemas/producto";
+import {
+  INVENTARIO_CARD_ESTIMATED_HEIGHT,
+  INVENTARIO_VIRTUALIZATION_MIN_ROWS,
+} from "@/constants/inventario";
 import { formatMontoEnMoneda, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import { getRentabilidad } from "./rentabilidad";
-import { generateProductCodesPDF } from "@/utils/productCodesPdf";
 
 interface Props {
   productos: IProductoTiendaV2[];
@@ -152,6 +156,10 @@ function ProductCard({
             <MenuItem
               onClick={async () => {
                 setAnchor(null);
+                // Importado bajo demanda: `jspdf`, `qrcode` y `bwip-js` solo hacen
+                // falta al descargar el PDF, no al abrir el inventario.
+                const { generateProductCodesPDF } =
+                  await import("@/utils/productCodesPdf");
                 await generateProductCodesPDF(
                   p.producto.nombre,
                   p.producto.codigosProducto,
@@ -222,6 +230,23 @@ export function InventarioMobileList({
   onCreateMov,
   onDelete,
 }: Props) {
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const containerRef = useCallback(
+    (el: HTMLDivElement | null) => setScrollEl(el),
+    [],
+  );
+
+  const necesitaVirtualizar =
+    productos.length >= INVENTARIO_VIRTUALIZATION_MIN_ROWS;
+  const virtualizar = necesitaVirtualizar && scrollEl !== null;
+
+  const rowVirtualizer = useVirtualizer({
+    count: virtualizar ? productos.length : 0,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => INVENTARIO_CARD_ESTIMATED_HEIGHT,
+    overscan: 6,
+  });
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" py={4}>
@@ -240,19 +265,73 @@ export function InventarioMobileList({
     );
   }
 
+  // Con pocas tarjetas, exactamente como antes: montarlas todas es barato y no
+  // hay razón para cambiar el comportamiento de la pantalla. Cuando sí toca
+  // virtualizar se sale por el otro camino desde el primer render, aunque el
+  // contenedor aún no exista: dibujar la lista entera una sola vez ya costaba
+  // segundos de hilo principal.
+  if (!necesitaVirtualizar) {
+    return (
+      <Stack spacing={1} minHeight="100dvh">
+        {productos.map((p) => (
+          <ProductCard
+            key={p.id}
+            p={p}
+            onEdit={onEdit}
+            onChangeQty={onChangeQty}
+            onViewMovements={onViewMovements}
+            onCreateMov={onCreateMov}
+            onDelete={onDelete}
+          />
+        ))}
+      </Stack>
+    );
+  }
+
+  // Con muchas, solo las visibles. La lista gana su propio scroll — es lo que
+  // el virtualizador necesita medir — y las tarjetas se posicionan dentro de un
+  // contenedor del alto total, que es lo que mantiene la barra de scroll
+  // proporcional al catálogo entero.
   return (
-    <Stack spacing={1} minHeight="100dvh">
-      {productos.map((p) => (
-        <ProductCard
-          key={p.id}
-          p={p}
-          onEdit={onEdit}
-          onChangeQty={onChangeQty}
-          onViewMovements={onViewMovements}
-          onCreateMov={onCreateMov}
-          onDelete={onDelete}
-        />
-      ))}
-    </Stack>
+    <Box
+      ref={containerRef}
+      sx={{ height: "75vh", overflowY: "auto", position: "relative" }}
+    >
+      <Box
+        sx={{
+          position: "relative",
+          width: "100%",
+          height: `${rowVirtualizer.getTotalSize()}px`,
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const p = productos[virtualRow.index];
+          return (
+            <Box
+              key={p.id}
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                pb: 1,
+              }}
+              style={{ transform: `translateY(${virtualRow.start}px)` }}
+            >
+              <ProductCard
+                p={p}
+                onEdit={onEdit}
+                onChangeQty={onChangeQty}
+                onViewMovements={onViewMovements}
+                onCreateMov={onCreateMov}
+                onDelete={onDelete}
+              />
+            </Box>
+          );
+        })}
+      </Box>
+    </Box>
   );
 }

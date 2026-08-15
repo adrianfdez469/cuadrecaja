@@ -1,8 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Stack } from "@mui/material";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
-import { SalesTrendChart } from "@/components/reports/trends/SalesTrendChart";
 import { HourWeekdayHeatmap } from "@/components/reports/trends/HourWeekdayHeatmap";
 import { PeriodComparisonCards } from "@/components/reports/trends/PeriodComparisonCards";
 import { useReportFilters } from "@/hooks/useReportFilters";
@@ -10,6 +10,13 @@ import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
 import { useReportData } from "@/hooks/useReportData";
 import { getSalesTrendsReport } from "@/services/reportsService";
 import type { ISalesTrendsResponse } from "@/schemas/reports/salesTrends";
+
+// Fuera del bundle inicial: `@mui/x-charts` es la dependencia más
+// pesada de esta pantalla y solo hace falta para pintar el gráfico.
+const SalesTrendChart = dynamic(
+  () => import("@/components/reports/trends/SalesTrendChart").then((m) => m.SalesTrendChart),
+  { ssr: false },
+);
 
 export default function TendenciasPage() {
   const filters = useReportFilters();

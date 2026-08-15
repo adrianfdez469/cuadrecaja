@@ -39,7 +39,7 @@ import { removeProductFromSale, removeSell } from "@/services/sellService";
 import { getResumenCaja } from "@/services/movimientoService";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import { ITransferDestination } from "@/schemas/transferDestination";
-import { IProductoTiendaV2 } from "@/schemas/producto";
+import { IProductoTiendaPos } from "@/schemas/producto";
 import { IResumenCajaMoneda } from "@/schemas/resumenCaja";
 import { formatDateTime, formatQuantity } from "@/utils/formatters";
 import { convertToBase, pagadaConUnSoloPago } from "@/lib/currency";
@@ -51,7 +51,7 @@ interface IProps {
   period?: ICierrePeriodo;
   incrementarCantidades?: (productoTiendaId: string, cantidad: number) => void;
   transferDestinations?: ITransferDestination[];
-  productosTienda?: IProductoTiendaV2[];
+  productosTienda?: IProductoTiendaPos[];
 }
 
 const TOOLTIP_MULTIPLES_PAGOS =

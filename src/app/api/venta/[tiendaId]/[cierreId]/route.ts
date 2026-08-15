@@ -556,22 +556,39 @@ export async function POST(
         }
 
         // 4. Actualizar existencias y acumular movimientos de venta - ÚLTIMO
+        //
+        // Una lectura y una escritura para toda la venta, no dos por línea.
+        // Antes esto hacía un `findUnique` y un `update` por producto dentro de
+        // la transacción: diez líneas eran veinte viajes secuenciales a la
+        // base, cada uno pagando el salto extra del pooler, y todo ello con el
+        // advisory lock de la tienda tomado — es decir, bloqueando las ventas
+        // del resto de las cajas. Es lo que agotaba el timeout de la
+        // transacción (ver PERFORMANCE_ISSUES.md).
+        const idsVenta: string[] = Array.from(
+          new Set(productos.map((p) => String(p.productoTiendaId))),
+        );
+        // Leídas ahora, después de las desagregaciones, que es justo lo que
+        // hacía la lectura por producto.
+        const existenciasActuales = await tx.productoTienda.findMany({
+          where: { id: { in: idsVenta } },
+          select: { id: true, existencia: true },
+        });
+        const existenciaPorId = new Map(
+          existenciasActuales.map((p) => [p.id, p.existencia]),
+        );
+
         const movimientosVenta: Prisma.MovimientoStockCreateManyInput[] = [];
+        const decrementoPorId = new Map<string, number>();
         for (const producto of productos) {
           const productoTienda = productosExistentes.find(
             (p) => p.id === producto.productoTiendaId,
           );
           if (!productoTienda) continue;
 
-          // Obtener la existencia actual (después de desagregaciones si las hubo)
-          const productoTiendaActual = await tx.productoTienda.findUnique({
-            where: { id: producto.productoTiendaId },
-            select: { existencia: true },
-          });
-
-          if (!productoTiendaActual) continue;
-
-          const existenciaAnterior = productoTiendaActual.existencia;
+          const existenciaAnterior = existenciaPorId.get(
+            producto.productoTiendaId,
+          );
+          if (existenciaAnterior === undefined) continue;
 
           if (existenciaAnterior < producto.cantidad) {
             throw new Error(
@@ -579,15 +596,18 @@ export async function POST(
             );
           }
 
-          // Actualizar existencia
-          await tx.productoTienda.update({
-            where: { id: producto.productoTiendaId },
-            data: {
-              existencia: {
-                decrement: producto.cantidad,
-              },
-            },
-          });
+          // El mapa se va descontando línea a línea para reproducir exactamente
+          // lo que veía la lectura secuencial: si un mismo producto llegara en
+          // dos líneas, la segunda parte de la existencia que dejó la primera.
+          existenciaPorId.set(
+            producto.productoTiendaId,
+            existenciaAnterior - producto.cantidad,
+          );
+          decrementoPorId.set(
+            producto.productoTiendaId,
+            (decrementoPorId.get(producto.productoTiendaId) ?? 0) +
+              producto.cantidad,
+          );
 
           // Acumular movimiento de venta
           movimientosVenta.push({
@@ -603,6 +623,24 @@ export async function POST(
               proveedorId: productoTienda.proveedorId,
             }),
           });
+        }
+
+        // Un solo UPDATE para todas las líneas. Prisma no sabe descontar una
+        // cantidad distinta por fila en una sola llamada, así que va en SQL —
+        // parametrizado con `Prisma.join`, nunca interpolado.
+        if (decrementoPorId.size > 0) {
+          // `::text`, no `::uuid`: Prisma mapea `String @id` a una columna
+          // `text`, y comparar contra un `uuid` hace fallar el UPDATE entero.
+          const filas = Array.from(decrementoPorId.entries()).map(
+            ([id, cantidad]) =>
+              Prisma.sql`(${id}::text, ${cantidad}::double precision)`,
+          );
+          await tx.$executeRaw`
+            UPDATE "ProductoTienda" AS pt
+            SET existencia = pt.existencia - v.cantidad
+            FROM (VALUES ${Prisma.join(filas)}) AS v(id, cantidad)
+            WHERE pt.id = v.id
+          `;
         }
 
         // Insertar todos los movimientos de venta en un solo round-trip

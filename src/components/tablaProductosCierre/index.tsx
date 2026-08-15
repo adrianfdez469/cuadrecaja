@@ -33,10 +33,6 @@ import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import { ICierreData } from "@/schemas/cierre";
 import { formatCurrency, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
-import {
-  exportProductosVendidosToExcel,
-  exportProductosProveedorToExcel,
-} from "@/utils/excelExport";
 import { useMessageContext } from "@/context/MessageContext";
 import theme from "@/theme";
 
@@ -113,6 +109,11 @@ export const TablaProductosCierre: FC<IProps> = ({
   const handleExportAll = async () => {
     try {
       setExporting(true);
+      // Importado bajo demanda: `xlsx` solo hace falta al exportar, y
+      // estáticamente entraba en el bundle inicial del cierre.
+      const { exportProductosVendidosToExcel } = await import(
+        "@/utils/excelExport"
+      );
       await exportProductosVendidosToExcel({
         cierreData,
         tiendaNombre: user.localActual.nombre,
@@ -131,6 +132,9 @@ export const TablaProductosCierre: FC<IProps> = ({
   const handleExportProveedor = async (proveedorId: string) => {
     try {
       setExporting(true);
+      const { exportProductosProveedorToExcel } = await import(
+        "@/utils/excelExport"
+      );
       await exportProductosProveedorToExcel({
         cierreData,
         tiendaNombre: user.localActual.nombre,
