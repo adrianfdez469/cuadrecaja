@@ -42,7 +42,7 @@ import {
   TIPO_MOVIMIENTO_LABELS,
   TIPO_MOVIMIENTO_DESCRIPTIONS,
   TIPO_MOVIMIENTO_EJEMPLOS,
-  TIPO_MOVIMIENTO_COLORS,
+  TIPO_MOVIMIENTO_FLOW,
 } from "@/constants/movimientos";
 import { FormaPagoCompraSelect } from "@/components/GestionInventario/FormaPagoCompraSelect";
 import {
@@ -158,6 +158,12 @@ export const AddMovimientoDialog: FC<IProps> = ({
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  // What the selected movement does to the stock count, as a semantic colour.
+  // Falls back to `in` only so the value is defined before a type is picked;
+  // everything that reads it renders behind a `tipo &&` guard.
+  const flowColor =
+    theme.palette.semantic.flow[tipo ? TIPO_MOVIMIENTO_FLOW[tipo] : "in"];
 
   // Cargar proveedores cuando se abre el diálogo o cambia el tipo
   useEffect(() => {
@@ -636,21 +642,17 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 defaultExpanded={false}
                 sx={{
                   boxShadow: "none",
-                  border: `2px solid ${TIPO_MOVIMIENTO_COLORS[tipo]}30`,
+                  border: `2px solid ${flowColor.surface}`,
                   "&:before": { display: "none" },
                   borderRadius: 1,
                   overflow: "hidden",
                 }}
               >
                 <AccordionSummary
-                  expandIcon={
-                    <ExpandMoreIcon
-                      sx={{ color: TIPO_MOVIMIENTO_COLORS[tipo] }}
-                    />
-                  }
+                  expandIcon={<ExpandMoreIcon sx={{ color: flowColor.main }} />}
                   sx={{
-                    bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}08`,
-                    "&:hover": { bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}12` },
+                    bgcolor: flowColor.surface,
+                    "&:hover": { bgcolor: flowColor.surface },
                     minHeight: 56,
                     "& .MuiAccordionSummary-content": {
                       alignItems: "center",
@@ -661,7 +663,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                   <Box sx={{ display: "flex", alignItems: "center" }}>
                     <Icon
                       sx={{
-                        color: TIPO_MOVIMIENTO_COLORS[tipo],
+                        color: flowColor.main,
                         fontSize: "22px",
                         mr: 1.5,
                       }}
@@ -673,7 +675,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                         variant={isMobile ? "subtitle1" : "h6"}
                         sx={{
                           fontWeight: "bold",
-                          color: TIPO_MOVIMIENTO_COLORS[tipo],
+                          color: flowColor.main,
                         }}
                       >
                         {TIPO_MOVIMIENTO_LABELS[tipo]}
@@ -718,9 +720,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
                   <Box
                     sx={{
                       p: 2,
-                      bgcolor: `${TIPO_MOVIMIENTO_COLORS[tipo]}05`,
+                      bgcolor: flowColor.surface,
                       borderRadius: 1,
-                      borderLeft: `4px solid ${TIPO_MOVIMIENTO_COLORS[tipo]}`,
+                      borderLeft: `4px solid ${flowColor.main}`,
                     }}
                   >
                     <Typography
@@ -730,7 +732,7 @@ export const AddMovimientoDialog: FC<IProps> = ({
                         lineHeight: 1.5,
                         fontWeight: 500,
                         mb: 1,
-                        color: TIPO_MOVIMIENTO_COLORS[tipo],
+                        color: flowColor.main,
                       }}
                     >
                       Ejemplo práctico:
