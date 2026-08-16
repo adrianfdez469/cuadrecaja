@@ -83,3 +83,17 @@ export const POS_VIRTUALIZATION_MIN_ITEMS = 80;
  * row reports its real height through the virtualizer's `measureElement`.
  */
 export const POS_CARD_ESTIMATED_HEIGHT = 116;
+
+/**
+ * Row count from which the sales list renders only what is on screen.
+ *
+ * A busy shop accumulates sales without a ceiling, and the list painted every
+ * one of them — a card on mobile, a row on desktop — on each open.
+ */
+export const VENTAS_VIRTUALIZATION_MIN_ROWS = 60;
+
+/** First guess at a sales table row's height, before it is measured. */
+export const VENTAS_ROW_ESTIMATED_HEIGHT = 73;
+
+/** First guess at a sales card's height on mobile, before it is measured. */
+export const VENTAS_CARD_ESTIMATED_HEIGHT = 150;

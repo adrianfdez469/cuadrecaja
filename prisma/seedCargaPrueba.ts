@@ -229,6 +229,84 @@ async function sembrar() {
   );
 }
 
+/**
+ * Ventas de prueba para medir las listas que las pintan.
+ *
+ * No mueven stock ni crean movimientos: solo `Venta` + `VentaProducto`, que es
+ * lo que esas pantallas leen. Se borran con `--limpiar` igual que el resto.
+ */
+async function sembrarVentas() {
+  const tienda = await prisma.tienda.findFirst({
+    where: { nombre: TIENDA_NOMBRE },
+    select: { id: true, negocioId: true },
+  });
+  if (!tienda) throw new Error(`No existe la tienda "${TIENDA_NOMBRE}"`);
+
+  const cierre = await prisma.cierrePeriodo.findFirst({
+    where: { tiendaId: tienda.id, fechaFin: null },
+    select: { id: true },
+  });
+  if (!cierre) throw new Error("No hay un período abierto en la tienda");
+
+  const usuario = await prisma.usuario.findFirst({ select: { id: true } });
+  const productos = await prisma.productoTienda.findMany({
+    where: {
+      tiendaId: tienda.id,
+      precio: { gt: 0 },
+    },
+    select: { id: true, productoId: true, precio: true },
+    take: 200,
+  });
+  if (productos.length === 0) throw new Error("No hay productos con precio");
+
+  const cantidad = Number(process.env.VENTAS ?? 500);
+  console.log(`Sembrando ${cantidad} ventas en el período abierto...`);
+
+  for (let i = 0; i < cantidad; i++) {
+    const lineas = 1 + (i % 3);
+    const items = Array.from({ length: lineas }, (_, k) => {
+      const p = productos[(i * 7 + k) % productos.length];
+      return { p, cantidad: 1 + (k % 3) };
+    });
+    const total = items.reduce((s, it) => s + it.p.precio * it.cantidad, 0);
+    await prisma.venta.create({
+      data: {
+        tienda: { connect: { id: tienda.id } },
+        cierrePeriodo: { connect: { id: cierre.id } },
+        usuario: { connect: { id: usuario!.id } },
+        total,
+        totalcash: total,
+        totaltransfer: 0,
+        syncId: `${MARCA}-${i}-${Date.now()}`,
+        productos: {
+          create: items.map((it) => ({
+            productoTiendaId: it.p.id,
+            cantidad: it.cantidad,
+            precio: it.p.precio,
+          })),
+        },
+      },
+    });
+    if ((i + 1) % 100 === 0) console.log(`  ${i + 1}/${cantidad}`);
+  }
+  console.log("Listo.");
+}
+
+async function limpiarVentas() {
+  const ventas = await prisma.venta.findMany({
+    where: { syncId: { startsWith: MARCA } },
+    select: { id: true },
+  });
+  if (ventas.length === 0) {
+    console.log("No hay ventas de prueba que borrar.");
+    return;
+  }
+  const ids = ventas.map((v) => v.id);
+  await prisma.ventaProducto.deleteMany({ where: { ventaId: { in: ids } } });
+  await prisma.venta.deleteMany({ where: { id: { in: ids } } });
+  console.log(`Borradas ${ids.length} ventas de prueba.`);
+}
+
 async function main() {
   const url = process.env.DATABASE_URL ?? "";
   if (!/localhost|127\.0\.0\.1/.test(url)) {
@@ -236,8 +314,13 @@ async function main() {
       "DATABASE_URL no apunta a localhost. Este script solo debe correr contra la base local.",
     );
   }
-  if (process.argv.includes("--limpiar")) {
-    await limpiar();
+  const limpiando = process.argv.includes("--limpiar");
+  const soloVentas = process.argv.includes("--ventas");
+  if (limpiando) {
+    await limpiarVentas();
+    if (!soloVentas) await limpiar();
+  } else if (soloVentas) {
+    await sembrarVentas();
   } else {
     await sembrar();
   }
