@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { StatCard } from "@/components/StatCard";
 import {
   Typography,
   Button,
@@ -326,67 +327,6 @@ export default function UsuariosPage() {
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color,
-  }: {
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: "100%" }}>
-      <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 0.75 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: isMobile ? 32 : 48,
-              minHeight: isMobile ? 32 : 48,
-            }}
-          >
-            {React.isValidElement(icon)
-              ? React.cloneElement(icon, {
-                  fontSize: isMobile ? "small" : "large",
-                } as Record<string, unknown>)
-              : icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant={isMobile ? "subtitle1" : "h4"}
-              fontWeight="bold"
-              sx={{
-                fontSize: isMobile ? "1rem" : "2rem",
-                lineHeight: 1.2,
-                wordBreak: "break-all",
-              }}
-            >
-              {value}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? "0.6875rem" : "0.875rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   if (loading) {
     return (
       <Box
@@ -421,7 +361,7 @@ export default function UsuariosPage() {
                   icon={<Person />}
                   value={totalUsuarios.toLocaleString()}
                   label="Total"
-                  color="primary.light"
+                  tone="neutral"
                 />
               </Grid>
               {/* <Grid item xs={4}>
@@ -429,7 +369,7 @@ export default function UsuariosPage() {
                   icon={<AdminPanelSettings />}
                   value={adminUsuarios.toLocaleString()}
                   label="Admins"
-                  color="error.light"
+                  tone="negative"
                 />
               </Grid>
               <Grid item xs={4}>
@@ -437,7 +377,7 @@ export default function UsuariosPage() {
                   icon={<Store />}
                   value={vendedorUsuarios.toLocaleString()}
                   label="Vendedores"
-                  color="info.light"
+                  tone="info"
                 />
               </Grid> */}
             </Grid>
@@ -451,7 +391,7 @@ export default function UsuariosPage() {
               icon={<Person />}
               value={totalUsuarios.toLocaleString()}
               label="Total Usuarios"
-              color="primary.light"
+              tone="neutral"
             />
           </Grid>
           {/* <Grid item xs={12} sm={6} md={4}>
@@ -459,7 +399,7 @@ export default function UsuariosPage() {
               icon={<AdminPanelSettings />}
               value={adminUsuarios.toLocaleString()}
               label="Administradores"
-              color="error.light"
+              tone="negative"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={4}>
@@ -467,7 +407,7 @@ export default function UsuariosPage() {
               icon={<Store />}
               value={vendedorUsuarios.toLocaleString()}
               label="Vendedores"
-              color="info.light"
+              tone="info"
             />
           </Grid> */}
         </Grid>

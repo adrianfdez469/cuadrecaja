@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { StatCard } from "@/components/StatCard";
 import {
   Box,
   Table,
@@ -450,63 +451,6 @@ export default function ResumenCierrePage() {
   };
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color,
-  }: {
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: "100%" }}>
-      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 1 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: isMobile ? 40 : 48,
-              minHeight: isMobile ? 40 : 48,
-            }}
-          >
-            {icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="bold"
-              sx={{
-                fontSize: isMobile ? "1.25rem" : "2rem",
-                lineHeight: 1.2,
-                wordBreak: "break-all",
-              }}
-            >
-              {value}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? "0.75rem" : "0.875rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   const breadcrumbs = [
     { label: "Inicio", href: "/home" },
     { label: "Resumen de Cierres" },
@@ -693,7 +637,7 @@ export default function ResumenCierrePage() {
                 icon={<AttachMoney fontSize={"medium"} />}
                 value={fmtS(data.sumTotalVentas)}
                 label="Total Ventas"
-                color="success.light"
+                tone="positive"
               />
             </Grid>
 
@@ -704,7 +648,7 @@ export default function ResumenCierrePage() {
                   data.sumTotalGananciaFinal ?? data.sumTotalGanancia,
                 )}
                 label="Ganancia Final"
-                color="info.light"
+                tone="info"
               />
             </Grid>
 
@@ -715,7 +659,7 @@ export default function ResumenCierrePage() {
                   icon={<TrendingDown fontSize={"medium"} />}
                   value={fmtS(data.sumTotalGastos || 0)}
                   label="Total Gastos"
-                  color="error.light"
+                  tone="negative"
                 />
               </Grid>
             )}
@@ -727,7 +671,7 @@ export default function ResumenCierrePage() {
                   icon={<ShoppingCart fontSize={"medium"} />}
                   value={fmtS(data.sumTotalComprasCaja || 0)}
                   label="Compras (efectivo de caja)"
-                  color="warning.light"
+                  tone="caution"
                 />
               </Grid>
             )}
@@ -739,7 +683,7 @@ export default function ResumenCierrePage() {
                   icon={<BrokenImage fontSize={"medium"} />}
                   value={fmtS(data.sumTotalMerma || 0)}
                   label="Merma"
-                  color="error.light"
+                  tone="negative"
                 />
               </Grid>
             )}
@@ -751,7 +695,7 @@ export default function ResumenCierrePage() {
                   icon={<Undo fontSize={"medium"} />}
                   value={fmtS(data.sumTotalDevoluciones || 0)}
                   label="Devoluciones de venta"
-                  color="error.light"
+                  tone="negative"
                 />
               </Grid>
             )}
@@ -761,7 +705,7 @@ export default function ResumenCierrePage() {
                 icon={<Assessment fontSize={"medium"} />}
                 value={fmtS(data.sumTotalInversion)}
                 label="Inversión Total"
-                color="warning.light"
+                tone="caution"
               />
             </Grid>
 
@@ -772,7 +716,7 @@ export default function ResumenCierrePage() {
                   icon={<AttachMoney fontSize={"medium"} />}
                   value={fmtS(data.sumTotalVentasBrutas || 0)}
                   label="Total Ventas (Bruto)"
-                  color="success.light"
+                  tone="positive"
                 />
               </Grid>
             )}
@@ -785,7 +729,7 @@ export default function ResumenCierrePage() {
                     icon={<TrendingUp fontSize={"medium"} />}
                     value={fmtS(data.sumTotalDescuentos || 0)}
                     label="Descuentos (intervalo)"
-                    color="error.light"
+                    tone="negative"
                   />
                 </Grid>
               )}
@@ -880,7 +824,7 @@ export default function ResumenCierrePage() {
                 icon={<StoreIcon fontSize={"medium"} />}
                 value={fmtS(data?.sumTotalVentasPropias || 0)}
                 label="Ventas Propias"
-                color="success.dark"
+                tone="positive"
               />
             </Grid>
 
@@ -889,7 +833,7 @@ export default function ResumenCierrePage() {
                 icon={<HandshakeIcon fontSize={"medium"} />}
                 value={fmtS(data?.sumTotalVentasConsignacion || 0)}
                 label="Ventas Consignación"
-                color="secondary.light"
+                tone="accent"
               />
             </Grid>
           </Grid>
@@ -1579,7 +1523,7 @@ export default function ResumenCierrePage() {
                         }
                         value={fmtD(cierreProducData.ciereData.totalVentas)}
                         label="Total Ventas"
-                        color="success.light"
+                        tone="positive"
                       />
                     </Grid>
 
@@ -1613,7 +1557,7 @@ export default function ResumenCierrePage() {
                               cierreProducData.ciereData.totalGanancia,
                           )}
                           label="Ganancia Final"
-                          color="info.light"
+                          tone="info"
                         />
                       </Grid>
                     )}
@@ -1630,7 +1574,7 @@ export default function ResumenCierrePage() {
                           cierreProducData.ciereData.totalVentasBrutas ?? 0,
                         )}
                         label="Total Ventas (Bruto)"
-                        color="success.light"
+                        tone="positive"
                       />
                     </Grid>
 
@@ -1646,7 +1590,7 @@ export default function ResumenCierrePage() {
                             cierreProducData.ciereData.totalDescuentos ?? 0,
                           )}
                           label="Descuentos del Período"
-                          color="error.light"
+                          tone="negative"
                         />
                       </Grid>
                     )}
@@ -1662,7 +1606,7 @@ export default function ResumenCierrePage() {
                           cierreProducData.totales.totalCantidad,
                         )}
                         label="Productos Vendidos"
-                        color="primary.light"
+                        tone="neutral"
                       />
                     </Grid>
 
@@ -1677,7 +1621,7 @@ export default function ResumenCierrePage() {
                           cierreProducData.ciereData.totalTransferencia,
                         )}
                         label="Transferencias"
-                        color="warning.light"
+                        tone="caution"
                       />
                     </Grid>
                   </Grid>

@@ -49,34 +49,34 @@ export default function InventarioReportPage() {
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Valor del inventario"
+              <StatCard variant="metric"
+                label="Valor del inventario"
                 value={currency.format(data.resumen.valorInventario)}
                 subtitle={`${formatNumber(data.resumen.productosActivos)} productos con stock`}
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Productos por agotarse"
+              <StatCard variant="metric"
+                label="Productos por agotarse"
                 value={formatNumber(data.resumen.productosCriticos)}
                 subtitle="Cobertura ≤ 7 días"
-                color="warning.main"
+                tone="caution"
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Capital inmovilizado"
+              <StatCard variant="metric"
+                label="Capital inmovilizado"
                 value={currency.format(data.resumen.capitalInmovilizado)}
                 subtitle={`${formatNumber(data.resumen.productosSinMovimiento)} sin ventas`}
-                color="error.main"
+                tone="negative"
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="En riesgo por vencimiento"
+              <StatCard variant="metric"
+                label="En riesgo por vencimiento"
                 value={currency.format(data.resumen.valorEnRiesgoVencimiento)}
                 subtitle="Próximos 30 días"
-                color="error.main"
+                tone="negative"
               />
             </Grid>
           </Grid>

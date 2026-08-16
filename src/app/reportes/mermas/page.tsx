@@ -53,21 +53,21 @@ export default function MermasPage() {
 
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <StatCard
-                title="Pérdida total"
+              <StatCard variant="metric"
+                label="Pérdida total"
                 value={currency.format(data.perdidaTotal)}
-                color="error.main"
+                tone="negative"
               />
             </Grid>
             <Grid size={{ xs: 6, md: 4 }}>
-              <StatCard
-                title="Merma"
+              <StatCard variant="metric"
+                label="Merma"
                 value={currency.format(data.totalMerma)}
               />
             </Grid>
             <Grid size={{ xs: 6, md: 4 }}>
-              <StatCard
-                title="Devoluciones"
+              <StatCard variant="metric"
+                label="Devoluciones"
                 value={currency.format(data.totalDevoluciones)}
               />
             </Grid>

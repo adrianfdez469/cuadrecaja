@@ -3,7 +3,7 @@
 import { Alert, Stack } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { ContentCard } from "@/components/ContentCard";
-import { StatCard } from "@/components/StatCard";
+import { StatCard, StatTone } from "@/components/StatCard";
 import { ReportDataTable } from "@/components/reports/ReportDataTable";
 import type { ReportColumn } from "@/components/reports/ReportDataTable";
 import { formatDate, formatNumber } from "@/utils/formatters";
@@ -19,11 +19,11 @@ type ExpiryRiskBucketsProps = {
   total: number;
 };
 
-/** Colour by urgency: already expired is a loss, 30 days is a heads-up. */
-function bucketColor(dias: number): string {
-  if (dias === 0) return "error.main";
-  if (dias <= 7) return "warning.main";
-  return "info.main";
+/** Tone by urgency: already expired is a loss, 30 days is a heads-up. */
+function bucketTone(dias: number): StatTone {
+  if (dias === 0) return "negative";
+  if (dias <= 7) return "caution";
+  return "info";
 }
 
 /**
@@ -85,10 +85,11 @@ export function ExpiryRiskBuckets({
           {buckets.map((bucket) => (
             <Grid key={bucket.etiqueta} size={{ xs: 6, md: 3 }}>
               <StatCard
-                title={bucket.etiqueta}
+                variant="metric"
+                label={bucket.etiqueta}
                 value={format(bucket.valorEnRiesgo)}
                 subtitle={`${bucket.productos} producto(s)`}
-                color={bucketColor(bucket.dias)}
+                tone={bucketTone(bucket.dias)}
               />
             </Grid>
           ))}

@@ -66,7 +66,7 @@ export function DashboardKpiRow({
         .filter((card) => card.show)
         .map((card) => (
           <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
-            <StatCard title={card.title} value={card.value} />
+            <StatCard variant="metric" label={card.title} value={card.value} />
           </Grid>
         ))}
     </Grid>

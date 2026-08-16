@@ -43,32 +43,32 @@ export function PeriodComparisonCards({
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            title="Ventas netas"
+          <StatCard variant="metric"
+            label="Ventas netas"
             value={format(actual.ventasNetas)}
             subtitle={`Anterior: ${format(anterior.ventasNetas)}`}
             delta={comparable ? { value: variacion.ventasNetas } : undefined}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            title="Ganancia"
+          <StatCard variant="metric"
+            label="Ganancia"
             value={format(actual.ganancia)}
             subtitle={`Anterior: ${format(anterior.ganancia)}`}
             delta={comparable ? { value: variacion.ganancia } : undefined}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            title="Ventas por día de operación"
+          <StatCard variant="metric"
+            label="Ventas por día de operación"
             value={format(actual.ventasPorDia)}
             subtitle={`${formatNumber(actual.diasOperacion)} días vs ${formatNumber(anterior.diasOperacion)}`}
             delta={comparable ? { value: variacion.ventasPorDia } : undefined}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard
-            title="Transacciones"
+          <StatCard variant="metric"
+            label="Transacciones"
             value={formatNumber(actual.transacciones)}
             subtitle={`Anterior: ${formatNumber(anterior.transacciones)}`}
             delta={comparable ? { value: variacion.transacciones } : undefined}

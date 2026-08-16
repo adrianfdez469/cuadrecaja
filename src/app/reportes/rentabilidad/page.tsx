@@ -16,7 +16,10 @@ import type { IProfitabilityReportResponse } from "@/schemas/reports/profitabili
 // Fuera del bundle inicial: `@mui/x-charts` es la dependencia más
 // pesada de esta pantalla y solo hace falta para pintar el gráfico.
 const CategoryMarginChart = dynamic(
-  () => import("@/components/reports/profitability/CategoryMarginChart").then((m) => m.CategoryMarginChart),
+  () =>
+    import("@/components/reports/profitability/CategoryMarginChart").then(
+      (m) => m.CategoryMarginChart,
+    ),
   { ssr: false },
 );
 
@@ -49,29 +52,33 @@ export default function RentabilidadPage() {
           <Grid container spacing={2}>
             <Grid size={{ xs: 6, md: 3 }}>
               <StatCard
-                title="Ventas netas"
+                variant="metric"
+                label="Ventas netas"
                 value={currency.format(pnl.ventasNetas)}
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
               <StatCard
-                title="Margen bruto"
+                variant="metric"
+                label="Margen bruto"
                 value={currency.format(pnl.margenBruto)}
                 subtitle={`${pnl.margenBrutoPorcentaje.toFixed(1)}% sobre ventas`}
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
               <StatCard
-                title="Gastos operativos"
+                variant="metric"
+                label="Gastos operativos"
                 value={currency.format(pnl.gastosOperativos)}
-                color="error.main"
+                tone="negative"
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
               <StatCard
-                title="Ganancia final"
+                variant="metric"
+                label="Ganancia final"
                 value={currency.format(pnl.gananciaFinal)}
-                color={pnl.gananciaFinal >= 0 ? "success.main" : "error.main"}
+                tone={pnl.gananciaFinal >= 0 ? "positive" : "negative"}
               />
             </Grid>
           </Grid>

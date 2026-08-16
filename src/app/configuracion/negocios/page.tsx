@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { StatCard } from "@/components/StatCard";
 import {
   Box,
   Button,
@@ -530,63 +531,6 @@ export default function Negocios() {
   };
 
   // Componente de estadística general
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color,
-  }: {
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: "100%" }}>
-      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 1 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: isMobile ? 40 : 48,
-              minHeight: isMobile ? 40 : 48,
-            }}
-          >
-            {icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="bold"
-              sx={{
-                fontSize: isMobile ? "1.25rem" : "2rem",
-                lineHeight: 1.2,
-                wordBreak: "break-all",
-              }}
-            >
-              {value}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? "0.75rem" : "0.875rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   // Componente de tarjeta de negocio para móviles
   const NegocioCard = ({ negocio }: { negocio: INegocio }) => {
     const days = getDaysRemaining(negocio.limitTime);
@@ -913,7 +857,7 @@ export default function Negocios() {
                   icon={<Business fontSize={"medium"} />}
                   value={totalNegocios.toLocaleString()}
                   label="Total Negocios"
-                  color="primary.light"
+                  tone="neutral"
                 />
               </Grid>
               <Grid item xs={6}>
@@ -921,7 +865,7 @@ export default function Negocios() {
                   icon={<TrendingUp fontSize={"medium"} />}
                   value={negociosActivos.toLocaleString()}
                   label="Activos"
-                  color="success.light"
+                  tone="positive"
                 />
               </Grid>
               <Grid item xs={6}>
@@ -929,7 +873,7 @@ export default function Negocios() {
                   icon={<Schedule fontSize={"medium"} />}
                   value={negociosExpirados.toLocaleString()}
                   label="Expirados"
-                  color="error.light"
+                  tone="negative"
                 />
               </Grid>
               <Grid item xs={6}>
@@ -937,7 +881,7 @@ export default function Negocios() {
                   icon={<Search fontSize={"medium"} />}
                   value={negociosVisibles.toLocaleString()}
                   label="Visibles"
-                  color="info.light"
+                  tone="info"
                 />
               </Grid>
             </Grid>
@@ -951,7 +895,7 @@ export default function Negocios() {
               icon={<Business fontSize="large" />}
               value={totalNegocios.toLocaleString()}
               label="Total Negocios"
-              color="primary.light"
+              tone="neutral"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -959,7 +903,7 @@ export default function Negocios() {
               icon={<TrendingUp fontSize="large" />}
               value={negociosActivos.toLocaleString()}
               label="Negocios Activos"
-              color="success.light"
+              tone="positive"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -967,7 +911,7 @@ export default function Negocios() {
               icon={<Schedule fontSize="large" />}
               value={negociosExpirados.toLocaleString()}
               label="Negocios Expirados"
-              color="error.light"
+              tone="negative"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -975,7 +919,7 @@ export default function Negocios() {
               icon={<Search fontSize="large" />}
               value={negociosVisibles.toLocaleString()}
               label="Resultados Visibles"
-              color="info.light"
+              tone="info"
             />
           </Grid>
         </Grid>

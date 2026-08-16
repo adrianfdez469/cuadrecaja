@@ -46,14 +46,14 @@ export default function OperacionPage() {
         <Stack spacing={3}>
           <Grid container spacing={2}>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Total cobrado"
+              <StatCard variant="metric"
+                label="Total cobrado"
                 value={currency.format(data.pagos.totalBase)}
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Efectivo"
+              <StatCard variant="metric"
+                label="Efectivo"
                 value={currency.format(efectivo ?? 0)}
                 subtitle={
                   data.pagos.totalBase > 0
@@ -63,8 +63,8 @@ export default function OperacionPage() {
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Transferencia"
+              <StatCard variant="metric"
+                label="Transferencia"
                 value={currency.format(transferencia ?? 0)}
                 subtitle={
                   data.pagos.totalBase > 0
@@ -74,8 +74,8 @@ export default function OperacionPage() {
               />
             </Grid>
             <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Vendedores activos"
+              <StatCard variant="metric"
+                label="Vendedores activos"
                 value={formatNumber(data.vendedores.length)}
               />
             </Grid>

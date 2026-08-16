@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { StatCard } from "@/components/StatCard";
 import { useVirtualRows } from "@/hooks/useVirtualRows";
 import {
   VENTAS_CARD_ESTIMATED_HEIGHT,
@@ -356,79 +357,6 @@ const Ventas = () => {
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color,
-  }: {
-    icon: React.ReactNode;
-    value: React.ReactNode;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: "100%" }}>
-      <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 0.75 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: isMobile ? 32 : 48,
-              minHeight: isMobile ? 32 : 48,
-            }}
-          >
-            {React.isValidElement(icon)
-              ? React.cloneElement(icon, {
-                  fontSize: isMobile ? "small" : "large",
-                } as Record<string, unknown>)
-              : icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            {/* value puede ser un nodo (MultiCurrencyAmount) que renderiza su propia tipografía */}
-            <Box
-              sx={{
-                fontSize: isMobile ? "1rem" : "2rem",
-                fontWeight: "bold",
-                lineHeight: 1.2,
-                wordBreak: "break-all",
-              }}
-            >
-              {value}
-            </Box>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? "0.6875rem" : "0.875rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {label}
-            </Typography>
-            {searchTerm && (
-              <Typography
-                variant="body2"
-                color="warning"
-                sx={{
-                  fontSize: isMobile ? "0.6875rem" : "0.875rem",
-                  lineHeight: 1.2,
-                }}
-              >
-                Filtro Aplicado
-              </Typography>
-            )}
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   return (
     <PageContainer
       title={`Ventas - Período ${currentPeriod ? formatDate(currentPeriod.fechaInicio) : ""}`}
@@ -454,7 +382,7 @@ const Ventas = () => {
                     />
                   }
                   label="Total Vendido"
-                  color="success.light"
+                  tone="positive"
                 />
               </Grid>
               <Grid item xs={12} sm={12} md={6}>
@@ -467,7 +395,7 @@ const Ventas = () => {
                     />
                   }
                   label="Monto Hoy"
-                  color="warning.light"
+                  tone="caution"
                 />
               </Grid>
             </Grid>
@@ -483,7 +411,7 @@ const Ventas = () => {
                 <MultiCurrencyAmount amount={montoTotal} variant="emphasized" />
               }
               label="Total Vendido"
-              color="success.light"
+              tone="positive"
             />
           </Grid>
           <Grid item xs={12} sm={12} md={6}>
@@ -493,7 +421,7 @@ const Ventas = () => {
                 <MultiCurrencyAmount amount={montoHoy} variant="emphasized" />
               }
               label="Monto Hoy"
-              color="warning.light"
+              tone="caution"
             />
           </Grid>
         </Grid>
