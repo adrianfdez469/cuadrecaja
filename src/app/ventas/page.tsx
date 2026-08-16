@@ -556,14 +556,7 @@ const Ventas = () => {
           // Vista móvil con cards más densos
           // Con muchas ventas la lista gana su propio scroll y solo pinta las
           // tarjetas visibles; con pocas se comporta igual que antes.
-          <Box
-            ref={ventasVirtual.containerRef}
-            sx={
-              ventasVirtual.needsVirtualization
-                ? { p: 1.5, height: "75vh", overflowY: "auto" }
-                : { p: 1.5 }
-            }
-          >
+          <Box ref={ventasVirtual.containerRef} sx={{ p: 1.5 }}>
             <Stack
               spacing={1.5}
               sx={
@@ -587,7 +580,7 @@ const Ventas = () => {
                           top: 0,
                           left: 0,
                           right: 0,
-                          transform: `translateY(${virtual.start}px)`,
+                          transform: `translateY(${virtual.start - ventasVirtual.offset}px)`,
                         },
                       }
                     : {})}
@@ -672,14 +665,8 @@ const Ventas = () => {
           </Box>
         ) : (
           // Vista desktop con tabla
-          <TableContainer
-            ref={ventasVirtual.containerRef}
-            sx={
-              ventasVirtual.needsVirtualization
-                ? { flex: 1, maxHeight: "70vh", overflowY: "auto" }
-                : { flex: 1 }
-            }
-          >
+          // Sin alto fijo: la tabla crece y scrollea la página, como siempre.
+          <TableContainer ref={ventasVirtual.containerRef} sx={{ flex: 1 }}>
             <Table stickyHeader>
               <TableHead>
                 <TableRow>

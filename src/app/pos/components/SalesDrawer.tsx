@@ -100,9 +100,12 @@ export const SalesDrawer: FC<IProps> = ({
     return porId;
   }, [productosTienda]);
 
+  // Modo contenedor, no ventana: esta lista vive dentro de un Drawer, que ya
+  // es su propia área de scroll — la página de detrás no se mueve.
   const ventasVirtual = useVirtualRows(sortedSales, {
     minItems: VENTAS_VIRTUALIZATION_MIN_ROWS,
     estimateSize: VENTAS_ROW_ESTIMATED_HEIGHT,
+    scroller: "container",
   });
 
   const [showProducts, setShowProducts] = useState(false);
