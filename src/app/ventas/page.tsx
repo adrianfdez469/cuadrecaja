@@ -1,6 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useVirtualRows } from "@/hooks/useVirtualRows";
+import {
+  VENTAS_CARD_ESTIMATED_HEIGHT,
+  VENTAS_ROW_ESTIMATED_HEIGHT,
+  VENTAS_VIRTUALIZATION_MIN_ROWS,
+} from "@/constants/pos";
 import {
   Box,
   Typography,
@@ -223,6 +229,16 @@ const Ventas = () => {
       ventaProductos.includes(searchLower) ||
       ventaUsuario.includes(searchLower)
     );
+  });
+
+  // Un negocio activo acumula ventas sin techo, y esta lista las pintaba todas
+  // —tarjeta en móvil, fila en escritorio— cada vez que se abría la pantalla.
+  // Las alturas difieren entre las dos vistas, de ahí los dos estimados.
+  const ventasVirtual = useVirtualRows(filteredVentas, {
+    minItems: VENTAS_VIRTUALIZATION_MIN_ROWS,
+    estimateSize: isMobile
+      ? VENTAS_CARD_ESTIMATED_HEIGHT
+      : VENTAS_ROW_ESTIMATED_HEIGHT,
   });
 
   // Cálculos para estadísticas
@@ -538,11 +554,36 @@ const Ventas = () => {
           </Box>
         ) : isMobile ? (
           // Vista móvil con cards más densos
-          <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.5}>
-              {filteredVentas.map((venta) => (
+          // Con muchas ventas la lista gana su propio scroll y solo pinta las
+          // tarjetas visibles; con pocas se comporta igual que antes.
+          <Box ref={ventasVirtual.containerRef} sx={{ p: 1.5 }}>
+            <Stack
+              spacing={1.5}
+              sx={
+                ventasVirtual.needsVirtualization
+                  ? {
+                      position: "relative",
+                      height: `${ventasVirtual.totalSize}px`,
+                    }
+                  : undefined
+              }
+            >
+              {ventasVirtual.visible.map(({ item: venta, virtual }) => (
                 <Card
                   key={venta.id}
+                  {...(virtual
+                    ? {
+                        "data-index": virtual.index,
+                        ref: ventasVirtual.measureElement,
+                        style: {
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          transform: `translateY(${virtual.start - ventasVirtual.offset}px)`,
+                        },
+                      }
+                    : {})}
                   onClick={() => handleOpenVenta(venta)}
                   sx={{
                     cursor: "pointer",
@@ -624,7 +665,8 @@ const Ventas = () => {
           </Box>
         ) : (
           // Vista desktop con tabla
-          <TableContainer sx={{ flex: 1 }}>
+          // Sin alto fijo: la tabla crece y scrollea la página, como siempre.
+          <TableContainer ref={ventasVirtual.containerRef} sx={{ flex: 1 }}>
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
@@ -637,9 +679,20 @@ const Ventas = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredVentas.map((venta) => (
+                {ventasVirtual.paddingTop > 0 && (
+                  <TableRow style={{ height: ventasVirtual.paddingTop }}>
+                    <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
+                  </TableRow>
+                )}
+                {ventasVirtual.visible.map(({ item: venta, virtual }) => (
                   <TableRow
                     key={venta.id}
+                    {...(virtual
+                      ? {
+                          "data-index": virtual.index,
+                          ref: ventasVirtual.measureElement,
+                        }
+                      : {})}
                     onClick={() => handleOpenVenta(venta)}
                     sx={{
                       cursor: "pointer",
@@ -723,6 +776,11 @@ const Ventas = () => {
                     </TableCell>
                   </TableRow>
                 ))}
+                {ventasVirtual.paddingBottom > 0 && (
+                  <TableRow style={{ height: ventasVirtual.paddingBottom }}>
+                    <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </TableContainer>

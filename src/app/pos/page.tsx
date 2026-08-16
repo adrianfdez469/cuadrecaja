@@ -100,6 +100,23 @@ import { PrintQueueIndicator } from "@/features/printing/components/PrintQueueIn
 import { PrinterSetupSheet } from "@/features/printing/components/PrinterSetupSheet";
 import { Sale } from "@/store/salesStore";
 
+/**
+ * Shared chrome for the two POS panes on desktop: instead of sharing a seam,
+ * each one is a rounded card floating over the app background, the way an IDE
+ * separates its tool windows. The border is what delimits the pane; the shadow
+ * only lifts it off the background, so it stays subtle at any zoom level.
+ *
+ * Not applied on mobile: there is no second pane to separate from, and the
+ * padding around the card would come straight out of the product grid.
+ */
+const desktopPanelSx = {
+  borderRadius: 2,
+  border: "1px solid",
+  borderColor: "divider",
+  backgroundColor: "background.paper",
+  boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 6px 16px rgba(15,23,42,0.06)",
+} as const;
+
 export default function POSInterface() {
   const [categories, setCategories] = useState<IPosCategoria[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
@@ -1599,6 +1616,16 @@ export default function POSInterface() {
         // 56/64px are the top AppBar's heights (see Layout.tsx).
         height: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
         overflow: "hidden",
+        // El aire que rodea y separa las dos tarjetas de escritorio. Va en el
+        // contenedor —no en márgenes de cada panel— para que el hueco entre
+        // ambas y el que las separa del borde de la ventana midan igual. El
+        // padding no roba altura: `box-sizing: border-box` (CssBaseline) lo
+        // descuenta del propio calc() de arriba.
+        ...(showCartPanel && {
+          p: 1,
+          gap: 1,
+          backgroundColor: "background.default",
+        }),
         // Con el teclado abierto, iOS Safari no encoge el viewport de
         // layout: desplaza el *visual viewport* dentro de él. Todo lo que
         // esté en flujo normal del documento queda entonces corrido hacia
@@ -1643,6 +1670,11 @@ export default function POSInterface() {
           // Anchors CheckoutLockOverlay to this pane, and only this pane —
           // the cart panel next to it stays fully usable while locked.
           position: "relative",
+          // El `overflow: hidden` de arriba es también lo que recorta las
+          // esquinas: la cabecera y la barra inferior llegan a los bordes de
+          // la tarjeta y se redondean con ella, sin repetir el radio en cada
+          // una.
+          ...(showCartPanel && desktopPanelSx),
           ...(posOnboardingBlocksInteraction || productsLocked
             ? { pointerEvents: "none", userSelect: "none" }
             : {}),
@@ -1916,23 +1948,21 @@ export default function POSInterface() {
             maxWidth: getCartWidth(),
             minWidth: "360px",
             height: "100%",
-            // The shadow alone reads as "something sits near this edge,"
-            // not as a hard line — both panels share the same background
-            // color, so without an actual border the seam was hard to
-            // spot. The border is the delimiter; the shadow adds depth on
-            // top of it. It has to live on THIS box, not the inner one
-            // below: box-shadow paints outside the border box, and a
-            // sibling `overflow: hidden` on the very same box clips its
-            // own shadow away.
-            borderLeft: "1px solid",
-            borderColor: "divider",
-            boxShadow: "-8px 0px 24px rgba(0,0,0,0.12)",
-            backgroundColor: "background.paper",
+            // Ya no hay costura que marcar: el panel no comparte borde con la
+            // grilla, está separado de ella por el hueco del contenedor. El
+            // borde y la sombra tienen que vivir en ESTE box y no en el de
+            // adentro: box-shadow pinta fuera de la caja de borde, y el
+            // `overflow: hidden` del propio box se la recortaría.
+            ...desktopPanelSx,
           }}
         >
           {/* Only THIS box clips — CartContent's internal scrolling needs
-              containment, but it must not clip the outer box's shadow. */}
-          <Box sx={{ height: "100%", overflow: "hidden" }}>
+              containment, but it must not clip the outer box's shadow.
+              Hereda el radio del padre para que el contenido no asome en
+              escuadra por encima de sus esquinas redondeadas. */}
+          <Box
+            sx={{ height: "100%", overflow: "hidden", borderRadius: "inherit" }}
+          >
             <CartContent
               clear={clearCart}
               updateQuantity={handleUpdateQuantity}

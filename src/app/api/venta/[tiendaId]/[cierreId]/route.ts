@@ -470,87 +470,113 @@ export async function POST(
             });
           }
 
-          // Crear movimientos de desagregación dentro de la misma transacción
-          if (itemsDesagregaciónBaja.length > 0) {
-            for (const item of itemsDesagregaciónBaja) {
-              const productoTiendaDesagregar =
-                await tx.productoTienda.findFirst({
-                  where: {
-                    tiendaId,
-                    productoId: item.productoId,
-                    proveedorId: null, // Solo productos propios para desagregación
-                  },
-                });
+          // Desagregación en tres consultas, no en seis por producto.
+          //
+          // Cada fracción hacía antes un `findFirst`, un `update` y un `create`
+          // por su padre y otros tres por sí misma: seis viajes secuenciales a
+          // la base por producto fraccionado, dentro de la transacción y con el
+          // advisory lock de la tienda tomado. Aquí se lee una vez, se simula
+          // la secuencia completa en memoria y se escribe una vez.
+          const idsProductoDesagregacion = Array.from(
+            new Set(
+              [...itemsDesagregaciónBaja, ...itemsDesagregaciónAlta].map(
+                (item) => String(item.productoId),
+              ),
+            ),
+          );
 
-              if (productoTiendaDesagregar) {
-                const existenciaAnterior = productoTiendaDesagregar.existencia;
+          if (idsProductoDesagregacion.length > 0) {
+            const filasDesagregacion = await tx.productoTienda.findMany({
+              where: {
+                tiendaId,
+                productoId: { in: idsProductoDesagregacion },
+                proveedorId: null, // Solo productos propios para desagregación
+              },
+            });
 
-                if (existenciaAnterior < item.cantidad) {
+            // La primera fila de cada producto, que es exactamente lo que
+            // devolvía `findFirst`.
+            const porProductoId = new Map<
+              string,
+              (typeof filasDesagregacion)[number]
+            >();
+            for (const fila of filasDesagregacion) {
+              if (!porProductoId.has(fila.productoId)) {
+                porProductoId.set(fila.productoId, fila);
+              }
+            }
+
+            // Se recorre en el mismo orden que antes —primero las bajas, luego
+            // las altas— descontando sobre un mapa en memoria. Así cada
+            // movimiento registra el mismo `existenciaAnterior` que veía la
+            // lectura secuencial, incluso cuando dos fracciones comparten
+            // padre y la segunda debe partir de lo que dejó la primera.
+            const existenciaSimulada = new Map(
+              filasDesagregacion.map((f) => [f.id, f.existencia]),
+            );
+            const deltaPorId = new Map<string, number>();
+            const movimientosDesagregacion: Prisma.MovimientoStockCreateManyInput[] =
+              [];
+
+            const aplicar = (
+              items: { cantidad: number; productoId: string }[],
+              tipo: "DESAGREGACION_BAJA" | "DESAGREGACION_ALTA",
+            ) => {
+              const signo = tipo === "DESAGREGACION_BAJA" ? -1 : 1;
+              for (const item of items) {
+                const fila = porProductoId.get(item.productoId);
+                if (!fila) continue;
+
+                const existenciaAnterior = existenciaSimulada.get(fila.id) ?? 0;
+                if (signo < 0 && existenciaAnterior < item.cantidad) {
                   throw new Error(
                     `Existencia insuficiente, no hay suficiente existencia para desagregar. Existencia: ${existenciaAnterior}, Cantidad a desagregar: ${item.cantidad}`,
                   );
                 }
 
-                await tx.productoTienda.update({
-                  where: { id: productoTiendaDesagregar.id },
-                  data: {
-                    existencia: {
-                      decrement: item.cantidad,
-                    },
-                  },
-                });
-
-                await tx.movimientoStock.create({
-                  data: {
-                    tipo: "DESAGREGACION_BAJA",
-                    cantidad: item.cantidad,
-                    productoTiendaId: productoTiendaDesagregar.id,
-                    tiendaId,
-                    usuarioId,
-                    existenciaAnterior,
-                    referenciaId: venta.id,
-                    motivo: `Desagregación para venta ${venta.id}`,
-                  },
-                });
-              }
-            }
-          }
-
-          if (itemsDesagregaciónAlta.length > 0) {
-            for (const item of itemsDesagregaciónAlta) {
-              const productoTiendaAgregar = await tx.productoTienda.findFirst({
-                where: {
+                existenciaSimulada.set(
+                  fila.id,
+                  existenciaAnterior + signo * item.cantidad,
+                );
+                deltaPorId.set(
+                  fila.id,
+                  (deltaPorId.get(fila.id) ?? 0) + signo * item.cantidad,
+                );
+                movimientosDesagregacion.push({
+                  tipo,
+                  cantidad: item.cantidad,
+                  productoTiendaId: fila.id,
                   tiendaId,
-                  productoId: item.productoId,
-                  proveedorId: null, // Solo productos propios para desagregación
-                },
-              });
-
-              if (productoTiendaAgregar) {
-                const existenciaAnterior = productoTiendaAgregar.existencia;
-
-                await tx.productoTienda.update({
-                  where: { id: productoTiendaAgregar.id },
-                  data: {
-                    existencia: {
-                      increment: item.cantidad,
-                    },
-                  },
-                });
-
-                await tx.movimientoStock.create({
-                  data: {
-                    tipo: "DESAGREGACION_ALTA",
-                    cantidad: item.cantidad,
-                    productoTiendaId: productoTiendaAgregar.id,
-                    tiendaId,
-                    usuarioId,
-                    existenciaAnterior,
-                    referenciaId: venta.id,
-                    motivo: `Desagregación para venta ${venta.id}`,
-                  },
+                  usuarioId,
+                  existenciaAnterior,
+                  referenciaId: venta.id,
+                  motivo: `Desagregación para venta ${venta.id}`,
                 });
               }
+            };
+
+            aplicar(itemsDesagregaciónBaja, "DESAGREGACION_BAJA");
+            aplicar(itemsDesagregaciónAlta, "DESAGREGACION_ALTA");
+
+            if (deltaPorId.size > 0) {
+              // `::text` y no `::uuid`: Prisma mapea `String @id` a una columna
+              // `text`, y comparar contra un `uuid` hace fallar el UPDATE.
+              const filas = Array.from(deltaPorId.entries()).map(
+                ([id, delta]) =>
+                  Prisma.sql`(${id}::text, ${delta}::double precision)`,
+              );
+              await tx.$executeRaw`
+                UPDATE "ProductoTienda" AS pt
+                SET existencia = pt.existencia + v.delta
+                FROM (VALUES ${Prisma.join(filas)}) AS v(id, delta)
+                WHERE pt.id = v.id
+              `;
+            }
+
+            if (movimientosDesagregacion.length > 0) {
+              await tx.movimientoStock.createMany({
+                data: movimientosDesagregacion,
+              });
             }
           }
         }

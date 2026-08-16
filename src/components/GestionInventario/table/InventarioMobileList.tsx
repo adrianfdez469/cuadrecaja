@@ -14,8 +14,8 @@ import {
   Typography,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import { useCallback, useState } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useState } from "react";
+import { useVirtualRows } from "@/hooks/useVirtualRows";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import {
   INVENTARIO_CARD_ESTIMATED_HEIGHT,
@@ -230,20 +230,9 @@ export function InventarioMobileList({
   onCreateMov,
   onDelete,
 }: Props) {
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  const containerRef = useCallback(
-    (el: HTMLDivElement | null) => setScrollEl(el),
-    [],
-  );
-
-  const necesitaVirtualizar =
-    productos.length >= INVENTARIO_VIRTUALIZATION_MIN_ROWS;
-  const virtualizar = necesitaVirtualizar && scrollEl !== null;
-
-  const rowVirtualizer = useVirtualizer({
-    count: virtualizar ? productos.length : 0,
-    getScrollElement: () => scrollEl,
-    estimateSize: () => INVENTARIO_CARD_ESTIMATED_HEIGHT,
+  const virtual = useVirtualRows(productos, {
+    minItems: INVENTARIO_VIRTUALIZATION_MIN_ROWS,
+    estimateSize: INVENTARIO_CARD_ESTIMATED_HEIGHT,
     overscan: 6,
   });
 
@@ -270,7 +259,7 @@ export function InventarioMobileList({
   // virtualizar se sale por el otro camino desde el primer render, aunque el
   // contenedor aún no exista: dibujar la lista entera una sola vez ya costaba
   // segundos de hilo principal.
-  if (!necesitaVirtualizar) {
+  if (!virtual.needsVirtualization) {
     return (
       <Stack spacing={1} minHeight="100dvh">
         {productos.map((p) => (
@@ -288,50 +277,46 @@ export function InventarioMobileList({
     );
   }
 
-  // Con muchas, solo las visibles. La lista gana su propio scroll — es lo que
-  // el virtualizador necesita medir — y las tarjetas se posicionan dentro de un
-  // contenedor del alto total, que es lo que mantiene la barra de scroll
-  // proporcional al catálogo entero.
+  // Con muchas, solo las visibles. Sin alto fijo: quien scrollea es la página,
+  // así la lista aprovecha toda la pantalla en vez de encerrarse en un
+  // recuadro que en móvil desperdicia buena parte del alto. Las tarjetas se
+  // posicionan dentro de un contenedor del alto total, que es lo que mantiene
+  // la barra de scroll proporcional al catálogo entero.
   return (
     <Box
-      ref={containerRef}
-      sx={{ height: "75vh", overflowY: "auto", position: "relative" }}
+      ref={virtual.containerRef}
+      sx={{
+        position: "relative",
+        width: "100%",
+        height: `${virtual.totalSize}px`,
+      }}
     >
-      <Box
-        sx={{
-          position: "relative",
-          width: "100%",
-          height: `${rowVirtualizer.getTotalSize()}px`,
-        }}
-      >
-        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-          const p = productos[virtualRow.index];
-          return (
-            <Box
-              key={p.id}
-              data-index={virtualRow.index}
-              ref={rowVirtualizer.measureElement}
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                pb: 1,
-              }}
-              style={{ transform: `translateY(${virtualRow.start}px)` }}
-            >
-              <ProductCard
-                p={p}
-                onEdit={onEdit}
-                onChangeQty={onChangeQty}
-                onViewMovements={onViewMovements}
-                onCreateMov={onCreateMov}
-                onDelete={onDelete}
-              />
-            </Box>
-          );
-        })}
-      </Box>
+      {virtual.visible.map(({ item: p, virtual: virtualRow }) => (
+        <Box
+          key={p.id}
+          data-index={virtualRow!.index}
+          ref={virtual.measureElement}
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            pb: 1,
+          }}
+          style={{
+            transform: `translateY(${virtualRow!.start - virtual.offset}px)`,
+          }}
+        >
+          <ProductCard
+            p={p}
+            onEdit={onEdit}
+            onChangeQty={onChangeQty}
+            onViewMovements={onViewMovements}
+            onCreateMov={onCreateMov}
+            onDelete={onDelete}
+          />
+        </Box>
+      ))}
     </Box>
   );
 }

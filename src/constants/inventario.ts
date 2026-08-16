@@ -17,7 +17,7 @@ export const INVENTARIO_VIRTUALIZATION_MIN_ROWS = 100;
  * Only affects the scrollbar while rows are still unmeasured — every visible
  * row reports its real height through the virtualizer's `measureElement`.
  */
-export const INVENTARIO_ROW_ESTIMATED_HEIGHT = 53;
+export const INVENTARIO_ROW_ESTIMATED_HEIGHT = 63;
 
 /**
  * First guess at a mobile card's height, before it is measured.
