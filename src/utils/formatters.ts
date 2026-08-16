@@ -262,3 +262,29 @@ export const formatAdvertenciasCaja = (
         `La compra en ${a.moneda} superó el efectivo en caja (disponible: ${formatMontoEnMoneda(a.disponible, a.moneda)}) — se tomaron ${formatMontoEnMoneda(a.fondeoExterno, a.moneda)} de fondeo externo`,
     )
     .join(". ");
+
+/**
+ * Matches a v4-shaped UUID anywhere in a string.
+ * Kept loose on the version nibble so older seeded ids still match.
+ */
+const UUID_PATTERN =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+
+/**
+ * Makes a stock movement's reason readable.
+ *
+ * The backend stores the originating sale inside the text — `Venta
+ * 587664ec-63a7-436a-adb3-36c1b7f2d2b4` — and the table printed it verbatim,
+ * so a 36-character identifier nobody can read pushed every other column
+ * sideways. Shortening rather than stripping keeps the row traceable: the
+ * first block is enough to match against a sale, and the full id is still on
+ * the record.
+ *
+ * Applied at render time on purpose — the reasons already stored in the
+ * database carry the full id, so fixing only the writers would leave every
+ * historical row untouched.
+ */
+export const formatMovimientoMotivo = (motivo: string | null | undefined): string => {
+  if (!motivo) return "";
+  return motivo.replace(UUID_PATTERN, (id) => `#${id.slice(0, 8)}`).trim();
+};

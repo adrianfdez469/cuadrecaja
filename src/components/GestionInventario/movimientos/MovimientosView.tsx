@@ -69,7 +69,15 @@ import { ITipoMovimiento, MovimientoTipoEnum } from "@/schemas/movimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
-import { formatNumber, formatDateTime } from "@/utils/formatters";
+import {
+  formatNumber,
+  formatDateTime,
+  formatMovimientoMotivo,
+} from "@/utils/formatters";
+import {
+  TIPO_MOVIMIENTO_FLOW,
+  TIPO_MOVIMIENTO_LABELS,
+} from "@/constants/movimientos";
 import {
   IProductoDisponible,
   OperacionTipo,
@@ -81,21 +89,6 @@ import { usePendingReceptionStore } from "@/store/pendingReceptionStore";
 import { PendingReceptionBanner } from "./PendingReceptionBanner";
 
 const PAGE_SIZE = 20;
-
-const TIPO_LABELS: Record<ITipoMovimiento, string> = {
-  COMPRA: "Compra",
-  VENTA: "Venta",
-  AJUSTE_ENTRADA: "Ajuste Entrada",
-  AJUSTE_SALIDA: "Ajuste Salida",
-  TRASPASO_ENTRADA: "Traspaso Entrada",
-  TRASPASO_SALIDA: "Traspaso Salida",
-  DESAGREGACION_BAJA: "Desagregación Baja",
-  DESAGREGACION_ALTA: "Desagregación Alta",
-  CONSIGNACION_ENTRADA: "Consignación Entrada",
-  CONSIGNACION_DEVOLUCION: "Consignación Devolución",
-  MERMA: "Merma",
-  DEVOLUCION_VENTA: "Devolución de venta",
-};
 
 const TODOS_TIPOS = MovimientoTipoEnum.options;
 
@@ -566,15 +559,30 @@ export default function MovimientosView() {
     </Card>
   );
 
+  /**
+   * The chip printed the raw enum — `DESAGREGACION_ALTA` — even though readable
+   * labels already existed and the filter dropdown right above it used them.
+   *
+   * Colour follows the movement's flow role rather than a rises/falls boolean.
+   * Under the old rule the two halves of one disaggregation came out green and
+   * red, reading as a success beside a failure when they are a single operation:
+   * opening a box to sell its loose units.
+   */
   const getMovimientoChip = (tipo: string) => {
-    const isBaja = isMovimientoBaja(tipo as ITipoMovimiento);
+    const flow =
+      theme.palette.semantic.flow[
+        TIPO_MOVIMIENTO_FLOW[tipo as ITipoMovimiento]
+      ];
     return (
       <Chip
-        label={tipo}
+        label={TIPO_MOVIMIENTO_LABELS[tipo as ITipoMovimiento] ?? tipo}
         size="small"
-        color={isBaja ? "error" : "success"}
         variant="filled"
-        sx={{ fontWeight: "medium" }}
+        sx={{
+          fontWeight: 500,
+          bgcolor: flow.surface,
+          color: flow.main,
+        }}
       />
     );
   };
@@ -767,13 +775,13 @@ export default function MovimientosView() {
                   }
                   renderValue={(selected) =>
                     (selected as ITipoMovimiento[])
-                      .map((t) => TIPO_LABELS[t])
+                      .map((t) => TIPO_MOVIMIENTO_LABELS[t])
                       .join(", ")
                   }
                 >
                   {TODOS_TIPOS.map((tipo) => (
                     <MenuItem key={tipo} value={tipo}>
-                      {TIPO_LABELS[tipo]}
+                      {TIPO_MOVIMIENTO_LABELS[tipo]}
                     </MenuItem>
                   ))}
                 </Select>
@@ -930,7 +938,7 @@ export default function MovimientosView() {
                             sx={{ fontSize: "0.6875rem" }}
                           >
                             {" "}
-                            {movimiento.motivo}
+                            {formatMovimientoMotivo(movimiento.motivo)}
                           </Typography>
                         </Typography>
                       )}
@@ -995,7 +1003,9 @@ export default function MovimientosView() {
                             "Producto no encontrado"}
                       </Typography>
                     </TableCell>
-                    <TableCell>{movimiento.motivo}</TableCell>
+                    <TableCell>
+                      {formatMovimientoMotivo(movimiento.motivo)}
+                    </TableCell>
                     <TableCell align="center">
                       <Typography
                         variant="body2"
@@ -1074,7 +1084,7 @@ export default function MovimientosView() {
               >
                 Filtros activos:{searchTerm ? ` "${searchTerm}"` : ""}
                 {tipoFilter.length > 0
-                  ? ` · ${tipoFilter.map((t) => TIPO_LABELS[t]).join(", ")}`
+                  ? ` · ${tipoFilter.map((t) => TIPO_MOVIMIENTO_LABELS[t]).join(", ")}`
                   : ""}
                 {fechaInicio
                   ? ` · desde ${fechaInicio.format("DD/MM/YYYY")}`
