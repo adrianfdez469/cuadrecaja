@@ -288,3 +288,44 @@ export const formatMovimientoMotivo = (motivo: string | null | undefined): strin
   if (!motivo) return "";
   return motivo.replace(UUID_PATTERN, (id) => `#${id.slice(0, 8)}`).trim();
 };
+
+/**
+ * Compact form for large amounts: `$20.015.010.459,71` becomes `$20,02 MM`.
+ *
+ * Summary tiles show totals that in CUP routinely run to ten or eleven digits,
+ * and at that length the number stops being readable — it overflows the tile
+ * and, worse, two tiles side by side can no longer be compared at a glance,
+ * which is the only reason the tile exists.
+ *
+ * Only for display in tiles and charts. Anywhere the exact figure matters —
+ * tables, receipts, closings, anything the user reconciles against cash — keep
+ * using `formatCurrency` or `formatMontoEnMoneda`.
+ *
+ * Spanish scale abbreviations, not the English ones: `mil`, `MM` (millones) and
+ * `MMM` (miles de millones).
+ */
+const COMPACT_TIERS = [
+  { threshold: 1_000_000_000, divisor: 1_000_000_000, suffix: "MMM" },
+  { threshold: 1_000_000, divisor: 1_000_000, suffix: "MM" },
+  { threshold: 10_000, divisor: 1_000, suffix: "mil" },
+] as const;
+
+export const formatCompactAmount = (amount: number): string => {
+  const value = amount || 0;
+  const magnitude = Math.abs(value);
+  const tier = COMPACT_TIERS.find((t) => magnitude >= t.threshold);
+
+  // Below the smallest tier the plain figure is already short enough, and
+  // rounding it would lose precision the reader can see is missing.
+  if (!tier) return formatAmount(value, LOCALE);
+
+  return `${formatNumberWith(
+    value / tier.divisor,
+    { minimumFractionDigits: 0, maximumFractionDigits: 2 },
+    LOCALE,
+  )} ${tier.suffix}`;
+};
+
+/** `formatCompactAmount` with the base-currency symbol. Tiles and charts only. */
+export const formatCurrencyCompact = (amount: number): string =>
+  `${CURRENCY_SYMBOL}${formatCompactAmount(amount)}`;

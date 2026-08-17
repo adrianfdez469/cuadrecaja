@@ -1,13 +1,13 @@
 "use client";
 
-import { Box } from "@mui/material";
+import { Box, Tooltip } from "@mui/material";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { StatCard } from "@/components/StatCard";
-import { formatCurrency } from "@/utils/formatters";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/formatters";
 
 interface InventarioStatsRowProps {
   productos: IProductoTiendaV2[];
@@ -45,10 +45,19 @@ export function InventarioStatsRow({ productos }: InventarioStatsRowProps) {
         icon={<TrendingDownIcon fontSize="small" />}
         tone="negative"
       />
+      {/*
+        Compact in the tile, exact on hover: in CUP this total runs to eleven
+        digits and used to overflow the card, which made the two figures beside
+        it impossible to compare at a glance.
+      */}
       <StatCard
         variant="compact"
         label="Valor inventario"
-        value={formatCurrency(valorInventario)}
+        value={
+          <Tooltip title={formatCurrency(valorInventario)}>
+            <span>{formatCurrencyCompact(valorInventario)}</span>
+          </Tooltip>
+        }
         icon={<AttachMoneyIcon fontSize="small" />}
         tone="caution"
       />

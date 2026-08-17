@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  Box,
   Button,
   Card,
   CardContent,
@@ -27,7 +26,9 @@ import DeleteIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/EditOutlined";
 import CheckIcon from "@mui/icons-material/CheckCircleOutline";
 import CloseIcon from "@mui/icons-material/CloseOutlined";
-import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import { PageContainer } from "@/components/PageContainer";
+import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/LoadingState";
 import dayjs from "dayjs";
 import PercentageField from "@/components/PercentageField";
 import MoneyField from "@/components/MoneyField";
@@ -223,46 +224,51 @@ export default function DiscountsPage() {
     }
   };
 
-  return (
-    <Box p={2}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        mb={2}
-      >
-        <Stack direction="row" spacing={1} alignItems="center">
-          <LocalOfferIcon />
-          <Typography variant="h5">Descuentos</Typography>
-        </Stack>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={async () => {
-            // cargar opciones al abrir
-            setOpenDialog(true);
-            try {
-              setLoadingOptions(true);
-              const res = await fetch("/api/discounts/options");
-              if (res.ok) {
-                const data = await res.json();
-                setOptions(data);
-              }
-            } finally {
-              setLoadingOptions(false);
-            }
-          }}
-        >
-          Nueva Regla
-        </Button>
-      </Stack>
+  const breadcrumbs = [
+    { label: "Inicio", href: "/home" },
+    { label: "Configuración", href: "/configuracion" },
+    { label: "Descuentos" },
+  ];
 
+  const headerActions = (
+    <Button
+      variant="contained"
+      startIcon={<AddIcon />}
+      onClick={async () => {
+        // cargar opciones al abrir
+        setOpenDialog(true);
+        try {
+          setLoadingOptions(true);
+          const res = await fetch("/api/discounts/options");
+          if (res.ok) {
+            const data = await res.json();
+            setOptions(data);
+          }
+        } finally {
+          setLoadingOptions(false);
+        }
+      }}
+    >
+      Nueva Regla
+    </Button>
+  );
+
+  return (
+    <PageContainer
+      title="Descuentos"
+      subtitle="Reglas de descuento aplicables en el punto de venta"
+      breadcrumbs={breadcrumbs}
+      headerActions={headerActions}
+    >
       <Card>
         <CardContent>
           {loading ? (
-            <Typography>Cargando…</Typography>
+            <LoadingState variant="list" count={3} />
           ) : rules.length === 0 ? (
-            <Typography>No hay reglas de descuento aún.</Typography>
+            <EmptyState
+              title="Todavía no hay reglas de descuento"
+              description="Creá una regla para aplicar descuentos automáticos por producto, categoría o monto en el punto de venta."
+            />
           ) : (
             <Grid container spacing={2}>
               {rules.map((r) => {
@@ -653,6 +659,6 @@ export default function DiscountsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </PageContainer>
   );
 }
