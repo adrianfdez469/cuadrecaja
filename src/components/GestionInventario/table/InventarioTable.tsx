@@ -3,7 +3,6 @@
 import {
   Box,
   Chip,
-  CircularProgress,
   IconButton,
   Menu,
   MenuItem,
@@ -26,6 +25,8 @@ import {
 } from "@/constants/inventario";
 import { formatMontoEnMoneda, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
+import { LoadingState } from "@/components/LoadingState";
+import { EmptyState } from "@/components/EmptyState";
 import { getRentabilidad } from "./rentabilidad";
 
 interface Props {
@@ -170,20 +171,18 @@ export function InventarioTable({
   }));
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" py={4}>
-        <CircularProgress />
-      </Box>
-    );
+    // Seven columns, matching the header below, so the rows slot into place
+    // instead of pushing the page down when they arrive.
+    return <LoadingState variant="table" columns={7} count={10} />;
   }
 
   if (productos.length === 0) {
     return (
-      <Box py={4} textAlign="center">
-        <Typography color="text.secondary">
-          No se encontraron productos
-        </Typography>
-      </Box>
+      <EmptyState
+        variant="no-results"
+        title="No se encontraron productos"
+        description="Probá con otro término de búsqueda o quitá los filtros de categoría, stock y vencimiento."
+      />
     );
   }
 

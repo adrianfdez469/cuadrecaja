@@ -402,7 +402,16 @@ export default function MovimientosView() {
         maxWidth="xl"
       >
         <ContentCard>
-          <LoadingState variant="table" columns={6} count={8} />
+          {/*
+            This view renders a table on desktop and one card per movement on
+            phones, so the skeleton has to follow. A table skeleton in front of
+            incoming cards is just a spinner with extra steps.
+          */}
+          {isMobile ? (
+            <LoadingState variant="cards" count={5} />
+          ) : (
+            <LoadingState variant="table" columns={6} count={8} />
+          )}
         </ContentCard>
       </PageContainer>
     );

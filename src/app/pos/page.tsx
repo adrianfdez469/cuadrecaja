@@ -3,15 +3,17 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Typography,
-  CircularProgress,
   Box,
   IconButton,
   Alert,
   Button,
+  Skeleton,
+  Stack,
   useTheme,
   useMediaQuery,
   Tooltip,
 } from "@mui/material";
+import { LoadingState } from "@/components/LoadingState";
 
 import { flushCartToStorage, useCartStore } from "@/store/cartStore";
 import { getCatalogoPos } from "@/services/costoPrecioServices";
@@ -1560,14 +1562,31 @@ export default function POSInterface() {
   // for a moment before the products dropped in. With no period there is
   // nothing to wait for — that path opens its own dialog.
   if (loadingContext || loading || (periodo && !catalogLoaded)) {
+    // The POS opens onto a product grid, with a cart panel alongside it on
+    // desktop. A centred spinner said nothing about either, and on a catalogue
+    // of two thousand products the wait is long enough to be worth shaping.
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
-      >
-        <CircularProgress />
+      <Box sx={{ display: "flex", gap: 1, p: 1, height: "100%" }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+            {[96, 120, 104, 88].map((width) => (
+              <Skeleton
+                key={width}
+                variant="rounded"
+                width={width}
+                height={34}
+                sx={{ borderRadius: 4 }}
+              />
+            ))}
+          </Stack>
+          <LoadingState variant="cards" count={9} />
+        </Box>
+
+        {showCartPanel && (
+          <Box sx={{ width: 380, flexShrink: 0 }}>
+            <LoadingState variant="list" count={4} />
+          </Box>
+        )}
       </Box>
     );
   }

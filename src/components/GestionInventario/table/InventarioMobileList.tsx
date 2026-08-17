@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Divider,
   IconButton,
   Menu,
@@ -23,6 +22,8 @@ import {
 } from "@/constants/inventario";
 import { formatMontoEnMoneda, formatNumber } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
+import { LoadingState } from "@/components/LoadingState";
+import { EmptyState } from "@/components/EmptyState";
 import { getRentabilidad } from "./rentabilidad";
 
 interface Props {
@@ -237,20 +238,18 @@ export function InventarioMobileList({
   });
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" py={4}>
-        <CircularProgress />
-      </Box>
-    );
+    // Cards here, not table rows: this view renders one card per product, and a
+    // skeleton that does not match what is coming is just a different spinner.
+    return <LoadingState variant="cards" count={6} />;
   }
 
   if (productos.length === 0) {
     return (
-      <Box py={4} textAlign="center" minHeight="100dvh">
-        <Typography color="text.secondary">
-          No se encontraron productos
-        </Typography>
-      </Box>
+      <EmptyState
+        variant="no-results"
+        title="No se encontraron productos"
+        description="Probá con otro término de búsqueda o quitá los filtros de categoría, stock y vencimiento."
+      />
     );
   }
 
