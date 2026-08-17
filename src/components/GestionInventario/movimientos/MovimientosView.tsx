@@ -20,7 +20,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress,
   LinearProgress,
   Stack,
   Alert,
@@ -69,6 +68,8 @@ import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { ITipoMovimiento, MovimientoTipoEnum } from "@/schemas/movimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/LoadingState";
 import SelectableTextField from "@/components/SelectableTextField";
 import {
   formatNumber,
@@ -133,14 +134,17 @@ export default function MovimientosView() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
-  const disabledCleanFilter =
-    !(
-      searchTerm ||
-      searchInputValue ||
-      tipoFilter.length > 0 ||
-      fechaInicio ||
-      fechaFin
-    ) || loadingData;
+  // An empty table means two different things, and they need opposite answers:
+  // a filter that matched nothing offers a way to clear it, a store with no
+  // history explains where movements come from.
+  const hayFiltrosActivos = Boolean(
+    searchTerm ||
+    searchInputValue ||
+    tipoFilter.length > 0 ||
+    fechaInicio ||
+    fechaFin,
+  );
+  const disabledCleanFilter = !hayFiltrosActivos || loadingData;
 
   const [skip, setSkip] = useState(0);
 
@@ -383,17 +387,11 @@ export default function MovimientosView() {
   ].length;
 
   if (loadingContext || (primeraCarga && loadingData)) {
+    // A skeleton shaped like the table it is replacing, so the rows do not
+    // shove the page around when they arrive.
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
-      >
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando movimientos...
-        </Typography>
+      <Box sx={{ p: 2 }}>
+        <LoadingState variant="table" columns={6} count={8} />
       </Box>
     );
   }
@@ -759,39 +757,19 @@ export default function MovimientosView() {
         </Collapse>
 
         {movimientos.length === 0 ? (
-          <Box sx={{ p: 2 }}>
-            <Alert severity="info" sx={{ mt: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                {searchTerm
-                  ? "No se encontraron movimientos"
-                  : "No hay movimientos de stock registrados"}
-              </Typography>
-              <Typography variant="body1" gutterBottom>
-                {searchTerm
-                  ? "Intenta con otros términos de búsqueda"
-                  : "Los movimientos de stock se crean automáticamente cuando:"}
-              </Typography>
-              {!searchTerm && (
-                <Typography variant="body2" component="div">
-                  • Se realizan ventas desde el POS
-                  <br />
-                  • Se agregan productos al inventario
-                  <br />
-                  • Se realizan ajustes manuales
-                  <br />• Se hacen traspasos entre tiendas
-                </Typography>
-              )}
-              {!searchTerm && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 1 }}
-                >
-                  {`También puedes crear movimientos manuales usando el botón \"Crear Movimiento\".`}
-                </Typography>
-              )}
-            </Alert>
-          </Box>
+          hayFiltrosActivos ? (
+            <EmptyState
+              variant="no-results"
+              title="No se encontraron movimientos"
+              description="Ningún movimiento coincide con los filtros aplicados."
+              action={{ label: "Limpiar filtros", onClick: handleClearSearch }}
+            />
+          ) : (
+            <EmptyState
+              title="Todavía no hay movimientos de stock"
+              description="Se registran solos con cada venta, entrada de inventario, ajuste o traspaso entre tiendas. También podés crear uno a mano."
+            />
+          )
         ) : isMobile ? (
           // Vista móvil con cards más compactas
           <Box sx={{ p: 1.5 }}>
