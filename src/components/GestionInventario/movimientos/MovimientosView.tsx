@@ -387,12 +387,24 @@ export default function MovimientosView() {
   ].length;
 
   if (loadingContext || (primeraCarga && loadingData)) {
-    // A skeleton shaped like the table it is replacing, so the rows do not
-    // shove the page around when they arrive.
+    // Skeleton inside the page shell, not instead of it. A skeleton exists to
+    // hold the layout still, so the header and the title have to already be
+    // there — otherwise the whole page still jumps when the rows land, which
+    // is what the old full-screen spinner did.
     return (
-      <Box sx={{ p: 2 }}>
-        <LoadingState variant="table" columns={6} count={8} />
-      </Box>
+      <PageContainer
+        title="Movimientos de Stock"
+        subtitle={
+          !isMobile
+            ? "Historial de entradas y salidas de inventario"
+            : undefined
+        }
+        maxWidth="xl"
+      >
+        <ContentCard>
+          <LoadingState variant="table" columns={6} count={8} />
+        </ContentCard>
+      </PageContainer>
     );
   }
 
