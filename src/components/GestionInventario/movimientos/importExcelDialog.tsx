@@ -34,6 +34,15 @@ const HEADERS_REQUERIDOS = [
   "Cantidad",
 ];
 
+// Blank cells arrive as "" (sheet_to_json uses defval: "") and mean zero.
+// Non-numeric text still yields NaN so the row validation can reject it.
+function parseNumericCell(value: unknown): number {
+  if (value === null || value === undefined) return 0;
+  const raw = String(value).trim();
+  if (raw === "") return 0;
+  return Number(raw);
+}
+
 function buildNegativeRentabilidadWarning(
   filaNum: number,
   costo: number,
@@ -161,9 +170,9 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
 
         const categoria = String(row["Categoría"] ?? "").trim();
         const producto = String(row["Producto"] ?? "").trim();
-        const costo = Number(row["Costo"]);
-        const precio = Number(row["Precio"]);
-        const cantidad = Number(row["Cantidad"]);
+        const costo = parseNumericCell(row["Costo"]);
+        const precio = parseNumericCell(row["Precio"]);
+        const cantidad = parseNumericCell(row["Cantidad"]);
         const proveedor = String(row["Proveedor"] ?? "").trim() || undefined;
         const monedaCosto =
           String(row["Moneda Costo"] ?? "").trim() || monedaBase;
@@ -174,8 +183,8 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
         if (!categoria) filaErrores.push("Categoría vacía");
         if (isNaN(costo) || costo < 0) filaErrores.push("Costo inválido");
         if (isNaN(precio) || precio < 0) filaErrores.push("Precio inválido");
-        if (isNaN(cantidad) || cantidad <= 0)
-          filaErrores.push("Cantidad inválida");
+        if (isNaN(cantidad) || cantidad < 0)
+          filaErrores.push("Cantidad inválida (no puede ser negativa)");
 
         const clave = `${producto}|||${proveedor ?? ""}`;
         if (duplicados.has(clave)) {
@@ -287,7 +296,9 @@ export default function ImportarExcelDialog({ open, onClose, onSuccess }) {
             Columnas requeridas:{" "}
             <strong>Categoría, Producto, Costo, Precio, Cantidad</strong>.
             Opcionales: <strong>Moneda Costo, Moneda Precio, Proveedor</strong>.
-            Si no se especifica moneda, se usa <strong>{monedaBase}</strong>.
+            Si no se especifica moneda, se usa <strong>{monedaBase}</strong>. Las
+            celdas numéricas vacías se toman como <strong>0</strong>; no se
+            admiten valores negativos.
           </Typography>
 
           {archivo && (
