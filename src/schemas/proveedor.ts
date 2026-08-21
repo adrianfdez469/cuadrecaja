@@ -36,7 +36,32 @@ export const proveedorConsignacionSchema = z.object({
   estado: z.enum(['activo', 'inactivo']),
 });
 
+// One row of the supplier detail screen: current consignment stock joined with
+// what has already been sold for that product across closed periods.
+export const productoConsignacionSchema = z.object({
+  id: z.string(),
+  nombre: z.string(),
+  categoria: z.string(),
+  precio: z.number(),
+  vendidos: z.number(),
+  disponibles: z.number(),
+  ganancias: z.number(),
+});
+
+// A supplier settlement, aggregated per closing period.
+export const liquidacionConsignacionSchema = z.object({
+  id: z.string(),
+  fecha: z.string(),
+  monto: z.number(),
+  productos: z.number(),
+  observaciones: z.string(),
+  estado: z.enum(['completada', 'pendiente']),
+  fechaLiquidacion: z.string().nullable().optional(),
+});
+
 export type IProveedor = z.infer<typeof proveedorSchema>;
 export type IProveedorCreate = z.infer<typeof createProveedorSchema>;
 export type IProveedorUpdate = z.infer<typeof updateProveedorSchema>;
 export type IProveedorConsignacion = z.infer<typeof proveedorConsignacionSchema>;
+export type IProductoConsignacion = z.infer<typeof productoConsignacionSchema>;
+export type ILiquidacionConsignacion = z.infer<typeof liquidacionConsignacionSchema>;
