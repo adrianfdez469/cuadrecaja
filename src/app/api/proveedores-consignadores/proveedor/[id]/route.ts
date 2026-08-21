@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/utils/auth';
-import { buildTasaSnapshot, convertToBase } from '@/lib/currency';
+import { buildTasaSnapshot, convertToBase, roundBaseToAnchorCents } from '@/lib/currency';
 
 // Aggregated consignment stock a supplier currently has across the business
 // stores. Amounts are expressed in the business base currency, the same unit
@@ -11,8 +11,10 @@ type ConsignmentStockRow = {
     nombre: string;
     categoria: string;
     existencia: number;
-    precio: number;
     costo: number;
+    // existencia x costo, in base currency: what is owed to the supplier for
+    // this product if its whole stock sold.
+    valor: number;
 };
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -87,20 +89,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         // stores, so existencia adds up and prices are weighted by the stock
         // standing behind each of them.
         const stockPorProducto = new Map<string, ConsignmentStockRow & {
-            precioPonderado: number;
             costoPonderado: number;
-            precioSuma: number;
             costoSuma: number;
             filas: number;
         }>();
 
         for (const productoTienda of proveedor.productosConsignacion) {
-            const precioBase = convertToBase(
-                productoTienda.precio,
-                productoTienda.monedaPrecioCode ?? monedaBase,
-                tasasActuales,
-                monedaBase,
-            );
             const costoBase = convertToBase(
                 productoTienda.costo,
                 productoTienda.monedaCostoCode ?? monedaBase,
@@ -111,9 +105,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
             if (existente) {
                 existente.existencia += productoTienda.existencia;
-                existente.precioPonderado += precioBase * productoTienda.existencia;
+                // Accumulated per row instead of derived from the weighted
+                // average, so the total never drifts by a rounding step.
+                existente.valor += productoTienda.existencia * costoBase;
                 existente.costoPonderado += costoBase * productoTienda.existencia;
-                existente.precioSuma += precioBase;
                 existente.costoSuma += costoBase;
                 existente.filas += 1;
             } else {
@@ -122,11 +117,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
                     nombre: productoTienda.producto.nombre,
                     categoria: productoTienda.producto.categoria?.nombre ?? 'Sin categoría',
                     existencia: productoTienda.existencia,
-                    precio: 0,
                     costo: 0,
-                    precioPonderado: precioBase * productoTienda.existencia,
+                    valor: productoTienda.existencia * costoBase,
                     costoPonderado: costoBase * productoTienda.existencia,
-                    precioSuma: precioBase,
                     costoSuma: costoBase,
                     filas: 1,
                 });
@@ -139,9 +132,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             categoria: row.categoria,
             existencia: row.existencia,
             // Weighted by stock when there is any; a plain average keeps the
-            // price readable for a product that is momentarily sold out.
-            precio: row.existencia > 0 ? row.precioPonderado / row.existencia : row.precioSuma / row.filas,
+            // cost readable for a product that is momentarily sold out.
             costo: row.existencia > 0 ? row.costoPonderado / row.existencia : row.costoSuma / row.filas,
+            valor: roundBaseToAnchorCents(row.valor, tasasActuales, monedaBase),
         }));
 
         // The raw per-store rows are dropped: the client only consumes the

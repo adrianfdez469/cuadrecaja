@@ -44,6 +44,7 @@ import {
   Email,
   CalendarToday,
   Payment,
+  Inventory2,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { getProveedoresConsignacionById, liquidarProveedorConsignacion } from "@/services/preoveedoresService";
@@ -365,6 +366,14 @@ export default function ProveedorDetallePage() {
                   color="warning.light"
                 />
               </Grid>
+              <Grid item xs={12} md={12}>
+                <StatCard
+                  icon={<Inventory2 fontSize="medium" />}
+                  value={formatCurrency(proveedor.valorConsignacion)}
+                  label="Valor en Consignación"
+                  color="secondary.light"
+                />
+              </Grid>
             </Grid>
           </Grid>
         </Grid>
@@ -557,7 +566,7 @@ export default function ProveedorDetallePage() {
             Productos en Consignación
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            {productosConsignacion.length} productos registrados
+            {productosConsignacion.length} productos registrados · {formatCurrency(proveedor.valorConsignacion)} en existencia
           </Typography>
 
           {isMobile ? (
@@ -579,10 +588,10 @@ export default function ProveedorDetallePage() {
                       <Grid container spacing={2}>
                         <Grid item xs={6}>
                           <Typography variant="caption" color="text.secondary">
-                            Precio
+                            Costo Unitario
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(producto.precio)}
+                            {formatCurrency(producto.costo)}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
@@ -591,6 +600,14 @@ export default function ProveedorDetallePage() {
                           </Typography>
                           <Typography variant="body2" fontWeight="medium" color="info.main">
                             {producto.disponibles}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="caption" color="text.secondary">
+                            Valor en existencia
+                          </Typography>
+                          <Typography variant="body2" fontWeight="medium" color="secondary.main">
+                            {formatCurrency(producto.valor)}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
@@ -624,8 +641,9 @@ export default function ProveedorDetallePage() {
                     <TableCell>Producto</TableCell>
                     {/* <TableCell>Código</TableCell> */}
                     <TableCell>Categoría</TableCell>
-                    <TableCell align="right">Precio</TableCell>
+                    <TableCell align="right">Costo Unitario</TableCell>
                     <TableCell align="center">Disponibles</TableCell>
+                    <TableCell align="right">Valor en Existencia</TableCell>
                     <TableCell align="center">Vendidos</TableCell>
                     <TableCell align="right">Ganancias</TableCell>
                     {/* <TableCell align="center">Fecha Ingreso</TableCell> */}
@@ -651,12 +669,17 @@ export default function ProveedorDetallePage() {
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2">
-                          {formatCurrency(producto.precio)}
+                          {formatCurrency(producto.costo)}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
                         <Typography variant="body2" color="info.main" fontWeight="medium">
                           {producto.disponibles}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" color="secondary.main" fontWeight="medium">
+                          {formatCurrency(producto.valor)}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">

@@ -28,8 +28,8 @@ interface IStockConsignacionApi {
     nombre: string;
     categoria: string;
     existencia: number;
-    precio: number;
     costo: number;
+    valor: number;
 }
 
 interface IProveedorDetalleApi {
@@ -38,6 +38,7 @@ interface IProveedorDetalleApi {
     telefono: string;
     direccion: string;
     existenciaTotal?: number;
+    valorConsignacion?: number;
     stockConsignacion?: IStockConsignacionApi[];
     prodProveedorLiquidacion: ILiquidacionApi[];
 }
@@ -90,6 +91,9 @@ const mapProveedor = (data: IProveedorDetalleApi): IProveedorConsignacion => {
         totalProductosConsignacion:
             data.existenciaTotal ??
             (data.stockConsignacion ?? []).reduce((acc, stock) => acc + stock.existencia, 0),
+        valorConsignacion:
+            data.valorConsignacion ??
+            (data.stockConsignacion ?? []).reduce((acc, stock) => acc + stock.valor, 0),
         ultimaLiquidacion: pclc.reduce(findUltimaLiquidacion, null),
     };
 };
@@ -158,9 +162,10 @@ export const mapProductosConsignacion = (data: IProveedorDetalleApi): IProductoC
             id: stock.productoId,
             nombre: stock.nombre,
             categoria: stock.categoria,
-            precio: stock.precio,
+            costo: stock.costo,
             vendidos: 0,
             disponibles: stock.existencia,
+            valor: stock.valor,
             ganancias: 0,
         });
     }
@@ -190,9 +195,12 @@ export const mapProductosConsignacion = (data: IProveedorDetalleApi): IProductoC
             id: prodLiq.productoId,
             nombre: prodLiq.producto.nombre,
             categoria: prodLiq.producto.categoria?.nombre ?? 'Sin categoría',
-            precio: prodLiq.precio,
+            // `monto` is vendidos x historical unit cost, so dividing it back
+            // recovers what was paid per unit for a product no longer stocked.
+            costo: prodLiq.vendidos > 0 ? prodLiq.monto / prodLiq.vendidos : 0,
             vendidos: prodLiq.vendidos,
             disponibles: 0,
+            valor: 0,
             ganancias: ganancia,
         });
     }

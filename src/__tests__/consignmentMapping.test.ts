@@ -32,8 +32,8 @@ describe("mapProductosConsignacion", () => {
           nombre: "Ron",
           categoria: "Bebidas",
           existencia: 12,
-          precio: 30,
           costo: 20,
+          valor: 240,
         },
       ],
       prodProveedorLiquidacion: [],
@@ -44,6 +44,8 @@ describe("mapProductosConsignacion", () => {
       id: "prod-1",
       disponibles: 12,
       vendidos: 0,
+      costo: 20,
+      valor: 240,
       ganancias: 0,
     });
   });
@@ -60,8 +62,8 @@ describe("mapProductosConsignacion", () => {
           nombre: "Ron",
           categoria: "Bebidas",
           existencia: 7,
-          precio: 30,
           costo: 20,
+          valor: 140,
         },
       ],
       prodProveedorLiquidacion: [
@@ -71,6 +73,7 @@ describe("mapProductosConsignacion", () => {
     });
 
     expect(productos[0].disponibles).toBe(7);
+    expect(productos[0].valor).toBe(140);
     expect(productos[0].vendidos).toBe(8);
     // (5 * 30 - 100) + (3 * 30 - 60) = 50 + 30
     expect(productos[0].ganancias).toBe(80);
@@ -90,8 +93,8 @@ describe("mapProductosConsignacion", () => {
           nombre: "Ron",
           categoria: "Bebidas",
           existencia: 9,
-          precio: 30,
           costo: 20,
+          valor: 180,
         },
       ],
       prodProveedorLiquidacion: [liquidacion()],
@@ -134,7 +137,11 @@ describe("mapProductosConsignacion", () => {
     expect(productos[0]).toMatchObject({
       id: "prod-1",
       disponibles: 0,
+      // Nothing on the shelf, nothing owed for stock — only past sales remain.
+      valor: 0,
       vendidos: 5,
+      // monto 100 / vendidos 5 — the historical unit cost, never the sale price.
+      costo: 20,
       ganancias: 50,
     });
   });

@@ -32,6 +32,9 @@ export const proveedorConsignacionSchema = z.object({
   dineroLiquidado: z.number(),
   dineroPorLiquidar: z.number(),
   totalProductosConsignacion: z.number(),
+  // Stock on hand valued at cost, in base currency: what would be owed to the
+  // supplier if all of it sold.
+  valorConsignacion: z.number(),
   ultimaLiquidacion: z.string().nullable(),
   estado: z.enum(['activo', 'inactivo']),
 });
@@ -42,9 +45,14 @@ export const productoConsignacionSchema = z.object({
   id: z.string(),
   nombre: z.string(),
   categoria: z.string(),
-  precio: z.number(),
+  // Unit cost in base currency — what is paid to the supplier per unit. The
+  // sale price is deliberately absent: showing it next to a cost-based stock
+  // value made the row read as two contradictory numbers.
+  costo: z.number(),
   vendidos: z.number(),
   disponibles: z.number(),
+  // disponibles x costo, in base currency.
+  valor: z.number(),
   ganancias: z.number(),
 });
 
