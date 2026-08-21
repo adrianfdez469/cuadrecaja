@@ -80,6 +80,9 @@ export function GestionInventarioPage() {
     setStockFilter,
     expiryFilter,
     setExpiryFilter,
+    consignmentFilter,
+    setConsignmentFilter,
+    proveedoresConsignacion,
 
     editTarget,
     openEdit,
@@ -223,6 +226,9 @@ export function GestionInventarioPage() {
                 onExpiryChange={setExpiryFilter}
                 stockFilter={stockFilter}
                 onStockChange={setStockFilter}
+                consignmentFilter={consignmentFilter}
+                onConsignmentChange={setConsignmentFilter}
+                proveedoresConsignacion={proveedoresConsignacion}
                 onCreateProduct={openCreateProduct}
                 onRefresh={reload}
                 loading={loading}

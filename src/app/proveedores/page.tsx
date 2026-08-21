@@ -33,6 +33,7 @@ import {
   Person,
   LocalShipping,
   MonetizationOn,
+  Inventory2,
 } from "@mui/icons-material";
 import { IProveedorConsignacion } from "@/schemas/proveedor";
 import { getProveedoresConsignacion } from "@/services/preoveedoresService";
@@ -47,6 +48,7 @@ export default function ProveedoresPage() {
     totalPorLiquidar: 0,
     totalProveedores: 0,
     totalProductosConsignacion: 0,
+    valorConsignacion: 0,
   });
 
   const theme = useTheme();
@@ -69,12 +71,14 @@ export default function ProveedoresPage() {
         acc.totalLiquidado += proveedor.dineroLiquidado;
         acc.totalPorLiquidar += proveedor.dineroPorLiquidar;
         acc.totalProductosConsignacion += proveedor.totalProductosConsignacion;
+        acc.valorConsignacion += proveedor.valorConsignacion;
         return acc;
       }, {
         totalLiquidado: 0,
         totalPorLiquidar: 0,
         totalProveedores: proveedoresConsignación.length,
         totalProductosConsignacion: 0,
+        valorConsignacion: 0,
       });
 
       setTotales(totalesCalculados);
@@ -222,6 +226,15 @@ export default function ProveedoresPage() {
 
         <Grid item xs={12} sm={6} md={4}>
           <StatCard
+            icon={<Inventory2 fontSize={"medium"} />}
+            value={formatCurrency(totales.valorConsignacion)}
+            label="Valor en Consignación"
+            color="secondary.light"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard
             icon={<MonetizationOn fontSize={"medium"} />}
             value={formatCurrency(totales.totalLiquidado)}
             label="Dinero Liquidado"
@@ -313,6 +326,14 @@ export default function ProveedoresPage() {
                         </Grid>
                         <Grid item xs={6}>
                           <Typography variant="caption" color="text.secondary">
+                            Valor en Consignación
+                          </Typography>
+                          <Typography variant="body2" fontWeight="medium" color="secondary.main">
+                            {formatCurrency(proveedor.valorConsignacion)}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="caption" color="text.secondary">
                             Última Liquidación
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
@@ -351,6 +372,7 @@ export default function ProveedoresPage() {
                   <TableCell align="right">Dinero Liquidado</TableCell>
                   <TableCell align="right">Por Liquidar</TableCell>
                   <TableCell align="center">Productos</TableCell>
+                  <TableCell align="right">Valor en Consignación</TableCell>
                   <TableCell align="center">Última Liquidación</TableCell>
                   <TableCell align="center">Estado</TableCell>
                   <TableCell align="center">Acciones</TableCell>
@@ -397,6 +419,11 @@ export default function ProveedoresPage() {
                     <TableCell align="center">
                       <Typography variant="body2">
                         {proveedor.totalProductosConsignacion}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="medium" color="secondary.main">
+                        {formatCurrency(proveedor.valorConsignacion)}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">

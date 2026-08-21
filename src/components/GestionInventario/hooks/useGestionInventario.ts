@@ -24,6 +24,17 @@ import { useOnboardingStore } from "@/features/onboarding";
 export type StockFilter = "todo" | "en_stock" | "bajo_stock" | "sin_stock";
 export type ExpiryFilter = "todos" | "proximos" | "vencidos";
 
+// Prefix that turns the consignment filter into a per-supplier one, so a single
+// control covers "any consignment" and "this supplier's consignment" without a
+// second dropdown competing for room in the filter bar.
+export const CONSIGNMENT_SUPPLIER_PREFIX = "proveedor:";
+
+export type ConsignmentFilter =
+  | "todos"
+  | "propios"
+  | "consignacion"
+  | `${typeof CONSIGNMENT_SUPPLIER_PREFIX}${string}`;
+
 export interface EditProductData {
   nombre: string;
   descripcion: string;
@@ -89,6 +100,8 @@ export function useGestionInventario() {
   const [selectedCategorias, setSelectedCategorias] = useState<string[]>([]);
   const [stockFilter, setStockFilter] = useState<StockFilter>("todo");
   const [expiryFilter, setExpiryFilter] = useState<ExpiryFilter>("todos");
+  const [consignmentFilter, setConsignmentFilter] =
+    useState<ConsignmentFilter>("todos");
 
   // Dialog targets
   const [editTarget, setEditTarget] = useState<IProductoTiendaV2 | null>(null);
@@ -166,6 +179,17 @@ export function useGestionInventario() {
     else if (stockFilter === "sin_stock")
       result = result.filter((p) => p.existencia <= 0);
 
+    if (consignmentFilter === "propios") {
+      result = result.filter((p) => !p.proveedorId);
+    } else if (consignmentFilter === "consignacion") {
+      result = result.filter((p) => !!p.proveedorId);
+    } else if (consignmentFilter.startsWith(CONSIGNMENT_SUPPLIER_PREFIX)) {
+      const proveedorId = consignmentFilter.slice(
+        CONSIGNMENT_SUPPLIER_PREFIX.length,
+      );
+      result = result.filter((p) => p.proveedorId === proveedorId);
+    }
+
     if (expiryFilter === "proximos") {
       result = result.filter((p) => {
         if (!p.fechaVencimiento) return false;
@@ -180,7 +204,33 @@ export function useGestionInventario() {
     }
 
     return result;
-  }, [productos, searchTerm, selectedCategorias, stockFilter, expiryFilter]);
+  }, [
+    productos,
+    searchTerm,
+    selectedCategorias,
+    stockFilter,
+    expiryFilter,
+    consignmentFilter,
+  ]);
+
+  // Suppliers actually present in this store's inventory. Derived from the
+  // loaded products instead of fetched: the payload already carries the
+  // supplier, and listing suppliers with nothing on the shelf would only offer
+  // filters that return an empty table.
+  const proveedoresConsignacion = useMemo(() => {
+    const porId = new Map<string, { id: string; nombre: string }>();
+
+    for (const producto of productos) {
+      if (producto.proveedor) {
+        porId.set(producto.proveedor.id, {
+          id: producto.proveedor.id,
+          nombre: producto.proveedor.nombre,
+        });
+      }
+    }
+
+    return [...porId.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [productos]);
 
   const resolveCategoria = async (data: {
     categoriaId: string;
@@ -440,6 +490,9 @@ export function useGestionInventario() {
     setStockFilter,
     expiryFilter,
     setExpiryFilter,
+    consignmentFilter,
+    setConsignmentFilter,
+    proveedoresConsignacion,
 
     editTarget,
     openEdit: setEditTarget,

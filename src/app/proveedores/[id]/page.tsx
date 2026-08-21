@@ -44,34 +44,14 @@ import {
   Email,
   CalendarToday,
   Payment,
+  Inventory2,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
-import { findUltimaLiquidacion, getProveedoresConsignacionById, liquidarProveedorConsignacion, sumDineroLiquidado, sumDineroPorLiquidar, sumProdsConsignación } from "@/services/preoveedoresService";
-import { IProveedorConsignacion } from "@/schemas/proveedor";
+import { getProveedoresConsignacionById, liquidarProveedorConsignacion } from "@/services/preoveedoresService";
+import { ILiquidacionConsignacion, IProductoConsignacion, IProveedorConsignacion } from "@/schemas/proveedor";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { usePermisos } from "@/utils/permisos_front";
-
-interface ILiquidacion {
-  id: string;
-  fecha: string;
-  monto: number;
-  productos: number;
-  observaciones: string;
-  estado: 'completada' | 'pendiente';
-  fechaLiquidacion?: string | null;
-}
-
-interface IProductoConsignacion {
-  id: string;
-  nombre: string;
-  // codigo: string;
-  categoria: string;
-  precio: number;
-  vendidos: number;
-  disponibles: number;
-  ganancias: number;
-}
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -104,7 +84,7 @@ export default function ProveedorDetallePage() {
   const router = useRouter();
   const [tabValue, setTabValue] = useState(0);
   const [proveedor, setProveedor] = useState<IProveedorConsignacion | null>(null);
-  const [liquidaciones, setLiquidaciones] = useState<ILiquidacion[]>([]);
+  const [liquidaciones, setLiquidaciones] = useState<ILiquidacionConsignacion[]>([]);
   const [productosConsignacion, setProductosConsignacion] = useState<IProductoConsignacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [pageLiquidaciones, setPageLiquidaciones] = useState(0);
@@ -120,125 +100,17 @@ export default function ProveedorDetallePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-
-      const proveedorData = await getProveedoresConsignacionById(id.toString());
-
-
-      const pclc = proveedorData.prodProveedorLiquidacion;
-      const dataProveedor: IProveedorConsignacion = {
-        nombre: proveedorData.nombre,
-        telefono: proveedorData.telefono,
-        direccion: proveedorData.direccion,
-        id: proveedorData.id,
-        estado: 'activo',
-        dineroLiquidado: pclc.reduce(sumDineroLiquidado, 0),
-        dineroPorLiquidar: pclc.reduce(sumDineroPorLiquidar, 0),
-        totalProductosConsignacion: pclc.reduce(sumProdsConsignación, 0),
-        ultimaLiquidacion: pclc.reduce(findUltimaLiquidacion, null)
-      }
-
-      const liquidacionesProveedorObj = pclc.reduce((acc, prodLiq) => {
-        if(!acc[prodLiq.cierreId]) {
-          return {
-            ...acc,
-            [prodLiq.cierreId]: {
-              id: prodLiq.cierreId,
-              fecha: prodLiq.createdAt,
-              monto: prodLiq.monto,
-              productos: prodLiq.vendidos,
-              observaciones: `Liquidación de cierre: ${new Date(prodLiq.cierre.fechaInicio).toLocaleDateString()} - ${new Date(prodLiq.cierre.fechaFin).toLocaleDateString()}`,
-              estado: prodLiq.liquidatedAt !== null ? "completada" : "pendiente",
-              fechaLiquidacion: prodLiq.liquidatedAt
-            }
-          }
-        } else {
-          return {
-            ...acc,
-            [prodLiq.cierreId] : {
-              ...acc[prodLiq.cierreId],
-              monto: acc[prodLiq.cierreId].monto + prodLiq.monto,
-              productos: acc[prodLiq.cierreId].productos + prodLiq.vendidos,
-              // Mantener la fecha de liquidación más reciente para liquidaciones completadas
-              fechaLiquidacion: prodLiq.liquidatedAt && (!acc[prodLiq.cierreId].fechaLiquidacion || new Date(prodLiq.liquidatedAt) > new Date(acc[prodLiq.cierreId].fechaLiquidacion)) 
-                ? prodLiq.liquidatedAt 
-                : acc[prodLiq.cierreId].fechaLiquidacion
-            }
-          }
-        }
-      }, {})
+      const { proveedor: dataProveedor, liquidaciones: liquidacionesData, productos } =
+        await getProveedoresConsignacionById(id.toString());
 
       if (!dataProveedor) {
         router.push('/proveedores');
         return;
       }
 
-
-      // Ordena por 2 criterios
-      // 1: Estado: Muestra primero los pendientes y despues los completados.
-      // 2: Fecha: Para el grupo de los pendientes, los primeros serán los más antiguos.
-      //           Para el grupo de los completados, los primeros seran los mas actuales. 
-      const liquidacionesData = (Object.values(liquidacionesProveedorObj) as  ILiquidacion[])
-      .sort((a, b) => {
-        if(a.estado === 'completada' && b.estado === 'pendiente') {
-          return 1;
-        } else if(a.estado === 'pendiente' && b.estado === 'completada') {
-          return -1;
-        } else {
-          // Ambos tienen el mismo estado, ordenar por fecha
-          if(a.estado === 'pendiente') {
-            // Para pendientes: fechas más antiguas primero (orden ascendente)
-            if( new Date(a.fecha) > new Date(b.fecha) ) {
-              return 1;   // 'a' va DESPUÉS de 'b'
-            } else {
-              return -1;  // 'a' va ANTES de 'b'
-            }
-          } else {
-            // Para completadas: fechas más recientes primero (orden descendente)
-            if( new Date(a.fecha) > new Date(b.fecha) ) {
-              return -1;  // 'a' va ANTES de 'b'
-            } else {
-              return 1;   // 'a' va DESPUÉS de 'b'
-            }
-          }
-        }
-      })
-
-      const prodsConsignaciónMap: IProductoConsignacion[] = pclc.reduce((acc, prod)   => {
-        if(!acc[prod.productoId]) {
-          return {
-            ...acc,
-            [prod.productoId]: {
-              id: prod.productoId,
-              nombre: prod.producto.nombre,
-              categoria: prod.producto.categoria.nombre,
-              precio: prod.precio,
-
-              vendidos: prod.vendidos,
-              
-              disponibles: prod.existencia,
-              ganancias: (prod.vendidos * prod.precio) - prod.monto
-            }
-          }
-        } else {
-          return {
-            ...acc,
-            [prod.productoId]: {
-              ...acc[prod.productoId],
-              vendidos: acc[prod.productoId].vendidos + prod.vendidos,
-              
-              disponibles: acc[prod.productoId].disponibles + prod.existencia,
-              ganancias: acc[prod.productoId].ganancias + ((prod.vendidos * prod.precio) - prod.monto)
-            }
-          }
-        }
-      }, {});
-
-      const prodsConsignación = Object.values(prodsConsignaciónMap);
-
-
       setProveedor(dataProveedor);
       setLiquidaciones(liquidacionesData);
-      setProductosConsignacion(prodsConsignación);
+      setProductosConsignacion(productos);
     } catch (error) {
       console.error("Error al cargar detalles del proveedor:", error);
     } finally {
@@ -494,6 +366,14 @@ export default function ProveedorDetallePage() {
                   color="warning.light"
                 />
               </Grid>
+              <Grid item xs={12} md={12}>
+                <StatCard
+                  icon={<Inventory2 fontSize="medium" />}
+                  value={formatCurrency(proveedor.valorConsignacion)}
+                  label="Valor en Consignación"
+                  color="secondary.light"
+                />
+              </Grid>
             </Grid>
           </Grid>
         </Grid>
@@ -686,7 +566,7 @@ export default function ProveedorDetallePage() {
             Productos en Consignación
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            {productosConsignacion.length} productos registrados
+            {productosConsignacion.length} productos registrados · {formatCurrency(proveedor.valorConsignacion)} en existencia
           </Typography>
 
           {isMobile ? (
@@ -708,10 +588,10 @@ export default function ProveedorDetallePage() {
                       <Grid container spacing={2}>
                         <Grid item xs={6}>
                           <Typography variant="caption" color="text.secondary">
-                            Precio
+                            Costo Unitario
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(producto.precio)}
+                            {formatCurrency(producto.costo)}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
@@ -720,6 +600,14 @@ export default function ProveedorDetallePage() {
                           </Typography>
                           <Typography variant="body2" fontWeight="medium" color="info.main">
                             {producto.disponibles}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="caption" color="text.secondary">
+                            Valor en existencia
+                          </Typography>
+                          <Typography variant="body2" fontWeight="medium" color="secondary.main">
+                            {formatCurrency(producto.valor)}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
@@ -753,8 +641,9 @@ export default function ProveedorDetallePage() {
                     <TableCell>Producto</TableCell>
                     {/* <TableCell>Código</TableCell> */}
                     <TableCell>Categoría</TableCell>
-                    <TableCell align="right">Precio</TableCell>
+                    <TableCell align="right">Costo Unitario</TableCell>
                     <TableCell align="center">Disponibles</TableCell>
+                    <TableCell align="right">Valor en Existencia</TableCell>
                     <TableCell align="center">Vendidos</TableCell>
                     <TableCell align="right">Ganancias</TableCell>
                     {/* <TableCell align="center">Fecha Ingreso</TableCell> */}
@@ -780,12 +669,17 @@ export default function ProveedorDetallePage() {
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2">
-                          {formatCurrency(producto.precio)}
+                          {formatCurrency(producto.costo)}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
                         <Typography variant="body2" color="info.main" fontWeight="medium">
                           {producto.disponibles}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" color="secondary.main" fontWeight="medium">
+                          {formatCurrency(producto.valor)}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
