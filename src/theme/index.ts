@@ -6,52 +6,93 @@ import {
   darkTokens,
   lightTokens,
   shape,
+  touch,
 } from "./tokens";
 
 export * from "./tokens";
 
 /**
- * The brand colour is deliberately unchanged in this pass.
+ * The brand colour, from the chosen direction.
  *
- * `#1976d2` is Material UI's stock blue — the app never picked a primary. That
- * gets decided from the visual direction, and until then changing it here would
- * only churn every screen for no reason. The structure lands now, the values land
- * with the direction.
+ * It replaces `#1976d2` — Material UI's stock blue, which the app had never
+ * actually chosen, it just never overrode it. The direction reserves this violet
+ * for one job: action and selection. Nothing else may be violet, which is why
+ * `info` is a blue kept well away from it.
  */
-const PROVISIONAL_PRIMARY = {
-  main: "#1976d2",
-  light: "#42a5f5",
-  dark: "#1565c0",
-} as const;
-
-const PROVISIONAL_SECONDARY = {
-  main: "#dc004e",
-  light: "#ff5983",
-  dark: "#9a0036",
+const BRAND = {
+  main: lightTokens.hue.accent.main,
+  light: "#7C6DC4",
+  dark: "#43357F",
 } as const;
 
 /**
- * Typography carries no colour of its own.
+ * Secondary is the near-black of the charge bar, not a second brand colour.
  *
- * Every variant used to hardcode one (`#1a202c`, `#374151`, `#6b7280`…), which is
- * the single reason a dark mode was impossible: text could never respond to the
- * scheme. Colour now comes from `palette.text` and is inherited.
+ * The direction's second most prominent surface is that bar; giving MUI a pink
+ * `secondary` it would then scatter across the app is how the palette drifted in
+ * the first place.
+ */
+const INK = {
+  main: "#131417",
+  light: "#3D3E46",
+  dark: "#08090B",
+} as const;
+
+/**
+ * The system stack, on purpose.
+ *
+ * The theme used to name Inter and never load it — no `next/font`, no font
+ * files, no stylesheet link — so every screen has always rendered in Helvetica
+ * anyway. Rather than finally ship the download, this makes the truth the
+ * intent: the POS sells with no connection and its first paint is the screen
+ * that matters most, so a blocking webfont buys nothing the direction needs. The
+ * direction itself was drawn and approved in this stack.
+ *
+ * Typography carries no colour of its own. Every variant used to hardcode one
+ * (`#1a202c`, `#374151`, `#6b7280`…), which is the single reason a dark mode was
+ * impossible: text could never respond to the scheme. Colour now comes from
+ * `palette.text` and is inherited.
+ *
+ * Sizes follow the direction's scale. Large amounts are tightened
+ * (`letterSpacing: -0.025em`) because they are set in the 34–40px range and the
+ * default tracking makes a six-digit total look loose.
  */
 const typography = {
-  fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-  h1: { fontSize: "2.5rem", fontWeight: 700, lineHeight: 1.2 },
-  h2: { fontSize: "2rem", fontWeight: 600, lineHeight: 1.3 },
-  h3: { fontSize: "1.75rem", fontWeight: 600, lineHeight: 1.4 },
-  h4: { fontSize: "1.5rem", fontWeight: 600, lineHeight: 1.4 },
-  h5: { fontSize: "1.25rem", fontWeight: 600, lineHeight: 1.5 },
-  h6: { fontSize: "1.125rem", fontWeight: 600, lineHeight: 1.5 },
-  body1: { fontSize: "1rem", lineHeight: 1.6 },
-  body2: { fontSize: "0.875rem", lineHeight: 1.6 },
-  caption: { fontSize: "0.75rem", lineHeight: 1.5 },
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  h1: {
+    fontSize: "2.5rem",
+    fontWeight: 700,
+    lineHeight: 1.1,
+    letterSpacing: "-0.025em",
+  },
+  h2: {
+    fontSize: "2.125rem",
+    fontWeight: 700,
+    lineHeight: 1.15,
+    letterSpacing: "-0.025em",
+  },
+  h3: {
+    fontSize: "1.625rem",
+    fontWeight: 700,
+    lineHeight: 1.25,
+    letterSpacing: "-0.02em",
+  },
+  h4: {
+    fontSize: "1.375rem",
+    fontWeight: 700,
+    lineHeight: 1.3,
+    letterSpacing: "-0.015em",
+  },
+  h5: { fontSize: "1.1875rem", fontWeight: 700, lineHeight: 1.35 },
+  h6: { fontSize: "1.0625rem", fontWeight: 700, lineHeight: 1.4 },
+  body1: { fontSize: "0.9375rem", lineHeight: 1.5 },
+  body2: { fontSize: "0.8125rem", lineHeight: 1.5 },
+  caption: { fontSize: "0.71875rem", lineHeight: 1.45 },
   button: {
     textTransform: "none" as const,
-    fontWeight: 600,
-    fontSize: "0.875rem",
+    fontWeight: 700,
+    fontSize: "0.9375rem",
   },
 } as const;
 
@@ -59,8 +100,8 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
   return createTheme({
     palette: {
       mode,
-      primary: { ...PROVISIONAL_PRIMARY, contrastText: t.text.onFilled },
-      secondary: { ...PROVISIONAL_SECONDARY, contrastText: t.text.onFilled },
+      primary: { ...BRAND, contrastText: t.hue.accent.contrast },
+      secondary: { ...INK, contrastText: t.text.onInverse },
       // The status colours resolve to the semantic hues. This is the
       // consolidation: seven greens, six reds and five oranges become one each.
       success: {
@@ -94,8 +135,8 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
           root: {
             borderRadius: shape.radius.md,
             padding: "8px 16px",
-            fontSize: "0.875rem",
-            fontWeight: 500,
+            fontSize: "0.9375rem",
+            fontWeight: 700,
             textTransform: "none",
             boxShadow: "none",
             // `transition: all` forces the browser to evaluate every animatable
@@ -108,12 +149,24 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
               "&:hover": { boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)" },
             },
           },
+          // The direction's touch floor, applied where it costs nothing: the
+          // default size clears 44px and the large one clears 56px. `small`
+          // keeps MUI's height so dense toolbars and table rows still fit.
+          sizeMedium: { minHeight: touch.min },
+          sizeLarge: { minHeight: touch.comfortable },
+        },
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          // A bare 24px icon with MUI's 8px padding lands at 40px — under the
+          // floor, and these are the controls a thumb hits most in the POS.
+          sizeMedium: { width: touch.min, height: touch.min },
         },
       },
       MuiCard: {
         styleOverrides: {
           root: {
-            borderRadius: shape.radius.lg,
+            borderRadius: shape.radius.md,
             boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
             border: `1px solid ${t.surface.border}`,
             transition: "box-shadow 0.2s ease, transform 0.2s ease",
@@ -180,7 +233,7 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
                 borderColor: t.surface.borderStrong,
               },
               "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                borderColor: PROVISIONAL_PRIMARY.main,
+                borderColor: BRAND.main,
                 borderWidth: "2px",
               },
             },
@@ -190,8 +243,8 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
       MuiChip: {
         styleOverrides: {
           root: {
-            borderRadius: shape.radius.sm,
-            fontWeight: 500,
+            borderRadius: shape.radius.pill,
+            fontWeight: 600,
             fontSize: "0.75rem",
           },
           colorSuccess: {

@@ -17,7 +17,8 @@ export default function GlobalError({
     <html lang="es">
       <body
         style={{
-          fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
           background: "#f8fafc",
           margin: 0,
           display: "flex",

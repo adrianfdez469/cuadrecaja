@@ -1,10 +1,17 @@
 /**
  * Design tokens — the single source of truth for every colour in the app.
  *
- * PROVISIONAL VALUES. The structure here is final; the values are placeholders
- * until the visual direction is chosen in Claude Design (phase 3b). When that
- * lands, only the constants in this file change — no component should need
- * touching, because nothing outside this file is allowed to name a colour.
+ * These are the values of the visual direction chosen in Claude Design
+ * ("Pulgar": search on top, charging under the thumb). Everything here was read
+ * off that direction rather than invented: the violet accent, the near-black
+ * charge bar, the green for change owed and the red for what is still missing
+ * all come from the POS sale and checkout screens.
+ *
+ * Two hues are derived rather than drawn, because the POS never needed them:
+ * `caution` and `info`. They are placed in the gaps of the hue circle left by
+ * the four the direction does define, so no two roles read as each other — in
+ * particular `info` is a blue kept far from the accent violet, since the
+ * direction reserves violet for action and selection alone.
  *
  * The whole point of this layer is arithmetic: the app previously carried 108
  * distinct hardcoded hex values for what turns out to be six meanings. Every
@@ -42,6 +49,12 @@ type Surfaces = {
   border: string;
   /** A stronger border for focus and active outlines. */
   borderStrong: string;
+  /**
+   * The flipped ground. The direction leans on this hard: the total and its
+   * action live together on a near-black bar pinned to the bottom of the POS,
+   * so the one number that matters is never the same colour as the page.
+   */
+  inverse: string;
 };
 
 type TextColors = {
@@ -50,6 +63,10 @@ type TextColors = {
   disabled: string;
   /** Text placed on a coloured `main` ink. */
   onFilled: string;
+  /** Text placed on `surface.inverse`. */
+  onInverse: string;
+  /** Secondary text on `surface.inverse` — labels, conversions, counters. */
+  onInverseMuted: string;
 };
 
 /**
@@ -57,51 +74,62 @@ type TextColors = {
  * cannot be expressed with shape, weight, icon or position.
  */
 const lightHues: Hues = {
-  positive: { main: "#1F7A45", surface: "#E6F3EB", contrast: "#FFFFFF" },
-  negative: { main: "#B3261E", surface: "#FBE9E8", contrast: "#FFFFFF" },
-  caution: { main: "#8A5A00", surface: "#FBF0DC", contrast: "#FFFFFF" },
-  info: { main: "#14639E", surface: "#E3EFF8", contrast: "#FFFFFF" },
-  neutral: { main: "#5A6069", surface: "#EEF0F2", contrast: "#FFFFFF" },
-  accent: { main: "#5B44A8", surface: "#EDE9F8", contrast: "#FFFFFF" },
+  positive: { main: "#1F6B3F", surface: "#F1F7F3", contrast: "#FFFFFF" },
+  negative: { main: "#A5382A", surface: "#FBF3F1", contrast: "#FFFFFF" },
+  caution: { main: "#8A5A12", surface: "#FAF3E9", contrast: "#FFFFFF" },
+  info: { main: "#1C5E80", surface: "#EDF4F8", contrast: "#FFFFFF" },
+  neutral: { main: "#5B5A63", surface: "#F3F2F6", contrast: "#FFFFFF" },
+  accent: { main: "#5B4CA8", surface: "#F4F2FB", contrast: "#FFFFFF" },
 };
 
 const darkHues: Hues = {
-  positive: { main: "#6FBF8E", surface: "#143024", contrast: "#0B1A12" },
-  negative: { main: "#F2938C", surface: "#3A1B19", contrast: "#2A0F0D" },
-  caution: { main: "#DCA940", surface: "#38290E", contrast: "#241A07" },
-  info: { main: "#6FB3E0", surface: "#10293C", contrast: "#081926" },
-  neutral: { main: "#A0A7B0", surface: "#24282D", contrast: "#15181B" },
-  accent: { main: "#A794E8", surface: "#241D3D", contrast: "#150F26" },
+  positive: { main: "#5FB37E", surface: "#14291D", contrast: "#0B1A12" },
+  negative: { main: "#E08376", surface: "#2E1815", contrast: "#2A0F0D" },
+  caution: { main: "#CFA24A", surface: "#2B2113", contrast: "#241A07" },
+  info: { main: "#5FA6CC", surface: "#12242E", contrast: "#081926" },
+  neutral: { main: "#A2A1AB", surface: "#25252A", contrast: "#15181B" },
+  accent: { main: "#A493E8", surface: "#221C3A", contrast: "#150F26" },
 };
 
 const lightSurfaces: Surfaces = {
-  page: "#F7F8F9",
+  page: "#F7F7FA",
   raised: "#FFFFFF",
-  sunken: "#EFF1F3",
-  border: "#E2E5E9",
-  borderStrong: "#C7CCD3",
+  sunken: "#F3F2F6",
+  border: "#ECEBEF",
+  borderStrong: "#D8D7DE",
+  inverse: "#131417",
 };
 
 const darkSurfaces: Surfaces = {
-  page: "#121417",
-  raised: "#1A1D21",
-  sunken: "#0E1013",
-  border: "#2A2F35",
-  borderStrong: "#3D444C",
+  page: "#141517",
+  raised: "#1C1E20",
+  sunken: "#111214",
+  border: "#2A2C2F",
+  borderStrong: "#3C3F43",
+  inverse: "#F3F2F6",
 };
 
+/**
+ * `secondary` is darker than the direction's own #7C7B85. That grey clears 4:1
+ * on white and the direction only ever set 11px meta text in it; promoting it to
+ * the app's secondary text would have failed AA on body copy.
+ */
 const lightText: TextColors = {
-  primary: "#16191D",
-  secondary: "#5A6069",
-  disabled: "#9AA1AA",
+  primary: "#131417",
+  secondary: "#5F5E68",
+  disabled: "#9B9AA3",
   onFilled: "#FFFFFF",
+  onInverse: "#FFFFFF",
+  onInverseMuted: "#9A99A3",
 };
 
 const darkText: TextColors = {
-  primary: "#E8EAED",
-  secondary: "#A2A9B3",
-  disabled: "#6B727B",
+  primary: "#E9E8E5",
+  secondary: "#A6A5AE",
+  disabled: "#71707A",
   onFilled: "#0F1114",
+  onInverse: "#131417",
+  onInverseMuted: "#5F5E68",
 };
 
 /**
@@ -200,33 +228,37 @@ export const darkTokens = buildScheme(darkHues, darkSurfaces, darkText);
 export type SemanticTokens = typeof lightTokens;
 
 /**
- * Spacing, radii and elevation. Kept here so the values stop being retyped:
- * the app currently mixes spacing multiples (`borderRadius: 2`) with raw pixels
+ * Spacing and radii. Kept here so the values stop being retyped: the app
+ * currently mixes spacing multiples (`borderRadius: 2`) with raw pixels
  * (`borderRadius: 8`) for the same corner.
  */
 export const shape = {
   /** MUI's spacing unit, in px. `theme.spacing(2)` === 16px. */
   spacingUnit: 8,
   radius: {
-    /** Chips, tags, small controls. */
-    sm: 6,
-    /** Buttons, inputs, menus. */
-    md: 8,
-    /** Cards, dialogs, sheets. */
-    lg: 12,
-    /** Pills and avatars. */
+    /** Keypad keys, quick-amount buttons, small controls. */
+    sm: 10,
+    /** Buttons, inputs, cards, payment tiles — the default corner. */
+    md: 12,
+    /** Dialogs, bottom sheets, the sheets that cover the POS. */
+    lg: 16,
+    /** Pills and avatars: account tabs, category chips. */
     pill: 999,
   },
 } as const;
 
 /**
- * Touch targets. The POS is operated one-handed, standing, so these are floors
- * rather than suggestions — the current build ships 15px icons inside the
- * account chips.
+ * Touch targets and row heights, in px. The POS is operated one-handed while
+ * standing, so these are floors rather than suggestions — the current build
+ * ships 15px icons inside the account chips.
  */
 export const touch = {
-  /** Absolute minimum for anything tappable. */
+  /** Absolute minimum for anything tappable: icon buttons, «+», «✕». */
   min: 44,
-  /** Primary POS actions: add to cart, charge. */
+  /** Primary POS actions: search field, scanner, charge button. */
   comfortable: 56,
+  /** A settings or payment-method row. */
+  row: 56,
+  /** A catalogue row, which carries a name, stock, price and two conversions. */
+  rowLarge: 72,
 } as const;
