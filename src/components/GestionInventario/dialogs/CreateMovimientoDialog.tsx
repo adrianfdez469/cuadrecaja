@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Alert,
   Autocomplete,
   Box,
   Button,
@@ -37,10 +36,17 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { FormaPagoCompraSelect } from "@/components/GestionInventario/FormaPagoCompraSelect";
 import MoneyField from "@/components/MoneyField";
 import SelectableTextField from "@/components/SelectableTextField";
+import { StockActualAlert } from "./StockActualAlert";
 
 interface Props {
   open: boolean;
   producto: IProductoTiendaV2 | null;
+  /**
+   * Every ProductoTienda row of the store. Consigned goods have one row per
+   * supplier, so picking another supplier means acting on another row — this
+   * list is what lets the dialog show and validate that row's stock.
+   */
+  productosTienda: IProductoTiendaV2[];
   onClose: () => void;
   onCreated: () => void;
 }
@@ -87,6 +93,7 @@ const TIPOS_BASE: {
 export function CreateMovimientoDialog({
   open,
   producto,
+  productosTienda,
   onClose,
   onCreated,
 }: Props) {
@@ -110,6 +117,10 @@ export function CreateMovimientoDialog({
   // save — including the one the user triggers after a network error — and
   // renewed only once the movement is recorded.
   const idempotencyKeyRef = useRef<string | null>(null);
+  // Whether the user typed a cost. While untouched, switching supplier also
+  // brings that supplier's cost in; once edited, their number is never
+  // overwritten.
+  const costoTouchedRef = useRef(false);
 
   const monedasParaCompra = useMemo(() => {
     const lista = [monedaBase];
@@ -118,6 +129,22 @@ export function CreateMovimientoDialog({
     }
     return lista;
   }, [monedaBase, monedasNegocio]);
+
+  /**
+   * The store row the movement will actually hit once a supplier is selected:
+   * same product, that supplier. Missing means the supplier holds none of this
+   * product here, which reads as stock 0.
+   */
+  const filaProveedorSeleccionado = useMemo(() => {
+    if (!producto || !selectedProveedor) return null;
+    return (
+      productosTienda.find(
+        (pt) =>
+          pt.productoId === producto.productoId &&
+          pt.proveedorId === selectedProveedor.id,
+      ) ?? null
+    );
+  }, [producto, productosTienda, selectedProveedor]);
 
   useEffect(() => {
     if (open && producto) {
@@ -135,6 +162,7 @@ export function CreateMovimientoDialog({
       // nunca en monedaBase a secas, o el número se reinterpreta mal.
       setMonedaCompra(producto.monedaCostoCode ?? monedaBase);
       setFormaPago("EXTERNO");
+      costoTouchedRef.current = false;
     }
   }, [open, producto, monedaBase]);
 
@@ -193,8 +221,34 @@ export function CreateMovimientoDialog({
   const mostrarMoneda = mostrarCosto && monedasParaCompra.length > 1;
   const isExtraCurrency = mostrarCosto && monedaCompra !== monedaBase;
 
+  // With a supplier selected, the figures on screen belong to that supplier's
+  // row — not to the row the dialog was opened from.
+  const usaFilaProveedor = esConsignacion && !!selectedProveedor;
+  const proveedorSinFila = usaFilaProveedor && !filaProveedorSeleccionado;
+  const existenciaActual = usaFilaProveedor
+    ? (filaProveedorSeleccionado?.existencia ?? 0)
+    : producto.existencia;
+
   const cantidadNum = parseFloat(cantidad.replace(",", ".")) || 0;
-  const cantidadExcedeStock = esSalida && cantidadNum > producto.existencia;
+  const cantidadExcedeStock = esSalida && cantidadNum > existenciaActual;
+
+  /**
+   * Switching supplier switches the store row the movement acts on, so the
+   * cost travels with it — unless the user already typed one, which always
+   * wins.
+   */
+  const handleProveedorChange = (nuevoProveedor: IProveedor | null) => {
+    setSelectedProveedor(nuevoProveedor);
+    if (!nuevoProveedor || costoTouchedRef.current) return;
+    const fila = productosTienda.find(
+      (pt) =>
+        pt.productoId === producto.productoId &&
+        pt.proveedorId === nuevoProveedor.id,
+    );
+    if (!fila) return;
+    setCostoUnitario(String(fila.costo));
+    setMonedaCompra(fila.monedaCostoCode ?? monedaBase);
+  };
 
   const handleSave = async () => {
     // Guarda contra doble submit: el botón se deshabilita por `saving`, pero
@@ -206,9 +260,9 @@ export function CreateMovimientoDialog({
       showMessage("Ingresa una cantidad válida", "warning");
       return;
     }
-    if (esSalida && qty > producto.existencia) {
+    if (esSalida && qty > existenciaActual) {
       showMessage(
-        `No hay suficiente stock: disponible ${producto.existencia}`,
+        `No hay suficiente stock: disponible ${existenciaActual}`,
         "warning",
       );
       return;
@@ -332,15 +386,16 @@ export function CreateMovimientoDialog({
         </DialogTitle>
         <DialogContent>
           <Box display="flex" flexDirection="column" gap={2} pt={1}>
-            <Alert severity="info">
-              Stock actual: <strong>{producto.existencia}</strong>
-              {producto.proveedor && (
-                <>
-                  {" "}
-                  · Proveedor: <strong>{producto.proveedor.nombre}</strong>
-                </>
-              )}
-            </Alert>
+            <StockActualAlert
+              existencia={existenciaActual}
+              proveedorNombre={
+                usaFilaProveedor
+                  ? selectedProveedor.nombre
+                  : producto.proveedor?.nombre
+              }
+              sinFilaProveedor={proveedorSinFila}
+              esSalida={esSalida}
+            />
 
             <FormControl size="small" fullWidth>
               <InputLabel>Tipo de movimiento</InputLabel>
@@ -368,7 +423,7 @@ export function CreateMovimientoDialog({
                 options={proveedores}
                 getOptionLabel={(p) => p.nombre}
                 value={selectedProveedor}
-                onChange={(_, val) => setSelectedProveedor(val)}
+                onChange={(_, val) => handleProveedorChange(val)}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -412,13 +467,13 @@ export function CreateMovimientoDialog({
               inputProps={{
                 inputMode: "decimal",
                 min: 0,
-                ...(esSalida && { max: producto.existencia }),
+                ...(esSalida && { max: existenciaActual }),
               }}
               autoFocus
               error={cantidadExcedeStock}
               helperText={
                 cantidadExcedeStock
-                  ? `Máx. disponible: ${producto.existencia}`
+                  ? `Máx. disponible: ${existenciaActual}`
                   : undefined
               }
             />
@@ -427,7 +482,10 @@ export function CreateMovimientoDialog({
               <MoneyField
                 label={`Costo unitario${isExtraCurrency ? ` (${monedaCompra})` : ""}`}
                 value={costoUnitario}
-                onChange={(e) => setCostoUnitario(e.target.value)}
+                onChange={(e) => {
+                  costoTouchedRef.current = true;
+                  setCostoUnitario(e.target.value);
+                }}
                 size="small"
                 helperText={
                   isExtraCurrency && costoUnitario
