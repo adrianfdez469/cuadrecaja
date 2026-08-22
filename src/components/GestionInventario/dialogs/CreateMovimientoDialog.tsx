@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormHelperText,
   InputLabel,
   MenuItem,
   Select,
@@ -37,6 +38,7 @@ import { FormaPagoCompraSelect } from "@/components/GestionInventario/FormaPagoC
 import MoneyField from "@/components/MoneyField";
 import SelectableTextField from "@/components/SelectableTextField";
 import { StockActualAlert } from "./StockActualAlert";
+import { isMovementAllowedOnConsignment } from "@/utils/tipoMovimiento";
 
 interface Props {
   open: boolean;
@@ -220,6 +222,13 @@ export function CreateMovimientoDialog({
   const mostrarCosto = tipo === "COMPRA" || tipo === "CONSIGNACION_ENTRADA";
   const mostrarMoneda = mostrarCosto && monedasParaCompra.length > 1;
   const isExtraCurrency = mostrarCosto && monedaCompra !== monedaBase;
+
+  // A consigned row holds the supplier's goods: purchases and adjustments are
+  // not offered on it at all.
+  const esFilaConsignada = !!producto.proveedorId;
+  const tiposDisponibles = esFilaConsignada
+    ? TIPOS_BASE.filter((t) => isMovementAllowedOnConsignment(t.value))
+    : TIPOS_BASE;
 
   // With a supplier selected, the figures on screen belong to that supplier's
   // row — not to the row the dialog was opened from.
@@ -409,12 +418,17 @@ export function CreateMovimientoDialog({
                   }
                 }}
               >
-                {TIPOS_BASE.map((t) => (
+                {tiposDisponibles.map((t) => (
                   <MenuItem key={t.value} value={t.value}>
                     {t.label}
                   </MenuItem>
                 ))}
               </Select>
+              {esFilaConsignada && (
+                <FormHelperText>
+                  La mercancía es del proveedor: no admite compras ni ajustes.
+                </FormHelperText>
+              )}
             </FormControl>
 
             {esConsignacion && (
