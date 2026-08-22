@@ -393,10 +393,14 @@ export const AddMovimientoDialog: FC<IProps> = ({
                 costoTotal: item.costoUnitario * item.cantidad,
                 monedaCompra: monedaItem,
               }),
-            ...(item.proveedor &&
-              tipo === "TRASPASO_SALIDA" && {
-                proveedorId: item.proveedor.id,
-              }),
+            // A consigned product has its own ProductoTienda per supplier, so
+            // every movement on it must name the supplier; otherwise the
+            // server falls back to the store-owned row and reads its stock.
+            // Entradas other than CONSIGNACION_ENTRADA never carry a supplier
+            // here, so this only ever narrows to the row actually picked.
+            ...(item.proveedor && {
+              proveedorId: item.proveedor.id,
+            }),
             // Fecha de vencimiento por producto (solo para entradas)
             ...((tipo === "COMPRA" || tipo === "AJUSTE_ENTRADA") &&
               item.fechaVencimiento && {

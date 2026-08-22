@@ -272,6 +272,15 @@ export function CreateMovimientoDialog({
           {
             productoId: producto.productoId,
             cantidad: qty,
+            // The dialog acts on one inventory row, and a consigned product
+            // lives in its own ProductoTienda (one per supplier). Without the
+            // supplier the server resolves the store-owned row instead — the
+            // transfer/adjustment then reads the wrong stock and is rejected.
+            // COMPRA stays out: purchased goods are always own stock, and the
+            // consignment types already carry the supplier at batch level.
+            ...(!esConsignacion &&
+              tipo !== "COMPRA" &&
+              producto.proveedorId && { proveedorId: producto.proveedorId }),
             // Costo en la moneda seleccionada — sin conversión a monedaBase
             ...(mostrarCosto &&
               costoRaw && {
