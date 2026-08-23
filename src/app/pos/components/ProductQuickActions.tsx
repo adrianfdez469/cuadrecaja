@@ -14,7 +14,7 @@ import {
   clampQuantity,
   parseQuantityText,
   sanitizeQuantityDraft,
-} from "@/app/pos/utils/quantityInput";
+} from "@/utils/quantityInput";
 
 // Hoisted out of the render: this component is mounted once per product card,
 // and an inline object would make Emotion re-serialize every one of these —

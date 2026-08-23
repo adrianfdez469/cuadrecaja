@@ -1,4 +1,8 @@
-import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
+import {
+  formatCurrency,
+  formatMontoEnMoneda,
+  formatQuantity,
+} from "@/utils/formatters";
 import { Delete } from "@mui/icons-material";
 import {
   Alert,
@@ -24,6 +28,7 @@ import React from "react";
 import { OperacionTipo, IProductoSeleccionado } from "../ProductSelectionModal";
 import { ITipoMovimiento } from "@/schemas/movimiento";
 import ProductSelectedCard from "@/components/ProductcSelectionModal/ProductSelectedCard";
+import QuantityInput from "@/components/QuantityInput";
 
 interface IProps {
   operacion: OperacionTipo;
@@ -242,14 +247,14 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                       </Box>
                     </TableCell>
                     <TableCell align="center">
-                      <TextField
-                        type="number"
+                      <QuantityInput
                         size="small"
-                        value={producto.cantidad.toString()}
-                        onChange={(e) =>
+                        value={producto.cantidad}
+                        permiteDecimal={producto.permiteDecimal}
+                        onValueChange={(nuevaCantidad) =>
                           actualizarCantidad(
                             producto.productoId,
-                            Number(e.target.value),
+                            nuevaCantidad,
                             producto.proveedorId,
                           )
                         }
@@ -262,7 +267,9 @@ const TableProductosSeleccionados: React.FC<IProps> = ({
                         disabled={tipoMovimiento === "TRASPASO_ENTRADA"}
                         error={cantidadExcede}
                         helperText={
-                          cantidadExcede ? `Máx: ${producto.existencia}` : ""
+                          cantidadExcede
+                            ? `Máx: ${formatQuantity(producto.existencia)}`
+                            : ""
                         }
                         sx={{ width: 100 }}
                       />

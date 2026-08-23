@@ -5,8 +5,21 @@ import {
   resolveCommittedQuantity,
   getStepChips,
   getDefaultStep,
+  roundQuantity,
   sanitizeQuantityDraft,
-} from "@/app/pos/utils/quantityInput";
+} from "@/utils/quantityInput";
+
+describe("roundQuantity", () => {
+  it("absorbs the float noise stock accumulates", () => {
+    expect(roundQuantity(8.7 - 8.699999999999999)).toBe(0);
+    expect(roundQuantity(12.6000000000001)).toBe(12.6);
+  });
+
+  it("keeps two decimals", () => {
+    expect(roundQuantity(2.345)).toBe(2.35);
+    expect(roundQuantity(-1.5)).toBe(-1.5);
+  });
+});
 
 describe("sanitizeQuantityDraft", () => {
   it("strips non-digits when decimals are not allowed", () => {

@@ -290,6 +290,7 @@ export function GestionInventarioPage() {
         <CreateMovimientoDialog
           open={Boolean(createMovTarget)}
           producto={createMovTarget}
+          productosTienda={productos}
           onClose={closeCreateMov}
           onCreated={handleMovimientoCreated}
         />

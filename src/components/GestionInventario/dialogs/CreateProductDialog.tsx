@@ -39,6 +39,10 @@ import { convertToBase, convertFromBase } from "@/lib/currency";
 import { usePermisos } from "@/utils/permisos_front";
 import MoneyField from "@/components/MoneyField";
 import SelectableTextField from "@/components/SelectableTextField";
+import {
+  parseQuantityText,
+  sanitizeQuantityDraft,
+} from "@/utils/quantityInput";
 import { RentabilidadRibbon } from "./RentabilidadRibbon";
 import { calcularCostoFraccion } from "./fraccionCosto";
 import {
@@ -365,7 +369,9 @@ export function CreateProductDialog({
   const costoBase = costoEnBase !== null ? costoEnBase : parseFloat(costo) || 0;
   const warnCostoMayorPrecio =
     costoBase > 0 && precioBase > 0 && costoBase > precioBase;
-  const warnCantidadCero = (parseFloat(cantidadInicial) || 0) === 0;
+  const cantidadInicialNum =
+    parseQuantityText(cantidadInicial, permiteDecimal) ?? 0;
+  const warnCantidadCero = cantidadInicialNum === 0;
 
   const handleSave = async () => {
     setSubmitted(true);
@@ -380,7 +386,7 @@ export function CreateProductDialog({
         fechaVencimiento: fechaVencimiento
           ? fechaVencimiento.toISOString()
           : null,
-        cantidadInicial: parseFloat(cantidadInicial.replace(",", ".")) || 0,
+        cantidadInicial: cantidadInicialNum,
       };
 
       if (productoVinculado) {
@@ -722,12 +728,16 @@ export function CreateProductDialog({
             label="Cantidad inicial (opcional)"
             value={cantidadInicial}
             onChange={(e) =>
-              setCantidadInicial(e.target.value.replace(/-/g, ""))
+              setCantidadInicial(
+                sanitizeQuantityDraft(e.target.value, permiteDecimal),
+              )
             }
             size="small"
-            inputProps={{ inputMode: "decimal" }}
+            inputProps={{
+              inputMode: permiteDecimal ? "decimal" : "numeric",
+            }}
             helperText={
-              parseFloat(cantidadInicial) > 0
+              cantidadInicialNum > 0
                 ? "Se creará un movimiento de Compra con esta cantidad"
                 : "Deja en 0 para agregar stock después"
             }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Typography, styled } from '@mui/material';
+import { formatQuantity } from '@/utils/formatters';
 
 type StockStatus = 'high' | 'low' | 'none';
 
@@ -51,7 +52,7 @@ const StockBadge: React.FC<StockBadgeProps> = ({ stock }) => {
           mb: 0.5
         }}
       >
-        {parseFloat(stock?.toFixed(2)) || 0}
+        {formatQuantity(stock)}
       </Typography>
     </StyledStockBadge>
   );

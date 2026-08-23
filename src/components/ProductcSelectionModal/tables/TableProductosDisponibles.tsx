@@ -1,7 +1,7 @@
 import {
   formatCurrency,
   formatMontoEnMoneda,
-  formatNumber,
+  formatQuantity,
   normalizeSearch,
 } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
@@ -413,7 +413,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
                                 </TableCell>
                                 <TableCell>
                                   <Chip
-                                    label={formatNumber(
+                                    label={formatQuantity(
                                       producto.existencia || 0,
                                     )}
                                     size="medium"

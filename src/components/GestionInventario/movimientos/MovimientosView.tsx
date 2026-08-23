@@ -69,7 +69,11 @@ import { ITipoMovimiento, MovimientoTipoEnum } from "@/schemas/movimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
-import { formatNumber, formatDateTime } from "@/utils/formatters";
+import {
+  formatNumber,
+  formatDateTime,
+  formatQuantity,
+} from "@/utils/formatters";
 import {
   IProductoDisponible,
   OperacionTipo,
@@ -899,7 +903,7 @@ export default function MovimientosView() {
                             sx={{ fontSize: "0.8125rem" }}
                           >
                             {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
-                            {Math.abs(movimiento.cantidad)}
+                            {formatQuantity(Math.abs(movimiento.cantidad))}
                           </Typography>
                           <Typography
                             variant="caption"
@@ -1007,7 +1011,7 @@ export default function MovimientosView() {
                         }
                       >
                         {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
-                        {Math.abs(movimiento.cantidad)}
+                        {formatQuantity(Math.abs(movimiento.cantidad))}
                       </Typography>
                     </TableCell>
                     {!isTablet && (
