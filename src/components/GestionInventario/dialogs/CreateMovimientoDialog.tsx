@@ -31,7 +31,15 @@ import { convertToBase, convertFromBase } from "@/lib/currency";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { IFormaPagoCompra } from "@/schemas/movimiento";
-import { formatAdvertenciasCaja, formatCurrency } from "@/utils/formatters";
+import {
+  formatAdvertenciasCaja,
+  formatCurrency,
+  formatQuantity,
+} from "@/utils/formatters";
+import {
+  parseQuantityText,
+  sanitizeQuantityDraft,
+} from "@/utils/quantityInput";
 import { generateUUID } from "@/utils/uuid";
 import useConfirmDialog from "@/components/confirmDialog";
 import { FormaPagoCompraSelect } from "@/components/GestionInventario/FormaPagoCompraSelect";
@@ -238,7 +246,8 @@ export function CreateMovimientoDialog({
     ? (filaProveedorSeleccionado?.existencia ?? 0)
     : producto.existencia;
 
-  const cantidadNum = parseFloat(cantidad.replace(",", ".")) || 0;
+  const permiteDecimal = !!producto.producto.permiteDecimal;
+  const cantidadNum = parseQuantityText(cantidad, permiteDecimal) ?? 0;
   const cantidadExcedeStock = esSalida && cantidadNum > existenciaActual;
 
   /**
@@ -264,14 +273,14 @@ export function CreateMovimientoDialog({
     // en redes lentas dos clicks pueden entrar antes del re-render.
     if (saving) return;
 
-    const qty = parseFloat(cantidad.replace(",", "."));
+    const qty = parseQuantityText(cantidad, permiteDecimal);
     if (!qty || qty <= 0) {
       showMessage("Ingresa una cantidad válida", "warning");
       return;
     }
     if (esSalida && qty > existenciaActual) {
       showMessage(
-        `No hay suficiente stock: disponible ${existenciaActual}`,
+        `No hay suficiente stock: disponible ${formatQuantity(existenciaActual)}`,
         "warning",
       );
       return;
@@ -476,10 +485,14 @@ export function CreateMovimientoDialog({
             <SelectableTextField
               label="Cantidad"
               value={cantidad}
-              onChange={(e) => setCantidad(e.target.value.replace(/-/g, ""))}
+              onChange={(e) =>
+                setCantidad(
+                  sanitizeQuantityDraft(e.target.value, permiteDecimal),
+                )
+              }
               size="small"
               inputProps={{
-                inputMode: "decimal",
+                inputMode: permiteDecimal ? "decimal" : "numeric",
                 min: 0,
                 ...(esSalida && { max: existenciaActual }),
               }}
@@ -487,7 +500,7 @@ export function CreateMovimientoDialog({
               error={cantidadExcedeStock}
               helperText={
                 cantidadExcedeStock
-                  ? `Máx. disponible: ${existenciaActual}`
+                  ? `Máx. disponible: ${formatQuantity(existenciaActual)}`
                   : undefined
               }
             />

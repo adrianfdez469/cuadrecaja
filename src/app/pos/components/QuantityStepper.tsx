@@ -11,7 +11,7 @@ import {
   parseQuantityText,
   resolveCommittedQuantity,
   sanitizeQuantityDraft,
-} from "@/app/pos/utils/quantityInput";
+} from "@/utils/quantityInput";
 
 interface QuantityStepperProps {
   value: number;

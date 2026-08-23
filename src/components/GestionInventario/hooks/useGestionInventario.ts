@@ -19,6 +19,7 @@ import { cretateBatchMovimientos } from "@/services/movimientoService";
 import { IProductoDeleteInfo, IProductoTiendaV2 } from "@/schemas/producto";
 import { ICategory } from "@/schemas/categoria";
 import { normalizeSearch } from "@/utils/formatters";
+import { roundQuantity } from "@/utils/quantityInput";
 import { useOnboardingStore } from "@/features/onboarding";
 
 export type StockFilter = "todo" | "en_stock" | "bajo_stock" | "sin_stock";
@@ -292,7 +293,7 @@ export function useGestionInventario() {
     newQty: number,
     options: ChangeQtyOptions,
   ) => {
-    const delta = newQty - producto.existencia;
+    const delta = roundQuantity(newQty - producto.existencia);
     if (delta === 0) return;
     const esConsignacion = !!producto.proveedorId;
     const tipo =

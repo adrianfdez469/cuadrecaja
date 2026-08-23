@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert } from "@mui/material";
-import { formatNumber } from "@/utils/formatters";
+import { formatQuantity } from "@/utils/formatters";
 
 interface Props {
   existencia: number;
@@ -30,7 +30,7 @@ export function StockActualAlert({
   return (
     <>
       <Alert severity="info">
-        Stock actual: <strong>{formatNumber(existencia)}</strong>
+        Stock actual: <strong>{formatQuantity(existencia)}</strong>
         {proveedorNombre && (
           <>
             {" "}

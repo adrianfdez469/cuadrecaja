@@ -9,7 +9,7 @@ import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
 import { QuantityStepper } from "./QuantityStepper";
 import { formatQuantity } from "@/utils/formatters";
-import { clampQuantity } from "@/app/pos/utils/quantityInput";
+import { clampQuantity } from "@/utils/quantityInput";
 
 interface QuantityDialogProps {
   productoTienda: IProductoTiendaPos | null;
