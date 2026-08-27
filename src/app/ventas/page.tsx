@@ -48,6 +48,7 @@ import {
 } from "@/services/sellService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { LoadingState } from "@/components/LoadingState";
 import SelectableTextField from "@/components/SelectableTextField";
 import VentaDetailDialog from "./components/VentaDetailDialog";
 import { formatDate, formatDateTime, isToday } from "@/utils/formatters";
@@ -246,17 +247,13 @@ const Ventas = () => {
 
   if (loadingContext || isDataLoading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
+      <PageContainer
+        title="Ventas"
+        breadcrumbs={[{ label: "Inicio", href: "/home" }, { label: "Ventas" }]}
+        maxWidth="xl"
       >
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando ventas...
-        </Typography>
-      </Box>
+        <LoadingState variant={isMobile ? "cards" : "table"} />
+      </PageContainer>
     );
   }
 
@@ -471,7 +468,6 @@ const Ventas = () => {
                           amount={venta.total}
                           variant="compact"
                           align="right"
-                          color="success.main"
                         />
                       </Box>
 
@@ -531,10 +527,10 @@ const Ventas = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>ID Venta</TableCell>
-                  <TableCell align="center">Fecha</TableCell>
+                  <TableCell>Fecha</TableCell>
                   <TableCell align="right">Monto Total</TableCell>
-                  <TableCell align="center">Productos</TableCell>
-                  <TableCell align="center">Usuario</TableCell>
+                  <TableCell align="right">Productos</TableCell>
+                  <TableCell>Usuario</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
@@ -566,11 +562,13 @@ const Ventas = () => {
                         #{venta.id.slice(-8)}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2">
-                        {formatDate(venta.createdAt)}
-                      </Typography>
-                      <Typography variant="body2">
+                    <TableCell>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {formatDate(venta.createdAt)} ·{" "}
                         {formatDateTime(venta.createdAt).split(" • ")[1]}
                       </Typography>
                     </TableCell>
@@ -579,16 +577,18 @@ const Ventas = () => {
                       <MultiCurrencyAmount
                         amount={venta.total}
                         align="right"
-                        color="success.main"
                       />
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2">
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
                         {venta.productos?.length || 0}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2">
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
                         {venta.usuario?.nombre || ""}
                       </Typography>
                     </TableCell>

@@ -164,9 +164,9 @@ export default function GastosPage() {
     setFormOpen(true);
   };
 
-  // On a phone these are the page's two actions, so they get full width and
-  // lead with the primary one. On desktop they are a toolbar inside the card
-  // header, where the primary sits last.
+  // The page's two actions, in the page header where the artboard puts them:
+  // «Nuevo gasto» is the point of the screen and should not be buried in a
+  // card's toolbar. On a phone they go full width and lead with the primary.
   const actions = canManage ? (
     <Stack
       direction={isMobile ? "column" : "row"}
@@ -262,7 +262,8 @@ export default function GastosPage() {
   return (
     <PageContainer
       title="Gastos"
-      subtitle={isMobile ? GASTOS_SUBTITLE : undefined}
+      subtitle={GASTOS_SUBTITLE}
+      headerActions={!isMobile ? actions : undefined}
     >
       {/* The cards go straight on the page ground on a phone: wrapping them in
           a panel put a card inside a card, which cost a border and an indent
@@ -276,11 +277,7 @@ export default function GastosPage() {
           {body}
         </>
       ) : (
-        <ContentCard
-          title="Gastos de la tienda"
-          subtitle={GASTOS_SUBTITLE}
-          headerActions={actions}
-        >
+        <ContentCard title="Gastos de la tienda">
           {body}
         </ContentCard>
       )}

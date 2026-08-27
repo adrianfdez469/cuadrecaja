@@ -1,15 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  Alert,
-  Card,
-  CardActionArea,
-  CardContent,
-  Stack,
-  Typography,
-} from "@mui/material";
-import Grid from "@mui/material/Grid2";
+import { Alert, Box } from "@mui/material";
 import {
   Category,
   Inventory,
@@ -21,6 +13,9 @@ import { PageContainer } from "@/components/PageContainer";
 import { useAppContext } from "@/context/AppContext";
 import { usePermisos } from "@/utils/permisos_front";
 import { TipoLocal } from "@/schemas/tienda";
+import { shape } from "@/theme/tokens";
+
+import { ReportRow } from "./components/ReportRow";
 
 type ReportCard = {
   title: string;
@@ -100,30 +95,26 @@ export default function ReportesHubPage() {
           No tienes permisos para ver ningún reporte.
         </Alert>
       ) : (
-        <Grid container spacing={2}>
-          {visible.map(({ title, description, path, icon: Icon }) => (
-            <Grid key={path} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card sx={{ height: "100%" }}>
-                <CardActionArea
-                  onClick={() => router.push(path)}
-                  sx={{ height: "100%" }}
-                >
-                  <CardContent>
-                    <Stack spacing={1.5}>
-                      <Icon color="primary" sx={{ fontSize: 36 }} />
-                      <Typography variant="h6" fontWeight="bold">
-                        {title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {description}
-                      </Typography>
-                    </Stack>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
+        <Box
+          sx={{
+            overflow: "hidden",
+            bgcolor: "semantic.surface.raised",
+            border: "1px solid",
+            borderColor: "semantic.surface.border",
+            borderRadius: `${shape.radius.md}px`,
+          }}
+        >
+          {visible.map(({ title, description, path, icon }, index) => (
+            <ReportRow
+              key={path}
+              title={title}
+              description={description}
+              icon={icon}
+              divider={index > 0}
+              onClick={() => router.push(path)}
+            />
           ))}
-        </Grid>
+        </Box>
       )}
     </PageContainer>
   );

@@ -6,11 +6,9 @@ import {
   Typography,
   Box,
   Button,
-  Chip,
   Container,
   Paper,
   Avatar,
-  Divider,
   Alert,
 } from "@mui/material";
 import {
@@ -22,10 +20,8 @@ import {
   Settings,
   Person,
   Store,
-  ShoppingCart,
   Summarize,
   Security,
-  CalendarMonth,
   Backup,
   WorkspacePremium,
 } from "@mui/icons-material";
@@ -36,34 +32,16 @@ import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
 import NotificationsWidget from "@/components/NotificationsWidget";
 import { SectionLabel } from "@/components/SectionLabel";
+import { shape } from "@/theme/tokens";
 import { QuickActionTile } from "./components/QuickActionTile";
 import { ConfigRow } from "./components/ConfigRow";
+import { PlanLimitsStrip } from "./components/PlanLimitsStrip";
+import type { NegocioStats } from "./components/PlanLimitsStrip";
 import SubscriptionWarning from "@/components/SubscriptionWarning";
 import SuspensionSummary from "@/components/SuspensionSummary";
 import ExpiringProductsAlert from "@/components/ExpiringProductsAlert";
 import { useEffect, useState } from "react";
 import { getNegocioStats } from "@/services/negocioServce";
-import { formatDate } from "@/utils/formatters";
-
-interface NegocioStats {
-  tiendas: {
-    actual: number;
-    limite: number;
-    porcentaje: number;
-  };
-  usuarios: {
-    actual: number;
-    limite: number;
-    porcentaje: number;
-  };
-  productos: {
-    actual: number;
-    limite: number;
-    porcentaje: number;
-  };
-  fechaVencimiento: Date;
-  diasRestantes: number;
-}
 
 const HomePage = () => {
   const { loadingContext, user } = useAppContext();
@@ -404,108 +382,11 @@ const HomePage = () => {
           </Box>
         </Box>
 
-        <Divider sx={{ my: 1 }} />
-        {loadingNegocioStats ? (
-          <CircularProgress size="20px" />
-        ) : (
-          <Box
-            display="flex"
-            flexDirection={{ xs: "column", sm: "row" }}
-            flexWrap="wrap"
-            gap={{ xs: 1, sm: 1, md: 2 }}
-            alignItems={{ xs: "stretch", sm: "center" }}
-          >
-            <Chip
-              label={`Productos: ${negocioStats?.productos.actual} / ${negocioStats?.productos.limite === -1 ? "∞" : negocioStats?.productos.limite} (${negocioStats?.productos.porcentaje}%)`}
-              icon={<ShoppingCart />}
-              color={
-                negocioStats?.productos.porcentaje <= 0
-                  ? "error"
-                  : negocioStats?.productos.porcentaje <= 10
-                    ? "warning"
-                    : "success"
-              }
-              size="small"
-              variant="outlined"
-              sx={{
-                borderColor: "primary.main",
-                color: "primary.main",
-                fontWeight: 500,
-                minWidth: { xs: "auto", sm: "fit-content" },
-                justifyContent: { xs: "flex-start", sm: "center" },
-              }}
-            />
-            <Chip
-              label={`Usuarios: ${negocioStats?.usuarios.actual} / ${negocioStats?.usuarios.limite === -1 ? "∞" : negocioStats?.usuarios.limite} (${negocioStats?.usuarios.porcentaje}%)`}
-              icon={<Person />}
-              color={
-                negocioStats?.usuarios.porcentaje <= 0
-                  ? "error"
-                  : negocioStats?.usuarios.porcentaje <= 3
-                    ? "warning"
-                    : "success"
-              }
-              size="small"
-              variant="outlined"
-              sx={{
-                borderColor: "primary.main",
-                color: "primary.main",
-                fontWeight: 500,
-                minWidth: { xs: "auto", sm: "fit-content" },
-                justifyContent: { xs: "flex-start", sm: "center" },
-              }}
-            />
-            <Chip
-              label={`Tiendas: ${negocioStats?.tiendas.actual} / ${negocioStats?.tiendas.limite === -1 ? "∞" : negocioStats?.tiendas.limite} (${negocioStats?.tiendas.porcentaje}%)`}
-              icon={<Store />}
-              color={
-                negocioStats?.tiendas.porcentaje <= 0
-                  ? "error"
-                  : negocioStats?.tiendas.porcentaje <= 30
-                    ? "warning"
-                    : "success"
-              }
-              size="small"
-              variant="outlined"
-              sx={{
-                borderColor: "primary.main",
-                color: "primary.main",
-                fontWeight: 500,
-                minWidth: { xs: "auto", sm: "fit-content" },
-                justifyContent: { xs: "flex-start", sm: "center" },
-              }}
-            />
-            <Chip
-              label={`Fecha de vencimiento: ${formatDate(negocioStats?.fechaVencimiento)} - ${negocioStats?.diasRestantes} días restantes`}
-              icon={<CalendarMonth />}
-              color={
-                negocioStats?.diasRestantes <= 0
-                  ? "error"
-                  : negocioStats?.diasRestantes <= 7
-                    ? "warning"
-                    : "success"
-              }
-              size="small"
-              variant="outlined"
-              sx={{
-                borderColor: "primary.main",
-                color: "primary.main",
-                fontWeight: 500,
-                minWidth: { xs: "auto", sm: "fit-content" },
-                justifyContent: { xs: "flex-start", sm: "center" },
-              }}
-            />
-          </Box>
-        )}
-        <Divider sx={{ my: 1 }} />
       </Box>
 
-      {/* Widget de Notificaciones */}
-      <Box sx={{ mb: 3 }}>
-        {user.rol === "SUPER_ADMIN" && <SuspensionSummary />}
+      {/* Anything demanding attention goes above the fold, before the work. */}
+      <Box sx={{ mb: 4 }}>
         <SubscriptionWarning />
-        <ExpiringProductsAlert tiendaId={user.localActual.id} />
-        <NotificationsWidget maxNotifications={5} showBadge={true} />
       </Box>
 
       {/* Acciones rápidas */}
@@ -579,6 +460,37 @@ const HomePage = () => {
             />
           </Box>
         )}
+      </Box>
+
+      {/* Suscripción */}
+      <Box sx={{ mb: 5 }}>
+        <SectionLabel>Suscripción</SectionLabel>
+        <Box
+          sx={{
+            bgcolor: "semantic.surface.raised",
+            border: "1px solid",
+            borderColor: "semantic.surface.border",
+            borderRadius: `${shape.radius.md}px`,
+          }}
+        >
+          {user.rol === "SUPER_ADMIN" && <SuspensionSummary />}
+          {/* The limits close the panel: they describe the plan above them,
+              and the expiry is the one figure in the line that can go bad. */}
+          <PlanLimitsStrip stats={negocioStats} loading={loadingNegocioStats} />
+        </Box>
+      </Box>
+
+      {/* Two things you open only when the count is not zero, side by side. */}
+      <Box
+        sx={{
+          display: "grid",
+          gap: 1.5,
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+          mb: 5,
+        }}
+      >
+        <ExpiringProductsAlert tiendaId={user.localActual.id} />
+        <NotificationsWidget maxNotifications={5} showBadge={true} />
       </Box>
 
       {/* Configuración */}

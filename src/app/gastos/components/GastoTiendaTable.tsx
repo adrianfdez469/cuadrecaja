@@ -56,7 +56,7 @@ export default function GastoTiendaTable({ gastos, canManage, onEdit, onDelete, 
             <TableCell>Nombre</TableCell>
             <TableCell>Categoría</TableCell>
             <TableCell>Tipo de cálculo</TableCell>
-            <TableCell>Valor</TableCell>
+            <TableCell align="right">Valor</TableCell>
             <TableCell>Recurrencia</TableCell>
             <TableCell>Cuándo aplica</TableCell>
             {canManage && <TableCell align="center">Activo</TableCell>}
@@ -89,8 +89,12 @@ export default function GastoTiendaTable({ gastos, canManage, onEdit, onDelete, 
                   {TIPO_CALCULO_LABELS[gasto.tipoCalculo]}
                 </Typography>
               </TableCell>
-              <TableCell>
-                <Typography variant="body2" fontWeight="bold">
+              <TableCell align="right">
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  sx={{ fontVariantNumeric: "tabular-nums" }}
+                >
                   {formatValor(gasto)}
                 </Typography>
               </TableCell>
@@ -100,7 +104,7 @@ export default function GastoTiendaTable({ gastos, canManage, onEdit, onDelete, 
                 </Typography>
               </TableCell>
               <TableCell>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   {formatearCuandoAplica(gasto)}
                 </Typography>
               </TableCell>

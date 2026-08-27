@@ -1,4 +1,6 @@
 export const LANDING_CTA_SECTION_ID = 'contact-section';
+export const LANDING_FEATURES_SECTION_ID = 'features-section';
+export const LANDING_PRICING_SECTION_ID = 'pricing-section';
 export const LANDING_CONTACT_INFO_SECTION_ID = 'contact-info-section';
 
 export interface ILandingContactPhone {

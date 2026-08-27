@@ -88,7 +88,6 @@ import {
 } from "@/features/onboarding/utils/onboardingNavigation";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import type { CSSProperties } from "react";
-import type { Theme } from "@mui/material/styles";
 import { NavSection } from "@/components/nav/NavSection";
 import { NavItem } from "@/components/nav/NavItem";
 import { StoreStatus } from "@/components/nav/StoreStatus";
@@ -100,7 +99,7 @@ import LocalOffer from "@mui/icons-material/LocalOffer";
 import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import Loading from "./Loading";
-import Logo from "./Logo";
+import { BrandLockup } from "@/components/brand";
 
 const SUPER_ADMIN_MENU_ITEMS = [
   {
@@ -861,26 +860,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
-          {!isAuth && (
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Logo size={32} sx={{ mr: 1.5 }} />
-              <Typography
-                variant="h6"
-                component="h1"
-                sx={{
-                  fontWeight: 700,
-                  background: (theme: Theme) =>
-                    `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-                  backgroundClip: "text",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  fontSize: { xs: "1.1rem", sm: "1.25rem" },
-                }}
-              >
-                Cuadre de Caja
-              </Typography>
-            </Box>
-          )}
+          {!isAuth && <BrandLockup markSize={32} wordSize={17} />}
           {isAuth && (
             <IconButton
               edge="start"
