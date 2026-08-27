@@ -21,7 +21,17 @@ interface IProps {
   updateQuantity?: (id: string, quantity: number) => void;
   clear?: () => void;
   removeItem?: (id: string) => void;
+  /**
+   * Drives the step from outside, so the charge bar can open this drawer
+   * straight on the checkout. Without it the drawer kept the step to itself
+   * and every entry landed on the basket, whichever button was pressed.
+   */
+  step?: CartStep;
   onStepChange?: (step: CartStep) => void;
+  /** An account name is being typed — see CartContent. */
+  onRenamingCart?: (renaming: boolean) => void;
+  /** Reprints the last sale's ticket — see CartContent. */
+  onPrintLastSale?: () => void;
 }
 
 const CartDrawer: FC<IProps> = ({
@@ -33,17 +43,23 @@ const CartDrawer: FC<IProps> = ({
   updateQuantity,
   clear,
   removeItem,
+  step,
   onStepChange,
+  onRenamingCart,
+  onPrintLastSale,
 }) => {
   // Only the count: closing on an emptied cart never needed the items array,
   // and subscribing to it here put the whole POS page in the subscription.
   const itemCount = useCartItemCount();
+  // An emptied basket closes the drawer — except right after a sale, when
+  // the basket is emptied by the sale itself and the drawer is showing
+  // «Cobro registrado» over it. «Nueva venta» closes it then.
   useEffect(() => {
-    if (itemCount === 0) {
+    if (itemCount === 0 && step !== "done") {
       onClose();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemCount]);
+  }, [itemCount, step]);
 
   return (
     <>
@@ -71,7 +87,10 @@ const CartDrawer: FC<IProps> = ({
           transferDestinations={transferDestinations}
           cierreId={cierreId}
           variant="drawer"
+          onPrintLastSale={onPrintLastSale}
+          step={step}
           onStepChange={onStepChange}
+          onRenamingCart={onRenamingCart}
         />
       </Drawer>
     </>

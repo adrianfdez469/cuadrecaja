@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -24,7 +24,6 @@ import {
   Stack,
   Alert,
   InputAdornment,
-  Grid,
   Card,
   CardContent,
   Tooltip,
@@ -42,13 +41,8 @@ import {
 import {
   Add,
   Dock,
-  TrendingUp,
-  TrendingDown,
-  SwapVert,
-  Inventory,
   Search,
   Refresh,
-  ExpandMore,
   ExpandLess,
   FilterAlt,
   CleaningServices,
@@ -106,7 +100,6 @@ export default function MovimientosView() {
   // una barra de progreso sin desmontar la vista ni los diálogos abiertos.
   const [primeraCarga, setPrimeraCarga] = useState(true);
   const [noLocalActual, setNoLocalActual] = useState(false);
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { items: pendienteRecepcion, fetch: fetchPendienteRecepcion } =
     usePendingReceptionStore();
@@ -468,20 +461,6 @@ export default function MovimientosView() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
-      )}
 
       <Button
         variant="contained"
@@ -560,83 +539,14 @@ export default function MovimientosView() {
         onClick={() => pendienteRecepcionOpenModal("ENTRADA")}
       />
 
-      {/* Estadísticas de movimientos */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<SwapVert />}
-                  value={formatNumber(totalMovimientos)}
-                  label="Total"
-                  tone="neutral"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<TrendingUp />}
-                  value={formatNumber(movimientosEntrada)}
-                  label="Entradas"
-                  tone="positive"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<TrendingDown />}
-                  value={formatNumber(movimientosSalida)}
-                  label="Salidas"
-                  tone="negative"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Inventory />}
-                  value={formatNumber(productosAfectados)}
-                  label="Productos"
-                  tone="info"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<SwapVert />}
-              value={formatNumber(totalMovimientos)}
-              label="Total Movimientos"
-              tone="neutral"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<TrendingUp />}
-              value={formatNumber(movimientosEntrada)}
-              label="Entradas"
-              tone="positive"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<TrendingDown />}
-              value={formatNumber(movimientosSalida)}
-              label="Salidas"
-              tone="negative"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<Inventory />}
-              value={formatNumber(productosAfectados)}
-              label="Productos"
-              tone="info"
-            />
-          </Grid>
-        </Grid>
-      )}
+      <StatStrip
+        stats={[
+          { label: "Total Movimientos", value: formatNumber(totalMovimientos) },
+          { label: "Entradas", value: formatNumber(movimientosEntrada) },
+          { label: "Salidas", value: formatNumber(movimientosSalida) },
+          { label: "Productos", value: formatNumber(productosAfectados) },
+        ]}
+      />
 
       {/* Lista de movimientos */}
       <ContentCard
@@ -924,7 +834,6 @@ export default function MovimientosView() {
                     key={i}
                     sx={{
                       "&:nth-of-type(odd)": {
-                        backgroundColor: "rgba(0, 0, 0, 0.02)",
                       },
                     }}
                   >

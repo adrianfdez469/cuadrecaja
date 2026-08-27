@@ -1,11 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Collapse, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  ButtonBase,
+  Collapse,
+  TextField,
+  Typography,
+} from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { formatMontoEnMoneda } from "@/utils/formatters";
 import type { DiscountApplicationResultItem } from "@/lib/discounts";
+
+/**
+ * «¿Tienes un código de descuento?» — one row at the foot of the basket.
+ *
+ * The redesign draws it as a 52px row with a chevron and 15px text, the
+ * width of the panel, on the same rule the lines use. It used to be a small
+ * text button with its own icon, floating inside a shadowed block.
+ */
+
+const ROW_SX = {
+  width: "100%",
+  minHeight: 52,
+  px: 1.75,
+  gap: 1,
+  justifyContent: "flex-start",
+  textAlign: "left",
+  color: "text.secondary",
+  fontSize: "0.9375rem",
+} as const;
+
+const APPLIED_SX = { px: 1.75, pt: 1.25 } as const;
+
+const FIELDS_SX = { display: "flex", gap: 1, px: 1.75, pb: 1.5 } as const;
 
 interface DiscountFieldProps {
   promoCode: string;
@@ -30,25 +60,33 @@ export function DiscountField({
   return (
     <Box>
       {hasDiscount && (
-        <Typography variant="body2" fontWeight={600} color="success.main">
+        <Typography
+          variant="body2"
+          fontWeight={600}
+          color="success.main"
+          sx={APPLIED_SX}
+        >
           Descuento aplicado: −{formatMontoEnMoneda(discountTotal, base)}
         </Typography>
       )}
 
-      <Button
-        variant="text"
-        size="small"
+      <ButtonBase
         onClick={() => setOpen((value) => !value)}
-        startIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-        sx={{ textTransform: "none", color: "text.secondary", minHeight: 44 }}
+        aria-expanded={open}
+        sx={ROW_SX}
       >
+        {open ? (
+          <ExpandLessIcon fontSize="small" />
+        ) : (
+          <ExpandMoreIcon fontSize="small" />
+        )}
         {hasDiscount
           ? "Código de descuento"
           : "¿Tienes un código de descuento?"}
-      </Button>
+      </ButtonBase>
 
       <Collapse in={open}>
-        <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+        <Box sx={FIELDS_SX}>
           <TextField
             label="Código de descuento"
             value={promoCode}

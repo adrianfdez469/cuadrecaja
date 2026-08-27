@@ -489,9 +489,6 @@ export default function Proveedores() {
                       "&:hover": {
                         backgroundColor: "action.hover",
                       },
-                      "&:nth-of-type(odd)": {
-                        backgroundColor: "rgba(0, 0, 0, 0.02)",
-                      },
                     }}
                   >
                     <TableCell>

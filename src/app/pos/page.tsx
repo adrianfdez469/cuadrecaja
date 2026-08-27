@@ -4,25 +4,24 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Typography,
   Box,
-  IconButton,
   Alert,
   Button,
   Skeleton,
   Stack,
   useTheme,
   useMediaQuery,
-  Tooltip,
 } from "@mui/material";
 import { LoadingState } from "@/components/LoadingState";
 
 import { flushCartToStorage, useCartStore } from "@/store/cartStore";
+import { usePosPeriodStore } from "@/store/posPeriodStore";
 import { getCatalogoPos } from "@/services/costoPrecioServices";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { CategoryPillsBar } from "./components/CategoryPillsBar";
 import { PosProductGrid } from "./components/PosProductGrid";
+import type { PosProductCard } from "./utils/buildProductIndex";
 import { CheckoutLockOverlay } from "./components/CheckoutLockOverlay";
-import { CurrencyDisplayToggle } from "./components/CurrencyDisplayToggle";
 import type { IPosCategoria } from "@/schemas/producto";
 import { IProductoTiendaPos } from "@/schemas/producto";
 import CartDrawer from "@/components/cartDrawer/CartDrawer";
@@ -36,8 +35,9 @@ import { useSalesStore } from "@/store/salesStore";
 import { SalesDrawer } from "./components/SalesDrawer";
 import { UserSalesDrawer } from "./components/UserSalesDrawer";
 
-import { QuantityDialog } from "./components/QuantityDialog";
+import { QuantitySheet } from "./components/QuantitySheet";
 import { PosBottomBar } from "./components/PosBottomBar";
+import PosPayBar from "./components/PosPayBar";
 import { calcularDisponibilidadReal } from "./utils/calcularDisponibilidadReal";
 import { buildProductIndex, withBasePrices } from "./utils/buildProductIndex";
 import { isPermanentSyncError } from "./utils/syncErrors";
@@ -47,10 +47,7 @@ import { readCatalog, writeCatalog } from "@/lib/catalogCache";
 import { MAX_SYNC_ATTEMPTS } from "@/constants/pos";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
-import {
-  useOnScreenKeyboard,
-  VISUAL_VIEWPORT_HEIGHT_VAR,
-} from "@/hooks/useOnScreenKeyboard";
+import { useOnScreenKeyboard } from "@/hooks/useOnScreenKeyboard";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { POS_SEARCH_DEBOUNCE_MS } from "@/constants/pos";
 import { useBlockBackNavigation } from "@/hooks/useBlockBackNavigation";
@@ -66,14 +63,9 @@ import {
 import { ProductProcessorDataRef } from "@/components/ProductProcessorData/ProductProcessorData";
 import audioService from "@/utils/audioService";
 import { normalizeSearch } from "@/utils/formatters";
-import ShoppingCartComponent from "@/app/pos/components/ShoppingCartComponent";
-import PosStatusToolBar from "@/app/pos/components/SyncButton";
-import ConnectionStatus from "@/app/pos/components/ConnectionStatus";
-import PeriodoBadge from "@/app/pos/components/PeriodoBadge";
-import RefreshButton from "@/app/pos/components/RefreshButton";
+import PosActionsSheet from "@/app/pos/components/PosActionsSheet";
+import { shape } from "@/theme";
 import ResumenDiaModal from "@/app/pos/components/ResumenDiaModal";
-import FlagIcon from "@mui/icons-material/Flag";
-import UndoIcon from "@mui/icons-material/Undo";
 import { DevolucionVentaDialog } from "@/components/GestionInventario/movimientos/DevolucionVentaDialog";
 import { AsociarCodigoDialog } from "@/app/pos/components/AsociarCodigoDialog";
 import { usePermisos } from "@/utils/permisos_front";
@@ -94,11 +86,12 @@ import {
 } from "@/features/onboarding/utils/onboardingNavigation";
 import { getTourById } from "@/features/onboarding/tours/primerosPasos";
 import { usePrintOnSale } from "@/features/printing/hooks/usePrintOnSale";
+import { printService } from "@/features/printing/services/printService";
 import {
   usePrintContext,
   usePrinter,
 } from "@/features/printing/hooks/usePrinter";
-import { PrintQueueIndicator } from "@/features/printing/components/PrintQueueIndicator";
+import { useAutoFlushPrintQueue } from "@/features/printing/hooks/useAutoFlushPrintQueue";
 import { PrinterSetupSheet } from "@/features/printing/components/PrinterSetupSheet";
 import { Sale } from "@/store/salesStore";
 
@@ -111,12 +104,14 @@ import { Sale } from "@/store/salesStore";
  * Not applied on mobile: there is no second pane to separate from, and the
  * padding around the card would come straight out of the product grid.
  */
+// A white card with a 1px rule and the 12px corner, as the redesign draws the
+// two panels of the desktop POS. No shadow: the rule is what separates them
+// from the page, and the 12px gutter around them does the rest.
 const desktopPanelSx = {
-  borderRadius: 2,
+  borderRadius: `${shape.radius.md}px`,
   border: "1px solid",
   borderColor: "divider",
   backgroundColor: "background.paper",
-  boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 6px 16px rgba(15,23,42,0.06)",
 } as const;
 
 export default function POSInterface() {
@@ -129,6 +124,15 @@ export default function POSInterface() {
   );
   const [openCart, setOpenCart] = useState(false);
   const [periodo, setPeriodo] = useState<ICierrePeriodo>();
+
+  // The app bar shows the period pill; the query for it belongs here, so the
+  // answer is published rather than the request moved. Cleared on the way out
+  // so the bar does not keep a period from a screen that no longer has one.
+  const publishPeriodo = usePosPeriodStore((state) => state.setPeriodo);
+  useEffect(() => {
+    publishPeriodo(periodo ?? null);
+    return () => publishPeriodo(null);
+  }, [periodo, publishPeriodo]);
   const [noLocalActual, setNoLocalActual] = useState(false);
   const { user, loadingContext, gotToPath, tasasVigentes, monedaBase } =
     useAppContext();
@@ -168,63 +172,6 @@ export default function POSInterface() {
     posScrollRef.current = el;
     setPosScrollEl(el);
   }, []);
-  // Espacio que la grilla debe reservar abajo para no quedar tapada por
-  // PosBottomBar (position:fixed en mobile). Medido en vivo en vez de un
-  // número fijo: la altura real de la barra varía según cuántos carritos
-  // hay y si se muestra el error del scanner, y un valor fijo dejaba un
-  // hueco visible cuando la barra real era más baja que el estimado.
-  const [bottomBarHeight, setBottomBarHeight] = useState(150);
-  const bottomBarObserverRef = useRef<ResizeObserver | null>(null);
-  // Callback ref, no useRef+useEffect: mientras carga, este componente
-  // devuelve un spinner y PosBottomBar todavía no existe en el DOM, así
-  // que un useEffect de montaje ([]) mediría un ref todavía nulo y nunca
-  // volvería a intentarlo. El callback ref se dispara cuando el nodo
-  // realmente aparece (o desaparece), sin depender del timing del render.
-  const posBottomBarRef = useCallback((el: HTMLDivElement | null) => {
-    bottomBarObserverRef.current?.disconnect();
-    bottomBarObserverRef.current = null;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (!entry) return;
-      // Con guarda de igualdad: entrar y salir del modo búsqueda cambia el
-      // alto de esta barra, y cada `setState` de aquí re-renderiza el POS
-      // entero y con él el `pb` del contenedor de scroll — una segunda pasada
-      // de layout de todo el catálogo, encadenada tras la del propio cambio.
-      const height = entry.contentRect.height;
-      setBottomBarHeight((prev) =>
-        Math.abs(prev - height) < 0.5 ? prev : height,
-      );
-    });
-    observer.observe(el);
-    bottomBarObserverRef.current = observer;
-  }, []);
-  // Cuánto hay que desplazar la cabecera (herramientas + categorías) para
-  // sacarla de vista al buscar. Medida en vivo por la misma razón que
-  // bottomBarHeight: su alto depende de qué botones tenga el usuario según
-  // sus permisos y de cuántas categorías tenga el negocio.
-  const [headerHeight, setHeaderHeight] = useState(0);
-  const headerObserverRef = useRef<ResizeObserver | null>(null);
-  const posHeaderRef = useCallback((el: HTMLDivElement | null) => {
-    headerObserverRef.current?.disconnect();
-    headerObserverRef.current = null;
-    if (!el) return;
-    // borderBoxSize, no contentRect: estas barras tienen padding propio y
-    // bordes, y contentRect los excluye — desplazarlas por ese valor dejaría
-    // una franja asomando. Y no `offsetHeight`: leerlo dentro del callback del
-    // observer fuerza un layout síncrono en plena fase de entrega, que es
-    // justo el patrón que produce "ResizeObserver loop completed with
-    // undelivered notifications". `borderBoxSize` ya viene medido.
-    const observer = new ResizeObserver(([entry]) => {
-      const height =
-        entry?.borderBoxSize?.[0]?.blockSize ??
-        el.getBoundingClientRect().height;
-      setHeaderHeight((prev) =>
-        Math.abs(prev - height) < 0.5 ? prev : height,
-      );
-    });
-    observer.observe(el);
-    headerObserverRef.current = observer;
-  }, []);
   const [selectedProduct, setSelectedProduct] =
     useState<IProductoTiendaPos | null>(null);
   // Individual selectors, never the whole store. Subscribing to the state
@@ -233,14 +180,9 @@ export default function POSInterface() {
   // the cashiers were feeling on `+`. `items` and `total` are gone entirely:
   // the cart panel and drawer read them for themselves, and the sale flow
   // reads the basket with `getState()` at the moment it charges.
-  const carts = useCartStore((state) => state.carts);
-  const activeCartId = useCartStore((state) => state.activeCartId);
   const clearCart = useCartStore((state) => state.clearCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
-  const createCart = useCartStore((state) => state.createCart);
-  const setActiveCart = useCartStore((state) => state.setActiveCart);
-  const renameCart = useCartStore((state) => state.renameCart);
   const removeActiveCart = useCartStore((state) => state.removeActiveCart);
   const [loading, setLoading] = useState(true);
   /**
@@ -263,32 +205,14 @@ export default function POSInterface() {
   const [intentToSearch, setIntentToSearch] = useState(false);
   const [resumenDiaOpen, setResumenDiaOpen] = useState(false);
   const [devolucionVentaOpen, setDevolucionVentaOpen] = useState(false);
-  // Edición de nombre de carrito (píldora)
-  const [editingCartId, setEditingCartId] = useState<string | null>(null);
-  const [editingCartName, setEditingCartName] = useState<string>("");
-  // Ref del input de edición para forzar foco en móviles
-  const editCartInputRef = useRef<HTMLInputElement | null>(null);
-  useEffect(() => {
-    if (editingCartId) {
-      // Forzar foco de forma robusta tras renderizar el campo
-      const focusLater = () => {
-        const el = editCartInputRef.current;
-        if (el) {
-          try {
-            el.focus({ preventScroll: true } as FocusOptions);
-          } catch {
-            try {
-              el.focus();
-            } catch {}
-          }
-          // SelectableTextField selecciona el texto en su propio onFocus.
-        }
-      };
-      const raf = requestAnimationFrame(() => setTimeout(focusLater, 0));
-      return () => cancelAnimationFrame(raf);
-    }
-  }, [editingCartId]);
-
+  /**
+   * An account name is being typed inside the basket's tabs.
+   *
+   * The rename itself belongs to `CartAccountTabs`; the page keeps only this
+   * flag, because the hardware scanner listens at the document level and
+   * would otherwise read every keystroke of the name as a barcode.
+   */
+  const [renamingCart, setRenamingCart] = useState(false);
   // Referencia al scanner para poder reabrirlo
   const scannerRef = useRef<ProductProcessorDataRef>(null);
   const hardwareScanHandlerRef = useRef<(data: IProcessedData) => void>(
@@ -306,7 +230,7 @@ export default function POSInterface() {
 
   // Estado para rastrear el origen del producto seleccionado
   const [productOrigin, setProductOrigin] = useState<
-    "camera" | "search" | "hardware" | null
+    "camera" | "search" | "hardware" | "catalog" | null
   >(null);
 
   const theme = useTheme();
@@ -332,7 +256,7 @@ export default function POSInterface() {
   const checkoutInProgress = cartStep === "checkout";
   const productsLocked = showCartPanel && checkoutInProgress;
 
-  const { keyboardOpen, measured } = useOnScreenKeyboard();
+  const { keyboardOpen } = useOnScreenKeyboard();
 
   // Buscar en el teléfono no oculta nada ni abre ninguna capa: lo único
   // que cambia es que los resultados se apilan hacia arriba, para que el
@@ -345,7 +269,12 @@ export default function POSInterface() {
   // El teclado abierto es lo único que rompe las coordenadas del layout
   // (ver el comentario del box raíz), así que es lo único que decide si
   // hay que anclar el POS al área visible. Al bajarlo, todo vuelve solo.
-  const pinToVisibleArea = searchMode && keyboardOpen && measured;
+  // El CTA del bloque de cobro salta el detalle del carrito: el cajero ya
+  // vio el total ahi mismo, y lo que sigue es elegir forma de pago.
+  const handlePayBarCheckout = useCallback(() => {
+    setCartStep("checkout");
+    setOpenCart(true);
+  }, []);
 
   // Sin teclado no hay búsqueda. Chrome en Android no dispara `blur` cuando
   // el usuario baja el teclado con el botón del sistema: el campo conserva
@@ -390,15 +319,34 @@ export default function POSInterface() {
     "operaciones.movimientos.crear.devolucion_venta",
   );
   const { triggerPrint } = usePrintOnSale();
+
   const printContext = usePrintContext();
+  // The sale just made, for «Imprimir» on the «Cobro registrado» screen. A
+  // ref, not state: nothing has to re-render when it is set.
+  const lastSaleRef = useRef<Sale | null>(null);
+  const printLastSale = useCallback(() => {
+    const sale = lastSaleRef.current;
+    if (!sale || !printContext || !user?.localActual?.id) return;
+    void printService
+      .reprintSale({ sale, tiendaId: user.localActual.id, context: printContext })
+      .catch(() => {
+        /* errors are handled by the print queue */
+      });
+  }, [printContext, user?.localActual?.id]);
+  const canPrintLastSale = puedeImprimir && printContext !== null;
   const { prefetchTemplate } = usePrinter(user?.localActual?.id);
   const [printerSetupOpen, setPrinterSetupOpen] = useState(false);
+  const [posActionsOpen, setPosActionsOpen] = useState(false);
 
   useEffect(() => {
     if (user?.localActual?.id && puedeImprimir) {
       void prefetchTemplate();
     }
   }, [user?.localActual?.id, puedeImprimir, prefetchTemplate]);
+
+  // Pending tickets retry from here now, not from a toolbar icon that had to
+  // be on screen for the queue to drain.
+  useAutoFlushPrintQueue(puedeImprimir ? user?.localActual?.id : undefined);
 
   const posOnboardingBlocksInteraction = useOnboardingStore((s) => {
     if (!s.run || s.activeTourId !== TOUR_POS_VENTA) return false;
@@ -440,13 +388,16 @@ export default function POSInterface() {
   // grilla, que sí lo aprovecha. Sin el tope, una pantalla de 1280px le daba
   // 538px al panel y dejaba las tarjetas en 234px — demasiado estrechas para
   // el stepper y el precio en la misma fila.
+  // 400px on a desktop, as the redesign draws the basket panel; a tablet has
+  // to share the width with the catalogue and gets the same floor the panel
+  // itself sets.
   const getCartWidth = () => {
-    if (isTablet) return "min(48vw, 420px)";
-    return "clamp(360px, 42vw, 420px)";
+    if (isTablet) return "min(48vw, 400px)";
+    return "400px";
   };
 
   const scannerEnabled =
-    !editingCartId &&
+    !renamingCart &&
     !intentToSearch &&
     !asociarCodigoOpen &&
     !selectedProduct &&
@@ -910,12 +861,20 @@ export default function POSInterface() {
     // setProductosTienda(productosTiendaEditados);
   };
 
+  // Opening from the charge bar's handle means "let me see the basket", so it
+  // says so: the step is controlled from here now, and a drawer reopened
+  // without this would come back on whatever step it was closed on.
   const handleCartIcon = useCallback(() => {
+    setCartStep("cart");
     setOpenCart(true);
   }, []);
 
   const handleCloseCart = useCallback(() => {
     setOpenCart(false);
+    // The drawer is destroyed when it closes, so the step it was on has to be
+    // put back here: nothing else would ever end a checkout that the cashier
+    // simply walked away from.
+    setCartStep("cart");
   }, []);
   const handleMakePay = async (
     total: number,
@@ -1006,11 +965,12 @@ export default function POSInterface() {
           }),
         };
 
-        // 1. INMEDIATAMENTE: Eliminar carrito activo (y su píldora), y cerrar
-        // todo lo que pueda seguir abierto del flujo de venta para arrancar
-        // limpio en la próxima venta.
+        // 1. Immediately: drop the active account (and its tab) and close
+        // whatever else of the sale flow may still be open, so the next sale
+        // starts clean. The cart drawer itself stays: it is showing «Cobro
+        // registrado», and «Nueva venta» is what closes it.
         removeActiveCart();
-        setOpenCart(false);
+        lastSaleRef.current = newSale;
         setSelectedProduct(null);
         setSearchQuery("");
         setIntentToSearch(false);
@@ -1198,29 +1158,36 @@ export default function POSInterface() {
       throw error;
     }
   };
-  const handleUpdateQuantity = (id: string, quantity: number) => {
-    const oldQuantity =
-      useCartStore.getState().items.find((item) => item.productoTiendaId === id)
-        ?.quantity || 0;
-    if (oldQuantity < quantity) {
-      const productoTienda = productosTienda.find((p) => p.id === id);
-      if (!productoTienda) return;
+  // Memoized because it now also feeds the charge bar's line list, which is a
+  // memoized component: a fresh identity per render would re-render every line
+  // of the basket on every keystroke anywhere on this page.
+  const handleUpdateQuantity = useCallback(
+    (id: string, quantity: number) => {
+      const oldQuantity =
+        useCartStore
+          .getState()
+          .items.find((item) => item.productoTiendaId === id)?.quantity || 0;
+      if (oldQuantity < quantity) {
+        const productoTienda = productosTienda.find((p) => p.id === id);
+        if (!productoTienda) return;
 
-      // El tope es lo que realmente se puede vender: la existencia del
-      // producto y, si es fracción, lo que haya dentro de los padres sin
-      // abrir (la venta los desagrega sola). Ya no se limita a una caja.
-      const { disponible } = calcularDisponibilidadReal(
-        productoTienda,
-        productosTienda,
-      );
+        // El tope es lo que realmente se puede vender: la existencia del
+        // producto y, si es fracción, lo que haya dentro de los padres sin
+        // abrir (la venta los desagrega sola). Ya no se limita a una caja.
+        const { disponible } = calcularDisponibilidadReal(
+          productoTienda,
+          productosTienda,
+        );
 
-      if (quantity > disponible) {
-        return;
+        if (quantity > disponible) {
+          return;
+        }
       }
-    }
 
-    updateQuantity(id, quantity);
-  };
+      updateQuantity(id, quantity);
+    },
+    [productosTienda, updateQuantity],
+  );
 
   const handleShowSyncView = () => {
     setShowSyncView(true);
@@ -1294,15 +1261,15 @@ export default function POSInterface() {
     // Deferred to the next frame: reading `scrollHeight` forces a synchronous
     // layout, and running it inline here would do so right after the most
     // expensive render of the view — the grid rebuilding for a new filter.
+    // Always the top. The list used to be stacked bottom-up while searching,
+    // with the field under it, and «the start» was then the maximum scroll;
+    // with the field at the top that jump only threw the catalogue to its
+    // end the moment the field was tapped.
     const raf = requestAnimationFrame(() => {
-      // Mientras se busca la lista es `column-reverse`: el primer resultado
-      // está en el extremo *físico* de abajo (pegado al buscador), así que
-      // "volver al principio" es el scrollTop máximo, que el navegador
-      // recorta solo.
-      el.scrollTop = searchMode ? el.scrollHeight : 0;
+      el.scrollTop = 0;
     });
     return () => cancelAnimationFrame(raf);
-  }, [selectedCategoryId, debouncedSearchQuery, searchMode]);
+  }, [selectedCategoryId, debouncedSearchQuery]);
 
   const handleResetProductQuantity = () => {
     setSelectedProduct(null);
@@ -1311,8 +1278,25 @@ export default function POSInterface() {
 
   const handleConfirmQuantity = () => {
     setSelectedProduct(null);
-    setOpenCart(true);
+    // A scan has nothing else on screen to confirm it landed, so it shows the
+    // basket. A tap in the catalogue does — the row it came from — and the
+    // cashier is usually mid-list adding the next product.
+    if (productOrigin !== "catalog") setOpenCart(true);
+    setProductOrigin(null);
   };
+
+  /**
+   * Tapping a catalogue row asks for an exact quantity.
+   *
+   * The row's own «+» adds one, which is the common case; this is what
+   * replaced typing the figure into the row itself, and it reuses the dialog
+   * the scanner already opens rather than putting a third quantity control
+   * on the screen.
+   */
+  const handleProductRowClick = useCallback((card: PosProductCard) => {
+    setProductOrigin("catalog");
+    setSelectedProduct(card.productoTienda);
+  }, []);
 
   const handleSearchFocus = useCallback(() => {
     setIntentToSearch(true);
@@ -1323,24 +1307,6 @@ export default function POSInterface() {
     // para que el escáner no robe el foco
     setIntentToSearch(true);
   }, []);
-
-  const handleCreateCart = useCallback(() => {
-    createCart();
-  }, [createCart]);
-
-  const handleStartEditingCart = useCallback((id: string, name: string) => {
-    setEditingCartId(id);
-    setEditingCartName(name);
-  }, []);
-
-  const handleStopEditingCart = useCallback(() => {
-    if (editingCartId) {
-      const cart = carts.find((c) => c.id === editingCartId);
-      const newName = (editingCartName || "").trim() || cart?.name || "";
-      renameCart(editingCartId, newName);
-    }
-    setEditingCartId(null);
-  }, [editingCartId, editingCartName, carts, renameCart]);
 
   const handleDismissScannerError = useCallback(() => {
     setScannerError(null);
@@ -1566,7 +1532,7 @@ export default function POSInterface() {
     // desktop. A centred spinner said nothing about either, and on a catalogue
     // of two thousand products the wait is long enough to be worth shaping.
     return (
-      <Box sx={{ display: "flex", gap: 1, p: 1, height: "100%" }}>
+      <Box sx={{ display: "flex", gap: 1.5, p: 1.5, height: "100%" }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
             {[96, 120, 104, 88].map((width) => (
@@ -1583,7 +1549,7 @@ export default function POSInterface() {
         </Box>
 
         {showCartPanel && (
-          <Box sx={{ width: 380, flexShrink: 0 }}>
+          <Box sx={{ width: 400, flexShrink: 0 }}>
             <LoadingState variant="list" count={4} />
           </Box>
         )}
@@ -1635,40 +1601,21 @@ export default function POSInterface() {
         // 56/64px are the top AppBar's heights (see Layout.tsx).
         height: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
         overflow: "hidden",
+        // Edge to edge. The layout's <Container> frames every page with 4px
+        // (8px from `sm`) of side padding; the POS is the one screen that is
+        // a fixed-height column with a bar across its floor, and that frame
+        // showed as two white slivers beside the charge bar. The desktop's
+        // own 12px gutter below is what spaces the panels there.
+        mx: { xs: -0.5, sm: -1 },
         // El aire que rodea y separa las dos tarjetas de escritorio. Va en el
         // contenedor —no en márgenes de cada panel— para que el hueco entre
         // ambas y el que las separa del borde de la ventana midan igual. El
         // padding no roba altura: `box-sizing: border-box` (CssBaseline) lo
         // descuenta del propio calc() de arriba.
         ...(showCartPanel && {
-          p: 1,
-          gap: 1,
+          p: 1.5,
+          gap: 1.5,
           backgroundColor: "background.default",
-        }),
-        // Con el teclado abierto, iOS Safari no encoge el viewport de
-        // layout: desplaza el *visual viewport* dentro de él. Todo lo que
-        // esté en flujo normal del documento queda entonces corrido hacia
-        // arriba respecto de lo que se ve (la AppBar sticky se va fuera de
-        // pantalla) y `dvh` sigue midiendo el alto sin teclado, así que
-        // este box se extendía por debajo del teclado y los productos
-        // quedaban tapados. Solo `position: fixed` sigue al área visible:
-        // mientras se busca, este contenedor pasa a estar anclado a ella y
-        // toda la maquetación de adentro —barra, píldoras, grilla— vuelve
-        // a resolver contra coordenadas reales, sin tocar su estructura.
-        ...(pinToVisibleArea && {
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          // Leída de la variable CSS que publica useOnScreenKeyboard, no de
-          // estado de React: la altura cambia en cada frame mientras el
-          // teclado se abre, y pasarla por estado re-renderizaba el POS entero
-          // una vez por frame. El fallback cubre el instante previo a la
-          // primera medición.
-          height: `var(${VISUAL_VIEWPORT_HEIGHT_VAR}, 100dvh)`,
-          // Por encima de la AppBar (zIndex.drawer - 1), que con el teclado
-          // abierto ya está fuera del área visible de todos modos.
-          zIndex: 1200,
         }),
       }}
     >
@@ -1706,87 +1653,29 @@ export default function POSInterface() {
           active={productsLocked}
           onDismiss={() => setCartStep("cart")}
         />
-        {/* Al buscar, la cabecera entera (herramientas + categorías) sale de
-            vista: escribir el nombre ya filtra mejor que cualquiera de las
-            dos, y el alto que dejan libre lo hereda la grilla. Ninguna se
-            aplasta a altura 0 — conservan su tamaño y se desplazan con un
-            margen negativo, así que al salir de la búsqueda vuelven solas.
-            El `overflow: hidden` del padre hace dos cosas necesarias, no
-            una: recorta lo desplazado, y crea un contexto de formato de
-            bloque sin el cual este margen negativo se colapsaría con el del
-            padre y arrastraría todo hacia arriba. */}
-        <Box sx={{ flexShrink: 0, overflow: "hidden" }}>
-          {/* Sin `transition` sobre `mt`: animar un margen es animar el
-              layout, y aquí abajo cuelga el catálogo entero — eran ~12 frames
-              de re-maquetado de todas las tarjetas justo mientras el teclado
-              intentaba abrirse. El colapso ahora es instantáneo. */}
-          <Box
-            ref={posHeaderRef}
-            sx={{ mt: searchMode ? `-${headerHeight}px` : 0 }}
-          >
-            {/* El `backdrop-filter` que había aquí desenfocaba un fondo ya
-                opaco al 95%: coste de GPU sin efecto visible, y encima sobre
-                un subárbol que se desplaza al buscar. */}
-            <Box
-              sx={{
-                bgcolor: "rgba(255, 255, 255, 0.95)",
-                borderBottom: "1px solid rgba(0,0,0,0.1)",
-                px: 2,
-                py: 1,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-              }}
-            >
-              <Box
-                data-tour="pos-toolbar-periodo"
-                sx={{ display: "flex", alignItems: "center", minHeight: 32 }}
-              >
-                <PeriodoBadge periodo={periodo} isMobile={isMobile} />
-              </Box>
 
-              <Box
-                display="flex"
-                flexDirection="row"
-                justifyContent="center"
-                alignItems="center"
-              >
-                <RefreshButton onRefresh={handleRefresh} />
-                <CurrencyDisplayToggle />
-                <Tooltip title="Punto de partida">
-                  <IconButton
-                    size="small"
-                    data-tour="pos-toolbar-punto-partida"
-                    onClick={() => setResumenDiaOpen(true)}
-                  >
-                    <FlagIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                {puedeDevolucionVenta && (
-                  <Tooltip title="Devolución de venta">
-                    <IconButton
-                      size="small"
-                      onClick={() => setDevolucionVentaOpen(true)}
-                    >
-                      <UndoIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <PosStatusToolBar
-                  handleShowSyncView={handleShowSyncView}
-                  handleShowUserSales={handleShowUserSales}
-                />
-                {puedeImprimir && user?.localActual?.id && (
-                  <PrintQueueIndicator
-                    tiendaId={user.localActual.id}
-                    onOpenSetup={() => setPrinterSetupOpen(true)}
-                  />
-                )}
-                <ConnectionStatus isOnline={isOnline} />
-              </Box>
-            </Box>
-            {/* Fila fija de píldoras de categorías */}
+        <PosBottomBar
+          searchInputRef={searchInputRef}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearch}
+          onSearchFocus={handleSearchFocus}
+          onSearchBlur={handleSearchBlur}
+          onSearchMouseDown={handleSearchMouseDown}
+          scannerRef={scannerRef}
+          onProductScan={handleProductScan}
+          onCameraOpenChange={setCameraScannerOpen}
+          scannerError={scannerError}
+          onDismissScannerError={handleDismissScannerError}
+          onOpenActions={() => setPosActionsOpen(true)}
+        />
+
+        {/* Nothing here moves when the field is tapped. The categories used
+            to slide out of view and the field to shrink while searching —
+            a leftover of the bar living at the bottom, above the keyboard.
+            With the field at the top the keyboard rises from below and the
+            catalogue simply scrolls above it. */}
+        <Box sx={{ flexShrink: 0 }}>
+          <Box>
             <CategoryPillsBar
               categories={categories}
               selectedCategoryId={selectedCategoryId}
@@ -1811,16 +1700,8 @@ export default function POSInterface() {
             flex: 1,
             minWidth: 0,
             overflow: "auto",
-            // Matches PosBottomBar's own 700px threshold for switching
-            // between position:fixed (mobile) and normal flow (desktop):
-            // below it the footer is fixed and needs this space reserved
-            // so it doesn't cover the tail end of the grid. The value
-            // itself comes from measuring PosBottomBar live (see
-            // bottomBarHeight above) rather than a guessed constant.
-            pb: `${bottomBarHeight}px`,
-            "@media (min-width:700px)": {
-              pb: 0,
-            },
+            // No compensation needed any more: both bars are flex siblings
+            // of this scroller, so neither can cover it.
           }}
         >
           <PosProductGrid
@@ -1830,10 +1711,38 @@ export default function POSInterface() {
             // results is a prefix match, so it has to be driven by the same
             // term that produced them.
             searchQuery={debouncedSearchQuery}
-            bottomUp={searchMode}
             scrollElement={posScrollEl}
+            onProductClick={handleProductRowClick}
           />
         </Box>
+
+        {/* El suelo del POS: total, conversiones y accion en un solo objeto.
+            Sustituye al boton flotante, que escondia el importe tras un toque
+            y dejaba la accion en otro sitio. */}
+        <PosPayBar
+          hidden={showCartPanel}
+          onOpenCart={handleCartIcon}
+          onCheckout={handlePayBarCheckout}
+        />
+
+        <PosActionsSheet
+          open={posActionsOpen}
+          onClose={() => setPosActionsOpen(false)}
+          onSync={handleShowSyncView}
+          onMySales={handleShowUserSales}
+          onStartingPoint={() => setResumenDiaOpen(true)}
+          onSaleReturn={
+            puedeDevolucionVenta
+              ? () => setDevolucionVentaOpen(true)
+              : undefined
+          }
+          onPrintQueue={
+            puedeImprimir && user?.localActual?.id
+              ? () => setPrinterSetupOpen(true)
+              : undefined
+          }
+          onRefresh={handleRefresh}
+        />
 
         {/* Carrito de compras (overlay, solo mobile) */}
         <CartDrawer
@@ -1845,7 +1754,10 @@ export default function POSInterface() {
           clear={clearCart}
           removeItem={removeFromCart}
           updateQuantity={handleUpdateQuantity}
+          step={cartStep}
           onStepChange={setCartStep}
+          onRenamingCart={setRenamingCart}
+          onPrintLastSale={canPrintLastSale ? printLastSale : undefined}
         />
 
         {/* Modal de resumen del período */}
@@ -1894,42 +1806,8 @@ export default function POSInterface() {
           />
         )}
 
-        <ShoppingCartComponent
-          openCart={openCart}
-          handleCartIcon={handleCartIcon}
-          hidden={showCartPanel}
-        />
-
-        <PosBottomBar
-          rootRef={posBottomBarRef}
-          searchMode={searchMode}
-          carts={carts}
-          activeCartId={activeCartId}
-          onSelectCart={setActiveCart}
-          onCreateCart={handleCreateCart}
-          onRemoveActiveCart={removeActiveCart}
-          onRenameCart={renameCart}
-          editingCartId={editingCartId}
-          onStartEditingCart={handleStartEditingCart}
-          editingCartName={editingCartName}
-          onEditingCartNameChange={setEditingCartName}
-          onStopEditingCart={handleStopEditingCart}
-          editCartInputRef={editCartInputRef}
-          searchInputRef={searchInputRef}
-          searchQuery={searchQuery}
-          onSearchChange={handleSearch}
-          onSearchFocus={handleSearchFocus}
-          onSearchBlur={handleSearchBlur}
-          onSearchMouseDown={handleSearchMouseDown}
-          scannerRef={scannerRef}
-          onProductScan={handleProductScan}
-          onCameraOpenChange={setCameraScannerOpen}
-          scannerError={scannerError}
-          onDismissScannerError={handleDismissScannerError}
-        />
-
-        {/* Dialog de cantidad */}
-        <QuantityDialog
+        {/* Hoja de cantidad */}
+        <QuantitySheet
           productoTienda={selectedProduct}
           onClose={handleResetProductQuantity}
           onConfirm={handleConfirmQuantity}
@@ -1992,6 +1870,8 @@ export default function POSInterface() {
               variant="panel"
               step={cartStep}
               onStepChange={setCartStep}
+              onRenamingCart={setRenamingCart}
+              onPrintLastSale={canPrintLastSale ? printLastSale : undefined}
             />
           </Box>
         </Box>

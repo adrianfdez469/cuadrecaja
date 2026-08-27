@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
+import { StatusPill } from "@/components/StatusPill";
 import {
   Typography,
   Button,
@@ -20,7 +21,6 @@ import {
   Box,
   CircularProgress,
   InputAdornment,
-  Grid,
   Card,
   CardContent,
   Stack,
@@ -28,8 +28,6 @@ import {
   Chip,
   useTheme,
   useMediaQuery,
-  Collapse,
-  Divider,
 } from "@mui/material";
 import {
   Edit,
@@ -351,67 +349,11 @@ export default function UsuariosPage() {
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas de usuarios */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={4}>
-                <StatCard
-                  icon={<Person />}
-                  value={totalUsuarios.toLocaleString()}
-                  label="Total"
-                  tone="neutral"
-                />
-              </Grid>
-              {/* <Grid item xs={4}>
-                <StatCard
-                  icon={<AdminPanelSettings />}
-                  value={adminUsuarios.toLocaleString()}
-                  label="Admins"
-                  tone="negative"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <StatCard
-                  icon={<Store />}
-                  value={vendedorUsuarios.toLocaleString()}
-                  label="Vendedores"
-                  tone="info"
-                />
-              </Grid> */}
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<Person />}
-              value={totalUsuarios.toLocaleString()}
-              label="Total Usuarios"
-              tone="neutral"
-            />
-          </Grid>
-          {/* <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<AdminPanelSettings />}
-              value={adminUsuarios.toLocaleString()}
-              label="Administradores"
-              tone="negative"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<Store />}
-              value={vendedorUsuarios.toLocaleString()}
-              label="Vendedores"
-              tone="info"
-            />
-          </Grid> */}
-        </Grid>
-      )}
+      <StatStrip
+        stats={[
+          { label: "Total Usuarios", value: totalUsuarios.toLocaleString() },
+        ]}
+      />
 
       {/* Lista de usuarios */}
       <ContentCard
@@ -621,9 +563,6 @@ export default function UsuariosPage() {
                       "&:hover": {
                         backgroundColor: "action.hover",
                       },
-                      "&:nth-of-type(odd)": {
-                        backgroundColor: "rgba(0, 0, 0, 0.02)",
-                      },
                     }}
                   >
                     <TableCell>
@@ -644,26 +583,12 @@ export default function UsuariosPage() {
                         justifyContent="flex-start"
                       >
                         {user.estadoCuenta === PENDIENTE_VERIFICACION ? (
-                          <Chip
-                            label="Pendiente"
-                            color="warning"
-                            size="small"
-                          />
+                          <StatusPill label="Pendiente" hue="caution" />
                         ) : (
-                          <Chip
-                            label="Activo"
-                            color="success"
-                            size="small"
-                            variant="outlined"
-                          />
+                          <StatusPill label="Activo" hue="positive" />
                         )}
                         {resetPasswordSent[user.id] ? (
-                          <Chip
-                            label="Reset enviado"
-                            color="info"
-                            size="small"
-                            variant="outlined"
-                          />
+                          <StatusPill label="Reset enviado" hue="info" />
                         ) : null}
                       </Stack>
                     </TableCell>

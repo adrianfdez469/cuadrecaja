@@ -1,4 +1,4 @@
-import { createTheme, Theme } from "@mui/material/styles";
+import { alpha, createTheme, Theme } from "@mui/material/styles";
 
 import {
   ColorRole,
@@ -124,6 +124,20 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
         disabled: t.text.disabled,
       },
       divider: t.surface.border,
+      // MUI's own interaction slots, pointed at the accent.
+      //
+      // The direction reserves violet for action and selection, and this is
+      // where that becomes true app-wide rather than per-component. The nav
+      // alone hand-painted `rgba(25, 118, 210, 0.08)` — the retired stock
+      // blue — in nine places, while every ListItemButton, MenuItem and
+      // TableRow that never got a local override fell back to MUI's neutral
+      // grey. Both were wrong, in opposite directions.
+      action: {
+        hover: alpha(t.hue.accent.main, 0.08),
+        hoverOpacity: 0.08,
+        selected: alpha(t.hue.accent.main, 0.12),
+        selectedOpacity: 0.12,
+      },
       semantic: t,
     },
     typography,
@@ -186,8 +200,12 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
           root: {
             backgroundColor: t.surface.raised,
             color: t.text.primary,
-            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
-            borderBottom: `1px solid ${t.surface.border}`,
+            // The hairline is drawn inside the bar, not as a border under
+            // it: a border made the bar 57/65px while every screen that
+            // fills the viewport (the POS) subtracts 56/64, and that one
+            // pixel was enough to let the whole page scroll. No shadow — the
+            // hairline is the boundary.
+            boxShadow: `inset 0 -1px 0 ${t.surface.border}`,
           },
         },
       },
@@ -221,6 +239,15 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
               transition: "background-color 0.15s ease",
             },
           },
+        },
+      },
+      // 16px in every text field, one step above body1. Not a type choice:
+      // iOS Safari zooms the whole page into any input set below 16px the
+      // moment it is focused, and the POS's search field is tapped on a
+      // phone hundreds of times a day.
+      MuiInputBase: {
+        styleOverrides: {
+          root: { fontSize: "1rem" },
         },
       },
       MuiTextField: {

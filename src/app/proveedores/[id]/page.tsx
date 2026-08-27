@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import { useParams, useRouter } from "next/navigation";
 import {
   Box,
@@ -33,13 +33,11 @@ import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency } from "@/utils/formatters";
 import {
-  TrendingUp,
   Refresh,
   ArrowBack,
   Receipt,
   Inventory,
   LocalShipping,
-  MonetizationOn,
   Person,
   Phone,
   Email,
@@ -421,24 +419,21 @@ export default function ProveedorDetallePage() {
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <Grid container spacing={2}>
-              <Grid item xs={6} md={12}>
-                <StatCard
-                  icon={<MonetizationOn fontSize="medium" />}
-                  value={formatCurrency(proveedor.dineroLiquidado)}
-                  label="Dinero Liquidado"
-                  tone="positive"
-                />
-              </Grid>
-              <Grid item xs={6} md={12}>
-                <StatCard
-                  icon={<TrendingUp fontSize="medium" />}
-                  value={formatCurrency(proveedor.dineroPorLiquidar)}
-                  label="Por Liquidar"
-                  tone="caution"
-                />
-              </Grid>
-            </Grid>
+            <StatStrip
+              variant="card"
+              stats={[
+                {
+                  label: "Dinero Liquidado",
+                  value: formatCurrency(proveedor.dineroLiquidado),
+                  tone:
+                    proveedor.dineroLiquidado > 0 ? "positive" : undefined,
+                },
+                {
+                  label: "Por Liquidar",
+                  value: formatCurrency(proveedor.dineroPorLiquidar),
+                },
+              ]}
+            />
           </Grid>
         </Grid>
       </ContentCard>

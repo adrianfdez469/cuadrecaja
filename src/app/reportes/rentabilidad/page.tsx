@@ -2,9 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { Stack } from "@mui/material";
-import Grid from "@mui/material/Grid2";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import { IncomeStatementTable } from "@/components/reports/profitability/IncomeStatementTable";
 import { DiscountEffectivenessTable } from "@/components/reports/profitability/DiscountEffectivenessTable";
 import { useReportFilters } from "@/hooks/useReportFilters";
@@ -49,39 +48,30 @@ export default function RentabilidadPage() {
     >
       {data && pnl && (
         <Stack spacing={3}>
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                variant="metric"
-                label="Ventas netas"
-                value={currency.format(pnl.ventasNetas)}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                variant="metric"
-                label="Margen bruto"
-                value={currency.format(pnl.margenBruto)}
-                subtitle={`${pnl.margenBrutoPorcentaje.toFixed(1)}% sobre ventas`}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                variant="metric"
-                label="Gastos operativos"
-                value={currency.format(pnl.gastosOperativos)}
-                tone="negative"
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                variant="metric"
-                label="Ganancia final"
-                value={currency.format(pnl.gananciaFinal)}
-                tone={pnl.gananciaFinal >= 0 ? "positive" : "negative"}
-              />
-            </Grid>
-          </Grid>
+          <StatStrip
+            variant="card"
+            stats={[
+              {
+                label: "Ventas netas",
+                value: currency.format(pnl.ventasNetas),
+              },
+              {
+                label: "Margen bruto",
+                value: currency.format(pnl.margenBruto),
+                note: `${pnl.margenBrutoPorcentaje.toFixed(1)}% sobre ventas`,
+              },
+              {
+                label: "Gastos operativos",
+                value: currency.format(pnl.gastosOperativos),
+                tone: "negative",
+              },
+              {
+                label: "Ganancia final",
+                value: currency.format(pnl.gananciaFinal),
+                tone: pnl.gananciaFinal >= 0 ? "positive" : "negative",
+              },
+            ]}
+          />
 
           <IncomeStatementTable data={pnl} format={currency.format} />
 

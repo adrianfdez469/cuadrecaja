@@ -57,6 +57,7 @@ import type { IPlan } from '@/schemas/plan';
 import { getPlanes } from '@/services/planService';
 import { getNegocioStats } from '@/services/negocioServce';
 import { buildPlanFeatures } from '@/utils/planUtils';
+import { WHATSAPP_GREEN } from "@/constants/brandColors";
 
 interface SupportUser {
   name: string;
@@ -657,7 +658,7 @@ export default function PlanesPage() {
                           <Typography variant="body2" color="text.secondary">
                             {user.phone}
                           </Typography>
-                          <WhatsApp sx={{ fontSize: 16, color: '#25D366' }} />
+                          <WhatsApp sx={{ fontSize: 16, color: WHATSAPP_GREEN }} />
                         </Stack>
                       </Box>
                     </Box>
@@ -667,7 +668,7 @@ export default function PlanesPage() {
                     p: 1,
                     borderRadius: 2,
                     '&:hover': {
-                      backgroundColor: 'rgba(25, 118, 210, 0.04)'
+                      backgroundColor: 'action.hover'
                     }
                   }}
                 />

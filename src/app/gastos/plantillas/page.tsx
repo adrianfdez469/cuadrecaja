@@ -45,10 +45,8 @@ import {
   deletePlantilla,
 } from "@/services/gastoService";
 import {
-  TIPO_CALCULO_LABELS,
-  TIPO_CALCULO_COLORS,
   RECURRENCIA_LABELS,
-  RECURRENCIA_COLORS,
+  TIPO_CALCULO_LABELS,
 } from "@/constants/gastos";
 import { formatearCuandoAplica } from "@/utils/gastos";
 import GastoFormDialog from "../components/GastoFormDialog";
@@ -162,18 +160,14 @@ export default function PlantillasPage() {
                           <Typography variant="subtitle2" fontWeight="bold">{p.nombre}</Typography>
                           <Typography variant="caption" color="text.secondary">{p.categoria}</Typography>
                         </Box>
-                        <Chip
-                          label={RECURRENCIA_LABELS[p.recurrencia]}
-                          size="small"
-                          sx={{ backgroundColor: RECURRENCIA_COLORS[p.recurrencia], color: "#fff", height: 20, fontSize: "0.6875rem" }}
-                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {RECURRENCIA_LABELS[p.recurrencia]}
+                        </Typography>
                       </Box>
                       <Box display="flex" gap={1} alignItems="center">
-                        <Chip
-                          label={TIPO_CALCULO_LABELS[p.tipoCalculo]}
-                          size="small"
-                          sx={{ backgroundColor: TIPO_CALCULO_COLORS[p.tipoCalculo], color: "#fff", height: 20, fontSize: "0.6875rem" }}
-                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {TIPO_CALCULO_LABELS[p.tipoCalculo]}
+                        </Typography>
                         {(p._count?.asignaciones ?? 0) > 0 && (
                           <Chip
                             icon={<LinkIcon />}
@@ -228,18 +222,14 @@ export default function PlantillasPage() {
                       <TableCell>{p.nombre}</TableCell>
                       <TableCell><Typography variant="body2" color="text.secondary">{p.categoria}</Typography></TableCell>
                       <TableCell>
-                        <Chip
-                          label={TIPO_CALCULO_LABELS[p.tipoCalculo]}
-                          size="small"
-                          sx={{ backgroundColor: TIPO_CALCULO_COLORS[p.tipoCalculo], color: "#fff", fontSize: "0.6875rem" }}
-                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {TIPO_CALCULO_LABELS[p.tipoCalculo]}
+                        </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={RECURRENCIA_LABELS[p.recurrencia]}
-                          size="small"
-                          sx={{ backgroundColor: RECURRENCIA_COLORS[p.recurrencia], color: "#fff", fontSize: "0.6875rem" }}
-                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {RECURRENCIA_LABELS[p.recurrencia]}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="caption" color="text.secondary">{formatearCuandoAplica(p)}</Typography>

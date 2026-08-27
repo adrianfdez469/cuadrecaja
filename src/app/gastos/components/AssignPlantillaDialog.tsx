@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,12 +23,10 @@ import {
   assignPlantillaSchema,
 } from "@/schemas/gastos";
 import {
-  TIPO_CALCULO_LABELS,
-  TIPO_CALCULO_COLORS,
-  RECURRENCIA_LABELS,
-  RECURRENCIA_COLORS,
   MESES,
   DIAS_MES,
+  RECURRENCIA_LABELS,
+  TIPO_CALCULO_LABELS,
 } from "@/constants/gastos";
 import { formatearCuandoAplica } from "@/utils/gastos";
 import MoneyField from "@/components/MoneyField";
@@ -153,26 +150,14 @@ export default function AssignPlantillaDialog({
                   alignItems="flex-start"
                 >
                   <Typography variant="subtitle2">{p.nombre}</Typography>
-                  <Chip
-                    label={RECURRENCIA_LABELS[p.recurrencia]}
-                    size="small"
-                    sx={{
-                      backgroundColor: RECURRENCIA_COLORS[p.recurrencia],
-                      color: "#fff",
-                      fontSize: "0.6875rem",
-                    }}
-                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {RECURRENCIA_LABELS[p.recurrencia]}
+                  </Typography>
                 </Box>
                 <Box display="flex" gap={1} mt={0.5} alignItems="center">
-                  <Chip
-                    label={TIPO_CALCULO_LABELS[p.tipoCalculo]}
-                    size="small"
-                    sx={{
-                      backgroundColor: TIPO_CALCULO_COLORS[p.tipoCalculo],
-                      color: "#fff",
-                      fontSize: "0.6875rem",
-                    }}
-                  />
+                  <Typography variant="caption" color="text.secondary">
+                    {TIPO_CALCULO_LABELS[p.tipoCalculo]}
+                  </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {p.categoria}
                   </Typography>

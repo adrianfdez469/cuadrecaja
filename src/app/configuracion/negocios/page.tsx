@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import {
   Box,
   Button,
@@ -115,7 +115,6 @@ export default function Negocios() {
   const [negocioStats, setNegocioStats] = useState<
     Record<string, NegocioStats>
   >({});
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const { showMessage } = useMessageContext();
   const { user, loadingContext } = useAppContext();
 
@@ -760,20 +759,6 @@ export default function Negocios() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
-      )}
       <Button
         variant="contained"
         startIcon={!isMobile ? <Add /> : undefined}
@@ -847,83 +832,22 @@ export default function Negocios() {
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas de negocios */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Business fontSize={"medium"} />}
-                  value={totalNegocios.toLocaleString()}
-                  label="Total Negocios"
-                  tone="neutral"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<TrendingUp fontSize={"medium"} />}
-                  value={negociosActivos.toLocaleString()}
-                  label="Activos"
-                  tone="positive"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Schedule fontSize={"medium"} />}
-                  value={negociosExpirados.toLocaleString()}
-                  label="Expirados"
-                  tone="negative"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Search fontSize={"medium"} />}
-                  value={negociosVisibles.toLocaleString()}
-                  label="Visibles"
-                  tone="info"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Business fontSize="large" />}
-              value={totalNegocios.toLocaleString()}
-              label="Total Negocios"
-              tone="neutral"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<TrendingUp fontSize="large" />}
-              value={negociosActivos.toLocaleString()}
-              label="Negocios Activos"
-              tone="positive"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Schedule fontSize="large" />}
-              value={negociosExpirados.toLocaleString()}
-              label="Negocios Expirados"
-              tone="negative"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Search fontSize="large" />}
-              value={negociosVisibles.toLocaleString()}
-              label="Resultados Visibles"
-              tone="info"
-            />
-          </Grid>
-        </Grid>
-      )}
+      <StatStrip
+        stats={[
+          { label: "Total Negocios", value: totalNegocios.toLocaleString() },
+          { label: "Negocios Activos", value: negociosActivos.toLocaleString() },
+          {
+            // Expired is the only one of the four that is a problem.
+            label: "Negocios Expirados",
+            value: negociosExpirados.toLocaleString(),
+            tone: negociosExpirados > 0 ? "negative" : undefined,
+          },
+          {
+            label: "Resultados Visibles",
+            value: negociosVisibles.toLocaleString(),
+          },
+        ]}
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>

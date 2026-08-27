@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
+import { StatusPill } from "@/components/StatusPill";
+import { touch } from "@/theme";
 import {
   Box,
   Button,
@@ -16,9 +18,6 @@ import {
   CircularProgress,
   TextField,
   InputAdornment,
-  Grid,
-  Card,
-  CardContent,
   Stack,
   Tooltip,
   Chip,
@@ -28,8 +27,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Collapse,
-  Divider,
   FormControlLabel,
   Switch,
 } from "@mui/material";
@@ -38,14 +35,9 @@ import {
   Edit,
   Add,
   Category,
-  Palette,
   ColorLens,
-  Label,
   Search,
   Refresh,
-  ExpandLess,
-  ExpandMore,
-  Public,
 } from "@mui/icons-material";
 import {
   fetchCategories,
@@ -81,7 +73,6 @@ export default function CategoriasPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const [statsExpanded, setStatsExpanded] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -166,35 +157,20 @@ export default function CategoriasPage() {
     { label: "Categorías" },
   ];
 
+  // The stats toggle is gone with the cards it used to hide: a StatStrip is two
+  // lines tall, so there is nothing left to fold away.
   const headerActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">
       <Tooltip title="Actualizar categorías">
-        <IconButton onClick={loadCategories} disabled={loading} size="small">
+        <IconButton onClick={loadCategories} disabled={loading}>
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
+      {!isMobile && (
+        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()}>
+          Agregar Categoría
+        </Button>
       )}
-      <Button
-        variant="contained"
-        startIcon={!isMobile ? <Add /> : undefined}
-        onClick={() => handleOpen()}
-        size="small"
-      >
-        {isMobile ? "Agregar" : "Agregar Categoría"}
-      </Button>
     </Stack>
   );
 
@@ -218,76 +194,33 @@ export default function CategoriasPage() {
   return (
     <PageContainer
       title="Gestión de Categorías"
-      subtitle={
-        !isMobile
-          ? "Organiza tus productos con categorías personalizadas"
-          : undefined
-      }
+      subtitle="Organiza tus productos con categorías personalizadas"
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas de categorías */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={4}>
-                <StatCard
-                  icon={<Category />}
-                  value={totalCategorias.toLocaleString()}
-                  label="Total"
-                  tone="neutral"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <StatCard
-                  icon={<Palette />}
-                  value={coloresUnicos.toLocaleString()}
-                  label="Colores"
-                  tone="positive"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <StatCard
-                  icon={<Label />}
-                  value={categoriasVisibles.toLocaleString()}
-                  label="Visibles"
-                  tone="info"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<Category />}
-              value={totalCategorias.toLocaleString()}
-              label="Total Categorías"
-              tone="neutral"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<Palette />}
-              value={coloresUnicos.toLocaleString()}
-              label="Colores Únicos"
-              tone="positive"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<Label />}
-              value={categoriasVisibles.toLocaleString()}
-              label="Categorías Visibles"
-              tone="info"
-            />
-          </Grid>
-        </Grid>
+      {isMobile && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          fullWidth
+          onClick={() => handleOpen()}
+          sx={{ minHeight: touch.comfortable, mb: 2.5 }}
+        >
+          Agregar
+        </Button>
       )}
+
+      <StatStrip
+        stats={[
+          { label: "Total Categorías", value: totalCategorias.toLocaleString() },
+          { label: "Colores Únicos", value: coloresUnicos.toLocaleString() },
+          {
+            label: "Categorías Visibles",
+            value: categoriasVisibles.toLocaleString(),
+          },
+        ]}
+      />
 
       {/* Lista de categorías */}
       <ContentCard
@@ -336,104 +269,80 @@ export default function CategoriasPage() {
             </Box>
           </Box>
         ) : isMobile ? (
-          // Vista móvil con cards más densos
-          <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.5}>
-              {filteredCategories.map((categoria) => {
-                const isGlobalReadOnly = categoria.esGlobal && !isSuperAdmin;
-                return (
-                  <Card
-                    key={categoria.id}
-                    onClick={() => handleOpen(categoria)}
+          // One card holding rows, not a card per category: nesting a card in a
+          // card cost a border and an indent per row and pushed the list down
+          // the screen. The swatch is the data here, so it stays saturated and
+          // everything around it goes quiet.
+          <Box>
+            {filteredCategories.map((categoria, index) => {
+              const isGlobalReadOnly = categoria.esGlobal && !isSuperAdmin;
+              return (
+                <Box
+                  key={categoria.id}
+                  onClick={() => !isGlobalReadOnly && handleOpen(categoria)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    minHeight: 64,
+                    pl: 2,
+                    pr: 0.5,
+                    py: 1,
+                    cursor: isGlobalReadOnly ? "default" : "pointer",
+                    ...(index > 0 && { borderTop: 1, borderColor: "divider" }),
+                  }}
+                >
+                  <Box
                     sx={{
-                      cursor: isGlobalReadOnly ? "default" : "pointer",
-                      "&:hover": {
-                        backgroundColor: isGlobalReadOnly
-                          ? undefined
-                          : "action.hover",
-                      },
+                      width: 22,
+                      height: 22,
+                      flex: "0 0 22px",
+                      borderRadius: "6px",
+                      bgcolor: categoria.color,
+                      border: "1px solid",
+                      borderColor: "divider",
                     }}
+                  />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Typography sx={{ fontSize: "1rem", fontWeight: 600 }}>
+                        {categoria.nombre}
+                      </Typography>
+                      {categoria.esGlobal && (
+                        <StatusPill label="Global" />
+                      )}
+                    </Box>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.25, fontFamily: "monospace" }}
+                    >
+                      {categoria.color}
+                    </Typography>
+                  </Box>
+                  <Tooltip
+                    title={
+                      isGlobalReadOnly
+                        ? "Las categorías globales no se pueden eliminar"
+                        : "Eliminar categoría"
+                    }
                   >
-                    <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                      <Stack spacing={1.5}>
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Box
-                              sx={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: 1,
-                                bgcolor: categoria.color,
-                                border: "1px solid",
-                                borderColor: "divider",
-                              }}
-                            />
-                            <Typography
-                              variant="subtitle2"
-                              fontWeight="medium"
-                              sx={{ fontSize: "0.875rem" }}
-                            >
-                              {categoria.nombre}
-                            </Typography>
-                            {categoria.esGlobal && (
-                              <Chip
-                                icon={
-                                  <Public
-                                    sx={{ fontSize: "0.75rem !important" }}
-                                  />
-                                }
-                                label="Global"
-                                size="small"
-                                color="info"
-                                variant="outlined"
-                                sx={{
-                                  fontSize: "0.65rem",
-                                  height: 18,
-                                  "& .MuiChip-label": { px: 0.5 },
-                                }}
-                              />
-                            )}
-                          </Box>
-                          <Tooltip
-                            title={
-                              isGlobalReadOnly
-                                ? "Las categorías globales no se pueden eliminar"
-                                : "Eliminar categoría"
-                            }
-                          >
-                            <span>
-                              <IconButton
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(categoria.id);
-                                }}
-                                size="small"
-                                color="error"
-                                disabled={isGlobalReadOnly}
-                              >
-                                <Delete fontSize="small" />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        </Box>
-
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ fontSize: "0.6875rem" }}
-                        >
-                          Color: {categoria.color}
-                        </Typography>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </Stack>
+                    <span>
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(categoria.id);
+                        }}
+                        color="error"
+                        disabled={isGlobalReadOnly}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
+              );
+            })}
           </Box>
         ) : (
           // Vista desktop con tabla
@@ -460,18 +369,16 @@ export default function CategoriasPage() {
                             ? undefined
                             : "action.hover",
                         },
-                        "&:nth-of-type(odd)": {
-                          backgroundColor: "rgba(0, 0, 0, 0.02)",
-                        },
                       }}
                     >
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1.5}>
                           <Box
                             sx={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: 1,
+                              width: 22,
+                              height: 22,
+                              flex: "0 0 22px",
+                              borderRadius: "6px",
                               bgcolor: categoria.color,
                               border: "1px solid",
                               borderColor: "divider",
@@ -481,18 +388,9 @@ export default function CategoriasPage() {
                             {categoria.nombre}
                           </Typography>
                           {categoria.esGlobal && (
-                            <Chip
-                              icon={
-                                <Public
-                                  sx={{ fontSize: "0.75rem !important" }}
-                                />
-                              }
-                              label="Global"
-                              size="small"
-                              color="info"
-                              variant="outlined"
-                              sx={{ fontSize: "0.7rem" }}
-                            />
+                            // Almost every row carries this: repeated facts do
+                            // not get to be the loudest thing in the cell.
+                            <StatusPill label="Global" />
                           )}
                         </Box>
                       </TableCell>

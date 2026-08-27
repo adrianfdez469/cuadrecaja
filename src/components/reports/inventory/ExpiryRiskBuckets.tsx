@@ -1,9 +1,9 @@
 "use client";
 
 import { Alert, Stack } from "@mui/material";
-import Grid from "@mui/material/Grid2";
 import { ContentCard } from "@/components/ContentCard";
-import { StatCard, StatTone } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
+import type { PillHue } from "@/components/StatusPill";
 import { ReportDataTable } from "@/components/reports/ReportDataTable";
 import type { ReportColumn } from "@/components/reports/ReportDataTable";
 import { formatDate, formatNumber } from "@/utils/formatters";
@@ -20,7 +20,7 @@ type ExpiryRiskBucketsProps = {
 };
 
 /** Tone by urgency: already expired is a loss, 30 days is a heads-up. */
-function bucketTone(dias: number): StatTone {
+function bucketTone(dias: number): PillHue {
   if (dias === 0) return "negative";
   if (dias <= 7) return "caution";
   return "info";
@@ -81,19 +81,15 @@ export function ExpiryRiskBuckets({
       subtitle={`Total en riesgo (próximos 30 días): ${format(total)}`}
     >
       <Stack spacing={2}>
-        <Grid container spacing={2}>
-          {buckets.map((bucket) => (
-            <Grid key={bucket.etiqueta} size={{ xs: 6, md: 3 }}>
-              <StatCard
-                variant="metric"
-                label={bucket.etiqueta}
-                value={format(bucket.valorEnRiesgo)}
-                subtitle={`${bucket.productos} producto(s)`}
-                tone={bucketTone(bucket.dias)}
-              />
-            </Grid>
-          ))}
-        </Grid>
+        <StatStrip
+          variant="card"
+          stats={buckets.map((bucket) => ({
+            label: bucket.etiqueta,
+            value: format(bucket.valorEnRiesgo),
+            note: `${bucket.productos} producto(s)`,
+            tone: bucketTone(bucket.dias),
+          }))}
+        />
 
         {rows.length === 0 ? (
           <Alert severity="success">

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import { useVirtualRows } from "@/hooks/useVirtualRows";
 import {
   VENTAS_CARD_ESTIMATED_HEIGHT,
@@ -22,24 +22,17 @@ import {
   Alert,
   Button,
   InputAdornment,
-  Grid,
   Card,
   CardContent,
   Stack,
   Tooltip,
   useTheme,
   useMediaQuery,
-  Collapse,
-  Divider,
 } from "@mui/material";
 import {
   Delete,
-  AttachMoney,
-  CalendarToday,
   Search,
   Refresh,
-  ExpandMore,
-  ExpandLess,
   Visibility,
 } from "@mui/icons-material";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
@@ -74,7 +67,6 @@ const Ventas = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [noPeriodFound, setNoPeriodFound] = useState(false);
   const [noLocalActual, setNoLocalActual] = useState(false);
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const [isProcessingPeriod, setIsProcessingPeriod] = useState(false);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -339,20 +331,6 @@ const Ventas = () => {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
-      )}
     </Stack>
   );
 
@@ -367,65 +345,19 @@ const Ventas = () => {
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas de ventas */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={12} sm={12} md={6}>
-                <StatCard
-                  icon={<AttachMoney />}
-                  value={
-                    <MultiCurrencyAmount
-                      amount={montoTotal}
-                      variant="emphasized"
-                    />
-                  }
-                  label="Total Vendido"
-                  tone="positive"
-                />
-              </Grid>
-              <Grid item xs={12} sm={12} md={6}>
-                <StatCard
-                  icon={<CalendarToday />}
-                  value={
-                    <MultiCurrencyAmount
-                      amount={montoHoy}
-                      variant="emphasized"
-                    />
-                  }
-                  label="Monto Hoy"
-                  tone="caution"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={12} md={6}>
-            <StatCard
-              icon={<AttachMoney />}
-              value={
-                <MultiCurrencyAmount amount={montoTotal} variant="emphasized" />
-              }
-              label="Total Vendido"
-              tone="positive"
-            />
-          </Grid>
-          <Grid item xs={12} sm={12} md={6}>
-            <StatCard
-              icon={<CalendarToday />}
-              value={
-                <MultiCurrencyAmount amount={montoHoy} variant="emphasized" />
-              }
-              label="Monto Hoy"
-              tone="caution"
-            />
-          </Grid>
-        </Grid>
-      )}
+      <StatStrip
+        variant="card"
+        stats={[
+          {
+            label: "Total Vendido",
+            value: <MultiCurrencyAmount amount={montoTotal} variant="stat" />,
+          },
+          {
+            label: "Monto Hoy",
+            value: <MultiCurrencyAmount amount={montoHoy} variant="stat" />,
+          },
+        ]}
+      />
 
       {/* Lista de ventas */}
       <ContentCard
@@ -626,9 +558,6 @@ const Ventas = () => {
                       cursor: "pointer",
                       "&:hover": {
                         backgroundColor: "action.hover",
-                      },
-                      "&:nth-of-type(odd)": {
-                        backgroundColor: "rgba(0, 0, 0, 0.02)",
                       },
                     }}
                   >

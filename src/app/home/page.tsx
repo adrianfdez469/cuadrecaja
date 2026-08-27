@@ -5,15 +5,11 @@ import {
   CircularProgress,
   Typography,
   Box,
-  Grid,
-  Card,
-  CardContent,
   Button,
   Chip,
   Container,
   Paper,
   Avatar,
-  IconButton,
   Divider,
   Alert,
 } from "@mui/material";
@@ -39,6 +35,9 @@ import { TipoLocal } from "@/schemas/tienda";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
 import NotificationsWidget from "@/components/NotificationsWidget";
+import { SectionLabel } from "@/components/SectionLabel";
+import { QuickActionTile } from "./components/QuickActionTile";
+import { ConfigRow } from "./components/ConfigRow";
 import SubscriptionWarning from "@/components/SubscriptionWarning";
 import SuspensionSummary from "@/components/SuspensionSummary";
 import ExpiringProductsAlert from "@/components/ExpiringProductsAlert";
@@ -213,45 +212,42 @@ const HomePage = () => {
       title: "Punto de Venta",
       description: "Realizar ventas y gestionar transacciones",
       icon: <Storefront fontSize="large" />,
-      color: "primary",
+      color: "primary" as const,
       path: "/pos",
-      gradient: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
       permission: "operaciones.pos-venta.acceder",
     },
     {
       title: "Inventario",
       description: "Gestionar productos, stock y precios",
       icon: <Inventory fontSize="large" />,
-      color: "success",
+      color: "success" as const,
       path: "/inventario",
-      gradient: "linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)",
       permission: "operaciones.inventario.acceder",
     },
     {
       title: "Ventas",
       description: "Revisar historial de ventas",
       icon: <Receipt fontSize="large" />,
-      color: "secondary",
+      // Not `secondary`: that is now the charge bar's ink, and the direction
+      // spends it on exactly one thing. A category tint would be the second.
+      color: "info" as const,
       path: "/ventas",
-      gradient: "linear-gradient(135deg, #dc004e 0%, #9a0036 100%)",
       permission: "operaciones.ventas.acceder",
     },
     {
       title: "Cierre de Caja",
       description: "Cerrar período y generar reportes",
       icon: <AccountBalanceWallet fontSize="large" />,
-      color: "warning",
+      color: "warning" as const,
       path: "/cierre",
-      gradient: "linear-gradient(135deg, #ed6c02 0%, #e65100 100%)",
       permission: "operaciones.cierre.acceder",
     },
     {
       title: "Resumen Cierres",
       description: "Ver historial de cierres",
       icon: <Summarize fontSize="large" />,
-      color: "default",
+      color: "default" as const,
       path: "/resumen_cierre",
-      gradient: "linear-gradient(135deg, #757575 0%, #424242 100%)",
       permission: "recuperaciones.resumencierres.acceder",
     },
   ];
@@ -304,6 +300,21 @@ const HomePage = () => {
     });
   };
 
+  // Punto de Venta is the hero when the user can actually reach it; otherwise
+  // the row is just the tiles the permissions left behind.
+  const visibleActions = getQuickAction(user.localActual.tipo);
+  const heroAction = visibleActions.find((a) => a.path === "/pos");
+  // Resumen Cierres is a lookup, not an operation: on desktop the design pulls
+  // it out of the grid into a single inline row so the four tiles above stay a
+  // clean row of four. On a phone the tiles are already a list, so it just
+  // joins the end of it.
+  const standardActions = visibleActions.filter(
+    (a) => a.path !== "/pos" && a.path !== "/resumen_cierre",
+  );
+  const resumenAction = visibleActions.find(
+    (a) => a.path === "/resumen_cierre",
+  );
+
   const getConfigOptions = () => {
     return configOptions.filter((item) => {
       if (item.permission === "SUPER_ADMIN_ONLY")
@@ -316,10 +327,6 @@ const HomePage = () => {
         return true;
       }
     });
-  };
-
-  const getTipoLocalText = (tipoLocal: string) => {
-    return tipoLocal === TipoLocal.ALMACEN ? "Alamcén" : "Tienda";
   };
 
   return (
@@ -335,21 +342,18 @@ const HomePage = () => {
           mb={2}
         >
           <Box>
-            <Typography
-              variant="h3"
-              gutterBottom
-              sx={{
-                fontWeight: 700,
-                background: "linear-gradient(135deg, #1976d2 0%, #dc004e 100%)",
-                backgroundClip: "text",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem" },
-              }}
-            >
-              Panel de Control
+            {/* Which business and store you are looking at, as one quiet line.
+                It was a filled violet panel on the right — the loudest thing on
+                the screen for a fact you only need to confirm. */}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+              {[user.negocio?.nombre, user.localActual?.nombre]
+                .filter(Boolean)
+                .join(" · ")}
             </Typography>
-            <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+            <Typography
+              variant="h1"
+              sx={{ fontSize: { xs: "1.625rem", md: "2.125rem" } }}
+            >
               Bienvenido, {user.nombre || user.usuario}
             </Typography>
           </Box>
@@ -362,49 +366,15 @@ const HomePage = () => {
               width: { xs: "100%", md: "auto" },
             }}
           >
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2,
-                bgcolor: "primary.main",
-                color: "white",
-                borderRadius: 2,
-                minWidth: { xs: "100%", md: 200 },
-                boxShadow: "0 2px 8px rgba(25, 118, 210, 0.2)",
-              }}
-            >
-              <Typography
-                variant="h6"
-                sx={{
-                  color: "rgba(255, 255, 255, 0.95)",
-                  fontWeight: 600,
-                  textShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
-                  display: "flex",
-                  flexDirection: "row",
-                  alignContent: "center",
-                  justifyItems: "center",
-                  alignItems: "center",
-                }}
-              >
-                {`${getTipoLocalText(user.localActual.tipo)}: ${user.localActual.nombre}`}
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: "rgba(255, 255, 255, 0.92)",
-                  fontWeight: 400,
-                  textShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
-                }}
-              >
-                {user.negocio?.nombre}
-              </Typography>
-            </Paper>
-
             {/* Botón de Backup - Solo SUPER_ADMIN */}
             {user.rol === "SUPER_ADMIN" && (
+              // A maintenance action, not the point of the screen: it stops
+              // being a filled orange button competing with the title next to
+              // it and becomes the same quiet outlined control as everywhere
+              // else. Nothing about a backup is a warning.
               <Button
-                variant="contained"
-                color="warning"
+                variant="outlined"
+                color="inherit"
                 startIcon={
                   generatingBackup ? (
                     <CircularProgress size={20} color="inherit" />
@@ -417,20 +387,15 @@ const HomePage = () => {
                 sx={{
                   height: "fit-content",
                   alignSelf: { xs: "stretch", md: "center" },
-                  px: 3,
-                  py: 1.5,
-                  fontWeight: 600,
-                  textTransform: "none",
-                  boxShadow: "0 2px 8px rgba(237, 108, 2, 0.3)",
-                  "&:hover": {
-                    boxShadow: "0 4px 12px rgba(237, 108, 2, 0.4)",
-                    transform: "translateY(-2px)",
+                  px: 2,
+                  color: "text.secondary",
+                  borderColor: "divider",
+                  "@media (hover: hover)": {
+                    "&:hover": {
+                      borderColor: "semantic.surface.borderStrong",
+                      color: "text.primary",
+                    },
                   },
-                  "&:disabled": {
-                    bgcolor: "warning.light",
-                    color: "white",
-                  },
-                  transition: "all 0.3s ease",
                 }}
               >
                 {generatingBackup ? "Generando Backup..." : "Generar Backup BD"}
@@ -545,129 +510,101 @@ const HomePage = () => {
 
       {/* Acciones rápidas */}
       <Box sx={{ mb: 5 }}>
-        <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
-          Acceso Rápido
-        </Typography>
+        <SectionLabel>Operación</SectionLabel>
 
-        <Grid container spacing={3}>
-          {getQuickAction(user.localActual.tipo).map((action, index) => (
-            <Grid item xs={12} sm={6} md={4} key={index}>
-              <Card
-                sx={{
-                  height: "100%",
-                  cursor: "pointer",
-                  position: "relative",
-                  overflow: "hidden",
-                  "&:hover": {
-                    transform: "translateY(-4px)",
-                    boxShadow: "0 12px 24px rgba(0, 0, 0, 0.15)",
-                  },
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                }}
-                onClick={() => handleNavigate(action.path)}
-              >
-                {/* Fondo con gradiente */}
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 4,
-                    background: action.gradient,
-                  }}
-                />
-
-                <CardContent sx={{ p: 3 }}>
-                  <Box display="flex" alignItems="flex-start" gap={2}>
-                    <Avatar
-                      sx={{
-                        background: action.gradient,
-                        width: 56,
-                        height: 56,
-                      }}
-                    >
-                      {action.icon}
-                    </Avatar>
-
-                    <Box flex={1}>
-                      <Typography variant="h6" gutterBottom fontWeight={600}>
-                        {action.title}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mb: 2 }}
-                      >
-                        {action.description}
-                      </Typography>
-
-                      <Chip
-                        label="Acceder"
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          borderColor: "primary.main",
-                          color: "primary.main",
-                          fontWeight: 500,
-                        }}
-                      />
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
+        {/* Punto de Venta is the one action this screen exists to launch, so it
+            is the only one that gets colour and the widest column. The four
+            tiles used to be five equally-loud gradients, which ranked nothing. */}
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1.5,
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: heroAction ? "1.45fr 1fr 1fr 1fr" : "repeat(4, 1fr)",
+            },
+          }}
+        >
+          {heroAction && (
+            <QuickActionTile
+              variant="hero"
+              title={heroAction.title}
+              description={heroAction.description}
+              icon={heroAction.icon}
+              onClick={() => handleNavigate(heroAction.path)}
+            />
+          )}
+          {standardActions.map((action) => (
+            <QuickActionTile
+              key={action.path}
+              title={action.title}
+              description={action.description}
+              icon={action.icon}
+              onClick={() => handleNavigate(action.path)}
+              trailing={
+                action.path === "/inventario" &&
+                !loadingNegocioStats &&
+                negocioStats ? (
+                  <Typography
+                    sx={{
+                      fontSize: "1.0625rem",
+                      fontWeight: 700,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {negocioStats.productos.actual}
+                  </Typography>
+                ) : undefined
+              }
+            />
           ))}
-        </Grid>
+          {resumenAction && (
+            <Box sx={{ display: { xs: "block", md: "none" } }}>
+              <QuickActionTile
+                title={resumenAction.title}
+                description={resumenAction.description}
+                icon={resumenAction.icon}
+                onClick={() => handleNavigate(resumenAction.path)}
+              />
+            </Box>
+          )}
+        </Box>
+
+        {resumenAction && (
+          <Box sx={{ display: { xs: "none", md: "block" }, mt: 1.5 }}>
+            <ConfigRow
+              title={resumenAction.title}
+              icon={resumenAction.icon}
+              onClick={() => handleNavigate(resumenAction.path)}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* Configuración */}
       <Box>
         {getConfigOptions().length > 0 && (
           <>
-            <Typography
-              variant="h5"
-              gutterBottom
-              sx={{ mb: 3, fontWeight: 600 }}
+            <SectionLabel>Configuración del Sistema</SectionLabel>
+            <Box
+              sx={{
+                display: "grid",
+                gap: 1.25,
+                gridTemplateColumns: {
+                  xs: "1fr 1fr",
+                  md: "repeat(5, minmax(0, 1fr))",
+                },
+              }}
             >
-              Configuración del Sistema
-            </Typography>
-
-            <Grid container spacing={2}>
-              {getConfigOptions().map((option, index) => (
-                <Grid item xs={6} sm={3} key={index}>
-                  <Card
-                    sx={{
-                      cursor: "pointer",
-                      textAlign: "center",
-                      p: 2,
-                      "&:hover": {
-                        bgcolor: "action.hover",
-                      },
-                      transition: "all 0.2s ease",
-                    }}
-                    onClick={() => handleNavigate(option.path)}
-                  >
-                    <IconButton
-                      size="large"
-                      sx={{
-                        mb: 1,
-                        bgcolor: "primary.light",
-                        color: "white",
-                        "&:hover": {
-                          bgcolor: "primary.main",
-                        },
-                      }}
-                    >
-                      {option.icon}
-                    </IconButton>
-                    <Typography variant="subtitle2" fontWeight={500}>
-                      {option.title}
-                    </Typography>
-                  </Card>
-                </Grid>
+              {getConfigOptions().map((option) => (
+                <ConfigRow
+                  key={option.path}
+                  title={option.title}
+                  icon={option.icon}
+                  onClick={() => handleNavigate(option.path)}
+                />
               ))}
-            </Grid>
+            </Box>
           </>
         )}
       </Box>

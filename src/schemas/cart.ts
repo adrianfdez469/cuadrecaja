@@ -16,6 +16,16 @@ export const cartSchema = z.object({
   name: z.string(),
   items: z.array(cartItemSchema),
   total: z.number(),
+  /**
+   * Discount codes typed by the cashier for THIS account.
+   *
+   * Per cart on purpose. It used to be component state inside the cart
+   * drawer, which on desktop stays mounted while accounts are switched — so a
+   * code applied to one account went on discounting the next one. It also
+   * meant the amount could only be known from inside the drawer, which is why
+   * nothing outside it could show a trustworthy total.
+   */
+  discountCodes: z.array(z.string()).default([]),
 });
 
 export type ICartItem = z.infer<typeof cartItemSchema>;

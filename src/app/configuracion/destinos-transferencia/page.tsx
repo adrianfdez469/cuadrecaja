@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import {
   Box,
   Button,
@@ -16,7 +16,6 @@ import {
   CircularProgress,
   TextField,
   InputAdornment,
-  Grid,
   Card,
   CardContent,
   Stack,
@@ -28,8 +27,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Collapse,
-  Divider,
   FormControlLabel,
   Switch,
 } from "@mui/material";
@@ -37,12 +34,9 @@ import {
   Delete,
   Add,
   AccountBalance,
-  Description,
   Star,
   Search,
   Refresh,
-  ExpandLess,
-  ExpandMore,
 } from "@mui/icons-material";
 import {
   fetchTransferDestinations,
@@ -75,7 +69,6 @@ export default function DestinosTransferenciaPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const [statsExpanded, setStatsExpanded] = useState(false);
 
   useEffect(() => {
     if (user?.localActual?.id) {
@@ -199,20 +192,6 @@ export default function DestinosTransferenciaPage() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
-      )}
       <Button
         variant="contained"
         startIcon={!isMobile ? <Add /> : undefined}
@@ -269,67 +248,17 @@ export default function DestinosTransferenciaPage() {
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<AccountBalance />}
-                  value={totalDestinations.toLocaleString()}
-                  label="Total"
-                  tone="neutral"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Star />}
-                  value={defaultDestinations.toLocaleString()}
-                  label="Por Defecto"
-                  tone="caution"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<AccountBalance />}
-              value={totalDestinations.toLocaleString()}
-              label="Total Destinos"
-              tone="neutral"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Star />}
-              value={defaultDestinations.toLocaleString()}
-              label="Por Defecto"
-              tone="caution"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Description />}
-              value={destinationsWithDescription.toLocaleString()}
-              label="Con Descripción"
-              tone="positive"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Search />}
-              value={destinationsVisible.toLocaleString()}
-              label="Visibles"
-              tone="info"
-            />
-          </Grid>
-        </Grid>
-      )}
+      <StatStrip
+        stats={[
+          { label: "Total Destinos", value: totalDestinations.toLocaleString() },
+          { label: "Por Defecto", value: defaultDestinations.toLocaleString() },
+          {
+            label: "Con Descripción",
+            value: destinationsWithDescription.toLocaleString(),
+          },
+          { label: "Visibles", value: destinationsVisible.toLocaleString() },
+        ]}
+      />
 
       {/* Lista de destinos */}
       <ContentCard
@@ -460,9 +389,6 @@ export default function DestinosTransferenciaPage() {
                       cursor: "pointer",
                       "&:hover": {
                         backgroundColor: "action.hover",
-                      },
-                      "&:nth-of-type(odd)": {
-                        backgroundColor: "rgba(0, 0, 0, 0.02)",
                       },
                     }}
                   >

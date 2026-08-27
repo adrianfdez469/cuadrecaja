@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
+import { StatusPill } from "@/components/StatusPill";
 import {
   Box,
   Table,
@@ -21,19 +22,14 @@ import {
   useTheme,
   useMediaQuery,
   Tooltip,
-  Chip,
 } from "@mui/material";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency } from "@/utils/formatters";
 import { useRouter } from "next/navigation";
 import {
-  TrendingUp,
   Refresh,
   Visibility,
-  Person,
-  LocalShipping,
-  MonetizationOn,
 } from "@mui/icons-material";
 import { IProveedorConsignacion } from "@/schemas/proveedor";
 import { getProveedoresConsignacion } from "@/services/preoveedoresService";
@@ -139,51 +135,35 @@ export default function ProveedoresPage() {
   return (
     <PageContainer
       title="Proveedores"
-      subtitle={!isMobile ? "Gestión de proveedores, liquidaciones y productos en consignación" : undefined}
+      subtitle="Gestión de proveedores, liquidaciones y productos en consignación"
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas generales */}
-      <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
-        <Grid item xs={6} sm={6} md={4}>
-          <StatCard
-            icon={<Person fontSize={"medium"} />}
-            value={totales.totalProveedores.toString()}
-            label="Total Proveedores"
-            tone="neutral"
-          />
-        </Grid>
-
-        <Grid item xs={6} sm={6} md={4}>
-          <StatCard
-            icon={<LocalShipping fontSize={"medium"} />}
-            value={totales.totalProductosConsignacion.toString()}
-            label="Productos en Consignación"
-            tone="info"
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard
-            icon={<MonetizationOn fontSize={"medium"} />}
-            value={formatCurrency(totales.totalLiquidado)}
-            label="Dinero Liquidado"
-            tone="positive"
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard
-            icon={<TrendingUp fontSize={"medium"} />}
-            value={formatCurrency(totales.totalPorLiquidar)}
-            label="Por Liquidar"
-            tone="caution"
-          />
-        </Grid>
-
-        
-      </Grid>
+      <StatStrip
+        variant="card"
+        stats={[
+          {
+            label: "Total Proveedores",
+            value: totales.totalProveedores.toString(),
+          },
+          {
+            label: "Productos en Consignación",
+            value: totales.totalProductosConsignacion.toString(),
+          },
+          {
+            // The only figure here with a verdict attached: money that came
+            // back in. The other three are counts, and counts are ink.
+            label: "Dinero Liquidado",
+            value: formatCurrency(totales.totalLiquidado),
+            tone: "positive",
+          },
+          {
+            label: "Por Liquidar",
+            value: formatCurrency(totales.totalPorLiquidar),
+          },
+        ]}
+      />
 
       {/* Tabla de proveedores */}
       <ContentCard
@@ -219,10 +199,13 @@ export default function ProveedoresPage() {
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip
+                          <StatusPill
                             label={proveedor.estado}
-                            color={proveedor.estado === 'activo' ? 'success' : 'default'}
-                            size="small"
+                            hue={
+                              proveedor.estado === "activo"
+                                ? "positive"
+                                : "neutral"
+                            }
                           />
                           <IconButton size="small" color="primary">
                             <Visibility fontSize="small" />
@@ -235,7 +218,15 @@ export default function ProveedoresPage() {
                           <Typography variant="caption" color="text.secondary">
                             Liquidado
                           </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="success.main">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            color={
+                              proveedor.dineroLiquidado > 0
+                                ? "success.main"
+                                : "text.primary"
+                            }
+                          >
                             {formatCurrency(proveedor.dineroLiquidado)}
                           </Typography>
                         </Grid>
@@ -243,7 +234,7 @@ export default function ProveedoresPage() {
                           <Typography variant="caption" color="text.secondary">
                             Por Liquidar
                           </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="warning.main">
+                          <Typography variant="body2" fontWeight="medium">
                             {formatCurrency(proveedor.dineroPorLiquidar)}
                           </Typography>
                         </Grid>
@@ -308,9 +299,6 @@ export default function ProveedoresPage() {
                       '&:hover': {
                         backgroundColor: 'action.hover',
                       },
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                      },
                     }}
                   >
                     <TableCell>
@@ -329,12 +317,20 @@ export default function ProveedoresPage() {
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography variant="body2" fontWeight="medium" color="success.main">
+                      <Typography
+                        variant="body2"
+                        fontWeight="medium"
+                        color={
+                          proveedor.dineroLiquidado > 0
+                            ? "success.main"
+                            : "text.primary"
+                        }
+                      >
                         {formatCurrency(proveedor.dineroLiquidado)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography variant="body2" fontWeight="medium" color="warning.main">
+                      <Typography variant="body2" fontWeight="medium">
                         {formatCurrency(proveedor.dineroPorLiquidar)}
                       </Typography>
                     </TableCell>
@@ -349,10 +345,11 @@ export default function ProveedoresPage() {
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <Chip
+                      <StatusPill
                         label={proveedor.estado}
-                        color={proveedor.estado === 'activo' ? 'success' : 'default'}
-                        size="small"
+                        hue={
+                          proveedor.estado === "activo" ? "positive" : "neutral"
+                        }
                       />
                     </TableCell>
                     <TableCell align="center">

@@ -1,4 +1,5 @@
-export interface QuantityStepChip {
+export interface QuantityQuickChip {
+  /** How much this chip adds to what is already on screen. */
   value: number;
   label: string;
 }
@@ -66,31 +67,44 @@ export function resolveCommittedQuantity(
   return clampQuantity(parsed, min, max, allowDecimal);
 }
 
-export function getStepChips(
+/**
+ * The shortcuts above the keypad, as the redesign draws them.
+ *
+ * They add to the figure on screen; they used to choose a *step* for a pair of
+ * «−N / +N» buttons that no longer exist. «+10 / +50 / +100» is the drawing's
+ * set for a whole unit, and a fraction gets the box it is broken out of
+ * («Caja × 20») because that is the quantity a cashier actually types for one.
+ *
+ * Anything the shop cannot supply is left out rather than shown disabled: a
+ * chip that adds more than what is left would only ever clamp.
+ */
+export function getQuickAddChips(
   allowDecimal: boolean,
-  showBulkChip10: boolean,
-  showBulkChip50: boolean,
-  showBulkChip100: boolean,
-): QuantityStepChip[] {
+  available: number,
+  unitsPerBox?: number | null,
+): QuantityQuickChip[] {
   if (allowDecimal) {
     return [
-      { value: 0.01, label: "0.01" },
-      { value: 0.1, label: "0.1" },
-      { value: 0.5, label: "0.5" },
-      { value: 1, label: "1" },
-    ];
+      { value: 0.1, label: "+0,1" },
+      { value: 0.5, label: "+0,5" },
+      { value: 1, label: "+1" },
+    ].filter((chip) => chip.value <= available);
   }
 
-  const chips: QuantityStepChip[] = [{ value: 1, label: "1" }];
-  if (showBulkChip10) chips.push({ value: 10, label: "10" });
-  if (showBulkChip50) chips.push({ value: 50, label: "50" });
-  if (showBulkChip100) chips.push({ value: 100, label: "100" });
-  return chips;
-}
+  const chips: QuantityQuickChip[] = [10, 50, 100]
+    .filter((value) => value <= available)
+    .map((value) => ({ value, label: `+${value}` }));
 
-// Always 1, even for decimal-allowed products — finer steps (0.1/0.5/0.01)
-// are opt-in via the step chips, not the default, so a stray tap doesn't
-// silently switch someone into fractional increments.
-export function getDefaultStep(): number {
-  return 1;
+  if (
+    typeof unitsPerBox === "number" &&
+    unitsPerBox >= 2 &&
+    unitsPerBox <= available &&
+    !chips.some((chip) => chip.value === unitsPerBox)
+  ) {
+    chips.push({ value: unitsPerBox, label: `Caja × ${unitsPerBox}` });
+  }
+
+  // Four is what the row fits at 390px without any of them shrinking below
+  // the 44px the redesign gives them.
+  return chips.slice(0, 4);
 }

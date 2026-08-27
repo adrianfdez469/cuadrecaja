@@ -382,7 +382,8 @@ export const TablaProductosCierre: FC<IProps> = ({
                         rowSpan={grupo.items.length}
                         sx={{
                           verticalAlign: "top",
-                          borderRight: "1px solid #e0e0e0",
+                          borderRight: "1px solid",
+                          borderColor: "divider",
                         }}
                       >
                         <Box display="flex" alignItems="center" gap={1}>
@@ -663,7 +664,7 @@ export const TablaProductosCierre: FC<IProps> = ({
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="h6" gutterBottom>
-          📊 Resumen de Ventas por Usuario
+          Resumen de Ventas por Usuario
         </Typography>
         <Grid container spacing={2}>
           {totalVentasPorUsuario.map((usuario) => (
@@ -689,7 +690,7 @@ export const TablaProductosCierre: FC<IProps> = ({
       {/* Resumen de Consignación con datos reales */}
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="h6" gutterBottom>
-          📊 Resumen de Ventas por Tipo
+          Resumen de Ventas por Tipo
         </Typography>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
@@ -951,7 +952,8 @@ export const TablaProductosCierre: FC<IProps> = ({
                             rowSpan={grupo.items.length}
                             sx={{
                               verticalAlign: "top",
-                              borderRight: "1px solid #e0e0e0",
+                              borderRight: "1px solid",
+                          borderColor: "divider",
                             }}
                           >
                             <Box
@@ -1049,7 +1051,7 @@ export const TablaProductosCierre: FC<IProps> = ({
               )}
               {!hideTotales && productosVendidos.length > 0 && (
                 <TableRow
-                  sx={{ fontWeight: "bold", backgroundColor: "#f0f0f0" }}
+                  sx={{ fontWeight: "bold", backgroundColor: "semantic.surface.sunken" }}
                 >
                   <TableCell>Total</TableCell>
                   <TableCell>

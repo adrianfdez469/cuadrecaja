@@ -2,7 +2,6 @@
 
 import {
   Box,
-  Chip,
   CircularProgress,
   Divider,
   IconButton,
@@ -13,6 +12,7 @@ import {
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { formatCurrency, formatMontoEnMoneda } from "@/utils/formatters";
 import { IDeduccionItem, IDeduccionTipo } from "@/schemas/cierre";
+import { StatusPill, type PillHue } from "@/components/StatusPill";
 
 interface Props {
   items: IDeduccionItem[];
@@ -33,12 +33,19 @@ const TIPO_LABELS: Record<IDeduccionTipo, string> = {
   COMPRA: "Compra",
 };
 
-// Contraste verificado contra texto blanco (WCAG AA, >= 4.5:1)
-const TIPO_COLORS: Record<IDeduccionTipo, string> = {
-  GASTO: "#5c6bc0",
-  MERMA: "#c62828",
-  DEVOLUCION: "#ad1457",
-  COMPRA: "#b35900",
+/**
+ * What each deduction is, by hue rather than by hex.
+ *
+ * These were four saturated fills with white text — four alert-coloured
+ * badges inside a breakdown that is itself already a list of subtractions.
+ * They keep telling the four kinds apart, but as washes: what matters here is
+ * the amount, not the label beside it.
+ */
+const TIPO_HUE: Record<IDeduccionTipo, PillHue> = {
+  GASTO: "neutral",
+  MERMA: "negative",
+  DEVOLUCION: "negative",
+  COMPRA: "caution",
 };
 
 function DeduccionRow({
@@ -61,16 +68,10 @@ function DeduccionRow({
     >
       <Box flex={1} minWidth={0}>
         <Box display="flex" alignItems="center" gap={0.75} flexWrap="wrap">
-          <Chip
+          <StatusPill
             label={TIPO_LABELS[item.tipo]}
-            size="small"
-            sx={{
-              backgroundColor: TIPO_COLORS[item.tipo],
-              color: "#fff",
-              height: 18,
-              fontSize: "0.625rem",
-              flexShrink: 0,
-            }}
+            hue={TIPO_HUE[item.tipo]}
+            sx={{ flexShrink: 0 }}
           />
           <Typography variant="body2" noWrap>
             {item.label}

@@ -18,6 +18,7 @@ import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { usePermisos } from "@/utils/permisos_front";
 import { PageContainer } from "@/components/PageContainer";
+import { SectionLabel } from "@/components/SectionLabel";
 import { ContentCard } from "@/components/ContentCard";
 import useConfirmDialog from "@/components/confirmDialog";
 import {
@@ -39,6 +40,9 @@ import GastoTiendaTable from "./components/GastoTiendaTable";
 import GastoTiendaCard from "./components/GastoTiendaCard";
 import GastoFormDialog from "./components/GastoFormDialog";
 import AssignPlantillaDialog from "./components/AssignPlantillaDialog";
+
+const GASTOS_SUBTITLE =
+  "Gastos recurrentes y configuraciones aplicadas a los cierres de período";
 
 export default function GastosPage() {
   const { user, loadingContext } = useAppContext();
@@ -155,38 +159,56 @@ export default function GastosPage() {
     );
   }
 
-  return (
-    <PageContainer title="Gastos">
-      <ContentCard
-        title="Gastos de la tienda"
-        subtitle="Gastos recurrentes y configuraciones aplicadas a los cierres de período"
-        headerActions={
-          canManage ? (
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Button
-                startIcon={<LinkIcon />}
-                variant="outlined"
-                size="small"
-                onClick={() => setAssignOpen(true)}
-              >
-                Asignar plantilla
-              </Button>
-              <Button
-                startIcon={<AddIcon />}
-                variant="contained"
-                size="small"
-                onClick={() => {
-                  setEditTarget(null);
-                  setFormOpen(true);
-                }}
-              >
-                Nuevo gasto
-              </Button>
-            </Stack>
-          ) : undefined
-        }
+  const openNewGasto = () => {
+    setEditTarget(null);
+    setFormOpen(true);
+  };
+
+  // On a phone these are the page's two actions, so they get full width and
+  // lead with the primary one. On desktop they are a toolbar inside the card
+  // header, where the primary sits last.
+  const actions = canManage ? (
+    <Stack
+      direction={isMobile ? "column" : "row"}
+      spacing={1}
+      flexWrap="wrap"
+      sx={isMobile ? { width: "100%" } : undefined}
+    >
+      {isMobile && (
+        <Button
+          startIcon={<AddIcon />}
+          variant="contained"
+          fullWidth
+          onClick={openNewGasto}
+        >
+          Nuevo gasto
+        </Button>
+      )}
+      <Button
+        startIcon={<LinkIcon />}
+        variant="outlined"
+        size={isMobile ? "medium" : "small"}
+        fullWidth={isMobile}
+        onClick={() => setAssignOpen(true)}
       >
-        {loading ? (
+        Asignar plantilla
+      </Button>
+      {!isMobile && (
+        <Button
+          startIcon={<AddIcon />}
+          variant="contained"
+          size="small"
+          onClick={openNewGasto}
+        >
+          Nuevo gasto
+        </Button>
+      )}
+    </Stack>
+  ) : undefined;
+
+  const body = (
+    <>
+      {loading ? (
           <Box py={4} textAlign="center">
             <CircularProgress size={32} />
           </Box>
@@ -234,7 +256,34 @@ export default function GastosPage() {
             )}
           </>
         )}
-      </ContentCard>
+    </>
+  );
+
+  return (
+    <PageContainer
+      title="Gastos"
+      subtitle={isMobile ? GASTOS_SUBTITLE : undefined}
+    >
+      {/* The cards go straight on the page ground on a phone: wrapping them in
+          a panel put a card inside a card, which cost a border and an indent
+          and bought nothing the section label does not already say. */}
+      {isMobile ? (
+        <>
+          {/* Full-width and above the list, where the design puts them: on a
+              phone these are the page's actions, not a header toolbar. */}
+          {actions && <Box sx={{ mb: 3 }}>{actions}</Box>}
+          <SectionLabel>Gastos de la tienda</SectionLabel>
+          {body}
+        </>
+      ) : (
+        <ContentCard
+          title="Gastos de la tienda"
+          subtitle={GASTOS_SUBTITLE}
+          headerActions={actions}
+        >
+          {body}
+        </ContentCard>
+      )}
 
       <GastoFormDialog
         open={formOpen}

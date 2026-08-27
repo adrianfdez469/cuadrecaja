@@ -1,7 +1,6 @@
 "use client";
 
-import Grid from "@mui/material/Grid2";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import { formatNumber } from "@/utils/formatters";
 import type { IDashboardSummary } from "@/schemas/reports/dashboardSummary";
 import type { IReportPeriod } from "@/schemas/reports/common";
@@ -61,14 +60,11 @@ export function DashboardKpiRow({
   ];
 
   return (
-    <Grid container columnSpacing={3}>
-      {cards
+    <StatStrip
+      variant="card"
+      stats={cards
         .filter((card) => card.show)
-        .map((card) => (
-          <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
-            <StatCard variant="metric" label={card.title} value={card.value} />
-          </Grid>
-        ))}
-    </Grid>
+        .map((card) => ({ label: card.title, value: card.value }))}
+    />
   );
 }

@@ -2,13 +2,16 @@
 
 import React from 'react';
 import { Box, Typography, keyframes } from "@mui/material";
+import { alpha, type Theme } from "@mui/material/styles";
 import Logo from './Logo';
 
 // Animación de pulso suave para el contenedor del logo
+// The glow is the accent, published as a CSS variable because `keyframes`
+// is serialized once at module scope and cannot read the theme.
 const pulse = keyframes`
-  0% { transform: scale(1); filter: drop-shadow(0 0 0px rgba(25, 118, 210, 0)); }
-  50% { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(25, 118, 210, 0.3)); }
-  100% { transform: scale(1); filter: drop-shadow(0 0 0px rgba(25, 118, 210, 0)); }
+  0% { transform: scale(1); filter: drop-shadow(0 0 0px transparent); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 20px var(--loading-glow)); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 0px transparent); }
 `;
 
 // Animación de entrada para el texto
@@ -28,6 +31,8 @@ const Loading = () => {
                 minHeight: "75vh",
                 width: "100%",
                 background: "transparent",
+                "--loading-glow": (theme: Theme) =>
+                    alpha(theme.palette.primary.main, 0.3),
             }}
         >
             {/* Contenedor del Logo con Animación */}
@@ -51,9 +56,11 @@ const Loading = () => {
                         left: -10,
                         right: -10,
                         bottom: -10,
-                        border: '2px solid rgba(25, 118, 210, 0.1)',
+                        border: '2px solid',
+                        borderColor: (theme) =>
+                            alpha(theme.palette.primary.main, 0.1),
                         borderRadius: '50%',
-                        borderTopColor: '#1976d2',
+                        borderTopColor: 'primary.main',
                         animation: 'spin 2s linear infinite'
                     }}
                 />
@@ -67,7 +74,8 @@ const Loading = () => {
                     variant="h4"
                     sx={{
                         fontWeight: 900,
-                        background: 'linear-gradient(135deg, #1a202c 0%, #1976d2 100%)',
+                        background: (theme) =>
+                            `linear-gradient(135deg, ${theme.palette.text.primary} 0%, ${theme.palette.primary.main} 100%)`,
                         backgroundClip: 'text',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',

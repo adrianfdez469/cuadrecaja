@@ -27,6 +27,8 @@ interface CartState {
   renameActiveCart: (name: string) => void;
   renameCart: (id: string, name: string) => void;
   removeActiveCart: () => void;
+  /** Replaces the discount codes of the active cart. */
+  setActiveCartDiscountCodes: (codes: string[]) => void;
 }
 
 // Helpers
@@ -38,6 +40,7 @@ const createEmptyCart = (index: number): ICart => ({
   name: `Cuenta #${index}`,
   items: [],
   total: 0,
+  discountCodes: [],
 });
 
 export const useCartStore = create<CartState>()(
@@ -72,6 +75,7 @@ export const useCartStore = create<CartState>()(
           name: name ?? `Cuenta #${nextIndex}`,
           items: [],
           total: 0,
+          discountCodes: [],
         };
         const carts = [...state.carts, newCart];
         set({ carts, activeCartId: newCart.id, items: [], total: 0 });
@@ -84,6 +88,14 @@ export const useCartStore = create<CartState>()(
           );
           return { carts } as Partial<CartState>;
         });
+      },
+
+      setActiveCartDiscountCodes: (codes) => {
+        set((state) => ({
+          carts: state.carts.map((c) =>
+            c.id === state.activeCartId ? { ...c, discountCodes: codes } : c,
+          ),
+        }));
       },
 
       renameCart: (id: string, name: string) => {
@@ -194,7 +206,7 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "cart-storage",
-      version: 4,
+      version: 5,
       // Batched writes: `localStorage.setItem` is synchronous, and persisting
       // on every `+`/`−` blocked the main thread mid-tap.
       storage: createJSONStorage(() =>
@@ -213,6 +225,12 @@ export const useCartStore = create<CartState>()(
           state.carts[0];
         state.items = active?.items ?? [];
         state.total = active?.total ?? 0;
+        // Belt and braces: a payload that skipped `migrate` (same version,
+        // hand-edited storage) must still never yield `undefined` here.
+        state.carts = state.carts.map((c) => ({
+          ...c,
+          discountCodes: c.discountCodes ?? [],
+        }));
       },
       migrate: (persistedState: unknown, version: number) => {
         if (version < 2) {
@@ -220,7 +238,13 @@ export const useCartStore = create<CartState>()(
             { items?: ICartItem[]; total?: number } | undefined;
           const items: ICartItem[] = legacy?.items ?? [];
           const total: number = legacy?.total ?? 0;
-          const first: ICart = { id: "1", name: "Cuenta #1", items, total };
+          const first: ICart = {
+            id: "1",
+            name: "Cuenta #1",
+            items,
+            total,
+            discountCodes: [],
+          };
           return {
             carts: [first],
             activeCartId: "1",
@@ -234,7 +258,17 @@ export const useCartStore = create<CartState>()(
         // v2→v3: monedaPrecioCode and priceBase are optional — existing items default to null/undefined
         // v3→v4: `items`/`total` are no longer persisted; onRehydrateStorage
         // rebuilds them from `carts`, so an older payload needs no reshaping.
-        return persistedState as Partial<CartState>;
+        // v4→v5: carts carry their own discount codes. A basket saved before
+        // this has none, and reading it must not hand `undefined` to the
+        // discount engine.
+        const state = persistedState as Partial<CartState> | undefined;
+        if (state?.carts) {
+          state.carts = state.carts.map((c) => ({
+            ...c,
+            discountCodes: c.discountCodes ?? [],
+          }));
+        }
+        return state as Partial<CartState>;
       },
     },
   ),

@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
+import { StatusPill } from "@/components/StatusPill";
+import { touch } from "@/theme";
 import {
   Box,
   Button,
@@ -22,17 +24,14 @@ import {
   MenuItem,
   CircularProgress,
   InputAdornment,
-  Grid,
   Card,
   CardContent,
   Stack,
   Tooltip,
-  Chip,
   useTheme,
   useMediaQuery,
   FormControl,
   InputLabel,
-  Collapse,
   Alert,
   Paper,
 } from "@mui/material";
@@ -42,12 +41,8 @@ import {
   Add,
   Store,
   Person,
-  Business,
-  Group,
   Search,
   Refresh,
-  ExpandMore,
-  ExpandLess,
   Warehouse,
   Security,
   PersonAdd,
@@ -75,6 +70,57 @@ interface IUsuarioRol {
   rolId?: string;
 }
 
+/**
+ * A local's kind, set as a small caps pill.
+ *
+ * It was an outlined chip carrying an icon — a shopfront or a warehouse — next
+ * to a name that already said which was which. The design keeps only the word,
+ * spaced and uppercased so it reads as a category rather than a label, and
+ * tints it: the accent's wash for a shop, info's for a warehouse. Tinted, not
+ * filled, because it is a state and not something you can press.
+ */
+function TipoLocalPill({ tipo }: { tipo?: string }) {
+  return (
+    <StatusPill
+      label={tipo ?? ""}
+      hue={tipo === TipoLocal.ALMACEN ? "info" : "accent"}
+      caps
+    />
+  );
+}
+
+/**
+ * Who works in a local, as a sentence.
+ *
+ * Each name used to be an outlined chip with an icon, so a store with four
+ * people produced four bordered badges inside one table cell — more furniture
+ * than the local's own name carried. A list of names is prose; the design sets
+ * it as prose, and greys the empty case rather than drawing a box around it.
+ */
+function UsuariosLabel({ local }: { local: ILocal }) {
+  const nombres =
+    local.usuariosTiendas && local.usuariosTiendas.length > 0
+      ? local.usuariosTiendas.map(
+          (ut) =>
+            `${ut.usuario.nombre}${ut.rol ? ` (${ut.rol.nombre})` : ""}`,
+        )
+      : (local.usuarios ?? []).map((u) => u.nombre);
+
+  if (nombres.length === 0) {
+    return (
+      <Typography variant="body2" color="text.disabled">
+        Sin usuarios asignados
+      </Typography>
+    );
+  }
+
+  return (
+    <Typography variant="body2" color="text.secondary">
+      {nombres.join(" · ")}
+    </Typography>
+  );
+}
+
 export default function Locales() {
   const [locales, setLocales] = useState<ILocal[]>([]);
   const [usuarios, setUsuarios] = useState([]);
@@ -87,7 +133,6 @@ export default function Locales() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const [limitDialog, setLimitDialog] = useState(false);
   const { showMessage } = useMessageContext();
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
@@ -253,48 +298,18 @@ export default function Locales() {
   const headerActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">
       <Tooltip title="Actualizar locales">
-        <IconButton onClick={fetchLocales} disabled={loading} size="small">
+        <IconButton onClick={fetchLocales} disabled={loading}>
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
+      {!isMobile && (
+        <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)}>
+          Agregar Local
+        </Button>
       )}
-      <Button
-        variant="contained"
-        startIcon={!isMobile ? <Add /> : undefined}
-        onClick={() => setOpen(true)}
-        size="small"
-      >
-        {isMobile ? "Agregar" : "Agregar Local"}
-      </Button>
     </Stack>
   );
 
-  // Función para obtener el icono según el tipo
-  const getTipoIcon = (tipoLocal: string) => {
-    return tipoLocal === TipoLocal.ALMACEN ? (
-      <Warehouse fontSize="small" />
-    ) : (
-      <Store fontSize="small" />
-    );
-  };
-
-  // Función para obtener el color según el tipo
-  const getTipoColor = (tipoLocal: string) => {
-    return tipoLocal === TipoLocal.ALMACEN ? "info" : "primary";
-  };
 
   // Componente de estadística móvil optimizado
   if (loading) {
@@ -319,43 +334,27 @@ export default function Locales() {
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
     >
-      {/* Estadísticas */}
-      <Collapse in={!isMobile || statsExpanded}>
-        <Grid container spacing={isMobile ? 1.5 : 3} sx={{ mb: 3 }}>
-          <Grid item xs={6} sm={3}>
-            <StatCard
-              icon={<Business />}
-              value={totalLocales.toString()}
-              label="Total Locales"
-              tone="neutral"
-            />
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <StatCard
-              icon={<Group />}
-              value={totalUsuariosAsignados.toString()}
-              label="Usuarios Únicos"
-              tone="positive"
-            />
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <StatCard
-              icon={<Store />}
-              value={localesConUsuarios.toString()}
-              label="Con Usuarios"
-              tone="info"
-            />
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <StatCard
-              icon={<Person />}
-              value={localesSinUsuarios.toString()}
-              label="Sin Usuarios"
-              tone="caution"
-            />
-          </Grid>
-        </Grid>
-      </Collapse>
+      {isMobile && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          fullWidth
+          onClick={() => setOpen(true)}
+          sx={{ minHeight: touch.comfortable, mb: 2.5 }}
+        >
+          Agregar
+        </Button>
+      )}
+
+      <StatStrip
+        variant="card"
+        stats={[
+          { label: "Total Locales", value: totalLocales },
+          { label: "Usuarios Únicos", value: totalUsuariosAsignados },
+          { label: "Con Usuarios", value: localesConUsuarios },
+          { label: "Sin Usuarios", value: localesSinUsuarios },
+        ]}
+      />
 
       <ContentCard
         title={`Locales (${filteredLocales.length})`}
@@ -441,14 +440,7 @@ export default function Locales() {
                           >
                             {local.nombre}
                           </Typography>
-                          <Chip
-                            icon={getTipoIcon(local.tipo)}
-                            label={local.tipo}
-                            size="small"
-                            color={getTipoColor(local.tipo)}
-                            variant="outlined"
-                            sx={{ fontSize: "0.6875rem", height: 20 }}
-                          />
+                          <TipoLocalPill tipo={local.tipo} />
                         </Box>
                         <IconButton
                           onClick={(e) => {
@@ -462,47 +454,7 @@ export default function Locales() {
                         </IconButton>
                       </Box>
 
-                      <Box display="flex" flexWrap="wrap" gap={0.5}>
-                        {local.usuariosTiendas &&
-                        local.usuariosTiendas.length > 0 ? (
-                          local.usuariosTiendas.map((usuarioTienda) => (
-                            <Chip
-                              key={usuarioTienda.usuario.id}
-                              label={`${usuarioTienda.usuario.nombre}${usuarioTienda.rol ? ` (${usuarioTienda.rol.nombre})` : ""}`}
-                              size="small"
-                              variant="outlined"
-                              icon={
-                                usuarioTienda.rol ? (
-                                  <Security fontSize="small" />
-                                ) : (
-                                  <Person fontSize="small" />
-                                )
-                              }
-                              sx={{ fontSize: "0.6875rem", height: 24 }}
-                            />
-                          ))
-                        ) : local.usuarios && local.usuarios.length > 0 ? (
-                          // Fallback para compatibilidad
-                          local.usuarios.map((user) => (
-                            <Chip
-                              key={user.id}
-                              label={user.nombre}
-                              size="small"
-                              variant="outlined"
-                              icon={<Person fontSize="small" />}
-                              sx={{ fontSize: "0.6875rem", height: 24 }}
-                            />
-                          ))
-                        ) : (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.6875rem" }}
-                          >
-                            Sin usuarios asignados
-                          </Typography>
-                        )}
-                      </Box>
+                      <UsuariosLabel local={local} />
                     </Stack>
                   </CardContent>
                 </Card>
@@ -531,9 +483,6 @@ export default function Locales() {
                       "&:hover": {
                         backgroundColor: "action.hover",
                       },
-                      "&:nth-of-type(odd)": {
-                        backgroundColor: "rgba(0, 0, 0, 0.02)",
-                      },
                     }}
                   >
                     <TableCell>
@@ -542,50 +491,10 @@ export default function Locales() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        icon={getTipoIcon(local.tipo)}
-                        label={local.tipo}
-                        size="small"
-                        color={getTipoColor(local.tipo)}
-                        variant="outlined"
-                      />
+                      <TipoLocalPill tipo={local.tipo} />
                     </TableCell>
                     <TableCell>
-                      <Box display="flex" flexWrap="wrap" gap={0.5}>
-                        {local.usuariosTiendas &&
-                        local.usuariosTiendas.length > 0 ? (
-                          local.usuariosTiendas.map((usuarioTienda) => (
-                            <Chip
-                              key={usuarioTienda.usuario.id}
-                              label={`${usuarioTienda.usuario.nombre}${usuarioTienda.rol ? ` (${usuarioTienda.rol.nombre})` : ""}`}
-                              size="small"
-                              variant="outlined"
-                              icon={
-                                usuarioTienda.rol ? (
-                                  <Security fontSize="small" />
-                                ) : (
-                                  <Person fontSize="small" />
-                                )
-                              }
-                            />
-                          ))
-                        ) : local.usuarios && local.usuarios.length > 0 ? (
-                          // Fallback para compatibilidad
-                          local.usuarios.map((user) => (
-                            <Chip
-                              key={user.id}
-                              label={user.nombre}
-                              size="small"
-                              variant="outlined"
-                              icon={<Person fontSize="small" />}
-                            />
-                          ))
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            Sin usuarios asignados
-                          </Typography>
-                        )}
-                      </Box>
+                      <UsuariosLabel local={local} />
                     </TableCell>
                     <TableCell align="center">
                       <Stack

@@ -100,11 +100,15 @@ export const PageContainer: React.FC<PageContainerProps> = ({
               </Breadcrumbs>
             )}
 
+            {/* One row in both sizes. Stacking the actions under the title on a
+                phone pushed them to full width, so a lone refresh icon became a
+                banner. Callers whose primary action really is full-width put it
+                in `children`, where the design puts it. */}
             <Stack
-              direction={isMobile ? "column" : "row"}
+              direction="row"
               justifyContent="space-between"
-              alignItems={isMobile ? "stretch" : "flex-start"}
-              spacing={isMobile ? 2 : 1}
+              alignItems="flex-start"
+              spacing={isMobile ? 1.5 : 1}
             >
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography
@@ -112,10 +116,12 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                   component="h1"
                   gutterBottom={!isMobile}
                   sx={{
-                    fontSize: isMobile ? '1.5rem' : '2.125rem',
-                    fontWeight: 600,
-                    lineHeight: isMobile ? 1.2 : 1.2,
-                    mb: isMobile ? (subtitle ? 0.5 : 1) : undefined
+                    // The redesign's page-title steps: 34px desktop, 26px phone.
+                    fontSize: isMobile ? '1.625rem' : '2.125rem',
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    letterSpacing: isMobile ? '-0.02em' : '-0.025em',
+                    mb: subtitle ? 0.5 : (isMobile ? 1 : undefined)
                   }}
                 >
                   {title}
@@ -124,11 +130,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{
-                      fontSize: isMobile ? '0.875rem' : '1rem',
-                      lineHeight: 1.4,
-                      mb: isMobile ? 0 : 0
-                    }}
+                    sx={{ fontSize: '0.9375rem', lineHeight: 1.45 }}
                   >
                     {subtitle}
                   </Typography>
@@ -140,8 +142,8 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                   sx={{
                     flexShrink: 0,
                     display: 'flex',
-                    alignItems: isMobile ? 'stretch' : 'flex-start',
-                    width: isMobile ? '100%' : 'auto'
+                    alignItems: 'flex-start',
+                    width: 'auto'
                   }}
                 >
                   {headerActions}

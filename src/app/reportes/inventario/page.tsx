@@ -1,9 +1,8 @@
 "use client";
 
 import { Alert, Stack } from "@mui/material";
-import Grid from "@mui/material/Grid2";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import { TurnoverTable } from "@/components/reports/inventory/TurnoverTable";
 import { DeadStockTable } from "@/components/reports/inventory/DeadStockTable";
 import { ParetoAbcChart } from "@/components/reports/inventory/ParetoAbcChart";
@@ -47,39 +46,34 @@ export default function InventarioReportPage() {
             </Alert>
           )}
 
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard variant="metric"
-                label="Valor del inventario"
-                value={currency.format(data.resumen.valorInventario)}
-                subtitle={`${formatNumber(data.resumen.productosActivos)} productos con stock`}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard variant="metric"
-                label="Productos por agotarse"
-                value={formatNumber(data.resumen.productosCriticos)}
-                subtitle="Cobertura ≤ 7 días"
-                tone="caution"
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard variant="metric"
-                label="Capital inmovilizado"
-                value={currency.format(data.resumen.capitalInmovilizado)}
-                subtitle={`${formatNumber(data.resumen.productosSinMovimiento)} sin ventas`}
-                tone="negative"
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard variant="metric"
-                label="En riesgo por vencimiento"
-                value={currency.format(data.resumen.valorEnRiesgoVencimiento)}
-                subtitle="Próximos 30 días"
-                tone="negative"
-              />
-            </Grid>
-          </Grid>
+          <StatStrip
+            variant="card"
+            stats={[
+              {
+                label: "Valor del inventario",
+                value: currency.format(data.resumen.valorInventario),
+                note: `${formatNumber(data.resumen.productosActivos)} productos con stock`,
+              },
+              {
+                label: "Productos por agotarse",
+                value: formatNumber(data.resumen.productosCriticos),
+                note: "Cobertura ≤ 7 días",
+                tone: "caution",
+              },
+              {
+                label: "Capital inmovilizado",
+                value: currency.format(data.resumen.capitalInmovilizado),
+                note: `${formatNumber(data.resumen.productosSinMovimiento)} sin ventas`,
+                tone: "negative",
+              },
+              {
+                label: "En riesgo por vencimiento",
+                value: currency.format(data.resumen.valorEnRiesgoVencimiento),
+                note: "Próximos 30 días",
+                tone: "negative",
+              },
+            ]}
+          />
 
           <TurnoverTable rows={data.rotacion} format={currency.format} />
 

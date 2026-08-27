@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import {
   Box,
   Typography,
@@ -35,12 +35,6 @@ import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import PostAddIcon from "@mui/icons-material/PostAdd";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import InventoryIcon from "@mui/icons-material/Inventory";
-import StoreIcon from "@mui/icons-material/Store";
-import HandshakeIcon from "@mui/icons-material/Handshake";
 import { formatDate, formatCurrency, formatNumber } from "@/utils/formatters";
 import { usePermisos } from "@/utils/permisos_front";
 import GastoAdHocDialog from "@/app/gastos/components/GastoAdHocDialog";
@@ -399,48 +393,6 @@ const CierreCajaPage = () => {
           spacing={isMobile ? 2 : 3}
           sx={{ mb: isMobile ? 3 : 4 }}
         >
-          <Grid item xs={6} sm={6} md={4}>
-            <StatCard
-              icon={<InventoryIcon fontSize={"medium"} />}
-              value={formatNumber(cierreData.productosVendidos.length)}
-              label="Tipos de Productos"
-              tone="caution"
-            />
-          </Grid>
-
-          <Grid item xs={6} sm={6} md={4}>
-            <StatCard
-              icon={<ShoppingCartIcon fontSize={"medium"} />}
-              value={formatNumber(totales.totalCantidad)}
-              label="Productos Vendidos"
-              tone="neutral"
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<AttachMoneyIcon fontSize={"medium"} />}
-              value={formatCurrency(
-                (cierreData.totalVentasBrutas ?? totales.totalMonto) || 0,
-              )}
-              label="Total Ventas (Bruto)"
-              tone="positive"
-            />
-          </Grid>
-
-          {/* Mostrar descuentos totales del período si existen */}
-          {typeof cierreData.totalDescuentos === "number" &&
-            (cierreData.totalDescuentos || 0) > 0 && (
-              <Grid item xs={12} sm={6} md={4}>
-                <StatCard
-                  icon={<TrendingUpIcon fontSize={"medium"} />}
-                  value={formatCurrency(cierreData.totalDescuentos || 0)}
-                  label="Descuentos del Período"
-                  tone="negative"
-                />
-              </Grid>
-            )}
-
           {verificarPermiso("operaciones.cierre.gananciascostos") && (
             <Grid item xs={12} sm={6} md={4}>
               <GananciaCard
@@ -476,25 +428,48 @@ const CierreCajaPage = () => {
             </Grid>
           )}
 
-          {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<StoreIcon fontSize={"medium"} />}
-              value={formatCurrency(cierreData.totalVentasPropias || 0)}
-              label="Ventas Propias (Bruto)"
-              tone="positive"
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<HandshakeIcon fontSize={"medium"} />}
-              value={formatCurrency(cierreData.totalVentasConsignacion || 0)}
-              label="Ventas Consignación"
-              tone="accent"
-            />
-          </Grid>
         </Grid>
+
+        {/* One scale for the period's figures. They were seven identical white
+            tiles, each with its own tinted icon, so nothing ranked: the amount
+            sold read exactly like the count of product types. */}
+        <StatStrip
+          variant="card"
+          stats={[
+            {
+              label: "Total Ventas (Bruto)",
+              value: formatCurrency(
+                (cierreData.totalVentasBrutas ?? totales.totalMonto) || 0,
+              ),
+            },
+            {
+              label: "Productos Vendidos",
+              value: formatNumber(totales.totalCantidad),
+            },
+            {
+              label: "Tipos de Productos",
+              value: formatNumber(cierreData.productosVendidos.length),
+            },
+            {
+              label: "Ventas Propias (Bruto)",
+              value: formatCurrency(cierreData.totalVentasPropias || 0),
+            },
+            {
+              label: "Ventas Consignación",
+              value: formatCurrency(cierreData.totalVentasConsignacion || 0),
+            },
+            ...(typeof cierreData.totalDescuentos === "number" &&
+            (cierreData.totalDescuentos || 0) > 0
+              ? [
+                  {
+                    label: "Descuentos del Período",
+                    value: formatCurrency(cierreData.totalDescuentos || 0),
+                    tone: "negative" as const,
+                  },
+                ]
+              : []),
+          ]}
+        />
 
         {/* Desglose por moneda (solo visible si hay ventas multimoneda) */}
         {cierreData.resumenMonedas && cierreData.resumenMonedas.length > 0 && (

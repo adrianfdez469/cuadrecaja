@@ -1,40 +1,75 @@
 "use client";
 
-import {
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Stack,
-  Typography,
-} from "@mui/material";
-import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
-import CreditCardIcon from "@mui/icons-material/CreditCard";
+import { Box, ButtonBase, Drawer, Typography } from "@mui/material";
 import { formatMontoEnMoneda } from "@/utils/formatters";
 import type { PaymentLineKind } from "@/app/pos/utils/paymentMath";
+import { shape } from "@/theme";
 
 export interface PaymentOption {
   kind: PaymentLineKind;
   currency: string;
-  /** Pending amount expressed in this option's currency. */
+  /** What this option would have to cover, in its own currency. */
   suggested: number;
-  /** Base equivalent of `suggested`, or null when this is the base currency. */
-  equivalentBase: number | null;
 }
 
 interface AddPaymentSheetProps {
   open: boolean;
   options: PaymentOption[];
-  base: string;
   onClose: () => void;
   onPick: (option: PaymentOption) => void;
 }
 
+/**
+ * One more form of payment on a mixed sale: the same sheet as the POS's own
+ * actions, one 64px row per option with what it would still have to cover.
+ */
+
+const PAPER_SX = {
+  borderTopLeftRadius: `${shape.radius.lg}px`,
+  borderTopRightRadius: `${shape.radius.lg}px`,
+  pb: "calc(8px + env(safe-area-inset-bottom))",
+} as const;
+
+const HEAD_SX = {
+  display: "flex",
+  justifyContent: "space-between",
+  px: 2,
+  pt: 2,
+  pb: 1.5,
+  fontFamily: "ui-monospace, Menlo, monospace",
+  fontSize: "0.625rem",
+  letterSpacing: ".16em",
+  textTransform: "uppercase",
+  color: "text.secondary",
+} as const;
+
+const ROW_SX = {
+  width: "100%",
+  minHeight: 64,
+  px: 2,
+  gap: 1.625,
+  justifyContent: "space-between",
+  textAlign: "left",
+  borderTop: "1px solid",
+  borderColor: "divider",
+} as const;
+
+const TITLE_SX = {
+  fontSize: "0.9375rem",
+  fontWeight: 600,
+  lineHeight: 1.25,
+} as const;
+
+const AMOUNT_SX = {
+  flex: "0 0 auto",
+  fontSize: "0.875rem",
+  fontWeight: 700,
+  fontVariantNumeric: "tabular-nums",
+} as const;
+
 export function AddPaymentSheet({
   open,
   options,
-  base,
   onClose,
   onPick,
 }: AddPaymentSheetProps) {
@@ -43,63 +78,44 @@ export function AddPaymentSheet({
       anchor="bottom"
       open={open}
       onClose={onClose}
-      // See AmountKeypad.tsx: the pinned cart sidebar and the mobile
-      // CartDrawer sit at theme.zIndex.drawer + 1, and this Drawer portals to
-      // document.body regardless of nesting, so it needs an explicit zIndex
-      // above them or it renders behind whichever one is on screen.
+      // The pinned cart sidebar and the mobile CartDrawer sit at
+      // theme.zIndex.drawer + 1, and this Drawer portals to document.body
+      // regardless of nesting, so it needs an explicit zIndex above them.
       sx={{ zIndex: (theme) => theme.zIndex.modal }}
-      PaperProps={{ sx: { borderRadius: "16px 16px 0 0" } }}
+      PaperProps={{ sx: PAPER_SX }}
     >
-      <Stack
-        gap={1}
-        sx={{ p: 2, pb: "calc(16px + env(safe-area-inset-bottom))" }}
-      >
-        <Typography variant="caption" color="text.secondary">
-          AGREGAR FORMA DE PAGO
-        </Typography>
+      <Box sx={HEAD_SX}>
+        <span>Agregar forma de pago</span>
+        <span>{options.length}</span>
+      </Box>
 
-        {options.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" py={2}>
-            No hay otras formas de pago configuradas para este negocio.
-          </Typography>
-        ) : (
-          <List disablePadding>
-            {options.map((option) => (
-              <ListItemButton
-                key={`${option.kind}-${option.currency}`}
-                onClick={() => onPick(option)}
-                sx={{
-                  minHeight: 44,
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  mb: 1,
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  {option.kind === "cash" ? (
-                    <PaymentsOutlinedIcon fontSize="small" />
-                  ) : (
-                    <CreditCardIcon fontSize="small" />
-                  )}
-                </ListItemIcon>
-                <ListItemText
-                  primary={`${option.kind === "cash" ? "Efectivo" : "Transferencia"} ${option.currency}`}
-                  secondary={
-                    option.suggested > 0
-                      ? option.equivalentBase !== null
-                        ? `Sugerido: ${formatMontoEnMoneda(option.suggested, option.currency)} · ≈ ${formatMontoEnMoneda(option.equivalentBase, base)}`
-                        : `Sugerido: ${formatMontoEnMoneda(option.suggested, option.currency)}`
-                      : "Ya está cubierto el total"
-                  }
-                  primaryTypographyProps={{ fontWeight: 600, variant: "body2" }}
-                  secondaryTypographyProps={{ variant: "caption" }}
-                />
-              </ListItemButton>
-            ))}
-          </List>
-        )}
-      </Stack>
+      {options.length === 0 ? (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ px: 2, py: 2 }}
+        >
+          No hay otras formas de pago configuradas para este negocio.
+        </Typography>
+      ) : (
+        options.map((option) => (
+          <ButtonBase
+            key={`${option.kind}-${option.currency}`}
+            onClick={() => onPick(option)}
+            sx={ROW_SX}
+          >
+            <Typography sx={TITLE_SX} noWrap>
+              {option.kind === "cash" ? "Efectivo" : "Transferencia"}{" "}
+              {option.currency}
+            </Typography>
+            <Typography sx={AMOUNT_SX}>
+              {option.suggested > 0
+                ? formatMontoEnMoneda(option.suggested, option.currency)
+                : "Cubierto"}
+            </Typography>
+          </ButtonBase>
+        ))
+      )}
     </Drawer>
   );
 }

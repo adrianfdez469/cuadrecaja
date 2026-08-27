@@ -77,12 +77,21 @@ export const CART_PERSIST_DEBOUNCE_MS = 300;
 export const POS_VIRTUALIZATION_MIN_ITEMS = 80;
 
 /**
- * First guess at a product card's height, in pixels, before it is measured.
+ * Height of a catalogue row, in pixels.
+ *
+ * From the approved redesign (`rediseno/pos.html`, `rediseno/pos-movil.html`):
+ * a name with its stock underneath, a price with its conversions, and one
+ * 44px «+». It replaced a 110px card whose stepper is now in the basket.
+ */
+export const POS_CATALOG_ROW_HEIGHT = 60;
+
+/**
+ * First guess at a catalogue row's height, in pixels, before it is measured.
  *
  * Only affects the scrollbar while rows are still unmeasured — every visible
  * row reports its real height through the virtualizer's `measureElement`.
  */
-export const POS_CARD_ESTIMATED_HEIGHT = 110;
+export const POS_CARD_ESTIMATED_HEIGHT = POS_CATALOG_ROW_HEIGHT;
 
 /**
  * Row count from which the sales list renders only what is on screen.

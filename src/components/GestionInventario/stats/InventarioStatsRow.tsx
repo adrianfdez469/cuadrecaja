@@ -1,12 +1,8 @@
 "use client";
 
-import { Box, Tooltip } from "@mui/material";
-import InventoryIcon from "@mui/icons-material/Inventory";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import TrendingDownIcon from "@mui/icons-material/TrendingDown";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import { Tooltip } from "@mui/material";
 import { IProductoTiendaV2 } from "@/schemas/producto";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import { formatCurrency, formatCurrencyCompact } from "@/utils/formatters";
 
 interface InventarioStatsRowProps {
@@ -23,44 +19,29 @@ export function InventarioStatsRow({ productos }: InventarioStatsRowProps) {
   );
 
   return (
-    <Box display="flex" gap={1.5} flexWrap="wrap" mb={2}>
-      <StatCard
-        variant="compact"
-        label="Total productos"
-        value={total}
-        icon={<InventoryIcon fontSize="small" />}
-        tone="neutral"
-      />
-      <StatCard
-        variant="compact"
-        label="Con stock"
-        value={conStock}
-        icon={<TrendingUpIcon fontSize="small" />}
-        tone="positive"
-      />
-      <StatCard
-        variant="compact"
-        label="Sin stock"
-        value={sinStock}
-        icon={<TrendingDownIcon fontSize="small" />}
-        tone="negative"
-      />
-      {/*
-        Compact in the tile, exact on hover: in CUP this total runs to eleven
-        digits and used to overflow the card, which made the two figures beside
-        it impossible to compare at a glance.
-      */}
-      <StatCard
-        variant="compact"
-        label="Valor inventario"
-        value={
-          <Tooltip title={formatCurrency(valorInventario)}>
-            <span>{formatCurrencyCompact(valorInventario)}</span>
-          </Tooltip>
-        }
-        icon={<AttachMoneyIcon fontSize="small" />}
-        tone="caution"
-      />
-    </Box>
+    <StatStrip
+      stats={[
+        { label: "Total productos", value: total },
+        { label: "Con stock", value: conStock },
+        {
+          // The exception speaks, the norm keeps quiet: zero out-of-stock
+          // products is good news and gets no colour for it.
+          label: "Sin stock",
+          value: sinStock,
+          tone: sinStock > 0 ? "negative" : undefined,
+        },
+        {
+          // Compact in the strip, exact on hover: in CUP this total runs to
+          // eleven digits and used to overflow its tile, which made the two
+          // figures beside it impossible to compare at a glance.
+          label: "Valor inventario",
+          value: (
+            <Tooltip title={formatCurrency(valorInventario)}>
+              <span>{formatCurrencyCompact(valorInventario)}</span>
+            </Tooltip>
+          ),
+        },
+      ]}
+    />
   );
 }

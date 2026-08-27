@@ -2,7 +2,6 @@
 
 import {
   Box,
-  Chip,
   IconButton,
   Menu,
   MenuItem,
@@ -18,6 +17,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useState } from "react";
 import { useVirtualRows } from "@/hooks/useVirtualRows";
 import { IProductoTiendaV2 } from "@/schemas/producto";
+import { StatusPill } from "@/components/StatusPill";
 import {
   INVENTARIO_ROW_ESTIMATED_HEIGHT,
   INVENTARIO_TABLE_COLUMNS as COLUMNAS,
@@ -44,19 +44,35 @@ function getExpiryChip(fechaVencimiento: string | null | undefined) {
   const dias = Math.ceil(
     (new Date(fechaVencimiento).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
   );
-  if (dias <= 0) return <Chip label="Vencido" color="error" size="small" />;
-  if (dias <= 7) return <Chip label={`${dias}d`} color="error" size="small" />;
-  if (dias <= 30)
-    return <Chip label={`${dias}d`} color="warning" size="small" />;
-  return <Chip label={`${dias}d`} size="small" />;
+  if (dias <= 0) return <StatusPill label="Vencido" hue="negative" />;
+  if (dias <= 7) return <StatusPill label={`${dias} días`} hue="negative" />;
+  if (dias <= 30) return <StatusPill label={`${dias} días`} hue="caution" />;
+  // Far off is not a warning: it reads as plain text like any other date.
+  return (
+    <Typography variant="body2" color="text.secondary">
+      {`${dias} días`}
+    </Typography>
+  );
 }
 
-function getStockChip(existencia: number) {
-  if (existencia <= 0)
-    return <Chip label="Sin stock" color="error" size="small" />;
-  if (existencia <= 5)
-    return <Chip label="Bajo" color="warning" size="small" />;
-  return <Chip label="En stock" color="success" size="small" />;
+/**
+ * The exception speaks, the norm keeps quiet.
+ *
+ * Every row used to carry a stock pill, so a table where nearly everything is
+ * in stock showed a column of green badges — a hundred repetitions of "fine"
+ * that made the four rows that were not fine impossible to spot. Only shortage
+ * gets a pill now, and only shortage tints the number beside it.
+ */
+function getStockPill(existencia: number) {
+  if (existencia <= 0) return <StatusPill label="Sin stock" hue="negative" />;
+  if (existencia <= 5) return <StatusPill label="Bajo" hue="caution" />;
+  return null;
+}
+
+function stockTone(existencia: number) {
+  if (existencia <= 0) return "semantic.hue.negative.main";
+  if (existencia <= 5) return "semantic.hue.caution.main";
+  return undefined;
 }
 
 function ActionsMenu({
@@ -234,29 +250,21 @@ export function InventarioTable({
                       {p.producto.nombre}
                     </Typography>
                     {p.proveedor && (
-                      <Chip
+                      <StatusPill
                         label={`Consig. ${p.proveedor.nombre}`}
-                        size="small"
-                        variant="outlined"
-                        color="secondary"
+                        hue="accent"
                       />
                     )}
                   </Box>
                 </TableCell>
                 <TableCell>
-                  {p.producto.categoria ? (
-                    <Chip
-                      label={p.producto.categoria.nombre}
-                      size="small"
-                      sx={{
-                        bgcolor: p.producto.categoria.color,
-                        color: "white",
-                        fontWeight: 500,
-                      }}
-                    />
-                  ) : (
-                    "—"
-                  )}
+                  {/* Plain text: a filled chip per row turned the category
+                      column into a wall of colour that outshouted the product
+                      names next to it. The category's own colour is data on the
+                      categories screen, not here. */}
+                  <Typography variant="body2" color="text.secondary">
+                    {p.producto.categoria?.nombre ?? "—"}
+                  </Typography>
                 </TableCell>
                 <TableCell align="right">
                   <Box
@@ -265,10 +273,16 @@ export function InventarioTable({
                     alignItems="flex-end"
                     gap={0.5}
                   >
-                    <Typography variant="body2">
-                      {formatNumber(p.existencia)}
-                    </Typography>
-                    {getStockChip(p.existencia)}
+                    <Box display="flex" alignItems="center" gap={1}>
+                      {getStockPill(p.existencia)}
+                      <Typography
+                        variant="body2"
+                        fontWeight={stockTone(p.existencia) ? 700 : 600}
+                        sx={{ color: stockTone(p.existencia) }}
+                      >
+                        {formatNumber(p.existencia)}
+                      </Typography>
+                    </Box>
                   </Box>
                 </TableCell>
                 <TableCell align="right">
