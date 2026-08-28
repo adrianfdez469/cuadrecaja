@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
 import { TasasBanner } from "@/components/TasasBanner";
 import { ReportPeriodFilter } from "@/components/reports/ReportPeriodFilter";
 import { DashboardKpiRow } from "@/components/dashboard/DashboardKpiRow";
@@ -39,26 +40,18 @@ export default function DashboardResumenPage() {
     filters.ready,
   );
 
-  if (loadingContext) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="60vh"
-      >
-        <CircularProgress size="3rem" />
-        <Typography variant="body1" sx={{ mt: 2, ml: 2 }}>
-          Cargando dashboard...
-        </Typography>
-      </Box>
-    );
-  }
-
   const breadcrumbs = [
     { label: "Inicio", href: "/home" },
     { label: "Resumen del Negocio" },
   ];
+
+  if (loadingContext) {
+    return (
+      <PageContainer title="Resumen del Negocio" breadcrumbs={breadcrumbs}>
+        <LoadingState variant="cards" />
+      </PageContainer>
+    );
+  }
 
   if (!user?.localActual) {
     return (

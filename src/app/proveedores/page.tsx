@@ -14,7 +14,6 @@ import {
   Typography,
   TablePagination,
   Grid,
-  CircularProgress,
   IconButton,
   Card,
   CardContent,
@@ -25,6 +24,7 @@ import {
 } from "@mui/material";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { LoadingState } from "@/components/LoadingState";
 import { formatCurrency } from "@/utils/formatters";
 import { useRouter } from "next/navigation";
 import {
@@ -122,12 +122,7 @@ export default function ProveedoresPage() {
         subtitle="Gestión de proveedores y liquidaciones"
         breadcrumbs={breadcrumbs}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress />
-          <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-            Cargando proveedores...
-          </Typography>
-        </Box>
+        <LoadingState variant="table" />
       </PageContainer>
     );
   }
@@ -285,8 +280,8 @@ export default function ProveedoresPage() {
                   <TableCell>Contacto</TableCell>
                   <TableCell align="right">Dinero Liquidado</TableCell>
                   <TableCell align="right">Por Liquidar</TableCell>
-                  <TableCell align="center">Productos</TableCell>
-                  <TableCell align="center">Última Liquidación</TableCell>
+                  <TableCell align="right">Productos</TableCell>
+                  <TableCell>Última Liquidación</TableCell>
                   <TableCell align="center">Estado</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
@@ -334,14 +329,25 @@ export default function ProveedoresPage() {
                         {formatCurrency(proveedor.dineroPorLiquidar)}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2">
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
                         {proveedor.totalProductosConsignacion}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2">
-                        {proveedor.ultimaLiquidacion ? new Date(proveedor.ultimaLiquidacion).toLocaleDateString() : 'Sin liquidar'}
+                    <TableCell>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {proveedor.ultimaLiquidacion
+                          ? new Date(
+                              proveedor.ultimaLiquidacion,
+                            ).toLocaleDateString()
+                          : "Sin liquidar"}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">

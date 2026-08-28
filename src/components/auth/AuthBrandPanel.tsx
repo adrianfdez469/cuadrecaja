@@ -9,17 +9,18 @@ import { BrandMark, Wordmark } from "@/components/brand";
 export const VERSION_LINE = "Versión 1.0 • Sistema de gestión comercial";
 
 /**
- * The violet side of the login.
+ * The violet side of the entrance screens.
  *
- * On a wide screen it is a full-height column; on a phone it collapses to a
- * band above the form. Either way it is flat violet — the screen it leads to
+ * Shared by the login, the password reset request and the reset itself. On a
+ * wide screen it is a full-height column; on a phone it collapses to a band
+ * above the form. Either way it is flat violet — the screen it leads to
  * is the app, so the first thing a user sees should already look like it. What
  * it replaces was a purple-to-indigo page gradient, a floating translucent
  * card, a second blue-to-crimson gradient inside the card's header, a dark
  * overlay on top of that, a shop icon in a glass circle and two text shadows
  * to rescue the contrast the gradients had cost.
  */
-export function LoginBrandPanel() {
+export function AuthBrandPanel() {
   return (
     <Box
       sx={{

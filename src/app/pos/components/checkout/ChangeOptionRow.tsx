@@ -1,24 +1,27 @@
 "use client";
 
 import { memo, type ReactNode } from "react";
-import { Box, Radio, Stack, alpha, useTheme } from "@mui/material";
+import { Box, ButtonBase } from "@mui/material";
+import {
+  SHEET_ROW_SX,
+  SheetRadio,
+} from "@/app/pos/components/checkout/BottomSheet";
 
 interface ChangeOptionRowProps {
   selected: boolean;
   onSelect: () => void;
   /** The split itself, or the name of the typed one. */
   children: ReactNode;
-  /** Trailing note on the header line — a warning, usually. */
+  /** Trailing note on the row — a warning, usually. */
   end?: ReactNode;
   /**
-   * Content that unfolds under the header line. Kept outside the radio itself
-   * so the fields it may contain get their own keystrokes: the header handles
-   * Enter and Space, and swallowing those inside an input would break typing.
+   * Content that unfolds under the row. Kept outside the radio itself so the
+   * fields it may contain get their own keystrokes.
    */
   detail?: ReactNode;
 }
 
-/** One pickable way to hand the change over. */
+/** One pickable way to hand the change over: a 56px row with its radio. */
 function ChangeOptionRowComponent({
   selected,
   onSelect,
@@ -26,50 +29,18 @@ function ChangeOptionRowComponent({
   end,
   detail,
 }: ChangeOptionRowProps) {
-  const theme = useTheme();
-
   return (
-    <Box
-      sx={{
-        borderRadius: 2,
-        border: "1px solid",
-        borderColor: selected ? "primary.main" : "divider",
-        bgcolor: selected
-          ? alpha(theme.palette.primary.main, 0.08)
-          : "transparent",
-      }}
-    >
-      <Stack
+    <Box>
+      <ButtonBase
         role="radio"
         aria-checked={selected}
-        tabIndex={0}
         onClick={onSelect}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onSelect();
-          }
-        }}
-        direction="row"
-        alignItems="center"
-        gap={1}
-        sx={{
-          p: 1.25,
-          minHeight: 56,
-          cursor: "pointer",
-          borderRadius: 2,
-          "&:focus-visible": {
-            outline: "2px solid",
-            outlineColor: "primary.main",
-            outlineOffset: 2,
-          },
-        }}
+        sx={SHEET_ROW_SX}
       >
-        <Radio checked={selected} tabIndex={-1} size="small" />
+        <SheetRadio on={selected} />
         {children}
-        <Box flex={1} />
-        {end}
-      </Stack>
+        <Box sx={{ ml: "auto" }}>{end}</Box>
+      </ButtonBase>
       {detail}
     </Box>
   );

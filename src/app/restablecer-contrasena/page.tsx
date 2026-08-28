@@ -8,16 +8,16 @@ import {
   Button,
   TextField,
   Typography,
-  Container,
-  Paper,
-  CardContent,
   Alert,
   CircularProgress,
   InputAdornment,
   IconButton,
+  Link as MuiLink,
 } from "@mui/material";
 import { Visibility, VisibilityOff, Lock, Login as LoginIcon } from "@mui/icons-material";
+import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout";
 import { LOGIN_CREDENTIALS_SESSION_KEY } from "@/constants/userAccount";
+import { shape, touch } from "@/theme/tokens";
 
 function RestablecerForm() {
   const searchParams = useSearchParams();
@@ -78,15 +78,31 @@ function RestablecerForm() {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ py: 6 }}>
-      <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden" }}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h5" fontWeight={700} gutterBottom>
-            Nueva contraseña
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Define una contraseña nueva (mayúsculas, minúsculas y números; mínimo 8 caracteres).
-          </Typography>
+    <AuthSplitLayout>
+      <Typography
+        component="h2"
+        sx={{
+          fontSize: { xs: "1.375rem", md: "1.75rem" },
+          fontWeight: 700,
+          lineHeight: 1.25,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        Nueva contraseña
+      </Typography>
+      <Typography
+        sx={{
+          mt: 1,
+          mb: 3.5,
+          fontSize: "0.9375rem",
+          lineHeight: 1.55,
+          color: "text.secondary",
+          textWrap: "pretty",
+        }}
+      >
+        Define una contraseña nueva (mayúsculas, minúsculas y números; mínimo 8
+        caracteres).
+      </Typography>
 
           {error ? (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -148,19 +164,43 @@ function RestablecerForm() {
               type="submit"
               fullWidth
               variant="contained"
-              size="large"
               disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : <LoginIcon />}
+              startIcon={
+                loading ? (
+                  <CircularProgress size={20} color="inherit" />
+                ) : (
+                  <LoginIcon />
+                )
+              }
+              sx={{
+                minHeight: touch.comfortable,
+                borderRadius: `${shape.radius.md}px`,
+                fontSize: "1rem",
+              }}
             >
               {loading ? "Guardando…" : "Guardar contraseña"}
             </Button>
-            <Button fullWidth component={Link} href="/login" sx={{ mt: 2 }} color="inherit">
-              Volver al inicio de sesión
-            </Button>
           </Box>
-        </CardContent>
-      </Paper>
-    </Container>
+
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 1.5 }}>
+        <MuiLink
+          component={Link}
+          href="/login"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            minHeight: touch.min,
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            color: "text.secondary",
+            textDecoration: "none",
+            "&:hover": { textDecoration: "underline" },
+          }}
+        >
+          Volver al inicio de sesión
+        </MuiLink>
+      </Box>
+    </AuthSplitLayout>
   );
 }
 
@@ -168,7 +208,14 @@ export default function RestablecerContrasenaPage() {
   return (
     <Suspense
       fallback={
-        <Box display="flex" justifyContent="center" py={8}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "100dvh",
+          }}
+        >
           <CircularProgress />
         </Box>
       }

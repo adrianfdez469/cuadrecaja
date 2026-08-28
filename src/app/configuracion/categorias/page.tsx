@@ -15,7 +15,6 @@ import {
   TableRow,
   IconButton,
   Typography,
-  CircularProgress,
   TextField,
   InputAdornment,
   Stack,
@@ -48,6 +47,7 @@ import {
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
 import { useSession } from "next-auth/react";
@@ -177,17 +177,14 @@ export default function CategoriasPage() {
   // Componente de estadística móvil optimizado
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
+      <PageContainer
+        title="Gestión de Categorías"
+        subtitle="Organiza tus productos con categorías personalizadas"
+        breadcrumbs={breadcrumbs}
+        maxWidth="xl"
       >
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando categorías...
-        </Typography>
-      </Box>
+        <LoadingState variant="table" />
+      </PageContainer>
     );
   }
 

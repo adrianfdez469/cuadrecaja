@@ -49,6 +49,7 @@ import {
   Close,
 } from "@mui/icons-material";
 import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
 import { useMessageContext } from "@/context/MessageContext";
@@ -314,17 +315,9 @@ export default function Locales() {
   // Componente de estadística móvil optimizado
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
-      >
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando locales...
-        </Typography>
-      </Box>
+      <PageContainer title="Gestión de Locales" breadcrumbs={breadcrumbs}>
+        <LoadingState variant="table" />
+      </PageContainer>
     );
   }
 

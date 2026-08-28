@@ -19,6 +19,8 @@ interface CheckoutPayBarProps {
   canSell: boolean;
   submitting: boolean;
   onConfirm: () => void;
+  /** «VENDER» on the sale; the default is what the redesign writes. */
+  ctaLabel?: string;
 }
 
 /**
@@ -65,6 +67,7 @@ const CTA_SX = {
   borderRadius: `${shape.radius.md}px`,
   fontSize: "1.0625rem",
   fontWeight: 700,
+  letterSpacing: ".04em",
   "&.Mui-disabled": {
     bgcolor: (theme: Theme) =>
       alpha(theme.palette.semantic.text.onInverse, 0.1),
@@ -82,6 +85,7 @@ export function CheckoutPayBar({
   canSell,
   submitting,
   onConfirm,
+  ctaLabel = "VENDER",
 }: CheckoutPayBarProps) {
   return (
     <Box sx={BAR_SX}>
@@ -108,7 +112,7 @@ export function CheckoutPayBar({
         onClick={onConfirm}
         sx={CTA_SX}
       >
-        {submitting ? "Confirmando..." : "Confirmar cobro"}
+        {submitting ? "Confirmando..." : ctaLabel}
       </Button>
     </Box>
   );

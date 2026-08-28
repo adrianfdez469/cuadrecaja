@@ -13,7 +13,6 @@ import {
   TableRow,
   IconButton,
   Typography,
-  CircularProgress,
   TextField,
   InputAdornment,
   Card,
@@ -47,6 +46,7 @@ import {
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
 import { useAppContext } from "@/context/AppContext";
@@ -222,17 +222,13 @@ export default function DestinosTransferenciaPage() {
 
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
+      <PageContainer
+        title="Gestión de Destinos de Transferencia"
+        breadcrumbs={breadcrumbs}
+        maxWidth="xl"
       >
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando destinos de transferencia...
-        </Typography>
-      </Box>
+        <LoadingState variant="table" />
+      </PageContainer>
     );
   }
 

@@ -57,6 +57,7 @@ import {
   getPermisosTemplates,
 } from "@/services/rolService";
 import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 
 interface PermisosData {
@@ -278,14 +279,9 @@ export default function RolesPage() {
 
   if (loadingContext) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
-      >
-        <CircularProgress />
-      </Box>
+      <PageContainer title="Gestión de Roles">
+        <LoadingState variant="list" />
+      </PageContainer>
     );
   }
 

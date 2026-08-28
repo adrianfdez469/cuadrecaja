@@ -8,22 +8,32 @@ import { formatNumberWith } from "@/utils/numberFormat";
 interface ReceivedAmountFieldProps {
   /** The text being edited — dot-decimal, as the keypad builds it. */
   draft: string;
-  /** «Recibido» for cash, «Monto» for a transfer. */
+  /**
+   * The word beside the figure: the currency code on the main field, what
+   * the amount is («Transferencia», «USD») on a secondary one.
+   */
   label: string;
   ariaLabel: string;
   onDraftChange: (draft: string) => void;
+  /**
+   * «primary» is the 64px box with the near-black rule and the figure at
+   * 26px; «secondary» is the quieter 56px box with the label on the left,
+   * for the transfer under it and the tip per currency.
+   */
+  variant?: "primary" | "secondary";
+  /** Opens the on-screen keypad on a touch device. */
+  onOpenKeypad?: () => void;
+  /** Keeps the box highlighted while the keypad owns the value. */
+  keypadOpen?: boolean;
 }
 
 /**
- * The amount handed over: a 64px box with the near-black 2px rule of the
- * POS's own search field, the figure at 26px and the word that says what it
- * is at the right end.
+ * An amount handed over: the box the cashier types into.
  *
  * Two ways in, decided by the device rather than by a setting. Where there is
  * a mouse there is a physical keyboard, so this is a real text field. On a
- * touch-only device the system keyboard is suppressed and the keypad drawn
- * under it does the typing — it never covers the change, which the system
- * keyboard would.
+ * touch-only device the system keyboard is suppressed and tapping opens the
+ * keypad sheet — it never covers the change, which the system keyboard would.
  */
 
 const GROUPED: Intl.NumberFormatOptions = {
@@ -40,7 +50,7 @@ function formatDraft(draft: string): string {
   return `${grouped},${decimals}`;
 }
 
-const BOX_SX = {
+const PRIMARY_SX = {
   height: 64,
   border: "2px solid",
   borderColor: "semantic.surface.inverse",
@@ -53,6 +63,16 @@ const BOX_SX = {
   "&:focus-within": { borderColor: "primary.main" },
 } as const;
 
+const SECONDARY_SX = {
+  ...PRIMARY_SX,
+  height: 56,
+  border: "1.5px solid",
+  borderColor: "divider",
+  flexDirection: "row-reverse",
+} as const;
+
+const KEYPAD_OPEN_SX = { borderColor: "primary.main" } as const;
+
 const INPUT_SX = {
   flex: 1,
   minWidth: 0,
@@ -61,7 +81,6 @@ const INPUT_SX = {
   bgcolor: "transparent",
   color: "text.primary",
   font: "inherit",
-  fontSize: "1.625rem",
   fontWeight: 700,
   fontVariantNumeric: "tabular-nums",
   outline: "none",
@@ -78,6 +97,9 @@ export function ReceivedAmountField({
   label,
   ariaLabel,
   onDraftChange,
+  variant = "primary",
+  onOpenKeypad,
+  keypadOpen = false,
 }: ReceivedAmountFieldProps) {
   // `hover` rules out touch screens; `pointer: fine` rules out anything
   // driven by a thumb. Both together are what "laptop or desktop" means.
@@ -98,23 +120,33 @@ export function ReceivedAmountField({
     ? draft.replace(".", ",")
     : formatDraft(draft);
 
+  const secondary = variant === "secondary";
+
   return (
-    <Box sx={BOX_SX}>
+    <Box
+      sx={{
+        ...(secondary ? SECONDARY_SX : PRIMARY_SX),
+        ...(keypadOpen ? KEYPAD_OPEN_SX : null),
+      }}
+    >
       <Box
         component="input"
         inputMode={hasPhysicalKeyboard ? "decimal" : "none"}
-        // Shown with the decimal comma the rest of the app uses; the draft
-        // itself stays a parseable dot-decimal string.
         value={shown}
         placeholder="0"
         aria-label={ariaLabel}
         readOnly={!hasPhysicalKeyboard}
+        onClick={hasPhysicalKeyboard ? undefined : onOpenKeypad}
         // Typing replaces the suggested amount instead of appending to it.
         onFocus={(event: FocusEvent<HTMLInputElement>) =>
           event.currentTarget.select()
         }
         onChange={handleChange}
-        sx={INPUT_SX}
+        sx={{
+          ...INPUT_SX,
+          fontSize: secondary ? "1.25rem" : "1.625rem",
+          textAlign: secondary ? "right" : "left",
+        }}
       />
       <Box component="span" sx={LABEL_SX}>
         {label}

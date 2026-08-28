@@ -426,15 +426,22 @@ const HomePage = () => {
                 action.path === "/inventario" &&
                 !loadingNegocioStats &&
                 negocioStats ? (
-                  <Typography
-                    sx={{
-                      fontSize: "1.0625rem",
-                      fontWeight: 700,
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {negocioStats.productos.actual}
-                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75 }}>
+                    <Typography
+                      sx={{
+                        fontSize: "1.1875rem",
+                        fontWeight: 700,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {negocioStats.productos.actual}
+                    </Typography>
+                    <Typography
+                      sx={{ fontSize: "0.8125rem", color: "text.secondary" }}
+                    >
+                      productos
+                    </Typography>
+                  </Box>
                 ) : undefined
               }
             />
@@ -465,19 +472,32 @@ const HomePage = () => {
       {/* Suscripción */}
       <Box sx={{ mb: 5 }}>
         <SectionLabel>Suscripción</SectionLabel>
-        <Box
-          sx={{
-            bgcolor: "semantic.surface.raised",
-            border: "1px solid",
-            borderColor: "semantic.surface.border",
-            borderRadius: `${shape.radius.md}px`,
-          }}
-        >
-          {user.rol === "SUPER_ADMIN" && <SuspensionSummary />}
-          {/* The limits close the panel: they describe the plan above them,
-              and the expiry is the one figure in the line that can go bad. */}
-          <PlanLimitsStrip stats={negocioStats} loading={loadingNegocioStats} />
-        </Box>
+        {/* The limits close the panel: they describe the plan above them, and
+            the expiry is the one figure in the line that can go bad. */}
+        {user.rol === "SUPER_ADMIN" ? (
+          <SuspensionSummary
+            footer={
+              <PlanLimitsStrip
+                stats={negocioStats}
+                loading={loadingNegocioStats}
+              />
+            }
+          />
+        ) : (
+          <Box
+            sx={{
+              bgcolor: "semantic.surface.raised",
+              border: "1px solid",
+              borderColor: "semantic.surface.border",
+              borderRadius: `${shape.radius.md}px`,
+            }}
+          >
+            <PlanLimitsStrip
+              stats={negocioStats}
+              loading={loadingNegocioStats}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* Two things you open only when the count is not zero, side by side. */}
@@ -485,7 +505,10 @@ const HomePage = () => {
         sx={{
           display: "grid",
           gap: 1.5,
-          gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "repeat(auto-fit, minmax(360px, 1fr))",
+          },
           mb: 5,
         }}
       >

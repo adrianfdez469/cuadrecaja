@@ -1,29 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box } from "@mui/material";
+import { Box, ButtonBase } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import { useAppContext } from "@/context/AppContext";
 import { useCartStore } from "@/store/cartStore";
 import { useCartTotals } from "@/store/useCartTotals";
-import { useStoreStatus } from "@/hooks/useStoreStatus";
 import { useMonedasAlternativas } from "@/components/MultiCurrencyAmount/useMonedasAlternativas";
 import { CheckoutTopBar } from "@/app/pos/components/checkout/CheckoutTopBar";
-import { CheckoutSummaryHeader } from "@/app/pos/components/checkout/CheckoutSummaryHeader";
 import { CheckoutPayBar } from "@/app/pos/components/checkout/CheckoutPayBar";
-import {
-  PaymentMethodBody,
-  type PaymentMethod,
-} from "@/app/pos/components/checkout/PaymentMethodBody";
-import { PaymentLineBody } from "@/app/pos/components/checkout/PaymentLineBody";
-import {
-  MixedPaymentBody,
-  type MixedLine,
-} from "@/app/pos/components/checkout/MixedPaymentBody";
+import { PaymentCard } from "@/app/pos/components/checkout/PaymentCard";
+import type { CurrencyChoice } from "@/app/pos/components/checkout/CurrencySheet";
 import {
   AddPaymentSheet,
   type PaymentOption,
 } from "@/app/pos/components/checkout/AddPaymentSheet";
 import { ChangeSheet } from "@/app/pos/components/checkout/ChangeSheet";
+import { ChangeBlock } from "@/app/pos/components/checkout/ChangeBlock";
+import { MissingBlock } from "@/app/pos/components/checkout/MissingBlock";
+import { TipChip, TipLink } from "@/app/pos/components/checkout/TipControls";
 import { TipSheet } from "@/app/pos/components/checkout/TipSheet";
 import { usePaymentLines } from "@/app/pos/components/checkout/usePaymentLines";
 import { useChangeDistribution } from "@/app/pos/components/checkout/useChangeDistribution";
@@ -35,8 +30,8 @@ import {
   pendingInCurrency,
   toPagoLineas,
 } from "@/app/pos/utils/paymentMath";
-import type { PaymentLine, PaymentLineKind } from "@/app/pos/utils/paymentMath";
-import { CUSTOM_CHANGE_ID, toVueltoLineas } from "@/app/pos/utils/changeMath";
+import type { PaymentLine } from "@/app/pos/utils/paymentMath";
+import { toVueltoLineas } from "@/app/pos/utils/changeMath";
 import { suggestedAmounts } from "@/app/pos/utils/suggestedAmounts";
 import {
   tipLinesFromAmounts,
@@ -52,10 +47,10 @@ import {
 } from "@/lib/currency";
 import { DENOMINACIONES } from "@/constants/billDenominations";
 import { formatChangeSplit, formatMontoEnMoneda } from "@/utils/formatters";
-import { formatAmount } from "@/utils/numberFormat";
 import type { SaleReceipt } from "@/app/pos/components/checkout/saleReceipt";
 import type { IMultimonedaExtras, IPagoLinea } from "@/schemas/pago";
 import type { ITransferDestination } from "@/schemas/transferDestination";
+import { touch } from "@/theme";
 
 interface CheckoutViewProps {
   finalTotal: number;
@@ -85,23 +80,6 @@ interface CheckoutViewProps {
   onSaleFailed: () => void;
 }
 
-/**
- * Where the screen is, in the redesign's own states.
- *
- * «pick» is the entrance: nothing chosen, the tiles ask. «line» is one form
- * of payment being counted — the whole payment when it was picked from the
- * tiles, or one of several when it was opened from the mixed list, which is
- * what `from` remembers so «←» goes back to the right place. «mixed» is the
- * list of everything taken so far and what is still missing.
- */
-type CheckoutMode =
-  | { kind: "pick" }
-  | { kind: "line"; lineId: string; from: "pick" | "mixed" }
-  | { kind: "mixed" };
-
-const PICK_MODE: CheckoutMode = { kind: "pick" };
-const MIXED_MODE: CheckoutMode = { kind: "mixed" };
-
 /** A currency with no bills configured. Stable so memos keyed on it settle. */
 const EMPTY_DENOMINATIONS: number[] = [];
 
@@ -112,7 +90,30 @@ const ROOT_SX = {
   flexDirection: "column",
 } as const;
 
-const BODY_SX = { flex: 1, minHeight: 0, overflowY: "auto" } as const;
+const BODY_SX = { flex: 1, minHeight: 0, overflowY: "auto", pb: 2 } as const;
+
+// Each currency after the first sits on its own rule.
+const CARD_SEPARATOR_SX = {
+  mt: 1.5,
+  borderTop: "1px solid",
+  borderColor: "divider",
+} as const;
+
+// «＋ Agregar forma de pago»: a 56px row on a rule, violet, as the redesign
+// draws it — not a dashed box.
+const ADD_SX = {
+  width: "100%",
+  height: touch.row,
+  mt: 1.5,
+  px: 1.75,
+  gap: 1.25,
+  justifyContent: "flex-start",
+  borderTop: "1px solid",
+  borderColor: "divider",
+  color: "primary.main",
+  fontSize: "0.9375rem",
+  fontWeight: 600,
+} as const;
 
 const defaultDestId = (dests: ITransferDestination[]) =>
   dests.length === 0
@@ -120,12 +121,6 @@ const defaultDestId = (dests: ITransferDestination[]) =>
     : dests.length === 1
       ? dests[0].id
       : (dests.find((d) => d.default)?.id ?? dests[0].id);
-
-const methodTitle = (kind: PaymentLineKind, currency: string) =>
-  `${kind === "cash" ? "Efectivo" : "Transferencia"} ${currency}`;
-
-const countLabel = (count: number, singular: string, plural: string) =>
-  `${count} ${count === 1 ? singular : plural}`;
 
 export function CheckoutView({
   finalTotal,
@@ -140,15 +135,12 @@ export function CheckoutView({
   onSaleComplete,
   onSaleFailed,
 }: CheckoutViewProps) {
-  const { user, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
+  const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const { unitCount } = useCartTotals();
   const cartName = useCartStore(
     (state) => state.carts.find((c) => c.id === state.activeCartId)?.name,
   );
-  const storeStatus = useStoreStatus();
   const { monedasAlternativas, convertToMoneda } = useMonedasAlternativas();
-
-  const [mode, setMode] = useState<CheckoutMode>(PICK_MODE);
 
   /**
    * Tip taken from the change the cashier was about to hand back. Stored as
@@ -161,6 +153,14 @@ export function CheckoutView({
   const [tipFromChange, setTipFromChange] = useState<{
     signature: string;
     detail: IPagoLinea[];
+    /**
+     * The change it replaced, in base. The split leaving the drawer is in
+     * whole bills, so its value can exceed the change by a fraction of a
+     * bill — and a tip worth more than the change would put the sale a few
+     * cents short of paid. What the customer gave up is the change; the
+     * bills are only how it is kept.
+     */
+    capBase: number;
   } | null>(null);
   /**
    * Tip typed per currency, each amount in its own currency. Not a single
@@ -169,17 +169,23 @@ export function CheckoutView({
    */
   const [explicitTip, setExplicitTip] = useState<TipAmounts>({});
 
+  // Memoized because the whole checkout hangs off this: it is recomputed on
+  // every keystroke, and `amountDue` below — plus everything derived from
+  // it — depends on the result.
   const tipTotal = useMemo(
     () =>
       tipFromChange
-        ? tipTotalBase(tipFromChange.detail, tasasVigentes, monedaBase)
+        ? Math.min(
+            tipTotalBase(tipFromChange.detail, tasasVigentes, monedaBase),
+            tipFromChange.capBase,
+          )
         : tipTotalFromAmounts(explicitTip, tasasVigentes, monedaBase),
     [tipFromChange, explicitTip, tasasVigentes, monedaBase],
   );
 
   // What the customer actually has to cover. Everything downstream — the
-  // tiles, «falta», the change — is measured against this, never against
-  // finalTotal, which is the business's share alone. Quantized on the
+  // preloaded line, «falta», the change — is measured against this, never
+  // against finalTotal, which is the business's share alone. Quantized on the
   // anchor's cents, NOT the base's: with a USD base a base cent is worth
   // several CUP, and rounding a 500-CUP sale to 0.75 USD would corrupt every
   // pending/change figure derived from it (503 CUP asked, 168 CUP change).
@@ -194,6 +200,9 @@ export function CheckoutView({
     [monedasNegocio],
   );
 
+  // Resolved once per currency instead of on every call: it is invoked from
+  // inside the JSX per card as well as from the chained memos of
+  // `useChangeDistribution`, all of which key off its identity.
   const denominationsByCurrency = useMemo(() => {
     const byCurrency = new Map<string, number[]>();
     for (const info of monedasActivas) {
@@ -221,10 +230,82 @@ export function CheckoutView({
     [denominationsByCurrency, cupFallback],
   );
 
-  const { lines, addLine, replaceLines, updateLine, removeLine } =
-    usePaymentLines({
-      defaultTransferDestId: defaultDestId(transferDestinations),
-    });
+  const convertAmount = useCallback(
+    (amount: number, from: string, to: string) =>
+      from === to
+        ? amount
+        : convertFromBase(
+            convertToBase(amount, from, tasasVigentes, monedaBase),
+            to,
+            tasasVigentes,
+            monedaBase,
+          ),
+    [tasasVigentes, monedaBase],
+  );
+
+  const pendingFor = useCallback(
+    (currentLines: PaymentLine[], currency: string, ignoreIds: string[]) =>
+      pendingInCurrency(
+        currentLines,
+        amountDue,
+        currency,
+        tasasVigentes,
+        monedaBase,
+        ignoreIds,
+      ),
+    [amountDue, tasasVigentes, monedaBase],
+  );
+
+  const {
+    lines,
+    dirty,
+    addLine,
+    updateLine,
+    removeCurrencyGroup,
+    changeCurrency,
+    toggleTransfer,
+    setTransferAmount,
+    setTransferDestination,
+  } = usePaymentLines({
+    finalTotal: amountDue,
+    monedaBase,
+    denominationsFor,
+    defaultTransferDestId: defaultDestId(transferDestinations),
+    convertAmount,
+    pendingFor,
+  });
+
+  // The base cash line the hook preloads at the full total. While untouched
+  // (`dirty === false`) it does not represent a real cashier decision yet, so
+  // «Agregar forma de pago» must be able to both (a) build its suggestions as
+  // if that amount were not committed, and (b) shrink it when a suggestion is
+  // picked, so the total paid does not silently double.
+  const baseCashLine = useMemo(
+    () =>
+      lines.find(
+        (line) => line.kind === "cash" && line.currency === monedaBase,
+      ),
+    [lines, monedaBase],
+  );
+
+  // One card per currency: a cash line and its embedded transfer line (if
+  // the toggle is on) group together, so cash and transfer for the same
+  // currency never appear as two separate cards.
+  const currencyGroups = useMemo(() => {
+    const order: string[] = [];
+    const cashByCurrency = new Map<string, PaymentLine>();
+    const transferByCurrency = new Map<string, PaymentLine>();
+    for (const line of lines) {
+      if (!order.includes(line.currency)) order.push(line.currency);
+      if (line.kind === "cash") cashByCurrency.set(line.currency, line);
+      else transferByCurrency.set(line.currency, line);
+    }
+    return order.map((currency) => ({
+      currency,
+      cashLine: cashByCurrency.get(currency),
+      transferLine: transferByCurrency.get(currency),
+    }));
+  }, [lines]);
 
   // The three figures the bar lives on. Each walks every payment line and
   // converts currencies, so they are memoized — on the keypad this is
@@ -312,6 +393,7 @@ export function CheckoutView({
       const isBase = currency === monedaBase;
       const info = monedasActivas.find((m) => m.monedaCode === currency);
       return {
+        isBase,
         allowsCash: isBase || (info?.admiteEfectivo ?? true),
         allowsTransfer: isBase || (info?.admiteTransferencia ?? false),
       };
@@ -320,70 +402,112 @@ export function CheckoutView({
   );
 
   /**
-   * The forms of payment still open, given what has been taken: cash and
-   * transfer for every currency that admits them and has no line of that
-   * kind yet, each with what it would have to cover in its own currency.
+   * Currencies a card can be re-denominated to: those with no card of their
+   * own yet — a merge would mean two cash lines for one currency — and that
+   * admit every kind of payment the card currently holds. The card's own
+   * currency leads the list, each with what is owed in it.
    */
-  const optionsGiven = useCallback(
-    (taken: PaymentLine[]): PaymentOption[] => {
-      const result: PaymentOption[] = [];
-      for (const currency of allCurrencies) {
-        const { allowsCash, allowsTransfer } = supportFor(currency);
-        const pending = pendingInCurrency(
-          taken,
-          amountDue,
+  const currencyChoicesFor = useCallback(
+    (
+      current: string,
+      hasCash: boolean,
+      hasTransfer: boolean,
+    ): CurrencyChoice[] =>
+      [current, ...allCurrencies.filter((c) => c !== current)]
+        .filter((currency) => {
+          if (currency === current) return true;
+          if (lines.some((line) => line.currency === currency)) return false;
+          const { allowsCash, allowsTransfer } = supportFor(currency);
+          return (!hasCash || allowsCash) && (!hasTransfer || allowsTransfer);
+        })
+        .map((code) => ({
+          code,
+          amount:
+            code === monedaBase
+              ? amountDue
+              : convertFromBase(amountDue, code, tasasVigentes, monedaBase),
+        })),
+    [allCurrencies, lines, supportFor, monedaBase, amountDue, tasasVigentes],
+  );
+
+  const paymentOptions = useMemo<PaymentOption[]>(() => {
+    const result: PaymentOption[] = [];
+    // The initial base cash line is a placeholder, not a cashier decision,
+    // until something is touched. Excluding it here means "1000 cash + 250
+    // transfer" suggests 250 for the transfer on first open instead of 0 —
+    // the whole line would otherwise count as already covering the total.
+    const excludeId = !dirty && baseCashLine ? baseCashLine.id : undefined;
+    for (const currency of allCurrencies) {
+      const { isBase, allowsCash, allowsTransfer } = supportFor(currency);
+      const pending = pendingInCurrency(
+        lines,
+        amountDue,
+        currency,
+        tasasVigentes,
+        monedaBase,
+        excludeId,
+      );
+      const suggested = suggestedAmounts(
+        pending,
+        denominationsFor(currency),
+      ).exact;
+      const cashEquivalentBase =
+        isBase || suggested <= 0
+          ? null
+          : convertToBase(suggested, currency, tasasVigentes, monedaBase);
+      const transferEquivalentBase =
+        isBase || pending <= 0
+          ? null
+          : convertToBase(pending, currency, tasasVigentes, monedaBase);
+
+      const owed = isBase
+        ? amountDue
+        : convertFromBase(amountDue, currency, tasasVigentes, monedaBase);
+      const owedBase = isBase ? null : amountDue;
+
+      const hasCashLine = lines.some(
+        (line) => line.kind === "cash" && line.currency === currency,
+      );
+      if (allowsCash && !hasCashLine) {
+        result.push({
+          kind: "cash",
           currency,
-          tasasVigentes,
-          monedaBase,
-        );
-        const has = (kind: PaymentLineKind) =>
-          taken.some(
-            (line) => line.kind === kind && line.currency === currency,
-          );
-        if (allowsCash && !has("cash")) {
-          result.push({
-            kind: "cash",
-            currency,
-            suggested: suggestedAmounts(pending, denominationsFor(currency))
-              .exact,
-          });
-        }
-        if (allowsTransfer && !has("transfer")) {
-          result.push({ kind: "transfer", currency, suggested: pending });
-        }
+          suggested,
+          equivalentBase: cashEquivalentBase,
+          owed,
+          owedBase,
+        });
       }
-      return result;
-    },
-    [
-      allCurrencies,
-      supportFor,
-      amountDue,
-      tasasVigentes,
-      monedaBase,
-      denominationsFor,
-    ],
-  );
-
-  const NO_LINES = useMemo<PaymentLine[]>(() => [], []);
-  const methods = useMemo<PaymentMethod[]>(() => {
-    const single = optionsGiven(NO_LINES).map<PaymentMethod>((option) => ({
-      kind: option.kind,
-      currency: option.currency,
-      title: methodTitle(option.kind, option.currency),
-      hint: formatMontoEnMoneda(option.suggested, option.currency),
-    }));
-    return single.length > 1
-      ? [
-          ...single,
-          { kind: "mixed", title: "Pago mixto", hint: "Dos o más formas" },
-        ]
-      : single;
-  }, [optionsGiven, NO_LINES]);
-
-  const paymentOptions = useMemo(
-    () => optionsGiven(lines),
-    [optionsGiven, lines],
-  );
+      // Transfer for a cash-capable currency is not offered here: once that
+      // currency has a cash card, its transfer toggle lives on the card
+      // itself (see PaymentCard). This sheet only offers transfer as a
+      // standalone option for a currency that can't take cash at all.
+      const hasTransferLine = lines.some(
+        (line) => line.kind === "transfer" && line.currency === currency,
+      );
+      if (allowsTransfer && !allowsCash && !hasTransferLine) {
+        result.push({
+          kind: "transfer",
+          currency,
+          suggested: pending,
+          equivalentBase: transferEquivalentBase,
+          owed,
+          owedBase,
+        });
+      }
+    }
+    return result;
+  }, [
+    allCurrencies,
+    monedaBase,
+    supportFor,
+    lines,
+    amountDue,
+    tasasVigentes,
+    denominationsFor,
+    dirty,
+    baseCashLine,
+  ]);
 
   const firstError = useMemo(
     () => Object.values(errors).find((error) => error !== null) ?? null,
@@ -397,94 +521,35 @@ export function CheckoutView({
     transferDestinations.length > 0 && hasMissingTransferDestination(lines);
 
   const canSell =
-    mode.kind !== "pick" &&
     !submitting &&
     // Spec section 5.7: never submit against an empty basket. Without this a
     // post-sale remount lands on amountDue === 0 with a fresh submit ref and
     // re-enables the button.
     itemCount > 0 &&
-    lines.length > 0 &&
-    (amountDue === 0 || !missing) &&
+    (amountDue === 0 ? lines.length > 0 : !missing) &&
     !needsTransferDestination &&
     !hasErrors;
 
-  /**
-   * The arithmetic behind the amount, spelled out — only when there is
-   * arithmetic to show. With it the cashier can explain the figure to the
-   * customer without opening anything.
-   */
-  const breakdown = useMemo(() => {
-    if (discountTotal <= 0 && tipTotal <= 0) return undefined;
-    const parts = [formatAmount(finalTotal + discountTotal)];
-    if (discountTotal > 0) {
-      parts.push(`− ${formatAmount(discountTotal)} descuento`);
-    }
-    if (tipTotal > 0) parts.push(`+ ${formatAmount(tipTotal)} propina`);
-    return parts.join(" ");
-  }, [finalTotal, discountTotal, tipTotal]);
+  const hasChange = !missing && change > 0;
+  const changeLabel =
+    formatChangeSplit(distribution) || formatMontoEnMoneda(change, monedaBase);
 
-  /** «≈ 2.893.000,00 CUP» for every other currency of the business. */
-  const conversionsOf = useCallback(
-    (amountBase: number, except?: string) =>
-      monedasAlternativas
-        .filter((m) => m.monedaCode !== except)
-        .map(
-          (m) =>
-            `≈ ${formatMontoEnMoneda(convertToMoneda(amountBase, m.monedaCode), m.monedaCode)}`,
-        ),
-    [monedasAlternativas, convertToMoneda],
+  /** «Pagado 13,00 USD» — or what the payment came to, as the bar says it. */
+  const paidLabel = missing
+    ? `Pagado ${formatMontoEnMoneda(paid, monedaBase)}`
+    : hasChange
+      ? `Pagado ${formatMontoEnMoneda(paid, monedaBase)}`
+      : `Pago exacto ${formatMontoEnMoneda(0, monedaBase)}`;
+
+  const conversions = monedasAlternativas.map(
+    (m) =>
+      `≈ ${formatMontoEnMoneda(convertToMoneda(amountDue, m.monedaCode), m.monedaCode)}`,
   );
 
-  const inCurrency = useCallback(
-    (amountBase: number, currency: string) =>
-      currency === monedaBase
-        ? amountBase
-        : convertFromBase(amountBase, currency, tasasVigentes, monedaBase),
-    [monedaBase, tasasVigentes],
-  );
-
-  const unitsLabel = `${countLabel(itemCount, "producto", "productos")} · ${countLabel(unitCount, "unidad", "unidades")}`;
-  const adjustmentsLabel =
-    discountTotal > 0 || tipTotal > 0
-      ? [
-          discountTotal > 0 ? `Descuento ${formatAmount(discountTotal)}` : null,
-          tipTotal > 0 ? `propina ${formatAmount(tipTotal)}` : null,
-        ]
-          .filter(Boolean)
-          .join(" · ")
-      : undefined;
-
-  // ─── Navigation ───────────────────────────────────────────────────────────
-
-  const pickMethod = (method: PaymentMethod) => {
-    if (method.kind === "mixed") {
-      setMode(MIXED_MODE);
-      return;
-    }
-    const currency = method.currency ?? monedaBase;
-    const pending = pendingInCurrency(
-      NO_LINES,
-      amountDue,
-      currency,
-      tasasVigentes,
-      monedaBase,
-    );
-    const amount =
-      method.kind === "cash"
-        ? suggestedAmounts(pending, denominationsFor(currency)).exact
-        : pending;
-    const [id] = replaceLines([{ kind: method.kind, currency, amount }]);
-    setMode({ kind: "line", lineId: id, from: "pick" });
+  const clearTip = () => {
+    setTipFromChange(null);
+    setExplicitTip({});
   };
-
-  const goBack = () => {
-    if (mode.kind === "pick") onBack();
-    else if (mode.kind === "line") {
-      setMode(mode.from === "mixed" ? MIXED_MODE : PICK_MODE);
-    } else setMode(PICK_MODE);
-  };
-
-  // ─── Submit ───────────────────────────────────────────────────────────────
 
   const handleSell = async () => {
     if (submittingRef.current) return;
@@ -555,300 +620,136 @@ export function CheckoutView({
     });
   };
 
-  // ─── The change block, shared by the line and mixed screens ──────────────
-
-  const changeBlock =
-    !missing && change > 0
-      ? {
-          changeAmountBase: change,
-          distribution,
-          options,
-          selectedId,
-          unavailableIds,
-          onSelect: select,
-          customAvailable: custom.currencies.length > 0,
-          onOpenCustom: () => {
-            select(CUSTOM_CHANGE_ID);
-            setChangeOpen(true);
-          },
-          base: monedaBase,
-          error: firstError,
-          overshootBase,
-          tipAmount: tipTotal,
-          onLeaveTip: () => {
-            setExplicitTip({});
-            setTipFromChange({
-              signature: linesSignature,
-              // The split already chosen and checked against the drawer: the
-              // currency kept is the currency that was about to leave it.
-              detail: tipLinesFromChange(
-                distribution,
-                tasasVigentes,
-                monedaBase,
-              ),
-            });
-          },
-          onOpenTip: () => setTipOpen(true),
-          onClearTip:
-            tipTotal > 0
-              ? () => {
-                  setTipFromChange(null);
-                  setExplicitTip({});
-                }
-              : undefined,
-        }
-      : null;
-
-  // ─── The screen, per mode ─────────────────────────────────────────────────
-
-  const editingLine =
-    mode.kind === "line"
-      ? (lines.find((line) => line.id === mode.lineId) ?? null)
-      : null;
-
-  // A line opened from the mixed list answers for its share, not for the
-  // whole sale: what it has to cover is what the other lines leave.
-  const lineTarget =
-    editingLine && mode.kind === "line"
-      ? mode.from === "mixed"
-        ? convertToBase(
-            pendingInCurrency(
-              lines,
-              amountDue,
-              editingLine.currency,
-              tasasVigentes,
-              monedaBase,
-              editingLine.id,
-            ),
-            editingLine.currency,
-            tasasVigentes,
-            monedaBase,
-          )
-        : amountDue
-      : amountDue;
-
-  const lineSuggestions = editingLine
-    ? suggestedAmounts(
-        inCurrency(lineTarget, editingLine.currency),
-        denominationsFor(editingLine.currency),
-      )
-    : null;
-
-  const storeSubtitle = [user?.localActual?.nombre, storeStatus]
-    .filter(Boolean)
-    .join(" · ");
-
-  let topBar: { title: string; subtitle?: string };
-  let summary: {
-    label: string;
-    detail?: string;
-    amount: number;
-    currency: string;
-    conversions: string[];
-    breakdown?: string;
-  };
-  let payBar: {
-    status: string;
-    detail?: string;
-    amount: number;
-    currency: string;
-    codeSuffix?: string;
-    conversions?: string[];
-  };
-
-  if (editingLine && mode.kind === "line") {
-    const { currency, kind } = editingLine;
-    const isBase = currency === monedaBase;
-    const title = methodTitle(kind, currency);
-    const rate = convertFromBase(1, currency, tasasVigentes, monedaBase);
-    const figure = inCurrency(lineTarget, currency);
-    const equivalences = isBase
-      ? conversionsOf(lineTarget)
-      : [
-          `= ${formatMontoEnMoneda(lineTarget, monedaBase)}`,
-          ...conversionsOf(lineTarget, currency),
-        ];
-    topBar = {
-      title,
-      subtitle: `${cartName ?? "Cuenta"} · ${formatMontoEnMoneda(amountDue, monedaBase)}`,
-    };
-    summary = {
-      label:
-        mode.from === "mixed"
-          ? `Por cubrir en ${currency}`
-          : isBase
-            ? "A cobrar"
-            : `A cobrar en ${currency}`,
-      detail: isBase ? unitsLabel : `Tasa ${formatAmount(rate)}`,
-      amount: figure,
-      currency,
-      conversions: equivalences,
-      breakdown: mode.from === "mixed" ? undefined : breakdown,
-    };
-    payBar = {
-      status: `${title} · recibido ${formatAmount(editingLine.amount)}`,
-      detail: missing
-        ? `Falta ${formatMontoEnMoneda(missingAmount, monedaBase)}`
-        : change > 0
-          ? `Vuelto ${formatChangeSplit(distribution) || formatMontoEnMoneda(change, monedaBase)}`
-          : "Pago exacto",
-      amount: figure,
-      currency,
-      conversions: isBase
-        ? undefined
-        : [`= ${formatMontoEnMoneda(lineTarget, monedaBase)}`],
-    };
-  } else if (mode.kind === "mixed") {
-    const formsLabel = countLabel(
-      lines.length,
-      "forma de pago",
-      "formas de pago",
-    );
-    topBar = {
-      title: "Pago mixto",
-      subtitle: `${cartName ?? "Cuenta"} · ${formsLabel}`,
-    };
-    summary = {
-      label: "A cobrar",
-      detail: adjustmentsLabel ?? unitsLabel,
-      amount: amountDue,
-      currency: monedaBase,
-      conversions: conversionsOf(amountDue),
-      breakdown,
-    };
-    payBar = missing
-      ? {
-          status: `Cubierto ${formatAmount(paid)} de ${formatAmount(amountDue)}`,
-          detail: formsLabel,
-          amount: missingAmount,
-          currency: monedaBase,
-          codeSuffix: "por cubrir",
-        }
-      : {
-          status: "Total a cobrar",
-          detail: formsLabel,
-          amount: amountDue,
-          currency: monedaBase,
-          conversions: conversionsOf(amountDue),
-        };
-  } else {
-    topBar = {
-      title: cartName ? `Cobrar · ${cartName}` : "Cobrar",
-      subtitle: storeSubtitle || undefined,
-    };
-    summary = {
-      label: "A cobrar",
-      detail: unitsLabel,
-      amount: amountDue,
-      currency: monedaBase,
-      conversions: conversionsOf(amountDue),
-      breakdown,
-    };
-    payBar = {
-      status: "Total a cobrar",
-      detail: "Elige una forma de pago",
-      amount: amountDue,
-      currency: monedaBase,
-      conversions: conversionsOf(amountDue),
-    };
-  }
-
-  const mixedLines = useMemo<MixedLine[]>(
-    () =>
-      lines.map((line) => {
-        const destination =
-          line.kind === "transfer" && transferDestinations.length > 0
-            ? transferDestinations.find(
-                (d) => d.id === line.transferDestinationId,
-              )?.nombre
-            : undefined;
-        return {
-          id: line.id,
-          title: methodTitle(line.kind, line.currency),
-          hint: [formatMontoEnMoneda(line.amount, line.currency), destination]
-            .filter(Boolean)
-            .join(" · "),
-          amountBase: convertToBase(
-            line.amount,
-            line.currency,
-            tasasVigentes,
-            monedaBase,
-          ),
-        };
-      }),
-    [lines, transferDestinations, tasasVigentes, monedaBase],
-  );
-
   return (
     <Box sx={ROOT_SX}>
       <CheckoutTopBar
-        title={topBar.title}
-        subtitle={topBar.subtitle}
-        onBack={goBack}
-      />
-
-      <CheckoutSummaryHeader
-        label={summary.label}
-        detail={summary.detail}
-        amount={summary.amount}
-        currency={summary.currency}
-        conversions={summary.conversions}
-        breakdown={summary.breakdown}
+        title="Cobrar"
+        subtitle={`${cartName ?? "Cuenta"} · ${itemCount} ${itemCount === 1 ? "producto" : "productos"}`}
+        count={unitCount}
+        onBack={onBack}
       />
 
       <Box sx={BODY_SX}>
-        {editingLine && lineSuggestions && mode.kind === "line" ? (
-          <PaymentLineBody
-            // Remounted per line so the draft starts from that line's amount.
-            key={editingLine.id}
-            line={editingLine}
-            denominations={denominationsFor(editingLine.currency)}
-            exact={lineSuggestions.exact}
-            suggestions={lineSuggestions.suggestions}
-            onAmountChange={(amount) => updateLine(editingLine.id, { amount })}
-            transferDestinations={transferDestinations}
-            onDestinationChange={(transferDestinationId) =>
-              updateLine(editingLine.id, { transferDestinationId })
-            }
-            missingAmountBase={missing ? missingAmount : null}
-            base={monedaBase}
-            change={changeBlock}
-          />
-        ) : mode.kind === "mixed" ? (
-          <MixedPaymentBody
-            lines={mixedLines}
-            onOpenLine={(lineId) =>
-              setMode({ kind: "line", lineId, from: "mixed" })
-            }
-            onRemoveLine={removeLine}
-            canAdd={paymentOptions.length > 0}
-            onAdd={() => setAddOpen(true)}
-            missingAmountBase={missing ? missingAmount : null}
-            change={changeBlock}
-            discountTotal={discountTotal}
-            tipTotal={tipTotal}
-            base={monedaBase}
+        {currencyGroups.map((group, index) => {
+          const { allowsTransfer } = supportFor(group.currency);
+          const onRemove =
+            currencyGroups.length > 1
+              ? () => removeCurrencyGroup(group.currency)
+              : undefined;
+          const currencyChoices = currencyChoicesFor(
+            group.currency,
+            Boolean(group.cashLine),
+            Boolean(group.transferLine),
+          );
+          const onCurrencyChange = (currency: string) =>
+            changeCurrency(group.currency, currency);
+          const line = group.cashLine ?? group.transferLine;
+          if (!line) return null;
+
+          return (
+            <Box key={group.currency} sx={index > 0 ? CARD_SEPARATOR_SX : null}>
+              <PaymentCard
+                line={line}
+                pending={pendingInCurrency(
+                  lines,
+                  amountDue,
+                  group.currency,
+                  tasasVigentes,
+                  monedaBase,
+                  line.id,
+                )}
+                denominations={denominationsFor(group.currency)}
+                transferDestinations={transferDestinations}
+                onChange={(patch) => updateLine(line.id, patch)}
+                onRemove={onRemove}
+                currencyChoices={currencyChoices}
+                onCurrencyChange={onCurrencyChange}
+                canToggleTransfer={Boolean(group.cashLine) && allowsTransfer}
+                transferLine={group.cashLine ? group.transferLine : undefined}
+                transferPending={
+                  group.cashLine && group.transferLine
+                    ? pendingInCurrency(
+                        lines,
+                        amountDue,
+                        group.currency,
+                        tasasVigentes,
+                        monedaBase,
+                        group.transferLine.id,
+                      )
+                    : undefined
+                }
+                onToggleTransfer={() => toggleTransfer(group.currency)}
+                onTransferAmountChange={(amount) =>
+                  setTransferAmount(group.currency, amount)
+                }
+                onTransferDestinationChange={(destId) =>
+                  setTransferDestination(group.currency, destId)
+                }
+              />
+            </Box>
+          );
+        })}
+
+        {paymentOptions.length > 0 && (
+          <ButtonBase onClick={() => setAddOpen(true)} sx={ADD_SX}>
+            <AddIcon fontSize="small" />
+            Agregar forma de pago
+          </ButtonBase>
+        )}
+
+        {/* What the payment leaves over: the change, the shortfall, the tip.
+            The tip sits next to the change and not among the cards — it is
+            not a form of payment, and this is the moment the customer says
+            «quédate con el vuelto». */}
+        {missing && (
+          <MissingBlock amount={missingAmount} currency={monedaBase} />
+        )}
+        {hasChange && tipTotal === 0 && (
+          <ChangeBlock
+            changeLabel={changeLabel}
+            // Only worth opening when there is something else to pick. The
+            // typed split is always one more way, so the sheet stops being a
+            // dead end as soon as there is a currency to type into.
+            interactive={options.length > 1 || custom.currencies.length > 0}
+            onOpenDetail={() => setChangeOpen(true)}
+            onLeaveTip={() => {
+              setExplicitTip({});
+              setTipFromChange({
+                signature: linesSignature,
+                // The split already chosen and checked against the drawer:
+                // the currency kept is the currency that was about to leave.
+                detail: tipLinesFromChange(
+                  distribution,
+                  tasasVigentes,
+                  monedaBase,
+                ),
+                capBase: change,
+              });
+            }}
             onOpenTip={() => setTipOpen(true)}
+            base={monedaBase}
+            error={firstError}
+            overshootBase={overshootBase}
+          />
+        )}
+        {tipTotal > 0 ? (
+          <TipChip
+            amountBase={tipTotal}
+            base={monedaBase}
+            onOpen={() => setTipOpen(true)}
+            onClear={clearTip}
           />
         ) : (
-          <PaymentMethodBody
-            discountTotal={discountTotal}
-            tipTotal={tipTotal}
-            base={monedaBase}
-            onOpenTip={() => setTipOpen(true)}
-            methods={methods}
-            onPick={pickMethod}
-          />
+          !hasChange && <TipLink onOpen={() => setTipOpen(true)} />
         )}
       </Box>
 
       <CheckoutPayBar
-        status={payBar.status}
-        detail={payBar.detail}
-        amount={payBar.amount}
-        currency={payBar.currency}
-        codeSuffix={payBar.codeSuffix}
-        conversions={payBar.conversions}
+        status={cartName ? `A cobrar · ${cartName}` : "A cobrar"}
+        detail={paidLabel}
+        amount={amountDue}
+        currency={monedaBase}
+        conversions={conversions}
         canSell={canSell}
         submitting={submitting}
         onConfirm={handleSell}
@@ -857,11 +758,31 @@ export function CheckoutView({
       <AddPaymentSheet
         open={addOpen}
         options={paymentOptions}
+        base={monedaBase}
+        covered={!missing}
         onClose={() => setAddOpen(false)}
         onPick={(option) => {
-          const id = addLine(option.kind, option.currency, option.suggested);
+          // Mirrors the exclusion above: while the base cash line is still
+          // untouched it stands for the whole total, so picking a second
+          // form of payment must carve the picked amount out of it —
+          // otherwise the total paid would silently double.
+          if (!dirty && baseCashLine && baseCashLine.amount > 0) {
+            const pickedBase =
+              option.currency === monedaBase
+                ? option.suggested
+                : convertToBase(
+                    option.suggested,
+                    option.currency,
+                    tasasVigentes,
+                    monedaBase,
+                  );
+            const reduceBy = Math.min(pickedBase, baseCashLine.amount);
+            const newAmount =
+              Math.round((baseCashLine.amount - reduceBy) * 100) / 100;
+            updateLine(baseCashLine.id, { amount: Math.max(0, newAmount) });
+          }
+          addLine(option.kind, option.currency, option.suggested);
           setAddOpen(false);
-          setMode({ kind: "line", lineId: id, from: "mixed" });
         }}
       />
 

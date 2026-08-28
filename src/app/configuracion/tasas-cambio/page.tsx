@@ -36,6 +36,7 @@ import { Add, History, TrendingUp } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import { TasasReferenciaCard } from "@/components/TasasReferenciaCard";
 import useConfirmDialog from "@/components/confirmDialog";
@@ -215,9 +216,9 @@ export default function TasasCambioPage() {
 
   if (loadingContext || loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
-        <CircularProgress />
-      </Box>
+      <PageContainer title="Tasas de cambio" breadcrumbs={breadcrumbs}>
+        <LoadingState variant="table" />
+      </PageContainer>
     );
   }
 

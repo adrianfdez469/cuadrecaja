@@ -43,6 +43,7 @@ import {
 } from "@mui/icons-material";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
 import LimitDialog from "@/components/LimitDialog";
@@ -327,17 +328,13 @@ export default function UsuariosPage() {
   // Componente de estadística móvil optimizado
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
+      <PageContainer
+        title="Gestión de Usuarios"
+        breadcrumbs={breadcrumbs}
+        maxWidth="xl"
       >
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando usuarios...
-        </Typography>
-      </Box>
+        <LoadingState variant="table" />
+      </PageContainer>
     );
   }
 

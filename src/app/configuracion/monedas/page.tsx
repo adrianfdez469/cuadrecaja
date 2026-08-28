@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/AppContext';
 import { useMessageContext } from '@/context/MessageContext';
 import { PageContainer } from '@/components/PageContainer';
+import { LoadingState } from '@/components/LoadingState';
 import { ContentCard } from '@/components/ContentCard';
 import {
   getMonedasGlobales, createMoneda, updateMoneda, deactivateMoneda,
@@ -151,9 +152,9 @@ export default function MonedasPage() {
 
   if (loadingContext || loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
-        <CircularProgress />
-      </Box>
+      <PageContainer title="Monedas del sistema" breadcrumbs={breadcrumbs}>
+        <LoadingState variant="table" />
+      </PageContainer>
     );
   }
 

@@ -1,8 +1,7 @@
 "use client";
 
-import { Box } from "@mui/material";
+import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout";
 
-import { LoginBrandPanel } from "./components/LoginBrandPanel";
 import { LoginForm } from "./components/LoginForm";
 
 /**
@@ -15,16 +14,8 @@ import { LoginForm } from "./components/LoginForm";
  */
 export default function LoginPage() {
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: { xs: "column", md: "row" },
-        minHeight: "100dvh",
-        bgcolor: "semantic.surface.raised",
-      }}
-    >
-      <LoginBrandPanel />
+    <AuthSplitLayout>
       <LoginForm />
-    </Box>
+    </AuthSplitLayout>
   );
 }
