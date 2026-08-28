@@ -20,14 +20,10 @@ import {
   CircularProgress,
   InputAdornment,
   Grid,
-  Card,
-  CardContent,
   Stack,
   Tooltip,
-  Chip,
   useTheme,
   useMediaQuery,
-  Collapse,
   FormControl,
   InputLabel,
   Select,
@@ -40,8 +36,7 @@ import {
   Add,
   Search,
   Refresh,
-  ExpandMore,
-  ExpandLess,
+  PlayCircleOutline,
   Warning,
   Info,
   Campaign,
@@ -57,6 +52,10 @@ import {
 } from "@/schemas/notificacion";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
+import { StatStrip } from "@/components/StatStrip";
+import { StatusPill } from "@/components/StatusPill";
+import type { PillHue } from "@/components/StatusPill";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
 import { useMessageContext } from "@/context/MessageContext";
@@ -71,7 +70,6 @@ export default function NotificacionesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const [stats, setStats] = useState<INotificacionStats | null>(null);
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -268,17 +266,12 @@ export default function NotificacionesPage() {
     }
   };
 
-  const getImportanceColor = (nivel: NivelImportancia) => {
-    switch (nivel) {
-      case "CRITICA":
-        return "error";
-      case "ALTA":
-        return "warning";
-      case "MEDIA":
-        return "info";
-      default:
-        return "success";
-    }
+  /** The stored enum shouts; the column does not have to. */
+  const IMPORTANCE: Record<NivelImportancia, { label: string; hue: PillHue }> = {
+    CRITICA: { label: "Crítica", hue: "negative" },
+    ALTA: { label: "Alta", hue: "caution" },
+    MEDIA: { label: "Media", hue: "info" },
+    BAJA: { label: "Baja", hue: "neutral" },
   };
 
   const isActive = (notificacion: INotificacion) => {
@@ -303,7 +296,7 @@ export default function NotificacionesPage() {
           disabled={loading}
           size="small"
         >
-          <Refresh />
+          <PlayCircleOutline />
         </IconButton>
       </Tooltip>
       <Tooltip title="Actualizar notificaciones">
@@ -315,20 +308,6 @@ export default function NotificacionesPage() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
-      )}
       <Button
         variant="contained"
         startIcon={!isMobile ? <Add /> : undefined}
@@ -348,62 +327,26 @@ export default function NotificacionesPage() {
     >
       {ConfirmDialogComponent}
 
-      {/* Estadísticas */}
+      {/* The four counts, bare on the page ground. They were four bordered
+          cards, each figure in a different hue — the total in violet, so the
+          number that means nothing in particular was the one painted like an
+          action. Only «Activas» and «No leídas» carry a verdict. */}
       {stats && (
-        <Collapse in={!isMobile || statsExpanded}>
-          <ContentCard>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="primary">
-                      {stats.total}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      Total Notificaciones
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="success.main">
-                      {stats.activas}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      Activas
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="warning.main">
-                      {stats.leidas}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      Leídas ({stats.porcentajeLeidas}%)
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="error.main">
-                      {stats.noLeidas}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      No Leídas
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </ContentCard>
-        </Collapse>
+        <StatStrip
+          stats={[
+            { label: "Total Notificaciones", value: stats.total },
+            { label: "Activas", value: stats.activas, tone: "positive" },
+            {
+              label: `Leídas (${stats.porcentajeLeidas}%)`,
+              value: stats.leidas,
+            },
+            {
+              label: "No Leídas",
+              value: stats.noLeidas,
+              tone: stats.noLeidas > 0 ? "negative" : undefined,
+            },
+          ]}
+        />
       )}
 
       {/* Tabla de Notificaciones */}
@@ -426,9 +369,7 @@ export default function NotificacionesPage() {
         </Box>
 
         {loading ? (
-          <Box display="flex" justifyContent="center" p={3}>
-            <CircularProgress />
-          </Box>
+          <LoadingState variant="table" />
         ) : (
           <TableContainer>
             <Table>
@@ -463,19 +404,21 @@ export default function NotificacionesPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={notificacion.nivelImportancia}
-                        color={getImportanceColor(
-                          notificacion.nivelImportancia,
-                        )}
-                        size="small"
+                      <StatusPill
+                        label={
+                          IMPORTANCE[notificacion.nivelImportancia]?.label ??
+                          notificacion.nivelImportancia
+                        }
+                        hue={
+                          IMPORTANCE[notificacion.nivelImportancia]?.hue ??
+                          "neutral"
+                        }
                       />
                     </TableCell>
                     <TableCell>
-                      <Chip
+                      <StatusPill
                         label={isActive(notificacion) ? "Activa" : "Inactiva"}
-                        color={isActive(notificacion) ? "success" : "default"}
-                        size="small"
+                        hue={isActive(notificacion) ? "positive" : "neutral"}
                       />
                     </TableCell>
                     <TableCell>

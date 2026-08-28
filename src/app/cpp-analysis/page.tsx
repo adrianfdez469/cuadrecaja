@@ -32,15 +32,16 @@ import {
 import { 
   TrendingUp, 
   TrendingDown, 
-  Analytics, 
-  Warning, 
-  History,
   ExpandMore,
   CloudSync
 } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
+import { StatStrip } from "@/components/StatStrip";
+import { LoadingState } from "@/components/LoadingState";
+
+import { ReliabilityMark } from "./components/ReliabilityMark";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency } from '@/utils/formatters';
 import { fetchCPPAnalisis, fetchCPPDesviaciones } from "@/services/cppService";
@@ -194,12 +195,7 @@ export default function CPPAnalysisPage() {
           { label: 'Análisis CPP' }
         ]}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-          <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-            Cargando análisis...
-          </Typography>
-        </Box>
+        <LoadingState variant="table" />
       </PageContainer>
     );
   }
@@ -269,72 +265,28 @@ export default function CPPAnalysisPage() {
         </Alert>
       )}
 
-      {/* Resumen General */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Analytics color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{analisis.length}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Productos Analizados
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <TrendingUp color="success" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{formatCurrency(totalValorInventario)}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Valor Total Inventario
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Warning color="warning" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{productosConDesviacion}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Productos con Desviación
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <History color={promedioConfiabilidad > 80 ? "success" : "warning"} sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{promedioConfiabilidad.toFixed(1)}%</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Confiabilidad Promedio
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      {/* The four counts, as a strip. They were bordered cards with a tinted
+          icon each — the page's least interesting numbers wearing its heaviest
+          furniture. Only the deviation count takes a hue, and only when there
+          is something to look at. */}
+      <StatStrip
+        stats={[
+          { label: "Productos Analizados", value: analisis.length },
+          {
+            label: "Valor Total Inventario",
+            value: formatCurrency(totalValorInventario),
+          },
+          {
+            label: "Productos con Desviación",
+            value: productosConDesviacion,
+            tone: productosConDesviacion > 0 ? "caution" : undefined,
+          },
+          {
+            label: "Confiabilidad Promedio",
+            value: `${promedioConfiabilidad.toFixed(1)}%`,
+          },
+        ]}
+      />
 
       {/* Tabs para diferentes vistas */}
       <ContentCard>
@@ -372,11 +324,7 @@ export default function CPPAnalysisPage() {
                         {item.ultimaCompra ? new Date(item.ultimaCompra).toLocaleDateString() : 'N/A'}
                       </TableCell>
                       <TableCell align="center">
-                        <Chip 
-                          label={`${item.porcentajeConfiabilidad.toFixed(0)}%`}
-                          color={item.porcentajeConfiabilidad > 80 ? "success" : item.porcentajeConfiabilidad > 50 ? "warning" : "error"}
-                          size="small"
-                        />
+                        <ReliabilityMark value={item.porcentajeConfiabilidad} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -469,7 +417,7 @@ export default function CPPAnalysisPage() {
               <Grid item xs={12} md={4}>
                 <Card>
                   <CardContent>
-                    <Typography variant="h6" color="success.main">
+                    <Typography variant="h6">
                       {analisis.filter(a => a.porcentajeConfiabilidad === 100).length}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">

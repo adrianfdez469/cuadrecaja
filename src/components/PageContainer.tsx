@@ -21,6 +21,12 @@ interface PageContainerProps {
     label: string;
     href?: string;
   }>;
+  /**
+   * Sits on the title's baseline, to its right: a state the page is in rather
+   * than something to do. The supplier's «activo» and the business's base
+   * currency both live here in the redesign.
+   */
+  titleAdornment?: ReactNode;
   headerActions?: ReactNode;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | false;
   /** Props forwarded to the content wrapper Box */
@@ -32,6 +38,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   title,
   subtitle,
   breadcrumbs,
+  titleAdornment,
   headerActions,
   maxWidth = 'xl',
   contentProps,
@@ -111,6 +118,12 @@ export const PageContainer: React.FC<PageContainerProps> = ({
               spacing={isMobile ? 1.5 : 1}
             >
               <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1.5}
+                  sx={{ flexWrap: 'wrap' }}
+                >
                 <Typography
                   variant={isMobile ? "h5" : "h4"}
                   component="h1"
@@ -126,6 +139,8 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                 >
                   {title}
                 </Typography>
+                {titleAdornment}
+                </Stack>
                 {subtitle && (
                   <Typography
                     variant="body2"

@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { Box, ButtonBase, Typography } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SelectableTextField from "@/components/SelectableTextField";
 import { CartAccountMenu } from "@/app/pos/components/CartAccountMenu";
 import { useCartStore } from "@/store/cartStore";
@@ -88,6 +89,7 @@ const TAB_ACTIVE_SX = {
   bgcolor: "primary.main",
   color: "primary.contrastText",
   fontWeight: 700,
+  gap: 0.25,
 } as const;
 
 const NEW_TAB_SX = {
@@ -248,9 +250,21 @@ function CartAccountTabsComponent({
               onClick={(event) => handleTabClick(event, c.id)}
               aria-pressed={c.id === activeCartId}
               aria-haspopup={c.id === activeCartId ? "menu" : undefined}
+              aria-label={
+                c.id === activeCartId
+                  ? `${c.name}, cuenta activa — abrir opciones`
+                  : undefined
+              }
               sx={c.id === activeCartId ? TAB_ACTIVE_SX : TAB_SX}
             >
               <span>{c.name}</span>
+              {/* The active pill is also what opens rename/vaciar/cerrar
+                  (see CartAccountMenu), and nothing about a selected chip
+                  says that on its own — this caret is the same affordance
+                  PosPayBar uses for its own menus. */}
+              {c.id === activeCartId && (
+                <ExpandMoreIcon sx={{ fontSize: 18 }} />
+              )}
             </ButtonBase>
           ),
         )}

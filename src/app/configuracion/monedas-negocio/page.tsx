@@ -11,6 +11,10 @@ import { Add, CurrencyExchange, Warning } from '@mui/icons-material';
 import { useAppContext } from '@/context/AppContext';
 import { useMessageContext } from '@/context/MessageContext';
 import { PageContainer } from '@/components/PageContainer';
+import { LoadingState } from '@/components/LoadingState';
+import { StatusPill } from '@/components/StatusPill';
+
+import { CurrencyCode } from './components/CurrencyCode';
 import { ContentCard } from '@/components/ContentCard';
 import {
   getMonedasGlobales, habilitarMonedaNegocio, updateMonedaNegocio, deshabilitarMonedaNegocio,
@@ -145,24 +149,27 @@ export default function MonedasNegocioPage() {
   };
 
   if (loadingContext || loading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
+    return (
+      <PageContainer title="Monedas del negocio" breadcrumbs={breadcrumbs}>
+        <LoadingState variant="table" />
+      </PageContainer>
+    );
   }
 
   return (
-    <PageContainer title="Monedas del negocio" breadcrumbs={breadcrumbs}>
+    <PageContainer
+      title="Monedas del negocio"
+      breadcrumbs={breadcrumbs}
+      titleAdornment={<StatusPill label={`Moneda base: ${monedaBase}`} hue="accent" />}
+      headerActions={
+        monedasDisponiblesParaHabilitar.length > 0 ? (
+          <Button variant="contained" startIcon={<Add />} onClick={openHabilitarDialog}>
+            {isMobile ? 'Habilitar' : 'Habilitar moneda'}
+          </Button>
+        ) : undefined
+      }
+    >
       <ContentCard>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={1}>
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              Moneda base: <Chip label={monedaBase} size="small" color="primary" sx={{ ml: 0.5 }} />
-            </Typography>
-          </Box>
-          {monedasDisponiblesParaHabilitar.length > 0 && (
-            <Button variant="contained" startIcon={<Add />} onClick={openHabilitarDialog} size={isMobile ? 'small' : 'medium'}>
-              {isMobile ? 'Habilitar' : 'Habilitar moneda'}
-            </Button>
-          )}
-        </Stack>
 
         {/* ── Vista móvil: cards ── */}
         {isMobile ? (
@@ -246,18 +253,24 @@ export default function MonedasNegocioPage() {
               <TableBody>
                 <TableRow sx={{ bgcolor: 'action.selected' }}>
                   <TableCell>
-                    <Chip label={monedaBase} color="primary" size="small" />
-                    <Chip label="Base" size="small" sx={{ ml: 0.5 }} />
+                    <Stack direction="row" gap={1} alignItems="center">
+                      <CurrencyCode code={monedaBase} base />
+                      <StatusPill label="Base" hue="accent" />
+                    </Stack>
                   </TableCell>
-                  <TableCell>✓</TableCell>
-                  <TableCell>✓</TableCell>
-                  <TableCell>—</TableCell>
-                  <TableCell>—</TableCell>
+                  <TableCell>
+                    <Switch checked disabled size="small" />
+                  </TableCell>
+                  <TableCell>
+                    <Switch checked disabled size="small" />
+                  </TableCell>
+                  <TableCell sx={{ color: 'text.disabled' }}>—</TableCell>
+                  <TableCell sx={{ color: 'text.disabled' }}>—</TableCell>
                 </TableRow>
 
                 {monedasExtra.map((m) => (
                   <TableRow key={m.monedaCode}>
-                    <TableCell><Chip label={m.monedaCode} size="small" /></TableCell>
+                    <TableCell><CurrencyCode code={m.monedaCode} /></TableCell>
                     <TableCell>
                       <Switch checked={m.admiteEfectivo} onChange={() => toggleMoneda(m, 'admiteEfectivo')} size="small" />
                     </TableCell>

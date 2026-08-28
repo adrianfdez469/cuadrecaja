@@ -15,7 +15,6 @@ import {
   TablePagination,
   Grid,
   Button,
-  CircularProgress,
   IconButton,
   Card,
   CardContent,
@@ -26,10 +25,10 @@ import {
   Chip,
   Tabs,
   Tab,
-  Avatar,
-  Divider,
 } from "@mui/material";
 import { PageContainer } from "@/components/PageContainer";
+import { StatusPill } from "@/components/StatusPill";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency } from "@/utils/formatters";
 import {
@@ -38,7 +37,6 @@ import {
   Receipt,
   Inventory,
   LocalShipping,
-  Person,
   Phone,
   Email,
   CalendarToday,
@@ -319,15 +317,10 @@ export default function ProveedorDetallePage() {
     return (
       <PageContainer
         title="Detalles del Proveedor"
-        subtitle="Cargando información del proveedor..."
+        subtitle="Detalles del proveedor, liquidaciones y productos en consignación"
         breadcrumbs={breadcrumbs}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress />
-          <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-            Cargando detalles del proveedor...
-          </Typography>
-        </Box>
+        <LoadingState variant="table" />
       </PageContainer>
     );
   }
@@ -350,6 +343,12 @@ export default function ProveedorDetallePage() {
   return (
     <PageContainer
       title={proveedor.nombre}
+      titleAdornment={
+        <StatusPill
+          label={proveedor.estado}
+          hue={proveedor.estado === "activo" ? "positive" : "neutral"}
+        />
+      }
       subtitle={!isMobile ? "Detalles del proveedor, liquidaciones y productos en consignación" : undefined}
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
@@ -358,43 +357,30 @@ export default function ProveedorDetallePage() {
       {/* Información del proveedor */}
       <ContentCard
         title="Información del Proveedor"
-        subtitle={!isMobile ? "Datos de contacto y estado" : undefined}
       >
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
             <Stack spacing={2}>
-              <Box display="flex" alignItems="center" gap={2}>
-                <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56 }}>
-                  <Person />
-                </Avatar>
-                <Box>
-                  <Typography variant="h6" fontWeight="bold">
-                    {proveedor.nombre}
-                  </Typography>
-                  <Chip
-                    label={proveedor.estado}
-                    color={proveedor.estado === 'activo' ? 'success' : 'default'}
-                    size="small"
-                  />
-                </Box>
-              </Box>
-
-              <Divider />
-
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <Phone fontSize="small" color="action" />
-                    <Typography variant="body2">
-                      {proveedor.telefono}
+                    <Typography
+                      variant="body2"
+                      color={proveedor.telefono ? "text.primary" : "text.disabled"}
+                    >
+                      {proveedor.telefono || "Sin teléfono"}
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <Email fontSize="small" color="action" />
-                    <Typography variant="body2">
-                      {proveedor.direccion}
+                    <Typography
+                      variant="body2"
+                      color={proveedor.direccion ? "text.primary" : "text.disabled"}
+                    >
+                      {proveedor.direccion || "Sin correo"}
                     </Typography>
                   </Box>
                 </Grid>
@@ -538,10 +524,10 @@ export default function ProveedorDetallePage() {
                   <TableRow>
                     <TableCell>Fecha</TableCell>
                     <TableCell align="right">Monto</TableCell>
-                    <TableCell align="center">Productos</TableCell>
+                    <TableCell align="right">Productos</TableCell>
                     <TableCell>Observaciones</TableCell>
                     <TableCell align="center">Estado</TableCell>
-                    <TableCell align="center">Fecha Liquidación</TableCell>
+                    <TableCell>Fecha Liquidación</TableCell>
                     <TableCell align="center">Acciones</TableCell>
                   </TableRow>
                 </TableHead>
@@ -558,24 +544,30 @@ export default function ProveedorDetallePage() {
                           {formatCurrency(liquidacion.monto)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">
-                        <Typography variant="body2">
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
                           {liquidacion.productos}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">
+                        <Typography variant="body2" color="text.secondary">
                           {liquidacion.observaciones}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
-                        <Chip
+                        <StatusPill
                           label={liquidacion.estado}
-                          color={liquidacion.estado === 'completada' ? 'success' : 'warning'}
-                          size="small"
+                          hue={
+                            liquidacion.estado === "completada"
+                              ? "positive"
+                              : "caution"
+                          }
                         />
                       </TableCell>
-                      <TableCell align="center">
+                      <TableCell>
                         {liquidacion.estado === 'completada' && liquidacion.fechaLiquidacion ? (
                           <Typography variant="body2" color="text.secondary">
                             {dayjs(liquidacion.fechaLiquidacion).format("DD/MM/YYYY")}
@@ -657,7 +649,7 @@ export default function ProveedorDetallePage() {
                           <Typography variant="caption" color="text.secondary">
                             Disponibles
                           </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="info.main">
+                          <Typography variant="body2" fontWeight="medium">
                             {producto.disponibles}
                           </Typography>
                         </Grid>
@@ -665,7 +657,7 @@ export default function ProveedorDetallePage() {
                           <Typography variant="caption" color="text.secondary">
                             Vendidos
                           </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="success.main">
+                          <Typography variant="body2" fontWeight="medium">
                             {producto.vendidos}
                           </Typography>
                         </Grid>
@@ -693,8 +685,8 @@ export default function ProveedorDetallePage() {
                     {/* <TableCell>Código</TableCell> */}
                     <TableCell>Categoría</TableCell>
                     <TableCell align="right">Precio</TableCell>
-                    <TableCell align="center">Disponibles</TableCell>
-                    <TableCell align="center">Vendidos</TableCell>
+                    <TableCell align="right">Disponibles</TableCell>
+                    <TableCell align="right">Vendidos</TableCell>
                     <TableCell align="right">Ganancias</TableCell>
                     {/* <TableCell align="center">Fecha Ingreso</TableCell> */}
                   </TableRow>
@@ -722,13 +714,21 @@ export default function ProveedorDetallePage() {
                           {formatCurrency(producto.precio)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">
-                        <Typography variant="body2" color="info.main" fontWeight="medium">
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          fontWeight="medium"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
                           {producto.disponibles}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">
-                        <Typography variant="body2" color="success.main" fontWeight="medium">
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          fontWeight="medium"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
                           {producto.vendidos}
                         </Typography>
                       </TableCell>
