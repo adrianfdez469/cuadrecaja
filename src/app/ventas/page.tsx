@@ -28,8 +28,15 @@ import {
   Tooltip,
   useTheme,
   useMediaQuery,
+  alpha,
 } from "@mui/material";
-import { Delete, Search, Refresh, Visibility } from "@mui/icons-material";
+import {
+  Delete,
+  Search,
+  Refresh,
+  Visibility,
+  ReceiptLong,
+} from "@mui/icons-material";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
@@ -377,8 +384,7 @@ const Ventas = () => {
               ),
             }}
             sx={{
-              minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : "none",
+              width: isMobile ? "100%" : 250,
             }}
           />
         }
@@ -386,35 +392,102 @@ const Ventas = () => {
         fullHeight
       >
         {filteredVentas.length === 0 ? (
-          <Box sx={{ p: 2 }}>
-            <Alert severity="info" sx={{ mt: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                {searchTerm
-                  ? "No se encontraron ventas"
-                  : "No hay ventas registradas en este período"}
-              </Typography>
-              <Typography variant="body1" gutterBottom>
-                {searchTerm
-                  ? "Intenta con otros términos de búsqueda"
-                  : "Las ventas aparecerán aquí cuando:"}
-              </Typography>
-              {!searchTerm && (
-                <Typography variant="body2" component="div">
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              py: 6,
+              px: 2,
+            }}
+          >
+            {/* Icon with wash background */}
+            <Box
+              sx={{
+                bgcolor: alpha(theme.palette.info.main, 0.1),
+                borderRadius: "50%",
+                p: 2,
+                mb: 2,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 64,
+                height: 64,
+              }}
+            >
+              <ReceiptLong
+                sx={{
+                  fontSize: 48,
+                  color: theme.palette.info.main,
+                }}
+              />
+            </Box>
+
+            {/* Main heading */}
+            <Typography
+              variant="body1"
+              sx={{
+                fontSize: "17px",
+                fontWeight: 700,
+                mb: 1,
+                textAlign: "center",
+              }}
+            >
+              {searchTerm
+                ? "No se encontraron ventas"
+                : "No hay ventas registradas en este período"}
+            </Typography>
+
+            {/* Subheading */}
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                fontSize: "14px",
+                mb: searchTerm ? 0 : 2,
+                textAlign: "center",
+              }}
+            >
+              {searchTerm
+                ? "Intenta con otros términos de búsqueda"
+                : "Las ventas aparecerán aquí cuando:"}
+            </Typography>
+
+            {/* Bullet points */}
+            {!searchTerm && (
+              <Stack spacing={0.5} sx={{ mt: 1 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: "13px" }}
+                >
                   • Se realicen ventas desde el POS
-                  <br />
-                  • Se procesen transacciones
-                  <br />• Se registren pagos de clientes
                 </Typography>
-              )}
-            </Alert>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: "13px" }}
+                >
+                  • Se procesen transacciones
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: "13px" }}
+                >
+                  • Se registren pagos de clientes
+                </Typography>
+              </Stack>
+            )}
           </Box>
         ) : isMobile ? (
           // Vista móvil con cards más densos
           // Con muchas ventas la lista gana su propio scroll y solo pinta las
           // tarjetas visibles; con pocas se comporta igual que antes.
-          <Box ref={ventasVirtual.containerRef} sx={{ p: 1.5 }}>
+          <Box ref={ventasVirtual.containerRef} sx={{ p: 1 }}>
             <Stack
-              spacing={1.5}
+              spacing={1}
               sx={
                 ventasVirtual.needsVirtualization
                   ? {
@@ -448,8 +521,8 @@ const Ventas = () => {
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1.5}>
+                  <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
+                    <Stack spacing={1}>
                       <Box
                         display="flex"
                         justifyContent="space-between"
