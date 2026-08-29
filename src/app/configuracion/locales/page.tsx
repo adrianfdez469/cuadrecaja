@@ -102,8 +102,7 @@ function UsuariosLabel({ local }: { local: ILocal }) {
   const nombres =
     local.usuariosTiendas && local.usuariosTiendas.length > 0
       ? local.usuariosTiendas.map(
-          (ut) =>
-            `${ut.usuario.nombre}${ut.rol ? ` (${ut.rol.nombre})` : ""}`,
+          (ut) => `${ut.usuario.nombre}${ut.rol ? ` (${ut.rol.nombre})` : ""}`,
         )
       : (local.usuarios ?? []).map((u) => u.nombre);
 
@@ -220,19 +219,24 @@ export default function Locales() {
   };
 
   const handleDelete = async (id) => {
-    confirmDialog("¿Está seguro que desea eliminar este local?", async () => {
-      try {
-        await deleteLocal(id);
-        fetchLocales();
-        showMessage("Local eliminado exitosamente", "success");
-      } catch (error) {
-        console.error("Error al eliminar local:", error);
-        showMessage(
-          error.response?.data?.error || "Error al eliminar el local",
-          "error",
-        );
-      }
-    });
+    confirmDialog(
+      "¿Está seguro que desea eliminar este local?",
+      async () => {
+        try {
+          await deleteLocal(id);
+          fetchLocales();
+          showMessage("Local eliminado exitosamente", "success");
+        } catch (error) {
+          console.error("Error al eliminar local:", error);
+          showMessage(
+            error.response?.data?.error || "Error al eliminar el local",
+            "error",
+          );
+        }
+      },
+      undefined,
+      { severity: "error" },
+    );
   };
 
   const handleEdit = (local) => {
@@ -304,13 +308,16 @@ export default function Locales() {
         </IconButton>
       </Tooltip>
       {!isMobile && (
-        <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)}>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setOpen(true)}
+        >
           Agregar Local
         </Button>
       )}
     </Stack>
   );
-
 
   // Componente de estadística móvil optimizado
   if (loading) {

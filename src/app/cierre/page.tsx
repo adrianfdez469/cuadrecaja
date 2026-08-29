@@ -51,6 +51,11 @@ import GananciaCard from "@/app/cierre/components/GananciaCard";
 import PropinasCard from "@/app/cierre/components/PropinasCard";
 import InitialCashFundDialog from "@/app/cierre/components/InitialCashFundDialog";
 import SavingsIcon from "@mui/icons-material/Savings";
+import CierreTotalsCard from "@/app/cierre/components/CierreTotalsCard";
+import VentasSummaryCard from "@/app/cierre/components/VentasSummaryCard";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
+import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
 
 const CierreCajaPage = () => {
   const { user, loadingContext, gotToPath, monedasNegocio, monedaBase } =
@@ -234,49 +239,54 @@ const CierreCajaPage = () => {
     { label: "Cierre de Caja" },
   ];
 
-  const headerActions = (
-    <Stack direction="row-reverse" spacing={1} sx={{ width: "100%" }}>
-      <Tooltip title="Actualizar datos">
-        <IconButton
-          onClick={getInitData}
-          disabled={isDataLoading}
-          size={isMobile ? "small" : "medium"}
-        >
-          <RefreshIcon />
-        </IconButton>
-      </Tooltip>
-      {canManageInitialFund && currentPeriod && !currentPeriod.fechaFin && (
+  const canCerrarCaja =
+    verificarPermiso("operaciones.cierre.cerrar") &&
+    !!currentPeriod &&
+    !currentPeriod.fechaFin;
+  const showAdHocButton =
+    canManageGastos && currentPeriod && !currentPeriod.fechaFin;
+  const showInitialFundButton =
+    canManageInitialFund && currentPeriod && !currentPeriod.fechaFin;
+
+  // On a phone, this row moves out of the header entirely: "Agregar gasto" and
+  // "Fondo inicial" become full-width buttons in the content, and "Cerrar
+  // caja" joins the refresh action in a bar fixed to the bottom of the
+  // viewport — the thumb-reachable strip the mobile redesign calls for,
+  // instead of a row of icon-sized buttons squeezed under the title.
+  const headerActions = !isMobile && (
+    <Stack direction="row" spacing={1}>
+      {showAdHocButton && (
         <Button
           variant="outlined"
-          size={isMobile ? "small" : "medium"}
-          startIcon={<SavingsIcon />}
-          onClick={() => setInitialFundDialogOpen(true)}
-        >
-          {isMobile ? "Fondo" : "Fondo inicial"}
-        </Button>
-      )}
-      {canManageGastos && currentPeriod && !currentPeriod.fechaFin && (
-        <Button
-          variant="outlined"
-          size={isMobile ? "small" : "medium"}
           startIcon={<PostAddIcon />}
           onClick={() => setAdHocOpen(true)}
         >
-          {isMobile ? "Gasto" : "Agregar gasto"}
+          Agregar gasto
         </Button>
       )}
-      {verificarPermiso("operaciones.cierre.cerrar") &&
-        currentPeriod &&
-        !currentPeriod.fechaFin && (
-          <Button
-            variant="contained"
-            size={isMobile ? "small" : "medium"}
-            onClick={handleCerrarCaja}
-            disabled={isProcessingCierre}
-          >
-            {isProcessingCierre ? "Procesando..." : "Cerrar caja"}
-          </Button>
-        )}
+      {showInitialFundButton && (
+        <Button
+          variant="outlined"
+          startIcon={<SavingsIcon />}
+          onClick={() => setInitialFundDialogOpen(true)}
+        >
+          Fondo inicial
+        </Button>
+      )}
+      <Tooltip title="Actualizar datos">
+        <IconButton onClick={getInitData} disabled={isDataLoading}>
+          <RefreshIcon />
+        </IconButton>
+      </Tooltip>
+      {canCerrarCaja && (
+        <Button
+          variant="contained"
+          onClick={handleCerrarCaja}
+          disabled={isProcessingCierre}
+        >
+          {isProcessingCierre ? "Procesando..." : "Cerrar caja"}
+        </Button>
+      )}
     </Stack>
   );
 
@@ -427,12 +437,28 @@ const CierreCajaPage = () => {
               />
             </Grid>
           )}
-
         </Grid>
 
-        {/* One scale for the period's figures. They were seven identical white
-            tiles, each with its own tinted icon, so nothing ranked: the amount
-            sold read exactly like the count of product types. */}
+        {/* The five headline totals, on one scale — replaces the two figures
+            ("Ventas Propias", "Ventas Consignación") this strip used to share
+            with product counts they had nothing to do with. */}
+        <CierreTotalsCard
+          totalVenta={cierreData.totalVentas}
+          totalVentasBrutas={cierreData.totalVentasBrutas}
+          totalDescuentos={cierreData.totalDescuentos}
+          totalGanancia={
+            typeof cierreData.totalGananciaFinal === "number"
+              ? cierreData.totalGananciaFinal
+              : totales.totalGanancia
+          }
+          totalTransferencia={cierreData.totalTransferencia}
+          transferenciasPorDestino={cierreData.totalTransferenciasByDestination}
+          totalVentasPropias={cierreData.totalVentasPropias}
+          totalVentasConsignacion={cierreData.totalVentasConsignacion}
+          isMobile={isMobile}
+        />
+
+        {/* What's left: how much moved and in how many kinds of product. */}
         <StatStrip
           variant="card"
           stats={[
@@ -450,26 +476,46 @@ const CierreCajaPage = () => {
               label: "Tipos de Productos",
               value: formatNumber(cierreData.productosVendidos.length),
             },
-            {
-              label: "Ventas Propias (Bruto)",
-              value: formatCurrency(cierreData.totalVentasPropias || 0),
-            },
-            {
-              label: "Ventas Consignación",
-              value: formatCurrency(cierreData.totalVentasConsignacion || 0),
-            },
-            ...(typeof cierreData.totalDescuentos === "number" &&
-            (cierreData.totalDescuentos || 0) > 0
-              ? [
-                  {
-                    label: "Descuentos del Período",
-                    value: formatCurrency(cierreData.totalDescuentos || 0),
-                    tone: "negative" as const,
-                  },
-                ]
-              : []),
           ]}
         />
+
+        {/* Quién vendió y de qué tipo de mercadería — datos que ya calculaba
+            el backend (`totalVentasPorUsuario`) pero que esta pantalla nunca
+            mostraba. */}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+            gap: isMobile ? 2 : 3,
+          }}
+        >
+          <VentasSummaryCard
+            title="Resumen de Ventas por Usuario"
+            rows={cierreData.totalVentasPorUsuario.map((u) => ({
+              id: u.id,
+              label: u.nombre,
+              value: u.total,
+              icon: <PersonOutlineIcon fontSize="small" />,
+            }))}
+          />
+          <VentasSummaryCard
+            title="Resumen de Ventas por Tipo"
+            rows={[
+              {
+                id: "propia",
+                label: "Mercadería propia",
+                value: cierreData.totalVentasPropias || 0,
+                icon: <StorefrontOutlinedIcon fontSize="small" />,
+              },
+              {
+                id: "consignacion",
+                label: "Consignación",
+                value: cierreData.totalVentasConsignacion || 0,
+                icon: <HandshakeOutlinedIcon fontSize="small" />,
+              },
+            ]}
+          />
+        </Box>
 
         {/* Desglose por moneda (solo visible si hay ventas multimoneda) */}
         {cierreData.resumenMonedas && cierreData.resumenMonedas.length > 0 && (
@@ -527,15 +573,100 @@ const CierreCajaPage = () => {
           </ContentCard>
         )}
 
-        {/* Tabla de productos vendidos */}
+        {/* Tabla de productos vendidos. `hideResumenes`: la banda de totales
+            y los "Resumen de Ventas por..." de este componente ya se
+            muestran arriba vía CierreTotalsCard/VentasSummaryCard — sin
+            este flag quedaban duplicados. */}
         <TablaProductosCierre
           cierreData={cierreData}
           totales={totales}
+          hideResumenes
           showOnlyCants={
             !verificarPermiso("operaciones.cierre.gananciascostos")
           }
           isProcessing={isProcessingCierre}
         />
+
+        {/* En un teléfono, "Agregar gasto" y "Fondo inicial" dejan de ser
+            botones de ícono apretados bajo el título y pasan a ocupar el
+            ancho cómodo del contenido; "Cerrar caja" se muda a la barra fija
+            de abajo, al alcance del pulgar. */}
+        {isMobile && (showAdHocButton || showInitialFundButton) && (
+          <Stack direction="row" spacing={1.25}>
+            {showAdHocButton && (
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<PostAddIcon />}
+                onClick={() => setAdHocOpen(true)}
+                sx={{ minHeight: 48 }}
+              >
+                Agregar gasto
+              </Button>
+            )}
+            {showInitialFundButton && (
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<SavingsIcon />}
+                onClick={() => setInitialFundDialogOpen(true)}
+                sx={{ minHeight: 48 }}
+              >
+                Fondo inicial
+              </Button>
+            )}
+          </Stack>
+        )}
+
+        {/* Reserves the scroll space the fixed bar below occupies, so it
+            never covers the last row of content. */}
+        {isMobile && canCerrarCaja && (
+          <Box sx={{ height: "calc(80px + env(safe-area-inset-bottom))" }} />
+        )}
+
+        {isMobile && canCerrarCaja && (
+          <Box
+            sx={{
+              position: "fixed",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: (theme) => theme.zIndex.appBar,
+              display: "flex",
+              gap: 1.25,
+              bgcolor: "background.paper",
+              borderTop: 1,
+              borderColor: "divider",
+              px: 1.5,
+              pt: 1.25,
+              pb: "calc(12px + env(safe-area-inset-bottom))",
+            }}
+          >
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={handleCerrarCaja}
+              disabled={isProcessingCierre}
+              sx={{ flex: 1, minHeight: 56 }}
+            >
+              {isProcessingCierre ? "Procesando..." : "Cerrar caja"}
+            </Button>
+            <IconButton
+              onClick={getInitData}
+              disabled={isDataLoading}
+              sx={{
+                flex: "0 0 auto",
+                width: 56,
+                height: 56,
+                border: 1,
+                borderColor: "divider",
+                borderRadius: "12px",
+              }}
+            >
+              <RefreshIcon />
+            </IconButton>
+          </Box>
+        )}
 
         <CerrarCajaConfirmDialog
           open={cerrarCajaDialogOpen}

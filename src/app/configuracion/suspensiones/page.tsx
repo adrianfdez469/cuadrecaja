@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -31,7 +31,7 @@ import {
   MenuItem,
   Grid,
   Divider,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Block,
   Refresh,
@@ -40,16 +40,20 @@ import {
   CheckCircle,
   Business,
   Schedule,
-} from '@mui/icons-material';
-import { PageContainer } from '@/components/PageContainer';
-import { useAppContext } from '@/context/AppContext';
-import { useMessageContext } from '@/context/MessageContext';
-import { formatDate, formatDaysRemaining, getDaysRemainingColor } from '@/utils/formatters';
-import { useRouter } from 'next/navigation';
-import { SubscriptionService } from '@/services/subscriptionService';
-import { getNegocios } from '@/services/negocioServce';
-import useConfirmDialog from '@/components/confirmDialog';
-import dayjs from 'dayjs';
+} from "@mui/icons-material";
+import { PageContainer } from "@/components/PageContainer";
+import { useAppContext } from "@/context/AppContext";
+import { useMessageContext } from "@/context/MessageContext";
+import {
+  formatDate,
+  formatDaysRemaining,
+  getDaysRemainingColor,
+} from "@/utils/formatters";
+import { useRouter } from "next/navigation";
+import { SubscriptionService } from "@/services/subscriptionService";
+import { getNegocios } from "@/services/negocioServce";
+import useConfirmDialog from "@/components/confirmDialog";
+import dayjs from "dayjs";
 
 interface NegocioSuspension {
   id: string;
@@ -100,7 +104,7 @@ export default function SuspensionesPage() {
     negocio: null,
     daysToAdd: 30,
     useSpecificDate: false,
-    specificDate: ''
+    specificDate: "",
   });
 
   const [manageDaysDialog, setManageDaysDialog] = useState<{
@@ -114,7 +118,7 @@ export default function SuspensionesPage() {
     negocio: null,
     daysToAdd: 30,
     useSpecificDate: false,
-    specificDate: ''
+    specificDate: "",
   });
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
 
@@ -145,13 +149,18 @@ export default function SuspensionesPage() {
       const negociosConEstado = await Promise.all(
         negociosData.map(async (negocio) => {
           try {
-            const status = await SubscriptionService.getSubscriptionStatus(negocio.id);
+            const status = await SubscriptionService.getSubscriptionStatus(
+              negocio.id,
+            );
             return {
               ...negocio,
-              ...status
+              ...status,
             };
           } catch (error) {
-            console.error(`Error al obtener estado de ${negocio.nombre}:`, error);
+            console.error(
+              `Error al obtener estado de ${negocio.nombre}:`,
+              error,
+            );
             return {
               ...negocio,
               isActive: true,
@@ -159,16 +168,16 @@ export default function SuspensionesPage() {
               isExpired: false,
               isSuspended: false,
               canRenew: false,
-              gracePeriodDays: 7
+              gracePeriodDays: 7,
             };
           }
-        })
+        }),
       );
 
       setNegocios(negociosConEstado as unknown as NegocioSuspension[]);
     } catch (error) {
-      console.error('Error al cargar datos:', error);
-      showMessage('Error al cargar los datos de suspensiones', 'error');
+      console.error("Error al cargar datos:", error);
+      showMessage("Error al cargar los datos de suspensiones", "error");
     } finally {
       setLoading(false);
     }
@@ -186,7 +195,7 @@ export default function SuspensionesPage() {
       negocio,
       daysToAdd: 30,
       useSpecificDate: false,
-      specificDate: dayjs().add(30, 'day').format('YYYY-MM-DD')
+      specificDate: dayjs().add(30, "day").format("YYYY-MM-DD"),
     });
   };
 
@@ -194,11 +203,11 @@ export default function SuspensionesPage() {
     setActivating(negocio.id);
     try {
       await SubscriptionService.activateBusiness(negocio.id);
-      showMessage(`Negocio ${negocio.nombre} activado exitosamente`, 'success');
+      showMessage(`Negocio ${negocio.nombre} activado exitosamente`, "success");
       fetchNegocios();
     } catch (error) {
-      console.error('Error al activar:', error);
-      showMessage('Error al activar el negocio', 'error');
+      console.error("Error al activar:", error);
+      showMessage("Error al activar el negocio", "error");
     } finally {
       setActivating(null);
     }
@@ -210,7 +219,9 @@ export default function SuspensionesPage() {
       negocio,
       daysToAdd: 30,
       useSpecificDate: false,
-      specificDate: dayjs(negocio.limitTime).add(30, 'day').format('YYYY-MM-DD')
+      specificDate: dayjs(negocio.limitTime)
+        .add(30, "day")
+        .format("YYYY-MM-DD"),
     });
   };
 
@@ -227,14 +238,26 @@ export default function SuspensionesPage() {
         payload.daysToAdd = reactivateDialog.daysToAdd;
       }
 
-      await SubscriptionService.reactivateBusiness(reactivateDialog.negocio.id, payload);
+      await SubscriptionService.reactivateBusiness(
+        reactivateDialog.negocio.id,
+        payload,
+      );
 
-      showMessage(`Negocio ${reactivateDialog.negocio.nombre} reactivado exitosamente`, 'success');
-      setReactivateDialog({ open: false, negocio: null, daysToAdd: 30, useSpecificDate: false, specificDate: '' });
+      showMessage(
+        `Negocio ${reactivateDialog.negocio.nombre} reactivado exitosamente`,
+        "success",
+      );
+      setReactivateDialog({
+        open: false,
+        negocio: null,
+        daysToAdd: 30,
+        useSpecificDate: false,
+        specificDate: "",
+      });
       fetchNegocios(); // Recargar datos
     } catch (error) {
-      console.error('Error al reactivar:', error);
-      showMessage('Error al reactivar el negocio', 'error');
+      console.error("Error al reactivar:", error);
+      showMessage("Error al reactivar el negocio", "error");
     } finally {
       setReactivating(null);
     }
@@ -247,51 +270,70 @@ export default function SuspensionesPage() {
     try {
       if (manageDaysDialog.useSpecificDate) {
         // Usar API de establecer fecha específica
-        await SubscriptionService.setExpirationDate(manageDaysDialog.negocio.id, new Date(manageDaysDialog.specificDate));
+        await SubscriptionService.setExpirationDate(
+          manageDaysDialog.negocio.id,
+          new Date(manageDaysDialog.specificDate),
+        );
       } else {
-        await SubscriptionService.extendSubscription(manageDaysDialog.negocio.id, manageDaysDialog.daysToAdd);
+        await SubscriptionService.extendSubscription(
+          manageDaysDialog.negocio.id,
+          manageDaysDialog.daysToAdd,
+        );
       }
 
-      showMessage(`Suscripción del negocio ${manageDaysDialog.negocio.nombre} actualizada exitosamente`, 'success');
-      setManageDaysDialog({ open: false, negocio: null, daysToAdd: 30, useSpecificDate: false, specificDate: '' });
+      showMessage(
+        `Suscripción del negocio ${manageDaysDialog.negocio.nombre} actualizada exitosamente`,
+        "success",
+      );
+      setManageDaysDialog({
+        open: false,
+        negocio: null,
+        daysToAdd: 30,
+        useSpecificDate: false,
+        specificDate: "",
+      });
       fetchNegocios(); // Recargar datos
     } catch (error) {
-      console.error('Error al gestionar días:', error);
-      showMessage('Error al actualizar la suscripción', 'error');
+      console.error("Error al gestionar días:", error);
+      showMessage("Error al actualizar la suscripción", "error");
     } finally {
       setManagingDays(null);
     }
   };
 
   const handleSuspender = async (negocio: NegocioSuspension) => {
-
     confirmDialog(
       `¿Estás seguro de que quieres suspender el negocio ${negocio.nombre}?`,
       async () => {
         try {
           await SubscriptionService.suspendBusiness(negocio.id);
-          showMessage(`Negocio ${negocio.nombre} suspendido exitosamente`, 'success');
-          fetchNegocios(); // Recargar datos  
+          showMessage(
+            `Negocio ${negocio.nombre} suspendido exitosamente`,
+            "success",
+          );
+          fetchNegocios(); // Recargar datos
         } catch (error) {
-          console.error('Error al suspender:', error);
-          showMessage('Error al suspender el negocio', 'error');
+          console.error("Error al suspender:", error);
+          showMessage("Error al suspender el negocio", "error");
         }
-      }
+      },
+      undefined,
+      { severity: "warning" },
     );
   };
 
   const getStatusColor = (negocio: NegocioSuspension) => {
-    if (negocio.suspended) return 'error';
-    if (negocio.isExpired) return 'warning';
-    if (negocio.daysRemaining <= 7) return 'warning';
-    return 'success';
+    if (negocio.suspended) return "error";
+    if (negocio.isExpired) return "warning";
+    if (negocio.daysRemaining <= 7) return "warning";
+    return "success";
   };
 
   const getStatusText = (negocio: NegocioSuspension) => {
-    if (negocio.suspended) return 'Suspendido';
-    if (negocio.isExpired) return 'En Período de Gracia';
-    if (negocio.daysRemaining <= 7) return 'Por Vencer';
-    return 'Activo';
+    if (negocio.suspended) return "Suspendido";
+    if (negocio.isExpired) return "En Período de Gracia";
+    if (negocio.daysRemaining <= 7) return "Por Vencer";
+    return "Activo";
   };
 
   const getStatusIcon = (negocio: NegocioSuspension) => {
@@ -302,8 +344,8 @@ export default function SuspensionesPage() {
   };
 
   const breadcrumbs = [
-    { label: 'Configuración', path: '/configuracion' },
-    { label: 'Suspensiones', path: '/configuracion/suspensiones' }
+    { label: "Configuración", path: "/configuracion" },
+    { label: "Suspensiones", path: "/configuracion/suspensiones" },
   ];
 
   const headerActions = (
@@ -317,12 +359,14 @@ export default function SuspensionesPage() {
         variant="contained"
         startIcon={<PlayArrow />}
         onClick={() => {
-          SubscriptionService.checkAndProcessSuspensions().then(() => {
-            showMessage('Verificación de suspensiones ejecutada', 'success');
-            fetchNegocios();
-          }).catch(() => {
-            showMessage('Error al ejecutar verificación', 'error');
-          });
+          SubscriptionService.checkAndProcessSuspensions()
+            .then(() => {
+              showMessage("Verificación de suspensiones ejecutada", "success");
+              fetchNegocios();
+            })
+            .catch(() => {
+              showMessage("Error al ejecutar verificación", "error");
+            });
         }}
         size="small"
       >
@@ -339,7 +383,12 @@ export default function SuspensionesPage() {
         breadcrumbs={breadcrumbs}
         headerActions={headerActions}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="200px"
+        >
           <CircularProgress />
           <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
             Cargando...
@@ -370,7 +419,9 @@ export default function SuspensionesPage() {
                   <Business color="primary" />
                   <Box>
                     <Typography variant="h6">{stats.total}</Typography>
-                    <Typography variant="body2" color="text.secondary">Total Negocios</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Total Negocios
+                    </Typography>
                   </Box>
                 </Stack>
               </CardContent>
@@ -383,7 +434,9 @@ export default function SuspensionesPage() {
                   <CheckCircle color="success" />
                   <Box>
                     <Typography variant="h6">{stats.active}</Typography>
-                    <Typography variant="body2" color="text.secondary">Activos</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Activos
+                    </Typography>
                   </Box>
                 </Stack>
               </CardContent>
@@ -396,7 +449,9 @@ export default function SuspensionesPage() {
                   <Warning color="warning" />
                   <Box>
                     <Typography variant="h6">{stats.expired}</Typography>
-                    <Typography variant="body2" color="text.secondary">En Gracia</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      En Gracia
+                    </Typography>
                   </Box>
                 </Stack>
               </CardContent>
@@ -409,7 +464,9 @@ export default function SuspensionesPage() {
                   <Block color="error" />
                   <Box>
                     <Typography variant="h6">{stats.suspended}</Typography>
-                    <Typography variant="body2" color="text.secondary">Suspendidos</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Suspendidos
+                    </Typography>
                   </Box>
                 </Stack>
               </CardContent>
@@ -440,7 +497,9 @@ export default function SuspensionesPage() {
                 {negocios.map((negocio) => (
                   <TableRow key={negocio.id}>
                     <TableCell>
-                      <Typography variant="subtitle2">{negocio.nombre}</Typography>
+                      <Typography variant="subtitle2">
+                        {negocio.nombre}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -453,9 +512,7 @@ export default function SuspensionesPage() {
                     <TableCell>
                       <Typography
                         variant="body2"
-                        color={getDaysRemainingColor(negocio.daysRemaining)
-
-                        }
+                        color={getDaysRemainingColor(negocio.daysRemaining)}
                       >
                         {formatDaysRemaining(negocio.daysRemaining)}
                       </Typography>
@@ -537,28 +594,36 @@ export default function SuspensionesPage() {
       {/* Dialog de Reactivación */}
       <Dialog
         open={reactivateDialog.open}
-        onClose={() => setReactivateDialog({ open: false, negocio: null, daysToAdd: 30, useSpecificDate: false, specificDate: '' })}
+        onClose={() =>
+          setReactivateDialog({
+            open: false,
+            negocio: null,
+            daysToAdd: 30,
+            useSpecificDate: false,
+            specificDate: "",
+          })
+        }
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          Reactivar Negocio
-        </DialogTitle>
+        <DialogTitle>Reactivar Negocio</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography>
-              ¿Estás seguro de que quieres reactivar el negocio{' '}
+              ¿Estás seguro de que quieres reactivar el negocio{" "}
               <strong>{reactivateDialog.negocio?.nombre}</strong>?
             </Typography>
 
             <FormControl fullWidth>
               <InputLabel>Método de reactivación</InputLabel>
               <Select
-                value={reactivateDialog.useSpecificDate ? 'date' : 'days'}
-                onChange={(e) => setReactivateDialog(prev => ({
-                  ...prev,
-                  useSpecificDate: e.target.value === 'date'
-                }))}
+                value={reactivateDialog.useSpecificDate ? "date" : "days"}
+                onChange={(e) =>
+                  setReactivateDialog((prev) => ({
+                    ...prev,
+                    useSpecificDate: e.target.value === "date",
+                  }))
+                }
                 label="Método de reactivación"
               >
                 <MenuItem value="days">Agregar días</MenuItem>
@@ -572,10 +637,12 @@ export default function SuspensionesPage() {
                 label="Fecha de expiración"
                 type="date"
                 value={reactivateDialog.specificDate}
-                onChange={(e) => setReactivateDialog(prev => ({
-                  ...prev,
-                  specificDate: e.target.value
-                }))}
+                onChange={(e) =>
+                  setReactivateDialog((prev) => ({
+                    ...prev,
+                    specificDate: e.target.value,
+                  }))
+                }
                 InputLabelProps={{ shrink: true }}
               />
             ) : (
@@ -583,10 +650,12 @@ export default function SuspensionesPage() {
                 <InputLabel>Días a agregar</InputLabel>
                 <Select
                   value={reactivateDialog.daysToAdd}
-                  onChange={(e) => setReactivateDialog(prev => ({
-                    ...prev,
-                    daysToAdd: e.target.value as number
-                  }))}
+                  onChange={(e) =>
+                    setReactivateDialog((prev) => ({
+                      ...prev,
+                      daysToAdd: e.target.value as number,
+                    }))
+                  }
                   label="Días a agregar"
                 >
                   <MenuItem value={7}>7 días</MenuItem>
@@ -599,23 +668,35 @@ export default function SuspensionesPage() {
             )}
 
             <Typography variant="body2" color="text.secondary">
-              Nueva fecha de expiración: {' '}
+              Nueva fecha de expiración:{" "}
               <strong>
                 {reactivateDialog.useSpecificDate
-                  ? (reactivateDialog.specificDate ? dayjs(reactivateDialog.specificDate).format('DD/MM/YYYY') : 'Seleccionar fecha')
-                  : dayjs(reactivateDialog.negocio?.limitTime).add(reactivateDialog.daysToAdd, 'day').format('DD/MM/YYYY')
-                }
+                  ? reactivateDialog.specificDate
+                    ? dayjs(reactivateDialog.specificDate).format("DD/MM/YYYY")
+                    : "Seleccionar fecha"
+                  : dayjs(reactivateDialog.negocio?.limitTime)
+                      .add(reactivateDialog.daysToAdd, "day")
+                      .format("DD/MM/YYYY")}
               </strong>
             </Typography>
 
             <Alert severity="info">
-              Al reactivar el negocio, todos los usuarios podrán acceder al sistema nuevamente.
+              Al reactivar el negocio, todos los usuarios podrán acceder al
+              sistema nuevamente.
             </Alert>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button
-            onClick={() => setReactivateDialog({ open: false, negocio: null, daysToAdd: 30, useSpecificDate: false, specificDate: '' })}
+            onClick={() =>
+              setReactivateDialog({
+                open: false,
+                negocio: null,
+                daysToAdd: 30,
+                useSpecificDate: false,
+                specificDate: "",
+              })
+            }
           >
             Cancelar
           </Button>
@@ -624,7 +705,7 @@ export default function SuspensionesPage() {
             variant="contained"
             disabled={reactivating !== null}
           >
-            {reactivating ? 'Reactivando...' : 'Reactivar'}
+            {reactivating ? "Reactivando..." : "Reactivar"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -632,26 +713,40 @@ export default function SuspensionesPage() {
       {/* Dialog de Gestión de Días/Fecha */}
       <Dialog
         open={manageDaysDialog.open}
-        onClose={() => setManageDaysDialog({ open: false, negocio: null, daysToAdd: 30, useSpecificDate: false, specificDate: '' })}
+        onClose={() =>
+          setManageDaysDialog({
+            open: false,
+            negocio: null,
+            daysToAdd: 30,
+            useSpecificDate: false,
+            specificDate: "",
+          })
+        }
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          Gestionar Suscripción
-        </DialogTitle>
+        <DialogTitle>Gestionar Suscripción</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography>
-              Gestionar la suscripción del negocio{' '}
+              Gestionar la suscripción del negocio{" "}
               <strong>{manageDaysDialog.negocio?.nombre}</strong>
             </Typography>
 
             <Box>
               <Typography variant="body2" color="text.secondary">
-                Fecha actual de expiración: <strong>{manageDaysDialog.negocio?.limitTime ? dayjs(manageDaysDialog.negocio.limitTime).format('DD/MM/YYYY') : '-'}</strong>
+                Fecha actual de expiración:{" "}
+                <strong>
+                  {manageDaysDialog.negocio?.limitTime
+                    ? dayjs(manageDaysDialog.negocio.limitTime).format(
+                        "DD/MM/YYYY",
+                      )
+                    : "-"}
+                </strong>
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Días restantes: <strong>{manageDaysDialog.negocio?.daysRemaining || 0}</strong>
+                Días restantes:{" "}
+                <strong>{manageDaysDialog.negocio?.daysRemaining || 0}</strong>
               </Typography>
             </Box>
 
@@ -660,11 +755,13 @@ export default function SuspensionesPage() {
             <FormControl fullWidth>
               <InputLabel>Método</InputLabel>
               <Select
-                value={manageDaysDialog.useSpecificDate ? 'date' : 'days'}
-                onChange={(e) => setManageDaysDialog(prev => ({
-                  ...prev,
-                  useSpecificDate: e.target.value === 'date'
-                }))}
+                value={manageDaysDialog.useSpecificDate ? "date" : "days"}
+                onChange={(e) =>
+                  setManageDaysDialog((prev) => ({
+                    ...prev,
+                    useSpecificDate: e.target.value === "date",
+                  }))
+                }
                 label="Método"
               >
                 <MenuItem value="days">Agregar días</MenuItem>
@@ -678,10 +775,12 @@ export default function SuspensionesPage() {
                 label="Nueva fecha de expiración"
                 type="date"
                 value={manageDaysDialog.specificDate}
-                onChange={(e) => setManageDaysDialog(prev => ({
-                  ...prev,
-                  specificDate: e.target.value
-                }))}
+                onChange={(e) =>
+                  setManageDaysDialog((prev) => ({
+                    ...prev,
+                    specificDate: e.target.value,
+                  }))
+                }
                 InputLabelProps={{ shrink: true }}
               />
             ) : (
@@ -689,10 +788,12 @@ export default function SuspensionesPage() {
                 <InputLabel>Días a agregar</InputLabel>
                 <Select
                   value={manageDaysDialog.daysToAdd}
-                  onChange={(e) => setManageDaysDialog(prev => ({
-                    ...prev,
-                    daysToAdd: e.target.value as number
-                  }))}
+                  onChange={(e) =>
+                    setManageDaysDialog((prev) => ({
+                      ...prev,
+                      daysToAdd: e.target.value as number,
+                    }))
+                  }
                   label="Días a agregar"
                 >
                   <MenuItem value={7}>7 días</MenuItem>
@@ -707,23 +808,35 @@ export default function SuspensionesPage() {
             )}
 
             <Typography variant="body2" color="primary">
-              Nueva fecha de expiración: {' '}
+              Nueva fecha de expiración:{" "}
               <strong>
                 {manageDaysDialog.useSpecificDate
-                  ? (manageDaysDialog.specificDate ? dayjs(manageDaysDialog.specificDate).format('DD/MM/YYYY') : 'Seleccionar fecha')
-                  : dayjs(manageDaysDialog.negocio?.limitTime).add(manageDaysDialog.daysToAdd, 'day').format('DD/MM/YYYY')
-                }
+                  ? manageDaysDialog.specificDate
+                    ? dayjs(manageDaysDialog.specificDate).format("DD/MM/YYYY")
+                    : "Seleccionar fecha"
+                  : dayjs(manageDaysDialog.negocio?.limitTime)
+                      .add(manageDaysDialog.daysToAdd, "day")
+                      .format("DD/MM/YYYY")}
               </strong>
             </Typography>
 
             <Alert severity="info">
-              Esta acción actualizará la fecha de expiración del negocio y lo mantendrá activo si estaba suspendido.
+              Esta acción actualizará la fecha de expiración del negocio y lo
+              mantendrá activo si estaba suspendido.
             </Alert>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button
-            onClick={() => setManageDaysDialog({ open: false, negocio: null, daysToAdd: 30, useSpecificDate: false, specificDate: '' })}
+            onClick={() =>
+              setManageDaysDialog({
+                open: false,
+                negocio: null,
+                daysToAdd: 30,
+                useSpecificDate: false,
+                specificDate: "",
+              })
+            }
           >
             Cancelar
           </Button>
@@ -732,7 +845,7 @@ export default function SuspensionesPage() {
             variant="contained"
             disabled={managingDays !== null}
           >
-            {managingDays ? 'Actualizando...' : 'Actualizar'}
+            {managingDays ? "Actualizando..." : "Actualizar"}
           </Button>
         </DialogActions>
       </Dialog>

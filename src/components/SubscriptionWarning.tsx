@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Alert,
   AlertTitle,
@@ -10,17 +10,17 @@ import {
   Stack,
   Typography,
   Collapse,
-  IconButton
-} from '@mui/material';
+  IconButton,
+} from "@mui/material";
 import {
   Warning,
   Error,
   Close,
   Payment,
-  ContactSupport
-} from '@mui/icons-material';
-import { useAppContext } from '@/context/AppContext';
-import { SubscriptionService } from '@/services/subscriptionService';
+  ContactSupport,
+} from "@mui/icons-material";
+import { useAppContext } from "@/context/AppContext";
+import { SubscriptionService } from "@/services/subscriptionService";
 
 export default function SubscriptionWarning() {
   const { user } = useAppContext();
@@ -32,10 +32,12 @@ export default function SubscriptionWarning() {
     const checkSubscriptionStatus = async () => {
       if (user?.negocio?.id) {
         try {
-          const status = await SubscriptionService.getSubscriptionStatus(user.negocio.id);
+          const status = await SubscriptionService.getSubscriptionStatus(
+            user.negocio.id,
+          );
           setSubscriptionStatus(status);
         } catch (error) {
-          console.error('Error al verificar estado de suscripción:', error);
+          console.error("Error al verificar estado de suscripción:", error);
         } finally {
           setLoading(false);
         }
@@ -48,11 +50,14 @@ export default function SubscriptionWarning() {
   }, [user?.negocio?.id]);
 
   const handleRenewSubscription = () => {
-    window.location.href = '/configuracion/planes';
+    window.location.href = "/configuracion/planes";
   };
 
   const handleContactSupport = () => {
-    window.open('mailto:soporte@cuadre-caja.com?subject=Suscripción Expirada', '_blank');
+    window.open(
+      "mailto:soporte@cuadre-caja.com?subject=Suscripción Expirada",
+      "_blank",
+    );
   };
 
   if (loading || !subscriptionStatus) {
@@ -65,33 +70,33 @@ export default function SubscriptionWarning() {
   }
 
   const getSeverity = () => {
-    if (subscriptionStatus.isSuspended) return 'error';
-    if (subscriptionStatus.isExpired) return 'warning';
-    if (subscriptionStatus.daysRemaining <= 3) return 'warning';
-    return 'info';
+    if (subscriptionStatus.isSuspended) return "error";
+    if (subscriptionStatus.isExpired) return "warning";
+    if (subscriptionStatus.daysRemaining <= 3) return "warning";
+    return "info";
   };
 
   const getTitle = () => {
-    if (subscriptionStatus.isSuspended) return 'Cuenta Suspendida';
-    if (subscriptionStatus.isExpired) return 'Suscripción Expirada';
-    if (subscriptionStatus.daysRemaining <= 3) return 'Suscripción por Vencer';
-    return 'Suscripción Próxima a Vencer';
+    if (subscriptionStatus.isSuspended) return "Cuenta Suspendida";
+    if (subscriptionStatus.isExpired) return "Suscripción Expirada";
+    if (subscriptionStatus.daysRemaining <= 3) return "Suscripción por Vencer";
+    return "Suscripción Próxima a Vencer";
   };
 
   const getMessage = () => {
     if (subscriptionStatus.isSuspended) {
-      return 'Su cuenta ha sido suspendida automáticamente debido al vencimiento de su suscripción. Renueve para reactivar el acceso.';
+      return "Su cuenta ha sido suspendida automáticamente debido al vencimiento de su suscripción. Renueve para reactivar el acceso.";
     }
-    
+
     if (subscriptionStatus.isExpired) {
       const daysExpired = Math.abs(subscriptionStatus.daysRemaining);
-      return `Su suscripción expiró hace ${daysExpired} día${daysExpired !== 1 ? 's' : ''}. Está en período de gracia. Renueve para evitar la suspensión.`;
+      return `Su suscripción expiró hace ${daysExpired} día${daysExpired !== 1 ? "s" : ""}. Está en período de gracia. Renueve para evitar la suspensión.`;
     }
-    
+
     if (subscriptionStatus.daysRemaining <= 3) {
-      return `Su suscripción vence en ${subscriptionStatus.daysRemaining} día${subscriptionStatus.daysRemaining !== 1 ? 's' : ''}. Renueve para evitar interrupciones.`;
+      return `Su suscripción vence en ${subscriptionStatus.daysRemaining} día${subscriptionStatus.daysRemaining !== 1 ? "s" : ""}. Renueve para evitar interrupciones.`;
     }
-    
+
     return `Su suscripción vence en ${subscriptionStatus.daysRemaining} días. Considere renovar para evitar interrupciones.`;
   };
 
@@ -108,11 +113,10 @@ export default function SubscriptionWarning() {
         action={
           <Stack direction="row" spacing={1} alignItems="center">
             <IconButton
-              size="small"
               onClick={() => setExpanded(!expanded)}
-              sx={{ color: 'inherit' }}
+              sx={{ color: "inherit" }}
             >
-              <Close />
+              <Close fontSize="small" />
             </IconButton>
           </Stack>
         }
@@ -126,39 +130,44 @@ export default function SubscriptionWarning() {
         <Collapse in={expanded}>
           <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
             <Chip
-              label={`${subscriptionStatus.daysRemaining > 0 ? 'Vence en' : 'Expiró hace'} ${Math.abs(subscriptionStatus.daysRemaining)} días`}
-              color={subscriptionStatus.isSuspended ? 'error' : 'warning'}
+              label={`${subscriptionStatus.daysRemaining > 0 ? "Vence en" : "Expiró hace"} ${Math.abs(subscriptionStatus.daysRemaining)} días`}
+              color={subscriptionStatus.isSuspended ? "error" : "warning"}
               size="small"
               variant="outlined"
             />
-            
-            {subscriptionStatus.isExpired && !subscriptionStatus.isSuspended && (
-              <Chip
-                label={`Período de gracia: ${subscriptionStatus.gracePeriodDays} días`}
-                color="info"
-                size="small"
-                variant="outlined"
-              />
-            )}
+
+            {subscriptionStatus.isExpired &&
+              !subscriptionStatus.isSuspended && (
+                <Chip
+                  label={`Período de gracia: ${subscriptionStatus.gracePeriodDays} días`}
+                  color="info"
+                  size="small"
+                  variant="outlined"
+                />
+              )}
           </Stack>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ mt: 2 }}
+          >
             <Button
               variant="contained"
               size="small"
               startIcon={<Payment />}
               onClick={handleRenewSubscription}
-              sx={{ minWidth: 'fit-content' }}
+              sx={{ minWidth: "fit-content" }}
             >
               Renovar Ahora
             </Button>
-            
+
             <Button
               variant="outlined"
               size="small"
               startIcon={<ContactSupport />}
               onClick={handleContactSupport}
-              sx={{ minWidth: 'fit-content' }}
+              sx={{ minWidth: "fit-content" }}
             >
               Contactar Soporte
             </Button>

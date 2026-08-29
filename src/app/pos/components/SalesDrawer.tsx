@@ -296,6 +296,8 @@ export const SalesDrawer: FC<IProps> = ({
           setDisableAll(false);
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 
@@ -338,6 +340,8 @@ export const SalesDrawer: FC<IProps> = ({
           setDeletingSaleId(null);
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 

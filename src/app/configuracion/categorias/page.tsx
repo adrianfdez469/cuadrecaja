@@ -73,7 +73,6 @@ export default function CategoriasPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-
   useEffect(() => {
     loadCategories();
   }, []);
@@ -126,20 +125,25 @@ export default function CategoriasPage() {
   };
 
   const handleDelete = async (id: string) => {
-    confirmDialog("¿Está seguro que desea eliminar la categoría?", async () => {
-      try {
-        await deleteCategory(id);
-        showMessage("Categoría eliminada", "success");
-      } catch (error) {
-        console.error(error);
-        showMessage(
-          "Error al intentar eliminar la categoría. Es probable que esté en uso!",
-          "error",
-        );
-      } finally {
-        await loadCategories();
-      }
-    });
+    confirmDialog(
+      "¿Está seguro que desea eliminar la categoría?",
+      async () => {
+        try {
+          await deleteCategory(id);
+          showMessage("Categoría eliminada", "success");
+        } catch (error) {
+          console.error(error);
+          showMessage(
+            "Error al intentar eliminar la categoría. Es probable que esté en uso!",
+            "error",
+          );
+        } finally {
+          await loadCategories();
+        }
+      },
+      undefined,
+      { severity: "error" },
+    );
   };
 
   const filteredCategories = categories.filter((category) =>
@@ -167,7 +171,11 @@ export default function CategoriasPage() {
         </IconButton>
       </Tooltip>
       {!isMobile && (
-        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()}>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => handleOpen()}
+        >
           Agregar Categoría
         </Button>
       )}
@@ -210,7 +218,10 @@ export default function CategoriasPage() {
 
       <StatStrip
         stats={[
-          { label: "Total Categorías", value: totalCategorias.toLocaleString() },
+          {
+            label: "Total Categorías",
+            value: totalCategorias.toLocaleString(),
+          },
           { label: "Colores Únicos", value: coloresUnicos.toLocaleString() },
           {
             label: "Categorías Visibles",
@@ -305,9 +316,7 @@ export default function CategoriasPage() {
                       <Typography sx={{ fontSize: "1rem", fontWeight: 600 }}>
                         {categoria.nombre}
                       </Typography>
-                      {categoria.esGlobal && (
-                        <StatusPill label="Global" />
-                      )}
+                      {categoria.esGlobal && <StatusPill label="Global" />}
                     </Box>
                     <Typography
                       variant="body2"

@@ -1,11 +1,15 @@
 "use client";
 
-import ExpiringProductsAlert from "@/components/ExpiringProductsAlert";
+import { VencidosBanner } from "./VencidosBanner";
 
 interface GestionInventarioAlertsProps {
   tiendaId: string;
+  onVerVencidos: () => void;
 }
 
-export function GestionInventarioAlerts({ tiendaId }: GestionInventarioAlertsProps) {
-  return <ExpiringProductsAlert tiendaId={tiendaId} />;
+export function GestionInventarioAlerts({
+  tiendaId,
+  onVerVencidos,
+}: GestionInventarioAlertsProps) {
+  return <VencidosBanner tiendaId={tiendaId} onVerVencidos={onVerVencidos} />;
 }

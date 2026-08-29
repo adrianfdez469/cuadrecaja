@@ -181,17 +181,22 @@ export default function NotificacionesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    confirmDialog("¿Estás seguro de eliminar esta notificación?", async () => {
-      try {
-        await NotificationApiService.deleteNotification(id);
-        showMessage("Notificación eliminada exitosamente", "success");
-        fetchNotificaciones();
-        fetchStats();
-      } catch (error) {
-        console.error("Error al eliminar la notificación", error);
-        showMessage("Error al eliminar la notificación", "error");
-      }
-    });
+    confirmDialog(
+      "¿Estás seguro de eliminar esta notificación?",
+      async () => {
+        try {
+          await NotificationApiService.deleteNotification(id);
+          showMessage("Notificación eliminada exitosamente", "success");
+          fetchNotificaciones();
+          fetchStats();
+        } catch (error) {
+          console.error("Error al eliminar la notificación", error);
+          showMessage("Error al eliminar la notificación", "error");
+        }
+      },
+      undefined,
+      { severity: "error" },
+    );
   };
 
   const handleSave = async () => {
@@ -267,12 +272,13 @@ export default function NotificacionesPage() {
   };
 
   /** The stored enum shouts; the column does not have to. */
-  const IMPORTANCE: Record<NivelImportancia, { label: string; hue: PillHue }> = {
-    CRITICA: { label: "Crítica", hue: "negative" },
-    ALTA: { label: "Alta", hue: "caution" },
-    MEDIA: { label: "Media", hue: "info" },
-    BAJA: { label: "Baja", hue: "neutral" },
-  };
+  const IMPORTANCE: Record<NivelImportancia, { label: string; hue: PillHue }> =
+    {
+      CRITICA: { label: "Crítica", hue: "negative" },
+      ALTA: { label: "Alta", hue: "caution" },
+      MEDIA: { label: "Media", hue: "info" },
+      BAJA: { label: "Baja", hue: "neutral" },
+    };
 
   const isActive = (notificacion: INotificacion) => {
     const ahora = new Date();

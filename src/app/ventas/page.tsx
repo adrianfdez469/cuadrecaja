@@ -29,12 +29,7 @@ import {
   useTheme,
   useMediaQuery,
 } from "@mui/material";
-import {
-  Delete,
-  Search,
-  Refresh,
-  Visibility,
-} from "@mui/icons-material";
+import { Delete, Search, Refresh, Visibility } from "@mui/icons-material";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
@@ -161,6 +156,8 @@ const Ventas = () => {
           setDeletingVentaId(null);
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 
@@ -198,6 +195,8 @@ const Ventas = () => {
           }
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 
@@ -574,10 +573,7 @@ const Ventas = () => {
                     </TableCell>
                     <TableCell align="right">
                       {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
-                      <MultiCurrencyAmount
-                        amount={venta.total}
-                        align="right"
-                      />
+                      <MultiCurrencyAmount amount={venta.total} align="right" />
                     </TableCell>
                     <TableCell align="right">
                       <Typography

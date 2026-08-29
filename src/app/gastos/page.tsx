@@ -97,10 +97,16 @@ export default function GastosPage() {
     }
   }, [loadingContext, canView, loadGastos, loadPlantillas]);
 
-  const handleSaveGasto = async (data: ICreateGastoTienda | ICreateGastoPlantilla) => {
+  const handleSaveGasto = async (
+    data: ICreateGastoTienda | ICreateGastoPlantilla,
+  ) => {
     try {
       if (editTarget) {
-        await updateGastoTienda(tiendaId, editTarget.id, data as ICreateGastoTienda);
+        await updateGastoTienda(
+          tiendaId,
+          editTarget.id,
+          data as ICreateGastoTienda,
+        );
         showMessage("Gasto actualizado", "success");
       } else {
         await createGastoTienda(tiendaId, data as ICreateGastoTienda);
@@ -108,7 +114,8 @@ export default function GastosPage() {
       }
       await loadGastos();
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      const msg = (err as { response?: { data?: { error?: string } } })
+        ?.response?.data?.error;
       showMessage(msg ?? "Error al guardar gasto", "error");
       throw err;
     }
@@ -132,10 +139,13 @@ export default function GastosPage() {
           showMessage("Gasto eliminado", "success");
           await loadGastos();
         } catch (err: unknown) {
-          const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+          const msg = (err as { response?: { data?: { error?: string } } })
+            ?.response?.data?.error;
           showMessage(msg ?? "Error al eliminar gasto", "error");
         }
-      }
+      },
+      undefined,
+      { severity: "error" },
     );
   };
 
@@ -145,7 +155,8 @@ export default function GastosPage() {
       showMessage("Plantilla asignada", "success");
       await loadGastos();
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      const msg = (err as { response?: { data?: { error?: string } } })
+        ?.response?.data?.error;
       showMessage(msg ?? "Error al asignar plantilla", "error");
       throw err;
     }
@@ -154,7 +165,9 @@ export default function GastosPage() {
   if (!loadingContext && !canView) {
     return (
       <PageContainer title="Gastos">
-        <Alert severity="error">No tienes permisos para ver esta sección.</Alert>
+        <Alert severity="error">
+          No tienes permisos para ver esta sección.
+        </Alert>
       </PageContainer>
     );
   }
@@ -209,53 +222,58 @@ export default function GastosPage() {
   const body = (
     <>
       {loading ? (
-          <Box py={4} textAlign="center">
-            <CircularProgress size={32} />
-          </Box>
-        ) : (
-          <>
-            {isMobile ? (
-              <Stack spacing={1.5} sx={{ p: 0.5 }}>
-                {gastos.length === 0 ? (
-                  <Box py={4} textAlign="center">
-                    <ReceiptLongIcon sx={{ fontSize: 40, color: "text.disabled", mb: 1 }} />
-                    <Typography color="text.secondary">No hay gastos configurados</Typography>
-                    {canManage && (
-                      <Typography variant="caption" color="text.secondary">
-                        Crea un gasto con el botón &quot;Nuevo gasto&quot; o asigna una plantilla del negocio.
-                      </Typography>
-                    )}
-                  </Box>
-                ) : (
-                  gastos.map((g) => (
-                    <GastoTiendaCard
-                      key={g.id}
-                      gasto={g}
-                      canManage={canManage}
-                      onEdit={(gasto) => {
-                        setEditTarget(gasto);
-                        setFormOpen(true);
-                      }}
-                      onDelete={handleDelete}
-                      onToggleActivo={handleToggleActivo}
-                    />
-                  ))
-                )}
-              </Stack>
-            ) : (
-              <GastoTiendaTable
-                gastos={gastos}
-                canManage={canManage}
-                onEdit={(gasto) => {
-                  setEditTarget(gasto);
-                  setFormOpen(true);
-                }}
-                onDelete={handleDelete}
-                onToggleActivo={handleToggleActivo}
-              />
-            )}
-          </>
-        )}
+        <Box py={4} textAlign="center">
+          <CircularProgress size={32} />
+        </Box>
+      ) : (
+        <>
+          {isMobile ? (
+            <Stack spacing={1.5} sx={{ p: 0.5 }}>
+              {gastos.length === 0 ? (
+                <Box py={4} textAlign="center">
+                  <ReceiptLongIcon
+                    sx={{ fontSize: 40, color: "text.disabled", mb: 1 }}
+                  />
+                  <Typography color="text.secondary">
+                    No hay gastos configurados
+                  </Typography>
+                  {canManage && (
+                    <Typography variant="caption" color="text.secondary">
+                      Crea un gasto con el botón &quot;Nuevo gasto&quot; o
+                      asigna una plantilla del negocio.
+                    </Typography>
+                  )}
+                </Box>
+              ) : (
+                gastos.map((g) => (
+                  <GastoTiendaCard
+                    key={g.id}
+                    gasto={g}
+                    canManage={canManage}
+                    onEdit={(gasto) => {
+                      setEditTarget(gasto);
+                      setFormOpen(true);
+                    }}
+                    onDelete={handleDelete}
+                    onToggleActivo={handleToggleActivo}
+                  />
+                ))
+              )}
+            </Stack>
+          ) : (
+            <GastoTiendaTable
+              gastos={gastos}
+              canManage={canManage}
+              onEdit={(gasto) => {
+                setEditTarget(gasto);
+                setFormOpen(true);
+              }}
+              onDelete={handleDelete}
+              onToggleActivo={handleToggleActivo}
+            />
+          )}
+        </>
+      )}
     </>
   );
 
@@ -277,9 +295,7 @@ export default function GastosPage() {
           {body}
         </>
       ) : (
-        <ContentCard title="Gastos de la tienda">
-          {body}
-        </ContentCard>
+        <ContentCard title="Gastos de la tienda">{body}</ContentCard>
       )}
 
       <GastoFormDialog

@@ -16,24 +16,30 @@ import {
   IconButton,
   Tooltip,
   Collapse,
-  Menu,
-  ListItemIcon,
-  ListItemText,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
+import FilterListOffIcon from "@mui/icons-material/FilterListOff";
 import TableViewIcon from "@mui/icons-material/TableView";
 import UploadIcon from "@mui/icons-material/Upload";
 import PrintIcon from "@mui/icons-material/Print";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import { useState, useRef, useMemo } from "react";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import ViewListIcon from "@mui/icons-material/ViewList";
+import { useRef, useState, useMemo } from "react";
 import { ICategory } from "@/schemas/categoria";
 import { StockFilter, ExpiryFilter } from "../hooks/useGestionInventario";
 import { uniqueBy } from "@/utils/arrayUtils";
 import SelectableTextField from "@/components/SelectableTextField";
+import { ActionSheet } from "@/components/ActionSheet";
+import { shape } from "@/theme";
+
+// El mockup usa `.ib`/`.ibtn` para cualquier botón de solo ícono: 44x44,
+// 12px de radio — nunca el círculo por defecto de MUI. `IconButton` no
+// hereda `theme.shape.borderRadius` (MUI lo fija circular a propósito para
+// avatares y ripples), así que hay que pisarlo acá.
+const squareIconButtonSx = { borderRadius: `${shape.radius.md}px` } as const;
 
 interface InventarioFiltersBarProps {
   searchTerm: string;
@@ -45,6 +51,7 @@ interface InventarioFiltersBarProps {
   onExpiryChange: (v: ExpiryFilter) => void;
   stockFilter: StockFilter;
   onStockChange: (v: StockFilter) => void;
+  /** Solo se usa en mobile: en desktop "Nuevo producto" vive en el header. */
   onCreateProduct: () => void;
   onRefresh: () => void;
   loading: boolean;
@@ -52,6 +59,9 @@ interface InventarioFiltersBarProps {
   onImportExcel?: () => void;
   onPrintLabels?: () => void;
   exporting?: boolean;
+  /** Mobile: vive dentro de la hoja "Más acciones", no como botón propio. */
+  showDetails?: boolean;
+  onToggleDetails?: () => void;
 }
 
 const STOCK_OPTIONS: { value: StockFilter; label: string }[] = [
@@ -96,8 +106,8 @@ export function InventarioFiltersBar({
   onImportExcel,
   onPrintLabels,
   exporting,
+  onToggleDetails,
 }: InventarioFiltersBarProps) {
-  console.log({ categorias });
   const uniqueCategories = useMemo(
     () =>
       uniqueBy<ICategory>(
@@ -110,7 +120,7 @@ export function InventarioFiltersBar({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchRowRef = useRef<HTMLDivElement>(null);
 
@@ -136,7 +146,7 @@ export function InventarioFiltersBar({
         <Box
           ref={searchRowRef}
           display="flex"
-          gap={0.5}
+          gap={1}
           alignItems="center"
           sx={{ scrollMarginTop: "64px" }}
         >
@@ -171,98 +181,113 @@ export function InventarioFiltersBar({
             }}
             sx={{ flex: 1 }}
           />
-          <IconButton
-            color="primary"
-            data-tour="gi-create-btn"
-            onClick={onCreateProduct}
+          <Tooltip title="Nuevo producto">
+            <IconButton
+              data-tour="gi-create-btn"
+              onClick={onCreateProduct}
+              sx={{
+                ...squareIconButtonSx,
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+                "&:hover": { bgcolor: "primary.dark" },
+              }}
+            >
+              <AddIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {/* "Limpiar filtros", "Detalles" e Importar/Exportar Excel/Etiquetas
+            viven en la hoja "Más acciones" — el mockup mobile ya no les da
+            un botón propio en esta fila. */}
+        <Box display="flex" alignItems="center" gap={1}>
+          <Button
             size="small"
+            variant="outlined"
+            color={filtersOpen || activeFilters ? "primary" : "inherit"}
+            startIcon={<FilterListIcon />}
+            onClick={() => setFiltersOpen((v) => !v)}
+            sx={{ flex: 1 }}
           >
-            <AddIcon />
-          </IconButton>
-          <Tooltip title="Filtros avanzados">
-            <IconButton
-              size="small"
-              onClick={() => setFiltersOpen((v) => !v)}
-              color={filtersOpen || activeFilters ? "primary" : "default"}
-            >
-              <FilterListIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Limpiar filtros">
-            <IconButton
-              size="small"
-              onClick={handleClearFilters}
-              disabled={!searchTerm && !activeFilters}
-              color={activeFilters || searchTerm ? "warning" : "default"}
-            >
-              <CleaningServicesIcon />
-            </IconButton>
-          </Tooltip>
+            Filtros
+          </Button>
           <Tooltip title="Actualizar">
-            <IconButton onClick={onRefresh} disabled={loading} size="small">
+            <IconButton
+              onClick={onRefresh}
+              disabled={loading}
+              size="small"
+              sx={squareIconButtonSx}
+            >
               <RefreshIcon />
             </IconButton>
           </Tooltip>
-          {(onExportExcel || onImportExcel || onPrintLabels) && (
-            <>
-              <Tooltip title="Más opciones">
-                <IconButton
-                  size="small"
-                  onClick={(e) => setMenuAnchor(e.currentTarget)}
-                >
-                  <MoreVertIcon />
-                </IconButton>
-              </Tooltip>
-              <Menu
-                anchorEl={menuAnchor}
-                open={Boolean(menuAnchor)}
-                onClose={() => setMenuAnchor(null)}
-              >
-                {onImportExcel && (
-                  <MenuItem
-                    onClick={() => {
-                      setMenuAnchor(null);
-                      onImportExcel();
-                    }}
-                    disabled={loading}
-                  >
-                    <ListItemIcon>
-                      <UploadIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Importar Excel</ListItemText>
-                  </MenuItem>
-                )}
-                {onExportExcel && (
-                  <MenuItem
-                    onClick={() => {
-                      setMenuAnchor(null);
-                      onExportExcel();
-                    }}
-                    disabled={exporting || loading}
-                  >
-                    <ListItemIcon>
-                      <TableViewIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Exportar Excel</ListItemText>
-                  </MenuItem>
-                )}
-                {onPrintLabels && (
-                  <MenuItem
-                    onClick={() => {
-                      setMenuAnchor(null);
-                      onPrintLabels();
-                    }}
-                  >
-                    <ListItemIcon>
-                      <PrintIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Imprimir etiquetas</ListItemText>
-                  </MenuItem>
-                )}
-              </Menu>
-            </>
-          )}
+          <Tooltip title="Más acciones">
+            <IconButton
+              onClick={() => setMoreOpen(true)}
+              size="small"
+              sx={squareIconButtonSx}
+            >
+              <MoreHorizIcon />
+            </IconButton>
+          </Tooltip>
         </Box>
+
+        <ActionSheet
+          open={moreOpen}
+          onClose={() => setMoreOpen(false)}
+          title="Más acciones"
+          items={[
+            {
+              key: "limpiar",
+              icon: <FilterListOffIcon fontSize="small" />,
+              label: "Limpiar filtros",
+              onClick: handleClearFilters,
+              disabled: !searchTerm && !activeFilters,
+            },
+            ...(onToggleDetails
+              ? [
+                  {
+                    key: "detalles",
+                    icon: <ViewListIcon fontSize="small" />,
+                    label: "Detalles",
+                    onClick: onToggleDetails,
+                  },
+                ]
+              : []),
+            ...(onImportExcel
+              ? [
+                  {
+                    key: "importar",
+                    icon: <UploadIcon fontSize="small" />,
+                    label: "Importar Excel",
+                    onClick: onImportExcel,
+                    disabled: loading,
+                  },
+                ]
+              : []),
+            ...(onExportExcel
+              ? [
+                  {
+                    key: "exportar",
+                    icon: <TableViewIcon fontSize="small" />,
+                    label: "Exportar Excel",
+                    onClick: onExportExcel,
+                    disabled: exporting || loading,
+                  },
+                ]
+              : []),
+            ...(onPrintLabels
+              ? [
+                  {
+                    key: "etiquetas",
+                    icon: <PrintIcon fontSize="small" />,
+                    label: "Etiquetas",
+                    onClick: onPrintLabels,
+                  },
+                ]
+              : []),
+          ]}
+        />
 
         {/* Filtros extra colapsables */}
         <Collapse in={filtersOpen}>
@@ -330,6 +355,9 @@ export function InventarioFiltersBar({
   // Desktop layout
   return (
     <Box display="flex" flexDirection="column" gap={1.5}>
+      {/* Buscar y filtrar en una fila; "Nuevo producto" vive en el header de
+          la página, no acá — dejaba de ser el único botón contained entre
+          seis controles de filtro. */}
       <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
         <SelectableTextField
           size="small"
@@ -345,70 +373,7 @@ export function InventarioFiltersBar({
           }}
           sx={{ flexGrow: 1, minWidth: 200 }}
         />
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          data-tour="gi-create-btn"
-          onClick={onCreateProduct}
-          size="small"
-          sx={{ whiteSpace: "nowrap" }}
-        >
-          Nuevo producto
-        </Button>
-        {onImportExcel && (
-          <Button
-            variant="outlined"
-            startIcon={<UploadIcon />}
-            onClick={onImportExcel}
-            disabled={loading}
-            size="small"
-            sx={{ whiteSpace: "nowrap" }}
-          >
-            Importar Excel
-          </Button>
-        )}
-        {onExportExcel && (
-          <Button
-            variant="outlined"
-            startIcon={<TableViewIcon />}
-            onClick={onExportExcel}
-            disabled={exporting || loading}
-            size="small"
-            sx={{ whiteSpace: "nowrap" }}
-          >
-            {exporting ? "Exportando..." : "Exportar Excel"}
-          </Button>
-        )}
-        {onPrintLabels && (
-          <Button
-            variant="outlined"
-            startIcon={<PrintIcon />}
-            onClick={onPrintLabels}
-            disabled={loading}
-            size="small"
-            sx={{ whiteSpace: "nowrap" }}
-          >
-            Etiquetas
-          </Button>
-        )}
-        <Tooltip title="Actualizar">
-          <IconButton onClick={onRefresh} disabled={loading} size="small">
-            <RefreshIcon />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Limpiar filtros">
-          <IconButton
-            onClick={handleClearFilters}
-            disabled={!searchTerm && !activeFilters}
-            size="small"
-            color={activeFilters || searchTerm ? "warning" : "default"}
-          >
-            <CleaningServicesIcon />
-          </IconButton>
-        </Tooltip>
-      </Box>
 
-      <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
         <Autocomplete
           multiple
           size="small"
@@ -460,7 +425,70 @@ export function InventarioFiltersBar({
             ))}
           </Select>
         </FormControl>
+
+        <Tooltip title="Actualizar">
+          <IconButton
+            onClick={onRefresh}
+            disabled={loading}
+            size="small"
+            sx={squareIconButtonSx}
+          >
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Limpiar filtros">
+          <IconButton
+            onClick={handleClearFilters}
+            disabled={!searchTerm && !activeFilters}
+            size="small"
+            color={activeFilters || searchTerm ? "warning" : "default"}
+            sx={squareIconButtonSx}
+          >
+            <FilterListOffIcon />
+          </IconButton>
+        </Tooltip>
       </Box>
+
+      {(onImportExcel || onExportExcel || onPrintLabels) && (
+        <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
+          {onImportExcel && (
+            <Button
+              variant="outlined"
+              startIcon={<UploadIcon />}
+              onClick={onImportExcel}
+              disabled={loading}
+              size="small"
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              Importar Excel
+            </Button>
+          )}
+          {onExportExcel && (
+            <Button
+              variant="outlined"
+              startIcon={<TableViewIcon />}
+              onClick={onExportExcel}
+              disabled={exporting || loading}
+              size="small"
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              {exporting ? "Exportando..." : "Exportar Excel"}
+            </Button>
+          )}
+          {onPrintLabels && (
+            <Button
+              variant="outlined"
+              startIcon={<PrintIcon />}
+              onClick={onPrintLabels}
+              disabled={loading}
+              size="small"
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              Etiquetas
+            </Button>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }

@@ -13,7 +13,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { useState } from "react";
 import { useVirtualRows } from "@/hooks/useVirtualRows";
 import { IProductoTiendaV2 } from "@/schemas/producto";
@@ -28,6 +28,12 @@ import { useAppContext } from "@/context/AppContext";
 import { LoadingState } from "@/components/LoadingState";
 import { EmptyState } from "@/components/EmptyState";
 import { getRentabilidad } from "./rentabilidad";
+import {
+  getExpiryPill,
+  getStockPill,
+  rentabilidadColor,
+  stockTone,
+} from "./statusHelpers";
 
 interface Props {
   productos: IProductoTiendaV2[];
@@ -37,42 +43,6 @@ interface Props {
   onViewMovements: (p: IProductoTiendaV2) => void;
   onCreateMov: (p: IProductoTiendaV2) => void;
   onDelete: (p: IProductoTiendaV2) => void;
-}
-
-function getExpiryChip(fechaVencimiento: string | null | undefined) {
-  if (!fechaVencimiento) return null;
-  const dias = Math.ceil(
-    (new Date(fechaVencimiento).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
-  );
-  if (dias <= 0) return <StatusPill label="Vencido" hue="negative" />;
-  if (dias <= 7) return <StatusPill label={`${dias} días`} hue="negative" />;
-  if (dias <= 30) return <StatusPill label={`${dias} días`} hue="caution" />;
-  // Far off is not a warning: it reads as plain text like any other date.
-  return (
-    <Typography variant="body2" color="text.secondary">
-      {`${dias} días`}
-    </Typography>
-  );
-}
-
-/**
- * The exception speaks, the norm keeps quiet.
- *
- * Every row used to carry a stock pill, so a table where nearly everything is
- * in stock showed a column of green badges — a hundred repetitions of "fine"
- * that made the four rows that were not fine impossible to spot. Only shortage
- * gets a pill now, and only shortage tints the number beside it.
- */
-function getStockPill(existencia: number) {
-  if (existencia <= 0) return <StatusPill label="Sin stock" hue="negative" />;
-  if (existencia <= 5) return <StatusPill label="Bajo" hue="caution" />;
-  return null;
-}
-
-function stockTone(existencia: number) {
-  if (existencia <= 0) return "semantic.hue.negative.main";
-  if (existencia <= 5) return "semantic.hue.caution.main";
-  return undefined;
 }
 
 function ActionsMenu({
@@ -94,7 +64,7 @@ function ActionsMenu({
   return (
     <>
       <IconButton size="small" onClick={(e) => setAnchor(e.currentTarget)}>
-        <MoreVertIcon fontSize="small" />
+        <MoreHorizIcon fontSize="small" />
       </IconButton>
       <Menu
         anchorEl={anchor}
@@ -304,17 +274,13 @@ export function InventarioTable({
                 <TableCell align="right">
                   <Typography
                     variant="body2"
-                    color={
-                      parseFloat(rentabilidad) > 0
-                        ? "success.main"
-                        : "text.secondary"
-                    }
+                    color={rentabilidadColor(rentabilidad)}
                   >
                     {rentabilidad}
                   </Typography>
                 </TableCell>
                 <TableCell align="center">
-                  {getExpiryChip(p.fechaVencimiento)}
+                  {getExpiryPill(p.fechaVencimiento)}
                 </TableCell>
                 <TableCell align="center">
                   <ActionsMenu

@@ -300,6 +300,65 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
           elevation3: { boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)" },
         },
       },
+      // `surface` pairs with `main` as text (see tokens.ts) — the same rule
+      // MuiChip already follows, so an inline <Alert> reads as the same
+      // vocabulary as a status chip instead of MUI's stock severity colours.
+      MuiAlert: {
+        styleOverrides: {
+          root: { borderRadius: shape.radius.md },
+          standardSuccess: {
+            backgroundColor: t.hue.positive.surface,
+            color: t.hue.positive.main,
+            "& .MuiAlert-icon": { color: t.hue.positive.main },
+          },
+          standardError: {
+            backgroundColor: t.hue.negative.surface,
+            color: t.hue.negative.main,
+            "& .MuiAlert-icon": { color: t.hue.negative.main },
+          },
+          standardWarning: {
+            backgroundColor: t.hue.caution.surface,
+            color: t.hue.caution.main,
+            "& .MuiAlert-icon": { color: t.hue.caution.main },
+          },
+          standardInfo: {
+            backgroundColor: t.hue.info.surface,
+            color: t.hue.info.main,
+            "& .MuiAlert-icon": { color: t.hue.info.main },
+          },
+        },
+      },
+      // notistack renders its toasts outside MuiAlert, so the same four
+      // roles are repeated here as the solid `main` ink instead of the
+      // `surface` wash — a toast interrupts, a wash-coloured <Alert> just
+      // sits on the page.
+      MuiCssBaseline: {
+        styleOverrides: {
+          ".notistack-MuiContent": {
+            borderRadius: shape.radius.md,
+            fontSize: "0.84375rem",
+            lineHeight: 1.43,
+            minWidth: 288,
+            padding: "8px 8px 8px 16px",
+          },
+          ".notistack-MuiContent-success": {
+            backgroundColor: t.hue.positive.main,
+            color: t.text.onFilled,
+          },
+          ".notistack-MuiContent-error": {
+            backgroundColor: t.hue.negative.main,
+            color: t.text.onFilled,
+          },
+          ".notistack-MuiContent-warning": {
+            backgroundColor: t.hue.caution.main,
+            color: t.text.onFilled,
+          },
+          ".notistack-MuiContent-info": {
+            backgroundColor: t.hue.info.main,
+            color: t.text.onFilled,
+          },
+        },
+      },
     },
   });
 }

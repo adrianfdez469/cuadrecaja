@@ -174,6 +174,8 @@ export default function Proveedores() {
           showMessage(errorMessage, "error");
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 

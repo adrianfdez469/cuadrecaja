@@ -254,6 +254,8 @@ export const CartContent = (props: IProps) => {
       confirmDialog(
         `¿Estás seguro de que deseas vaciar el carrito? Se eliminarán ${cart.length} producto${cart.length !== 1 ? "s" : ""}.`,
         () => clear(),
+        undefined,
+        { severity: "warning" },
       );
     }
   };
@@ -393,8 +395,14 @@ export const CartContent = (props: IProps) => {
 
         {/* The close of the sale, over everything else. Mounted only while
             it is shown: it has nothing to keep between sales. */}
-        <Fade in={step === "done" && receipt !== null} timeout={200} unmountOnExit>
-          <Box sx={{ position: "absolute", inset: 0, bgcolor: "background.paper" }}>
+        <Fade
+          in={step === "done" && receipt !== null}
+          timeout={200}
+          unmountOnExit
+        >
+          <Box
+            sx={{ position: "absolute", inset: 0, bgcolor: "background.paper" }}
+          >
             {receipt && (
               <SaleDoneView
                 receipt={receipt}

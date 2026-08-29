@@ -209,6 +209,8 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           setDeletingKey(null);
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 
@@ -238,6 +240,8 @@ export const UserSalesDrawer: React.FC<IProps> = ({
           setDeletingSaleId(null);
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 

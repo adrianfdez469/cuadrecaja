@@ -6,12 +6,14 @@ import { useSearchParams } from "next/navigation";
 import {
   Badge,
   Box,
+  Button,
   Container,
   Tab,
   Tabs,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import { useOnboardingStore } from "@/features/onboarding";
 import MovimientosView from "./movimientos/MovimientosView";
 import { PageContainer } from "@/components/PageContainer";
@@ -60,6 +62,9 @@ export function GestionInventarioPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [printLabelsOpen, setPrintLabelsOpen] = useState(false);
+  // "Detalles" en la hoja "Más acciones" de mobile: apagado deja solo
+  // nombre, categoría e insignias de excepción en cada tarjeta.
+  const [showDetails, setShowDetails] = useState(true);
   const [activeTab, setActiveTab] = useState(
     searchParams.get("tab") === "movimientos" || !puedeVerInventario ? 1 : 0,
   );
@@ -205,8 +210,30 @@ export function GestionInventarioPage() {
   return (
     <>
       {tabsBar}
-      <PageContainer title="Inventario">
-        {tiendaId && <GestionInventarioAlerts tiendaId={tiendaId} />}
+      <PageContainer
+        title="Inventario"
+        // En mobile, crear un producto sigue siendo el "+" junto al buscador
+        // (ver InventarioFiltersBar) — un botón de texto acá no entra junto
+        // al título a 390px.
+        headerActions={
+          !isMobile ? (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              data-tour="gi-create-btn"
+              onClick={openCreateProduct}
+            >
+              Nuevo producto
+            </Button>
+          ) : undefined
+        }
+      >
+        {tiendaId && (
+          <GestionInventarioAlerts
+            tiendaId={tiendaId}
+            onVerVencidos={() => setExpiryFilter("vencidos")}
+          />
+        )}
 
         <InventarioStatsRow productos={productos} />
 
@@ -230,6 +257,7 @@ export function GestionInventarioPage() {
                 onImportExcel={() => setImportOpen(true)}
                 onPrintLabels={() => setPrintLabelsOpen(true)}
                 exporting={exporting}
+                onToggleDetails={() => setShowDetails((v) => !v)}
               />
             </Box>
 
@@ -242,6 +270,7 @@ export function GestionInventarioPage() {
                 onViewMovements={openMovements}
                 onCreateMov={openCreateMov}
                 onDelete={handleDeleteProduct}
+                showDetails={showDetails}
               />
             ) : (
               <InventarioTable

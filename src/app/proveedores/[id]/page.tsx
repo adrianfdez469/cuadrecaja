@@ -43,7 +43,14 @@ import {
   Payment,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
-import { findUltimaLiquidacion, getProveedoresConsignacionById, liquidarProveedorConsignacion, sumDineroLiquidado, sumDineroPorLiquidar, sumProdsConsignación } from "@/services/preoveedoresService";
+import {
+  findUltimaLiquidacion,
+  getProveedoresConsignacionById,
+  liquidarProveedorConsignacion,
+  sumDineroLiquidado,
+  sumDineroPorLiquidar,
+  sumProdsConsignación,
+} from "@/services/preoveedoresService";
 import { IProveedorConsignacion } from "@/schemas/proveedor";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
@@ -55,7 +62,7 @@ interface ILiquidacion {
   monto: number;
   productos: number;
   observaciones: string;
-  estado: 'completada' | 'pendiente';
+  estado: "completada" | "pendiente";
   fechaLiquidacion?: string | null;
 }
 
@@ -87,11 +94,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
   );
 }
@@ -100,9 +103,13 @@ export default function ProveedorDetallePage() {
   const { id } = useParams();
   const router = useRouter();
   const [tabValue, setTabValue] = useState(0);
-  const [proveedor, setProveedor] = useState<IProveedorConsignacion | null>(null);
+  const [proveedor, setProveedor] = useState<IProveedorConsignacion | null>(
+    null,
+  );
   const [liquidaciones, setLiquidaciones] = useState<ILiquidacion[]>([]);
-  const [productosConsignacion, setProductosConsignacion] = useState<IProductoConsignacion[]>([]);
+  const [productosConsignacion, setProductosConsignacion] = useState<
+    IProductoConsignacion[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [pageLiquidaciones, setPageLiquidaciones] = useState(0);
   const [pageProductos, setPageProductos] = useState(0);
@@ -112,14 +119,12 @@ export default function ProveedorDetallePage() {
   const { verificarPermiso } = usePermisos();
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const fetchData = async () => {
     setLoading(true);
     try {
-
       const proveedorData = await getProveedoresConsignacionById(id.toString());
-
 
       const pclc = proveedorData.prodProveedorLiquidacion;
       const dataProveedor: IProveedorConsignacion = {
@@ -127,15 +132,15 @@ export default function ProveedorDetallePage() {
         telefono: proveedorData.telefono,
         direccion: proveedorData.direccion,
         id: proveedorData.id,
-        estado: 'activo',
+        estado: "activo",
         dineroLiquidado: pclc.reduce(sumDineroLiquidado, 0),
         dineroPorLiquidar: pclc.reduce(sumDineroPorLiquidar, 0),
         totalProductosConsignacion: pclc.reduce(sumProdsConsignación, 0),
-        ultimaLiquidacion: pclc.reduce(findUltimaLiquidacion, null)
-      }
+        ultimaLiquidacion: pclc.reduce(findUltimaLiquidacion, null),
+      };
 
       const liquidacionesProveedorObj = pclc.reduce((acc, prodLiq) => {
-        if(!acc[prodLiq.cierreId]) {
+        if (!acc[prodLiq.cierreId]) {
           return {
             ...acc,
             [prodLiq.cierreId]: {
@@ -144,94 +149,103 @@ export default function ProveedorDetallePage() {
               monto: prodLiq.monto,
               productos: prodLiq.vendidos,
               observaciones: `Liquidación de cierre: ${new Date(prodLiq.cierre.fechaInicio).toLocaleDateString()} - ${new Date(prodLiq.cierre.fechaFin).toLocaleDateString()}`,
-              estado: prodLiq.liquidatedAt !== null ? "completada" : "pendiente",
-              fechaLiquidacion: prodLiq.liquidatedAt
-            }
-          }
+              estado:
+                prodLiq.liquidatedAt !== null ? "completada" : "pendiente",
+              fechaLiquidacion: prodLiq.liquidatedAt,
+            },
+          };
         } else {
           return {
             ...acc,
-            [prodLiq.cierreId] : {
+            [prodLiq.cierreId]: {
               ...acc[prodLiq.cierreId],
               monto: acc[prodLiq.cierreId].monto + prodLiq.monto,
               productos: acc[prodLiq.cierreId].productos + prodLiq.vendidos,
               // Mantener la fecha de liquidación más reciente para liquidaciones completadas
-              fechaLiquidacion: prodLiq.liquidatedAt && (!acc[prodLiq.cierreId].fechaLiquidacion || new Date(prodLiq.liquidatedAt) > new Date(acc[prodLiq.cierreId].fechaLiquidacion)) 
-                ? prodLiq.liquidatedAt 
-                : acc[prodLiq.cierreId].fechaLiquidacion
-            }
-          }
+              fechaLiquidacion:
+                prodLiq.liquidatedAt &&
+                (!acc[prodLiq.cierreId].fechaLiquidacion ||
+                  new Date(prodLiq.liquidatedAt) >
+                    new Date(acc[prodLiq.cierreId].fechaLiquidacion))
+                  ? prodLiq.liquidatedAt
+                  : acc[prodLiq.cierreId].fechaLiquidacion,
+            },
+          };
         }
-      }, {})
+      }, {});
 
       if (!dataProveedor) {
-        router.push('/proveedores');
+        router.push("/proveedores");
         return;
       }
-
 
       // Ordena por 2 criterios
       // 1: Estado: Muestra primero los pendientes y despues los completados.
       // 2: Fecha: Para el grupo de los pendientes, los primeros serán los más antiguos.
-      //           Para el grupo de los completados, los primeros seran los mas actuales. 
-      const liquidacionesData = (Object.values(liquidacionesProveedorObj) as  ILiquidacion[])
-      .sort((a, b) => {
-        if(a.estado === 'completada' && b.estado === 'pendiente') {
+      //           Para el grupo de los completados, los primeros seran los mas actuales.
+      const liquidacionesData = (
+        Object.values(liquidacionesProveedorObj) as ILiquidacion[]
+      ).sort((a, b) => {
+        if (a.estado === "completada" && b.estado === "pendiente") {
           return 1;
-        } else if(a.estado === 'pendiente' && b.estado === 'completada') {
+        } else if (a.estado === "pendiente" && b.estado === "completada") {
           return -1;
         } else {
           // Ambos tienen el mismo estado, ordenar por fecha
-          if(a.estado === 'pendiente') {
+          if (a.estado === "pendiente") {
             // Para pendientes: fechas más antiguas primero (orden ascendente)
-            if( new Date(a.fecha) > new Date(b.fecha) ) {
-              return 1;   // 'a' va DESPUÉS de 'b'
+            if (new Date(a.fecha) > new Date(b.fecha)) {
+              return 1; // 'a' va DESPUÉS de 'b'
             } else {
-              return -1;  // 'a' va ANTES de 'b'
+              return -1; // 'a' va ANTES de 'b'
             }
           } else {
             // Para completadas: fechas más recientes primero (orden descendente)
-            if( new Date(a.fecha) > new Date(b.fecha) ) {
-              return -1;  // 'a' va ANTES de 'b'
+            if (new Date(a.fecha) > new Date(b.fecha)) {
+              return -1; // 'a' va ANTES de 'b'
             } else {
-              return 1;   // 'a' va DESPUÉS de 'b'
+              return 1; // 'a' va DESPUÉS de 'b'
             }
           }
         }
-      })
+      });
 
-      const prodsConsignaciónMap: IProductoConsignacion[] = pclc.reduce((acc, prod)   => {
-        if(!acc[prod.productoId]) {
-          return {
-            ...acc,
-            [prod.productoId]: {
-              id: prod.productoId,
-              nombre: prod.producto.nombre,
-              categoria: prod.producto.categoria.nombre,
-              precio: prod.precio,
+      const prodsConsignaciónMap: IProductoConsignacion[] = pclc.reduce(
+        (acc, prod) => {
+          if (!acc[prod.productoId]) {
+            return {
+              ...acc,
+              [prod.productoId]: {
+                id: prod.productoId,
+                nombre: prod.producto.nombre,
+                categoria: prod.producto.categoria.nombre,
+                precio: prod.precio,
 
-              vendidos: prod.vendidos,
-              
-              disponibles: prod.existencia,
-              ganancias: (prod.vendidos * prod.precio) - prod.monto
-            }
+                vendidos: prod.vendidos,
+
+                disponibles: prod.existencia,
+                ganancias: prod.vendidos * prod.precio - prod.monto,
+              },
+            };
+          } else {
+            return {
+              ...acc,
+              [prod.productoId]: {
+                ...acc[prod.productoId],
+                vendidos: acc[prod.productoId].vendidos + prod.vendidos,
+
+                disponibles: acc[prod.productoId].disponibles + prod.existencia,
+                ganancias:
+                  acc[prod.productoId].ganancias +
+                  (prod.vendidos * prod.precio - prod.monto),
+              },
+            };
           }
-        } else {
-          return {
-            ...acc,
-            [prod.productoId]: {
-              ...acc[prod.productoId],
-              vendidos: acc[prod.productoId].vendidos + prod.vendidos,
-              
-              disponibles: acc[prod.productoId].disponibles + prod.existencia,
-              ganancias: acc[prod.productoId].ganancias + ((prod.vendidos * prod.precio) - prod.monto)
-            }
-          }
-        }
-      }, {});
+        },
+        {},
+      );
 
       const prodsConsignación = Object.values(prodsConsignaciónMap);
-
 
       setProveedor(dataProveedor);
       setLiquidaciones(liquidacionesData);
@@ -251,24 +265,28 @@ export default function ProveedorDetallePage() {
     setTabValue(newValue);
   };
 
-  const handleChangePage = (type: 'liquidaciones' | 'productos') =>
-    (_: unknown, newPage: number) => {
-      if (type === 'liquidaciones') {
+  const handleChangePage =
+    (type: "liquidaciones" | "productos") => (_: unknown, newPage: number) => {
+      if (type === "liquidaciones") {
         setPageLiquidaciones(newPage);
       } else {
         setPageProductos(newPage);
       }
     };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPageLiquidaciones(0);
     setPageProductos(0);
   };
 
-  const handleLiquidarProveedor = async (cierreId: string, proveedorId: string) => {
+  const handleLiquidarProveedor = async (
+    cierreId: string,
+    proveedorId: string,
+  ) => {
     try {
-
       // Preguntar si desea liquidar el proveedor
       confirmDialog(
         "¿Está seguro de desea liquidar al proveedor?",
@@ -277,36 +295,45 @@ export default function ProveedorDetallePage() {
           await liquidarProveedorConsignacion(cierreId, proveedorId);
           await fetchData();
           showMessage("Proveedor liquidado correctamente", "success");
-        }
+        },
+        undefined,
+        { severity: "warning" },
       );
-
     } catch (error) {
       console.error("Error al liquidar el proveedor:", error);
-      showMessage( "Error al liquidar el proveedor", "error");
+      showMessage("Error al liquidar el proveedor", "error");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   // Componente de estadística
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Proveedores', href: '/proveedores' },
-    { label: proveedor?.nombre || 'Cargando...' }
+    { label: "Inicio", href: "/home" },
+    { label: "Proveedores", href: "/proveedores" },
+    { label: proveedor?.nombre || "Cargando..." },
   ];
 
   const headerActions = (
-    <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
+    <Stack
+      direction={isMobile ? "column" : "row"}
+      spacing={1}
+      sx={{ width: isMobile ? "100%" : "auto" }}
+    >
       <Button
         variant="outlined"
         startIcon={<ArrowBack />}
-        onClick={() => router.push('/proveedores')}
+        onClick={() => router.push("/proveedores")}
         size={isMobile ? "small" : "medium"}
       >
         Volver
       </Button>
       <Tooltip title="Actualizar datos">
-        <IconButton onClick={fetchData} disabled={loading} size={isMobile ? "small" : "medium"}>
+        <IconButton
+          onClick={fetchData}
+          disabled={loading}
+          size={isMobile ? "small" : "medium"}
+        >
           <Refresh />
         </IconButton>
       </Tooltip>
@@ -327,11 +354,13 @@ export default function ProveedorDetallePage() {
 
   if (!proveedor) {
     return (
-      <PageContainer
-        title="Proveedor no encontrado"
-        breadcrumbs={breadcrumbs}
-      >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <PageContainer title="Proveedor no encontrado" breadcrumbs={breadcrumbs}>
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="200px"
+        >
           <Typography variant="h6">
             No se pudo encontrar el proveedor solicitado
           </Typography>
@@ -349,15 +378,17 @@ export default function ProveedorDetallePage() {
           hue={proveedor.estado === "activo" ? "positive" : "neutral"}
         />
       }
-      subtitle={!isMobile ? "Detalles del proveedor, liquidaciones y productos en consignación" : undefined}
+      subtitle={
+        !isMobile
+          ? "Detalles del proveedor, liquidaciones y productos en consignación"
+          : undefined
+      }
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
     >
       {/* Información del proveedor */}
-      <ContentCard
-        title="Información del Proveedor"
-      >
+      <ContentCard title="Información del Proveedor">
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
             <Stack spacing={2}>
@@ -367,7 +398,9 @@ export default function ProveedorDetallePage() {
                     <Phone fontSize="small" color="action" />
                     <Typography
                       variant="body2"
-                      color={proveedor.telefono ? "text.primary" : "text.disabled"}
+                      color={
+                        proveedor.telefono ? "text.primary" : "text.disabled"
+                      }
                     >
                       {proveedor.telefono || "Sin teléfono"}
                     </Typography>
@@ -378,7 +411,9 @@ export default function ProveedorDetallePage() {
                     <Email fontSize="small" color="action" />
                     <Typography
                       variant="body2"
-                      color={proveedor.direccion ? "text.primary" : "text.disabled"}
+                      color={
+                        proveedor.direccion ? "text.primary" : "text.disabled"
+                      }
                     >
                       {proveedor.direccion || "Sin correo"}
                     </Typography>
@@ -388,7 +423,12 @@ export default function ProveedorDetallePage() {
                   <Box display="flex" alignItems="center" gap={1}>
                     <CalendarToday fontSize="small" color="action" />
                     <Typography variant="body2">
-                      Última liquidación: {proveedor.ultimaLiquidacion ? new Date(proveedor.ultimaLiquidacion).toLocaleDateString() : 'Sin liquidar'}
+                      Última liquidación:{" "}
+                      {proveedor.ultimaLiquidacion
+                        ? new Date(
+                            proveedor.ultimaLiquidacion,
+                          ).toLocaleDateString()
+                        : "Sin liquidar"}
                     </Typography>
                   </Box>
                 </Grid>
@@ -396,7 +436,8 @@ export default function ProveedorDetallePage() {
                   <Box display="flex" alignItems="center" gap={1}>
                     <LocalShipping fontSize="small" color="action" />
                     <Typography variant="body2">
-                      {proveedor.totalProductosConsignacion} productos en consignación
+                      {proveedor.totalProductosConsignacion} productos en
+                      consignación
                     </Typography>
                   </Box>
                 </Grid>
@@ -411,8 +452,7 @@ export default function ProveedorDetallePage() {
                 {
                   label: "Dinero Liquidado",
                   value: formatCurrency(proveedor.dineroLiquidado),
-                  tone:
-                    proveedor.dineroLiquidado > 0 ? "positive" : undefined,
+                  tone: proveedor.dineroLiquidado > 0 ? "positive" : undefined,
                 },
                 {
                   label: "Por Liquidar",
@@ -426,7 +466,7 @@ export default function ProveedorDetallePage() {
 
       {/* Pestañas */}
       <ContentCard noPadding>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
           <Tabs
             value={tabValue}
             onChange={handleTabChange}
@@ -460,61 +500,98 @@ export default function ProveedorDetallePage() {
           {isMobile ? (
             // Vista móvil con cards
             <Stack spacing={2} sx={{ mt: 3 }}>
-              {liquidaciones.slice(pageLiquidaciones * rowsPerPage, (pageLiquidaciones + 1) * rowsPerPage).map((liquidacion) => (
-                <Card key={liquidacion.id} variant="outlined">
-                  <CardContent>
-                    <Stack spacing={2}>
-                      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+              {liquidaciones
+                .slice(
+                  pageLiquidaciones * rowsPerPage,
+                  (pageLiquidaciones + 1) * rowsPerPage,
+                )
+                .map((liquidacion) => (
+                  <Card key={liquidacion.id} variant="outlined">
+                    <CardContent>
+                      <Stack spacing={2}>
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="flex-start"
+                        >
+                          <Box>
+                            <Typography variant="subtitle2" fontWeight="medium">
+                              {dayjs(liquidacion.fecha).format("DD/MM/YYYY")}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {liquidacion.productos} productos
+                            </Typography>
+                          </Box>
+                          <Box
+                            display="flex"
+                            flexDirection="column"
+                            alignItems="flex-end"
+                            gap={0.5}
+                          >
+                            <Chip
+                              label={liquidacion.estado}
+                              color={
+                                liquidacion.estado === "completada"
+                                  ? "success"
+                                  : "warning"
+                              }
+                              size="small"
+                            />
+                            {liquidacion.estado === "completada" &&
+                              liquidacion.fechaLiquidacion && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {dayjs(liquidacion.fechaLiquidacion).format(
+                                    "DD/MM/YYYY",
+                                  )}
+                                </Typography>
+                              )}
+                          </Box>
+                        </Box>
+
                         <Box>
-                          <Typography variant="subtitle2" fontWeight="medium">
-                            {dayjs(liquidacion.fecha).format("DD/MM/YYYY")}
+                          <Typography
+                            variant="h6"
+                            color="success.main"
+                            fontWeight="bold"
+                          >
+                            {formatCurrency(liquidacion.monto)}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            {liquidacion.productos} productos
+                            {liquidacion.observaciones}
                           </Typography>
                         </Box>
-                        <Box display="flex" flexDirection="column" alignItems="flex-end" gap={0.5}>
-                          <Chip
-                            label={liquidacion.estado}
-                            color={liquidacion.estado === 'completada' ? 'success' : 'warning'}
-                            size="small"
-                          />
-                          {liquidacion.estado === 'completada' && liquidacion.fechaLiquidacion && (
-                            <Typography variant="caption" color="text.secondary">
-                              {dayjs(liquidacion.fechaLiquidacion).format("DD/MM/YYYY")}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Box>
 
-                      <Box>
-                        <Typography variant="h6" color="success.main" fontWeight="bold">
-                          {formatCurrency(liquidacion.monto)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {liquidacion.observaciones}
-                        </Typography>
-                      </Box>
-
-                      {liquidacion.estado === 'pendiente' && (
-                        <Box sx={{ pt: 1 }}>
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            startIcon={<Payment />}
-                            onClick={() => handleLiquidarProveedor(liquidacion.id, id.toString())}
-                            fullWidth
-                            disabled={!verificarPermiso("configuracion.proveedores.liquidar")}
-                          >
-                            Liquidar
-                          </Button>
-                        </Box>
-                      )}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
+                        {liquidacion.estado === "pendiente" && (
+                          <Box sx={{ pt: 1 }}>
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              size="small"
+                              startIcon={<Payment />}
+                              onClick={() =>
+                                handleLiquidarProveedor(
+                                  liquidacion.id,
+                                  id.toString(),
+                                )
+                              }
+                              fullWidth
+                              disabled={
+                                !verificarPermiso(
+                                  "configuracion.proveedores.liquidar",
+                                )
+                              }
+                            >
+                              Liquidar
+                            </Button>
+                          </Box>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
             </Stack>
           ) : (
             // Vista desktop con tabla
@@ -532,67 +609,84 @@ export default function ProveedorDetallePage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {liquidaciones.slice(pageLiquidaciones * rowsPerPage, (pageLiquidaciones + 1) * rowsPerPage).map((liquidacion) => (
-                    <TableRow key={liquidacion.id}>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {dayjs(liquidacion.fecha).format("DD/MM/YYYY")}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" fontWeight="medium" color="success.main">
-                          {formatCurrency(liquidacion.monto)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography
-                          variant="body2"
-                          sx={{ fontVariantNumeric: "tabular-nums" }}
-                        >
-                          {liquidacion.productos}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {liquidacion.observaciones}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <StatusPill
-                          label={liquidacion.estado}
-                          hue={
-                            liquidacion.estado === "completada"
-                              ? "positive"
-                              : "caution"
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {liquidacion.estado === 'completada' && liquidacion.fechaLiquidacion ? (
-                          <Typography variant="body2" color="text.secondary">
-                            {dayjs(liquidacion.fechaLiquidacion).format("DD/MM/YYYY")}
+                  {liquidaciones
+                    .slice(
+                      pageLiquidaciones * rowsPerPage,
+                      (pageLiquidaciones + 1) * rowsPerPage,
+                    )
+                    .map((liquidacion) => (
+                      <TableRow key={liquidacion.id}>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {dayjs(liquidacion.fecha).format("DD/MM/YYYY")}
                           </Typography>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            -
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell align="center">
-                        {liquidacion.estado === 'pendiente' && (
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            startIcon={<Payment />}
-                            onClick={() => handleLiquidarProveedor(liquidacion.id, id.toString())}
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            color="success.main"
                           >
-                            Liquidar
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            {formatCurrency(liquidacion.monto)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            sx={{ fontVariantNumeric: "tabular-nums" }}
+                          >
+                            {liquidacion.productos}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {liquidacion.observaciones}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <StatusPill
+                            label={liquidacion.estado}
+                            hue={
+                              liquidacion.estado === "completada"
+                                ? "positive"
+                                : "caution"
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {liquidacion.estado === "completada" &&
+                          liquidacion.fechaLiquidacion ? (
+                            <Typography variant="body2" color="text.secondary">
+                              {dayjs(liquidacion.fechaLiquidacion).format(
+                                "DD/MM/YYYY",
+                              )}
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              -
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell align="center">
+                          {liquidacion.estado === "pendiente" && (
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              size="small"
+                              startIcon={<Payment />}
+                              onClick={() =>
+                                handleLiquidarProveedor(
+                                  liquidacion.id,
+                                  id.toString(),
+                                )
+                              }
+                            >
+                              Liquidar
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -602,7 +696,7 @@ export default function ProveedorDetallePage() {
             component="div"
             count={liquidaciones.length}
             page={pageLiquidaciones}
-            onPageChange={handleChangePage('liquidaciones')}
+            onPageChange={handleChangePage("liquidaciones")}
             rowsPerPage={rowsPerPage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             rowsPerPageOptions={[5, 10, 25]}
@@ -623,57 +717,78 @@ export default function ProveedorDetallePage() {
           {isMobile ? (
             // Vista móvil con cards
             <Stack spacing={2} sx={{ mt: 3 }}>
-              {productosConsignacion.slice(pageProductos * rowsPerPage, (pageProductos + 1) * rowsPerPage).map((producto) => (
-                <Card key={producto.id} variant="outlined">
-                  <CardContent>
-                    <Stack spacing={2}>
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="medium">
-                          {producto.nombre}
-                        </Typography>
-                        {/* <Typography variant="body2" color="text.secondary">
+              {productosConsignacion
+                .slice(
+                  pageProductos * rowsPerPage,
+                  (pageProductos + 1) * rowsPerPage,
+                )
+                .map((producto) => (
+                  <Card key={producto.id} variant="outlined">
+                    <CardContent>
+                      <Stack spacing={2}>
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight="medium">
+                            {producto.nombre}
+                          </Typography>
+                          {/* <Typography variant="body2" color="text.secondary">
                           {producto.codigo} - {producto.categoria}
                         </Typography> */}
-                      </Box>
+                        </Box>
 
-                      <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Precio
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(producto.precio)}
-                          </Typography>
+                        <Grid container spacing={2}>
+                          <Grid item xs={6}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Precio
+                            </Typography>
+                            <Typography variant="body2" fontWeight="medium">
+                              {formatCurrency(producto.precio)}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Disponibles
+                            </Typography>
+                            <Typography variant="body2" fontWeight="medium">
+                              {producto.disponibles}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Vendidos
+                            </Typography>
+                            <Typography variant="body2" fontWeight="medium">
+                              {producto.vendidos}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Ganancias
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              fontWeight="medium"
+                              color="success.main"
+                            >
+                              {formatCurrency(producto.ganancias)}
+                            </Typography>
+                          </Grid>
                         </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Disponibles
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {producto.disponibles}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Vendidos
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {producto.vendidos}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Ganancias
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="success.main">
-                            {formatCurrency(producto.ganancias)}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
             </Stack>
           ) : (
             // Vista desktop con tabla
@@ -692,58 +807,67 @@ export default function ProveedorDetallePage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {productosConsignacion.slice(pageProductos * rowsPerPage, (pageProductos + 1) * rowsPerPage).map((producto) => (
-                    <TableRow key={producto.id}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
-                          {producto.nombre}
-                        </Typography>
-                      </TableCell>
-                      {/* <TableCell>
+                  {productosConsignacion
+                    .slice(
+                      pageProductos * rowsPerPage,
+                      (pageProductos + 1) * rowsPerPage,
+                    )
+                    .map((producto) => (
+                      <TableRow key={producto.id}>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
+                            {producto.nombre}
+                          </Typography>
+                        </TableCell>
+                        {/* <TableCell>
                         <Typography variant="body2">
                           {producto.codigo}
                         </Typography>
                       </TableCell> */}
-                      <TableCell>
-                        <Typography variant="body2">
-                          {producto.categoria}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2">
-                          {formatCurrency(producto.precio)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography
-                          variant="body2"
-                          fontWeight="medium"
-                          sx={{ fontVariantNumeric: "tabular-nums" }}
-                        >
-                          {producto.disponibles}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography
-                          variant="body2"
-                          fontWeight="medium"
-                          sx={{ fontVariantNumeric: "tabular-nums" }}
-                        >
-                          {producto.vendidos}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" color="success.main" fontWeight="medium">
-                          {formatCurrency(producto.ganancias)}
-                        </Typography>
-                      </TableCell>
-                      {/* <TableCell align="center">
+                        <TableCell>
+                          <Typography variant="body2">
+                            {producto.categoria}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {formatCurrency(producto.precio)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            sx={{ fontVariantNumeric: "tabular-nums" }}
+                          >
+                            {producto.disponibles}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            sx={{ fontVariantNumeric: "tabular-nums" }}
+                          >
+                            {producto.vendidos}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            color="success.main"
+                            fontWeight="medium"
+                          >
+                            {formatCurrency(producto.ganancias)}
+                          </Typography>
+                        </TableCell>
+                        {/* <TableCell align="center">
                         <Typography variant="body2">
                           {dayjs(producto.fechaIngreso).format("DD/MM/YYYY")}
                         </Typography>
                       </TableCell> */}
-                    </TableRow>
-                  ))}
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -753,7 +877,7 @@ export default function ProveedorDetallePage() {
             component="div"
             count={productosConsignacion.length}
             page={pageProductos}
-            onPageChange={handleChangePage('productos')}
+            onPageChange={handleChangePage("productos")}
             rowsPerPage={rowsPerPage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             rowsPerPageOptions={[5, 10, 25]}
@@ -765,4 +889,4 @@ export default function ProveedorDetallePage() {
       {ConfirmDialogComponent}
     </PageContainer>
   );
-} 
+}

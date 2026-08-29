@@ -69,7 +69,6 @@ export default function DestinosTransferenciaPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-
   useEffect(() => {
     if (user?.localActual?.id) {
       loadDestinations();
@@ -159,6 +158,8 @@ export default function DestinosTransferenciaPage() {
           await loadDestinations();
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 
@@ -246,7 +247,10 @@ export default function DestinosTransferenciaPage() {
     >
       <StatStrip
         stats={[
-          { label: "Total Destinos", value: totalDestinations.toLocaleString() },
+          {
+            label: "Total Destinos",
+            value: totalDestinations.toLocaleString(),
+          },
           { label: "Por Defecto", value: defaultDestinations.toLocaleString() },
           {
             label: "Con Descripción",
