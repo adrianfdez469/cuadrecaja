@@ -334,6 +334,8 @@ export default function UsuariosPage() {
       headerActions={headerActions}
       maxWidth="xl"
     >
+      {isMobile && <Box sx={{ mb: 2 }}>{agregarUsuarioButton}</Box>}
+
       <StatStrip
         stats={[
           { label: "Total Usuarios", value: totalUsuarios.toLocaleString() },
