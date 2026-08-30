@@ -1,7 +1,6 @@
 "use client";
 
 import { Box } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import type { SxProps, Theme } from "@mui/material";
 
 interface WordmarkProps {
@@ -13,16 +12,14 @@ interface WordmarkProps {
 }
 
 /**
- * The name, set once and the same way everywhere.
+ * The canonical lockup name for the product.
  *
- * The app used to give it three different treatments depending on the screen —
- * the splash went as far as uppercase at weight 900 with a black-to-violet
- * gradient. There is one treatment now: the product's own family, weight 700,
- * with «de» dropped to weight 400 and secondary ink so the two words that
- * matter carry the name and the small one only sets its rhythm.
+ * Appears in 17px/700 weight, set on a violet ground as a branded element.
+ * All text is white on the background — the three words form a single visual
+ * unit that replaces the three prior treatments (splash, header, footer).
  */
 export function Wordmark({ size = 17, tone = "default", sx }: WordmarkProps) {
-  const inverse = tone === "inverse";
+  const onLilaBackground = tone === "inverse"; // Violet background uses inverse (white text)
 
   return (
     <Box
@@ -30,28 +27,26 @@ export function Wordmark({ size = 17, tone = "default", sx }: WordmarkProps) {
       sx={{
         display: "inline-flex",
         alignItems: "center",
-        gap: "0.32em",
+        gap: "0.24em",
         fontSize: `${size}px`,
         fontWeight: 700,
-        letterSpacing: "-0.03em",
+        letterSpacing: "-0.025em",
         whiteSpace: "nowrap",
-        color: inverse ? "semantic.text.onInverse" : "text.primary",
+        ...(onLilaBackground
+          ? {
+              backgroundColor: "primary.main",
+              color: "white",
+              px: "12px",
+              py: "6px",
+              borderRadius: "6px",
+            }
+          : {
+              color: "text.primary",
+            }),
         ...sx,
       }}
     >
-      Cuadre
-      <Box
-        component="span"
-        sx={{
-          fontWeight: 400,
-          color: inverse
-            ? (theme) => alpha(theme.palette.semantic.text.onInverse, 0.6)
-            : "text.secondary",
-        }}
-      >
-        de
-      </Box>
-      Caja
+      Cuadre de Caja
     </Box>
   );
 }

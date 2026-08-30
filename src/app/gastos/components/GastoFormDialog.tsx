@@ -20,6 +20,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import {
   ICreateGastoTienda,
   ICreateGastoPlantilla,
@@ -191,17 +192,46 @@ export default function GastoFormDialog({
             )}
           />
 
-          <FormControl fullWidth error={!!errors.tipoCalculo}>
-            <InputLabel>Tipo de cálculo</InputLabel>
+          {/* Tipo de cálculo — patrón .pick */}
+          <Box>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                display: "block",
+                mb: 1,
+              }}
+            >
+              Tipo de cálculo
+            </Typography>
             <Select
               value={form.tipoCalculo}
-              label="Tipo de cálculo"
               onChange={(e) => set("tipoCalculo", e.target.value)}
+              fullWidth
+              error={!!errors.tipoCalculo}
+              renderValue={(value) => (
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>
+                      {TIPO_CALCULO_LABELS[value]}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {TIPO_CALCULO_DESCRIPTIONS[value]}
+                    </Typography>
+                  </Box>
+                  <ChevronRightIcon fontSize="small" />
+                </Box>
+              )}
             >
               {TipoCalculoEnum.options.map((opt) => (
                 <MenuItem key={opt} value={opt}>
                   <Box>
-                    <Typography variant="body2">
+                    <Typography variant="body2" fontWeight={600}>
                       {TIPO_CALCULO_LABELS[opt]}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -212,21 +242,50 @@ export default function GastoFormDialog({
               ))}
             </Select>
             {errors.tipoCalculo && (
-              <FormHelperText>{errors.tipoCalculo}</FormHelperText>
+              <FormHelperText error>{errors.tipoCalculo}</FormHelperText>
             )}
-          </FormControl>
+          </Box>
 
-          <FormControl fullWidth error={!!errors.naturaleza}>
-            <InputLabel>Naturaleza</InputLabel>
+          {/* Naturaleza — patrón .pick */}
+          <Box>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                display: "block",
+                mb: 1,
+              }}
+            >
+              Naturaleza
+            </Typography>
             <Select
               value={form.naturaleza}
-              label="Naturaleza"
               onChange={(e) => set("naturaleza", e.target.value)}
+              fullWidth
+              error={!!errors.naturaleza}
+              renderValue={(value) => (
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>
+                      {NATURALEZA_GASTO_LABELS[value]}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {NATURALEZA_GASTO_DESCRIPTIONS[value]}
+                    </Typography>
+                  </Box>
+                  <ChevronRightIcon fontSize="small" />
+                </Box>
+              )}
             >
               {NaturalezaGastoEnum.options.map((opt) => (
                 <MenuItem key={opt} value={opt}>
                   <Box>
-                    <Typography variant="body2">
+                    <Typography variant="body2" fontWeight={600}>
                       {NATURALEZA_GASTO_LABELS[opt]}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -237,9 +296,9 @@ export default function GastoFormDialog({
               ))}
             </Select>
             {errors.naturaleza && (
-              <FormHelperText>{errors.naturaleza}</FormHelperText>
+              <FormHelperText error>{errors.naturaleza}</FormHelperText>
             )}
-          </FormControl>
+          </Box>
 
           {showMonto && (
             <MoneyField
@@ -263,17 +322,46 @@ export default function GastoFormDialog({
             />
           )}
 
-          <FormControl fullWidth error={!!errors.recurrencia}>
-            <InputLabel>Recurrencia</InputLabel>
+          {/* Recurrencia — patrón .pick */}
+          <Box>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                display: "block",
+                mb: 1,
+              }}
+            >
+              Recurrencia
+            </Typography>
             <Select
               value={form.recurrencia}
-              label="Recurrencia"
               onChange={(e) => set("recurrencia", e.target.value)}
+              fullWidth
+              error={!!errors.recurrencia}
+              renderValue={(value) => (
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>
+                      {RECURRENCIA_LABELS[value]}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {RECURRENCIA_DESCRIPTIONS[value]}
+                    </Typography>
+                  </Box>
+                  <ChevronRightIcon fontSize="small" />
+                </Box>
+              )}
             >
               {RecurrenciaGastoEnum.options.map((opt) => (
                 <MenuItem key={opt} value={opt}>
                   <Box>
-                    <Typography variant="body2">
+                    <Typography variant="body2" fontWeight={600}>
                       {RECURRENCIA_LABELS[opt]}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -284,9 +372,9 @@ export default function GastoFormDialog({
               ))}
             </Select>
             {errors.recurrencia && (
-              <FormHelperText>{errors.recurrencia}</FormHelperText>
+              <FormHelperText error>{errors.recurrencia}</FormHelperText>
             )}
-          </FormControl>
+          </Box>
 
           {showDiaMes && (
             <FormControl fullWidth error={!!errors.diaMes}>

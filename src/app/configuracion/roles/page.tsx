@@ -376,17 +376,28 @@ export default function RolesPage() {
                                   key={permiso}
                                   label={permiso}
                                   size="small"
-                                  variant="outlined"
-                                  color="primary"
+                                  variant="filled"
+                                  sx={{
+                                    backgroundColor:
+                                      theme.palette.semantic.surface.sunken,
+                                    color: "text.primary",
+                                    fontFamily: "monospace",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 500,
+                                  }}
                                 />
                               ))}
                             {rol.permisos.split("|").length > 3 && (
-                              <Chip
-                                label={`+${rol.permisos.split("|").length - 3} más`}
-                                size="small"
-                                variant="outlined"
-                                color="default"
-                              />
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: "primary.main",
+                                  cursor: "pointer",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                +{rol.permisos.split("|").length - 3} más
+                              </Typography>
                             )}
                           </Box>
                         </TableCell>

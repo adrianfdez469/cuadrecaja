@@ -33,6 +33,7 @@ import { useMessageContext } from "@/context/MessageContext";
 import { IFormaPagoCompra } from "@/schemas/movimiento";
 import { formatAdvertenciasCaja, formatCurrency } from "@/utils/formatters";
 import { generateUUID } from "@/utils/uuid";
+import { shape } from "@/theme";
 import useConfirmDialog from "@/components/confirmDialog";
 import { FormaPagoCompraSelect } from "@/components/GestionInventario/FormaPagoCompraSelect";
 import MoneyField from "@/components/MoneyField";
@@ -315,8 +316,20 @@ export function CreateMovimientoDialog({
       <Dialog
         open={open}
         onClose={saving ? undefined : onClose}
-        maxWidth="xs"
         fullWidth
+        PaperProps={{
+          sx: {
+            width: 900,
+            borderRadius: `${shape.radius.md}px`,
+          },
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              backgroundColor: "rgba(19,20,23,.35)",
+            },
+          },
+        }}
       >
         <DialogTitle>
           Registrar movimiento — {producto.producto.nombre}
@@ -470,8 +483,8 @@ export function CreateMovimientoDialog({
             />
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} disabled={saving}>
+        <DialogActions sx={{ gap: 1, py: 1.5, px: 2 }}>
+          <Button onClick={onClose} disabled={saving} sx={{ minHeight: 56 }}>
             Cancelar
           </Button>
           <Button
@@ -483,6 +496,7 @@ export function CreateMovimientoDialog({
                 <CircularProgress size={16} color="inherit" />
               ) : undefined
             }
+            sx={{ minHeight: 56 }}
           >
             {saving ? "Guardando..." : "Registrar"}
           </Button>

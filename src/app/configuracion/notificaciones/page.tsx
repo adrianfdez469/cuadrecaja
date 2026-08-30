@@ -280,6 +280,13 @@ export default function NotificacionesPage() {
       BAJA: { label: "Baja", hue: "neutral" },
     };
 
+  const TIPO_LABELS: Record<TipoNotificacion, string> = {
+    ALERTA: "Alerta",
+    NOTIFICACION: "Notificación",
+    PROMOCION: "Promoción",
+    MENSAJE: "Mensaje",
+  };
+
   const isActive = (notificacion: INotificacion) => {
     const ahora = new Date();
     return (
@@ -376,6 +383,110 @@ export default function NotificacionesPage() {
 
         {loading ? (
           <LoadingState variant="table" />
+        ) : isMobile ? (
+          // `rediseno/notificaciones-movil.html`: título primero, fechas al
+          // pie — una card por notificación, no la tabla de escritorio
+          // recortada.
+          <Stack spacing={1.5}>
+            {filteredNotificaciones.map((notificacion) => (
+              <Box
+                key={notificacion.id}
+                sx={{
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 1.5,
+                  p: 2,
+                }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  flexWrap="wrap"
+                  useFlexGap
+                >
+                  {getTipoIcon(notificacion.tipo)}
+                  <Typography variant="caption" color="text.secondary">
+                    {TIPO_LABELS[notificacion.tipo] || notificacion.tipo}
+                  </Typography>
+                  <StatusPill
+                    label={
+                      IMPORTANCE[notificacion.nivelImportancia]?.label ??
+                      notificacion.nivelImportancia
+                    }
+                    hue={
+                      IMPORTANCE[notificacion.nivelImportancia]?.hue ??
+                      "neutral"
+                    }
+                  />
+                  <StatusPill
+                    label={isActive(notificacion) ? "Activa" : "Inactiva"}
+                    hue={isActive(notificacion) ? "positive" : "neutral"}
+                  />
+                </Stack>
+
+                <Typography sx={{ mt: 1, fontWeight: 700, fontSize: "1rem" }}>
+                  {notificacion.titulo}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 0.5 }}
+                >
+                  {notificacion.descripcion.substring(0, 50)}...
+                </Typography>
+
+                <Stack
+                  spacing={0.375}
+                  sx={{
+                    mt: 1.5,
+                    pt: 1.5,
+                    borderTop: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    Inicio:{" "}
+                    {dayjs(notificacion.fechaInicio).format("DD/MM/YYYY HH:mm")}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Fin:{" "}
+                    {dayjs(notificacion.fechaFin).format("DD/MM/YYYY HH:mm")}
+                  </Typography>
+                </Stack>
+
+                <Stack
+                  direction="row"
+                  justifyContent="flex-end"
+                  sx={{
+                    mt: 0.75,
+                    pt: 0.75,
+                    borderTop: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <IconButton onClick={() => handleOpen(notificacion)}>
+                    <Edit fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDelete(notificacion.id)}
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </Box>
+            ))}
+            {filteredNotificaciones.length === 0 && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ textAlign: "center", py: 4 }}
+              >
+                No hay notificaciones para mostrar.
+              </Typography>
+            )}
+          </Stack>
         ) : (
           <TableContainer>
             <Table>
@@ -397,7 +508,7 @@ export default function NotificacionesPage() {
                       <Stack direction="row" alignItems="center" spacing={1}>
                         {getTipoIcon(notificacion.tipo)}
                         <Typography variant="body2">
-                          {notificacion.tipo}
+                          {TIPO_LABELS[notificacion.tipo] || notificacion.tipo}
                         </Typography>
                       </Stack>
                     </TableCell>

@@ -16,6 +16,7 @@ export default function ForbiddenPage() {
       eyebrow="ERROR 403"
       title="Acceso denegado"
       description="No tienes permisos para acceder a esta sección. Contacta al administrador si crees que esto es un error."
+      hue="accent"
       actions={
         <>
           <Button

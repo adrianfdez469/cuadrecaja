@@ -424,7 +424,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
         <Box
           display="flex"
           flexDirection="row"
-          justifyContent="flex-start"
+          justifyContent="space-between"
           alignItems="center"
           sx={{
             pb: 2,
@@ -433,9 +433,30 @@ export const UserSalesDrawer: React.FC<IProps> = ({
             mb: 2,
           }}
         >
-          <Typography variant="h5" fontWeight="bold" color="primary">
-            Mis Ventas
-          </Typography>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Typography
+              sx={{
+                fontSize: "11.5px",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "text.primary",
+              }}
+            >
+              Mis Ventas
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: "11.5px",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "text.secondary",
+              }}
+            >
+              {sales.length} {sales.length === 1 ? "venta" : "ventas"}
+            </Typography>
+          </Box>
         </Box>
 
         {/* Contenido Scrollable */}

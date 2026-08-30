@@ -20,7 +20,7 @@ interface BigFigureProps {
   codeSuffix?: string;
   /** «≈ 2.893.000,00 CUP», «= 4.317,91 USD». */
   conversions?: string[];
-  /** 40px in the summary block, 34px on the charge bar. */
+  /** 40px in the summary block, 38px on the charge bar. */
   size?: "lg" | "md";
   onInverse?: boolean;
 }
@@ -68,7 +68,7 @@ export function BigFigure({
       <Typography
         component="div"
         color={onInverse ? "semantic.text.onInverse" : "text.primary"}
-        sx={{ ...FIGURE_SX, fontSize: size === "lg" ? "2.5rem" : "2.125rem" }}
+        sx={{ ...FIGURE_SX, fontSize: size === "lg" ? "2.5rem" : "2.375rem" }}
       >
         {formatAmount(amount)}
         <Box component="span" color={muted} sx={CODE_SX}>

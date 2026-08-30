@@ -30,16 +30,15 @@ import { useRouter } from "next/navigation";
 import { TipoLocal } from "@/schemas/tienda";
 import { excludeOnWarehouse } from "@/utils/excludeOnWarehouse";
 import { usePermisos } from "@/utils/permisos_front";
-import NotificationsWidget from "@/components/NotificationsWidget";
 import { SectionLabel } from "@/components/SectionLabel";
 import { shape } from "@/theme/tokens";
 import { QuickActionTile } from "./components/QuickActionTile";
 import { ConfigRow } from "./components/ConfigRow";
 import { PlanLimitsStrip } from "./components/PlanLimitsStrip";
 import type { NegocioStats } from "./components/PlanLimitsStrip";
-import SubscriptionWarning from "@/components/SubscriptionWarning";
 import SuspensionSummary from "@/components/SuspensionSummary";
-import ExpiringProductsAlert from "@/components/ExpiringProductsAlert";
+import ConsolidatedAlertBanner from "@/components/ConsolidatedAlertBanner";
+import AlertSummaryRows from "@/components/AlertSummaryRows";
 import { useEffect, useState } from "react";
 import { getNegocioStats } from "@/services/negocioServce";
 
@@ -323,7 +322,11 @@ const HomePage = () => {
             {/* Which business and store you are looking at, as one quiet line.
                 It was a filled violet panel on the right — the loudest thing on
                 the screen for a fact you only need to confirm. */}
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 0.75 }}
+            >
               {[user.negocio?.nombre, user.localActual?.nombre]
                 .filter(Boolean)
                 .join(" · ")}
@@ -381,13 +384,10 @@ const HomePage = () => {
             )}
           </Box>
         </Box>
-
       </Box>
 
-      {/* Anything demanding attention goes above the fold, before the work. */}
-      <Box sx={{ mb: 4 }}>
-        <SubscriptionWarning />
-      </Box>
+      {/* Consolidated alert banner: only shows if there's something urgent */}
+      <ConsolidatedAlertBanner tiendaId={user.localActual?.id} />
 
       {/* Acciones rápidas */}
       <Box sx={{ mb: 5 }}>
@@ -426,7 +426,9 @@ const HomePage = () => {
                 action.path === "/inventario" &&
                 !loadingNegocioStats &&
                 negocioStats ? (
-                  <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75 }}>
+                  <Box
+                    sx={{ display: "flex", alignItems: "baseline", gap: 0.75 }}
+                  >
                     <Typography
                       sx={{
                         fontSize: "1.1875rem",
@@ -500,20 +502,9 @@ const HomePage = () => {
         )}
       </Box>
 
-      {/* Two things you open only when the count is not zero, side by side. */}
-      <Box
-        sx={{
-          display: "grid",
-          gap: 1.5,
-          gridTemplateColumns: {
-            xs: "1fr",
-            md: "repeat(auto-fit, minmax(360px, 1fr))",
-          },
-          mb: 5,
-        }}
-      >
-        <ExpiringProductsAlert tiendaId={user.localActual.id} />
-        <NotificationsWidget maxNotifications={5} showBadge={true} />
+      {/* Summary rows: Vencidos and Notificaciones (clickable, compact) */}
+      <Box sx={{ mb: 5 }}>
+        <AlertSummaryRows tiendaId={user.localActual?.id} />
       </Box>
 
       {/* Configuración */}

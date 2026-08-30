@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { StatStrip } from "@/components/StatStrip";
 import { StatusPill } from "@/components/StatusPill";
 import {
@@ -27,10 +27,7 @@ import { ContentCard } from "@/components/ContentCard";
 import { LoadingState } from "@/components/LoadingState";
 import { formatCurrency } from "@/utils/formatters";
 import { useRouter } from "next/navigation";
-import {
-  Refresh,
-  Visibility,
-} from "@mui/icons-material";
+import { Refresh, Visibility } from "@mui/icons-material";
 import { IProveedorConsignacion } from "@/schemas/proveedor";
 import { getProveedoresConsignacion } from "@/services/preoveedoresService";
 
@@ -47,32 +44,34 @@ export default function ProveedoresPage() {
   });
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
   const router = useRouter();
 
-
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // Simulando llamada a API
       const proveedoresConsignación = await getProveedoresConsignacion();
-      
+
       setProveedores(proveedoresConsignación);
 
       // Calcular totales
-      const totalesCalculados = proveedoresConsignación.reduce((acc, proveedor) => {
-        acc.totalLiquidado += proveedor.dineroLiquidado;
-        acc.totalPorLiquidar += proveedor.dineroPorLiquidar;
-        acc.totalProductosConsignacion += proveedor.totalProductosConsignacion;
-        return acc;
-      }, {
-        totalLiquidado: 0,
-        totalPorLiquidar: 0,
-        totalProveedores: proveedoresConsignación.length,
-        totalProductosConsignacion: 0,
-      });
+      const totalesCalculados = proveedoresConsignación.reduce(
+        (acc, proveedor) => {
+          acc.totalLiquidado += proveedor.dineroLiquidado;
+          acc.totalPorLiquidar += proveedor.dineroPorLiquidar;
+          acc.totalProductosConsignacion +=
+            proveedor.totalProductosConsignacion;
+          return acc;
+        },
+        {
+          totalLiquidado: 0,
+          totalPorLiquidar: 0,
+          totalProveedores: proveedoresConsignación.length,
+          totalProductosConsignacion: 0,
+        },
+      );
 
       setTotales(totalesCalculados);
     } catch (error) {
@@ -80,17 +79,19 @@ export default function ProveedoresPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, [page, rowsPerPage]);
+  }, [fetchData]);
 
   const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -101,14 +102,22 @@ export default function ProveedoresPage() {
 
   // Componente de estadística
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Proveedores' }
+    { label: "Inicio", href: "/home" },
+    { label: "Proveedores" },
   ];
 
   const headerActions = (
-    <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
+    <Stack
+      direction={isMobile ? "column" : "row"}
+      spacing={1}
+      sx={{ width: isMobile ? "100%" : "auto" }}
+    >
       <Tooltip title="Actualizar datos">
-        <IconButton onClick={fetchData} disabled={loading} size={isMobile ? "small" : "medium"}>
+        <IconButton
+          onClick={fetchData}
+          disabled={loading}
+          size={isMobile ? "small" : "medium"}
+        >
           <Refresh />
         </IconButton>
       </Tooltip>
@@ -135,35 +144,41 @@ export default function ProveedoresPage() {
       headerActions={headerActions}
       maxWidth="xl"
     >
-      <StatStrip
-        variant="card"
-        stats={[
-          {
-            label: "Total Proveedores",
-            value: totales.totalProveedores.toString(),
-          },
-          {
-            label: "Productos en Consignación",
-            value: totales.totalProductosConsignacion.toString(),
-          },
-          {
-            // The only figure here with a verdict attached: money that came
-            // back in. The other three are counts, and counts are ink.
-            label: "Dinero Liquidado",
-            value: formatCurrency(totales.totalLiquidado),
-            tone: "positive",
-          },
-          {
-            label: "Por Liquidar",
-            value: formatCurrency(totales.totalPorLiquidar),
-          },
-        ]}
-      />
+      <Box sx={{ mb: 3 }}>
+        <StatStrip
+          variant="card"
+          stats={[
+            {
+              label: "Total Proveedores",
+              value: totales.totalProveedores.toString(),
+            },
+            {
+              label: "Productos en Consignación",
+              value: totales.totalProductosConsignacion.toString(),
+            },
+            {
+              // The only figure here with a verdict attached: money that came
+              // back in. The other three are counts, and counts are ink.
+              label: "Dinero Liquidado",
+              value: formatCurrency(totales.totalLiquidado),
+              tone: "positive",
+            },
+            {
+              label: "Por Liquidar",
+              value: formatCurrency(totales.totalPorLiquidar),
+            },
+          ]}
+        />
+      </Box>
 
       {/* Tabla de proveedores */}
       <ContentCard
         title="Listado de Proveedores"
-        subtitle={!isMobile ? `${proveedores.length} proveedores registrados` : undefined}
+        subtitle={
+          !isMobile
+            ? `${proveedores.length} proveedores registrados`
+            : undefined
+        }
         noPadding
         fullHeight
       >
@@ -175,16 +190,20 @@ export default function ProveedoresPage() {
                 <Card
                   key={proveedor.id}
                   sx={{
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
+                    cursor: "pointer",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
                     },
                   }}
                   onClick={() => handleVerDetalle(proveedor.id)}
                 >
                   <CardContent sx={{ p: 2 }}>
                     <Stack spacing={2}>
-                      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="flex-start"
+                      >
                         <Box>
                           <Typography variant="subtitle1" fontWeight="medium">
                             {proveedor.nombre}
@@ -193,7 +212,9 @@ export default function ProveedoresPage() {
                             {proveedor.telefono}
                           </Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        >
                           <StatusPill
                             label={proveedor.estado}
                             hue={
@@ -246,7 +267,11 @@ export default function ProveedoresPage() {
                             Última Liquidación
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
-                            {proveedor.ultimaLiquidacion ? new Date(proveedor.ultimaLiquidacion).toLocaleDateString() : 'Sin liquidar'}
+                            {proveedor.ultimaLiquidacion
+                              ? new Date(
+                                  proveedor.ultimaLiquidacion,
+                                ).toLocaleDateString()
+                              : "Sin liquidar"}
                           </Typography>
                         </Grid>
                       </Grid>
@@ -291,8 +316,8 @@ export default function ProveedoresPage() {
                   <TableRow
                     key={proveedor.id}
                     sx={{
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
+                      "&:hover": {
+                        backgroundColor: "action.hover",
                       },
                     }}
                   >
@@ -307,8 +332,13 @@ export default function ProveedoresPage() {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">
-                        {proveedor.telefono}
+                      <Typography
+                        variant="body2"
+                        color={
+                          proveedor.telefono ? "text.primary" : "text.secondary"
+                        }
+                      >
+                        {proveedor.telefono || "—"}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
@@ -390,4 +420,4 @@ export default function ProveedoresPage() {
       </ContentCard>
     </PageContainer>
   );
-} 
+}

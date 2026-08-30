@@ -96,7 +96,7 @@ export function IncomeStatementTable({
             fontSize: "17px",
             borderTop: "3px solid",
             borderTopColor: "divider",
-            bgcolor: (theme) => theme.palette.neutral.surface,
+            bgcolor: (theme) => theme.palette.semantic.hue.neutral.surface,
           }}
         >
           <Typography
@@ -134,7 +134,7 @@ export function IncomeStatementTable({
             py: 1.5,
             px: 2,
             fontWeight: "bold",
-            bgcolor: (theme) => theme.palette.neutral.surface,
+            bgcolor: (theme) => theme.palette.semantic.hue.neutral.surface,
           }}
         >
           <Typography sx={{ fontWeight: "bold" }}>{line.label}</Typography>

@@ -33,13 +33,7 @@ import { StockFilter, ExpiryFilter } from "../hooks/useGestionInventario";
 import { uniqueBy } from "@/utils/arrayUtils";
 import SelectableTextField from "@/components/SelectableTextField";
 import { ActionSheet } from "@/components/ActionSheet";
-import { shape } from "@/theme";
-
-// El mockup usa `.ib`/`.ibtn` para cualquier botón de solo ícono: 44x44,
-// 12px de radio — nunca el círculo por defecto de MUI. `IconButton` no
-// hereda `theme.shape.borderRadius` (MUI lo fija circular a propósito para
-// avatares y ripples), así que hay que pisarlo acá.
-const squareIconButtonSx = { borderRadius: `${shape.radius.md}px` } as const;
+import { squareIconButtonSx } from "@/theme";
 
 interface InventarioFiltersBarProps {
   searchTerm: string;
@@ -187,9 +181,13 @@ export function InventarioFiltersBar({
               onClick={onCreateProduct}
               sx={{
                 ...squareIconButtonSx,
+                borderColor: "primary.main",
                 bgcolor: "primary.main",
                 color: "primary.contrastText",
-                "&:hover": { bgcolor: "primary.dark" },
+                "&:hover": {
+                  bgcolor: "primary.dark",
+                  borderColor: "primary.dark",
+                },
               }}
             >
               <AddIcon />

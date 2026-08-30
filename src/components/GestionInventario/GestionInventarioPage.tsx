@@ -3,16 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import {
-  Badge,
-  Box,
-  Button,
-  Container,
-  Tab,
-  Tabs,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
+import { Box, Button, useMediaQuery, useTheme } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { useOnboardingStore } from "@/features/onboarding";
 import MovimientosView from "./movimientos/MovimientosView";
@@ -24,6 +15,7 @@ import { GestionInventarioAlerts } from "./alerts/GestionInventarioAlerts";
 import { InventarioFiltersBar } from "./filters/InventarioFiltersBar";
 import { InventarioTable } from "./table/InventarioTable";
 import { InventarioMobileList } from "./table/InventarioMobileList";
+import { InventarioTabs } from "./InventarioTabs";
 import { EditProductDialog } from "./dialogs/EditProductDialog";
 import { ChangeQtyDialog } from "./dialogs/ChangeQtyDialog";
 import { CreateMovimientoDialog } from "./dialogs/CreateMovimientoDialog";
@@ -166,52 +158,25 @@ export function GestionInventarioPage() {
 
   const mostrarTabs = puedeVerInventario && puedeVerMovimientos;
 
-  const tabsBar = mostrarTabs ? (
-    <Container
-      maxWidth="xl"
-      sx={{ px: isMobile ? 1 : 3, pt: isMobile ? 1.5 : 3 }}
-    >
-      <Tabs
-        value={activeTab}
-        onChange={(_, v) => setActiveTab(v)}
-        sx={{
-          borderBottom: 1,
-          borderColor: "divider",
-          // El scroller de Tabs recorta overflow vertical por defecto, lo que
-          // corta la mitad superior del Badge del tab "Movimientos".
-          "& .MuiTabs-scroller": { overflow: "visible !important" },
-        }}
-      >
-        <Tab label="Inventario" value={0} />
-        <Tab
-          value={1}
-          // Reserva espacio a la derecha del texto para que el Badge no quede
-          // recortado por el propio botón del Tab (overflow: hidden del ripple).
-          sx={pendingReceptionCount > 0 ? { pr: 2.5 } : undefined}
-          label={
-            <Badge badgeContent={pendingReceptionCount} color="error">
-              Movimientos
-            </Badge>
-          }
-        />
-      </Tabs>
-    </Container>
-  ) : null;
+  // Compartidas: cada pestaña dibuja este mismo componente bajo su propio
+  // título — ya no hay una barra de tabs separada por encima de la página.
+  const tabsNode = mostrarTabs ? (
+    <InventarioTabs
+      value={activeTab}
+      onChange={setActiveTab}
+      pendingReceptionCount={pendingReceptionCount}
+    />
+  ) : undefined;
 
   if (activeTab === 1 && puedeVerMovimientos) {
-    return (
-      <>
-        {tabsBar}
-        <MovimientosView />
-      </>
-    );
+    return <MovimientosView tabs={tabsNode} />;
   }
 
   return (
     <>
-      {tabsBar}
       <PageContainer
         title="Inventario"
+        tabs={tabsNode}
         // En mobile, crear un producto sigue siendo el "+" junto al buscador
         // (ver InventarioFiltersBar) — un botón de texto acá no entra junto
         // al título a 390px.

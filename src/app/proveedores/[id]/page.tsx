@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { StatStrip } from "@/components/StatStrip";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Box,
@@ -121,7 +120,7 @@ export default function ProveedorDetallePage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const proveedorData = await getProveedoresConsignacionById(id.toString());
@@ -255,11 +254,11 @@ export default function ProveedorDetallePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router]);
 
   useEffect(() => {
     fetchData();
-  }, [id]);
+  }, [fetchData]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -388,10 +387,22 @@ export default function ProveedorDetallePage() {
       maxWidth="xl"
     >
       {/* Información del proveedor */}
-      <ContentCard title="Información del Proveedor">
+      <ContentCard>
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
             <Stack spacing={2}>
+              <Typography
+                variant="overline"
+                sx={{
+                  textTransform: "uppercase",
+                  fontSize: "0.6875rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.5px",
+                  color: "text.secondary",
+                }}
+              >
+                Información del Proveedor
+              </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <Box display="flex" alignItems="center" gap={1}>
@@ -446,20 +457,61 @@ export default function ProveedorDetallePage() {
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <StatStrip
-              variant="card"
-              stats={[
-                {
-                  label: "Dinero Liquidado",
-                  value: formatCurrency(proveedor.dineroLiquidado),
-                  tone: proveedor.dineroLiquidado > 0 ? "positive" : undefined,
-                },
-                {
-                  label: "Por Liquidar",
-                  value: formatCurrency(proveedor.dineroPorLiquidar),
-                },
-              ]}
-            />
+            <Stack
+              spacing={2}
+              sx={{
+                border: 1,
+                borderColor: "divider",
+                borderRadius: "8px",
+                p: 2,
+              }}
+            >
+              <Box>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 0.5 }}
+                >
+                  Dinero Liquidado
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "1.5rem",
+                    fontWeight: 700,
+                    color:
+                      proveedor.dineroLiquidado > 0
+                        ? "success.main"
+                        : "text.primary",
+                  }}
+                >
+                  {formatCurrency(proveedor.dineroLiquidado)}
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  borderTop: 1,
+                  borderColor: "divider",
+                  pt: 2,
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 0.5 }}
+                >
+                  Por Liquidar
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "1.5rem",
+                    fontWeight: 700,
+                    color: "text.primary",
+                  }}
+                >
+                  {formatCurrency(proveedor.dineroPorLiquidar)}
+                </Typography>
+              </Box>
+            </Stack>
           </Grid>
         </Grid>
       </ContentCard>

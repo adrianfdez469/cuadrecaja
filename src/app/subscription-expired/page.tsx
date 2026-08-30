@@ -77,7 +77,7 @@ export default function SubscriptionExpired() {
       }}
     >
       <Box sx={{ width: "100%", maxWidth: 760 }}>
-        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 4 }}>
           <Box
             aria-hidden
             sx={{
@@ -118,17 +118,6 @@ export default function SubscriptionExpired() {
             </Typography>
           </Box>
         </Box>
-
-        {/* One red block, not three: the page used to say «restricted» in a
-            chip, an alert and a bullet, all in the same red. */}
-        <Alert severity="error" sx={{ mb: 3 }}>
-          <AlertTitle sx={{ fontWeight: 700 }}>Acceso restringido</AlertTitle>
-          <Typography variant="body2">
-            Su suscripción ha expirado y su cuenta ha sido suspendida
-            automáticamente. Para reactivarla y recuperar el acceso completo al
-            sistema, debe renovar su suscripción.
-          </Typography>
-        </Alert>
 
         <Box
           sx={{
@@ -178,6 +167,17 @@ export default function SubscriptionExpired() {
             Contactar Soporte
           </Button>
         </Box>
+
+        {/* One red block, not three: the page used to say «restricted» in a
+            chip, an alert and a bullet, all in the same red. */}
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <AlertTitle sx={{ fontWeight: 700 }}>Acceso restringido</AlertTitle>
+          <Typography variant="body2">
+            Su suscripción ha expirado y su cuenta ha sido suspendida
+            automáticamente. Para reactivarla y recuperar el acceso completo al
+            sistema, debe renovar su suscripción.
+          </Typography>
+        </Alert>
 
         <SectionLabel>Estado de su suscripción</SectionLabel>
         <Box sx={{ mb: 4 }}>

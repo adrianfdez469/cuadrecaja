@@ -188,6 +188,11 @@ export default function DownloadClient({ release }: DownloadClientProps) {
                 borderRadius: `${shape.radius.md}px`,
                 fontSize: "1.1875rem",
                 fontVariantNumeric: "tabular-nums",
+                backgroundColor: "semantic.hue.accent.main",
+                color: "semantic.hue.accent.contrast",
+                "&:hover": {
+                  backgroundColor: "primary.dark",
+                },
               }}
             >
               Descargar APK v{release.version}

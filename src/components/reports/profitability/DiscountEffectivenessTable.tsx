@@ -74,7 +74,7 @@ export function DiscountEffectivenessTable({
       title="Efectividad de descuentos"
       subtitle={`${format(totalDescontado)} descontados en ${formatNumber(ventasConDescuento)} venta(s)`}
     >
-      <Stack spacing={2}>
+      <Stack spacing={1.5}>
         {sinReglaAsociada > 0 && (
           <Alert severity="info">
             {format(sinReglaAsociada)} en descuentos no tienen una regla

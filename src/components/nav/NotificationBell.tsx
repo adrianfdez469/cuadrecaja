@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Badge, IconButton, Tooltip } from "@mui/material";
+import { useEffect, useRef, useState } from "react";
+import { Badge, IconButton, Tooltip, Box } from "@mui/material";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import { NotificationApiService } from "@/services/notificationApiService";
 import { touch } from "@/theme";
+import { NotificationPanel } from "./NotificationPanel";
 
 interface NotificationBellProps {
-  onClick: () => void;
   disabled?: boolean;
 }
 
 /**
- * Unread notifications, in the top bar.
+ * Bell icon showing unread notification count (44px, circular).
  *
  * The count was only ever visible once you had already scrolled to the widget
  * on the dashboard — which is the one place you no longer are when something
@@ -22,9 +22,14 @@ interface NotificationBellProps {
  * The fetch fails silently on purpose: this is an ambient indicator, and a
  * store that has lost its connection has better things to tell the cashier
  * than that it could not count its notifications.
+ *
+ * Clicking opens a floating panel with recent active notifications and the
+ * option to navigate to the full management page.
  */
-export function NotificationBell({ onClick, disabled }: NotificationBellProps) {
+export function NotificationBell({ disabled }: NotificationBellProps) {
   const [unread, setUnread] = useState(0);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const bellRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,27 +51,53 @@ export function NotificationBell({ onClick, disabled }: NotificationBellProps) {
   if (unread === 0) return null;
 
   return (
-    <Tooltip title="Notificaciones">
-      <IconButton
-        onClick={disabled ? undefined : onClick}
-        aria-label={`${unread} notificaciones sin leer`}
-        sx={{ width: touch.min, height: touch.min, color: "text.secondary" }}
-      >
-        <Badge
-          badgeContent={unread}
-          color="error"
+    <>
+      <Tooltip title="Notificaciones">
+        <Box
           sx={{
-            "& .MuiBadge-badge": {
-              fontSize: "0.625rem",
-              fontWeight: 700,
-              minWidth: 16,
-              height: 16,
-            },
+            position: "relative",
+            display: "inline-flex",
           }}
         >
-          <NotificationsNoneIcon sx={{ fontSize: 21 }} />
-        </Badge>
-      </IconButton>
-    </Tooltip>
+          <IconButton
+            ref={bellRef}
+            onClick={() => (disabled ? undefined : setPanelOpen(!panelOpen))}
+            aria-label={`${unread} notificaciones sin leer`}
+            sx={{
+              width: touch.min,
+              height: touch.min,
+              color: "text.secondary",
+              backgroundColor: panelOpen ? "action.hover" : "transparent",
+              borderRadius: "50%",
+              transition: "background-color 0.2s",
+            }}
+          >
+            <Badge
+              badgeContent={unread}
+              color="primary"
+              sx={{
+                "& .MuiBadge-badge": {
+                  fontSize: "0.625rem",
+                  fontWeight: 700,
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 3px",
+                  border: "2px solid",
+                  borderColor: "background.paper",
+                },
+              }}
+            >
+              <NotificationsNoneIcon sx={{ fontSize: 21 }} />
+            </Badge>
+          </IconButton>
+        </Box>
+      </Tooltip>
+
+      <NotificationPanel
+        open={panelOpen}
+        anchorEl={bellRef.current}
+        onClose={() => setPanelOpen(false)}
+      />
+    </>
   );
 }

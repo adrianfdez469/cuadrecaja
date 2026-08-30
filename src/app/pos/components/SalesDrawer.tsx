@@ -6,7 +6,6 @@ import {
   Sync,
   Wifi,
   WifiOff,
-  SyncDisabled,
   Print,
 } from "@mui/icons-material";
 import {
@@ -480,19 +479,49 @@ export const SalesDrawer: FC<IProps> = ({
             flexDirection={"row"}
             justifyContent={"space-between"}
             alignItems={"center"}
-            sx={{ mb: 1 }}
+            sx={{ mb: 2 }}
           >
-            {sales.length > 0 ? (
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography
+                sx={{
+                  fontSize: "11.5px",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "text.primary",
+                }}
+              >
+                Ventas del Turno
+              </Typography>
+              {sales.length > 0 && (
+                <Typography
+                  sx={{
+                    fontSize: "11.5px",
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "text.secondary",
+                  }}
+                >
+                  {sales.length} {sales.length === 1 ? "venta" : "ventas"}
+                </Typography>
+              )}
+            </Box>
+            {sales.length > 0 && (
               <Chip
-                label={offline ? `Desconectado` : "Conectado!"}
-                onDelete={() => {}}
+                label={offline ? "Desconectado" : "Conectado"}
                 deleteIcon={offline ? <WifiOff /> : <Wifi />}
+                onDelete={() => {}}
                 color={offline ? "warning" : "success"}
+                size="small"
+                variant={offline ? "filled" : "filled"}
               />
-            ) : (
-              <Box />
             )}
-            <IconButton onClick={handleClose} color="default">
+            <IconButton
+              onClick={handleClose}
+              color="default"
+              sx={{ width: 44, height: 44 }}
+            >
               <Close />
             </IconButton>
           </Box>
@@ -595,22 +624,12 @@ export const SalesDrawer: FC<IProps> = ({
                               flexDirection={"column"}
                               gap={0.5}
                             >
-                              <Box display="flex" alignItems="center" gap={1}>
-                                {s.synced ? (
-                                  <Sync fontSize="small" color="success" />
-                                ) : (
-                                  <SyncDisabled
-                                    fontSize="small"
-                                    color="warning"
-                                  />
-                                )}
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                >
-                                  {saleInfo.status}
-                                </Typography>
-                              </Box>
+                              <Chip
+                                size="small"
+                                label={s.synced ? "Subida" : "Pendiente"}
+                                color={s.synced ? "success" : "warning"}
+                                variant="filled"
+                              />
                               <Typography
                                 variant="caption"
                                 color="text.secondary"
@@ -648,6 +667,7 @@ export const SalesDrawer: FC<IProps> = ({
                                 color="default"
                                 onClick={() => handleSelectViewSale(s)}
                                 disabled={disableAll}
+                                sx={{ width: 44, height: 44 }}
                               >
                                 <VisibilityIcon />
                               </IconButton>
@@ -658,19 +678,31 @@ export const SalesDrawer: FC<IProps> = ({
                                   color="default"
                                   onClick={() => handleReprint(s)}
                                   disabled={disableAll}
+                                  sx={{ width: 44, height: 44 }}
                                 >
                                   <Print />
                                 </IconButton>
                               )}
 
                               {s.syncState === "syncing" ? (
-                                <CircularProgress size="24px" />
+                                <Box
+                                  sx={{
+                                    width: 44,
+                                    height: 44,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                >
+                                  <CircularProgress size={24} />
+                                </Box>
                               ) : (
                                 <IconButton
                                   aria-label="sync"
                                   color="primary"
                                   onClick={() => handleSyncOne(s)}
                                   disabled={disableAll || s.synced}
+                                  sx={{ width: 44, height: 44 }}
                                 >
                                   {s.synced ? <Done /> : <Sync />}
                                 </IconButton>
@@ -684,9 +716,10 @@ export const SalesDrawer: FC<IProps> = ({
                                   color="error"
                                   onClick={() => handleDeleteOne(s)}
                                   disabled={disableAll || (offline && s.synced)}
+                                  sx={{ width: 44, height: 44 }}
                                 >
                                   {deletingSaleId === s.identifier ? (
-                                    <CircularProgress size="24px" />
+                                    <CircularProgress size={24} />
                                   ) : (
                                     <DeleteIcon />
                                   )}

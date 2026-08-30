@@ -47,7 +47,7 @@ export default function RentabilidadPage() {
       onRefresh={refetch}
     >
       {data && pnl && (
-        <Stack spacing={3}>
+        <Stack spacing={2.5}>
           <StatStrip
             variant="card"
             stats={[

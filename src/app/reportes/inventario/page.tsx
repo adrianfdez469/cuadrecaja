@@ -37,7 +37,7 @@ export default function InventarioReportPage() {
       onRefresh={refetch}
     >
       {data && (
-        <Stack spacing={3}>
+        <Stack spacing={2.5}>
           {data.resumen.stockDesalineado && (
             <Alert severity="warning">
               El rango seleccionado termina en el pasado, pero la existencia

@@ -662,7 +662,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
       fullScreen={isMobile}
       PaperProps={{
         sx: {
-          borderRadius: isMobile ? 0 : 3,
+          borderRadius: isMobile ? 0 : "16px",
           height: isMobile ? "100dvh" : "90vh",
           maxHeight: isMobile ? "100dvh" : "90vh",
           m: isMobile ? 0 : 2,
@@ -670,6 +670,11 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
           "@supports not (height: 100dvh)": {
             height: isMobile ? "100vh" : "90vh",
           },
+        },
+      }}
+      BackdropProps={{
+        sx: {
+          backgroundColor: "rgba(19, 20, 23, 0.35)",
         },
       }}
     >
@@ -716,7 +721,22 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
                   <span>Disponibles</span>
                   <Badge
                     badgeContent={productosDisponibles.length}
-                    color="primary"
+                    color={activeTab === 0 ? "primary" : "default"}
+                    sx={
+                      activeTab === 0
+                        ? {
+                            "& .MuiBadge-badge": {
+                              bgcolor: "primary.main",
+                              color: "primary.contrastText",
+                            },
+                          }
+                        : {
+                            "& .MuiBadge-badge": {
+                              bgcolor: "action.disabled",
+                              color: "text.secondary",
+                            },
+                          }
+                    }
                   />
                 </Box>
               }
@@ -726,7 +746,25 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
                 <Box display="flex" alignItems="center" gap={1}>
                   <ShoppingCart />
                   <span>Seleccionados</span>
-                  <Badge badgeContent={totalProductos} color="secondary" />
+                  <Badge
+                    badgeContent={totalProductos}
+                    color={activeTab === 1 ? "primary" : "default"}
+                    sx={
+                      activeTab === 1
+                        ? {
+                            "& .MuiBadge-badge": {
+                              bgcolor: "primary.main",
+                              color: "primary.contrastText",
+                            },
+                          }
+                        : {
+                            "& .MuiBadge-badge": {
+                              bgcolor: "action.disabled",
+                              color: "text.secondary",
+                            },
+                          }
+                    }
+                  />
                 </Box>
               }
             />
@@ -766,8 +804,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
             onClick={onClose}
             variant="outlined"
             color="secondary"
-            size="small"
-            sx={{ flex: 1 }}
+            sx={{ flex: 1, minHeight: 56 }}
           >
             Cancelar
           </Button>
@@ -775,7 +812,6 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
             onClick={handleConfirm}
             variant="contained"
             color="primary"
-            size="small"
             disabled={
               hayErrores ||
               (totalProductos === 0 &&
@@ -783,7 +819,7 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
                 productosSeleccionadosIniciales.length === 0) ||
               loading
             }
-            sx={{ flex: 1 }}
+            sx={{ flex: 1, minHeight: 56 }}
             startIcon={
               operacion === "ENTRADA" ? <TrendingUp /> : <TrendingDown />
             }

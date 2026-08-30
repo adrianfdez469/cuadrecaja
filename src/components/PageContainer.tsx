@@ -1,4 +1,6 @@
-import React, { ReactNode } from 'react';
+"use client";
+
+import React, { ReactNode } from "react";
 import {
   Box,
   BoxProps,
@@ -9,10 +11,10 @@ import {
   Fade,
   Stack,
   useMediaQuery,
-  useTheme
-} from '@mui/material';
-import { useRouter } from 'next/navigation';
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+  useTheme,
+} from "@mui/material";
+import { useRouter } from "next/navigation";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 
 interface PageContainerProps {
   title: string;
@@ -27,8 +29,14 @@ interface PageContainerProps {
    * currency both live here in the redesign.
    */
   titleAdornment?: ReactNode;
+  /**
+   * Tabs that switch between sibling screens sharing this header (e.g.
+   * Inventario/Movimientos) — the redesign puts them directly under the
+   * title and subtitle, not as a separate bar above the page.
+   */
+  tabs?: ReactNode;
   headerActions?: ReactNode;
-  maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | false;
+  maxWidth?: "xs" | "sm" | "md" | "lg" | "xl" | false;
   /** Props forwarded to the content wrapper Box */
   contentProps?: BoxProps;
   children: ReactNode;
@@ -39,14 +47,15 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   subtitle,
   breadcrumbs,
   titleAdornment,
+  tabs,
   headerActions,
-  maxWidth = 'xl',
+  maxWidth = "xl",
   contentProps,
-  children
+  children,
 }) => {
   const router = useRouter();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const handleBreadcrumbClick = (href: string) => {
     router.push(href);
@@ -57,7 +66,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
       maxWidth={maxWidth}
       sx={{
         py: isMobile ? 1.5 : 3,
-        px: isMobile ? 1 : 3
+        px: isMobile ? 1 : 3,
       }}
     >
       <Fade in timeout={300}>
@@ -70,12 +79,12 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                 sx={{
                   mb: isMobile ? 0.75 : 2,
                   py: isMobile ? 0.25 : 0.5,
-                  '& .MuiBreadcrumbs-li': {
-                    fontSize: isMobile ? '0.8125rem' : '1rem'
-                  }
+                  "& .MuiBreadcrumbs-li": {
+                    fontSize: isMobile ? "0.8125rem" : "1rem",
+                  },
                 }}
               >
-                {breadcrumbs.map((crumb, index) => (
+                {breadcrumbs.map((crumb, index) =>
                   crumb.href ? (
                     <Link
                       key={index}
@@ -86,10 +95,10 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                         handleBreadcrumbClick(crumb.href!);
                       }}
                       sx={{
-                        textDecoration: 'none',
-                        '&:hover': { textDecoration: 'underline' },
-                        cursor: 'pointer',
-                        fontSize: isMobile ? '0.8125rem' : '1rem'
+                        textDecoration: "none",
+                        "&:hover": { textDecoration: "underline" },
+                        cursor: "pointer",
+                        fontSize: isMobile ? "0.8125rem" : "1rem",
                       }}
                     >
                       {crumb.label}
@@ -98,12 +107,12 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                     <Typography
                       key={index}
                       color="text.primary"
-                      sx={{ fontSize: isMobile ? '0.8125rem' : '1rem' }}
+                      sx={{ fontSize: isMobile ? "0.8125rem" : "1rem" }}
                     >
                       {crumb.label}
                     </Typography>
-                  )
-                ))}
+                  ),
+                )}
               </Breadcrumbs>
             )}
 
@@ -122,57 +131,65 @@ export const PageContainer: React.FC<PageContainerProps> = ({
                   direction="row"
                   alignItems="center"
                   spacing={1.5}
-                  sx={{ flexWrap: 'wrap' }}
+                  sx={{ flexWrap: "wrap" }}
                 >
-                <Typography
-                  variant={isMobile ? "h5" : "h4"}
-                  component="h1"
-                  gutterBottom={!isMobile}
-                  sx={{
-                    // The redesign's page-title steps: 34px desktop, 26px phone.
-                    fontSize: isMobile ? '1.625rem' : '2.125rem',
-                    fontWeight: 700,
-                    lineHeight: 1.2,
-                    letterSpacing: isMobile ? '-0.02em' : '-0.025em',
-                    mb: subtitle ? 0.5 : (isMobile ? 1 : undefined)
-                  }}
-                >
-                  {title}
-                </Typography>
-                {titleAdornment}
+                  <Typography
+                    variant={isMobile ? "h5" : "h4"}
+                    component="h1"
+                    gutterBottom={!isMobile}
+                    sx={{
+                      // The redesign's page-title steps: 34px desktop, 26px phone.
+                      fontSize: isMobile ? "1.625rem" : "2.125rem",
+                      fontWeight: 700,
+                      lineHeight: 1.2,
+                      letterSpacing: isMobile ? "-0.02em" : "-0.025em",
+                      mb: subtitle ? 0.5 : isMobile ? 1 : undefined,
+                    }}
+                  >
+                    {title}
+                  </Typography>
+                  {titleAdornment}
                 </Stack>
                 {subtitle && (
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ fontSize: '0.9375rem', lineHeight: 1.45 }}
+                    sx={{ fontSize: "0.9375rem", lineHeight: 1.45 }}
                   >
                     {subtitle}
                   </Typography>
                 )}
+                {tabs && <Box sx={{ mt: subtitle ? 1.75 : 1.25 }}>{tabs}</Box>}
               </Box>
 
               {headerActions && (
                 <Box
                   sx={{
                     flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    width: 'auto'
+                    display: "flex",
+                    alignItems: "flex-start",
+                    width: "auto",
                   }}
                 >
                   {headerActions}
                 </Box>
               )}
             </Stack>
+            {tabs && (
+              <Box
+                sx={{
+                  borderTop: 1,
+                  borderColor: "divider",
+                  mt: isMobile ? 2 : 2.5,
+                }}
+              />
+            )}
           </Box>
 
           {/* Content */}
-          <Box {...contentProps}>
-            {children}
-          </Box>
+          <Box {...contentProps}>{children}</Box>
         </Box>
       </Fade>
     </Container>
   );
-}; 
+};

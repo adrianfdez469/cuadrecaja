@@ -621,10 +621,9 @@ export default function ResumenCierrePage() {
 
       {data && data.cierres.length > 0 && (
         <>
-          {/* Eleven figures, grouped. They used to be one undifferentiated
-              grid, so «Merma» sat beside «Total Ventas» at the same size and
-              weight and the reader had to know the domain to tell a result
-              from a cost. Three bands, each named. */}
+          {/* Bandas de cifras agrupadas con eyebrows */}
+
+          {/* Resultado del rango */}
           <SectionLabel>Resultado del rango</SectionLabel>
           <StatStrip
             variant="card"
@@ -651,45 +650,45 @@ export default function ResumenCierrePage() {
             ]}
           />
 
+          {/* Composición de las ventas */}
           <SectionLabel>Composición de las ventas</SectionLabel>
-          <StatStrip
-            variant="card"
-            stats={[
-              ...((data.sumTotalVentasBrutas || 0) > 0
-                ? [
-                    {
-                      label: "Total Ventas (Bruto)",
-                      value: fmtS(data.sumTotalVentasBrutas || 0),
-                    },
-                  ]
-                : []),
-              {
-                label: "Ventas Propias",
-                value: fmtS(data?.sumTotalVentasPropias || 0),
-              },
-              {
-                label: "Ventas Consignación",
-                value: fmtS(data?.sumTotalVentasConsignacion || 0),
-              },
-              ...(typeof data.sumTotalDescuentos === "number" &&
-              (data.sumTotalDescuentos || 0) > 0
-                ? [
-                    {
-                      label: "Descuentos (intervalo)",
-                      value: fmtS(data.sumTotalDescuentos || 0),
-                      tone: "negative" as const,
-                    },
-                  ]
-                : []),
-            ]}
-          />
+          <Box sx={{ mb: 3 }}>
+            <StatStrip
+              variant="card"
+              stats={[
+                ...((data.sumTotalVentasBrutas || 0) > 0
+                  ? [
+                      {
+                        label: "Total Ventas (Bruto)",
+                        value: fmtS(data.sumTotalVentasBrutas || 0),
+                      },
+                    ]
+                  : []),
+                {
+                  label: "Ventas Propias",
+                  value: fmtS(data?.sumTotalVentasPropias || 0),
+                },
+                {
+                  label: "Ventas Consignación",
+                  value: fmtS(data?.sumTotalVentasConsignacion || 0),
+                },
+                ...(typeof data.sumTotalDescuentos === "number" &&
+                (data.sumTotalDescuentos || 0) > 0
+                  ? [
+                      {
+                        label: "Descuentos (intervalo)",
+                        value: fmtS(data.sumTotalDescuentos || 0),
+                        tone: "negative" as const,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
 
-          {/* Transferencias keeps its own card: unlike the figures around it,
-              it opens into a breakdown by destination. */}
-          <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={6} md={4}>
+            {/* Transferencias card: uniquely expandable within this section */}
+            <Box sx={{ mt: 2 }}>
               <Card sx={{ height: "100%" }}>
-                <CardContent sx={{ p: isMobile ? 1 : 3 }}>
+                <CardContent sx={{ p: isMobile ? 2 : 3 }}>
                   <Stack
                     direction="row"
                     alignItems="center"
@@ -769,9 +768,10 @@ export default function ResumenCierrePage() {
                   </CardContent>
                 </Collapse>
               </Card>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
 
+          {/* Costos y pérdidas */}
           <SectionLabel>Costos y pérdidas</SectionLabel>
           <StatStrip
             variant="card"

@@ -265,28 +265,24 @@ export function TasasReferenciaCard({
                 sin tasa registrada
               </Typography>
             ) : (
-              <Typography variant="caption" color="text.secondary">
-                tu tasa: {vigente}
-                {!igual && (
-                  <Box
-                    component="span"
-                    sx={{
-                      ml: 0.75,
-                      fontWeight: "bold",
-                      color: diff > 0 ? "success.main" : "error.main",
-                    }}
-                  >
-                    ({diff > 0 ? "+" : ""}
-                    {Number(diff.toFixed(2))} · {diff > 0 ? "+" : ""}
-                    {pct.toFixed(1)}%)
-                  </Box>
+              <Stack direction="row" gap={0.75} alignItems="center">
+                <Typography variant="caption" color="text.secondary">
+                  tu tasa: {vigente}
+                </Typography>
+                {!igual && diff !== null && (
+                  <Chip
+                    label={`${diff > 0 ? "+" : ""}${Number(diff.toFixed(2))} · ${diff > 0 ? "+" : ""}${pct?.toFixed(1)}%`}
+                    color={diff > 0 ? "success" : "error"}
+                    size="small"
+                    variant="filled"
+                  />
                 )}
                 {igual && (
-                  <Box component="span" sx={{ ml: 0.75 }}>
+                  <Typography variant="caption" color="text.secondary">
                     (=)
-                  </Box>
+                  </Typography>
                 )}
-              </Typography>
+              </Stack>
             );
 
           const boton = (

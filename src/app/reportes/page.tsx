@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Alert, Box } from "@mui/material";
+import { Alert, Card } from "@mui/material";
 import {
   Category,
   Inventory,
@@ -13,7 +13,6 @@ import { PageContainer } from "@/components/PageContainer";
 import { useAppContext } from "@/context/AppContext";
 import { usePermisos } from "@/utils/permisos_front";
 import { TipoLocal } from "@/schemas/tienda";
-import { shape } from "@/theme/tokens";
 
 import { ReportRow } from "./components/ReportRow";
 
@@ -95,15 +94,7 @@ export default function ReportesHubPage() {
           No tienes permisos para ver ningún reporte.
         </Alert>
       ) : (
-        <Box
-          sx={{
-            overflow: "hidden",
-            bgcolor: "semantic.surface.raised",
-            border: "1px solid",
-            borderColor: "semantic.surface.border",
-            borderRadius: `${shape.radius.md}px`,
-          }}
-        >
+        <Card>
           {visible.map(({ title, description, path, icon }, index) => (
             <ReportRow
               key={path}
@@ -114,7 +105,7 @@ export default function ReportesHubPage() {
               onClick={() => router.push(path)}
             />
           ))}
-        </Box>
+        </Card>
       )}
     </PageContainer>
   );

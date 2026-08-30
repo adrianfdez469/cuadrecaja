@@ -7,13 +7,13 @@ import {
   Box,
   Button,
   Typography,
-  Container,
-  Paper,
-  CardContent,
   Alert,
   CircularProgress,
+  Link as MuiLink,
 } from "@mui/material";
-import { Email as EmailIcon, Login as LoginIcon } from "@mui/icons-material";
+import { Email as EmailIcon } from "@mui/icons-material";
+import { AuthCardLayout } from "@/components/auth/AuthCardLayout";
+import { touch } from "@/theme/tokens";
 
 function ActivarCambioCorreoForm() {
   const searchParams = useSearchParams();
@@ -40,7 +40,11 @@ function ActivarCambioCorreoForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "No se pudo activar el correo.");
+        setError(
+          typeof data.error === "string"
+            ? data.error
+            : "No se pudo activar el correo.",
+        );
         return;
       }
       setDone(true);
@@ -55,55 +59,81 @@ function ActivarCambioCorreoForm() {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ py: 6 }}>
-      <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden" }}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h5" fontWeight={700} gutterBottom>
-            Activar cambio de correo
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Confirma este paso para activar tu nuevo correo de acceso.
-          </Typography>
+    <AuthCardLayout>
+      <Typography
+        component="h2"
+        sx={{
+          fontSize: { xs: "1.375rem", md: "1.75rem" },
+          fontWeight: 700,
+          lineHeight: 1.25,
+          letterSpacing: "-0.02em",
+          mb: 1,
+        }}
+      >
+        Activar cambio de correo
+      </Typography>
+      <Typography
+        sx={{
+          mb: 3.5,
+          fontSize: "0.9375rem",
+          lineHeight: 1.55,
+          color: "text.secondary",
+          textWrap: "pretty",
+        }}
+      >
+        Confirma este paso para activar tu nuevo correo de acceso.
+      </Typography>
 
-          {error ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          ) : null}
-          {done ? (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Correo actualizado correctamente. Redirigiendo al inicio de sesión...
-            </Alert>
-          ) : null}
+      {error ? (
+        <Alert severity="error" sx={{ mb: 2.5 }}>
+          {error}
+        </Alert>
+      ) : null}
+      {done ? (
+        <Alert severity="success" sx={{ mb: 2.5 }}>
+          Correo actualizado correctamente. Redirigiendo al inicio de sesión…
+        </Alert>
+      ) : null}
 
-          <Button
-            fullWidth
-            variant="contained"
-            size="large"
-            disabled={loading || done}
-            startIcon={loading ? <CircularProgress size={20} /> : <EmailIcon />}
-            onClick={handleActivate}
-          >
-            {loading ? "Activando..." : "Activar correo"}
-          </Button>
-          <Button fullWidth component={Link} href="/login" sx={{ mt: 2 }} color="inherit">
-            Volver al inicio de sesión
-          </Button>
-          {!done ? (
-            <Box sx={{ mt: 2, textAlign: "center" }}>
-              <Button
-                startIcon={<LoginIcon />}
-                onClick={() => router.push("/login")}
-                color="primary"
-                size="small"
-              >
-                Ir a iniciar sesión
-              </Button>
-            </Box>
-          ) : null}
-        </CardContent>
-      </Paper>
-    </Container>
+      <Button
+        fullWidth
+        variant="contained"
+        disabled={loading || done}
+        startIcon={
+          loading ? (
+            <CircularProgress size={20} color="inherit" />
+          ) : (
+            <EmailIcon />
+          )
+        }
+        onClick={handleActivate}
+        sx={{
+          minHeight: touch.comfortable,
+          fontSize: "1rem",
+        }}
+      >
+        {loading ? "Activando…" : "Activar correo"}
+      </Button>
+
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 2.5 }}>
+        <MuiLink
+          component={Link}
+          href="/login"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            minHeight: touch.min,
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            color: "#5B4CA8",
+            textDecoration: "none",
+            "&:hover": { textDecoration: "underline" },
+          }}
+        >
+          Ir a iniciar sesión
+        </MuiLink>
+      </Box>
+    </AuthCardLayout>
   );
 }
 
@@ -111,7 +141,14 @@ export default function ActivarCambioCorreoPage() {
   return (
     <Suspense
       fallback={
-        <Box display="flex" justifyContent="center" py={8}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "100dvh",
+          }}
+        >
           <CircularProgress />
         </Box>
       }

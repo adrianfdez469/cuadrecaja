@@ -12,16 +12,44 @@ type TurnoverTableProps = {
   format: (amountInBase: number) => string;
 };
 
-const STATE_LABELS: Record<
-  ITurnoverRow["estado"],
-  { label: string; color: "default" | "error" | "warning" | "success" | "info" }
-> = {
-  sin_stock: { label: "Sin stock", color: "default" },
-  critico: { label: "Crítico", color: "error" },
-  bajo: { label: "Bajo", color: "warning" },
-  saludable: { label: "Saludable", color: "success" },
-  sobrestock: { label: "Sobrestock", color: "info" },
-};
+/**
+ * Render the Estado column.
+ * Shows a pill ONLY when there is something actionable:
+ * - Sin stock (existenciaActual === 0) → red error chip
+ * - Sin ventas (diasCobertura === null) → amber warning chip
+ * - Sobrestock (diasCobertura >= 90) → blue info chip
+ * - Normal products → empty ("–")
+ */
+function renderEstadoCell(row: ITurnoverRow): React.ReactNode {
+  // Sin stock
+  if (row.existenciaActual === 0) {
+    return (
+      <Chip size="small" label="Sin stock" color="error" variant="outlined" />
+    );
+  }
+
+  // Sin ventas (never sold in the period)
+  if (row.diasCobertura === null) {
+    return (
+      <Chip
+        size="small"
+        label="Sin ventas"
+        color="warning"
+        variant="outlined"
+      />
+    );
+  }
+
+  // Sobrestock (coverage >= 90 days)
+  if (row.diasCobertura >= 90) {
+    return (
+      <Chip size="small" label="Sobrestock" color="info" variant="outlined" />
+    );
+  }
+
+  // Normal rotation — no pill
+  return "—";
+}
 
 /**
  * Days of coverage per product — how long current stock lasts at the pace it
@@ -82,15 +110,13 @@ export function TurnoverTable({ rows, format }: TurnoverTableProps) {
       key: "estado",
       label: "Estado",
       align: "center",
-      render: (row) => (
-        <Chip
-          size="small"
-          label={STATE_LABELS[row.estado].label}
-          color={STATE_LABELS[row.estado].color}
-          variant="outlined"
-        />
-      ),
-      sortValue: (row) => row.estado,
+      render: (row) => renderEstadoCell(row),
+      sortValue: (row) => {
+        if (row.existenciaActual === 0) return 0; // Sin stock first
+        if (row.diasCobertura === null) return 1; // Sin ventas next
+        if (row.diasCobertura >= 90) return 2; // Sobrestock after
+        return 3; // Normal last
+      },
     },
   ];
 

@@ -934,10 +934,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 />
               )}
 
-              <NotificationBell
-                disabled={isBlockingActive}
-                onClick={() => navigateIfAllowed("/configuracion/notificaciones")}
-              />
+              <NotificationBell disabled={isBlockingActive} />
 
               <IconButton
                 // size="large"
@@ -1213,9 +1210,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   zIndex: 1,
                 }}
               >
-                <Typography variant="h5">
-                  Menú
-                </Typography>
+                <Typography variant="h5">Menú</Typography>
               </Box>
 
               {/* Contenido (Scrollable) */}

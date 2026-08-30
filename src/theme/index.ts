@@ -218,16 +218,21 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
           },
         },
       },
-      MuiTableHead: {
+      // A header row used to shout as loud as the data: sunken grey,
+      // 14px, semibold, the same weight as the numbers underneath it. The
+      // redesign's tables (inventario-stock, movimientos-stock) agree on the
+      // opposite — the header is a caption, not a row: tiny, uppercase,
+      // wide-tracked, barely tinted off the page.
+      MuiTableCell: {
         styleOverrides: {
-          root: {
-            "& .MuiTableCell-head": {
-              backgroundColor: t.surface.sunken,
-              color: t.text.primary,
-              fontWeight: 600,
-              fontSize: "0.875rem",
-              borderBottom: `1px solid ${t.surface.border}`,
-            },
+          head: {
+            backgroundColor: t.surface.raised,
+            color: t.text.secondary,
+            fontWeight: 700,
+            fontSize: "0.75rem",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            borderBottom: `1px solid ${t.surface.border}`,
           },
         },
       },
@@ -362,6 +367,22 @@ function buildTheme(mode: "light" | "dark", t: SemanticTokens): Theme {
     },
   });
 }
+
+/**
+ * The `.ibtn`/`.ib` shape from the redesign: a 44px bordered square, 12px
+ * radius — never MUI's default circular `IconButton`. Needed as an `sx`
+ * override rather than a theme default because `MuiIconButton` intentionally
+ * stays circular for ripples on icon-only buttons that carry no visible
+ * border of their own (and for things like the avatar menu button); this is
+ * only for the ones the redesign actually draws as a bordered square
+ * (refresh, clear filters, "+", more-actions…).
+ */
+export const squareIconButtonSx = {
+  border: 1,
+  borderColor: "divider",
+  borderRadius: `${shape.radius.md}px`,
+  bgcolor: "background.paper",
+} as const;
 
 export const lightTheme = buildTheme("light", lightTokens);
 

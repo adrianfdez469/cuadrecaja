@@ -331,8 +331,8 @@ export default function SuspensionesPage() {
 
   const getStatusText = (negocio: NegocioSuspension) => {
     if (negocio.suspended) return "Suspendido";
-    if (negocio.isExpired) return "En Período de Gracia";
-    if (negocio.daysRemaining <= 7) return "Por Vencer";
+    if (negocio.isExpired) return "En gracia";
+    if (negocio.daysRemaining <= 7) return "Por vencer";
     return "Activo";
   };
 
@@ -418,7 +418,12 @@ export default function SuspensionesPage() {
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <Business color="primary" />
                   <Box>
-                    <Typography variant="h6">{stats.total}</Typography>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontSize: "26px", fontWeight: 700 }}
+                    >
+                      {stats.total}
+                    </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Total Negocios
                     </Typography>
@@ -523,62 +528,59 @@ export default function SuspensionesPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Stack direction="row" spacing={1}>
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
                         {negocio.suspended ? (
                           <>
-                            <Tooltip title="Reactivar negocio">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleReactivar(negocio)}
-                                disabled={reactivating === negocio.id}
-                              >
-                                {reactivating === negocio.id ? (
-                                  <CircularProgress size={16} />
-                                ) : (
-                                  <PlayArrow />
-                                )}
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Activar sin cambiar fecha">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleActivar(negocio)}
-                                disabled={activating === negocio.id}
-                                color="success"
-                              >
-                                {activating === negocio.id ? (
-                                  <CircularProgress size={16} />
-                                ) : (
-                                  <CheckCircle />
-                                )}
-                              </IconButton>
-                            </Tooltip>
+                            <Button
+                              variant="text"
+                              size="small"
+                              onClick={() => handleReactivar(negocio)}
+                              disabled={reactivating === negocio.id}
+                              sx={{ minWidth: "44px", height: "44px" }}
+                            >
+                              {reactivating === negocio.id ? (
+                                <CircularProgress size={16} />
+                              ) : (
+                                "Reactivar"
+                              )}
+                            </Button>
+                            <Button
+                              variant="text"
+                              size="small"
+                              onClick={() => handleActivar(negocio)}
+                              disabled={activating === negocio.id}
+                              sx={{ minWidth: "44px", height: "44px" }}
+                            >
+                              {activating === negocio.id ? (
+                                <CircularProgress size={16} />
+                              ) : (
+                                "Activar sin cambiar fecha"
+                              )}
+                            </Button>
                           </>
                         ) : (
                           <>
-                            <Tooltip title="Suspender negocio">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleSuspender(negocio)}
-                                color="warning"
-                              >
-                                <Block />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Gestionar días/fecha">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleManageDays(negocio)}
-                                disabled={managingDays === negocio.id}
-                                color="primary"
-                              >
-                                {managingDays === negocio.id ? (
-                                  <CircularProgress size={16} />
-                                ) : (
-                                  <Schedule />
-                                )}
-                              </IconButton>
-                            </Tooltip>
+                            <Button
+                              variant="text"
+                              size="small"
+                              onClick={() => handleSuspender(negocio)}
+                              sx={{ minWidth: "44px", height: "44px" }}
+                            >
+                              Suspender
+                            </Button>
+                            <Button
+                              variant="text"
+                              size="small"
+                              onClick={() => handleManageDays(negocio)}
+                              disabled={managingDays === negocio.id}
+                              sx={{ minWidth: "44px", height: "44px" }}
+                            >
+                              {managingDays === negocio.id ? (
+                                <CircularProgress size={16} />
+                              ) : (
+                                "Gestionar"
+                              )}
+                            </Button>
                           </>
                         )}
                       </Stack>

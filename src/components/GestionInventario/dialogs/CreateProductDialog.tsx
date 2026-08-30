@@ -25,6 +25,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
+import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
@@ -41,6 +42,7 @@ import MoneyField from "@/components/MoneyField";
 import SelectableTextField from "@/components/SelectableTextField";
 import { RentabilidadRibbon } from "./RentabilidadRibbon";
 import { calcularCostoFraccion } from "./fraccionCosto";
+import { shape } from "@/theme";
 import {
   PRODUCTO_PRUEBA_SUGERENCIAS,
   selectIsOnboardingBlocking,
@@ -433,334 +435,418 @@ export function CreateProductDialog({
       fullWidth
       maxWidth="sm"
       PaperProps={{
-        sx: isDemoMode ? { zIndex: 10001 } : undefined,
+        sx: {
+          width: 600,
+          borderRadius: `${shape.radius.md}px`,
+          ...(isDemoMode ? { zIndex: 10001 } : undefined),
+        },
+      }}
+      slotProps={{
+        backdrop: {
+          sx: {
+            backgroundColor: "rgba(19,20,23,.35)",
+          },
+        },
       }}
     >
-      <DialogTitle>Nuevo producto</DialogTitle>
+      <DialogTitle sx={{ fontSize: "1.25rem", fontWeight: 700 }}>
+        Nuevo producto
+      </DialogTitle>
       <DialogContent>
         <Box
           data-tour="gi-create-dialog"
           display="flex"
           flexDirection="column"
-          gap={2}
+          gap={0}
           pt={1}
         >
-          <Autocomplete
-            freeSolo
-            disabled={!!productoVinculado}
-            inputValue={nombre}
-            onInputChange={(_, val) => setNombre(val)}
-            onChange={(_, val) => {
-              if (val && typeof val !== "string") vincularProducto(val);
-            }}
-            options={opcionesNombre}
-            filterOptions={(opts) => opts}
-            loading={buscandoNombre}
-            getOptionLabel={(opt) =>
-              typeof opt === "string" ? opt : opt.nombre
-            }
-            renderOption={(props, opt) => (
-              <li {...props} key={opt.id}>
-                <Box display="flex" flexDirection="column">
-                  <Typography variant="body2">{opt.nombre}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {opt.categoria?.nombre} · ya existe en otra tienda
-                  </Typography>
-                </Box>
-              </li>
-            )}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Nombre"
-                size="small"
-                required
-                fullWidth
-                autoFocus
-                error={!!nombreError}
-                helperText={nombreError}
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {buscandoNombre && (
-                        <CircularProgress color="inherit" size={16} />
-                      )}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
-              />
-            )}
-          />
-
-          {productoVinculado && (
-            <Alert
-              severity="info"
-              action={
-                <Tooltip title="Usar otro nombre">
-                  <IconButton size="small" onClick={desvincularProducto}>
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              }
-            >
-              Este producto ya existe en el negocio. Se usará el mismo producto
-              — solo se configurará precio, costo y stock para esta tienda.
-            </Alert>
-          )}
-
-          {!productoVinculado && (
-            <>
-              <TextField
-                label="Descripción"
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-                size="small"
-                fullWidth
-              />
-
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={esFraccion}
-                    onChange={(e) => setEsFraccion(e.target.checked)}
-                    size="small"
-                  />
-                }
-                label="Es fracción de otro producto"
-              />
-
-              {esFraccion && (
-                <Box
-                  display="flex"
-                  gap={2}
-                  flexDirection={{ xs: "column", sm: "row" }}
-                >
-                  <FormControl
-                    size="small"
-                    fullWidth
-                    required
-                    error={!!fraccionProductoError}
-                    sx={{ flex: 1 }}
-                  >
-                    <InputLabel>Producto base</InputLabel>
-                    <Select
-                      label="Producto base"
-                      value={selectedFraccion?.id ?? ""}
-                      onChange={(e) =>
-                        setSelectedFraccion(
-                          productos.find((p) => p.id === e.target.value) ??
-                            null,
-                        )
-                      }
-                    >
-                      {productos.map((p) => (
-                        <MenuItem key={p.id} value={p.id}>
-                          {p.nombre}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    {fraccionProductoError && (
-                      <FormHelperText>{fraccionProductoError}</FormHelperText>
-                    )}
-                  </FormControl>
-                  <SelectableTextField
-                    label="Unidades por fracción"
-                    value={fraccionValue ?? ""}
-                    onChange={(e) =>
-                      setFraccionValue(
-                        parseInt(e.target.value.replace(/-/g, "")) || null,
-                      )
-                    }
-                    size="small"
-                    required
-                    error={!!fraccionCantidadError}
-                    helperText={fraccionCantidadError}
-                    sx={{ flex: 1 }}
-                    inputProps={{ inputMode: "numeric" }}
-                  />
-                </Box>
-              )}
-
+          {/* GRUPO (a): Identidad — Nombre, Descripción, Categoría */}
+          <Box sx={{ pb: 2.5 }}>
+            <Box display="flex" flexDirection="column" gap={2}>
               <Autocomplete
-                value={catValue}
-                inputValue={catInputValue}
-                disabled={esFraccion}
+                freeSolo
+                disabled={!!productoVinculado}
+                inputValue={nombre}
+                onInputChange={(_, val) => setNombre(val)}
                 onChange={(_, val) => {
-                  if (typeof val === "string") {
-                    setCatValue({ inputValue: val, nombre: val, id: "" });
-                  } else {
-                    setCatValue(val);
-                  }
+                  if (val && typeof val !== "string") vincularProducto(val);
                 }}
-                onInputChange={(_, val) => setCatInputValue(val)}
-                options={categorias}
-                getOptionLabel={(opt) => {
-                  if (typeof opt === "string") return opt;
-                  if ("inputValue" in opt) return opt.inputValue;
-                  return opt.nombre;
-                }}
-                isOptionEqualToValue={(opt, val) =>
-                  (opt as ICategory).id === (val as ICategory).id
+                options={opcionesNombre}
+                filterOptions={(opts) => opts}
+                loading={buscandoNombre}
+                getOptionLabel={(opt) =>
+                  typeof opt === "string" ? opt : opt.nombre
                 }
                 renderOption={(props, opt) => (
-                  <li {...props} key={(opt as ICategory).id}>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Box
-                        sx={{
-                          width: 14,
-                          height: 14,
-                          borderRadius: "3px",
-                          bgcolor: (opt as ICategory).color,
-                        }}
-                      />
-                      {opt.nombre}
+                  <li {...props} key={opt.id}>
+                    <Box display="flex" flexDirection="column">
+                      <Typography variant="body2">{opt.nombre}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {opt.categoria?.nombre} · ya existe en otra tienda
+                      </Typography>
                     </Box>
                   </li>
                 )}
-                freeSolo
-                selectOnFocus
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Categoría"
+                    label="Nombre"
                     size="small"
                     required
-                    error={!!catError}
-                    helperText={
-                      esFraccion
-                        ? "Se usa la categoría del producto base"
-                        : catError
-                    }
+                    fullWidth
+                    autoFocus
+                    error={!!nombreError}
+                    helperText={nombreError}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {buscandoNombre && (
+                            <CircularProgress color="inherit" size={16} />
+                          )}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
                   />
                 )}
               />
-            </>
-          )}
 
-          {/* Costo + moneda */}
-          <Box display="flex" gap={1} alignItems="flex-start">
-            {monedasDisponibles.length > 1 && (
-              <FormControl size="small" sx={{ minWidth: 90 }}>
-                <InputLabel>Moneda</InputLabel>
-                <Select
-                  label="Moneda"
-                  value={costoMonedaEfectiva}
-                  onChange={(e) => handleCostoMonedaChange(e.target.value)}
-                  disabled={!puedeEditarCosto || esFraccion}
+              {productoVinculado && (
+                <Alert
+                  severity="info"
+                  action={
+                    <Tooltip title="Usar otro nombre">
+                      <IconButton size="small" onClick={desvincularProducto}>
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  }
                 >
-                  {monedasDisponibles.map((code) => (
-                    <MenuItem key={code} value={code}>
-                      {code}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            <MoneyField
-              label={`Costo (${costoMonedaEfectiva})`}
-              value={costo}
-              onChange={(e) => setCosto(e.target.value)}
-              size="small"
-              disabled={!puedeEditarCosto || esFraccion}
-              helperText={
-                esFraccion
-                  ? "Calculado automáticamente a partir del producto base"
-                  : costoEnBase !== null
-                    ? `≈ ${costoEnBase.toFixed(2)} ${monedaBase}`
-                    : undefined
-              }
-              sx={{ flex: 1 }}
-            />
-          </Box>
+                  Este producto ya existe en el negocio. Se usará el mismo
+                  producto — solo se configurará precio, costo y stock para esta
+                  tienda.
+                </Alert>
+              )}
 
-          {/* Precio + moneda */}
-          <Box display="flex" gap={1} alignItems="flex-start">
-            {monedasDisponibles.length > 1 && (
-              <FormControl size="small" sx={{ minWidth: 90 }}>
-                <InputLabel>Moneda</InputLabel>
-                <Select
-                  label="Moneda"
-                  value={precioMonedaEfectiva}
-                  onChange={(e) => handlePrecioMonedaChange(e.target.value)}
-                  disabled={!puedeEditarPrecio}
-                >
-                  {monedasDisponibles.map((code) => (
-                    <MenuItem key={code} value={code}>
-                      {code}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            <MoneyField
-              label={`Precio (${precioMonedaEfectiva})`}
-              value={precio}
-              onChange={(e) => setPrecio(e.target.value)}
-              size="small"
-              disabled={!puedeEditarPrecio}
-              helperText={
-                precioEnBase !== null
-                  ? `≈ ${precioEnBase.toFixed(2)} ${monedaBase}`
-                  : undefined
-              }
-              sx={{ flex: 1 }}
-            />
-          </Box>
-
-          <RentabilidadRibbon costoBase={costoBase} precioBase={precioBase} />
-
-          {warnCostoMayorPrecio && (
-            <Alert severity="warning" sx={{ py: 0.5 }}>
-              El costo ({costoBase.toFixed(2)} {monedaBase}) es mayor al precio
-              de venta ({precioBase.toFixed(2)} {monedaBase}).
-            </Alert>
-          )}
-
-          <SelectableTextField
-            label="Cantidad inicial (opcional)"
-            value={cantidadInicial}
-            onChange={(e) =>
-              setCantidadInicial(e.target.value.replace(/-/g, ""))
-            }
-            size="small"
-            inputProps={{ inputMode: "decimal" }}
-            helperText={
-              parseFloat(cantidadInicial) > 0
-                ? "Se creará un movimiento de Compra con esta cantidad"
-                : "Deja en 0 para agregar stock después"
-            }
-          />
-
-          <DatePicker
-            label="Fecha de vencimiento"
-            value={fechaVencimiento}
-            onChange={(val) => setFechaVencimiento(val)}
-            slotProps={{ textField: { size: "small", fullWidth: true } }}
-          />
-
-          {warnCantidadCero && (
-            <Alert severity="warning" sx={{ py: 0.5 }}>
-              El producto quedará con stock 0 y no aparecerá en el POS de venta.
-            </Alert>
-          )}
-
-          {!productoVinculado && (
-            <>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={permiteDecimal}
-                    onChange={(e) => setPermiteDecimal(e.target.checked)}
+              {!productoVinculado && (
+                <>
+                  <TextField
+                    label="Descripción"
+                    value={descripcion}
+                    onChange={(e) => setDescripcion(e.target.value)}
                     size="small"
+                    fullWidth
                   />
-                }
-                label="Permite cantidades decimales"
-              />
 
-              <Box>
-                <Box display="flex" alignItems="center" mb={1}>
+                  <Autocomplete
+                    value={catValue}
+                    inputValue={catInputValue}
+                    disabled={esFraccion}
+                    onChange={(_, val) => {
+                      if (typeof val === "string") {
+                        setCatValue({ inputValue: val, nombre: val, id: "" });
+                      } else {
+                        setCatValue(val);
+                      }
+                    }}
+                    onInputChange={(_, val) => setCatInputValue(val)}
+                    options={categorias}
+                    getOptionLabel={(opt) => {
+                      if (typeof opt === "string") return opt;
+                      if ("inputValue" in opt) return opt.inputValue;
+                      return opt.nombre;
+                    }}
+                    isOptionEqualToValue={(opt, val) =>
+                      (opt as ICategory).id === (val as ICategory).id
+                    }
+                    renderOption={(props, opt) => (
+                      <li {...props} key={(opt as ICategory).id}>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Box
+                            sx={{
+                              width: 14,
+                              height: 14,
+                              borderRadius: "3px",
+                              bgcolor: (opt as ICategory).color,
+                            }}
+                          />
+                          {opt.nombre}
+                        </Box>
+                      </li>
+                    )}
+                    freeSolo
+                    selectOnFocus
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Categoría"
+                        size="small"
+                        required
+                        error={!!catError}
+                        helperText={
+                          esFraccion
+                            ? "Se usa la categoría del producto base"
+                            : catError
+                        }
+                      />
+                    )}
+                  />
+                </>
+              )}
+            </Box>
+          </Box>
+
+          {/* Separador */}
+          {!productoVinculado && (
+            <Box
+              sx={{ borderTop: 1, borderColor: "divider", mb: 2.5, pt: 2.5 }}
+            >
+              {/* GRUPO (b): Fracción */}
+              <Box sx={{ pb: 2.5 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={esFraccion}
+                      onChange={(e) => setEsFraccion(e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label="Es fracción de otro producto"
+                />
+
+                {esFraccion && (
+                  <Box
+                    display="flex"
+                    gap={2}
+                    flexDirection="column"
+                    sx={{ mt: 1.5 }}
+                  >
+                    <FormControl
+                      size="small"
+                      fullWidth
+                      required
+                      error={!!fraccionProductoError}
+                    >
+                      <InputLabel>Producto base</InputLabel>
+                      <Select
+                        label="Producto base"
+                        value={selectedFraccion?.id ?? ""}
+                        onChange={(e) =>
+                          setSelectedFraccion(
+                            productos.find((p) => p.id === e.target.value) ??
+                              null,
+                          )
+                        }
+                      >
+                        {productos.map((p) => (
+                          <MenuItem key={p.id} value={p.id}>
+                            {p.nombre}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {fraccionProductoError && (
+                        <FormHelperText>{fraccionProductoError}</FormHelperText>
+                      )}
+                    </FormControl>
+                    <SelectableTextField
+                      label="Unidades por fracción"
+                      value={fraccionValue ?? ""}
+                      onChange={(e) =>
+                        setFraccionValue(
+                          parseInt(e.target.value.replace(/-/g, "")) || null,
+                        )
+                      }
+                      size="small"
+                      required
+                      error={!!fraccionCantidadError}
+                      helperText={fraccionCantidadError}
+                      inputProps={{ inputMode: "numeric" }}
+                    />
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          )}
+
+          {/* Separador */}
+          <Box sx={{ borderTop: 1, borderColor: "divider", mb: 2.5, pt: 2.5 }}>
+            {/* GRUPO (c): Dinero — Costo y Precio */}
+            <Box sx={{ pb: 2.5 }}>
+              <Box display="flex" flexDirection="column" gap={2}>
+                {/* Costo + moneda */}
+                <Box display="flex" gap={1} alignItems="flex-start">
+                  {monedasDisponibles.length > 1 && (
+                    <FormControl
+                      size="small"
+                      sx={{ width: 110, flexShrink: 0 }}
+                    >
+                      <InputLabel>Moneda</InputLabel>
+                      <Select
+                        label="Moneda"
+                        value={costoMonedaEfectiva}
+                        onChange={(e) =>
+                          handleCostoMonedaChange(e.target.value)
+                        }
+                        disabled={!puedeEditarCosto || esFraccion}
+                      >
+                        {monedasDisponibles.map((code) => (
+                          <MenuItem key={code} value={code}>
+                            {code}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+                  <MoneyField
+                    label={`Costo (${costoMonedaEfectiva})`}
+                    value={costo}
+                    onChange={(e) => setCosto(e.target.value)}
+                    size="small"
+                    disabled={!puedeEditarCosto || esFraccion}
+                    sx={{ flex: 1 }}
+                  />
+                </Box>
+
+                {/* Equivalente en base */}
+                {costoEnBase !== null && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: "0.75rem" }}
+                  >
+                    ≈ {costoEnBase.toFixed(2)} {monedaBase}
+                  </Typography>
+                )}
+
+                {esFraccion && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: "0.75rem" }}
+                  >
+                    Calculado automáticamente a partir del producto base
+                  </Typography>
+                )}
+
+                {/* Precio + moneda */}
+                <Box display="flex" gap={1} alignItems="flex-start">
+                  {monedasDisponibles.length > 1 && (
+                    <FormControl
+                      size="small"
+                      sx={{ width: 110, flexShrink: 0 }}
+                    >
+                      <InputLabel>Moneda</InputLabel>
+                      <Select
+                        label="Moneda"
+                        value={precioMonedaEfectiva}
+                        onChange={(e) =>
+                          handlePrecioMonedaChange(e.target.value)
+                        }
+                        disabled={!puedeEditarPrecio}
+                      >
+                        {monedasDisponibles.map((code) => (
+                          <MenuItem key={code} value={code}>
+                            {code}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+                  <MoneyField
+                    label={`Precio (${precioMonedaEfectiva})`}
+                    value={precio}
+                    onChange={(e) => setPrecio(e.target.value)}
+                    size="small"
+                    disabled={!puedeEditarPrecio}
+                    sx={{ flex: 1 }}
+                  />
+                </Box>
+
+                {/* Equivalente en base */}
+                {precioEnBase !== null && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: "0.75rem" }}
+                  >
+                    ≈ {precioEnBase.toFixed(2)} {monedaBase}
+                  </Typography>
+                )}
+
+                <RentabilidadRibbon
+                  costoBase={costoBase}
+                  precioBase={precioBase}
+                />
+
+                {warnCostoMayorPrecio && (
+                  <Alert severity="warning" sx={{ py: 0.5 }}>
+                    El costo ({costoBase.toFixed(2)} {monedaBase}) es mayor al
+                    precio de venta ({precioBase.toFixed(2)} {monedaBase}).
+                  </Alert>
+                )}
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Separador */}
+          <Box sx={{ borderTop: 1, borderColor: "divider", mb: 2.5, pt: 2.5 }}>
+            {/* GRUPO (d): Inventario */}
+            <Box sx={{ pb: 2.5 }}>
+              <Box display="flex" flexDirection="column" gap={2}>
+                <SelectableTextField
+                  label="Cantidad inicial (opcional)"
+                  value={cantidadInicial}
+                  onChange={(e) =>
+                    setCantidadInicial(e.target.value.replace(/-/g, ""))
+                  }
+                  size="small"
+                  inputProps={{ inputMode: "decimal" }}
+                  helperText={
+                    parseFloat(cantidadInicial) > 0
+                      ? "Se creará un movimiento de Compra con esta cantidad"
+                      : "Deja en 0 para agregar stock después"
+                  }
+                />
+
+                <DatePicker
+                  label="Fecha de vencimiento"
+                  value={fechaVencimiento}
+                  onChange={(val) => setFechaVencimiento(val)}
+                  slotProps={{ textField: { size: "small", fullWidth: true } }}
+                />
+
+                {!productoVinculado && (
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={permiteDecimal}
+                        onChange={(e) => setPermiteDecimal(e.target.checked)}
+                        size="small"
+                      />
+                    }
+                    label="Permite cantidades decimales"
+                  />
+                )}
+
+                {warnCantidadCero && (
+                  <Alert severity="warning" sx={{ py: 0.5 }}>
+                    El producto quedará con stock 0 y no aparecerá en el POS de
+                    venta.
+                  </Alert>
+                )}
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Separador */}
+          {!productoVinculado && (
+            <Box
+              sx={{ borderTop: 1, borderColor: "divider", mb: 2.5, pt: 2.5 }}
+            >
+              {/* GRUPO (e): Códigos de Barcode */}
+              <Box sx={{ pb: 0 }}>
+                <Box display="flex" alignItems="center" mb={2}>
                   <Typography variant="body2" fontWeight={600}>
                     Códigos de producto
                   </Typography>
@@ -780,20 +866,33 @@ export function CreateProductDialog({
                     display="flex"
                     alignItems="center"
                     mb={1}
-                    gap={1}
+                    gap={0.5}
                   >
                     <HardwareQrScanner
                       qrCodeSuccessCallback={(qrText) =>
                         handleCodigoChange(idx, qrText)
                       }
                       showInput
-                      style={{ width: "100%" }}
+                      style={{ flex: 1 }}
                       value={codigo}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         handleCodigoChange(idx, e.target.value)
                       }
                       keepFocus={false}
                     />
+                    <Tooltip title="Escanear con cámara">
+                      <IconButton
+                        size="small"
+                        onClick={() => {}}
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <QrCodeScannerIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <MobileQrScanner
                       qrCodeSuccessCallback={(qrText) =>
                         handleCodigoChange(idx, qrText)
@@ -803,6 +902,11 @@ export function CreateProductDialog({
                       <IconButton
                         onClick={() => handleRemoveCodigo(idx)}
                         size="small"
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          flexShrink: 0,
+                        }}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -810,14 +914,15 @@ export function CreateProductDialog({
                   </Box>
                 ))}
               </Box>
-            </>
+            </Box>
           )}
         </Box>
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ gap: 1, py: 1.5, px: 2 }}>
         <Button
           onClick={onClose}
           disabled={saving || (tourRunning && isBlocking)}
+          sx={{ minHeight: 56 }}
         >
           Cancelar
         </Button>
@@ -829,6 +934,7 @@ export function CreateProductDialog({
           startIcon={
             saving ? <CircularProgress size={16} color="inherit" /> : undefined
           }
+          sx={{ minHeight: 56 }}
         >
           {saving ? "Creando..." : "Crear producto"}
         </Button>

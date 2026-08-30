@@ -145,7 +145,7 @@ export default function GastosPage() {
         }
       },
       undefined,
-      { severity: "error" },
+      { severity: "error" }, // Already using error severity for deletions
     );
   };
 

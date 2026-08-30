@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { StatStrip } from "@/components/StatStrip";
 import {
   Box,
   Button,
@@ -75,7 +74,6 @@ import {
 } from "@/utils/formatters";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
-import SelectableTextField from "@/components/SelectableTextField";
 import { useRouter } from "next/navigation";
 import { registerFirstPaymentForNegocio } from "@/services/referralAdminService";
 
@@ -393,11 +391,6 @@ export default function Negocios() {
 
   // Cálculos para estadísticas
   const totalNegocios = negocios.length;
-  const negociosActivos = negocios.filter(
-    (n) => getDaysRemaining(n.limitTime) > 0,
-  ).length;
-  const negociosExpirados = totalNegocios - negociosActivos;
-  const negociosVisibles = filteredNegocios.length;
 
   // Componente para mostrar estadísticas de uso
   const UsageStatsCard = ({
@@ -832,22 +825,22 @@ export default function Negocios() {
       headerActions={headerActions}
       maxWidth="xl"
     >
-      <StatStrip
-        stats={[
-          { label: "Total Negocios", value: totalNegocios.toLocaleString() },
-          { label: "Negocios Activos", value: negociosActivos.toLocaleString() },
-          {
-            // Expired is the only one of the four that is a problem.
-            label: "Negocios Expirados",
-            value: negociosExpirados.toLocaleString(),
-            tone: negociosExpirados > 0 ? "negative" : undefined,
-          },
-          {
-            label: "Resultados Visibles",
-            value: negociosVisibles.toLocaleString(),
-          },
-        ]}
-      />
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary">
+          Total Negocios
+        </Typography>
+        <Typography
+          variant="h4"
+          fontWeight="bold"
+          sx={{
+            fontSize: "1.625rem",
+            lineHeight: 1.2,
+            mt: 0.5,
+          }}
+        >
+          {totalNegocios}
+        </Typography>
+      </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -883,7 +876,7 @@ export default function Negocios() {
                 },
               }}
             />
-            <SelectableTextField
+            <TextField
               size="small"
               placeholder={isMobile ? "Buscar..." : "Buscar negocio..."}
               value={searchTerm}
@@ -1081,136 +1074,116 @@ export default function Negocios() {
                           </Stack>
                         </TableCell>
                       </TableRow>
-                      <TableRow>
-                        <TableCell
-                          style={{ paddingBottom: 0, paddingTop: 0 }}
-                          colSpan={5}
+                      {isExpanded && (
+                        <TableRow
+                          sx={{
+                            backgroundColor:
+                              theme.palette.semantic.hue.accent.surface,
+                            "&:hover": {
+                              backgroundColor:
+                                theme.palette.semantic.hue.accent.surface,
+                            },
+                          }}
                         >
-                          <Collapse
-                            in={isExpanded}
-                            timeout="auto"
-                            unmountOnExit
-                          >
-                            <Box sx={{ margin: 2 }}>
-                              <Typography
-                                variant="h6"
-                                gutterBottom
-                                component="div"
+                          <TableCell colSpan={5} sx={{ py: 2.5, px: 3 }}>
+                            {stats ? (
+                              <Grid container spacing={3} alignItems="center">
+                                <Grid item xs={12} sm={4}>
+                                  <Stack spacing={0.5}>
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                      fontWeight="medium"
+                                    >
+                                      Tiendas
+                                    </Typography>
+                                    <Typography
+                                      variant="h6"
+                                      fontWeight="bold"
+                                      sx={{ fontSize: "1.25rem" }}
+                                    >
+                                      {stats.tiendas.actual}
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {stats.tiendas.limite === -1
+                                        ? "Sin límite"
+                                        : `de ${stats.tiendas.limite}`}
+                                    </Typography>
+                                  </Stack>
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                  <Stack spacing={0.5}>
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                      fontWeight="medium"
+                                    >
+                                      Usuarios
+                                    </Typography>
+                                    <Typography
+                                      variant="h6"
+                                      fontWeight="bold"
+                                      sx={{ fontSize: "1.25rem" }}
+                                    >
+                                      {stats.usuarios.actual}
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {stats.usuarios.limite === -1
+                                        ? "Sin límite"
+                                        : `de ${stats.usuarios.limite}`}
+                                    </Typography>
+                                  </Stack>
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                  <Stack spacing={0.5}>
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                      fontWeight="medium"
+                                    >
+                                      Productos
+                                    </Typography>
+                                    <Typography
+                                      variant="h6"
+                                      fontWeight="bold"
+                                      sx={{ fontSize: "1.25rem" }}
+                                    >
+                                      {stats.productos.actual}
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {stats.productos.limite === -1
+                                        ? "Sin límite"
+                                        : `de ${stats.productos.limite}`}
+                                    </Typography>
+                                  </Stack>
+                                </Grid>
+                              </Grid>
+                            ) : (
+                              <Box
                                 sx={{
                                   display: "flex",
                                   alignItems: "center",
-                                  gap: 1,
+                                  gap: 2,
                                 }}
                               >
-                                <TrendingUp color="primary" />
-                                Estadísticas de Uso - {negocio.nombre}
-                              </Typography>
-
-                              {stats ? (
-                                <Grid container spacing={3}>
-                                  <Grid item xs={12} md={9}>
-                                    <Grid container spacing={2}>
-                                      <Grid item xs={12} sm={4}>
-                                        <UsageStatsCard
-                                          icon={<Store color="primary" />}
-                                          title="Tiendas"
-                                          actual={stats.tiendas.actual}
-                                          limite={stats.tiendas.limite}
-                                          porcentaje={stats.tiendas.porcentaje}
-                                          color="primary"
-                                        />
-                                      </Grid>
-                                      <Grid item xs={12} sm={4}>
-                                        <UsageStatsCard
-                                          icon={<Person color="secondary" />}
-                                          title="Usuarios"
-                                          actual={stats.usuarios.actual}
-                                          limite={stats.usuarios.limite}
-                                          porcentaje={stats.usuarios.porcentaje}
-                                          color="secondary"
-                                        />
-                                      </Grid>
-                                      <Grid item xs={12} sm={4}>
-                                        <UsageStatsCard
-                                          icon={<Inventory color="info" />}
-                                          title="Productos"
-                                          actual={stats.productos.actual}
-                                          limite={stats.productos.limite}
-                                          porcentaje={
-                                            stats.productos.porcentaje
-                                          }
-                                          color="info"
-                                        />
-                                      </Grid>
-                                    </Grid>
-                                  </Grid>
-
-                                  <Grid item xs={12} md={3}>
-                                    <Card
-                                      variant="outlined"
-                                      sx={{ height: "100%" }}
-                                    >
-                                      <CardContent
-                                        sx={{ p: 2, textAlign: "center" }}
-                                      >
-                                        <Stack alignItems="center" spacing={1}>
-                                          <Schedule
-                                            color={getDaysRemainingColor(
-                                              stats.diasRestantes,
-                                            )}
-                                            sx={{ fontSize: 32 }}
-                                          />
-                                          <Typography
-                                            variant="h6"
-                                            fontWeight="bold"
-                                          >
-                                            {formatDaysRemaining(
-                                              stats.diasRestantes,
-                                            )}
-                                          </Typography>
-                                          <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                          >
-                                            Vence el{" "}
-                                            {formatDate(stats.fechaVencimiento)}
-                                          </Typography>
-                                          <Chip
-                                            label={
-                                              stats.diasRestantes <= 0
-                                                ? "Expirado"
-                                                : "Activo"
-                                            }
-                                            color={getDaysRemainingColor(
-                                              stats.diasRestantes,
-                                            )}
-                                            variant="filled"
-                                            size="small"
-                                          />
-                                        </Stack>
-                                      </CardContent>
-                                    </Card>
-                                  </Grid>
-                                </Grid>
-                              ) : (
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 2,
-                                    p: 2,
-                                  }}
-                                >
-                                  <CircularProgress size={20} />
-                                  <Typography variant="body2">
-                                    Cargando estadísticas...
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          </Collapse>
-                        </TableCell>
-                      </TableRow>
+                                <CircularProgress size={20} />
+                                <Typography variant="body2">
+                                  Cargando estadísticas...
+                                </Typography>
+                              </Box>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </>
                   );
                 })}

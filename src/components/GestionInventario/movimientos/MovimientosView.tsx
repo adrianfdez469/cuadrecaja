@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import { StatStrip } from "@/components/StatStrip";
+import { squareIconButtonSx } from "@/theme";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -45,7 +46,7 @@ import {
   Refresh,
   ExpandLess,
   FilterAlt,
-  CleaningServices,
+  FilterListOff,
 } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
@@ -88,7 +89,12 @@ const PAGE_SIZE = 20;
 
 const TODOS_TIPOS = MovimientoTipoEnum.options;
 
-export default function MovimientosView() {
+interface MovimientosViewProps {
+  /** Pestañas Inventario/Movimientos, dibujadas por el padre bajo el título. */
+  tabs?: ReactNode;
+}
+
+export default function MovimientosView({ tabs }: MovimientosViewProps) {
   const [movimientos, setMovimientos] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [devolucionDialogOpen, setDevolucionDialogOpen] = useState(false);
@@ -387,11 +393,8 @@ export default function MovimientosView() {
     return (
       <PageContainer
         title="Movimientos de Stock"
-        subtitle={
-          !isMobile
-            ? "Historial de entradas y salidas de inventario"
-            : undefined
-        }
+        subtitle="Historial de entradas y salidas de inventario"
+        tabs={tabs}
         maxWidth="xl"
       >
         <ContentCard>
@@ -414,6 +417,7 @@ export default function MovimientosView() {
     return (
       <PageContainer
         title="Movimientos de Stock"
+        tabs={tabs}
         breadcrumbs={[
           { label: "Inicio", href: "/home" },
           { label: "Movimientos" },
@@ -450,51 +454,53 @@ export default function MovimientosView() {
     setImportDialogOpen(true);
   };
 
-  const headerActions = (
-    <Stack direction="row" spacing={0.5} alignItems="center">
+  const puedeDevolucionVenta = verificarPermiso(
+    "operaciones.movimientos.crear.devolucion_venta",
+  );
+  const puedeImportarExcel =
+    (movimientos.length === 0 && !searchTerm) || user.rol === "SUPER_ADMIN";
+
+  // Orden del mockup: secundarias primero, "Crear Movimiento" al final — es
+  // la acción principal y va pegada al borde, no perdida entre las demás.
+  // En mobile no vive acá: baja al contenido como botón de ancho completo
+  // (mismo criterio que "Cerrar caja" en /cierre, ver pattern_mobile_sticky_cta).
+  const headerActions = !isMobile ? (
+    <Stack direction="row" spacing={1} alignItems="center">
+      {puedeDevolucionVenta && (
+        <Button
+          variant="outlined"
+          onClick={() => setDevolucionDialogOpen(true)}
+        >
+          Devolución de venta
+        </Button>
+      )}
+      {puedeImportarExcel && (
+        <Button
+          variant="outlined"
+          startIcon={<Dock />}
+          onClick={handleImportExcel}
+        >
+          Importar Excel
+        </Button>
+      )}
       <Tooltip title="Actualizar movimientos">
         <IconButton
           onClick={() => fetchMovimientos(skip)}
           disabled={loadingData}
-          size="small"
+          sx={squareIconButtonSx}
         >
           <Refresh />
         </IconButton>
       </Tooltip>
-
       <Button
         variant="contained"
-        startIcon={!isMobile ? <Add /> : undefined}
+        startIcon={<Add />}
         onClick={() => setDialogOpen(true)}
-        size={isMobile ? "small" : "medium"}
-        fullWidth={isMobile}
       >
-        {isMobile ? "Crear" : "Crear Movimiento"}
+        Crear Movimiento
       </Button>
-      {verificarPermiso("operaciones.movimientos.crear.devolucion_venta") && (
-        <Button
-          variant="outlined"
-          onClick={() => setDevolucionDialogOpen(true)}
-          size={isMobile ? "small" : "medium"}
-          fullWidth={isMobile}
-        >
-          {isMobile ? "Devolución" : "Devolución de venta"}
-        </Button>
-      )}
-      {((movimientos.length === 0 && !searchTerm) ||
-        user.rol === "SUPER_ADMIN") && (
-        <Button
-          variant="outlined"
-          startIcon={!isMobile ? <Dock /> : undefined}
-          onClick={() => handleImportExcel()}
-          size={isMobile ? "small" : "medium"}
-          fullWidth={isMobile}
-        >
-          {isMobile ? "Importar" : "Importar Excel"}
-        </Button>
-      )}
     </Stack>
-  );
+  ) : undefined;
 
   // Componente de estadística móvil optimizado
   /**
@@ -528,9 +534,8 @@ export default function MovimientosView() {
   return (
     <PageContainer
       title="Movimientos de Stock"
-      subtitle={
-        !isMobile ? "Historial de entradas y salidas de inventario" : undefined
-      }
+      subtitle="Historial de entradas y salidas de inventario"
+      tabs={tabs}
       headerActions={headerActions}
       maxWidth="xl"
     >
@@ -540,13 +545,99 @@ export default function MovimientosView() {
       />
 
       <StatStrip
-        stats={[
-          { label: "Total Movimientos", value: formatNumber(totalMovimientos) },
-          { label: "Entradas", value: formatNumber(movimientosEntrada) },
-          { label: "Salidas", value: formatNumber(movimientosSalida) },
-          { label: "Productos", value: formatNumber(productosAfectados) },
-        ]}
+        stats={
+          // El orden cambia por viewport: mobile agrupa "Productos" antes de
+          // Entradas/Salidas (rejilla 2×2), desktop las deja seguidas.
+          isMobile
+            ? [
+                {
+                  label: "Total Movimientos",
+                  value: formatNumber(totalMovimientos),
+                },
+                {
+                  label: "Productos",
+                  value: formatNumber(productosAfectados),
+                },
+                {
+                  label: "Entradas",
+                  value: formatNumber(movimientosEntrada),
+                  tone: "positive",
+                },
+                {
+                  label: "Salidas",
+                  value: formatNumber(movimientosSalida),
+                  tone: "negative",
+                },
+              ]
+            : [
+                {
+                  label: "Total Movimientos",
+                  value: formatNumber(totalMovimientos),
+                },
+                {
+                  label: "Entradas",
+                  value: formatNumber(movimientosEntrada),
+                  tone: "positive",
+                },
+                {
+                  label: "Salidas",
+                  value: formatNumber(movimientosSalida),
+                  tone: "negative",
+                },
+                {
+                  label: "Productos",
+                  value: formatNumber(productosAfectados),
+                },
+              ]
+        }
       />
+
+      {/* En mobile, "Crear Movimiento" es de ancho completo y las secundarias
+          bajan a una fila propia — mismo criterio que el header de escritorio
+          usa Stack, acá no entraban ni comprimidas. */}
+      {isMobile && (
+        <Stack spacing={1.25} sx={{ mb: 2 }}>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<Add />}
+            onClick={() => setDialogOpen(true)}
+            sx={{ minHeight: 52 }}
+          >
+            Crear Movimiento
+          </Button>
+          <Stack direction="row" spacing={1}>
+            {puedeDevolucionVenta && (
+              <Button
+                variant="outlined"
+                onClick={() => setDevolucionDialogOpen(true)}
+                sx={{ flex: 1 }}
+              >
+                Devolución de venta
+              </Button>
+            )}
+            {puedeImportarExcel && (
+              <Tooltip title="Importar Excel">
+                <IconButton
+                  onClick={handleImportExcel}
+                  sx={{ ...squareIconButtonSx, flex: "0 0 auto" }}
+                >
+                  <Dock />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title="Actualizar movimientos">
+              <IconButton
+                onClick={() => fetchMovimientos(skip)}
+                disabled={loadingData}
+                sx={{ ...squareIconButtonSx, flex: "0 0 auto" }}
+              >
+                <Refresh />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Stack>
+      )}
 
       {/* Lista de movimientos */}
       <ContentCard
@@ -557,65 +648,124 @@ export default function MovimientosView() {
             : undefined
         }
         headerActions={
-          <Stack direction="row" spacing={1} alignItems="center">
-            <SelectableTextField
-              size="small"
-              placeholder={isMobile ? "Buscar..." : "Buscar movimiento..."}
-              value={searchInputValue}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === "Enter") handleFilter();
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                minWidth: isMobile ? 120 : 200,
-                maxWidth: isMobile ? 150 : 250,
-              }}
-            />
-            <Tooltip
-              title={filtersExpanded ? "Ocultar filtros" : "Más filtros"}
-            >
-              <IconButton
+          isMobile ? (
+            // El mockup (`rediseno/movimientos-stock-movil.html`) parte esta
+            // barra en dos filas a 390px: buscar+Filtrar arriba, Limpiar
+            // filtros abajo. El toggle "Más filtros" (panel de Tipo/Fecha) no
+            // está en el mockup — es una función previa a la migración que
+            // hay que conservar, así que se suma a la segunda fila.
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1}>
+                <SelectableTextField
+                  size="small"
+                  placeholder="Buscar..."
+                  value={searchInputValue}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") handleFilter();
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ flex: 1, minWidth: 0 }}
+                />
+                <Button
+                  variant="outlined"
+                  startIcon={<FilterAlt fontSize="small" />}
+                  onClick={handleFilter}
+                  disabled={loadingData}
+                  sx={{ flexShrink: 0 }}
+                >
+                  Filtrar
+                </Button>
+              </Stack>
+              <Stack direction="row" spacing={1}>
+                <Tooltip
+                  title={filtersExpanded ? "Ocultar filtros" : "Más filtros"}
+                >
+                  <IconButton
+                    onClick={() => setFiltersExpanded((v) => !v)}
+                    color={
+                      tipoFilter.length > 0 || fechaInicio || fechaFin
+                        ? "primary"
+                        : "default"
+                    }
+                    sx={squareIconButtonSx}
+                  >
+                    {filtersExpanded ? <ExpandLess /> : <FilterAlt />}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Limpiar todos los filtros">
+                  <Button
+                    variant="outlined"
+                    startIcon={<FilterListOff fontSize="small" />}
+                    onClick={handleClearSearch}
+                    disabled={disabledCleanFilter}
+                  >
+                    Limpiar filtros
+                  </Button>
+                </Tooltip>
+              </Stack>
+            </Stack>
+          ) : (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <SelectableTextField
                 size="small"
-                onClick={() => setFiltersExpanded((v) => !v)}
-                color={
-                  tipoFilter.length > 0 || fechaInicio || fechaFin
-                    ? "primary"
-                    : "default"
-                }
+                placeholder="Buscar movimiento..."
+                value={searchInputValue}
+                onChange={(e) => handleInputChange(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") handleFilter();
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ minWidth: 200, maxWidth: 250 }}
+              />
+              <Tooltip
+                title={filtersExpanded ? "Ocultar filtros" : "Más filtros"}
               >
-                {filtersExpanded ? <ExpandLess /> : <FilterAlt />}
-              </IconButton>
-            </Tooltip>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleFilter}
-              disabled={loadingData}
-              sx={{ minWidth: "auto", px: 2 }}
-            >
-              Filtrar
-            </Button>
-
-            <Tooltip title="Limpiar todos los filtros">
+                <IconButton
+                  onClick={() => setFiltersExpanded((v) => !v)}
+                  color={
+                    tipoFilter.length > 0 || fechaInicio || fechaFin
+                      ? "primary"
+                      : "default"
+                  }
+                  sx={squareIconButtonSx}
+                >
+                  {filtersExpanded ? <ExpandLess /> : <FilterAlt />}
+                </IconButton>
+              </Tooltip>
               <Button
-                size="small"
-                onClick={handleClearSearch}
-                disabled={disabledCleanFilter}
+                variant="outlined"
+                startIcon={<FilterAlt fontSize="small" />}
+                onClick={handleFilter}
+                disabled={loadingData}
               >
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                  <CleaningServices fontSize="small" />
-                  <span>Limpiar filtros</span>
-                </Stack>
+                Filtrar
               </Button>
-            </Tooltip>
-          </Stack>
+
+              <Tooltip title="Limpiar todos los filtros">
+                <Button
+                  variant="outlined"
+                  startIcon={<FilterListOff fontSize="small" />}
+                  onClick={handleClearSearch}
+                  disabled={disabledCleanFilter}
+                >
+                  Limpiar filtros
+                </Button>
+              </Tooltip>
+            </Stack>
+          )
         }
         noPadding
         fullHeight
@@ -702,33 +852,27 @@ export default function MovimientosView() {
             />
           )
         ) : isMobile ? (
-          // Vista móvil con cards más compactas
+          // Vista móvil: `rediseno/movimientos-stock-movil.html` — nombre y
+          // pill apilados a la izquierda, la cantidad es el dato grande a la
+          // derecha; motivo y usuario van sin etiquetas ("Motivo:"/"Por:"
+          // eran redundantes, el texto ya se explica solo).
           <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.5}>
+            <Stack spacing={1.25}>
               {movimientos.map((movimiento, i) => (
-                <Card
-                  key={i}
-                  sx={{
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="flex-start"
-                      >
+                <Card key={i} variant="outlined">
+                  <CardContent sx={{ p: 1.75, "&:last-child": { pb: 1.75 } }}>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="flex-start"
+                      gap={1.5}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
                         <Typography
-                          variant="subtitle2"
-                          fontWeight="medium"
                           sx={{
-                            flex: 1,
-                            pr: 1,
-                            fontSize: "0.875rem",
-                            lineHeight: 1.2,
+                            fontSize: "1rem",
+                            fontWeight: 700,
+                            lineHeight: 1.35,
                           }}
                         >
                           {movimiento.proveedor?.nombre
@@ -736,76 +880,56 @@ export default function MovimientosView() {
                             : movimiento.productoTienda?.producto?.nombre ||
                               "Producto no encontrado"}
                         </Typography>
-                        {getMovimientoChip(movimiento.tipo)}
-                      </Box>
-
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Typography
-                            variant="body2"
-                            fontWeight="bold"
-                            color={
-                              isMovimientoBaja(movimiento.tipo)
-                                ? "error.main"
-                                : "success.main"
-                            }
-                            sx={{ fontSize: "0.8125rem" }}
-                          >
-                            {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
-                            {Math.abs(movimiento.cantidad)}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.6875rem" }}
-                          >
-                            unidades
-                          </Typography>
+                        <Box sx={{ mt: 0.75 }}>
+                          {getMovimientoChip(movimiento.tipo)}
                         </Box>
+                      </Box>
+                      <Typography
+                        sx={{
+                          flexShrink: 0,
+                          fontSize: "1.375rem",
+                          fontWeight: 700,
+                          letterSpacing: "-0.02em",
+                          color: isMovimientoBaja(movimiento.tipo)
+                            ? "error.main"
+                            : "success.main",
+                        }}
+                      >
+                        {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
+                        {formatNumber(Math.abs(movimiento.cantidad))}
+                      </Typography>
+                    </Box>
+
+                    {movimiento?.motivo && (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 1.25 }}
+                      >
+                        {formatMovimientoMotivo(movimiento.motivo)}
+                      </Typography>
+                    )}
+
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      sx={{
+                        mt: 1.5,
+                        pt: 1.25,
+                        borderTop: 1,
+                        borderColor: "divider",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        {formatDateTime(movimiento.fecha)}
+                      </Typography>
+                      {movimiento.usuario?.nombre && (
                         <Typography
                           variant="caption"
                           color="text.secondary"
-                          sx={{ fontSize: "0.6875rem" }}
+                          sx={{ ml: "auto" }}
                         >
-                          {formatDateTime(movimiento.fecha).split(" • ")[0]}
-                        </Typography>
-                      </Box>
-                      {movimiento?.motivo && (
-                        <Typography
-                          variant="subtitle2"
-                          gutterBottom
-                          sx={{ fontSize: "0.6875rem" }}
-                        >
-                          Motivo:{" "}
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.6875rem" }}
-                          >
-                            {" "}
-                            {formatMovimientoMotivo(movimiento.motivo)}
-                          </Typography>
-                        </Typography>
-                      )}
-
-                      {movimiento.usuario?.nombre && (
-                        <Typography
-                          variant="subtitle2"
-                          sx={{ fontSize: "0.6875rem" }}
-                        >
-                          Por:{" "}
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.6875rem" }}
-                          >
-                            {" "}
-                            {movimiento.usuario.nombre}
-                          </Typography>
+                          {movimiento.usuario.nombre}
                         </Typography>
                       )}
                     </Stack>
@@ -833,8 +957,7 @@ export default function MovimientosView() {
                   <TableRow
                     key={i}
                     sx={{
-                      "&:nth-of-type(odd)": {
-                      },
+                      "&:nth-of-type(odd)": {},
                     }}
                   >
                     <TableCell>

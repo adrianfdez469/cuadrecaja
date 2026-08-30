@@ -24,7 +24,6 @@ import {
   CardContent,
   Stack,
   Tooltip,
-  Chip,
   useTheme,
   useMediaQuery,
   Collapse,
@@ -46,7 +45,6 @@ import {
   ExpandMore,
   ExpandLess,
   LocalShipping,
-  Person,
   PersonOff,
 } from "@mui/icons-material";
 import { PageContainer } from "@/components/PageContainer";
@@ -92,6 +90,7 @@ export default function Proveedores() {
   useEffect(() => {
     fetchProveedores();
     fetchUsuarios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchUsuarios = async () => {
@@ -213,8 +212,6 @@ export default function Proveedores() {
   // Cálculos para estadísticas
   const totalProveedores = proveedores.length;
   const proveedoresConTelefono = proveedores.filter((p) => p.telefono).length;
-  const proveedoresConDireccion = proveedores.filter((p) => p.direccion).length;
-  const proveedoresConUsuario = proveedores.filter((p) => p.usuarioId).length;
 
   const breadcrumbs = [
     { label: "Inicio", href: "/home" },
@@ -245,7 +242,7 @@ export default function Proveedores() {
       )}
       <Button
         variant="contained"
-        startIcon={!isMobile ? <Add /> : undefined}
+        startIcon={<Add />}
         onClick={() => setOpen(true)}
         size="small"
       >
@@ -264,7 +261,7 @@ export default function Proveedores() {
       <Box sx={{ mb: 3 }}>
         <Collapse in={!isMobile || statsExpanded}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6}>
               <Card>
                 <CardContent sx={{ textAlign: "center", py: 2 }}>
                   <Typography variant="h4" color="primary" fontWeight="bold">
@@ -276,46 +273,14 @@ export default function Proveedores() {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6}>
               <Card>
                 <CardContent sx={{ textAlign: "center", py: 2 }}>
-                  <Typography
-                    variant="h4"
-                    color="success.main"
-                    fontWeight="bold"
-                  >
+                  <Typography variant="h4" color="primary" fontWeight="bold">
                     {proveedoresConTelefono}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Con Teléfono
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Card>
-                <CardContent sx={{ textAlign: "center", py: 2 }}>
-                  <Typography variant="h4" color="info.main" fontWeight="bold">
-                    {proveedoresConDireccion}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Con Dirección
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Card>
-                <CardContent sx={{ textAlign: "center", py: 2 }}>
-                  <Typography
-                    variant="h4"
-                    color="secondary.main"
-                    fontWeight="bold"
-                  >
-                    {proveedoresConUsuario}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Con Usuario Asociado
+                    Con Consignación Activa
                   </Typography>
                 </CardContent>
               </Card>
@@ -381,7 +346,6 @@ export default function Proveedores() {
               {filteredProveedores.map((proveedor) => (
                 <Card
                   key={proveedor.id}
-                  onClick={() => handleEdit(proveedor)}
                   sx={{
                     cursor: "pointer",
                     "&:hover": {
@@ -394,72 +358,84 @@ export default function Proveedores() {
                       <Box
                         display="flex"
                         justifyContent="space-between"
-                        alignItems="center"
+                        alignItems="flex-start"
                       >
                         <Box sx={{ flex: 1 }}>
                           <Typography
                             variant="subtitle2"
                             fontWeight="medium"
                             sx={{ fontSize: "0.875rem" }}
+                            onClick={() => handleEdit(proveedor)}
                           >
                             {proveedor.nombre}
                           </Typography>
-                          {proveedor.descripcion && (
+                          {(proveedor.telefono || proveedor.direccion) && (
+                            <Box
+                              sx={{ mt: 0.5 }}
+                              onClick={() => handleEdit(proveedor)}
+                            >
+                              {proveedor.telefono && (
+                                <Box
+                                  display="flex"
+                                  alignItems="center"
+                                  gap={0.75}
+                                  sx={{ mb: 0.25 }}
+                                >
+                                  <Phone fontSize="small" color="action" />
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ fontSize: "0.75rem" }}
+                                  >
+                                    {proveedor.telefono}
+                                  </Typography>
+                                </Box>
+                              )}
+                              {proveedor.direccion && (
+                                <Box
+                                  display="flex"
+                                  alignItems="center"
+                                  gap={0.75}
+                                >
+                                  <LocationOn fontSize="small" color="action" />
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ fontSize: "0.75rem" }}
+                                  >
+                                    {proveedor.direccion}
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+                          )}
+                          {!proveedor.telefono && !proveedor.direccion && (
                             <Typography
                               variant="body2"
                               color="text.secondary"
-                              sx={{ fontSize: "0.75rem" }}
+                              sx={{ fontSize: "0.75rem", mt: 0.5 }}
+                              onClick={() => handleEdit(proveedor)}
                             >
-                              {proveedor.descripcion}
+                              Sin contacto
                             </Typography>
                           )}
                         </Box>
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(proveedor.id);
-                          }}
-                          size="small"
-                          color="error"
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </Box>
-
-                      <Box display="flex" gap={1} flexWrap="wrap">
-                        {proveedor.usuarioId && (
-                          <Chip
-                            icon={<Person fontSize="small" />}
-                            label={
-                              usuarios.find((u) => u.id === proveedor.usuarioId)
-                                ?.nombre || "Usuario"
-                            }
+                        <Stack direction="row" spacing={0.5}>
+                          <IconButton
+                            onClick={() => handleEdit(proveedor)}
                             size="small"
-                            variant="outlined"
                             color="primary"
-                            sx={{ fontSize: "0.6875rem", height: 20 }}
-                          />
-                        )}
-                        {proveedor.telefono && (
-                          <Chip
-                            icon={<Phone fontSize="small" />}
-                            label={proveedor.telefono}
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            onClick={() => handleDelete(proveedor.id)}
                             size="small"
-                            variant="outlined"
-                            color="success"
-                            sx={{ fontSize: "0.6875rem", height: 20 }}
-                          />
-                        )}
-                        {proveedor.direccion && (
-                          <Chip
-                            icon={<LocationOn fontSize="small" />}
-                            label={proveedor.direccion}
-                            size="small"
-                            variant="outlined"
-                            color="info"
-                            sx={{ fontSize: "0.6875rem", height: 20 }}
-                          />
-                        )}
+                            color="error"
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </Stack>
                       </Box>
                     </Stack>
                   </CardContent>
@@ -473,11 +449,8 @@ export default function Proveedores() {
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell>Descripción</TableCell>
-                  <TableCell>Usuario Asociado</TableCell>
-                  <TableCell>Teléfono</TableCell>
-                  <TableCell>Dirección</TableCell>
+                  <TableCell>Proveedor</TableCell>
+                  <TableCell>Contacto</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
@@ -485,7 +458,6 @@ export default function Proveedores() {
                 {filteredProveedores.map((proveedor) => (
                   <TableRow
                     key={proveedor.id}
-                    onClick={() => handleEdit(proveedor)}
                     sx={{
                       cursor: "pointer",
                       "&:hover": {
@@ -493,68 +465,34 @@ export default function Proveedores() {
                       },
                     }}
                   >
-                    <TableCell>
+                    <TableCell onClick={() => handleEdit(proveedor)}>
                       <Typography variant="body2" fontWeight="medium">
                         {proveedor.nombre}
                       </Typography>
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {proveedor.descripcion || "-"}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {proveedor.usuarioId ? (
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          spacing={0.5}
-                        >
-                          <Avatar sx={{ width: 24, height: 24 }}>
-                            {usuarios
-                              .find((u) => u.id === proveedor.usuarioId)
-                              ?.nombre.charAt(0)}
-                          </Avatar>
-                          <Typography variant="body2" fontWeight="medium">
-                            {
-                              usuarios.find((u) => u.id === proveedor.usuarioId)
-                                ?.nombre
-                            }
-                          </Typography>
+                    <TableCell onClick={() => handleEdit(proveedor)}>
+                      {proveedor.telefono || proveedor.direccion ? (
+                        <Stack spacing={0.5}>
+                          {proveedor.telefono && (
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <Phone fontSize="small" color="action" />
+                              <Typography variant="body2">
+                                {proveedor.telefono}
+                              </Typography>
+                            </Box>
+                          )}
+                          {proveedor.direccion && (
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <LocationOn fontSize="small" color="action" />
+                              <Typography variant="body2">
+                                {proveedor.direccion}
+                              </Typography>
+                            </Box>
+                          )}
                         </Stack>
                       ) : (
                         <Typography variant="body2" color="text.secondary">
-                          -
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {proveedor.telefono ? (
-                        <Chip
-                          icon={<Phone fontSize="small" />}
-                          label={proveedor.telefono}
-                          size="small"
-                          variant="outlined"
-                          color="success"
-                        />
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          -
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {proveedor.direccion ? (
-                        <Chip
-                          icon={<LocationOn fontSize="small" />}
-                          label={proveedor.direccion}
-                          size="small"
-                          variant="outlined"
-                          color="info"
-                        />
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          -
+                          Sin contacto
                         </Typography>
                       )}
                     </TableCell>
@@ -570,10 +508,14 @@ export default function Proveedores() {
                               e.stopPropagation();
                               handleEdit(proveedor);
                             }}
-                            size="small"
+                            size="medium"
                             color="primary"
+                            sx={{
+                              width: 44,
+                              height: 44,
+                            }}
                           >
-                            <Edit fontSize="small" />
+                            <Edit />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Eliminar proveedor">
@@ -582,10 +524,14 @@ export default function Proveedores() {
                               e.stopPropagation();
                               handleDelete(proveedor.id);
                             }}
-                            size="small"
+                            size="medium"
                             color="error"
+                            sx={{
+                              width: 44,
+                              height: 44,
+                            }}
                           >
-                            <Delete fontSize="small" />
+                            <Delete />
                           </IconButton>
                         </Tooltip>
                       </Stack>

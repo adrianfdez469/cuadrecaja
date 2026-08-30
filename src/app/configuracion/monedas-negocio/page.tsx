@@ -1,61 +1,103 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
-  DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel,
-  InputLabel, MenuItem, Select, Stack, Switch, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Typography, useMediaQuery, useTheme,
-} from '@mui/material';
-import { Add, CurrencyExchange, Warning } from '@mui/icons-material';
-import { useAppContext } from '@/context/AppContext';
-import { useMessageContext } from '@/context/MessageContext';
-import { PageContainer } from '@/components/PageContainer';
-import { LoadingState } from '@/components/LoadingState';
-import { StatusPill } from '@/components/StatusPill';
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import { Add, CurrencyExchange, Warning } from "@mui/icons-material";
+import { useAppContext } from "@/context/AppContext";
+import { useMessageContext } from "@/context/MessageContext";
+import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
+import { StatusPill } from "@/components/StatusPill";
 
-import { CurrencyCode } from './components/CurrencyCode';
-import { ContentCard } from '@/components/ContentCard';
+import { CurrencyCode } from "./components/CurrencyCode";
+import { ContentCard } from "@/components/ContentCard";
 import {
-  getMonedasGlobales, habilitarMonedaNegocio, updateMonedaNegocio, deshabilitarMonedaNegocio,
-} from '@/services/monedaService';
-import { previewCambiarMonedaBase, ejecutarCambioMonedaBase } from '@/services/tasaCambioService';
-import type { IMonedaConDenominaciones, INegocioMoneda } from '@/schemas/moneda';
-import type { ICambiarMonedaBasePreview } from '@/services/tasaCambioService';
+  getMonedasGlobales,
+  habilitarMonedaNegocio,
+  updateMonedaNegocio,
+  deshabilitarMonedaNegocio,
+} from "@/services/monedaService";
+import {
+  previewCambiarMonedaBase,
+  ejecutarCambioMonedaBase,
+} from "@/services/tasaCambioService";
+import type {
+  IMonedaConDenominaciones,
+  INegocioMoneda,
+} from "@/schemas/moneda";
+import type { ICambiarMonedaBasePreview } from "@/services/tasaCambioService";
 
 const breadcrumbs = [
-  { label: 'Inicio', href: '/home' },
-  { label: 'Configuración', href: '/configuracion' },
-  { label: 'Monedas del negocio' },
+  { label: "Inicio", href: "/home" },
+  { label: "Configuración", href: "/configuracion" },
+  { label: "Monedas del negocio" },
 ];
 
 export default function MonedasNegocioPage() {
-  const { user, loadingContext, monedasNegocio, monedaBase, refreshMonedas } = useAppContext();
+  const { user, loadingContext, monedasNegocio, monedaBase, refreshMonedas } =
+    useAppContext();
   const { showMessage } = useMessageContext();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const [monedasGlobales, setMonedasGlobales] = useState<IMonedaConDenominaciones[]>([]);
+  const [monedasGlobales, setMonedasGlobales] = useState<
+    IMonedaConDenominaciones[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   const [openHabilitar, setOpenHabilitar] = useState(false);
-  const [selectedCode, setSelectedCode] = useState('');
+  const [selectedCode, setSelectedCode] = useState("");
   const [admiteEfectivo, setAdmiteEfectivo] = useState(true);
   const [admiteTransferencia, setAdmiteTransferencia] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [openCambioBase, setOpenCambioBase] = useState(false);
-  const [nuevaBase, setNuevaBase] = useState('');
-  const [preview, setPreview] = useState<ICambiarMonedaBasePreview | null>(null);
+  const [nuevaBase, setNuevaBase] = useState("");
+  const [preview, setPreview] = useState<ICambiarMonedaBasePreview | null>(
+    null,
+  );
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [ejecutando, setEjecutando] = useState(false);
 
   const negocioId = user?.negocio?.id;
   // Excluir la moneda base de la lista editable (no se puede deshabilitar ni volver a poner como base)
-  const monedasExtra = monedasNegocio.filter((m) => m.monedaCode !== monedaBase);
-  const monedasHabilitadasCodes = new Set(monedasNegocio.map((m) => m.monedaCode));
+  const monedasExtra = monedasNegocio.filter(
+    (m) => m.monedaCode !== monedaBase,
+  );
+  const monedasHabilitadasCodes = new Set(
+    monedasNegocio.map((m) => m.monedaCode),
+  );
   const monedasDisponiblesParaHabilitar = monedasGlobales.filter(
-    (m) => m.activo && !monedasHabilitadasCodes.has(m.code) && m.code !== monedaBase,
+    (m) =>
+      m.activo && !monedasHabilitadasCodes.has(m.code) && m.code !== monedaBase,
   );
 
   useEffect(() => {
@@ -67,14 +109,14 @@ export default function MonedasNegocioPage() {
     try {
       setMonedasGlobales(await getMonedasGlobales());
     } catch {
-      showMessage('Error al cargar monedas', 'error');
+      showMessage("Error al cargar monedas", "error");
     } finally {
       setLoading(false);
     }
   };
 
   const openHabilitarDialog = () => {
-    setSelectedCode(monedasDisponiblesParaHabilitar[0]?.code ?? '');
+    setSelectedCode(monedasDisponiblesParaHabilitar[0]?.code ?? "");
     setAdmiteEfectivo(true);
     setAdmiteTransferencia(false);
     setOpenHabilitar(true);
@@ -84,26 +126,37 @@ export default function MonedasNegocioPage() {
     if (!selectedCode) return;
     setSaving(true);
     try {
-      await habilitarMonedaNegocio(negocioId, { monedaCode: selectedCode, admiteEfectivo, admiteTransferencia });
-      showMessage('Moneda habilitada', 'success');
+      await habilitarMonedaNegocio(negocioId, {
+        monedaCode: selectedCode,
+        admiteEfectivo,
+        admiteTransferencia,
+      });
+      showMessage("Moneda habilitada", "success");
       setOpenHabilitar(false);
       await refreshMonedas();
     } catch {
-      showMessage('Error al habilitar moneda', 'error');
+      showMessage("Error al habilitar moneda", "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const toggleMoneda = async (m: INegocioMoneda, campo: 'admiteEfectivo' | 'admiteTransferencia') => {
+  const toggleMoneda = async (
+    m: INegocioMoneda,
+    campo: "admiteEfectivo" | "admiteTransferencia",
+  ) => {
     try {
       await updateMonedaNegocio(negocioId, m.monedaCode, {
-        admiteEfectivo: campo === 'admiteEfectivo' ? !m.admiteEfectivo : m.admiteEfectivo,
-        admiteTransferencia: campo === 'admiteTransferencia' ? !m.admiteTransferencia : m.admiteTransferencia,
+        admiteEfectivo:
+          campo === "admiteEfectivo" ? !m.admiteEfectivo : m.admiteEfectivo,
+        admiteTransferencia:
+          campo === "admiteTransferencia"
+            ? !m.admiteTransferencia
+            : m.admiteTransferencia,
       });
       await refreshMonedas();
     } catch {
-      showMessage('Error al actualizar', 'error');
+      showMessage("Error al actualizar", "error");
     }
   };
 
@@ -112,7 +165,7 @@ export default function MonedasNegocioPage() {
       await deshabilitarMonedaNegocio(negocioId, m.monedaCode);
       await refreshMonedas();
     } catch {
-      showMessage('Error al deshabilitar', 'error');
+      showMessage("Error al deshabilitar", "error");
     }
   };
 
@@ -125,8 +178,9 @@ export default function MonedasNegocioPage() {
       setPreview(await previewCambiarMonedaBase(negocioId, code));
     } catch (e: unknown) {
       showMessage(
-        (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Error al cargar preview',
-        'error',
+        (e as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error ?? "Error al cargar preview",
+        "error",
       );
       setOpenCambioBase(false);
     } finally {
@@ -138,11 +192,11 @@ export default function MonedasNegocioPage() {
     setEjecutando(true);
     try {
       await ejecutarCambioMonedaBase(negocioId, nuevaBase);
-      showMessage('Moneda base cambiada correctamente', 'success');
+      showMessage("Moneda base cambiada correctamente", "success");
       setOpenCambioBase(false);
       await refreshMonedas();
     } catch {
-      showMessage('Error al cambiar moneda base', 'error');
+      showMessage("Error al cambiar moneda base", "error");
     } finally {
       setEjecutando(false);
     }
@@ -160,38 +214,59 @@ export default function MonedasNegocioPage() {
     <PageContainer
       title="Monedas del negocio"
       breadcrumbs={breadcrumbs}
-      titleAdornment={<StatusPill label={`Moneda base: ${monedaBase}`} hue="accent" />}
+      titleAdornment={
+        <StatusPill label={`Moneda base: ${monedaBase}`} hue="accent" />
+      }
       headerActions={
         monedasDisponiblesParaHabilitar.length > 0 ? (
-          <Button variant="contained" startIcon={<Add />} onClick={openHabilitarDialog}>
-            {isMobile ? 'Habilitar' : 'Habilitar moneda'}
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={openHabilitarDialog}
+          >
+            {isMobile ? "Habilitar" : "Habilitar moneda"}
           </Button>
         ) : undefined
       }
     >
       <ContentCard>
-
         {/* ── Vista móvil: cards ── */}
         {isMobile ? (
           <Stack spacing={2}>
             {/* Card moneda base */}
-            <Card variant="outlined" sx={{ bgcolor: 'action.selected' }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Card variant="outlined" sx={{ bgcolor: "action.selected" }}>
+              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
                   <Stack direction="row" gap={1} alignItems="center">
                     <Chip label={monedaBase} size="small" color="primary" />
                     <Chip label="Base" size="small" />
                   </Stack>
-                  <Typography variant="caption" color="text.secondary">Efectivo + Transfer ✓</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Efectivo + Transfer ✓
+                  </Typography>
                 </Stack>
               </CardContent>
             </Card>
 
             {monedasExtra.map((m) => (
               <Card key={m.monedaCode} variant="outlined">
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
-                    <Chip label={m.monedaCode} size="small" color="primary" variant="outlined" />
+                <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
+                    mb={1.5}
+                  >
+                    <Chip
+                      label={m.monedaCode}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
                     <Button
                       size="small"
                       color="error"
@@ -204,19 +279,31 @@ export default function MonedasNegocioPage() {
                   </Stack>
 
                   <Stack spacing={0.5}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body2" color="text.secondary">Admite efectivo</Typography>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        Admite efectivo
+                      </Typography>
                       <Switch
                         checked={m.admiteEfectivo}
-                        onChange={() => toggleMoneda(m, 'admiteEfectivo')}
+                        onChange={() => toggleMoneda(m, "admiteEfectivo")}
                         size="small"
                       />
                     </Stack>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body2" color="text.secondary">Admite transferencia</Typography>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        Admite transferencia
+                      </Typography>
                       <Switch
                         checked={m.admiteTransferencia}
-                        onChange={() => toggleMoneda(m, 'admiteTransferencia')}
+                        onChange={() => toggleMoneda(m, "admiteTransferencia")}
                         size="small"
                       />
                     </Stack>
@@ -224,7 +311,7 @@ export default function MonedasNegocioPage() {
                       size="small"
                       startIcon={<CurrencyExchange />}
                       onClick={() => abrirCambioBase(m.monedaCode)}
-                      sx={{ alignSelf: 'flex-start', mt: 0.5 }}
+                      sx={{ alignSelf: "flex-start", mt: 0.5 }}
                     >
                       Usar como moneda base
                     </Button>
@@ -251,7 +338,7 @@ export default function MonedasNegocioPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                <TableRow sx={{ bgcolor: 'action.selected' }}>
+                <TableRow sx={{ bgcolor: "#FCFCFD" }}>
                   <TableCell>
                     <Stack direction="row" gap={1} alignItems="center">
                       <CurrencyCode code={monedaBase} base />
@@ -264,33 +351,55 @@ export default function MonedasNegocioPage() {
                   <TableCell>
                     <Switch checked disabled size="small" />
                   </TableCell>
-                  <TableCell sx={{ color: 'text.disabled' }}>—</TableCell>
-                  <TableCell sx={{ color: 'text.disabled' }}>—</TableCell>
+                  <TableCell sx={{ color: "text.disabled" }}>—</TableCell>
+                  <TableCell sx={{ color: "text.disabled" }}>—</TableCell>
                 </TableRow>
 
                 {monedasExtra.map((m) => (
                   <TableRow key={m.monedaCode}>
-                    <TableCell><CurrencyCode code={m.monedaCode} /></TableCell>
                     <TableCell>
-                      <Switch checked={m.admiteEfectivo} onChange={() => toggleMoneda(m, 'admiteEfectivo')} size="small" />
+                      <CurrencyCode code={m.monedaCode} />
                     </TableCell>
                     <TableCell>
-                      <Switch checked={m.admiteTransferencia} onChange={() => toggleMoneda(m, 'admiteTransferencia')} size="small" />
+                      <Switch
+                        checked={m.admiteEfectivo}
+                        onChange={() => toggleMoneda(m, "admiteEfectivo")}
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>
-                      <Button size="small" startIcon={<CurrencyExchange />} onClick={() => abrirCambioBase(m.monedaCode)}>
+                      <Switch
+                        checked={m.admiteTransferencia}
+                        onChange={() => toggleMoneda(m, "admiteTransferencia")}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="small"
+                        startIcon={<CurrencyExchange />}
+                        onClick={() => abrirCambioBase(m.monedaCode)}
+                      >
                         Usar como base
                       </Button>
                     </TableCell>
                     <TableCell>
-                      <Button size="small" color="error" onClick={() => deshabilitar(m)}>Deshabilitar</Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => deshabilitar(m)}
+                      >
+                        Deshabilitar
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
 
                 {monedasExtra.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">No hay otras monedas habilitadas</TableCell>
+                    <TableCell colSpan={5} align="center">
+                      No hay otras monedas habilitadas
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -312,26 +421,46 @@ export default function MonedasNegocioPage() {
           <Stack gap={2} mt={1}>
             <FormControl fullWidth>
               <InputLabel>Moneda</InputLabel>
-              <Select value={selectedCode} label="Moneda" onChange={(e) => setSelectedCode(e.target.value)}>
+              <Select
+                value={selectedCode}
+                label="Moneda"
+                onChange={(e) => setSelectedCode(e.target.value)}
+              >
                 {monedasDisponiblesParaHabilitar.map((m) => (
-                  <MenuItem key={m.code} value={m.code}>{m.code} — {m.nombre}</MenuItem>
+                  <MenuItem key={m.code} value={m.code}>
+                    {m.code} — {m.nombre}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
             <FormControlLabel
-              control={<Switch checked={admiteEfectivo} onChange={(e) => setAdmiteEfectivo(e.target.checked)} />}
+              control={
+                <Switch
+                  checked={admiteEfectivo}
+                  onChange={(e) => setAdmiteEfectivo(e.target.checked)}
+                />
+              }
               label="Admite efectivo"
             />
             <FormControlLabel
-              control={<Switch checked={admiteTransferencia} onChange={(e) => setAdmiteTransferencia(e.target.checked)} />}
+              control={
+                <Switch
+                  checked={admiteTransferencia}
+                  onChange={(e) => setAdmiteTransferencia(e.target.checked)}
+                />
+              }
               label="Admite transferencia"
             />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenHabilitar(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={habilitar} disabled={saving || !selectedCode}>
-            {saving ? <CircularProgress size={20} /> : 'Habilitar'}
+          <Button
+            variant="contained"
+            onClick={habilitar}
+            disabled={saving || !selectedCode}
+          >
+            {saving ? <CircularProgress size={20} /> : "Habilitar"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -347,15 +476,20 @@ export default function MonedasNegocioPage() {
         <DialogTitle>Cambiar moneda base a {nuevaBase}</DialogTitle>
         <DialogContent>
           {loadingPreview && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
               <CircularProgress />
             </Box>
           )}
           {preview && (
             <Stack gap={2} mt={1}>
               <Alert severity="warning" icon={<Warning />}>
-                Esta acción convertirá <strong>todos los precios y costos</strong> ({preview.totalProductos} productos)
-                usando la tasa: <strong>1 {nuevaBase} = {preview.tasa} {monedaBase}</strong>. No se puede deshacer automáticamente.
+                Esta acción convertirá{" "}
+                <strong>todos los precios y costos</strong> (
+                {preview.totalProductos} productos) usando la tasa:{" "}
+                <strong>
+                  1 {nuevaBase} = {preview.tasa} {monedaBase}
+                </strong>
+                . No se puede deshacer automáticamente.
               </Alert>
 
               <Typography variant="subtitle2">
@@ -367,13 +501,23 @@ export default function MonedasNegocioPage() {
                 <Stack spacing={1}>
                   {preview.preview.map((p, i) => (
                     <Card key={i} variant="outlined">
-                      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                        <Typography variant="body2" fontWeight="medium" mb={0.5}>{p.nombre}</Typography>
+                      <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+                        <Typography
+                          variant="body2"
+                          fontWeight="medium"
+                          mb={0.5}
+                        >
+                          {p.nombre}
+                        </Typography>
                         <Stack direction="row" justifyContent="space-between">
                           <Typography variant="caption" color="text.secondary">
                             Antes: {p.precioAntes.toFixed(2)} {monedaBase}
                           </Typography>
-                          <Typography variant="caption" color="success.main" fontWeight="medium">
+                          <Typography
+                            variant="caption"
+                            color="success.main"
+                            fontWeight="medium"
+                          >
                             Después: {p.precioDepues.toFixed(2)} {nuevaBase}
                           </Typography>
                         </Stack>
@@ -383,7 +527,7 @@ export default function MonedasNegocioPage() {
                 </Stack>
               ) : (
                 <Card variant="outlined">
-                  <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                  <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
                     <Table size="small">
                       <TableHead>
                         <TableRow>
@@ -396,8 +540,12 @@ export default function MonedasNegocioPage() {
                         {preview.preview.map((p, i) => (
                           <TableRow key={i}>
                             <TableCell>{p.nombre}</TableCell>
-                            <TableCell>{p.precioAntes.toFixed(2)} {monedaBase}</TableCell>
-                            <TableCell>{p.precioDepues.toFixed(2)} {nuevaBase}</TableCell>
+                            <TableCell>
+                              {p.precioAntes.toFixed(2)} {monedaBase}
+                            </TableCell>
+                            <TableCell>
+                              {p.precioDepues.toFixed(2)} {nuevaBase}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -409,14 +557,19 @@ export default function MonedasNegocioPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenCambioBase(false)} disabled={ejecutando}>Cancelar</Button>
+          <Button
+            onClick={() => setOpenCambioBase(false)}
+            disabled={ejecutando}
+          >
+            Cancelar
+          </Button>
           <Button
             variant="contained"
             color="warning"
             onClick={ejecutarCambio}
             disabled={ejecutando || loadingPreview || !preview}
           >
-            {ejecutando ? <CircularProgress size={20} /> : 'Confirmar cambio'}
+            {ejecutando ? <CircularProgress size={20} /> : "Confirmar cambio"}
           </Button>
         </DialogActions>
       </Dialog>

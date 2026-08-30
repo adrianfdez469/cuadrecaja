@@ -14,10 +14,15 @@ import {
   IconButton,
   Link as MuiLink,
 } from "@mui/material";
-import { Visibility, VisibilityOff, Lock, Login as LoginIcon } from "@mui/icons-material";
-import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout";
+import {
+  Visibility,
+  VisibilityOff,
+  Lock,
+  Login as LoginIcon,
+} from "@mui/icons-material";
+import { AuthCardLayout } from "@/components/auth/AuthCardLayout";
 import { LOGIN_CREDENTIALS_SESSION_KEY } from "@/constants/userAccount";
-import { shape, touch } from "@/theme/tokens";
+import { touch } from "@/theme/tokens";
 
 function RestablecerForm() {
   const searchParams = useSearchParams();
@@ -56,14 +61,18 @@ function RestablecerForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "No se pudo restablecer la contraseña.");
+        setError(
+          typeof data.error === "string"
+            ? data.error
+            : "No se pudo restablecer la contraseña.",
+        );
         return;
       }
       const email = typeof data.usuario === "string" ? data.usuario : "";
       try {
         sessionStorage.setItem(
           LOGIN_CREDENTIALS_SESSION_KEY,
-          JSON.stringify({ usuario: email, password })
+          JSON.stringify({ usuario: email, password }),
         );
       } catch {
         // ignore
@@ -78,7 +87,7 @@ function RestablecerForm() {
   };
 
   return (
-    <AuthSplitLayout>
+    <AuthCardLayout>
       <Typography
         component="h2"
         sx={{
@@ -104,83 +113,90 @@ function RestablecerForm() {
         caracteres).
       </Typography>
 
-          {error ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          ) : null}
-          {done ? (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Contraseña actualizada. Redirigiendo al inicio de sesión…
-            </Alert>
-          ) : null}
+      {error ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      ) : null}
+      {done ? (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          Contraseña actualizada. Redirigiendo al inicio de sesión…
+        </Alert>
+      ) : null}
 
-          <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              type={showPassword ? "text" : "password"}
-              label="Nueva contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              sx={{ mb: 2 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" aria-label="Mostrar u ocultar contraseña">
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <TextField
-              fullWidth
-              type={showPassword ? "text" : "password"}
-              label="Confirmar contraseña"
-              value={passwordConfirm}
-              onChange={(e) => setPasswordConfirm(e.target.value)}
-              sx={{ mb: 3 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" aria-label="Mostrar u ocultar confirmación de contraseña">
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              disabled={loading}
-              startIcon={
-                loading ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : (
-                  <LoginIcon />
-                )
-              }
-              sx={{
-                minHeight: touch.comfortable,
-                borderRadius: `${shape.radius.md}px`,
-                fontSize: "1rem",
-              }}
-            >
-              {loading ? "Guardando…" : "Guardar contraseña"}
-            </Button>
-          </Box>
+      <Box component="form" onSubmit={handleSubmit}>
+        <TextField
+          fullWidth
+          type={showPassword ? "text" : "password"}
+          label="Nueva contraseña"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          sx={{ mb: 2 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Lock color="action" />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                  aria-label="Mostrar u ocultar contraseña"
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        <TextField
+          fullWidth
+          type={showPassword ? "text" : "password"}
+          label="Confirmar contraseña"
+          value={passwordConfirm}
+          onChange={(e) => setPasswordConfirm(e.target.value)}
+          sx={{ mb: 3 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Lock color="action" />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                  aria-label="Mostrar u ocultar confirmación de contraseña"
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+          disabled={loading}
+          startIcon={
+            loading ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              <LoginIcon />
+            )
+          }
+          sx={{
+            minHeight: touch.comfortable,
+            fontSize: "1rem",
+          }}
+        >
+          {loading ? "Guardando…" : "Guardar contraseña"}
+        </Button>
+      </Box>
 
       <Box sx={{ display: "flex", justifyContent: "center", mt: 1.5 }}>
         <MuiLink
@@ -200,7 +216,7 @@ function RestablecerForm() {
           Volver al inicio de sesión
         </MuiLink>
       </Box>
-    </AuthSplitLayout>
+    </AuthCardLayout>
   );
 }
 

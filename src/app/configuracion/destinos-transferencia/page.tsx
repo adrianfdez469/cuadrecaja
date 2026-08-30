@@ -376,8 +376,8 @@ export default function DestinosTransferenciaPage() {
                 <TableRow>
                   <TableCell>Nombre</TableCell>
                   <TableCell>Descripción</TableCell>
-                  <TableCell align="center">Por Defecto</TableCell>
-                  <TableCell align="center">Acciones</TableCell>
+                  <TableCell>Por Defecto</TableCell>
+                  <TableCell align="right">Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -405,7 +405,7 @@ export default function DestinosTransferenciaPage() {
                         {destination.descripcion || "-"}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell>
                       {destination.default ? (
                         <Chip
                           icon={<Star />}
@@ -415,21 +415,23 @@ export default function DestinosTransferenciaPage() {
                         />
                       ) : (
                         <Typography variant="body2" color="text.secondary">
-                          -
+                          —
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell align="center">
-                      <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(destination.id);
-                        }}
-                        size="small"
-                        color="error"
-                      >
-                        <Delete />
-                      </IconButton>
+                    <TableCell align="right">
+                      <Tooltip title="Eliminar">
+                        <IconButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(destination.id);
+                          }}
+                          size="small"
+                          color="error"
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}

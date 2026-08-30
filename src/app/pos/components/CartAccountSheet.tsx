@@ -12,7 +12,7 @@ import {
 import CheckIcon from "@mui/icons-material/Check";
 import { useCartStore } from "@/store/cartStore";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
-import { shape, touch } from "@/theme";
+import { shape } from "@/theme";
 
 /**
  * The open accounts, from the charge bar.
@@ -82,7 +82,7 @@ const BADGE_ACTIVE_SX = {
 const CTA_WRAP_SX = { px: 1.75, pt: 1.75 } as const;
 
 const CTA_SX = {
-  minHeight: touch.comfortable,
+  minHeight: 56,
   borderRadius: `${shape.radius.md}px`,
   fontSize: "1.03125rem",
   fontWeight: 700,

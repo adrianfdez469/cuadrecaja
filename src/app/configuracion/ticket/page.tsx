@@ -16,6 +16,9 @@ import {
   Typography,
   Alert,
   Divider,
+  Grid2 as Grid,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Save, Receipt } from "@mui/icons-material";
 import { PageContainer } from "@/components/PageContainer";
@@ -84,6 +87,8 @@ export default function TicketConfigPage() {
   const { showMessage } = useMessageContext();
   const { verificarPermiso } = usePermisos();
   const setPlantillaCache = usePrintTemplateCache((s) => s.setPlantilla);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -194,190 +199,257 @@ export default function TicketConfigPage() {
             <CircularProgress />
           </Box>
         ) : (
-          <Stack spacing={2}>
-            <Typography variant="subtitle2" color="text.secondary">
-              Cabecera del ticket
-            </Typography>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.mostrarNegocio}
-                  onChange={(e) =>
-                    setForm({ ...form, mostrarNegocio: e.target.checked })
+          <Grid container spacing={3}>
+            {/* Left column: Form */}
+            <Grid size={{ xs: 12, md: isMobile ? 12 : 7 }} sx={{ minWidth: 0 }}>
+              <Stack spacing={2}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: "11.5px",
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "text.secondary",
+                    mt: 1,
+                  }}
+                >
+                  Cabecera
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.mostrarNegocio}
+                      onChange={(e) =>
+                        setForm({ ...form, mostrarNegocio: e.target.checked })
+                      }
+                    />
                   }
+                  label="Mostrar nombre del negocio"
                 />
-              }
-              label="Mostrar nombre del negocio"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.mostrarTienda}
-                  onChange={(e) =>
-                    setForm({ ...form, mostrarTienda: e.target.checked })
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.mostrarTienda}
+                      onChange={(e) =>
+                        setForm({ ...form, mostrarTienda: e.target.checked })
+                      }
+                    />
                   }
+                  label="Mostrar nombre de la tienda"
                 />
-              }
-              label="Mostrar nombre de la tienda"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.mostrarCajero}
-                  onChange={(e) =>
-                    setForm({ ...form, mostrarCajero: e.target.checked })
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.mostrarCajero}
+                      onChange={(e) =>
+                        setForm({ ...form, mostrarCajero: e.target.checked })
+                      }
+                    />
                   }
+                  label="Mostrar cajero"
                 />
-              }
-              label="Mostrar cajero"
-            />
 
-            <Divider />
+                <Divider />
 
-            <TextField
-              label="Pie personalizado"
-              value={form.pie ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, pie: e.target.value || null })
-              }
-              multiline
-              minRows={2}
-              placeholder="GRACIAS POR SU COMPRA"
-              helperText="Si está vacío se usa el texto predeterminado"
-              fullWidth
-            />
-            <Alert severity="info" icon={<Receipt fontSize="small" />}>
-              Al final de todo ticket se imprimirá siempre:{" "}
-              <strong>{TICKET_FOOTER_URL}</strong>
-            </Alert>
+                <TextField
+                  label="Pie personalizado"
+                  value={form.pie ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, pie: e.target.value || null })
+                  }
+                  multiline
+                  minRows={2}
+                  placeholder="GRACIAS POR SU COMPRA"
+                  helperText="Si está vacío se usa el texto predeterminado"
+                  fullWidth
+                />
+                <Alert severity="info" icon={<Receipt fontSize="small" />}>
+                  Al final de todo ticket se imprimirá siempre:{" "}
+                  <strong>{TICKET_FOOTER_URL}</strong>
+                </Alert>
 
-            <FormControl fullWidth size="small">
-              <InputLabel>Ancho de papel</InputLabel>
-              <Select
-                value={form.anchoPapel}
-                label="Ancho de papel"
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    anchoPapel: Number(e.target.value) as 58 | 80,
-                  })
-                }
-              >
-                <MenuItem value={58}>58 mm</MenuItem>
-                <MenuItem value={80}>80 mm</MenuItem>
-              </Select>
-            </FormControl>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Ancho de papel</InputLabel>
+                  <Select
+                    value={form.anchoPapel}
+                    label="Ancho de papel"
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        anchoPapel: Number(e.target.value) as 58 | 80,
+                      })
+                    }
+                  >
+                    <MenuItem value={58}>58 mm</MenuItem>
+                    <MenuItem value={80}>80 mm</MenuItem>
+                  </Select>
+                </FormControl>
 
-            <Typography variant="subtitle2" color="text.secondary">
-              Contenido opcional
-            </Typography>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.mostrarTasas}
-                  onChange={(e) =>
-                    setForm({ ...form, mostrarTasas: e.target.checked })
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: "11.5px",
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "text.secondary",
+                    mt: 1,
+                  }}
+                >
+                  Contenido Opcional
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.mostrarTasas}
+                      onChange={(e) =>
+                        setForm({ ...form, mostrarTasas: e.target.checked })
+                      }
+                    />
                   }
+                  label="Mostrar tasas de cambio (solo monedas usadas en la venta)"
                 />
-              }
-              label="Mostrar tasas de cambio (solo monedas usadas en la venta)"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.mostrarDescuentos}
-                  onChange={(e) =>
-                    setForm({ ...form, mostrarDescuentos: e.target.checked })
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.mostrarDescuentos}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          mostrarDescuentos: e.target.checked,
+                        })
+                      }
+                    />
                   }
+                  label="Mostrar descuentos"
                 />
-              }
-              label="Mostrar descuentos"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.mostrarPropina}
-                  onChange={(e) =>
-                    setForm({ ...form, mostrarPropina: e.target.checked })
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.mostrarPropina}
+                      onChange={(e) =>
+                        setForm({ ...form, mostrarPropina: e.target.checked })
+                      }
+                    />
                   }
+                  label="Mostrar propina"
                 />
-              }
-              label="Mostrar propina"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.mostrarMultimoneda}
-                  onChange={(e) =>
-                    setForm({ ...form, mostrarMultimoneda: e.target.checked })
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.mostrarMultimoneda}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          mostrarMultimoneda: e.target.checked,
+                        })
+                      }
+                    />
                   }
+                  label="Mostrar pagos y vuelto por moneda"
                 />
-              }
-              label="Mostrar pagos y vuelto por moneda"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.mostrarTotalesSecundarios}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      mostrarTotalesSecundarios: e.target.checked,
-                    })
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.mostrarTotalesSecundarios}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          mostrarTotalesSecundarios: e.target.checked,
+                        })
+                      }
+                    />
                   }
+                  label="Mostrar totales en monedas secundarias"
                 />
-              }
-              label="Mostrar totales en monedas secundarias"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.marcarLineasVacias}
-                  onChange={(e) =>
-                    setForm({ ...form, marcarLineasVacias: e.target.checked })
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.marcarLineasVacias}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          marcarLineasVacias: e.target.checked,
+                        })
+                      }
+                    />
                   }
+                  label="Marcar renglones vacíos con caracteres"
                 />
-              }
-              label="Marcar renglones vacíos con caracteres"
-            />
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ mt: -1 }}
-            >
-              Actívelo solo si su impresora no avanza el papel en renglones en
-              blanco. Agrega un carácter en los bordes de los renglones de
-              avance para forzar el salto de línea.
-            </Typography>
-
-            {previewPayload ? (
-              <Box>
                 <Typography
                   variant="caption"
                   color="text.secondary"
-                  display="block"
-                  mb={1}
+                  sx={{ mt: -1 }}
                 >
-                  Vista previa compacta
+                  Actívelo solo si su impresora no avanza el papel en renglones
+                  en blanco. Agrega un carácter en los bordes de los renglones
+                  de avance para forzar el salto de línea.
                 </Typography>
-                <TicketPreviewContent payload={previewPayload} />
-              </Box>
-            ) : null}
 
-            <Stack direction="row" spacing={1}>
-              <Button
-                variant="contained"
-                startIcon={<Save />}
-                onClick={handleSave}
-                disabled={saving}
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="contained"
+                    startIcon={<Save />}
+                    onClick={handleSave}
+                    disabled={saving}
+                  >
+                    {saving ? "Guardando..." : "Guardar"}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setPreviewOpen(true)}
+                  >
+                    Vista previa ampliada
+                  </Button>
+                </Stack>
+              </Stack>
+            </Grid>
+
+            {/* Right column: Preview */}
+            {!isMobile && (
+              <Grid
+                size={{ xs: 12, md: 5 }}
+                sx={{
+                  minWidth: 0,
+                  position: "sticky",
+                  top: 20,
+                  height: "fit-content",
+                }}
               >
-                {saving ? "Guardando..." : "Guardar"}
-              </Button>
-              <Button variant="outlined" onClick={() => setPreviewOpen(true)}>
-                Vista previa ampliada
-              </Button>
-            </Stack>
-          </Stack>
+                {previewPayload ? (
+                  <Box
+                    sx={{
+                      maxWidth: 420,
+                      bgcolor: "background.paper",
+                      borderRadius: 1,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      p: 2,
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: "11.5px",
+                        fontWeight: 700,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        color: "text.secondary",
+                        display: "block",
+                        mb: 1.5,
+                      }}
+                    >
+                      Vista Previa
+                    </Typography>
+                    <Box sx={{ overflow: "auto", maxHeight: "60vh" }}>
+                      <TicketPreviewContent payload={previewPayload} />
+                    </Box>
+                  </Box>
+                ) : null}
+              </Grid>
+            )}
+          </Grid>
         )}
       </ContentCard>
 
