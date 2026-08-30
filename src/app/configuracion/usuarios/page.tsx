@@ -21,11 +21,8 @@ import {
   Box,
   CircularProgress,
   InputAdornment,
-  Card,
-  CardContent,
   Stack,
   Tooltip,
-  Chip,
   useTheme,
   useMediaQuery,
 } from "@mui/material";
@@ -36,10 +33,9 @@ import {
   Person,
   Search,
   Refresh,
-  ExpandMore,
-  ExpandLess,
   MailOutline,
   LockReset,
+  Close,
 } from "@mui/icons-material";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
@@ -60,6 +56,7 @@ import {
 } from "@/services/usuarioService";
 import type { IUsuarioDeleteInfo, IUsuarioListItem } from "@/schemas/usuario";
 import DeleteUsuarioDialog from "@/components/usuarios/DeleteUsuarioDialog";
+import { UsuarioCard } from "@/components/usuarios/UsuarioCard";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PENDIENTE_VERIFICACION = "PENDIENTE_VERIFICACION" as const;
@@ -76,7 +73,6 @@ export default function UsuariosPage() {
   const [usuario, setUsuario] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const [limitDialog, setLimitDialog] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteInfo, setDeleteInfo] = useState<IUsuarioDeleteInfo | null>(null);
@@ -163,8 +159,11 @@ export default function UsuariosPage() {
     }
   };
 
-  const handleReinvite = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
+  const handleReinvite = async (
+    e: React.MouseEvent | undefined,
+    id: string,
+  ) => {
+    e?.stopPropagation();
     try {
       await reenviarInvitacionUsuario(id);
       showMessage("Invitación reenviada", "success");
@@ -245,10 +244,10 @@ export default function UsuariosPage() {
   };
 
   const handleResetPassword = async (
-    e: React.MouseEvent,
+    e: React.MouseEvent | undefined,
     user: IUsuarioListItem,
   ) => {
-    e.stopPropagation();
+    e?.stopPropagation();
     confirmDialog(
       `Se enviará un correo de restablecimiento a ${user.usuario}. ¿Deseas continuar?`,
       async () => {
@@ -291,6 +290,18 @@ export default function UsuariosPage() {
     { label: "Usuarios" },
   ];
 
+  const agregarUsuarioButton = canManageUsers && (
+    <Button
+      variant="contained"
+      startIcon={<Add />}
+      onClick={() => handleOpen()}
+      fullWidth={isMobile}
+      sx={isMobile ? { minHeight: 52 } : undefined}
+    >
+      Agregar Usuario
+    </Button>
+  );
+
   const headerActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">
       <Tooltip title="Actualizar usuarios">
@@ -298,30 +309,7 @@ export default function UsuariosPage() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
-      )}
-      {canManageUsers ? (
-        <Button
-          variant="contained"
-          startIcon={!isMobile ? <Add /> : undefined}
-          onClick={() => handleOpen()}
-          size="small"
-        >
-          {isMobile ? "Agregar" : "Agregar Usuario"}
-        </Button>
-      ) : null}
+      {!isMobile && agregarUsuarioButton}
     </Stack>
   );
 
@@ -353,318 +341,255 @@ export default function UsuariosPage() {
       />
 
       {/* Lista de usuarios */}
-      <ContentCard
-        title="Lista de Usuarios"
-        subtitle={
-          !isMobile ? "Haz clic en cualquier usuario para editarlo" : undefined
-        }
-        headerActions={
-          <SelectableTextField
-            size="small"
-            placeholder={isMobile ? "Buscar..." : "Buscar usuario..."}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : "none",
-            }}
-          />
-        }
-        noPadding
-        fullHeight
-      >
-        {filteredUsuarios.length === 0 ? (
-          <Box sx={{ p: 2 }}>
-            <Box sx={{ textAlign: "center", py: 8 }}>
-              <Person sx={{ fontSize: 48, color: "text.secondary", mb: 2 }} />
-              <Typography variant="h6" color="text.secondary">
-                {searchTerm
-                  ? "No se encontraron usuarios"
-                  : "No hay usuarios registrados"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {searchTerm
-                  ? "Intenta con otros términos de búsqueda"
-                  : "Agrega usuarios para comenzar a gestionar el acceso al sistema"}
-              </Typography>
-            </Box>
+      {(() => {
+        const emptyState = (
+          <Box sx={{ textAlign: "center", py: 8 }}>
+            <Person sx={{ fontSize: 48, color: "text.secondary", mb: 2 }} />
+            <Typography variant="h6" color="text.secondary">
+              {searchTerm
+                ? "No se encontraron usuarios"
+                : "No hay usuarios registrados"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {searchTerm
+                ? "Intenta con otros términos de búsqueda"
+                : "Agrega usuarios para comenzar a gestionar el acceso al sistema"}
+            </Typography>
           </Box>
-        ) : isMobile ? (
-          // Vista móvil con cards más densos
-          <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.5}>
-              {filteredUsuarios.map((user) => (
-                <Card
-                  key={user.id}
-                  onClick={() => handleOpen(user)}
-                  sx={{
-                    cursor: "pointer",
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1.5}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography
-                          variant="subtitle2"
-                          fontWeight="medium"
-                          sx={{ fontSize: "0.875rem" }}
-                        >
-                          {user.nombre}
-                        </Typography>
-                        <Stack
-                          direction="row"
-                          spacing={0.5}
-                          flexWrap="wrap"
-                          useFlexGap
-                        >
-                          {user.estadoCuenta === PENDIENTE_VERIFICACION ? (
-                            <Chip
-                              label="Pendiente"
-                              color="warning"
-                              size="small"
-                              sx={{ height: 20 }}
-                            />
-                          ) : null}
-                          {user.rol === "SUPER_ADMIN" ? (
-                            <Chip
-                              label={user.rol}
-                              color="info"
-                              size="small"
-                              sx={{ height: 20 }}
-                            />
-                          ) : null}
-                          {resetPasswordSent[user.id] ? (
-                            <Chip
-                              label="Reset enviado"
-                              color="info"
-                              size="small"
-                              sx={{ height: 20 }}
-                            />
-                          ) : null}
-                        </Stack>
-                      </Box>
+        );
 
-                      <Box
-                        display="flex"
-                        flexDirection="row"
-                        alignItems="center"
-                        gap={1}
-                        sx={{ width: "100%", minWidth: 0 }}
-                      >
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{
-                            fontSize: "0.6875rem",
-                            flex: 1,
-                            minWidth: 0,
-                            wordBreak: "break-all",
-                            lineHeight: 1.35,
-                          }}
-                        >
-                          Usuario: {user.usuario}
-                        </Typography>
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          flexShrink={0}
-                          spacing={0}
-                          onClick={(e) => e.stopPropagation()}
-                          sx={{
-                            "& .MuiIconButton-root": {
-                              padding: "4px",
-                            },
-                          }}
-                        >
-                          {user.estadoCuenta === PENDIENTE_VERIFICACION &&
-                          verificarPermiso("configuracion.usuarios.acceder") ? (
-                            <IconButton
-                              onClick={(e) => handleReinvite(e, user.id)}
-                              size="small"
-                              color="primary"
-                              title="Reenviar invitación"
-                              aria-label="Reenviar invitación"
-                            >
-                              <MailOutline sx={{ fontSize: 20 }} />
-                            </IconButton>
-                          ) : null}
-                          {canManageUsers &&
-                          user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
-                            <IconButton
-                              onClick={(e) => handleResetPassword(e, user)}
-                              size="small"
-                              color="primary"
-                              title="Enviar restablecimiento de contraseña"
-                              aria-label="Enviar restablecimiento de contraseña"
-                            >
-                              <LockReset sx={{ fontSize: 20 }} />
-                            </IconButton>
-                          ) : null}
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(user.id);
-                            }}
-                            size="small"
-                            color="error"
-                            disabled={
-                              !verificarPermiso(
-                                "configuracion.usuarios.deleteOrDisable",
-                              ) || deleteLoading
-                            }
-                            aria-label="Eliminar usuario"
-                          >
-                            <Delete sx={{ fontSize: 20 }} />
-                          </IconButton>
-                        </Stack>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
-          </Box>
-        ) : (
-          // Vista desktop con tabla
-          <TableContainer sx={{ flex: 1 }}>
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell>Usuario</TableCell>
-                  <TableCell>Estado</TableCell>
-                  <TableCell align="center">Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredUsuarios.map((user) => (
-                  <TableRow
-                    key={user.id}
-                    onClick={() => handleOpen(user)}
-                    sx={{
-                      cursor: "pointer",
-                      "&:hover": {
-                        backgroundColor: "action.hover",
-                      },
-                    }}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        {user.nombre}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {user.usuario}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        alignItems="center"
-                        justifyContent="flex-start"
-                      >
-                        {user.estadoCuenta === PENDIENTE_VERIFICACION ? (
-                          <StatusPill label="Pendiente" hue="caution" />
-                        ) : (
-                          <StatusPill label="Activo" hue="positive" />
-                        )}
-                        {resetPasswordSent[user.id] ? (
-                          <StatusPill label="Reset enviado" hue="info" />
-                        ) : null}
-                      </Stack>
-                    </TableCell>
+        // En mobile, ni la lista ni la búsqueda viven dentro de un
+        // `ContentCard` — cada usuario ya es su propia caja (mismo criterio
+        // que `locales`/`roles`: sin tarjeta dentro de tarjeta).
+        if (isMobile) {
+          return (
+            <>
+              <Typography
+                variant="h6"
+                fontWeight={700}
+                sx={{ mb: 1.5, fontSize: "1.1875rem" }}
+              >
+                Lista de Usuarios
+              </Typography>
+              <SelectableTextField
+                size="small"
+                fullWidth
+                placeholder="Buscar usuario..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ mb: 2 }}
+              />
+              {filteredUsuarios.length === 0 ? (
+                emptyState
+              ) : (
+                <Stack spacing={1.5}>
+                  {filteredUsuarios.map((user) => (
+                    <UsuarioCard
+                      key={user.id}
+                      usuario={user}
+                      canManage={canManageUsers}
+                      canReinvite={verificarPermiso(
+                        "configuracion.usuarios.acceder",
+                      )}
+                      resetPasswordSent={!!resetPasswordSent[user.id]}
+                      deleteDisabled={
+                        !verificarPermiso(
+                          "configuracion.usuarios.deleteOrDisable",
+                        ) || deleteLoading
+                      }
+                      onEdit={() => handleOpen(user)}
+                      onDelete={() => handleDelete(user.id)}
+                      onReinvite={() => handleReinvite(undefined, user.id)}
+                      onResetPassword={() =>
+                        handleResetPassword(undefined, user)
+                      }
+                    />
+                  ))}
+                </Stack>
+              )}
+            </>
+          );
+        }
 
-                    <TableCell align="center">
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        justifyContent="center"
+        return (
+          <ContentCard
+            title="Lista de Usuarios"
+            subtitle="Haz clic en cualquier usuario para editarlo"
+            headerActions={
+              <SelectableTextField
+                size="small"
+                placeholder="Buscar usuario..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ minWidth: 250 }}
+              />
+            }
+            noPadding
+            fullHeight
+          >
+            {filteredUsuarios.length === 0 ? (
+              <Box sx={{ p: 2 }}>{emptyState}</Box>
+            ) : (
+              <TableContainer sx={{ flex: 1 }}>
+                <Table stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Nombre</TableCell>
+                      <TableCell>Usuario</TableCell>
+                      <TableCell>Estado</TableCell>
+                      <TableCell align="center">Acciones</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredUsuarios.map((user) => (
+                      <TableRow
+                        key={user.id}
+                        onClick={() => handleOpen(user)}
+                        sx={{
+                          cursor: "pointer",
+                          "&:hover": {
+                            backgroundColor: "action.hover",
+                          },
+                        }}
                       >
-                        {user.estadoCuenta === PENDIENTE_VERIFICACION &&
-                        verificarPermiso("configuracion.usuarios.acceder") ? (
-                          <Tooltip title="Reenviar invitación">
-                            <IconButton
-                              onClick={(e) => handleReinvite(e, user.id)}
-                              size="small"
-                              color="primary"
-                            >
-                              <MailOutline fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        ) : null}
-                        {canManageUsers &&
-                        user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
-                          <Tooltip title="Enviar restablecimiento de contraseña">
-                            <IconButton
-                              onClick={(e) => handleResetPassword(e, user)}
-                              size="small"
-                              color="primary"
-                            >
-                              <LockReset fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        ) : null}
-                        <Tooltip title="Editar usuario">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpen(user);
-                            }}
-                            size="small"
-                            color="primary"
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
+                            {user.nombre}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {user.usuario}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            alignItems="center"
+                            justifyContent="flex-start"
                           >
-                            <Edit fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={"Eliminar usuario"}>
-                          <span>
-                            <IconButton
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(user.id);
-                              }}
-                              size="small"
-                              color="error"
-                              disabled={
-                                !verificarPermiso(
-                                  "configuracion.usuarios.deleteOrDisable",
-                                ) || deleteLoading
-                              }
-                            >
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </ContentCard>
+                            {user.estadoCuenta === PENDIENTE_VERIFICACION ? (
+                              <StatusPill label="Pendiente" hue="caution" />
+                            ) : (
+                              <StatusPill label="Activo" hue="positive" />
+                            )}
+                            {resetPasswordSent[user.id] ? (
+                              <StatusPill label="Reset enviado" hue="info" />
+                            ) : null}
+                          </Stack>
+                        </TableCell>
+
+                        <TableCell align="center">
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            justifyContent="center"
+                          >
+                            {user.estadoCuenta === PENDIENTE_VERIFICACION &&
+                            verificarPermiso(
+                              "configuracion.usuarios.acceder",
+                            ) ? (
+                              <Tooltip title="Reenviar invitación">
+                                <IconButton
+                                  onClick={(e) => handleReinvite(e, user.id)}
+                                  size="small"
+                                  color="primary"
+                                >
+                                  <MailOutline fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            ) : null}
+                            {canManageUsers &&
+                            user.estadoCuenta !== PENDIENTE_VERIFICACION ? (
+                              <Tooltip title="Enviar restablecimiento de contraseña">
+                                <IconButton
+                                  onClick={(e) => handleResetPassword(e, user)}
+                                  size="small"
+                                  color="primary"
+                                >
+                                  <LockReset fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            ) : null}
+                            <Tooltip title="Editar usuario">
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpen(user);
+                                }}
+                                size="small"
+                                color="primary"
+                              >
+                                <Edit fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title={"Eliminar usuario"}>
+                              <span>
+                                <IconButton
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(user.id);
+                                  }}
+                                  size="small"
+                                  color="error"
+                                  disabled={
+                                    !verificarPermiso(
+                                      "configuracion.usuarios.deleteOrDisable",
+                                    ) || deleteLoading
+                                  }
+                                >
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </ContentCard>
+        );
+      })()}
 
       {/* Dialog para crear/editar usuario */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {selectedUsuario ? "Editar usuario" : "Invitar usuario"}
+          {isMobile && (
+            <IconButton onClick={handleClose} disabled={saving}>
+              <Close />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
@@ -702,8 +627,19 @@ export default function UsuariosPage() {
             ) : null}
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} color="secondary" disabled={saving}>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={handleClose}
+            color="secondary"
+            disabled={saving}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
             Cancelar
           </Button>
           <Button
@@ -716,6 +652,9 @@ export default function UsuariosPage() {
               !EMAIL_REGEX.test(usuario.trim().toLowerCase()) ||
               saving
             }
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
             startIcon={saving ? <CircularProgress size={16} /> : undefined}
           >
             {saving ? "Guardando..." : "Guardar"}

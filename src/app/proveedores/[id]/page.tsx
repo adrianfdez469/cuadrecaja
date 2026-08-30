@@ -37,7 +37,7 @@ import {
   Inventory,
   LocalShipping,
   Phone,
-  Email,
+  LocationOn,
   CalendarToday,
   Payment,
 } from "@mui/icons-material";
@@ -313,26 +313,21 @@ export default function ProveedorDetallePage() {
     { label: proveedor?.nombre || "Cargando..." },
   ];
 
+  // En mobile la migaja de pan ya vuelve a /proveedores — el botón "Volver"
+  // duplicaba esa navegación y el mockup mobile no lo dibuja; en desktop sí.
   const headerActions = (
-    <Stack
-      direction={isMobile ? "column" : "row"}
-      spacing={1}
-      sx={{ width: isMobile ? "100%" : "auto" }}
-    >
-      <Button
-        variant="outlined"
-        startIcon={<ArrowBack />}
-        onClick={() => router.push("/proveedores")}
-        size={isMobile ? "small" : "medium"}
-      >
-        Volver
-      </Button>
-      <Tooltip title="Actualizar datos">
-        <IconButton
-          onClick={fetchData}
-          disabled={loading}
-          size={isMobile ? "small" : "medium"}
+    <Stack direction="row" spacing={1}>
+      {!isMobile && (
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBack />}
+          onClick={() => router.push("/proveedores")}
         >
+          Volver
+        </Button>
+      )}
+      <Tooltip title="Actualizar datos">
+        <IconButton onClick={fetchData} disabled={loading}>
           <Refresh />
         </IconButton>
       </Tooltip>
@@ -386,6 +381,52 @@ export default function ProveedorDetallePage() {
       headerActions={headerActions}
       maxWidth="xl"
     >
+      {/* Cifras de dinero: 2 columnas en mobile, apiladas en desktop — el
+          mockup invierte el orden entero según el viewport, así que se
+          renderizan directo en la página en vez de dentro de un
+          `ContentCard` compartido con la información del proveedor. */}
+      {isMobile && (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            bgcolor: "background.paper",
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 3,
+            mb: 2,
+            overflow: "hidden",
+          }}
+        >
+          <Box sx={{ p: 2, borderRight: 1, borderColor: "divider" }}>
+            <Typography variant="body2" color="text.secondary">
+              Dinero Liquidado
+            </Typography>
+            <Typography
+              sx={{
+                mt: 0.25,
+                fontSize: "1.5rem",
+                fontWeight: 700,
+                color:
+                  proveedor.dineroLiquidado > 0
+                    ? "success.main"
+                    : "text.primary",
+              }}
+            >
+              {formatCurrency(proveedor.dineroLiquidado)}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Por Liquidar
+            </Typography>
+            <Typography sx={{ mt: 0.25, fontSize: "1.5rem", fontWeight: 700 }}>
+              {formatCurrency(proveedor.dineroPorLiquidar)}
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
       {/* Información del proveedor */}
       <ContentCard>
         <Grid container spacing={3}>
@@ -404,32 +445,6 @@ export default function ProveedorDetallePage() {
                 Información del Proveedor
               </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Phone fontSize="small" color="action" />
-                    <Typography
-                      variant="body2"
-                      color={
-                        proveedor.telefono ? "text.primary" : "text.disabled"
-                      }
-                    >
-                      {proveedor.telefono || "Sin teléfono"}
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Email fontSize="small" color="action" />
-                    <Typography
-                      variant="body2"
-                      color={
-                        proveedor.direccion ? "text.primary" : "text.disabled"
-                      }
-                    >
-                      {proveedor.direccion || "Sin correo"}
-                    </Typography>
-                  </Box>
-                </Grid>
                 <Grid item xs={12} sm={6}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <CalendarToday fontSize="small" color="action" />
@@ -452,67 +467,95 @@ export default function ProveedorDetallePage() {
                     </Typography>
                   </Box>
                 </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Phone fontSize="small" color="action" />
+                    <Typography
+                      variant="body2"
+                      color={
+                        proveedor.telefono ? "text.primary" : "text.disabled"
+                      }
+                    >
+                      {proveedor.telefono || "Sin teléfono"}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <LocationOn fontSize="small" color="action" />
+                    <Typography
+                      variant="body2"
+                      color={
+                        proveedor.direccion ? "text.primary" : "text.disabled"
+                      }
+                    >
+                      {proveedor.direccion || "Sin dirección"}
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
             </Stack>
           </Grid>
 
-          <Grid item xs={12} md={4}>
-            <Stack
-              spacing={2}
-              sx={{
-                border: 1,
-                borderColor: "divider",
-                borderRadius: "8px",
-                p: 2,
-              }}
-            >
-              <Box>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 0.5 }}
-                >
-                  Dinero Liquidado
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "1.5rem",
-                    fontWeight: 700,
-                    color:
-                      proveedor.dineroLiquidado > 0
-                        ? "success.main"
-                        : "text.primary",
-                  }}
-                >
-                  {formatCurrency(proveedor.dineroLiquidado)}
-                </Typography>
-              </Box>
-              <Box
+          {!isMobile && (
+            <Grid item xs={12} md={4}>
+              <Stack
+                spacing={2}
                 sx={{
-                  borderTop: 1,
+                  border: 1,
                   borderColor: "divider",
-                  pt: 2,
+                  borderRadius: "8px",
+                  p: 2,
                 }}
               >
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 0.5 }}
-                >
-                  Por Liquidar
-                </Typography>
-                <Typography
+                <Box>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 0.5 }}
+                  >
+                    Dinero Liquidado
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "1.5rem",
+                      fontWeight: 700,
+                      color:
+                        proveedor.dineroLiquidado > 0
+                          ? "success.main"
+                          : "text.primary",
+                    }}
+                  >
+                    {formatCurrency(proveedor.dineroLiquidado)}
+                  </Typography>
+                </Box>
+                <Box
                   sx={{
-                    fontSize: "1.5rem",
-                    fontWeight: 700,
-                    color: "text.primary",
+                    borderTop: 1,
+                    borderColor: "divider",
+                    pt: 2,
                   }}
                 >
-                  {formatCurrency(proveedor.dineroPorLiquidar)}
-                </Typography>
-              </Box>
-            </Stack>
-          </Grid>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 0.5 }}
+                  >
+                    Por Liquidar
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "1.5rem",
+                      fontWeight: 700,
+                      color: "text.primary",
+                    }}
+                  >
+                    {formatCurrency(proveedor.dineroPorLiquidar)}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Grid>
+          )}
         </Grid>
       </ContentCard>
 

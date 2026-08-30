@@ -23,6 +23,8 @@ import {
   TableHead,
   TableRow,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { FC, useEffect, useMemo, useState, Fragment } from "react";
 import { useVirtualRows } from "@/hooks/useVirtualRows";
@@ -44,7 +46,7 @@ import useConfirmDialog from "@/components/confirmDialog";
 import { useAppContext } from "@/context/AppContext";
 import { ICierrePeriodo } from "@/schemas/cierre";
 import { usePermisos } from "@/utils/permisos_front";
-import { formatDateTime } from "@/utils/formatters";
+import { formatDateTime, formatMontoEnMoneda } from "@/utils/formatters";
 import { IProductoTiendaPos } from "@/schemas/producto";
 import { convertToBase } from "@/lib/currency";
 import { usePrinter } from "@/features/printing/hooks/usePrinter";
@@ -66,6 +68,8 @@ export const SalesDrawer: FC<IProps> = ({
   incrementarCantidades,
   productosTienda,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const {
     sales,
     markSynced,
@@ -461,6 +465,7 @@ export const SalesDrawer: FC<IProps> = ({
         disableEnforceFocus
         disableAutoFocus
         disableRestoreFocus
+        PaperProps={{ sx: { borderRadius: "16px 16px 0 0" } }}
       >
         <Box
           sx={{
@@ -548,47 +553,19 @@ export const SalesDrawer: FC<IProps> = ({
               </Box>
             )}
 
-            <TableContainer
-              component={Paper}
-              ref={ventasVirtual.containerRef}
-              sx={
-                ventasVirtual.needsVirtualization
-                  ? { mt: 1, maxHeight: "60vh", overflowY: "auto" }
-                  : { mt: 1 }
-              }
-            >
-              <Table
-                size="small"
-                stickyHeader={ventasVirtual.needsVirtualization}
+            {isMobile && (
+              <Box
+                ref={ventasVirtual.containerRef}
+                sx={
+                  ventasVirtual.needsVirtualization
+                    ? { mt: 1, maxHeight: "60vh", overflowY: "auto" }
+                    : { mt: 1 }
+                }
               >
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      <b>Estado</b>
-                    </TableCell>
-                    <TableCell>
-                      <b>Fecha</b>
-                    </TableCell>
-                    <TableCell align="right">
-                      <b>Efectivo</b>
-                    </TableCell>
-                    <TableCell align="right">
-                      <b>Transf</b>
-                    </TableCell>
-                    <TableCell align="right">
-                      <b>Total</b>
-                    </TableCell>
-                    <TableCell>
-                      <b>Acciones</b>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {ventasVirtual.paddingTop > 0 && (
-                    <TableRow style={{ height: ventasVirtual.paddingTop }}>
-                      <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
-                    </TableRow>
-                  )}
+                {ventasVirtual.paddingTop > 0 && (
+                  <Box sx={{ height: ventasVirtual.paddingTop }} />
+                )}
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                   {ventasVirtual.visible.map(({ item: s, virtual }) => {
                     const saleInfo = formatSaleInfo(s);
                     const totalConvertido = s.productos.reduce((sum, p) => {
@@ -608,22 +585,30 @@ export const SalesDrawer: FC<IProps> = ({
                       );
                     }, 0);
                     return (
-                      <Fragment key={s.identifier}>
-                        <TableRow
-                          sx={{ borderColor: "Highlight" }}
-                          {...(virtual
-                            ? {
-                                "data-index": virtual.index,
-                                ref: ventasVirtual.measureElement,
-                              }
-                            : {})}
+                      <Box
+                        key={s.identifier}
+                        {...(virtual
+                          ? {
+                              "data-index": virtual.index,
+                              ref: ventasVirtual.measureElement,
+                            }
+                          : {})}
+                        sx={{
+                          border: 1,
+                          borderColor: "divider",
+                          borderRadius: 2,
+                          p: 1.5,
+                          minHeight: 64,
+                        }}
+                      >
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="flex-start"
+                          gap={1}
                         >
-                          <TableCell>
-                            <Box
-                              display={"flex"}
-                              flexDirection={"column"}
-                              gap={0.5}
-                            >
+                          <Box sx={{ minWidth: 0 }}>
+                            <Box display="flex" alignItems="center" gap={1}>
                               <Chip
                                 size="small"
                                 label={s.synced ? "Subida" : "Pendiente"}
@@ -634,111 +619,311 @@ export const SalesDrawer: FC<IProps> = ({
                                 variant="caption"
                                 color="text.secondary"
                               >
-                                {saleInfo.products} productos
+                                {saleInfo.date}
                               </Typography>
                             </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              {saleInfo.date}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            ${s.totalcash.toFixed(2)}
-                          </TableCell>
-                          <TableCell align="right">
-                            ${s.totaltransfer.toFixed(2)}
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="h6">
-                              ${totalConvertido.toFixed(2)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Box
-                              width={"100%"}
-                              display={"flex"}
-                              flexDirection={"row"}
-                              justifyContent={"space-around"}
-                              alignItems={"center"}
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ mt: 0.5, display: "block" }}
                             >
-                              <IconButton
-                                aria-label="view"
-                                color="default"
-                                onClick={() => handleSelectViewSale(s)}
-                                disabled={disableAll}
-                                sx={{ width: 44, height: 44 }}
-                              >
-                                <VisibilityIcon />
-                              </IconButton>
+                              Efectivo{" "}
+                              {formatMontoEnMoneda(s.totalcash, monedaBase)} ·
+                              Transf{" "}
+                              {formatMontoEnMoneda(s.totaltransfer, monedaBase)}
+                            </Typography>
+                          </Box>
+                          <Typography
+                            variant="subtitle1"
+                            fontWeight={700}
+                            sx={{ flexShrink: 0 }}
+                          >
+                            {formatMontoEnMoneda(totalConvertido, monedaBase)}
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            gap: 0.5,
+                            mt: 1,
+                            pt: 1,
+                            borderTop: 1,
+                            borderColor: "divider",
+                          }}
+                        >
+                          <IconButton
+                            aria-label="view"
+                            color="default"
+                            onClick={() => handleSelectViewSale(s)}
+                            disabled={disableAll}
+                            sx={{ width: 44, height: 44 }}
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
 
-                              {puedeImprimir && (
+                          {puedeImprimir && (
+                            <IconButton
+                              aria-label="reprint"
+                              color="default"
+                              onClick={() => handleReprint(s)}
+                              disabled={disableAll}
+                              sx={{ width: 44, height: 44 }}
+                            >
+                              <Print />
+                            </IconButton>
+                          )}
+
+                          {s.syncState === "syncing" ? (
+                            <Box
+                              sx={{
+                                width: 44,
+                                height: 44,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <CircularProgress size={24} />
+                            </Box>
+                          ) : (
+                            <IconButton
+                              aria-label="sync"
+                              color="primary"
+                              onClick={() => handleSyncOne(s)}
+                              disabled={disableAll || s.synced}
+                              sx={{ width: 44, height: 44 }}
+                            >
+                              {s.synced ? <Done /> : <Sync />}
+                            </IconButton>
+                          )}
+
+                          {verificarPermiso(
+                            "operaciones.pos-venta.cancelarventa",
+                          ) && (
+                            <IconButton
+                              aria-label="delete"
+                              color="error"
+                              onClick={() => handleDeleteOne(s)}
+                              disabled={disableAll || (offline && s.synced)}
+                              sx={{ width: 44, height: 44 }}
+                            >
+                              {deletingSaleId === s.identifier ? (
+                                <CircularProgress size={24} />
+                              ) : (
+                                <DeleteIcon />
+                              )}
+                            </IconButton>
+                          )}
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Box>
+                {ventasVirtual.paddingBottom > 0 && (
+                  <Box sx={{ height: ventasVirtual.paddingBottom }} />
+                )}
+              </Box>
+            )}
+
+            {!isMobile && (
+              <TableContainer
+                component={Paper}
+                ref={ventasVirtual.containerRef}
+                sx={
+                  ventasVirtual.needsVirtualization
+                    ? { mt: 1, maxHeight: "60vh", overflowY: "auto" }
+                    : { mt: 1 }
+                }
+              >
+                <Table
+                  size="small"
+                  stickyHeader={ventasVirtual.needsVirtualization}
+                >
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>
+                        <b>Estado</b>
+                      </TableCell>
+                      <TableCell>
+                        <b>Fecha</b>
+                      </TableCell>
+                      <TableCell align="right">
+                        <b>Efectivo</b>
+                      </TableCell>
+                      <TableCell align="right">
+                        <b>Transf</b>
+                      </TableCell>
+                      <TableCell align="right">
+                        <b>Total</b>
+                      </TableCell>
+                      <TableCell>
+                        <b>Acciones</b>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {ventasVirtual.paddingTop > 0 && (
+                      <TableRow style={{ height: ventasVirtual.paddingTop }}>
+                        <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
+                      </TableRow>
+                    )}
+                    {ventasVirtual.visible.map(({ item: s, virtual }) => {
+                      const saleInfo = formatSaleInfo(s);
+                      const totalConvertido = s.productos.reduce((sum, p) => {
+                        const moneda =
+                          p.monedaPrecioCode ??
+                          monedaPorProductoTienda.get(p.productoTiendaId) ??
+                          monedaBase;
+                        return (
+                          sum +
+                          convertToBase(
+                            p.price,
+                            moneda,
+                            tasasVigentes,
+                            monedaBase,
+                          ) *
+                            p.cantidad
+                        );
+                      }, 0);
+                      return (
+                        <Fragment key={s.identifier}>
+                          <TableRow
+                            sx={{ borderColor: "Highlight" }}
+                            {...(virtual
+                              ? {
+                                  "data-index": virtual.index,
+                                  ref: ventasVirtual.measureElement,
+                                }
+                              : {})}
+                          >
+                            <TableCell>
+                              <Box
+                                display={"flex"}
+                                flexDirection={"column"}
+                                gap={0.5}
+                              >
+                                <Chip
+                                  size="small"
+                                  label={s.synced ? "Subida" : "Pendiente"}
+                                  color={s.synced ? "success" : "warning"}
+                                  variant="filled"
+                                />
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {saleInfo.products} productos
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {saleInfo.date}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              {formatMontoEnMoneda(s.totalcash, monedaBase)}
+                            </TableCell>
+                            <TableCell align="right">
+                              {formatMontoEnMoneda(s.totaltransfer, monedaBase)}
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="h6">
+                                {formatMontoEnMoneda(
+                                  totalConvertido,
+                                  monedaBase,
+                                )}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Box
+                                width={"100%"}
+                                display={"flex"}
+                                flexDirection={"row"}
+                                justifyContent={"space-around"}
+                                alignItems={"center"}
+                              >
                                 <IconButton
-                                  aria-label="reprint"
+                                  aria-label="view"
                                   color="default"
-                                  onClick={() => handleReprint(s)}
+                                  onClick={() => handleSelectViewSale(s)}
                                   disabled={disableAll}
                                   sx={{ width: 44, height: 44 }}
                                 >
-                                  <Print />
+                                  <VisibilityIcon />
                                 </IconButton>
-                              )}
 
-                              {s.syncState === "syncing" ? (
-                                <Box
-                                  sx={{
-                                    width: 44,
-                                    height: 44,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                  }}
-                                >
-                                  <CircularProgress size={24} />
-                                </Box>
-                              ) : (
-                                <IconButton
-                                  aria-label="sync"
-                                  color="primary"
-                                  onClick={() => handleSyncOne(s)}
-                                  disabled={disableAll || s.synced}
-                                  sx={{ width: 44, height: 44 }}
-                                >
-                                  {s.synced ? <Done /> : <Sync />}
-                                </IconButton>
-                              )}
+                                {puedeImprimir && (
+                                  <IconButton
+                                    aria-label="reprint"
+                                    color="default"
+                                    onClick={() => handleReprint(s)}
+                                    disabled={disableAll}
+                                    sx={{ width: 44, height: 44 }}
+                                  >
+                                    <Print />
+                                  </IconButton>
+                                )}
 
-                              {verificarPermiso(
-                                "operaciones.pos-venta.cancelarventa",
-                              ) && (
-                                <IconButton
-                                  aria-label="delete"
-                                  color="error"
-                                  onClick={() => handleDeleteOne(s)}
-                                  disabled={disableAll || (offline && s.synced)}
-                                  sx={{ width: 44, height: 44 }}
-                                >
-                                  {deletingSaleId === s.identifier ? (
+                                {s.syncState === "syncing" ? (
+                                  <Box
+                                    sx={{
+                                      width: 44,
+                                      height: 44,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                  >
                                     <CircularProgress size={24} />
-                                  ) : (
-                                    <DeleteIcon />
-                                  )}
-                                </IconButton>
-                              )}
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      </Fragment>
-                    );
-                  })}
-                  {ventasVirtual.paddingBottom > 0 && (
-                    <TableRow style={{ height: ventasVirtual.paddingBottom }}>
-                      <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                                  </Box>
+                                ) : (
+                                  <IconButton
+                                    aria-label="sync"
+                                    color="primary"
+                                    onClick={() => handleSyncOne(s)}
+                                    disabled={disableAll || s.synced}
+                                    sx={{ width: 44, height: 44 }}
+                                  >
+                                    {s.synced ? <Done /> : <Sync />}
+                                  </IconButton>
+                                )}
+
+                                {verificarPermiso(
+                                  "operaciones.pos-venta.cancelarventa",
+                                ) && (
+                                  <IconButton
+                                    aria-label="delete"
+                                    color="error"
+                                    onClick={() => handleDeleteOne(s)}
+                                    disabled={
+                                      disableAll || (offline && s.synced)
+                                    }
+                                    sx={{ width: 44, height: 44 }}
+                                  >
+                                    {deletingSaleId === s.identifier ? (
+                                      <CircularProgress size={24} />
+                                    ) : (
+                                      <DeleteIcon />
+                                    )}
+                                  </IconButton>
+                                )}
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        </Fragment>
+                      );
+                    })}
+                    {ventasVirtual.paddingBottom > 0 && (
+                      <TableRow style={{ height: ventasVirtual.paddingBottom }}>
+                        <TableCell colSpan={6} sx={{ p: 0, border: 0 }} />
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </Box>
         </Box>
       </Drawer>

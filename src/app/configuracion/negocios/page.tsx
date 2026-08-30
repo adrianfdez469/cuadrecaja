@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -937,7 +937,7 @@ export default function Negocios() {
                   const isExpanded = expandedNegocio === negocio.id;
 
                   return (
-                    <>
+                    <Fragment key={negocio.id}>
                       <TableRow
                         key={negocio.id}
                         sx={{
@@ -1184,7 +1184,7 @@ export default function Negocios() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>

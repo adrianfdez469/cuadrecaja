@@ -799,12 +799,20 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
           pt: 1,
         }}
       >
-        <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
+        <Stack
+          direction={isMobile ? "column-reverse" : "row"}
+          spacing={1}
+          sx={{ width: "100%" }}
+        >
           <Button
             onClick={onClose}
-            variant="outlined"
+            variant={isMobile ? "text" : "outlined"}
             color="secondary"
-            sx={{ flex: 1, minHeight: 56 }}
+            fullWidth={isMobile}
+            sx={{
+              flex: isMobile ? undefined : 1,
+              minHeight: isMobile ? 44 : 56,
+            }}
           >
             Cancelar
           </Button>
@@ -819,7 +827,8 @@ export const ProductSelectionModal: React.FC<ProductSelectionModalProps> = ({
                 productosSeleccionadosIniciales.length === 0) ||
               loading
             }
-            sx={{ flex: 1, minHeight: 56 }}
+            fullWidth={isMobile}
+            sx={{ flex: isMobile ? undefined : 1, minHeight: 56 }}
             startIcon={
               operacion === "ENTRADA" ? <TrendingUp /> : <TrendingDown />
             }

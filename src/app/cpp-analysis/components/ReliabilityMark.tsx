@@ -14,8 +14,16 @@ const RELIABILITY_THRESHOLD = 80;
  * it displays as plain text without a pill. This follows the principle that
  * a complete record is the expected case and has nothing to announce.
  */
-export function ReliabilityMark({ value }: { value: number }) {
-  const label = `${value.toFixed(0)}%`;
+export function ReliabilityMark({
+  value,
+  suffix = "",
+}: {
+  value: number;
+  /** Appended to the figure — the mobile card ("100% confiable") reads in
+   * isolation, without a "Confiabilidad" column header for context. */
+  suffix?: string;
+}) {
+  const label = `${value.toFixed(0)}%${suffix}`;
 
   if (value >= RELIABILITY_THRESHOLD) {
     return (

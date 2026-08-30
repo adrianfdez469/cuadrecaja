@@ -11,12 +11,16 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { IProveedor } from "@/schemas/proveedor";
@@ -91,6 +95,8 @@ export function CreateMovimientoDialog({
   onClose,
   onCreated,
 }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { user, monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const { showMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
@@ -317,10 +323,11 @@ export function CreateMovimientoDialog({
         open={open}
         onClose={saving ? undefined : onClose}
         fullWidth
+        fullScreen={isMobile}
         PaperProps={{
           sx: {
-            width: 900,
-            borderRadius: `${shape.radius.md}px`,
+            width: isMobile ? "100%" : 900,
+            borderRadius: isMobile ? 0 : `${shape.radius.md}px`,
           },
         }}
         slotProps={{
@@ -331,8 +338,19 @@ export function CreateMovimientoDialog({
           },
         }}
       >
-        <DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           Registrar movimiento — {producto.producto.nombre}
+          {isMobile && (
+            <IconButton onClick={onClose} disabled={saving}>
+              <CloseIcon />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Box display="flex" flexDirection="column" gap={2} pt={1}>
@@ -483,14 +501,28 @@ export function CreateMovimientoDialog({
             />
           </Box>
         </DialogContent>
-        <DialogActions sx={{ gap: 1, py: 1.5, px: 2 }}>
-          <Button onClick={onClose} disabled={saving} sx={{ minHeight: 56 }}>
+        <DialogActions
+          sx={{
+            gap: 1,
+            py: 1.5,
+            px: 2,
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={onClose}
+            disabled={saving}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : 56 }}
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleSave}
             variant="contained"
             disabled={saving || cantidadExcedeStock}
+            fullWidth={isMobile}
             startIcon={
               saving ? (
                 <CircularProgress size={16} color="inherit" />

@@ -8,9 +8,13 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Stack,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import type { IProductoDeleteInfo } from "@/schemas/producto";
 
 interface Props {
@@ -28,6 +32,8 @@ export function DeleteProductDialog({
   onClose,
   onConfirm,
 }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const tiendaActual = info?.stores.find((s) => s.isCurrentTienda);
   const otrosRegistros = info?.stores.filter((s) => !s.isCurrentTienda) ?? [];
   const esConsignacionActual = !!tiendaActual?.esConsignacion;
@@ -36,9 +42,27 @@ export function DeleteProductDialog({
   );
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ color: "error.main" }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      fullScreen={isMobile}
+    >
+      <DialogTitle
+        sx={{
+          color: "error.main",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         {esConsignacionActual ? "Eliminar consignación" : "Eliminar producto"}
+        {isMobile && (
+          <IconButton onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        )}
       </DialogTitle>
       <DialogContent>
         {loading && (
@@ -165,8 +189,18 @@ export function DeleteProductDialog({
           </Stack>
         )}
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} color="inherit">
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
+        <Button
+          onClick={onClose}
+          color="inherit"
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : undefined }}
+        >
           Cancelar
         </Button>
         <Button
@@ -174,6 +208,9 @@ export function DeleteProductDialog({
           variant="contained"
           color="error"
           disabled={loading || !info || tieneDeudaPendiente}
+          fullWidth={isMobile}
+          size={isMobile ? "large" : "medium"}
+          sx={{ minHeight: isMobile ? 56 : undefined }}
         >
           Eliminar
         </Button>

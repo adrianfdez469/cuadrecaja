@@ -21,6 +21,8 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -96,6 +98,8 @@ export function CreateProductDialog({
   onClose,
   onSave,
 }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const { verificarPermiso } = usePermisos();
   const puedeEditarCosto = verificarPermiso(
@@ -434,10 +438,11 @@ export function CreateProductDialog({
       }}
       fullWidth
       maxWidth="sm"
+      fullScreen={isMobile}
       PaperProps={{
         sx: {
-          width: 600,
-          borderRadius: `${shape.radius.md}px`,
+          width: isMobile ? "100%" : 600,
+          borderRadius: isMobile ? 0 : `${shape.radius.md}px`,
           ...(isDemoMode ? { zIndex: 10001 } : undefined),
         },
       }}
@@ -449,8 +454,27 @@ export function CreateProductDialog({
         },
       }}
     >
-      <DialogTitle sx={{ fontSize: "1.25rem", fontWeight: 700 }}>
+      <DialogTitle
+        sx={{
+          fontSize: "1.25rem",
+          fontWeight: 700,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         Nuevo producto
+        {isMobile && (
+          <IconButton
+            onClick={() => {
+              if (tourRunning && isBlocking) return;
+              onClose();
+            }}
+            disabled={saving || (tourRunning && isBlocking)}
+          >
+            <CloseIcon />
+          </IconButton>
+        )}
       </DialogTitle>
       <DialogContent>
         <Box
@@ -675,11 +699,16 @@ export function CreateProductDialog({
             <Box sx={{ pb: 2.5 }}>
               <Box display="flex" flexDirection="column" gap={2}>
                 {/* Costo + moneda */}
-                <Box display="flex" gap={1} alignItems="flex-start">
+                <Box
+                  display="flex"
+                  flexDirection={isMobile ? "column" : "row"}
+                  gap={1}
+                  alignItems={isMobile ? "stretch" : "flex-start"}
+                >
                   {monedasDisponibles.length > 1 && (
                     <FormControl
                       size="small"
-                      sx={{ width: 110, flexShrink: 0 }}
+                      sx={{ width: isMobile ? "100%" : 110, flexShrink: 0 }}
                     >
                       <InputLabel>Moneda</InputLabel>
                       <Select
@@ -730,11 +759,16 @@ export function CreateProductDialog({
                 )}
 
                 {/* Precio + moneda */}
-                <Box display="flex" gap={1} alignItems="flex-start">
+                <Box
+                  display="flex"
+                  flexDirection={isMobile ? "column" : "row"}
+                  gap={1}
+                  alignItems={isMobile ? "stretch" : "flex-start"}
+                >
                   {monedasDisponibles.length > 1 && (
                     <FormControl
                       size="small"
-                      sx={{ width: 110, flexShrink: 0 }}
+                      sx={{ width: isMobile ? "100%" : 110, flexShrink: 0 }}
                     >
                       <InputLabel>Moneda</InputLabel>
                       <Select
@@ -918,11 +952,20 @@ export function CreateProductDialog({
           )}
         </Box>
       </DialogContent>
-      <DialogActions sx={{ gap: 1, py: 1.5, px: 2 }}>
+      <DialogActions
+        sx={{
+          gap: isMobile ? 1 : 1,
+          py: 1.5,
+          px: 2,
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
         <Button
           onClick={onClose}
           disabled={saving || (tourRunning && isBlocking)}
-          sx={{ minHeight: 56 }}
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : 56 }}
         >
           Cancelar
         </Button>
@@ -931,6 +974,7 @@ export function CreateProductDialog({
           onClick={handleSave}
           variant="contained"
           disabled={saving}
+          fullWidth={isMobile}
           startIcon={
             saving ? <CircularProgress size={16} color="inherit" /> : undefined
           }

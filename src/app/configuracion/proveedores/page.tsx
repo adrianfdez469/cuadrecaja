@@ -19,14 +19,10 @@ import {
   Typography,
   CircularProgress,
   InputAdornment,
-  Grid,
-  Card,
-  CardContent,
   Stack,
   Tooltip,
   useTheme,
   useMediaQuery,
-  Collapse,
   FormControl,
   InputLabel,
   Select,
@@ -42,13 +38,13 @@ import {
   LocationOn,
   Search,
   Refresh,
-  ExpandMore,
-  ExpandLess,
   LocalShipping,
   PersonOff,
+  Close,
 } from "@mui/icons-material";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { StatStrip } from "@/components/StatStrip";
 import SelectableTextField from "@/components/SelectableTextField";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
@@ -80,7 +76,6 @@ export default function Proveedores() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const { showMessage } = useMessageContext();
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
 
@@ -226,28 +221,16 @@ export default function Proveedores() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
+      {!isMobile && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setOpen(true)}
+          size="small"
         >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
+          Agregar Proveedor
+        </Button>
       )}
-      <Button
-        variant="contained"
-        startIcon={<Add />}
-        onClick={() => setOpen(true)}
-        size="small"
-      >
-        {isMobile ? "Agregar" : "Agregar Proveedor"}
-      </Button>
     </Stack>
   );
 
@@ -257,36 +240,30 @@ export default function Proveedores() {
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
     >
+      {isMobile && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          fullWidth
+          onClick={() => setOpen(true)}
+          sx={{ minHeight: 52, mb: 2.5 }}
+        >
+          Agregar Proveedor
+        </Button>
+      )}
+
       {/* Estadísticas */}
       <Box sx={{ mb: 3 }}>
-        <Collapse in={!isMobile || statsExpanded}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <Card>
-                <CardContent sx={{ textAlign: "center", py: 2 }}>
-                  <Typography variant="h4" color="primary" fontWeight="bold">
-                    {totalProveedores}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Proveedores
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Card>
-                <CardContent sx={{ textAlign: "center", py: 2 }}>
-                  <Typography variant="h4" color="primary" fontWeight="bold">
-                    {proveedoresConTelefono}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Con Consignación Activa
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </Collapse>
+        <StatStrip
+          variant="card"
+          stats={[
+            { label: "Total de proveedores", value: totalProveedores },
+            {
+              label: "Con consignación activa",
+              value: proveedoresConTelefono,
+            },
+          ]}
+        />
       </Box>
 
       {/* Contenido principal */}
@@ -296,6 +273,7 @@ export default function Proveedores() {
         headerActions={
           <SelectableTextField
             size="small"
+            fullWidth={isMobile}
             placeholder="Buscar proveedores..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -306,16 +284,17 @@ export default function Proveedores() {
                 </InputAdornment>
               ),
             }}
-            sx={{ minWidth: 200 }}
+            sx={{ minWidth: isMobile ? "100%" : 200 }}
           />
         }
+        noPadding
       >
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
             <CircularProgress />
           </Box>
         ) : filteredProveedores.length === 0 ? (
-          <Box sx={{ textAlign: "center", py: 4 }}>
+          <Box sx={{ textAlign: "center", p: 4 }}>
             <LocalShipping
               sx={{ fontSize: 64, color: "text.secondary", mb: 2 }}
             />
@@ -340,108 +319,55 @@ export default function Proveedores() {
             )}
           </Box>
         ) : isMobile ? (
-          // Vista móvil con cards
-          <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.5}>
-              {filteredProveedores.map((proveedor) => (
-                <Card
+          // Un proveedor por fila en una sola caja — mismo criterio que
+          // /configuracion/categorias y /configuracion/destinos-transferencia.
+          <Box>
+            {filteredProveedores.map((proveedor, index) => {
+              const contacto = [proveedor.telefono, proveedor.direccion]
+                .filter(Boolean)
+                .join(" · ");
+              return (
+                <Box
                   key={proveedor.id}
+                  onClick={() => handleEdit(proveedor)}
                   sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    minHeight: 64,
+                    pl: 2,
+                    pr: 0.5,
+                    py: 1.25,
                     cursor: "pointer",
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
+                    ...(index > 0 && { borderTop: 1, borderColor: "divider" }),
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1.5}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="flex-start"
-                      >
-                        <Box sx={{ flex: 1 }}>
-                          <Typography
-                            variant="subtitle2"
-                            fontWeight="medium"
-                            sx={{ fontSize: "0.875rem" }}
-                            onClick={() => handleEdit(proveedor)}
-                          >
-                            {proveedor.nombre}
-                          </Typography>
-                          {(proveedor.telefono || proveedor.direccion) && (
-                            <Box
-                              sx={{ mt: 0.5 }}
-                              onClick={() => handleEdit(proveedor)}
-                            >
-                              {proveedor.telefono && (
-                                <Box
-                                  display="flex"
-                                  alignItems="center"
-                                  gap={0.75}
-                                  sx={{ mb: 0.25 }}
-                                >
-                                  <Phone fontSize="small" color="action" />
-                                  <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ fontSize: "0.75rem" }}
-                                  >
-                                    {proveedor.telefono}
-                                  </Typography>
-                                </Box>
-                              )}
-                              {proveedor.direccion && (
-                                <Box
-                                  display="flex"
-                                  alignItems="center"
-                                  gap={0.75}
-                                >
-                                  <LocationOn fontSize="small" color="action" />
-                                  <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ fontSize: "0.75rem" }}
-                                  >
-                                    {proveedor.direccion}
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          )}
-                          {!proveedor.telefono && !proveedor.direccion && (
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ fontSize: "0.75rem", mt: 0.5 }}
-                              onClick={() => handleEdit(proveedor)}
-                            >
-                              Sin contacto
-                            </Typography>
-                          )}
-                        </Box>
-                        <Stack direction="row" spacing={0.5}>
-                          <IconButton
-                            onClick={() => handleEdit(proveedor)}
-                            size="small"
-                            color="primary"
-                          >
-                            <Edit fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            onClick={() => handleDelete(proveedor.id)}
-                            size="small"
-                            color="error"
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
-                        </Stack>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: "1rem", fontWeight: 600 }}>
+                      {proveedor.nombre}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color={contacto ? "text.secondary" : "text.disabled"}
+                      sx={{ mt: 0.375, fontVariantNumeric: "tabular-nums" }}
+                    >
+                      {contacto || "Sin contacto"}
+                    </Typography>
+                  </Box>
+                  <Tooltip title="Eliminar proveedor">
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(proveedor.id);
+                      }}
+                      color="error"
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              );
+            })}
           </Box>
         ) : (
           // Vista desktop con tabla
@@ -545,9 +471,26 @@ export default function Proveedores() {
       </ContentCard>
 
       {/* Dialog para crear/editar proveedor */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {selectedProveedor ? "Editar Proveedor" : "Nuevo Proveedor"}
+          {isMobile && (
+            <IconButton onClick={handleClose} disabled={saving}>
+              <Close />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
@@ -653,8 +596,19 @@ export default function Proveedores() {
             </FormControl>
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} color="secondary" disabled={saving}>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={handleClose}
+            color="secondary"
+            disabled={saving}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
             Cancelar
           </Button>
           <Button
@@ -662,6 +616,9 @@ export default function Proveedores() {
             variant="contained"
             color="primary"
             disabled={!nombre.trim() || saving}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
             startIcon={saving ? <CircularProgress size={16} /> : undefined}
           >
             {saving ? "Guardando..." : "Guardar"}

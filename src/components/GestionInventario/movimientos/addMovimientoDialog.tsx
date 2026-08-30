@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -586,7 +587,21 @@ export const AddMovimientoDialog: FC<IProps> = ({
         maxWidth={isMobile ? "xs" : "md"}
         fullScreen={isMobile}
       >
-        <DialogTitle sx={{ pb: 1 }}>Crear Movimiento</DialogTitle>
+        <DialogTitle
+          sx={{
+            pb: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Crear Movimiento
+          {isMobile && (
+            <IconButton onClick={handleClose}>
+              <CloseIcon />
+            </IconButton>
+          )}
+        </DialogTitle>
 
         <DialogContent sx={{ px: isMobile ? 2 : 3 }}>
           {/* Selector de tipo de movimiento */}
@@ -1052,12 +1067,19 @@ export const AddMovimientoDialog: FC<IProps> = ({
         </DialogContent>
 
         <DialogActions
-          sx={{ px: isMobile ? 2 : 3, pb: isMobile ? 2 : undefined }}
+          sx={{
+            px: isMobile ? 2 : 3,
+            pb: isMobile ? 2 : undefined,
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
         >
           <Button
             onClick={handleClose}
             startIcon={!isMobile ? <CloseIcon /> : undefined}
+            fullWidth={isMobile}
             size={isMobile ? "medium" : "large"}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
           >
             Cancelar
           </Button>
@@ -1066,7 +1088,9 @@ export const AddMovimientoDialog: FC<IProps> = ({
             startIcon={!isMobile ? <SaveIcon /> : undefined}
             variant="contained"
             onClick={handleGuardar}
-            size={isMobile ? "medium" : "large"}
+            fullWidth={isMobile}
+            size="large"
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             {saving ? "Guardando..." : "Guardar"}
           </Button>

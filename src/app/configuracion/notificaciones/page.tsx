@@ -41,6 +41,7 @@ import {
   Info,
   Campaign,
   Message,
+  Close,
 } from "@mui/icons-material";
 import { NotificationApiService } from "@/services/notificationApiService";
 import {
@@ -582,11 +583,28 @@ export default function NotificacionesPage() {
       </ContentCard>
 
       {/* Dialog para crear/editar notificación */}
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {selectedNotificacion
             ? "Editar Notificación"
             : "Crear Nueva Notificación"}
+          {isMobile && (
+            <IconButton onClick={handleClose}>
+              <Close />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -728,12 +746,26 @@ export default function NotificacionesPage() {
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancelar</Button>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={handleClose}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
           <Button
             onClick={handleSave}
             variant="contained"
             disabled={saving}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
             startIcon={saving ? <CircularProgress size={20} /> : undefined}
           >
             {saving ? "Guardando..." : "Guardar"}

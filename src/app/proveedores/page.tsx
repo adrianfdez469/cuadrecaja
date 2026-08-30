@@ -13,7 +13,6 @@ import {
   TableRow,
   Typography,
   TablePagination,
-  Grid,
   IconButton,
   Card,
   CardContent,
@@ -146,7 +145,7 @@ export default function ProveedoresPage() {
     >
       <Box sx={{ mb: 3 }}>
         <StatStrip
-          variant="card"
+          variant={isMobile ? undefined : "card"}
           stats={[
             {
               label: "Total Proveedores",
@@ -198,83 +197,132 @@ export default function ProveedoresPage() {
                   onClick={() => handleVerDetalle(proveedor.id)}
                 >
                   <CardContent sx={{ p: 2 }}>
-                    <Stack spacing={2}>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      gap={1.5}
+                    >
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        gap={1.25}
+                        sx={{ minWidth: 0 }}
+                      >
+                        <Typography
+                          variant="subtitle1"
+                          fontWeight={700}
+                          sx={{ lineHeight: 1.35 }}
+                        >
+                          {proveedor.nombre}
+                        </Typography>
+                        <StatusPill
+                          label={proveedor.estado}
+                          hue={
+                            proveedor.estado === "activo"
+                              ? "positive"
+                              : "neutral"
+                          }
+                        />
+                      </Stack>
+                      <IconButton color="primary" sx={{ flexShrink: 0 }}>
+                        <Visibility fontSize="small" />
+                      </IconButton>
+                    </Box>
+
+                    <Stack
+                      spacing={0.5}
+                      sx={{
+                        mt: 1.25,
+                        pt: 1.5,
+                        borderTop: 1,
+                        borderColor: "divider",
+                      }}
+                    >
                       <Box
                         display="flex"
                         justifyContent="space-between"
-                        alignItems="flex-start"
+                        alignItems="baseline"
+                        gap={1.5}
                       >
-                        <Box>
-                          <Typography variant="subtitle1" fontWeight="medium">
-                            {proveedor.nombre}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {proveedor.telefono}
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        <Typography variant="body2" color="text.secondary">
+                          Contacto
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color={
+                            proveedor.telefono
+                              ? "text.primary"
+                              : "text.disabled"
+                          }
                         >
-                          <StatusPill
-                            label={proveedor.estado}
-                            hue={
-                              proveedor.estado === "activo"
-                                ? "positive"
-                                : "neutral"
-                            }
-                          />
-                          <IconButton size="small" color="primary">
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                        </Box>
+                          {proveedor.telefono || "—"}
+                        </Typography>
                       </Box>
-
-                      <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Liquidado
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            fontWeight="medium"
-                            color={
-                              proveedor.dineroLiquidado > 0
-                                ? "success.main"
-                                : "text.primary"
-                            }
-                          >
-                            {formatCurrency(proveedor.dineroLiquidado)}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Por Liquidar
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(proveedor.dineroPorLiquidar)}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Productos
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {proveedor.totalProductosConsignacion}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Última Liquidación
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {proveedor.ultimaLiquidacion
-                              ? new Date(
-                                  proveedor.ultimaLiquidacion,
-                                ).toLocaleDateString()
-                              : "Sin liquidar"}
-                          </Typography>
-                        </Grid>
-                      </Grid>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Dinero Liquidado
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                          color={
+                            proveedor.dineroLiquidado > 0
+                              ? "success.main"
+                              : "text.primary"
+                          }
+                        >
+                          {formatCurrency(proveedor.dineroLiquidado)}
+                        </Typography>
+                      </Box>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Por Liquidar
+                        </Typography>
+                        <Typography variant="body2">
+                          {formatCurrency(proveedor.dineroPorLiquidar)}
+                        </Typography>
+                      </Box>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Productos
+                        </Typography>
+                        <Typography variant="body2">
+                          {proveedor.totalProductosConsignacion}
+                        </Typography>
+                      </Box>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Última Liquidación
+                        </Typography>
+                        <Typography variant="body2">
+                          {proveedor.ultimaLiquidacion
+                            ? new Date(
+                                proveedor.ultimaLiquidacion,
+                              ).toLocaleDateString()
+                            : "Sin liquidar"}
+                        </Typography>
+                      </Box>
                     </Stack>
                   </CardContent>
                 </Card>

@@ -1,18 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   Alert,
   Box,
   Button,
   Chip,
   CircularProgress,
-  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   IconButton,
   Stack,
   Switch,
@@ -229,93 +227,81 @@ export default function MonedasPage() {
           </Button>
         </Stack>
 
-        {/* ── Vista móvil: cards ── */}
+        {/* ── Vista móvil: cards ──
+            Las denominaciones ya no se despliegan/colapsan: se muestran
+            como resumen de solo lectura ("N denominaciones") y se editan
+            con la acción con nombre, que abre el mismo diálogo con
+            confirmación que ya usa el desktop. */}
         {isMobile ? (
-          <Stack spacing={2}>
+          <Stack spacing={1.5}>
             {monedas.map((m) => (
               <Box
                 key={m.code}
                 sx={{
-                  border: "1px solid",
+                  bgcolor: "background.paper",
+                  border: 1,
                   borderColor: "divider",
-                  borderRadius: 1,
-                  overflow: "hidden",
+                  borderRadius: 3,
+                  p: 2,
                 }}
               >
                 <Stack
                   direction="row"
                   alignItems="center"
                   justifyContent="space-between"
-                  px={1.5}
-                  py={1}
+                  gap={1}
                 >
-                  <Stack direction="row" alignItems="center" gap={1}>
-                    <Chip
-                      label={m.code}
-                      size="small"
-                      color={m.activo ? "primary" : "default"}
-                    />
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">
-                        {m.nombre}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Símbolo: {m.simbolo}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  <Stack direction="row" alignItems="center">
+                  <Chip
+                    label={m.code}
+                    size="small"
+                    sx={{
+                      bgcolor: "semantic.hue.accent.surface",
+                      color: "semantic.hue.accent.main",
+                    }}
+                  />
+                  <Stack direction="row" alignItems="center" gap={0.5}>
                     <Switch
                       checked={m.activo}
                       onChange={() => toggleActivo(m)}
-                      size="small"
                     />
-                    <Tooltip title="Editar">
-                      <IconButton size="small" onClick={() => openEdit(m)}>
+                    <Tooltip title="Editar moneda">
+                      <IconButton onClick={() => openEdit(m)}>
                         <Edit fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <IconButton size="small" onClick={() => toggle(m.code)}>
-                      {expandedCode === m.code ? (
-                        <ExpandLess fontSize="small" />
-                      ) : (
-                        <ExpandMore fontSize="small" />
-                      )}
-                    </IconButton>
                   </Stack>
                 </Stack>
 
-                <Collapse in={expandedCode === m.code}>
-                  <Divider />
-                  <Box px={1.5} py={1} sx={{ bgcolor: "#F4F2FB" }}>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      display="block"
-                      mb={0.5}
-                    >
-                      Denominaciones ({m.denominaciones.length})
-                    </Typography>
-                    <Stack
-                      direction="row"
-                      gap={0.75}
-                      flexWrap="wrap"
-                      alignItems="center"
-                    >
-                      {m.denominaciones.map((d) => (
-                        <Chip key={d.id} label={d.valor} size="small" />
-                      ))}
-                      <Button
-                        size="small"
-                        variant="text"
-                        startIcon={<Edit />}
-                        onClick={() => openAddDenom(m.code)}
-                      >
-                        Editar denominaciones
-                      </Button>
-                    </Stack>
-                  </Box>
-                </Collapse>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
+                  {m.nombre} · {m.simbolo}
+                </Typography>
+
+                <Box
+                  sx={{
+                    mt: 1.5,
+                    pt: 1.5,
+                    borderTop: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    {m.denominaciones.length === 1
+                      ? "1 denominación"
+                      : `${m.denominaciones.length} denominaciones`}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => openAddDenom(m.code)}
+                    sx={{ mt: 0.5, px: 0 }}
+                  >
+                    Editar denominaciones
+                  </Button>
+                </Box>
               </Box>
             ))}
             {monedas.length === 0 && (
@@ -338,8 +324,8 @@ export default function MonedasPage() {
               </TableHead>
               <TableBody>
                 {monedas.map((m) => (
-                  <>
-                    <TableRow key={m.code}>
+                  <Fragment key={m.code}>
+                    <TableRow>
                       <TableCell>
                         <Chip label={m.code} size="small" />
                       </TableCell>
@@ -381,7 +367,7 @@ export default function MonedasPage() {
                       <TableRow key={`${m.code}-denoms`}>
                         <TableCell
                           colSpan={6}
-                          sx={{ bgcolor: "#F4F2FB", py: 1 }}
+                          sx={{ bgcolor: "semantic.hue.accent.surface", py: 1 }}
                         >
                           <Stack
                             direction="row"
@@ -404,7 +390,7 @@ export default function MonedasPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 ))}
                 {monedas.length === 0 && (
                   <TableRow>

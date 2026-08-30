@@ -1,44 +1,47 @@
 "use client";
 
-import { Suspense, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Box, CircularProgress, Container, Typography } from '@mui/material';
+import { Suspense, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { Box, CircularProgress, Typography } from "@mui/material";
+import { AuthCardLayout } from "@/components/auth/AuthCardLayout";
 
 function PromotorAuthRedirect() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const token = searchParams.get('token');
+    const token = searchParams.get("token");
     if (!token) {
-      window.location.replace('/promotor/acceso');
+      window.location.replace("/promotor/acceso");
       return;
     }
 
-    window.location.replace(`/api/promoters/magic-link/consume?token=${encodeURIComponent(token)}`);
+    window.location.replace(
+      `/api/promoters/magic-link/consume?token=${encodeURIComponent(token)}`,
+    );
   }, [searchParams]);
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#1a1d29', display: 'flex', alignItems: 'center' }}>
-      <Container maxWidth="sm" sx={{ textAlign: 'center' }}>
+    <AuthCardLayout>
+      <Box sx={{ textAlign: "center", py: 3 }}>
         <CircularProgress />
-        <Typography sx={{ mt: 2, color: 'rgba(255,255,255,0.85)' }}>
-          Validando enlace de acceso...
+        <Typography color="text.secondary" sx={{ mt: 2 }}>
+          Validando enlace de acceso…
         </Typography>
-      </Container>
-    </Box>
+      </Box>
+    </AuthCardLayout>
   );
 }
 
 function PromotorAuthFallback() {
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#1a1d29', display: 'flex', alignItems: 'center' }}>
-      <Container maxWidth="sm" sx={{ textAlign: 'center' }}>
+    <AuthCardLayout>
+      <Box sx={{ textAlign: "center", py: 3 }}>
         <CircularProgress />
-        <Typography sx={{ mt: 2, color: 'rgba(255,255,255,0.85)' }}>
-          Cargando...
+        <Typography color="text.secondary" sx={{ mt: 2 }}>
+          Cargando…
         </Typography>
-      </Container>
-    </Box>
+      </Box>
+    </AuthCardLayout>
   );
 }
 

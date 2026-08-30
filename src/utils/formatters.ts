@@ -99,7 +99,11 @@ export const getRelativeDate = (date: number | Date): string => {
  * Formatea días restantes con texto descriptivo
  */
 export const formatDaysRemaining = (days: number): string => {
-  if (days <= 0) return "Expirado";
+  if (days === 0) return "Venció hoy";
+  if (days < 0) {
+    const expired = Math.abs(days);
+    return expired === 1 ? "Venció hace 1 día" : `Venció hace ${expired} días`;
+  }
   if (days === 1) return "1 día restante";
   if (days <= 7) return `${days} días restantes`;
   if (days <= 30) return `${days} días restantes`;
@@ -284,7 +288,9 @@ const UUID_PATTERN =
  * database carry the full id, so fixing only the writers would leave every
  * historical row untouched.
  */
-export const formatMovimientoMotivo = (motivo: string | null | undefined): string => {
+export const formatMovimientoMotivo = (
+  motivo: string | null | undefined,
+): string => {
   if (!motivo) return "";
   return motivo.replace(UUID_PATTERN, (id) => `#${id.slice(0, 8)}`).trim();
 };

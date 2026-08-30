@@ -7,7 +7,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -38,6 +37,7 @@ import { LoadingState } from "@/components/LoadingState";
 import { StatusPill } from "@/components/StatusPill";
 
 import { CurrencyCode } from "./components/CurrencyCode";
+import { MonedaNegocioCard } from "./components/MonedaNegocioCard";
 import { ContentCard } from "@/components/ContentCard";
 import {
   getMonedasGlobales,
@@ -218,106 +218,44 @@ export default function MonedasNegocioPage() {
         <StatusPill label={`Moneda base: ${monedaBase}`} hue="accent" />
       }
       headerActions={
-        monedasDisponiblesParaHabilitar.length > 0 ? (
+        !isMobile && monedasDisponiblesParaHabilitar.length > 0 ? (
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={openHabilitarDialog}
           >
-            {isMobile ? "Habilitar" : "Habilitar moneda"}
+            Habilitar moneda
           </Button>
         ) : undefined
       }
     >
+      {isMobile && monedasDisponiblesParaHabilitar.length > 0 && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          fullWidth
+          onClick={openHabilitarDialog}
+          sx={{ minHeight: 48, mb: 2.5 }}
+        >
+          Habilitar moneda
+        </Button>
+      )}
+
       <ContentCard>
         {/* ── Vista móvil: cards ── */}
         {isMobile ? (
-          <Stack spacing={2}>
-            {/* Card moneda base */}
-            <Card variant="outlined" sx={{ bgcolor: "action.selected" }}>
-              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <Stack direction="row" gap={1} alignItems="center">
-                    <Chip label={monedaBase} size="small" color="primary" />
-                    <Chip label="Base" size="small" />
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary">
-                    Efectivo + Transfer ✓
-                  </Typography>
-                </Stack>
-              </CardContent>
-            </Card>
+          <Stack spacing={1.5}>
+            <MonedaNegocioCard code={monedaBase} base />
 
             {monedasExtra.map((m) => (
-              <Card key={m.monedaCode} variant="outlined">
-                <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="flex-start"
-                    mb={1.5}
-                  >
-                    <Chip
-                      label={m.monedaCode}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                    />
-                    <Button
-                      size="small"
-                      color="error"
-                      variant="outlined"
-                      onClick={() => deshabilitar(m)}
-                      sx={{ minWidth: 0, px: 1 }}
-                    >
-                      Deshabilitar
-                    </Button>
-                  </Stack>
-
-                  <Stack spacing={0.5}>
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                    >
-                      <Typography variant="body2" color="text.secondary">
-                        Admite efectivo
-                      </Typography>
-                      <Switch
-                        checked={m.admiteEfectivo}
-                        onChange={() => toggleMoneda(m, "admiteEfectivo")}
-                        size="small"
-                      />
-                    </Stack>
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                    >
-                      <Typography variant="body2" color="text.secondary">
-                        Admite transferencia
-                      </Typography>
-                      <Switch
-                        checked={m.admiteTransferencia}
-                        onChange={() => toggleMoneda(m, "admiteTransferencia")}
-                        size="small"
-                      />
-                    </Stack>
-                    <Button
-                      size="small"
-                      startIcon={<CurrencyExchange />}
-                      onClick={() => abrirCambioBase(m.monedaCode)}
-                      sx={{ alignSelf: "flex-start", mt: 0.5 }}
-                    >
-                      Usar como moneda base
-                    </Button>
-                  </Stack>
-                </CardContent>
-              </Card>
+              <MonedaNegocioCard
+                key={m.monedaCode}
+                code={m.monedaCode}
+                moneda={m}
+                onToggle={(campo) => toggleMoneda(m, campo)}
+                onUsarComoBase={() => abrirCambioBase(m.monedaCode)}
+                onDeshabilitar={() => deshabilitar(m)}
+              />
             ))}
 
             {monedasNegocio.length === 0 && (
@@ -338,7 +276,7 @@ export default function MonedasNegocioPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                <TableRow sx={{ bgcolor: "#FCFCFD" }}>
+                <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
                   <TableCell>
                     <Stack direction="row" gap={1} alignItems="center">
                       <CurrencyCode code={monedaBase} base />

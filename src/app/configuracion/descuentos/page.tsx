@@ -10,6 +10,7 @@ import {
   FormControl,
   FormControlLabel,
   Grid,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -23,6 +24,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import CloseIcon from "@mui/icons-material/Close";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import { EmptyState } from "@/components/EmptyState";
@@ -392,9 +394,21 @@ export default function DiscountsPage() {
         onClose={() => setOpenDialog(false)}
         fullWidth
         maxWidth="sm"
+        fullScreen={isMobile}
       >
-        <DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {editingId ? "Editar Regla de Descuento" : "Nueva Regla de Descuento"}
+          {isMobile && (
+            <IconButton onClick={() => setOpenDialog(false)}>
+              <CloseIcon />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Grid container mt={1} spacing={3}>
@@ -631,8 +645,19 @@ export default function DiscountsPage() {
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={() => setOpenDialog(false)}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
           <Button
             onClick={handleSave}
             variant="contained"
@@ -642,6 +667,9 @@ export default function DiscountsPage() {
               (loadingOptions &&
                 (form.appliesTo === "PRODUCT" || form.appliesTo === "CATEGORY"))
             }
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             {editingId ? "Actualizar" : "Guardar"}
           </Button>

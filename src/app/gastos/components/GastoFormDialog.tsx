@@ -12,6 +12,7 @@ import {
   FormControl,
   FormControlLabel,
   FormHelperText,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -19,8 +20,11 @@ import {
   Switch,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import CloseIcon from "@mui/icons-material/Close";
 import {
   ICreateGastoTienda,
   ICreateGastoPlantilla,
@@ -78,6 +82,8 @@ export default function GastoFormDialog({
   onClose,
   onSave,
 }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -160,8 +166,27 @@ export default function GastoFormDialog({
       : "Nueva plantilla";
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      fullScreen={isMobile}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        {title}
+        {isMobile && (
+          <IconButton onClick={onClose} disabled={loading}>
+            <CloseIcon />
+          </IconButton>
+        )}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} mt={0.5}>
           <TextField
@@ -450,11 +475,28 @@ export default function GastoFormDialog({
           />
         </Stack>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : undefined }}
+        >
           Cancelar
         </Button>
-        <Button variant="contained" onClick={handleSave} disabled={loading}>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={loading}
+          fullWidth={isMobile}
+          size={isMobile ? "large" : "medium"}
+          sx={{ minHeight: isMobile ? 56 : undefined }}
+        >
           {loading ? "Guardando..." : "Guardar"}
         </Button>
       </DialogActions>

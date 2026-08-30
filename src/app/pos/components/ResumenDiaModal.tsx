@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, useEffect, useMemo, useState } from "react";
+import { FC, Fragment, useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -24,6 +24,8 @@ import {
   useMediaQuery,
   Grid2 as Grid,
   Tooltip,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
@@ -35,9 +37,18 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { getResumenDia } from "@/services/resumenDiaService";
+import { getResumenCaja } from "@/services/movimientoService";
 import { IResumenDiaProducto, IResumenDiaResponse } from "@/schemas/resumenDia";
-import { formatDecimal, normalizeSearch } from "@/utils/formatters";
+import { IResumenCajaMoneda } from "@/schemas/resumenCaja";
+import {
+  formatDecimal,
+  formatMontoEnMoneda,
+  normalizeSearch,
+} from "@/utils/formatters";
+import { convertToBase } from "@/lib/currency";
+import { useAppContext } from "@/context/AppContext";
 import SearchInput from "./SearchInput";
+import CajaResumenCards from "./CajaResumenCards";
 
 interface IProps {
   open: boolean;
@@ -55,11 +66,13 @@ function getExistenciaColor(valor: number): string {
 function TotalCard({
   label,
   valor,
+  display,
   color,
   icon,
 }: {
   label: string;
-  valor: number;
+  valor?: number;
+  display?: string;
   color: string;
   icon: React.ReactNode;
 }) {
@@ -73,7 +86,7 @@ function TotalCard({
               {label}
             </Typography>
             <Typography variant="body2" fontWeight={700} color={color}>
-              {formatDecimal(valor)}
+              {display ?? formatDecimal(valor ?? 0)}
             </Typography>
           </Box>
         </Stack>
@@ -252,8 +265,12 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
   const [filterTerm, setFilterTerm] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [allLoaded, setAllLoaded] = useState(false);
+  const [tab, setTab] = useState(0);
+  const [cajaResumen, setCajaResumen] = useState<IResumenCajaMoneda[]>([]);
+  const [cajaLoading, setCajaLoading] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { tasasVigentes, monedaBase } = useAppContext();
 
   const fetchData = async (soloConMovimientos: boolean) => {
     if (!cierreId) return;
@@ -273,11 +290,25 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
     }
   };
 
+  const fetchCaja = async () => {
+    setCajaLoading(true);
+    try {
+      const result = await getResumenCaja(tiendaId);
+      setCajaResumen(result.resumen);
+    } catch (error) {
+      console.error("[ResumenDiaModal] Error al cargar resumen de caja", error);
+    } finally {
+      setCajaLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (open) {
+      setTab(0);
       setShowAll(false);
       setAllLoaded(false);
       fetchData(true);
+      fetchCaja();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -295,6 +326,7 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
   const handleRefresh = () => {
     // Refresh respeta el estado actual del ojo
     fetchData(!showAll);
+    fetchCaja();
   };
 
   const gruposProductos = useMemo(() => {
@@ -345,6 +377,26 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
     0,
   );
 
+  // "Vendido hoy" / "Punto de partida" / "Diferencia": suma en moneda base
+  // de lo que ya trae `cajaResumen` por moneda (ventasEfectivo/fondoInicial),
+  // el mismo dato ya mostrado sin cambios en la pestaña "Caja". No se
+  // recalcula nada de src/lib/movimiento/caja.ts — solo se convierte cada
+  // entrada ya confiable a la moneda base y se suma, igual que en
+  // SalesDrawer/UserSalesDrawer.
+  const vendidoHoyBase = cajaResumen.reduce(
+    (sum, r) =>
+      sum +
+      convertToBase(r.ventasEfectivo, r.monedaCode, tasasVigentes, monedaBase),
+    0,
+  );
+  const puntoPartidaBase = cajaResumen.reduce(
+    (sum, r) =>
+      sum +
+      convertToBase(r.fondoInicial, r.monedaCode, tasasVigentes, monedaBase),
+    0,
+  );
+  const diferenciaBase = vendidoHoyBase - puntoPartidaBase;
+
   return (
     <Dialog
       open={open}
@@ -392,6 +444,17 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
         </Stack>
       </DialogTitle>
 
+      <Tabs
+        value={tab}
+        onChange={(_, v) => setTab(v)}
+        variant={isMobile ? "fullWidth" : "standard"}
+        sx={{ px: 2, borderBottom: 1, borderColor: "divider", flexShrink: 0 }}
+      >
+        <Tab label="Ventas" />
+        <Tab label="Productos" />
+        <Tab label="Caja" />
+      </Tabs>
+
       <DialogContent
         sx={{
           flex: 1,
@@ -402,239 +465,315 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
           pt: 1,
         }}
       >
-        {/* Cards de totales */}
-        {data && (
-          <Stack direction="row" spacing={1} mb={2}>
-            <TotalCard
-              label="Ventas"
-              valor={data.totales.ventas}
-              color={theme.palette.error.light}
-              icon={<ShoppingCartIcon fontSize="small" />}
-            />
-            <TotalCard
-              label="Entradas"
-              valor={data.totales.entradas}
-              color={theme.palette.success.main}
-              icon={<TrendingUpIcon fontSize="small" />}
-            />
-            <TotalCard
-              label="Salidas"
-              valor={data.totales.salidas}
-              color={theme.palette.warning.main}
-              icon={<TrendingDownIcon fontSize="small" />}
-            />
-          </Stack>
+        {/* Pestaña Ventas: dinero (efectivo, en moneda base) arriba —
+            "Vendido hoy" = ventasEfectivo, "Punto de partida" =
+            fondoInicial, ambos sumados desde `cajaResumen` (el mismo dato
+            ya mostrado sin cambios en la pestaña "Caja", solo convertido
+            a moneda base) — y las unidades de siempre debajo. */}
+        {tab === 0 && (
+          <>
+            <Stack direction="row" spacing={1} mb={1.5}>
+              <TotalCard
+                label="Vendido hoy (efectivo)"
+                display={formatMontoEnMoneda(vendidoHoyBase, monedaBase)}
+                color={theme.palette.success.main}
+                icon={<ShoppingCartIcon fontSize="small" />}
+              />
+              <TotalCard
+                label="Punto de partida"
+                display={formatMontoEnMoneda(puntoPartidaBase, monedaBase)}
+                color={theme.palette.text.secondary}
+                icon={<TrendingUpIcon fontSize="small" />}
+              />
+              <TotalCard
+                label="Diferencia"
+                display={formatMontoEnMoneda(diferenciaBase, monedaBase)}
+                color={
+                  diferenciaBase >= 0
+                    ? theme.palette.success.main
+                    : theme.palette.error.main
+                }
+                icon={<TrendingDownIcon fontSize="small" />}
+              />
+            </Stack>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mb: 1.5 }}
+            >
+              Solo efectivo (no incluye transferencias). Convertido a{" "}
+              {monedaBase} desde cada moneda de caja.
+            </Typography>
+            {data && (
+              <Stack direction="row" spacing={1} mb={2}>
+                <TotalCard
+                  label="Ventas"
+                  valor={data.totales.ventas}
+                  color={theme.palette.error.light}
+                  icon={<ShoppingCartIcon fontSize="small" />}
+                />
+                <TotalCard
+                  label="Entradas"
+                  valor={data.totales.entradas}
+                  color={theme.palette.success.main}
+                  icon={<TrendingUpIcon fontSize="small" />}
+                />
+                <TotalCard
+                  label="Salidas"
+                  valor={data.totales.salidas}
+                  color={theme.palette.warning.main}
+                  icon={<TrendingDownIcon fontSize="small" />}
+                />
+              </Stack>
+            )}
+          </>
         )}
 
-        {/* Búsqueda + toggle */}
-        <Stack direction="row" spacing={1} mb={2} alignItems="center">
-          <Box sx={{ flex: 1 }}>
-            <SearchInput
-              onSearch={setFilterTerm}
-              placeholder="Buscar producto... (mín. 3 letras)"
-            />
-          </Box>
-          <Tooltip
-            title={
-              showAll
-                ? "Mostrando todos los productos"
-                : "Mostrando solo productos con movimientos"
-            }
-          >
-            <IconButton
-              size="small"
-              onClick={handleToggleShowAll}
-              color={showAll ? "primary" : "default"}
-              sx={{ flexShrink: 0 }}
-            >
-              {showAll ? (
-                <VisibilityIcon fontSize="small" />
-              ) : (
-                <VisibilityOffIcon fontSize="small" />
-              )}
-            </IconButton>
-          </Tooltip>
-        </Stack>
-
-        {/* Área de productos con overlay de carga */}
-        <Box sx={{ flex: 1, overflow: "auto", position: "relative" }}>
-          {/* Overlay / máscara de carga */}
-          {loading && (
-            <Box
-              sx={{
-                position: "absolute",
-                inset: 0,
-                bgcolor: (t) => alpha(t.palette.background.paper, 0.8),
-                zIndex: 2,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <CircularProgress />
+        {/* Pestaña Caja: reusa el mismo componente y servicio ya
+            verificados en UserSalesDrawer — sin cálculos nuevos. */}
+        {tab === 2 &&
+          (cajaLoading ? (
+            <Box display="flex" justifyContent="center" py={4}>
+              <CircularProgress size={28} />
             </Box>
-          )}
+          ) : cajaResumen.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
+              Sin datos de caja para este período.
+            </Typography>
+          ) : (
+            <CajaResumenCards resumen={cajaResumen} />
+          ))}
 
-          {/* Sin datos */}
-          {!loading && data && totalProductos === 0 && (
-            <Box
-              display="flex"
-              flexDirection="column"
-              alignItems="center"
-              py={6}
-              color="text.secondary"
-            >
-              <AssessmentIcon sx={{ fontSize: 48, mb: 1, opacity: 0.4 }} />
-              <Typography variant="body2">
-                No hay productos para mostrar
-              </Typography>
-            </Box>
-          )}
-
-          {/* Vista móvil: Cards agrupadas */}
-          {totalProductos > 0 && isMobile && (
-            <Stack spacing={2}>
-              {gruposProductos.map((group) => (
-                <Box key={group.categoriaNombre}>
-                  <Stack direction="row" spacing={1} alignItems="center" mb={1}>
-                    <Box
-                      sx={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        bgcolor: group.categoriaColor,
-                        flexShrink: 0,
-                      }}
-                    />
-                    <Typography
-                      variant="caption"
-                      fontWeight={700}
-                      color="text.secondary"
-                      sx={{ textTransform: "uppercase", letterSpacing: 0.8 }}
-                    >
-                      {group.categoriaNombre}
-                    </Typography>
-                  </Stack>
-                  <Stack spacing={1.5}>
-                    {group.productos.map((p) => (
-                      <ProductoCard key={p.productoTiendaId} p={p} />
-                    ))}
-                  </Stack>
-                </Box>
-              ))}
+        {/* Búsqueda + toggle (solo pestaña Productos) */}
+        {tab === 1 && (
+          <>
+            <Stack direction="row" spacing={1} mb={2} alignItems="center">
+              <Box sx={{ flex: 1 }}>
+                <SearchInput
+                  onSearch={setFilterTerm}
+                  placeholder="Buscar producto... (mín. 3 letras)"
+                />
+              </Box>
+              <Tooltip
+                title={
+                  showAll
+                    ? "Mostrando todos los productos"
+                    : "Mostrando solo productos con movimientos"
+                }
+              >
+                <IconButton
+                  size="small"
+                  onClick={handleToggleShowAll}
+                  color={showAll ? "primary" : "default"}
+                  sx={{ flexShrink: 0 }}
+                >
+                  {showAll ? (
+                    <VisibilityIcon fontSize="small" />
+                  ) : (
+                    <VisibilityOffIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
             </Stack>
-          )}
 
-          {/* Vista escritorio: Tabla agrupada */}
-          {totalProductos > 0 && !isMobile && (
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Producto</TableCell>
-                    <TableCell align="right">Inicial</TableCell>
-                    <TableCell align="right" sx={{ color: "error.light" }}>
-                      Ventas
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: "success.main" }}>
-                      Entradas
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: "warning.main" }}>
-                      Salidas
-                    </TableCell>
-                    <TableCell align="right">Existencia</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+            {/* Área de productos con overlay de carga */}
+            <Box sx={{ flex: 1, overflow: "auto", position: "relative" }}>
+              {/* Overlay / máscara de carga */}
+              {loading && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    bgcolor: (t) => alpha(t.palette.background.paper, 0.8),
+                    zIndex: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <CircularProgress />
+                </Box>
+              )}
+
+              {/* Sin datos */}
+              {!loading && data && totalProductos === 0 && (
+                <Box
+                  display="flex"
+                  flexDirection="column"
+                  alignItems="center"
+                  py={6}
+                  color="text.secondary"
+                >
+                  <AssessmentIcon sx={{ fontSize: 48, mb: 1, opacity: 0.4 }} />
+                  <Typography variant="body2">
+                    No hay productos para mostrar
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Vista móvil: Cards agrupadas */}
+              {totalProductos > 0 && isMobile && (
+                <Stack spacing={2}>
                   {gruposProductos.map((group) => (
-                    <>
-                      <TableRow key={`cat-${group.categoriaNombre}`}>
-                        <TableCell
-                          colSpan={6}
-                          sx={{ py: 0.5, bgcolor: "action.hover" }}
+                    <Box key={group.categoriaNombre}>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        mb={1}
+                      >
+                        <Box
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            bgcolor: group.categoriaColor,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Typography
+                          variant="caption"
+                          fontWeight={700}
+                          color="text.secondary"
+                          sx={{
+                            textTransform: "uppercase",
+                            letterSpacing: 0.8,
+                          }}
                         >
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                          >
-                            <Box
-                              sx={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: "50%",
-                                bgcolor: group.categoriaColor,
-                              }}
-                            />
-                            <Typography
-                              variant="caption"
-                              fontWeight={700}
-                              color="text.secondary"
-                              sx={{
-                                textTransform: "uppercase",
-                                letterSpacing: 0.8,
-                              }}
-                            >
-                              {group.categoriaNombre}
-                            </Typography>
-                          </Stack>
+                          {group.categoriaNombre}
+                        </Typography>
+                      </Stack>
+                      <Stack spacing={1.5}>
+                        {group.productos.map((p) => (
+                          <ProductoCard key={p.productoTiendaId} p={p} />
+                        ))}
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              )}
+
+              {/* Vista escritorio: Tabla agrupada */}
+              {totalProductos > 0 && !isMobile && (
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Producto</TableCell>
+                        <TableCell align="right">Inicial</TableCell>
+                        <TableCell align="right" sx={{ color: "error.light" }}>
+                          Ventas
                         </TableCell>
+                        <TableCell align="right" sx={{ color: "success.main" }}>
+                          Entradas
+                        </TableCell>
+                        <TableCell align="right" sx={{ color: "warning.main" }}>
+                          Salidas
+                        </TableCell>
+                        <TableCell align="right">Existencia</TableCell>
                       </TableRow>
-                      {group.productos.map((p) => {
-                        const dec = p.permiteDecimal ? 2 : 0;
-                        return (
-                          <TableRow key={p.productoTiendaId} hover>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={500}>
-                                {p.nombre}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography
-                                variant="body2"
-                                color={
-                                  p.cantidadInicial < 0
-                                    ? "error.main"
-                                    : "text.primary"
-                                }
+                    </TableHead>
+                    <TableBody>
+                      {gruposProductos.map((group) => (
+                        <Fragment key={group.categoriaNombre}>
+                          <TableRow>
+                            <TableCell
+                              colSpan={6}
+                              sx={{ py: 0.5, bgcolor: "action.hover" }}
+                            >
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
                               >
-                                {formatDecimal(p.cantidadInicial, dec)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography variant="body2" color="error.light">
-                                {formatDecimal(p.ventas, dec)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography variant="body2" color="success.main">
-                                {formatDecimal(p.entradas, dec)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography variant="body2" color="warning.main">
-                                {formatDecimal(p.salidas, dec)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography
-                                variant="body2"
-                                fontWeight={600}
-                                color={getExistenciaColor(p.cantidadFinal)}
-                              >
-                                {formatDecimal(p.cantidadFinal, dec)}
-                              </Typography>
+                                <Box
+                                  sx={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: "50%",
+                                    bgcolor: group.categoriaColor,
+                                  }}
+                                />
+                                <Typography
+                                  variant="caption"
+                                  fontWeight={700}
+                                  color="text.secondary"
+                                  sx={{
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.8,
+                                  }}
+                                >
+                                  {group.categoriaNombre}
+                                </Typography>
+                              </Stack>
                             </TableCell>
                           </TableRow>
-                        );
-                      })}
-                    </>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </Box>
+                          {group.productos.map((p) => {
+                            const dec = p.permiteDecimal ? 2 : 0;
+                            return (
+                              <TableRow key={p.productoTiendaId} hover>
+                                <TableCell>
+                                  <Typography variant="body2" fontWeight={500}>
+                                    {p.nombre}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography
+                                    variant="body2"
+                                    color={
+                                      p.cantidadInicial < 0
+                                        ? "error.main"
+                                        : "text.primary"
+                                    }
+                                  >
+                                    {formatDecimal(p.cantidadInicial, dec)}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography
+                                    variant="body2"
+                                    color="error.light"
+                                  >
+                                    {formatDecimal(p.ventas, dec)}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography
+                                    variant="body2"
+                                    color="success.main"
+                                  >
+                                    {formatDecimal(p.entradas, dec)}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography
+                                    variant="body2"
+                                    color="warning.main"
+                                  >
+                                    {formatDecimal(p.salidas, dec)}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight={600}
+                                    color={getExistenciaColor(p.cantidadFinal)}
+                                  >
+                                    {formatDecimal(p.cantidadFinal, dec)}
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </Fragment>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Box>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { StatStrip } from "@/components/StatStrip";
-import { StatusPill } from "@/components/StatusPill";
 import { touch } from "@/theme";
 import {
   Box,
@@ -24,8 +23,6 @@ import {
   MenuItem,
   CircularProgress,
   InputAdornment,
-  Card,
-  CardContent,
   Stack,
   Tooltip,
   useTheme,
@@ -65,60 +62,13 @@ import {
 } from "@/services/localesService";
 import { getRoles } from "@/services/rolService";
 import { getUsuarios } from "@/services/usuarioService";
+import { TipoLocalPill } from "./components/TipoLocalPill";
+import { UsuariosLabel } from "./components/UsuariosLabel";
+import { LocalCard } from "./components/LocalCard";
 
 interface IUsuarioRol {
   usuarioId: string;
   rolId?: string;
-}
-
-/**
- * A local's kind, set as a small caps pill.
- *
- * It was an outlined chip carrying an icon — a shopfront or a warehouse — next
- * to a name that already said which was which. The design keeps only the word,
- * spaced and uppercased so it reads as a category rather than a label, and
- * tints it: the accent's wash for a shop, info's for a warehouse. Tinted, not
- * filled, because it is a state and not something you can press.
- */
-function TipoLocalPill({ tipo }: { tipo?: string }) {
-  return (
-    <StatusPill
-      label={tipo ?? ""}
-      hue={tipo === TipoLocal.ALMACEN ? "info" : "accent"}
-      caps
-    />
-  );
-}
-
-/**
- * Who works in a local, as a sentence.
- *
- * Each name used to be an outlined chip with an icon, so a store with four
- * people produced four bordered badges inside one table cell — more furniture
- * than the local's own name carried. A list of names is prose; the design sets
- * it as prose, and greys the empty case rather than drawing a box around it.
- */
-function UsuariosLabel({ local }: { local: ILocal }) {
-  const nombres =
-    local.usuariosTiendas && local.usuariosTiendas.length > 0
-      ? local.usuariosTiendas.map(
-          (ut) => `${ut.usuario.nombre}${ut.rol ? ` (${ut.rol.nombre})` : ""}`,
-        )
-      : (local.usuarios ?? []).map((u) => u.nombre);
-
-  if (nombres.length === 0) {
-    return (
-      <Typography variant="body2" color="text.disabled">
-        Sin usuarios asignados
-      </Typography>
-    );
-  }
-
-  return (
-    <Typography variant="body2" color="text.secondary">
-      {nombres.join(" · ")}
-    </Typography>
-  );
 }
 
 export default function Locales() {
@@ -347,7 +297,6 @@ export default function Locales() {
       )}
 
       <StatStrip
-        variant="card"
         stats={[
           { label: "Total Locales", value: totalLocales },
           { label: "Usuarios Únicos", value: totalUsuariosAsignados },
@@ -356,9 +305,33 @@ export default function Locales() {
         ]}
       />
 
-      <ContentCard
-        title={`Locales (${filteredLocales.length})`}
-        headerActions={
+      {(() => {
+        const emptyState = (
+          <Alert severity="info" sx={{ mt: isMobile ? 0 : 2 }}>
+            <Typography variant="h6" gutterBottom>
+              {searchTerm
+                ? "No se encontraron locales"
+                : "No hay locales registradas"}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              {searchTerm
+                ? "Intenta con otros términos de búsqueda"
+                : "Comienza creando tu primera locales para gestionar tu negocio"}
+            </Typography>
+            {!searchTerm && (
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => setOpen(true)}
+                sx={{ mt: 2 }}
+              >
+                Crear Primer Local
+              </Button>
+            )}
+          </Alert>
+        );
+
+        const searchField = (
           <SelectableTextField
             size="small"
             placeholder="Buscar locales..."
@@ -376,170 +349,160 @@ export default function Locales() {
               maxWidth: isMobile ? 200 : "none",
             }}
           />
-        }
-        noPadding
-        fullHeight
-      >
-        {filteredLocales.length === 0 ? (
-          <Box sx={{ p: 2 }}>
-            <Alert severity="info" sx={{ mt: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                {searchTerm
-                  ? "No se encontraron locales"
-                  : "No hay locales registradas"}
+        );
+
+        // En mobile, ni la lista de cards ni la búsqueda viven dentro de un
+        // `ContentCard` — cada local ya es su propia caja (mismo criterio
+        // que `roles`/`gastos/plantillas`: sin tarjeta dentro de tarjeta).
+        if (isMobile) {
+          return (
+            <>
+              <Typography
+                variant="h6"
+                fontWeight={700}
+                sx={{ mb: 1.5, fontSize: "1.1875rem" }}
+              >
+                Locales ({filteredLocales.length})
               </Typography>
-              <Typography variant="body1" gutterBottom>
-                {searchTerm
-                  ? "Intenta con otros términos de búsqueda"
-                  : "Comienza creando tu primera locales para gestionar tu negocio"}
-              </Typography>
-              {!searchTerm && (
-                <Button
-                  variant="contained"
-                  startIcon={<Add />}
-                  onClick={() => setOpen(true)}
-                  sx={{ mt: 2 }}
-                >
-                  Crear Primer Local
-                </Button>
+              <SelectableTextField
+                size="small"
+                fullWidth
+                placeholder="Buscar locales..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ mb: 2 }}
+              />
+              {filteredLocales.length === 0 ? (
+                emptyState
+              ) : (
+                <Stack spacing={1.5}>
+                  {filteredLocales.map((local) => (
+                    <LocalCard
+                      key={local.id}
+                      local={local}
+                      onEdit={() => handleEdit(local)}
+                      onDelete={() => handleDelete(local.id)}
+                    />
+                  ))}
+                </Stack>
               )}
-            </Alert>
-          </Box>
-        ) : isMobile ? (
-          // Vista móvil con cards más densos
-          <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.5}>
-              {filteredLocales.map((local) => (
-                <Card
-                  key={local.id}
-                  onClick={() => handleEdit(local)}
-                  sx={{
-                    cursor: "pointer",
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1.5}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
+            </>
+          );
+        }
+
+        return (
+          <ContentCard
+            title={`Locales (${filteredLocales.length})`}
+            headerActions={searchField}
+            noPadding
+            fullHeight
+          >
+            {filteredLocales.length === 0 ? (
+              <Box sx={{ p: 2 }}>{emptyState}</Box>
+            ) : (
+              <TableContainer sx={{ flex: 1 }}>
+                <Table stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Nombre</TableCell>
+                      <TableCell>Tipo</TableCell>
+                      <TableCell>Usuarios</TableCell>
+                      <TableCell align="center">Acciones</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredLocales.map((local) => (
+                      <TableRow
+                        key={local.id}
+                        onClick={() => handleEdit(local)}
+                        sx={{
+                          cursor: "pointer",
+                          "&:hover": {
+                            backgroundColor: "action.hover",
+                          },
+                        }}
                       >
-                        <Box
-                          display="flex"
-                          alignItems="center"
-                          gap={1}
-                          sx={{ flex: 1 }}
-                        >
-                          <Typography
-                            variant="subtitle2"
-                            fontWeight="medium"
-                            sx={{ fontSize: "0.875rem" }}
-                          >
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
                             {local.nombre}
                           </Typography>
+                        </TableCell>
+                        <TableCell>
                           <TipoLocalPill tipo={local.tipo} />
-                        </Box>
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(local.id);
-                          }}
-                          size="small"
-                          color="error"
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </Box>
-
-                      <UsuariosLabel local={local} />
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
-          </Box>
-        ) : (
-          // Vista desktop con tabla
-          <TableContainer sx={{ flex: 1 }}>
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell>Tipo</TableCell>
-                  <TableCell>Usuarios</TableCell>
-                  <TableCell align="center">Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredLocales.map((local) => (
-                  <TableRow
-                    key={local.id}
-                    onClick={() => handleEdit(local)}
-                    sx={{
-                      cursor: "pointer",
-                      "&:hover": {
-                        backgroundColor: "action.hover",
-                      },
-                    }}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        {local.nombre}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <TipoLocalPill tipo={local.tipo} />
-                    </TableCell>
-                    <TableCell>
-                      <UsuariosLabel local={local} />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        justifyContent="center"
-                      >
-                        <Tooltip title="Editar local">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEdit(local);
-                            }}
-                            size="small"
-                            color="primary"
+                        </TableCell>
+                        <TableCell>
+                          <UsuariosLabel local={local} />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            justifyContent="center"
                           >
-                            <Edit fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar local">
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(local.id);
-                            }}
-                            size="small"
-                            color="error"
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </ContentCard>
+                            <Tooltip title="Editar local">
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(local);
+                                }}
+                                size="small"
+                                color="primary"
+                              >
+                                <Edit fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Eliminar local">
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(local.id);
+                                }}
+                                size="small"
+                                color="error"
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </ContentCard>
+        );
+      })()}
 
       {/* Dialog para crear/editar local */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {selectedLocal ? "Editar Local" : "Nuevo Local"}
+          {isMobile && (
+            <IconButton onClick={handleClose} disabled={saving}>
+              <Close />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
@@ -715,8 +678,19 @@ export default function Locales() {
             </FormControl>
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} color="secondary" disabled={saving}>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={handleClose}
+            color="secondary"
+            disabled={saving}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
             Cancelar
           </Button>
           <Button
@@ -724,6 +698,9 @@ export default function Locales() {
             variant="contained"
             color="primary"
             disabled={!nombre.trim() || saving}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
             startIcon={saving ? <CircularProgress size={16} /> : undefined}
           >
             {saving ? "Guardando..." : "Guardar"}

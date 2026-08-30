@@ -30,6 +30,7 @@ import {
   CircularProgress,
   ToggleButtonGroup,
   ToggleButton,
+  IconButton,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -44,6 +45,7 @@ import {
   Schedule,
   Warning,
   Error as ErrorIcon,
+  Close,
 } from "@mui/icons-material";
 import { PageContainer } from "@/components/PageContainer";
 import { useAppContext } from "@/context/AppContext";
@@ -764,17 +766,29 @@ export default function PlanesPage() {
         onClose={handleCloseContactSupport}
         maxWidth="sm"
         fullWidth
+        fullScreen={isMobile}
         PaperProps={{
           sx: {
-            borderRadius: 3,
+            borderRadius: isMobile ? 0 : 3,
             p: 1,
           },
         }}
       >
         <DialogTitle>
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <ContactSupport color="primary" />
-            <Typography variant="h6">Contactar Soporte</Typography>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <ContactSupport color="primary" />
+              <Typography variant="h6">Contactar Soporte</Typography>
+            </Stack>
+            {isMobile && (
+              <IconButton onClick={handleCloseContactSupport}>
+                <Close />
+              </IconButton>
+            )}
           </Stack>
         </DialogTitle>
 
@@ -836,11 +850,20 @@ export default function PlanesPage() {
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ p: 3, gap: 1 }}>
+        <DialogActions
+          sx={{
+            p: 3,
+            gap: 1,
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
           <Button
             onClick={handleCloseContactSupport}
             color="secondary"
             size="large"
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
           >
             Cancelar
           </Button>
@@ -850,6 +873,8 @@ export default function PlanesPage() {
             startIcon={<WhatsApp />}
             disabled={!selectedSupport}
             size="large"
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             Contactar por WhatsApp
           </Button>

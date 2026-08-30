@@ -8,7 +8,6 @@ import {
   Chip,
   CircularProgress,
   IconButton,
-  Paper,
   Stack,
   Table,
   TableBody,
@@ -20,8 +19,6 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
-  Card,
-  CardContent,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -47,6 +44,7 @@ import {
 import { RECURRENCIA_LABELS, TIPO_CALCULO_LABELS } from "@/constants/gastos";
 import { formatearCuandoAplica } from "@/utils/gastos";
 import GastoFormDialog from "../components/GastoFormDialog";
+import PlantillaCard from "../components/PlantillaCard";
 
 type PlantillaConCount = IGastoPlantilla & {
   _count?: { asignaciones: number };
@@ -164,7 +162,7 @@ export default function PlantillasPage() {
             <CircularProgress size={32} />
           </Box>
         ) : isMobile ? (
-          <Stack spacing={1.5} sx={{ p: 0.5 }}>
+          <Stack spacing={1.5}>
             {plantillas.length === 0 ? (
               <Box py={4} textAlign="center">
                 <Typography color="text.secondary">
@@ -173,75 +171,20 @@ export default function PlantillasPage() {
               </Box>
             ) : (
               plantillas.map((p) => (
-                <Card key={p.id} sx={{ opacity: p.activo ? 1 : 0.6 }}>
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="flex-start"
-                      >
-                        <Box flex={1} mr={1}>
-                          <Typography variant="subtitle2" fontWeight="bold">
-                            {p.nombre}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {p.categoria}
-                          </Typography>
-                        </Box>
-                        <Typography variant="body2" color="text.secondary">
-                          {RECURRENCIA_LABELS[p.recurrencia]}
-                        </Typography>
-                      </Box>
-                      <Box display="flex" gap={1} alignItems="center">
-                        <Typography variant="body2" color="text.secondary">
-                          {TIPO_CALCULO_LABELS[p.tipoCalculo]}
-                        </Typography>
-                        {(p._count?.asignaciones ?? 0) > 0 && (
-                          <Chip
-                            icon={<LinkIcon />}
-                            label={`${p._count?.asignaciones} tienda(s)`}
-                            size="small"
-                            variant="outlined"
-                            sx={{ height: 20, fontSize: "0.6875rem" }}
-                          />
-                        )}
-                      </Box>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography variant="caption" color="text.secondary">
-                          {formatearCuandoAplica(p)}
-                        </Typography>
-                        <Box>
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setEditTarget(p);
-                              setFormOpen(true);
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => handleDelete(p)}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+                <PlantillaCard
+                  key={p.id}
+                  plantilla={p}
+                  onEdit={(plantilla) => {
+                    setEditTarget(plantilla);
+                    setFormOpen(true);
+                  }}
+                  onDelete={handleDelete}
+                />
               ))
             )}
           </Stack>
         ) : (
-          <TableContainer component={Paper} variant="outlined">
+          <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>

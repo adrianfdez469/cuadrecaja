@@ -15,7 +15,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   IconButton,
   Tooltip,
   CircularProgress,
@@ -29,19 +28,13 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Grid,
   Divider,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
-import {
-  Block,
-  Refresh,
-  PlayArrow,
-  Warning,
-  CheckCircle,
-  Business,
-  Schedule,
-} from "@mui/icons-material";
+import { Refresh, PlayArrow, Close } from "@mui/icons-material";
 import { PageContainer } from "@/components/PageContainer";
+import { StatStrip } from "@/components/StatStrip";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import {
@@ -82,6 +75,8 @@ interface SuspensionStats {
 }
 
 export default function SuspensionesPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
   const router = useRouter();
@@ -336,18 +331,99 @@ export default function SuspensionesPage() {
     return "Activo";
   };
 
-  const getStatusIcon = (negocio: NegocioSuspension) => {
-    if (negocio.suspended) return <Block color="error" />;
-    if (negocio.isExpired) return <Warning />;
-    if (negocio.daysRemaining <= 7) return <Schedule />;
-    return <CheckCircle />;
-  };
+  // Named text buttons instead of a pair of twin icons behind a tooltip —
+  // and "Suspender" reads as the destructive action it is, "Activar sin
+  // cambiar fecha" as the quiet one. Shared by the desktop row and the
+  // mobile card so the two action sets never drift apart.
+  const renderNegocioActions = (negocio: NegocioSuspension) =>
+    negocio.suspended ? (
+      <>
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => handleReactivar(negocio)}
+          disabled={reactivating === negocio.id}
+          sx={{ minWidth: "44px", minHeight: "44px" }}
+        >
+          {reactivating === negocio.id ? (
+            <CircularProgress size={16} />
+          ) : (
+            "Reactivar"
+          )}
+        </Button>
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => handleActivar(negocio)}
+          disabled={activating === negocio.id}
+          sx={{ minWidth: "44px", minHeight: "44px", color: "text.secondary" }}
+        >
+          {activating === negocio.id ? (
+            <CircularProgress size={16} />
+          ) : (
+            "Activar sin cambiar fecha"
+          )}
+        </Button>
+      </>
+    ) : (
+      <>
+        <Button
+          variant="text"
+          size="small"
+          color="error"
+          onClick={() => handleSuspender(negocio)}
+          sx={{ minWidth: "44px", minHeight: "44px" }}
+        >
+          Suspender
+        </Button>
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => handleManageDays(negocio)}
+          disabled={managingDays === negocio.id}
+          sx={{ minWidth: "44px", minHeight: "44px" }}
+        >
+          {managingDays === negocio.id ? (
+            <CircularProgress size={16} />
+          ) : (
+            "Gestionar"
+          )}
+        </Button>
+      </>
+    );
 
   const breadcrumbs = [
     { label: "Configuración", path: "/configuracion" },
     { label: "Suspensiones", path: "/configuracion/suspensiones" },
   ];
 
+  const runVerification = () => {
+    SubscriptionService.checkAndProcessSuspensions()
+      .then(() => {
+        showMessage("Verificación de suspensiones ejecutada", "success");
+        fetchNegocios();
+      })
+      .catch(() => {
+        showMessage("Error al ejecutar verificación", "error");
+      });
+  };
+
+  const verificacionButton = (
+    <Button
+      variant="contained"
+      startIcon={<PlayArrow />}
+      onClick={runVerification}
+      size="small"
+      fullWidth={isMobile}
+    >
+      Ejecutar Verificación
+    </Button>
+  );
+
+  // The mockup's header only has room for the bare refresh icon — the
+  // long-label "Ejecutar Verificación" button was overlapping the
+  // two-line title on a phone. It moves to a full-width button in the
+  // content instead, same pattern as `gastos`/`inventario`.
   const headerActions = (
     <Stack direction="row" spacing={1} alignItems="center">
       <Tooltip title="Actualizar datos">
@@ -355,23 +431,7 @@ export default function SuspensionesPage() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      <Button
-        variant="contained"
-        startIcon={<PlayArrow />}
-        onClick={() => {
-          SubscriptionService.checkAndProcessSuspensions()
-            .then(() => {
-              showMessage("Verificación de suspensiones ejecutada", "success");
-              fetchNegocios();
-            })
-            .catch(() => {
-              showMessage("Error al ejecutar verificación", "error");
-            });
-        }}
-        size="small"
-      >
-        Ejecutar Verificación
-      </Button>
+      {!isMobile && verificacionButton}
     </Stack>
   );
 
@@ -409,75 +469,33 @@ export default function SuspensionesPage() {
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
     >
-      {/* Estadísticas Generales */}
+      {isMobile && <Box sx={{ mb: 3 }}>{verificacionButton}</Box>}
+
+      {/* Estadísticas Generales — mismo StatStrip que usa el resto del
+          sistema para estas cuatro cifras, en vez de cuatro Card con
+          ícono decorativo (el mockup no dibuja ninguno). */}
       {stats && (
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={6} md={3}>
-            <Card>
-              <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Business color="primary" />
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      sx={{ fontSize: "26px", fontWeight: 700 }}
-                    >
-                      {stats.total}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Negocios
-                    </Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Card>
-              <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <CheckCircle color="success" />
-                  <Box>
-                    <Typography variant="h6">{stats.active}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Activos
-                    </Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Card>
-              <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Warning color="warning" />
-                  <Box>
-                    <Typography variant="h6">{stats.expired}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      En Gracia
-                    </Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Card>
-              <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Block color="error" />
-                  <Box>
-                    <Typography variant="h6">{stats.suspended}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Suspendidos
-                    </Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+        <StatStrip
+          variant="card"
+          stats={[
+            { label: "Total Negocios", value: stats.total },
+            {
+              label: "Activos",
+              value: stats.active,
+              tone: "positive",
+            },
+            {
+              label: "En Gracia",
+              value: stats.expired,
+              tone: "caution",
+            },
+            {
+              label: "Suspendidos",
+              value: stats.suspended,
+              tone: "negative",
+            },
+          ]}
+        />
       )}
 
       {/* Tabla de Negocios */}
@@ -487,109 +505,108 @@ export default function SuspensionesPage() {
             Estado de Negocios
           </Typography>
 
-          <TableContainer component={Paper} variant="outlined">
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Negocio</TableCell>
-                  <TableCell>Estado</TableCell>
-                  <TableCell>Días Restantes</TableCell>
-                  <TableCell>Vencimiento</TableCell>
-                  <TableCell>Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {negocios.map((negocio) => (
-                  <TableRow key={negocio.id}>
-                    <TableCell>
-                      <Typography variant="subtitle2">
-                        {negocio.nombre}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        icon={getStatusIcon(negocio)}
-                        label={getStatusText(negocio)}
-                        color={getStatusColor(negocio)}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        color={getDaysRemainingColor(negocio.daysRemaining)}
-                      >
-                        {formatDaysRemaining(negocio.daysRemaining)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {formatDate(negocio.limitTime)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Stack direction="row" spacing={1} flexWrap="wrap">
-                        {negocio.suspended ? (
-                          <>
-                            <Button
-                              variant="text"
-                              size="small"
-                              onClick={() => handleReactivar(negocio)}
-                              disabled={reactivating === negocio.id}
-                              sx={{ minWidth: "44px", height: "44px" }}
-                            >
-                              {reactivating === negocio.id ? (
-                                <CircularProgress size={16} />
-                              ) : (
-                                "Reactivar"
-                              )}
-                            </Button>
-                            <Button
-                              variant="text"
-                              size="small"
-                              onClick={() => handleActivar(negocio)}
-                              disabled={activating === negocio.id}
-                              sx={{ minWidth: "44px", height: "44px" }}
-                            >
-                              {activating === negocio.id ? (
-                                <CircularProgress size={16} />
-                              ) : (
-                                "Activar sin cambiar fecha"
-                              )}
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="text"
-                              size="small"
-                              onClick={() => handleSuspender(negocio)}
-                              sx={{ minWidth: "44px", height: "44px" }}
-                            >
-                              Suspender
-                            </Button>
-                            <Button
-                              variant="text"
-                              size="small"
-                              onClick={() => handleManageDays(negocio)}
-                              disabled={managingDays === negocio.id}
-                              sx={{ minWidth: "44px", height: "44px" }}
-                            >
-                              {managingDays === negocio.id ? (
-                                <CircularProgress size={16} />
-                              ) : (
-                                "Gestionar"
-                              )}
-                            </Button>
-                          </>
-                        )}
-                      </Stack>
-                    </TableCell>
+          {isMobile ? (
+            <Stack spacing={1.5}>
+              {negocios.map((negocio) => (
+                <Box
+                  key={negocio.id}
+                  sx={{
+                    border: 1,
+                    borderColor: "divider",
+                    borderRadius: 3,
+                    p: 2,
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    gap={1}
+                  >
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      {negocio.nombre}
+                    </Typography>
+                    <Chip
+                      label={getStatusText(negocio)}
+                      color={getStatusColor(negocio)}
+                      size="small"
+                    />
+                  </Stack>
+                  <Typography
+                    variant="body2"
+                    color={getDaysRemainingColor(negocio.daysRemaining)}
+                    sx={{ mt: 0.5 }}
+                  >
+                    {formatDaysRemaining(negocio.daysRemaining)} ·{" "}
+                    {formatDate(negocio.limitTime)}
+                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    flexWrap="wrap"
+                    sx={{ mt: 1 }}
+                  >
+                    {renderNegocioActions(negocio)}
+                  </Stack>
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Negocio</TableCell>
+                    <TableCell align="center">Estado</TableCell>
+                    <TableCell align="center">Días Restantes</TableCell>
+                    <TableCell>Vencimiento</TableCell>
+                    <TableCell align="right">Acciones</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {negocios.map((negocio) => (
+                    <TableRow key={negocio.id}>
+                      <TableCell>
+                        <Typography variant="subtitle2">
+                          {negocio.nombre}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={getStatusText(negocio)}
+                          color={getStatusColor(negocio)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Typography
+                          variant="body2"
+                          color={getDaysRemainingColor(negocio.daysRemaining)}
+                        >
+                          {formatDaysRemaining(negocio.daysRemaining)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {formatDate(negocio.limitTime)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          justifyContent="flex-end"
+                          flexWrap="wrap"
+                        >
+                          {renderNegocioActions(negocio)}
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -607,8 +624,32 @@ export default function SuspensionesPage() {
         }
         maxWidth="sm"
         fullWidth
+        fullScreen={isMobile}
       >
-        <DialogTitle>Reactivar Negocio</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Reactivar Negocio
+          {isMobile && (
+            <IconButton
+              onClick={() =>
+                setReactivateDialog({
+                  open: false,
+                  negocio: null,
+                  daysToAdd: 30,
+                  useSpecificDate: false,
+                  specificDate: "",
+                })
+              }
+            >
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography>
@@ -688,7 +729,12 @@ export default function SuspensionesPage() {
             </Alert>
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
           <Button
             onClick={() =>
               setReactivateDialog({
@@ -699,6 +745,8 @@ export default function SuspensionesPage() {
                 specificDate: "",
               })
             }
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
           >
             Cancelar
           </Button>
@@ -706,6 +754,9 @@ export default function SuspensionesPage() {
             onClick={confirmReactivar}
             variant="contained"
             disabled={reactivating !== null}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             {reactivating ? "Reactivando..." : "Reactivar"}
           </Button>
@@ -726,8 +777,32 @@ export default function SuspensionesPage() {
         }
         maxWidth="sm"
         fullWidth
+        fullScreen={isMobile}
       >
-        <DialogTitle>Gestionar Suscripción</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Gestionar Suscripción
+          {isMobile && (
+            <IconButton
+              onClick={() =>
+                setManageDaysDialog({
+                  open: false,
+                  negocio: null,
+                  daysToAdd: 30,
+                  useSpecificDate: false,
+                  specificDate: "",
+                })
+              }
+            >
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography>
@@ -828,7 +903,12 @@ export default function SuspensionesPage() {
             </Alert>
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
           <Button
             onClick={() =>
               setManageDaysDialog({
@@ -839,6 +919,8 @@ export default function SuspensionesPage() {
                 specificDate: "",
               })
             }
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
           >
             Cancelar
           </Button>
@@ -846,6 +928,9 @@ export default function SuspensionesPage() {
             onClick={confirmManageDays}
             variant="contained"
             disabled={managingDays !== null}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             {managingDays ? "Actualizando..." : "Actualizar"}
           </Button>

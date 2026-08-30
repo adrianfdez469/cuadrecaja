@@ -37,6 +37,7 @@ import {
   ColorLens,
   Search,
   Refresh,
+  Close,
 } from "@mui/icons-material";
 import {
   fetchCategories,
@@ -469,9 +470,26 @@ export default function CategoriasPage() {
       </ContentCard>
 
       {/* Dialog para crear/editar categoría */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {editingCategory ? "Editar Categoría" : "Nueva Categoría"}
+          {isMobile && (
+            <IconButton onClick={handleClose}>
+              <Close />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
@@ -544,8 +562,18 @@ export default function CategoriasPage() {
             )}
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} color="secondary">
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={handleClose}
+            color="secondary"
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
             Cancelar
           </Button>
           <Button
@@ -553,6 +581,9 @@ export default function CategoriasPage() {
             variant="contained"
             color="primary"
             disabled={!nombre.trim()}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             Guardar
           </Button>

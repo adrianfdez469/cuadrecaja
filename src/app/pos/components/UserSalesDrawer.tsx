@@ -41,7 +41,11 @@ import { ICierrePeriodo } from "@/schemas/cierre";
 import { ITransferDestination } from "@/schemas/transferDestination";
 import { IProductoTiendaPos } from "@/schemas/producto";
 import { IResumenCajaMoneda } from "@/schemas/resumenCaja";
-import { formatDateTime, formatQuantity } from "@/utils/formatters";
+import {
+  formatDateTime,
+  formatQuantity,
+  formatMontoEnMoneda,
+} from "@/utils/formatters";
 import { convertToBase, pagadaConUnSoloPago } from "@/lib/currency";
 import CajaResumenCards from "./CajaResumenCards";
 
@@ -387,6 +391,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
       anchor="bottom"
       open={showUserSales}
       onClose={() => setShowUserSales(false)}
+      PaperProps={{ sx: { borderRadius: "16px 16px 0 0" } }}
     >
       <Box
         sx={{
@@ -473,7 +478,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                     Total General
                   </Typography>
                   <Typography variant="h6" fontWeight="bold" color="primary">
-                    ${salesData.totalGeneral.toFixed(2)}
+                    {formatMontoEnMoneda(salesData.totalGeneral, monedaBase)}
                   </Typography>
                 </CardContent>
               </Card>
@@ -489,7 +494,10 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                     fontWeight="bold"
                     color="warning.main"
                   >
-                    ${salesData.totalConsignacion.toFixed(2)}
+                    {formatMontoEnMoneda(
+                      salesData.totalConsignacion,
+                      monedaBase,
+                    )}
                   </Typography>
                 </CardContent>
               </Card>
@@ -505,7 +513,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                     fontWeight="bold"
                     color="success.main"
                   >
-                    ${salesData.totalPropios.toFixed(2)}
+                    {formatMontoEnMoneda(salesData.totalPropios, monedaBase)}
                   </Typography>
                 </CardContent>
               </Card>
@@ -546,7 +554,10 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                             fontWeight="bold"
                             color="info.main"
                           >
-                            ${totalTransferencias.toFixed(2)}
+                            {formatMontoEnMoneda(
+                              totalTransferencias,
+                              monedaBase,
+                            )}
                           </Typography>
                           <Collapse in={transferExpanded}>
                             <Box mt={1} textAlign="left">
@@ -570,7 +581,10 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                                     variant="caption"
                                     fontWeight="bold"
                                   >
-                                    ${dest.total.toFixed(2)}
+                                    {formatMontoEnMoneda(
+                                      dest.total,
+                                      monedaBase,
+                                    )}
                                   </Typography>
                                 </Box>
                               ))}
@@ -697,11 +711,14 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                             {formatQuantity(producto.cantidad)}
                           </TableCell>
                           <TableCell align="right">
-                            ${producto?.precio?.toFixed(2)}
+                            {formatMontoEnMoneda(
+                              producto?.precio ?? 0,
+                              monedaBase,
+                            )}
                           </TableCell>
                           <TableCell align="right">
                             <Typography fontWeight="bold">
-                              ${producto.total.toFixed(2)}
+                              {formatMontoEnMoneda(producto.total, monedaBase)}
                             </Typography>
                           </TableCell>
                           {viewMode === "historical" && (
@@ -750,7 +767,10 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                       </TableCell>
                       <TableCell align="right">
                         <Typography fontWeight="bold">
-                          ${salesData.totalConsignacion.toFixed(2)}
+                          {formatMontoEnMoneda(
+                            salesData.totalConsignacion,
+                            monedaBase,
+                          )}
                         </Typography>
                       </TableCell>
                       {viewMode === "historical" && canDeleteProducts && (
@@ -825,11 +845,14 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                             {formatQuantity(producto.cantidad)}
                           </TableCell>
                           <TableCell align="right">
-                            ${producto.precio?.toFixed(2)}
+                            {formatMontoEnMoneda(
+                              producto.precio ?? 0,
+                              monedaBase,
+                            )}
                           </TableCell>
                           <TableCell align="right">
                             <Typography fontWeight="bold">
-                              ${producto.total.toFixed(2)}
+                              {formatMontoEnMoneda(producto.total, monedaBase)}
                             </Typography>
                           </TableCell>
                           {viewMode === "historical" && (
@@ -878,7 +901,10 @@ export const UserSalesDrawer: React.FC<IProps> = ({
                       </TableCell>
                       <TableCell align="right">
                         <Typography fontWeight="bold">
-                          ${salesData.totalPropios.toFixed(2)}
+                          {formatMontoEnMoneda(
+                            salesData.totalPropios,
+                            monedaBase,
+                          )}
                         </Typography>
                       </TableCell>
                       {viewMode === "historical" && canDeleteProducts && (

@@ -13,6 +13,7 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -28,8 +29,10 @@ import {
   Tabs,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
-import { Edit, History, Refresh, Visibility } from "@mui/icons-material";
+import { Close, Edit, History, Refresh, Visibility } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
@@ -49,7 +52,12 @@ import {
 } from "@/services/referralAdminService";
 import { getPlanes } from "@/services/planService";
 import type { IPlan } from "@/schemas/plan";
-import { REFERRAL_STATUS, REFERRAL_STATUS_LABELS } from "@/constants/referrals";
+import {
+  PROMOTER_STATUS,
+  PROMOTER_STATUS_LABELS,
+  REFERRAL_STATUS,
+  REFERRAL_STATUS_LABELS,
+} from "@/constants/referrals";
 
 const breadcrumbs = [
   { label: "Inicio", href: "/home" },
@@ -85,6 +93,19 @@ function getStatusColor(
   }
 }
 
+function getPromoterStatusColor(
+  status: string,
+): "success" | "warning" | "default" {
+  switch (status) {
+    case PROMOTER_STATUS.active:
+      return "success";
+    case PROMOTER_STATUS.pendingEmailVerification:
+      return "warning";
+    default:
+      return "default";
+  }
+}
+
 function tabProps(index: number) {
   return {
     id: `referidos-tab-${index}`,
@@ -94,6 +115,8 @@ function tabProps(index: number) {
 
 export default function ReferidosAdminPage() {
   const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
 
@@ -356,11 +379,11 @@ export default function ReferidosAdminPage() {
                   onChange={(e) => setPromoterStatus(e.target.value)}
                 >
                   <MenuItem value="">Todos</MenuItem>
-                  <MenuItem value="ACTIVE">Activo</MenuItem>
-                  <MenuItem value="INACTIVE">Inactivo</MenuItem>
-                  <MenuItem value="PENDING_EMAIL_VERIFICATION">
-                    Pendiente email
-                  </MenuItem>
+                  {Object.values(PROMOTER_STATUS).map((s) => (
+                    <MenuItem key={s} value={s}>
+                      {PROMOTER_STATUS_LABELS[s] ?? s}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
               <Button
@@ -424,9 +447,9 @@ export default function ReferidosAdminPage() {
                       >
                         <Chip
                           size="small"
-                          label={p.status === "ACTIVE" ? "Activo" : p.status}
+                          label={PROMOTER_STATUS_LABELS[p.status] ?? p.status}
                           variant="filled"
-                          color={p.status === "ACTIVE" ? "success" : "default"}
+                          color={getPromoterStatusColor(p.status)}
                         />
                         <Chip
                           size="small"
@@ -494,9 +517,9 @@ export default function ReferidosAdminPage() {
                       <TableCell>
                         <Chip
                           size="small"
-                          label={p.status === "ACTIVE" ? "Activo" : p.status}
+                          label={PROMOTER_STATUS_LABELS[p.status] ?? p.status}
                           variant="filled"
-                          color={p.status === "ACTIVE" ? "success" : "default"}
+                          color={getPromoterStatusColor(p.status)}
                         />
                       </TableCell>
                       <TableCell align="right">{p.referralsCount}</TableCell>
@@ -1004,8 +1027,22 @@ export default function ReferidosAdminPage() {
         onClose={() => setLiquidateOpen(false)}
         maxWidth="sm"
         fullWidth
+        fullScreen={isMobile}
       >
-        <DialogTitle>Liquidar referido</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Liquidar referido
+          {isMobile && (
+            <IconButton onClick={() => setLiquidateOpen(false)}>
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
@@ -1044,9 +1081,26 @@ export default function ReferidosAdminPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setLiquidateOpen(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={submitLiquidate}>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={() => setLiquidateOpen(false)}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={submitLiquidate}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
+          >
             Confirmar liquidación
           </Button>
         </DialogActions>
@@ -1057,8 +1111,22 @@ export default function ReferidosAdminPage() {
         onClose={() => setRuleDialogOpen(false)}
         maxWidth="sm"
         fullWidth
+        fullScreen={isMobile}
       >
-        <DialogTitle>Regla de recompensa — {ruleEditPlanNombre}</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Regla de recompensa — {ruleEditPlanNombre}
+          {isMobile && (
+            <IconButton onClick={() => setRuleDialogOpen(false)}>
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
@@ -1091,9 +1159,26 @@ export default function ReferidosAdminPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRuleDialogOpen(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={submitRuleDialog}>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={() => setRuleDialogOpen(false)}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={submitRuleDialog}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
+          >
             Guardar
           </Button>
         </DialogActions>
@@ -1104,8 +1189,22 @@ export default function ReferidosAdminPage() {
         onClose={() => setEventsOpen(false)}
         maxWidth="md"
         fullWidth
+        fullScreen={isMobile}
       >
-        <DialogTitle>Historial de eventos</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Historial de eventos
+          {isMobile && (
+            <IconButton onClick={() => setEventsOpen(false)}>
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           {eventsLoading ? (
             <CircularProgress />
@@ -1142,7 +1241,13 @@ export default function ReferidosAdminPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEventsOpen(false)}>Cerrar</Button>
+          <Button
+            onClick={() => setEventsOpen(false)}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cerrar
+          </Button>
         </DialogActions>
       </Dialog>
     </PageContainer>

@@ -348,19 +348,48 @@ const Ventas = () => {
       headerActions={headerActions}
       maxWidth="xl"
     >
-      <StatStrip
-        variant="card"
-        stats={[
-          {
-            label: "Total Vendido",
-            value: <MultiCurrencyAmount amount={montoTotal} variant="stat" />,
-          },
-          {
-            label: "Monto Hoy",
-            value: <MultiCurrencyAmount amount={montoHoy} variant="stat" />,
-          },
-        ]}
-      />
+      {isMobile ? (
+        // En mobile las dos cifras van apiladas en una sola caja, no en
+        // columnas — el mockup (`ventas-con-datos-movil.html`) las dibuja
+        // como filas de una tarjeta, no como el grid 2-up de `StatStrip`.
+        <Box
+          sx={{
+            bgcolor: "background.paper",
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 3,
+            mb: 2,
+            overflow: "hidden",
+          }}
+        >
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Typography variant="body2" color="text.secondary">
+              Total Vendido
+            </Typography>
+            <MultiCurrencyAmount amount={montoTotal} variant="stat" />
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Monto Hoy
+            </Typography>
+            <MultiCurrencyAmount amount={montoHoy} variant="stat" />
+          </Box>
+        </Box>
+      ) : (
+        <StatStrip
+          variant="card"
+          stats={[
+            {
+              label: "Total Vendido",
+              value: <MultiCurrencyAmount amount={montoTotal} variant="stat" />,
+            },
+            {
+              label: "Monto Hoy",
+              value: <MultiCurrencyAmount amount={montoHoy} variant="stat" />,
+            },
+          ]}
+        />
+      )}
 
       {/* Lista de ventas */}
       <ContentCard
@@ -521,60 +550,33 @@ const Ventas = () => {
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
-                    <Stack spacing={1}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography
-                          variant="subtitle2"
-                          fontWeight="medium"
-                          sx={{ fontSize: "0.875rem" }}
+                  <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="flex-start"
+                      gap={1.5}
+                    >
+                      {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
+                      <MultiCurrencyAmount
+                        amount={venta.total}
+                        variant="stat"
+                      />
+                      <Stack direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
+                        <IconButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenVenta(venta);
+                          }}
+                          color="primary"
                         >
-                          Venta #{venta.id.slice(-8)}
-                        </Typography>
-                        {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
-                        <MultiCurrencyAmount
-                          amount={venta.total}
-                          variant="compact"
-                          align="right"
-                        />
-                      </Box>
-
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Box>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.6875rem" }}
-                          >
-                            {formatDateTime(venta.createdAt)}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.75rem" }}
-                          >
-                            {venta.productos?.length || 0} productos
-                          </Typography>
-                        </Box>
-
-                        <Typography variant="body2">
-                          {venta.usuario?.nombre || ""}
-                        </Typography>
-
+                          <Visibility fontSize="small" />
+                        </IconButton>
                         <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
                             handleCancelVenta(venta);
                           }}
-                          size="small"
                           color="error"
                           disabled={deletingVentaId === venta.id}
                         >
@@ -584,8 +586,49 @@ const Ventas = () => {
                             <Delete fontSize="small" />
                           )}
                         </IconButton>
-                      </Box>
+                      </Stack>
+                    </Box>
+
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      gap={1}
+                      sx={{
+                        mt: 1.5,
+                        pt: 1.25,
+                        borderTop: 1,
+                        borderColor: "divider",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        #{venta.id.slice(-8)}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        · {formatDateTime(venta.createdAt)}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ ml: "auto", fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {venta.productos?.length || 0} prod.
+                      </Typography>
                     </Stack>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: 0.5 }}
+                    >
+                      {venta.usuario?.nombre || ""}
+                    </Typography>
                   </CardContent>
                 </Card>
               ))}

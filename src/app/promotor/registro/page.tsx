@@ -101,16 +101,7 @@ export default function PromotorRegistroPage() {
         </Box>
 
         <Box sx={{ mb: 4 }}>
-          <Typography
-            variant="h3"
-            component="h1"
-            sx={{
-              fontWeight: 800,
-              mb: 2,
-              fontSize: { xs: "1.75rem", sm: "2.25rem", md: "2.5rem" },
-              lineHeight: 1.2,
-            }}
-          >
+          <Typography variant="h2" component="h1" sx={{ mb: 1 }}>
             Programa de{" "}
             <Box component="span" sx={{ color: "primary.main" }}>
               promotores

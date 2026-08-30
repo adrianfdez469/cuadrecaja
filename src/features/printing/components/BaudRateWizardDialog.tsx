@@ -11,7 +11,11 @@ import {
   LinearProgress,
   Alert,
   Box,
+  IconButton,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { SERIAL_BAUD_RATES } from "@/constants/ticket";
 import {
   encodeBaudTestTicket,
@@ -39,6 +43,8 @@ export const BaudRateWizardDialog: React.FC<BaudRateWizardDialogProps> = ({
   connection,
   onBaudDetected,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { showMessage } = useMessageContext();
   const setConfig = usePrintDeviceStore((s) => s.setConfig);
   const config = usePrintDeviceStore((s) => s.config);
@@ -131,14 +137,33 @@ export const BaudRateWizardDialog: React.FC<BaudRateWizardDialogProps> = ({
       : Math.round(((currentIndex + 1) / SERIAL_BAUD_RATES.length) * 100);
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Detectar velocidad del puerto</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="xs"
+      fullWidth
+      fullScreen={isMobile}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        Detectar velocidad del puerto
+        {isMobile && (
+          <IconButton onClick={handleClose}>
+            <CloseIcon />
+          </IconButton>
+        )}
+      </DialogTitle>
       <DialogContent>
         {step === "intro" && (
           <Box>
             <Typography variant="body2" paragraph>
-              Enviaremos una impresión de prueba con distintas velocidades. Usted
-              solo debe indicar cuál salió legible en la impresora.
+              Enviaremos una impresión de prueba con distintas velocidades.
+              Usted solo debe indicar cuál salió legible en la impresora.
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Asegúrese de que la impresora esté encendida y que COM1 no esté
@@ -149,7 +174,11 @@ export const BaudRateWizardDialog: React.FC<BaudRateWizardDialogProps> = ({
 
         {(step === "testing" || step === "confirm") && (
           <Box>
-            <LinearProgress variant="determinate" value={progress} sx={{ mb: 2 }} />
+            <LinearProgress
+              variant="determinate"
+              value={progress}
+              sx={{ mb: 2 }}
+            />
             <Typography variant="body2" gutterBottom>
               Probando velocidad: <strong>{currentBaud}</strong> (
               {currentIndex + 1} de {SERIAL_BAUD_RATES.length})
@@ -180,25 +209,42 @@ export const BaudRateWizardDialog: React.FC<BaudRateWizardDialogProps> = ({
 
         {step === "done" && (
           <Alert severity="success">
-            Velocidad <strong>{currentBaud}</strong> guardada. Ya puede imprimir el
-            ticket de prueba completo.
+            Velocidad <strong>{currentBaud}</strong> guardada. Ya puede imprimir
+            el ticket de prueba completo.
           </Alert>
         )}
 
         {step === "exhausted" && (
           <Alert severity="error">
-            No se encontró una velocidad válida. Verifique que COM1 no esté ocupado
-            por la impresora de Windows, que eligió el puerto correcto (impresora,
-            no cajón) y que la impresora esté encendida.
+            No se encontró una velocidad válida. Verifique que COM1 no esté
+            ocupado por la impresora de Windows, que eligió el puerto correcto
+            (impresora, no cajón) y que la impresora esté encendida.
           </Alert>
         )}
       </DialogContent>
 
-      <DialogActions>
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
         {step === "intro" && (
           <>
-            <Button onClick={handleClose}>Cancelar</Button>
-            <Button variant="contained" onClick={handleStart}>
+            <Button
+              onClick={handleClose}
+              fullWidth={isMobile}
+              sx={{ minHeight: isMobile ? 44 : undefined }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleStart}
+              fullWidth={isMobile}
+              size={isMobile ? "large" : "medium"}
+              sx={{ minHeight: isMobile ? 56 : undefined }}
+            >
               Comenzar
             </Button>
           </>
@@ -206,17 +252,40 @@ export const BaudRateWizardDialog: React.FC<BaudRateWizardDialogProps> = ({
 
         {step === "confirm" && !busy && (
           <>
-            <Button onClick={handleNo}>No / Siguiente</Button>
-            <Button variant="contained" onClick={handleYes} disabled={!!error}>
+            <Button
+              onClick={handleNo}
+              fullWidth={isMobile}
+              sx={{ minHeight: isMobile ? 44 : undefined }}
+            >
+              No / Siguiente
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleYes}
+              disabled={!!error}
+              fullWidth={isMobile}
+              size={isMobile ? "large" : "medium"}
+              sx={{ minHeight: isMobile ? 56 : undefined }}
+            >
               Sí, imprimió bien
             </Button>
           </>
         )}
 
-        {step === "confirm" && busy && <Button disabled>Enviando…</Button>}
+        {step === "confirm" && busy && (
+          <Button disabled fullWidth={isMobile}>
+            Enviando…
+          </Button>
+        )}
 
         {(step === "done" || step === "exhausted") && (
-          <Button variant="contained" onClick={handleClose}>
+          <Button
+            variant="contained"
+            onClick={handleClose}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
+          >
             Cerrar
           </Button>
         )}

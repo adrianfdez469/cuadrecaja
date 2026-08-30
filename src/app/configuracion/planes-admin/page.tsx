@@ -35,7 +35,7 @@ import {
   FormControl,
   FormHelperText,
 } from "@mui/material";
-import { Add, Delete, Edit, WorkspacePremium } from "@mui/icons-material";
+import { Add, Delete, Edit, Close } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -234,8 +234,11 @@ export default function PlanesAdminPage() {
     }
   };
 
+  // `component="span"` because this sits inside `LimitesCell`'s
+  // `<Typography>` (a `<p>`) — a `<div>` there breaks hydration.
   const ColorDot = ({ color }: { color: string }) => (
     <Box
+      component="span"
       sx={{
         width: 14,
         height: 14,
@@ -252,15 +255,17 @@ export default function PlanesAdminPage() {
     locales,
     usuarios,
     productos,
+    color,
   }: {
     locales: number;
     usuarios: number;
     productos: number;
+    color: string;
   }) => (
-    <Typography variant="body2">
-      <ColorDot color="primary" />
-      {formatLimite(locales)} locales · {formatLimite(usuarios)}/∞ usuarios ·{" "}
-      {formatLimite(productos)}/∞ productos
+    <Typography variant="body2" color="text.secondary">
+      <ColorDot color={color} />
+      {formatLimite(locales)} locales · {formatLimite(usuarios)} usuarios ·{" "}
+      {formatLimite(productos)} productos
     </Typography>
   );
 
@@ -281,8 +286,8 @@ export default function PlanesAdminPage() {
         </Button>
       }
     >
-      {/* Stats */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {/* Stats — same card the table sits in, three across even on a phone. */}
+      <Grid container spacing={{ xs: 1.25, sm: 2 }} sx={{ mb: 3 }}>
         {[
           { label: "Total de planes", value: planes.length },
           {
@@ -294,8 +299,8 @@ export default function PlanesAdminPage() {
             value: planes.filter((p) => p.recomendado).length,
           },
         ].map((stat) => (
-          <Grid item xs={12} sm={4} key={stat.label}>
-            <Card variant="outlined">
+          <Grid item xs={4} key={stat.label}>
+            <Card>
               <CardContent sx={{ textAlign: "center", py: 2 }}>
                 <Typography variant="h4" fontWeight="bold">
                   {stat.value}
@@ -324,41 +329,40 @@ export default function PlanesAdminPage() {
                     direction="row"
                     justifyContent="space-between"
                     alignItems="flex-start"
+                    spacing={1}
                   >
-                    <Box>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        flexWrap="wrap"
-                      >
-                        <Typography variant="subtitle1" fontWeight="bold">
-                          {plan.nombre}
-                        </Typography>
-                        <ColorDot color={plan.color} />
-                        {plan.recomendado && (
-                          <Chip
-                            label="Recomendado"
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                        )}
-                        {!plan.activo && (
-                          <Chip label="Inactivo" size="small" color="default" />
-                        )}
-                      </Stack>
-                      {plan.descripcion && (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mt: 0.5 }}
-                        >
-                          {plan.descripcion}
-                        </Typography>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      {plan.nombre}
+                    </Typography>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={0.5}
+                      sx={{ flexShrink: 0 }}
+                    >
+                      {plan.recomendado ? (
+                        <Chip
+                          label="★ Recomendado"
+                          size="small"
+                          sx={{
+                            bgcolor: "semantic.hue.accent.surface",
+                            color: "semantic.hue.accent.main",
+                          }}
+                        />
+                      ) : (
+                        <Chip
+                          label={plan.activo ? "Activo" : "Inactivo"}
+                          size="small"
+                          sx={{
+                            bgcolor: plan.activo
+                              ? "semantic.hue.positive.surface"
+                              : "semantic.hue.neutral.surface",
+                            color: plan.activo
+                              ? "semantic.hue.positive.main"
+                              : "semantic.hue.neutral.main",
+                          }}
+                        />
                       )}
-                    </Box>
-                    <Stack direction="row">
                       <Tooltip title="Editar">
                         <IconButton
                           size="small"
@@ -379,33 +383,32 @@ export default function PlanesAdminPage() {
                     </Stack>
                   </Stack>
 
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    flexWrap="wrap"
-                    sx={{ mt: 1.5 }}
-                  >
-                    <Chip
-                      icon={<WorkspacePremium fontSize="small" />}
-                      label={formatPrecio(plan.precio)}
-                      size="small"
-                    />
-                    <Box
-                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                  {plan.descripcion && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.5 }}
                     >
-                      <ColorDot color={plan.color} />
-                      <Typography variant="body2">
-                        {formatLimite(plan.limiteLocales)} ·{" "}
-                        {formatLimite(plan.limiteUsuarios)} ·{" "}
-                        {formatLimite(plan.limiteProductos)}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      label={formatDuracion(plan.duracion)}
-                      size="small"
-                      variant="outlined"
+                      {plan.descripcion}
+                    </Typography>
+                  )}
+
+                  <Box sx={{ mt: 1.5 }}>
+                    <LimitesCell
+                      locales={plan.limiteLocales}
+                      usuarios={plan.limiteUsuarios}
+                      productos={plan.limiteProductos}
+                      color={plan.color}
                     />
-                  </Stack>
+                  </Box>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    Precio {formatPrecio(plan.precio)} ·{" "}
+                    {formatDuracion(plan.duracion)}
+                  </Typography>
                 </CardContent>
               </Card>
             ))}
@@ -442,7 +445,14 @@ export default function PlanesAdminPage() {
                           {plan.nombre}
                         </Typography>
                         {plan.recomendado && (
-                          <Chip label="★" size="small" color="primary" />
+                          <Chip
+                            label="★ Recomendado"
+                            size="small"
+                            sx={{
+                              bgcolor: "semantic.hue.accent.surface",
+                              color: "semantic.hue.accent.main",
+                            }}
+                          />
                         )}
                       </Stack>
                     </TableCell>
@@ -461,6 +471,7 @@ export default function PlanesAdminPage() {
                         locales={plan.limiteLocales}
                         usuarios={plan.limiteUsuarios}
                         productos={plan.limiteProductos}
+                        color={plan.color}
                       />
                     </TableCell>
                     <TableCell align="center">
@@ -514,10 +525,27 @@ export default function PlanesAdminPage() {
       </ContentCard>
 
       {/* ── Dialog crear/editar ────────────────────────────────────────────── */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
         <form onSubmit={handleSubmit(onSubmit)}>
-          <DialogTitle>
+          <DialogTitle
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
             {editingPlan ? "Editar Plan" : "Nuevo Plan"}
+            {isMobile && (
+              <IconButton onClick={handleClose}>
+                <Close />
+              </IconButton>
+            )}
           </DialogTitle>
 
           <DialogContent>
@@ -725,11 +753,30 @@ export default function PlanesAdminPage() {
             </Stack>
           </DialogContent>
 
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={handleClose} color="secondary">
+          <DialogActions
+            sx={{
+              px: 3,
+              pb: 2,
+              flexDirection: isMobile ? "column-reverse" : "row",
+              alignItems: "stretch",
+            }}
+          >
+            <Button
+              onClick={handleClose}
+              color="secondary"
+              fullWidth={isMobile}
+              sx={{ minHeight: isMobile ? 44 : undefined }}
+            >
               Cancelar
             </Button>
-            <Button type="submit" variant="contained" disabled={loading}>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={loading}
+              fullWidth={isMobile}
+              size={isMobile ? "large" : "medium"}
+              sx={{ minHeight: isMobile ? 56 : undefined }}
+            >
               {loading ? (
                 <CircularProgress size={20} />
               ) : editingPlan ? (

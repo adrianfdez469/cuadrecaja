@@ -11,12 +11,16 @@ import {
   Divider,
   FormControl,
   FormHelperText,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   Stack,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import {
   IGastoPlantilla,
   IAssignPlantilla,
@@ -45,6 +49,8 @@ export default function AssignPlantillaDialog({
   onClose,
   onAssign,
 }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [step, setStep] = useState<1 | 2>(1);
   const [selected, setSelected] = useState<IGastoPlantilla | null>(null);
   const [monto, setMonto] = useState("");
@@ -115,11 +121,28 @@ export default function AssignPlantillaDialog({
   const showAnual = selected?.recurrencia === "ANUAL";
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      fullScreen={isMobile}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         {step === 1
           ? "Seleccionar plantilla"
           : `Configurar: ${selected?.nombre}`}
+        {isMobile && (
+          <IconButton onClick={onClose} disabled={loading}>
+            <CloseIcon />
+          </IconButton>
+        )}
       </DialogTitle>
       <DialogContent>
         {step === 1 && (
@@ -269,17 +292,39 @@ export default function AssignPlantillaDialog({
           </Stack>
         )}
       </DialogContent>
-      <DialogActions>
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
         {step === 2 && (
-          <Button onClick={() => setStep(1)} disabled={loading}>
+          <Button
+            onClick={() => setStep(1)}
+            disabled={loading}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
             Atrás
           </Button>
         )}
-        <Button onClick={onClose} disabled={loading}>
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : undefined }}
+        >
           Cancelar
         </Button>
         {step === 2 && (
-          <Button variant="contained" onClick={handleAssign} disabled={loading}>
+          <Button
+            variant="contained"
+            onClick={handleAssign}
+            disabled={loading}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
+          >
             {loading ? "Asignando..." : "Asignar"}
           </Button>
         )}

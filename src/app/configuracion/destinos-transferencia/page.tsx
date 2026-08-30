@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { StatStrip } from "@/components/StatStrip";
+import { StatusPill } from "@/components/StatusPill";
+import { touch } from "@/theme";
 import {
   Box,
   Button,
@@ -15,8 +17,6 @@ import {
   Typography,
   TextField,
   InputAdornment,
-  Card,
-  CardContent,
   Stack,
   Tooltip,
   Chip,
@@ -36,6 +36,7 @@ import {
   Star,
   Search,
   Refresh,
+  Close,
 } from "@mui/icons-material";
 import {
   fetchTransferDestinations,
@@ -193,15 +194,17 @@ export default function DestinosTransferenciaPage() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      <Button
-        variant="contained"
-        startIcon={!isMobile ? <Add /> : undefined}
-        onClick={() => handleOpen()}
-        size="small"
-        disabled={!user?.localActual?.id}
-      >
-        {isMobile ? "Agregar" : "Agregar Destino"}
-      </Button>
+      {!isMobile && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => handleOpen()}
+          size="small"
+          disabled={!user?.localActual?.id}
+        >
+          Agregar Destino
+        </Button>
+      )}
     </Stack>
   );
 
@@ -245,6 +248,19 @@ export default function DestinosTransferenciaPage() {
       headerActions={headerActions}
       maxWidth="xl"
     >
+      {isMobile && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          fullWidth
+          onClick={() => handleOpen()}
+          disabled={!user?.localActual?.id}
+          sx={{ minHeight: touch.comfortable, mb: 2.5 }}
+        >
+          Agregar Destino
+        </Button>
+      )}
+
       <StatStrip
         stats={[
           {
@@ -307,66 +323,61 @@ export default function DestinosTransferenciaPage() {
             </Box>
           </Box>
         ) : isMobile ? (
-          // Vista móvil con cards
-          <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.5}>
-              {filteredDestinations.map((destination) => (
-                <Card
-                  key={destination.id}
-                  onClick={() => handleOpen(destination)}
-                  sx={{
-                    cursor: "pointer",
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1.5}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <AccountBalance color="primary" />
-                          <Typography
-                            variant="subtitle2"
-                            fontWeight="medium"
-                            sx={{ fontSize: "0.875rem" }}
-                          >
-                            {destination.nombre}
-                          </Typography>
-                          {destination.default && (
-                            <Star color="warning" fontSize="small" />
-                          )}
-                        </Box>
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(destination.id);
-                          }}
-                          size="small"
-                          color="error"
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </Box>
-
-                      {destination.descripcion && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ fontSize: "0.6875rem" }}
-                        >
-                          {destination.descripcion}
-                        </Typography>
-                      )}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
+          // Un destino por fila en una sola caja — no una tarjeta por fila
+          // (mismo criterio que /configuracion/categorias: la tarjeta
+          // dentro de tarjeta cuesta un borde y una sangría por fila).
+          <Box>
+            {filteredDestinations.map((destination, index) => (
+              <Box
+                key={destination.id}
+                onClick={() => handleOpen(destination)}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  minHeight: 72,
+                  pl: 2,
+                  pr: 0.5,
+                  py: 1.25,
+                  cursor: "pointer",
+                  ...(index > 0 && { borderTop: 1, borderColor: "divider" }),
+                }}
+              >
+                <AccountBalance
+                  sx={{ color: "text.secondary", flexShrink: 0 }}
+                />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: "1rem", fontWeight: 600 }}>
+                    {destination.nombre}
+                  </Typography>
+                  {destination.descripcion && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.375 }}
+                    >
+                      {destination.descripcion}
+                    </Typography>
+                  )}
+                  {destination.default && (
+                    <Box sx={{ mt: 0.75 }}>
+                      <StatusPill label="Por Defecto" hue="caution" />
+                    </Box>
+                  )}
+                </Box>
+                <Tooltip title="Eliminar">
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(destination.id);
+                    }}
+                    color="error"
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            ))}
           </Box>
         ) : (
           // Vista desktop con tabla
@@ -442,11 +453,28 @@ export default function DestinosTransferenciaPage() {
       </ContentCard>
 
       {/* Modal de edición/creación */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {editingDestination
             ? "Editar Destino de Transferencia"
             : "Nuevo Destino de Transferencia"}
+          {isMobile && (
+            <IconButton onClick={handleClose}>
+              <Close />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
@@ -481,12 +509,26 @@ export default function DestinosTransferenciaPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancelar</Button>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={handleClose}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
           <Button
             onClick={handleSave}
             variant="contained"
             disabled={!nombre.trim()}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             {editingDestination ? "Actualizar" : "Crear"}
           </Button>

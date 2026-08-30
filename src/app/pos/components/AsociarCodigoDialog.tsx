@@ -6,6 +6,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Drawer,
   Button,
   List,
   ListItemButton,
@@ -16,9 +17,13 @@ import {
   CircularProgress,
   Alert,
   Chip,
+  IconButton,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import LinkIcon from "@mui/icons-material/Link";
+import CloseIcon from "@mui/icons-material/Close";
 import { IProductoTiendaPos } from "@/schemas/producto";
 import { asociarCodigoProducto } from "@/services/productServise";
 import { normalizeSearch } from "@/utils/formatters";
@@ -42,6 +47,8 @@ export function AsociarCodigoDialog({
   onClose,
   onAsociado,
 }: AsociarCodigoDialogProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [busqueda, setBusqueda] = useState("");
   const [productoSeleccionado, setProductoSeleccionado] =
     useState<IProductoTiendaPos | null>(null);
@@ -89,6 +96,204 @@ export function AsociarCodigoDialog({
     onClose();
   };
 
+  const body = (
+    <>
+      <Box mb={2}>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          El código escaneado no está registrado. Puedes asociarlo a un producto
+          existente para agilizar futuras ventas.
+        </Typography>
+        <Chip
+          label={codigo}
+          variant="outlined"
+          color="warning"
+          size="small"
+          sx={{ fontFamily: "monospace", mt: 0.5 }}
+        />
+      </Box>
+
+      <SelectableTextField
+        fullWidth
+        autoFocus
+        label="Buscar producto"
+        placeholder="Nombre del producto..."
+        value={busqueda}
+        onChange={(e) => {
+          setBusqueda(e.target.value);
+          if (productoSeleccionado) setProductoSeleccionado(null);
+        }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" />
+            </InputAdornment>
+          ),
+        }}
+        sx={{ mb: 1 }}
+      />
+
+      {busqueda.trim() && !productoSeleccionado && (
+        <List
+          dense
+          sx={{
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 1,
+            maxHeight: 240,
+            overflow: "auto",
+          }}
+        >
+          {resultados.length === 0 ? (
+            <Box px={2} py={1.5}>
+              <Typography variant="body2" color="text.secondary">
+                Sin resultados
+              </Typography>
+            </Box>
+          ) : (
+            resultados.map((prod) => (
+              <ListItemButton
+                key={prod.id}
+                onClick={() => handleSeleccionar(prod)}
+                divider
+              >
+                <ListItemText
+                  primary={prod.producto.nombre}
+                  secondary={
+                    <Box
+                      component="span"
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0.25,
+                        mt: 0.25,
+                      }}
+                    >
+                      <MultiCurrencyAmount
+                        amount={convertToBase(
+                          prod.precio,
+                          prod.monedaPrecioCode ?? monedaBase,
+                          tasasVigentes,
+                          monedaBase,
+                        )}
+                        variant="compact"
+                      />
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        component="span"
+                      >
+                        Stock: {prod.existencia}
+                      </Typography>
+                    </Box>
+                  }
+                  secondaryTypographyProps={{ component: "div" }}
+                />
+              </ListItemButton>
+            ))
+          )}
+        </List>
+      )}
+
+      {productoSeleccionado && (
+        <Alert severity="success" sx={{ mt: 1 }}>
+          Se asociará el código <strong>{codigo}</strong> a{" "}
+          <strong>{productoSeleccionado.producto.nombre}</strong>
+        </Alert>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mt: 1 }}>
+          {error}
+        </Alert>
+      )}
+    </>
+  );
+
+  const cancelarButton = (
+    <Button
+      onClick={handleCerrar}
+      disabled={cargando}
+      fullWidth={isMobile}
+      sx={{ minHeight: isMobile ? 44 : undefined }}
+    >
+      Cancelar
+    </Button>
+  );
+
+  const asociarButton = (
+    <Button
+      variant="contained"
+      onClick={handleConfirmar}
+      disabled={!productoSeleccionado || cargando}
+      fullWidth={isMobile}
+      size={isMobile ? "large" : "medium"}
+      sx={{ minHeight: isMobile ? 56 : undefined }}
+      startIcon={cargando ? <CircularProgress size={16} /> : <LinkIcon />}
+    >
+      {cargando ? "Asociando..." : "Asociar código"}
+    </Button>
+  );
+
+  if (isMobile) {
+    // Hoja del POS: mismo objeto que SalesDrawer/UserSalesDrawer —
+    // radio de 16px arriba, cabecera en versalitas.
+    return (
+      <Drawer
+        anchor="bottom"
+        open={open}
+        onClose={handleCerrar}
+        PaperProps={{
+          sx: { borderRadius: "16px 16px 0 0" },
+        }}
+      >
+        <Box
+          sx={{
+            width: "100vw",
+            pb: "calc(8px + env(safe-area-inset-bottom))",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 2,
+              pt: 2,
+              pb: 1.5,
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: "11.5px",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "text.secondary",
+              }}
+            >
+              Código no reconocido
+            </Typography>
+            <IconButton onClick={handleCerrar} disabled={cargando}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Box sx={{ px: 2 }}>{body}</Box>
+          <Box
+            sx={{
+              display: "grid",
+              gap: "9px",
+              px: 2,
+              pt: 2,
+            }}
+          >
+            {asociarButton}
+            {cancelarButton}
+          </Box>
+        </Box>
+      </Drawer>
+    );
+  }
+
   return (
     <Dialog open={open} onClose={handleCerrar} fullWidth maxWidth="sm">
       <DialogTitle sx={{ pb: 1 }}>
@@ -98,129 +303,11 @@ export function AsociarCodigoDialog({
         </Box>
       </DialogTitle>
 
-      <DialogContent>
-        <Box mb={2}>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            El código escaneado no está registrado. Puedes asociarlo a un
-            producto existente para agilizar futuras ventas.
-          </Typography>
-          <Chip
-            label={codigo}
-            variant="outlined"
-            color="warning"
-            size="small"
-            sx={{ fontFamily: "monospace", mt: 0.5 }}
-          />
-        </Box>
-
-        <SelectableTextField
-          fullWidth
-          autoFocus
-          label="Buscar producto"
-          placeholder="Nombre del producto..."
-          value={busqueda}
-          onChange={(e) => {
-            setBusqueda(e.target.value);
-            if (productoSeleccionado) setProductoSeleccionado(null);
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ mb: 1 }}
-        />
-
-        {busqueda.trim() && !productoSeleccionado && (
-          <List
-            dense
-            sx={{
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 1,
-              maxHeight: 240,
-              overflow: "auto",
-            }}
-          >
-            {resultados.length === 0 ? (
-              <Box px={2} py={1.5}>
-                <Typography variant="body2" color="text.secondary">
-                  Sin resultados
-                </Typography>
-              </Box>
-            ) : (
-              resultados.map((prod) => (
-                <ListItemButton
-                  key={prod.id}
-                  onClick={() => handleSeleccionar(prod)}
-                  divider
-                >
-                  <ListItemText
-                    primary={prod.producto.nombre}
-                    secondary={
-                      <Box
-                        component="span"
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 0.25,
-                          mt: 0.25,
-                        }}
-                      >
-                        <MultiCurrencyAmount
-                          amount={convertToBase(
-                            prod.precio,
-                            prod.monedaPrecioCode ?? monedaBase,
-                            tasasVigentes,
-                            monedaBase,
-                          )}
-                          variant="compact"
-                        />
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          component="span"
-                        >
-                          Stock: {prod.existencia}
-                        </Typography>
-                      </Box>
-                    }
-                    secondaryTypographyProps={{ component: "div" }}
-                  />
-                </ListItemButton>
-              ))
-            )}
-          </List>
-        )}
-
-        {productoSeleccionado && (
-          <Alert severity="success" sx={{ mt: 1 }}>
-            Se asociará el código <strong>{codigo}</strong> a{" "}
-            <strong>{productoSeleccionado.producto.nombre}</strong>
-          </Alert>
-        )}
-
-        {error && (
-          <Alert severity="error" sx={{ mt: 1 }}>
-            {error}
-          </Alert>
-        )}
-      </DialogContent>
+      <DialogContent>{body}</DialogContent>
 
       <DialogActions>
-        <Button onClick={handleCerrar} disabled={cargando}>
-          Cancelar
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleConfirmar}
-          disabled={!productoSeleccionado || cargando}
-          startIcon={cargando ? <CircularProgress size={16} /> : <LinkIcon />}
-        >
-          {cargando ? "Asociando..." : "Asociar código"}
-        </Button>
+        {cancelarButton}
+        {asociarButton}
       </DialogActions>
     </Dialog>
   );

@@ -33,7 +33,6 @@ import { REFERRAL_STATUS } from "@/constants/referrals";
 
 type IPromoterReferralRow = IPromoterDashboardData["referrals"][number];
 
-const COPY_OK = "#81c784";
 const COPY_FEEDBACK_MS = 2200;
 
 function formatDate(iso: string | null): string {
@@ -361,10 +360,13 @@ export default function PromotorDashboardClient({
                     onClick={copyCode}
                     size="small"
                     sx={{
-                      color: copied === "code" ? COPY_OK : "primary.main",
+                      color:
+                        copied === "code"
+                          ? "semantic.hue.positive.main"
+                          : "primary.main",
                       bgcolor:
                         copied === "code"
-                          ? "rgba(129, 199, 132, 0.15)"
+                          ? "semantic.hue.positive.surface"
                           : "transparent",
                       transition: "color 0.2s ease, background-color 0.2s ease",
                       minHeight: "44px",
@@ -372,7 +374,7 @@ export default function PromotorDashboardClient({
                       "&:hover": {
                         bgcolor:
                           copied === "code"
-                            ? "rgba(129, 199, 132, 0.22)"
+                            ? "semantic.hue.positive.surface"
                             : "action.hover",
                       },
                     }}
@@ -389,7 +391,10 @@ export default function PromotorDashboardClient({
                   <Typography
                     component="span"
                     variant="caption"
-                    sx={{ color: COPY_OK, fontWeight: 600 }}
+                    sx={{
+                      color: "semantic.hue.positive.main",
+                      fontWeight: 600,
+                    }}
                   >
                     Copiado
                   </Typography>
@@ -442,10 +447,13 @@ export default function PromotorDashboardClient({
                         size="small"
                         disabled={!referralLandingUrl}
                         sx={{
-                          color: copied === "link" ? COPY_OK : "primary.main",
+                          color:
+                            copied === "link"
+                              ? "semantic.hue.positive.main"
+                              : "primary.main",
                           bgcolor:
                             copied === "link"
-                              ? "rgba(129, 199, 132, 0.15)"
+                              ? "semantic.hue.positive.surface"
                               : "transparent",
                           transition:
                             "color 0.2s ease, background-color 0.2s ease",
@@ -454,7 +462,7 @@ export default function PromotorDashboardClient({
                           "&:hover": {
                             bgcolor:
                               copied === "link"
-                                ? "rgba(129, 199, 132, 0.22)"
+                                ? "semantic.hue.positive.surface"
                                 : "action.hover",
                           },
                         }}
@@ -527,7 +535,10 @@ export default function PromotorDashboardClient({
                   <Typography
                     component="span"
                     variant="caption"
-                    sx={{ color: COPY_OK, fontWeight: 600 }}
+                    sx={{
+                      color: "semantic.hue.positive.main",
+                      fontWeight: 600,
+                    }}
                   >
                     Copiado
                   </Typography>
@@ -607,7 +618,7 @@ export default function PromotorDashboardClient({
                     <Typography
                       variant="subtitle2"
                       sx={{
-                        color: "error.main",
+                        color: "semantic.hue.negative.main",
                         mb: 1,
                         fontWeight: 600,
                       }}
@@ -630,7 +641,7 @@ export default function PromotorDashboardClient({
           >
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: "action.hover" }}>
+                <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
                   <TableCell sx={{ fontWeight: 600 }}>Negocio</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Estado</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Alta</TableCell>
@@ -662,7 +673,7 @@ export default function PromotorDashboardClient({
                   <>
                     {referralsNormales.length > 0 && (
                       <>
-                        <TableRow sx={{ bgcolor: "action.hover" }}>
+                        <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
                           <TableCell colSpan={7} sx={{ fontWeight: 600 }}>
                             Referidos
                           </TableCell>
@@ -683,10 +694,15 @@ export default function PromotorDashboardClient({
                     )}
                     {referralsFraude.length > 0 && (
                       <>
-                        <TableRow sx={{ bgcolor: "error.lighter" }}>
+                        <TableRow
+                          sx={{ bgcolor: "semantic.hue.negative.surface" }}
+                        >
                           <TableCell
                             colSpan={7}
-                            sx={{ fontWeight: 600, color: "error.main" }}
+                            sx={{
+                              fontWeight: 600,
+                              color: "semantic.hue.negative.main",
+                            }}
                           >
                             Marcados como fraude
                           </TableCell>
