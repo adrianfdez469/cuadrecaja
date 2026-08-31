@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Fade, Stack, Typography } from "@mui/material";
+import { alpha, Box, Fade, Stack, Typography } from "@mui/material";
+import type { Theme } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 interface CheckoutLockOverlayProps {
@@ -44,7 +45,11 @@ export function CheckoutLockOverlay({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          bgcolor: "rgba(15, 23, 42, 0.35)",
+          // The scrim is the charge bar's own near-black, thinned: one ink
+          // for every dark surface in the POS, and it follows the scheme
+          // instead of being a slate blue nothing else uses.
+          bgcolor: (theme: Theme) =>
+            alpha(theme.palette.semantic.surface.inverse, 0.35),
           backdropFilter: "blur(2px)",
           cursor: "pointer",
         }}

@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Alert,
-  Divider,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Divider, Stack, Typography } from "@mui/material";
 import { ContentCard } from "@/components/ContentCard";
 import type { IIncomeStatement } from "@/schemas/reports/profitabilityReport";
 
@@ -18,17 +9,27 @@ type IncomeStatementTableProps = {
   format: (amountInBase: number) => string;
 };
 
+type LineType =
+  | "detail" // Línea gris (deducción)
+  | "subtotal" // Negrita con fondo leve
+  | "final"; // La ganancia final
+
 type Line = {
   label: string;
   value: number;
-  /** Rendered as a subtraction. */
+  type: LineType;
+  /** Rendered as a subtraction (prefix "−"). */
   negative?: boolean;
-  emphasis?: boolean;
   indent?: boolean;
 };
 
 /**
  * Period profit and loss, from gross sales down to final profit.
+ *
+ * Displayed as a cascading P&L statement with visual hierarchy:
+ * - Detail lines (gray, with "−" prefix for deductions)
+ * - Subtotal lines (bold, light background)
+ * - Final line (prominent, green, thick top border)
  *
  * Anchored to the totals stored on each closing rather than recomputed, so the
  * bottom line always matches what the closings summary shows.
@@ -38,68 +39,160 @@ export function IncomeStatementTable({
   format,
 }: IncomeStatementTableProps) {
   const lines: Line[] = [
-    { label: "Ventas brutas", value: data.ventasBrutas },
-    { label: "Descuentos", value: data.descuentos, negative: true },
-    { label: "Ventas netas", value: data.ventasNetas, emphasis: true },
+    { label: "Ventas brutas", value: data.ventasBrutas, type: "detail" },
+    {
+      label: "Descuentos",
+      value: data.descuentos,
+      negative: true,
+      type: "detail",
+    },
+    { label: "Ventas netas", value: data.ventasNetas, type: "subtotal" },
     {
       label: "Costo de la mercancía vendida",
       value: data.costoMercanciaVendida,
       negative: true,
+      type: "detail",
     },
-    { label: "Margen bruto", value: data.margenBruto, emphasis: true },
+    { label: "Margen bruto", value: data.margenBruto, type: "subtotal" },
     ...data.gastosPorCategoria.map((expense) => ({
       label: expense.categoria,
       value: expense.monto,
       negative: true,
       indent: true,
+      type: "detail" as const,
     })),
     {
       label: "Total gastos operativos",
       value: data.gastosOperativos,
       negative: true,
+      type: "detail",
     },
-    { label: "Merma", value: data.merma, negative: true },
-    { label: "Devoluciones", value: data.devoluciones, negative: true },
-    { label: "Ganancia final", value: data.gananciaFinal, emphasis: true },
+    { label: "Merma", value: data.merma, negative: true, type: "detail" },
+    {
+      label: "Devoluciones",
+      value: data.devoluciones,
+      negative: true,
+      type: "detail",
+    },
+    { label: "Ganancia final", value: data.gananciaFinal, type: "final" },
   ];
+
+  const renderLine = (line: Line) => {
+    const isSubtotal = line.type === "subtotal";
+    const isFinal = line.type === "final";
+
+    if (isFinal) {
+      return (
+        <Box
+          key={line.label}
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            py: 2,
+            px: 2,
+            height: 60,
+            fontWeight: "bold",
+            fontSize: "17px",
+            borderTop: "3px solid",
+            borderTopColor: "divider",
+            bgcolor: (theme) => theme.palette.semantic.hue.neutral.surface,
+          }}
+        >
+          <Typography
+            sx={{
+              fontWeight: "bold",
+              fontSize: "17px",
+            }}
+          >
+            {line.label}
+          </Typography>
+          <Typography
+            sx={{
+              fontWeight: "bold",
+              fontSize: "17px",
+              color: "success.main",
+              whiteSpace: "nowrap",
+              ml: 2,
+            }}
+          >
+            {line.negative ? "− " : ""}
+            {format(Math.abs(line.value))}
+          </Typography>
+        </Box>
+      );
+    }
+
+    if (isSubtotal) {
+      return (
+        <Box
+          key={line.label}
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            py: 1.5,
+            px: 2,
+            fontWeight: "bold",
+            bgcolor: (theme) => theme.palette.semantic.hue.neutral.surface,
+          }}
+        >
+          <Typography sx={{ fontWeight: "bold" }}>{line.label}</Typography>
+          <Typography
+            sx={{
+              fontWeight: "bold",
+              whiteSpace: "nowrap",
+              ml: 2,
+            }}
+          >
+            {line.negative ? "− " : ""}
+            {format(Math.abs(line.value))}
+          </Typography>
+        </Box>
+      );
+    }
+
+    // Detail line
+    return (
+      <Box
+        key={line.label}
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          py: 1.5,
+          pl: line.indent ? 4 : 2,
+          pr: 2,
+          color: line.indent ? "text.secondary" : "text.primary",
+        }}
+      >
+        <Typography sx={{ color: "inherit" }}>{line.label}</Typography>
+        <Typography
+          sx={{
+            color: "inherit",
+            whiteSpace: "nowrap",
+            ml: 2,
+          }}
+        >
+          {line.negative ? "− " : ""}
+          {format(Math.abs(line.value))}
+        </Typography>
+      </Box>
+    );
+  };
 
   return (
     <ContentCard
       title="Estado de resultados"
       subtitle={`Margen bruto: ${data.margenBrutoPorcentaje.toFixed(1)}% sobre ventas netas`}
     >
-      <Stack spacing={2}>
-        <Table size="small">
-          <TableBody>
-            {lines.map((line, index) => (
-              <TableRow key={`${line.label}-${index}`}>
-                <TableCell
-                  sx={{
-                    pl: line.indent ? 4 : 2,
-                    fontWeight: line.emphasis ? "bold" : "normal",
-                    color: line.indent ? "text.secondary" : "text.primary",
-                    borderBottom: line.emphasis ? undefined : "none",
-                  }}
-                >
-                  {line.label}
-                </TableCell>
-                <TableCell
-                  align="right"
-                  sx={{
-                    fontWeight: line.emphasis ? "bold" : "normal",
-                    color: line.negative ? "error.main" : "text.primary",
-                    borderBottom: line.emphasis ? undefined : "none",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {line.negative ? "− " : ""}
-                  {format(Math.abs(line.value))}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <Stack spacing={1.5}>
+        {/* P&L Cascade */}
+        <Stack spacing={0} sx={{ bgcolor: "background.paper" }}>
+          {lines.map((line) => renderLine(line))}
+        </Stack>
 
+        {/* Reconciliation warning if needed */}
         {data.ajusteConciliacion !== 0 && (
           <Alert severity="warning">
             El desglose de gastos por categoría no cuadra con el total
@@ -109,6 +202,7 @@ export function IncomeStatementTable({
           </Alert>
         )}
 
+        {/* Investment section */}
         {data.gastosInversion > 0 && (
           <>
             <Divider />

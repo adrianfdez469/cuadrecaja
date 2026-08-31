@@ -4,16 +4,18 @@ import {
   Box,
   Card,
   CardContent,
-  Chip,
-  CircularProgress,
   Divider,
   IconButton,
-  Menu,
-  MenuItem,
   Stack,
   Typography,
 } from "@mui/material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import EditIcon from "@mui/icons-material/Edit";
+import AddIcon from "@mui/icons-material/Add";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import HistoryIcon from "@mui/icons-material/History";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { useState } from "react";
 import { useVirtualRows } from "@/hooks/useVirtualRows";
 import { IProductoTiendaV2 } from "@/schemas/producto";
@@ -23,7 +25,16 @@ import {
 } from "@/constants/inventario";
 import { formatMontoEnMoneda, formatQuantity } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
+import { LoadingState } from "@/components/LoadingState";
+import { EmptyState } from "@/components/EmptyState";
+import { StatusPill } from "@/components/StatusPill";
+import { ActionSheet } from "@/components/ActionSheet";
 import { getRentabilidad } from "./rentabilidad";
+import {
+  getExpiryPill,
+  getStockPill,
+  rentabilidadColor,
+} from "./statusHelpers";
 
 interface Props {
   productos: IProductoTiendaV2[];
@@ -33,27 +44,9 @@ interface Props {
   onViewMovements: (p: IProductoTiendaV2) => void;
   onCreateMov: (p: IProductoTiendaV2) => void;
   onDelete: (p: IProductoTiendaV2) => void;
-}
-
-function getStockChip(existencia: number) {
-  if (existencia <= 0)
-    return <Chip label="Sin stock" color="error" size="small" />;
-  if (existencia <= 5)
-    return <Chip label="Bajo stock" color="warning" size="small" />;
-  return <Chip label="En stock" color="success" size="small" />;
-}
-
-function getExpiryChip(fechaVencimiento: string | null | undefined) {
-  if (!fechaVencimiento) return null;
-  const dias = Math.ceil(
-    (new Date(fechaVencimiento).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
-  );
-  if (dias <= 0) return <Chip label="Vencido" color="error" size="small" />;
-  if (dias <= 7)
-    return <Chip label={`Vence ${dias}d`} color="error" size="small" />;
-  if (dias <= 30)
-    return <Chip label={`Vence ${dias}d`} color="warning" size="small" />;
-  return <Chip label={`Vence ${dias}d`} size="small" />;
+  /** "Detalles" en la hoja "Más acciones" — apagado deja solo nombre,
+      categoría e insignias de excepción, sin el grid de abajo. */
+  showDetails?: boolean;
 }
 
 function ProductCard({
@@ -63,6 +56,7 @@ function ProductCard({
   onViewMovements,
   onCreateMov,
   onDelete,
+  showDetails = true,
 }: {
   p: IProductoTiendaV2;
   onEdit: (p: IProductoTiendaV2) => void;
@@ -70,12 +64,11 @@ function ProductCard({
   onViewMovements: (p: IProductoTiendaV2) => void;
   onCreateMov: (p: IProductoTiendaV2) => void;
   onDelete: (p: IProductoTiendaV2) => void;
+  showDetails?: boolean;
 }) {
-  const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const { tasasVigentes, monedaBase } = useAppContext();
   const rentabilidad = getRentabilidad(p, tasasVigentes, monedaBase);
-  const rentColor =
-    parseFloat(rentabilidad) > 0 ? "success.main" : "text.secondary";
 
   return (
     <Card variant="outlined">
@@ -89,133 +82,134 @@ function ProductCard({
             <Typography variant="subtitle2" fontWeight={700}>
               {p.producto.nombre}
             </Typography>
-            <Box display="flex" gap={0.5} flexWrap="wrap" mt={0.5}>
-              {p.producto.categoria && (
-                <Chip
-                  label={p.producto.categoria.nombre}
-                  size="small"
-                  sx={{
-                    bgcolor: p.producto.categoria.color,
-                    color: "white",
-                    fontWeight: 500,
-                  }}
-                />
-              )}
-              {p.proveedor && (
-                <Chip
-                  label={`Consig.`}
-                  size="small"
-                  variant="outlined"
-                  color="secondary"
-                />
-              )}
-              {getStockChip(p.existencia)}
-              {getExpiryChip(p.fechaVencimiento)}
+            <Box
+              display="flex"
+              alignItems="center"
+              gap={0.75}
+              flexWrap="wrap"
+              mt={0.5}
+            >
+              <Typography variant="caption" color="text.secondary">
+                {p.producto.categoria?.nombre ?? "—"}
+              </Typography>
+              {p.proveedor && <StatusPill label="Consig." hue="accent" />}
+              {getStockPill(p.existencia)}
+              {getExpiryPill(p.fechaVencimiento)}
             </Box>
           </Box>
-          <IconButton size="small" onClick={(e) => setAnchor(e.currentTarget)}>
-            <MoreVertIcon fontSize="small" />
+          <IconButton size="small" onClick={() => setSheetOpen(true)}>
+            <MoreHorizIcon fontSize="small" />
           </IconButton>
-          <Menu
-            anchorEl={anchor}
-            open={Boolean(anchor)}
-            onClose={() => setAnchor(null)}
-          >
-            <MenuItem
-              onClick={() => {
-                setAnchor(null);
-                onEdit(p);
-              }}
-            >
-              Editar
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                setAnchor(null);
-                onChangeQty(p);
-              }}
-            >
-              Cambiar cantidad
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                setAnchor(null);
-                onCreateMov(p);
-              }}
-            >
-              Registrar movimiento
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                setAnchor(null);
-                onViewMovements(p);
-              }}
-            >
-              Historial movimientos
-            </MenuItem>
-            <MenuItem
-              onClick={async () => {
-                setAnchor(null);
-                // Importado bajo demanda: `jspdf`, `qrcode` y `bwip-js` solo hacen
-                // falta al descargar el PDF, no al abrir el inventario.
-                const { generateProductCodesPDF } =
-                  await import("@/utils/productCodesPdf");
-                await generateProductCodesPDF(
-                  p.producto.nombre,
-                  p.producto.codigosProducto,
-                );
-              }}
-            >
-              Descargar códigos PDF
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                setAnchor(null);
-                onDelete(p);
-              }}
-              sx={{ color: "error.main" }}
-            >
-              Eliminar
-            </MenuItem>
-          </Menu>
+          <ActionSheet
+            open={sheetOpen}
+            onClose={() => setSheetOpen(false)}
+            title={p.producto.nombre}
+            items={[
+              {
+                key: "editar",
+                icon: <EditIcon fontSize="small" />,
+                label: "Editar",
+                onClick: () => onEdit(p),
+              },
+              {
+                key: "cambiar-cantidad",
+                icon: <AddIcon fontSize="small" />,
+                label: "Cambiar cantidad",
+                onClick: () => onChangeQty(p),
+              },
+              {
+                key: "registrar-movimiento",
+                icon: <SwapHorizIcon fontSize="small" />,
+                label: "Registrar movimiento",
+                onClick: () => onCreateMov(p),
+              },
+              {
+                key: "historial",
+                icon: <HistoryIcon fontSize="small" />,
+                label: "Historial movimientos",
+                onClick: () => onViewMovements(p),
+              },
+              {
+                key: "codigos-pdf",
+                icon: <PictureAsPdfIcon fontSize="small" />,
+                label: "Descargar códigos PDF",
+                onClick: async () => {
+                  // Importado bajo demanda: `jspdf`, `qrcode` y `bwip-js` solo
+                  // hacen falta al descargar el PDF, no al abrir el inventario.
+                  const { generateProductCodesPDF } =
+                    await import("@/utils/productCodesPdf");
+                  await generateProductCodesPDF(
+                    p.producto.nombre,
+                    p.producto.codigosProducto,
+                  );
+                },
+              },
+              {
+                key: "eliminar",
+                icon: <DeleteOutlineIcon fontSize="small" />,
+                label: "Eliminar",
+                danger: true,
+                onClick: () => onDelete(p),
+              },
+            ]}
+          />
         </Box>
 
-        <Divider sx={{ my: 1 }} />
-
-        <Box display="flex" justifyContent="space-between">
-          <Box textAlign="center">
-            <Typography variant="caption" color="text.secondary">
-              Stock
-            </Typography>
-            <Typography variant="body2" fontWeight={600}>
-              {formatQuantity(p.existencia)}
-            </Typography>
-          </Box>
-          <Box textAlign="center">
-            <Typography variant="caption" color="text.secondary">
-              Costo
-            </Typography>
-            <Typography variant="body2" fontWeight={600}>
-              {formatMontoEnMoneda(p.costo, p.monedaCostoCode ?? monedaBase)}
-            </Typography>
-          </Box>
-          <Box textAlign="center">
-            <Typography variant="caption" color="text.secondary">
-              Precio
-            </Typography>
-            <Typography variant="body2" fontWeight={600}>
-              {formatMontoEnMoneda(p.precio, p.monedaPrecioCode ?? monedaBase)}
-            </Typography>
-          </Box>
-          <Box textAlign="center">
-            <Typography variant="caption" color="text.secondary">
-              Rentab.
-            </Typography>
-            <Typography variant="body2" fontWeight={600} color={rentColor}>
-              {rentabilidad}
-            </Typography>
-          </Box>
-        </Box>
+        {showDetails && (
+          <>
+            <Divider sx={{ my: 1 }} />
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                gap: 0.5,
+              }}
+            >
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Stock
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {formatQuantity(p.existencia)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Costo
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {formatMontoEnMoneda(
+                    p.costo,
+                    p.monedaCostoCode ?? monedaBase,
+                  )}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Precio
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {formatMontoEnMoneda(
+                    p.precio,
+                    p.monedaPrecioCode ?? monedaBase,
+                  )}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Rentab.
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  color={rentabilidadColor(rentabilidad)}
+                >
+                  {rentabilidad}
+                </Typography>
+              </Box>
+            </Box>
+          </>
+        )}
       </CardContent>
     </Card>
   );
@@ -229,6 +223,7 @@ export function InventarioMobileList({
   onViewMovements,
   onCreateMov,
   onDelete,
+  showDetails = true,
 }: Props) {
   const virtual = useVirtualRows(productos, {
     minItems: INVENTARIO_VIRTUALIZATION_MIN_ROWS,
@@ -237,20 +232,18 @@ export function InventarioMobileList({
   });
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" py={4}>
-        <CircularProgress />
-      </Box>
-    );
+    // Cards here, not table rows: this view renders one card per product, and a
+    // skeleton that does not match what is coming is just a different spinner.
+    return <LoadingState variant="cards" count={6} />;
   }
 
   if (productos.length === 0) {
     return (
-      <Box py={4} textAlign="center" minHeight="100dvh">
-        <Typography color="text.secondary">
-          No se encontraron productos
-        </Typography>
-      </Box>
+      <EmptyState
+        variant="no-results"
+        title="No se encontraron productos"
+        description="Probá con otro término de búsqueda o quitá los filtros de categoría, stock y vencimiento."
+      />
     );
   }
 
@@ -271,6 +264,7 @@ export function InventarioMobileList({
             onViewMovements={onViewMovements}
             onCreateMov={onCreateMov}
             onDelete={onDelete}
+            showDetails={showDetails}
           />
         ))}
       </Stack>
@@ -314,6 +308,7 @@ export function InventarioMobileList({
             onViewMovements={onViewMovements}
             onCreateMov={onCreateMov}
             onDelete={onDelete}
+            showDetails={showDetails}
           />
         </Box>
       ))}

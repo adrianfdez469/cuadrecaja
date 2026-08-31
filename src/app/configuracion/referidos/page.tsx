@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -13,6 +13,7 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -28,13 +29,15 @@ import {
   Tabs,
   TextField,
   Typography,
-} from '@mui/material';
-import { Edit, History, Refresh, Visibility } from '@mui/icons-material';
-import { useRouter } from 'next/navigation';
-import { PageContainer } from '@/components/PageContainer';
-import { ContentCard } from '@/components/ContentCard';
-import { useAppContext } from '@/context/AppContext';
-import { useMessageContext } from '@/context/MessageContext';
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import { Close, Edit, History, Refresh, Visibility } from "@mui/icons-material";
+import { useRouter } from "next/navigation";
+import { PageContainer } from "@/components/PageContainer";
+import { ContentCard } from "@/components/ContentCard";
+import { useAppContext } from "@/context/AppContext";
+import { useMessageContext } from "@/context/MessageContext";
 import {
   fetchAdminPromoters,
   fetchAdminReferrals,
@@ -46,30 +49,74 @@ import {
   type IAdminReferralRow,
   type IReferralEventRow,
   type IReferralRewardRulePlanRow,
-} from '@/services/referralAdminService';
-import { getPlanes } from '@/services/planService';
-import type { IPlan } from '@/schemas/plan';
-import { REFERRAL_STATUS, REFERRAL_STATUS_LABELS } from '@/constants/referrals';
+} from "@/services/referralAdminService";
+import { getPlanes } from "@/services/planService";
+import type { IPlan } from "@/schemas/plan";
+import {
+  PROMOTER_STATUS,
+  PROMOTER_STATUS_LABELS,
+  REFERRAL_STATUS,
+  REFERRAL_STATUS_LABELS,
+} from "@/constants/referrals";
 
 const breadcrumbs = [
-  { label: 'Inicio', href: '/home' },
-  { label: 'Configuración', href: '/configuracion' },
-  { label: 'Referidos' },
+  { label: "Inicio", href: "/home" },
+  { label: "Configuración", href: "/configuracion" },
+  { label: "Referidos" },
 ];
 
 const REFERRAL_STATUS_OPTIONS = Object.values(REFERRAL_STATUS);
 
 function formatMoney(n: number | null | undefined): string {
-  if (n === null || n === undefined) return '—';
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD' }).format(n);
+  if (n === null || n === undefined) return "—";
+  const formatted = new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+  return `${formatted} USD`;
+}
+
+function getStatusColor(
+  status: string,
+): "success" | "warning" | "error" | "info" | "default" {
+  switch (status) {
+    case REFERRAL_STATUS.liquidatedManually:
+      return "success";
+    case REFERRAL_STATUS.liquidationPending:
+      return "warning";
+    case REFERRAL_STATUS.rejectedFraud:
+      return "error";
+    case REFERRAL_STATUS.qualified:
+      return "info";
+    default:
+      return "default";
+  }
+}
+
+function getPromoterStatusColor(
+  status: string,
+): "success" | "warning" | "default" {
+  switch (status) {
+    case PROMOTER_STATUS.active:
+      return "success";
+    case PROMOTER_STATUS.pendingEmailVerification:
+      return "warning";
+    default:
+      return "default";
+  }
 }
 
 function tabProps(index: number) {
-  return { id: `referidos-tab-${index}`, 'aria-controls': `referidos-tabpanel-${index}` };
+  return {
+    id: `referidos-tab-${index}`,
+    "aria-controls": `referidos-tabpanel-${index}`,
+  };
 }
 
 export default function ReferidosAdminPage() {
   const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
 
@@ -77,48 +124,54 @@ export default function ReferidosAdminPage() {
   const [loading, setLoading] = useState(false);
 
   const [promoters, setPromoters] = useState<IAdminPromoterRow[]>([]);
-  const [promoterQ, setPromoterQ] = useState('');
-  const [promoterStatus, setPromoterStatus] = useState<string>('');
+  const [promoterQ, setPromoterQ] = useState("");
+  const [promoterStatus, setPromoterStatus] = useState<string>("");
 
   const [referrals, setReferrals] = useState<IAdminReferralRow[]>([]);
-  const [refPromoterFilter, setRefPromoterFilter] = useState<{ id: string; label: string } | null>(null);
-  const [refStatus, setRefStatus] = useState<string>('');
-  const [refPlanId, setRefPlanId] = useState<string>('');
-  const [refFrom, setRefFrom] = useState<string>('');
-  const [refTo, setRefTo] = useState<string>('');
+  const [refPromoterFilter, setRefPromoterFilter] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
+  const [refStatus, setRefStatus] = useState<string>("");
+  const [refPlanId, setRefPlanId] = useState<string>("");
+  const [refFrom, setRefFrom] = useState<string>("");
+  const [refTo, setRefTo] = useState<string>("");
   const [planes, setPlanes] = useState<IPlan[]>([]);
 
   const [liquidateOpen, setLiquidateOpen] = useState(false);
-  const [selectedReferral, setSelectedReferral] = useState<IAdminReferralRow | null>(null);
-  const [liqAt, setLiqAt] = useState('');
-  const [liqAmount, setLiqAmount] = useState<string>('');
-  const [liqMethod, setLiqMethod] = useState('');
-  const [liqNote, setLiqNote] = useState('');
+  const [selectedReferral, setSelectedReferral] =
+    useState<IAdminReferralRow | null>(null);
+  const [liqAt, setLiqAt] = useState("");
+  const [liqAmount, setLiqAmount] = useState<string>("");
+  const [liqMethod, setLiqMethod] = useState("");
+  const [liqNote, setLiqNote] = useState("");
 
   const [eventsOpen, setEventsOpen] = useState(false);
   const [events, setEvents] = useState<IReferralEventRow[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
 
-  const [rewardRows, setRewardRows] = useState<IReferralRewardRulePlanRow[]>([]);
+  const [rewardRows, setRewardRows] = useState<IReferralRewardRulePlanRow[]>(
+    [],
+  );
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
   const [ruleEditPlanId, setRuleEditPlanId] = useState<string | null>(null);
-  const [ruleEditPlanNombre, setRuleEditPlanNombre] = useState('');
-  const [ruleDiscount, setRuleDiscount] = useState('');
-  const [ruleReward, setRuleReward] = useState('');
+  const [ruleEditPlanNombre, setRuleEditPlanNombre] = useState("");
+  const [ruleDiscount, setRuleDiscount] = useState("");
+  const [ruleReward, setRuleReward] = useState("");
   const [ruleIsActive, setRuleIsActive] = useState(true);
 
   useEffect(() => {
-    if (!loadingContext && user && user.rol !== 'SUPER_ADMIN') {
-      showMessage('No tienes permisos para acceder a esta sección', 'error');
-      router.push('/home');
+    if (!loadingContext && user && user.rol !== "SUPER_ADMIN") {
+      showMessage("No tienes permisos para acceder a esta sección", "error");
+      router.push("/home");
     }
   }, [user, loadingContext, router, showMessage]);
 
   useEffect(() => {
-    if (user?.rol === 'SUPER_ADMIN') {
+    if (user?.rol === "SUPER_ADMIN") {
       getPlanes()
         .then(setPlanes)
-        .catch(() => showMessage('Error al cargar planes', 'error'));
+        .catch(() => showMessage("Error al cargar planes", "error"));
     }
   }, [user, showMessage]);
 
@@ -131,7 +184,7 @@ export default function ReferidosAdminPage() {
       });
       setPromoters(items);
     } catch {
-      showMessage('Error al cargar promotores', 'error');
+      showMessage("Error al cargar promotores", "error");
     } finally {
       setLoading(false);
     }
@@ -149,7 +202,7 @@ export default function ReferidosAdminPage() {
       });
       setReferrals(items);
     } catch {
-      showMessage('Error al cargar referidos', 'error');
+      showMessage("Error al cargar referidos", "error");
     } finally {
       setLoading(false);
     }
@@ -161,37 +214,39 @@ export default function ReferidosAdminPage() {
       const items = await fetchReferralRewardRulesByPlan();
       setRewardRows(items);
     } catch {
-      showMessage('Error al cargar reglas de recompensa', 'error');
+      showMessage("Error al cargar reglas de recompensa", "error");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user?.rol === 'SUPER_ADMIN' && tab === 0) loadPromoters();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, tab, refPromoterFilter]);
-
-  useEffect(() => {
-    if (user?.rol === 'SUPER_ADMIN' && tab === 1) loadReferrals();
+    if (user?.rol === "SUPER_ADMIN" && tab === 0) loadPromoters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, tab]);
 
   useEffect(() => {
-    if (user?.rol === 'SUPER_ADMIN' && tab === 2) loadRewardRules();
+    if (user?.rol === "SUPER_ADMIN" && tab === 1) loadReferrals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, tab]);
+
+  useEffect(() => {
+    if (user?.rol === "SUPER_ADMIN" && tab === 2) loadRewardRules();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, tab]);
 
   const openLiquidate = (r: IAdminReferralRow) => {
     setSelectedReferral(r);
     const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
+    const pad = (n: number) => String(n).padStart(2, "0");
     setLiqAt(
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
     );
-    setLiqAmount(r.promoterRewardSnapshot != null ? String(r.promoterRewardSnapshot) : '');
-    setLiqMethod('');
-    setLiqNote('');
+    setLiqAmount(
+      r.promoterRewardSnapshot != null ? String(r.promoterRewardSnapshot) : "",
+    );
+    setLiqMethod("");
+    setLiqNote("");
     setLiquidateOpen(true);
   };
 
@@ -204,12 +259,12 @@ export default function ReferidosAdminPage() {
         paymentMethod: liqMethod.trim() || undefined,
         note: liqNote.trim() || undefined,
       });
-      showMessage('Liquidación registrada', 'success');
+      showMessage("Liquidación registrada", "success");
       setLiquidateOpen(false);
       setSelectedReferral(null);
       await loadReferrals();
     } catch {
-      showMessage('No se pudo registrar la liquidación', 'error');
+      showMessage("No se pudo registrar la liquidación", "error");
     }
   };
 
@@ -221,8 +276,8 @@ export default function ReferidosAdminPage() {
       setRuleReward(String(row.rule.rewardForPromoter));
       setRuleIsActive(row.rule.isActive);
     } else {
-      setRuleDiscount('0');
-      setRuleReward('0');
+      setRuleDiscount("0");
+      setRuleReward("0");
       setRuleIsActive(true);
     }
     setRuleDialogOpen(true);
@@ -230,10 +285,18 @@ export default function ReferidosAdminPage() {
 
   const submitRuleDialog = async () => {
     if (!ruleEditPlanId) return;
-    const discount = Number.parseFloat(ruleDiscount.replace(',', '.'));
-    const reward = Number.parseFloat(ruleReward.replace(',', '.'));
-    if (Number.isNaN(discount) || discount < 0 || Number.isNaN(reward) || reward < 0) {
-      showMessage('Introduce montos numéricos válidos (mayor o igual que 0).', 'error');
+    const discount = Number.parseFloat(ruleDiscount.replace(",", "."));
+    const reward = Number.parseFloat(ruleReward.replace(",", "."));
+    if (
+      Number.isNaN(discount) ||
+      discount < 0 ||
+      Number.isNaN(reward) ||
+      reward < 0
+    ) {
+      showMessage(
+        "Introduce montos numéricos válidos (mayor o igual que 0).",
+        "error",
+      );
       return;
     }
     try {
@@ -242,12 +305,12 @@ export default function ReferidosAdminPage() {
         rewardForPromoter: reward,
         isActive: ruleIsActive,
       });
-      showMessage('Regla de recompensa guardada', 'success');
+      showMessage("Regla de recompensa guardada", "success");
       setRuleDialogOpen(false);
       setRuleEditPlanId(null);
       await loadRewardRules();
     } catch {
-      showMessage('No se pudo guardar la regla', 'error');
+      showMessage("No se pudo guardar la regla", "error");
     }
   };
 
@@ -259,13 +322,13 @@ export default function ReferidosAdminPage() {
       const items = await fetchReferralEvents(referralId);
       setEvents(items);
     } catch {
-      showMessage('Error al cargar historial', 'error');
+      showMessage("Error al cargar historial", "error");
     } finally {
       setEventsLoading(false);
     }
   };
 
-  if (!user || user.rol !== 'SUPER_ADMIN') {
+  if (!user || user.rol !== "SUPER_ADMIN") {
     if (loadingContext) {
       return (
         <PageContainer breadcrumbs={breadcrumbs} title="Referidos">
@@ -284,7 +347,7 @@ export default function ReferidosAdminPage() {
           onChange={(_, v) => setTab(v)}
           variant="scrollable"
           allowScrollButtonsMobile
-          sx={{ mb: 2 }}
+          sx={{ mb: 3, borderBottom: "2px solid", borderColor: "divider" }}
         >
           <Tab label="Promotores" {...tabProps(0)} />
           <Tab label="Referidos" {...tabProps(1)} />
@@ -293,7 +356,11 @@ export default function ReferidosAdminPage() {
 
         {tab === 0 && (
           <Stack spacing={2}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              alignItems={{ xs: "stretch", sm: "center" }}
+            >
               <TextField
                 label="Buscar (correo, nombre, código)"
                 value={promoterQ}
@@ -301,7 +368,10 @@ export default function ReferidosAdminPage() {
                 size="small"
                 fullWidth
               />
-              <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+              <FormControl
+                size="small"
+                sx={{ minWidth: { xs: "100%", sm: 200 } }}
+              >
                 <InputLabel>Estado</InputLabel>
                 <Select
                   label="Estado"
@@ -309,24 +379,40 @@ export default function ReferidosAdminPage() {
                   onChange={(e) => setPromoterStatus(e.target.value)}
                 >
                   <MenuItem value="">Todos</MenuItem>
-                  <MenuItem value="ACTIVE">Activo</MenuItem>
-                  <MenuItem value="INACTIVE">Inactivo</MenuItem>
-                  <MenuItem value="PENDING_EMAIL_VERIFICATION">Pendiente email</MenuItem>
+                  {Object.values(PROMOTER_STATUS).map((s) => (
+                    <MenuItem key={s} value={s}>
+                      {PROMOTER_STATUS_LABELS[s] ?? s}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
               <Button
                 variant="contained"
-                startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <Refresh />}
+                startIcon={
+                  loading ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : (
+                    <Refresh />
+                  )
+                }
                 onClick={loadPromoters}
                 disabled={loading}
-                sx={{ width: { xs: '100%', sm: 'auto' } }}
+                sx={{
+                  width: { xs: "100%", sm: "auto" },
+                  minHeight: "44px",
+                }}
               >
                 Actualizar
               </Button>
             </Stack>
-            <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+
+            <Box sx={{ display: { xs: "block", sm: "none" } }}>
               {promoters.length === 0 ? (
-                !loading && <Alert severity="info">No hay promotores con los filtros actuales.</Alert>
+                !loading && (
+                  <Alert severity="info">
+                    No hay promotores con los filtros actuales.
+                  </Alert>
+                )
               ) : (
                 <Stack spacing={1.5}>
                   {promoters.map((p) => (
@@ -334,30 +420,57 @@ export default function ReferidosAdminPage() {
                       key={p.id}
                       sx={{
                         p: 1.5,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 2,
-                        bgcolor: 'background.paper',
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 1,
+                        bgcolor: "background.paper",
                       }}
                     >
                       <Typography fontWeight={700}>{p.fullName}</Typography>
                       <Typography variant="body2" color="text.secondary">
                         {p.email}
                       </Typography>
-                      <Typography component="code" sx={{ display: 'inline-block', mt: 0.5, fontSize: '0.8rem' }}>
+                      <Typography
+                        component="code"
+                        sx={{
+                          display: "inline-block",
+                          mt: 0.5,
+                          fontSize: "0.8rem",
+                        }}
+                      >
                         {p.promoCode}
                       </Typography>
-                      <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
-                        <Chip size="small" label={p.status} variant="outlined" />
-                        <Chip size="small" label={`Referidos: ${p.referralsCount}`} variant="outlined" />
-                        <Chip size="small" label={`Alta: ${new Date(p.createdAt).toLocaleDateString('es-ES')}`} variant="outlined" />
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ mt: 1, flexWrap: "wrap" }}
+                      >
+                        <Chip
+                          size="small"
+                          label={PROMOTER_STATUS_LABELS[p.status] ?? p.status}
+                          variant="filled"
+                          color={getPromoterStatusColor(p.status)}
+                        />
+                        <Chip
+                          size="small"
+                          label={`Referidos: ${p.referralsCount}`}
+                          variant="outlined"
+                        />
+                        <Chip
+                          size="small"
+                          label={`Alta: ${new Date(p.createdAt).toLocaleDateString("es-ES")}`}
+                          variant="outlined"
+                        />
                       </Stack>
                       <Button
                         size="small"
                         startIcon={<Visibility />}
-                        sx={{ mt: 1 }}
+                        sx={{ mt: 1, minHeight: "44px" }}
                         onClick={() => {
-                          setRefPromoterFilter({ id: p.id, label: `${p.fullName} (${p.promoCode})` });
+                          setRefPromoterFilter({
+                            id: p.id,
+                            label: `${p.fullName} (${p.promoCode})`,
+                          });
                           setTab(1);
                         }}
                       >
@@ -369,22 +482,31 @@ export default function ReferidosAdminPage() {
               )}
             </Box>
 
-            <TableContainer sx={{ overflowX: 'auto', display: { xs: 'none', sm: 'block' } }}>
+            <TableContainer
+              sx={{ overflowX: "auto", display: { xs: "none", sm: "block" } }}
+            >
               <Table size="small" sx={{ minWidth: 760 }}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Nombre</TableCell>
-                    <TableCell>Correo</TableCell>
-                    <TableCell>Código</TableCell>
-                    <TableCell>Estado</TableCell>
-                    <TableCell align="right">Referidos</TableCell>
-                    <TableCell>Alta</TableCell>
-                    <TableCell align="right">Acciones</TableCell>
+                  <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
+                    <TableCell sx={{ fontWeight: 600 }}>Nombre</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Correo</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Código</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Estado</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>
+                      Referidos
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Alta</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>
+                      Acciones
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {promoters.map((p) => (
-                    <TableRow key={p.id}>
+                    <TableRow
+                      key={p.id}
+                      sx={{ "&:hover": { bgcolor: "semantic.surface.sunken" } }}
+                    >
                       <TableCell>{p.fullName}</TableCell>
                       <TableCell>{p.email}</TableCell>
                       <TableCell>
@@ -392,15 +514,28 @@ export default function ReferidosAdminPage() {
                           {p.promoCode}
                         </Typography>
                       </TableCell>
-                      <TableCell>{p.status}</TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={PROMOTER_STATUS_LABELS[p.status] ?? p.status}
+                          variant="filled"
+                          color={getPromoterStatusColor(p.status)}
+                        />
+                      </TableCell>
                       <TableCell align="right">{p.referralsCount}</TableCell>
-                      <TableCell>{new Date(p.createdAt).toLocaleDateString('es-ES')}</TableCell>
+                      <TableCell>
+                        {new Date(p.createdAt).toLocaleDateString("es-ES")}
+                      </TableCell>
                       <TableCell align="right">
                         <Button
                           size="small"
                           startIcon={<Visibility />}
+                          sx={{ minHeight: "44px" }}
                           onClick={() => {
-                            setRefPromoterFilter({ id: p.id, label: `${p.fullName} (${p.promoCode})` });
+                            setRefPromoterFilter({
+                              id: p.id,
+                              label: `${p.fullName} (${p.promoCode})`,
+                            });
                             setTab(1);
                           }}
                         >
@@ -413,7 +548,10 @@ export default function ReferidosAdminPage() {
               </Table>
             </TableContainer>
             {promoters.length === 0 && !loading && (
-              <Alert severity="info" sx={{ display: { xs: 'none', sm: 'flex' } }}>
+              <Alert
+                severity="info"
+                sx={{ display: { xs: "none", sm: "flex" } }}
+              >
                 No hay promotores con los filtros actuales.
               </Alert>
             )}
@@ -426,16 +564,28 @@ export default function ReferidosAdminPage() {
               <Alert
                 severity="info"
                 action={
-                  <Button size="small" onClick={() => setRefPromoterFilter(null)}>
+                  <Button
+                    size="small"
+                    onClick={() => setRefPromoterFilter(null)}
+                  >
                     Quitar filtro
                   </Button>
                 }
               >
-                Mostrando referidos del promotor: <strong>{refPromoterFilter.label}</strong>
+                Mostrando referidos del promotor:{" "}
+                <strong>{refPromoterFilter.label}</strong>
               </Alert>
             )}
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} flexWrap="wrap" alignItems={{ xs: 'stretch', md: 'center' }}>
-              <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 220 } }}>
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={2}
+              flexWrap="wrap"
+              alignItems={{ xs: "stretch", md: "center" }}
+            >
+              <FormControl
+                size="small"
+                sx={{ minWidth: { xs: "100%", md: 220 } }}
+              >
                 <InputLabel>Estado referido</InputLabel>
                 <Select
                   label="Estado referido"
@@ -450,9 +600,16 @@ export default function ReferidosAdminPage() {
                   ))}
                 </Select>
               </FormControl>
-              <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 200 } }}>
+              <FormControl
+                size="small"
+                sx={{ minWidth: { xs: "100%", md: 200 } }}
+              >
                 <InputLabel>Plan (1er pago)</InputLabel>
-                <Select label="Plan (1er pago)" value={refPlanId} onChange={(e) => setRefPlanId(e.target.value)}>
+                <Select
+                  label="Plan (1er pago)"
+                  value={refPlanId}
+                  onChange={(e) => setRefPlanId(e.target.value)}
+                >
                   <MenuItem value="">Todos</MenuItem>
                   {planes.map((pl) => (
                     <MenuItem key={pl.id} value={pl.id}>
@@ -468,7 +625,7 @@ export default function ReferidosAdminPage() {
                 InputLabelProps={{ shrink: true }}
                 value={refFrom}
                 onChange={(e) => setRefFrom(e.target.value)}
-                sx={{ width: { xs: '100%', md: 170 } }}
+                sx={{ width: { xs: "100%", md: 170 } }}
               />
               <TextField
                 label="Hasta"
@@ -477,21 +634,35 @@ export default function ReferidosAdminPage() {
                 InputLabelProps={{ shrink: true }}
                 value={refTo}
                 onChange={(e) => setRefTo(e.target.value)}
-                sx={{ width: { xs: '100%', md: 170 } }}
+                sx={{ width: { xs: "100%", md: 170 } }}
               />
               <Button
                 variant="contained"
-                startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <Refresh />}
+                startIcon={
+                  loading ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : (
+                    <Refresh />
+                  )
+                }
                 onClick={loadReferrals}
                 disabled={loading}
-                sx={{ width: { xs: '100%', md: 'auto' } }}
+                sx={{
+                  width: { xs: "100%", md: "auto" },
+                  minHeight: "44px",
+                }}
               >
                 Actualizar
               </Button>
             </Stack>
-            <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+
+            <Box sx={{ display: { xs: "block", sm: "none" } }}>
               {referrals.length === 0 ? (
-                !loading && <Alert severity="info">No hay referidos con los filtros actuales.</Alert>
+                !loading && (
+                  <Alert severity="info">
+                    No hay referidos con los filtros actuales.
+                  </Alert>
+                )
               ) : (
                 <Stack spacing={1.5}>
                   {referrals.map((r) => (
@@ -499,29 +670,60 @@ export default function ReferidosAdminPage() {
                       key={r.id}
                       sx={{
                         p: 1.5,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 2,
-                        bgcolor: 'background.paper',
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 1,
+                        bgcolor: "background.paper",
                       }}
                     >
-                      <Typography fontWeight={700}>{r.newBusiness?.nombre ?? '—'}</Typography>
+                      <Typography fontWeight={700}>
+                        {r.newBusiness?.nombre ?? "—"}
+                      </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {r.promoter.fullName} ({r.promoter.promoCode})
                       </Typography>
-                      <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
-                        <Chip size="small" label={REFERRAL_STATUS_LABELS[r.status] ?? r.status} variant="outlined" />
-                        <Chip size="small" label={`Liquidación: ${r.liquidation?.status ?? '—'}`} variant="outlined" />
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ mt: 1, flexWrap: "wrap" }}
+                      >
+                        <Chip
+                          size="small"
+                          label={REFERRAL_STATUS_LABELS[r.status] ?? r.status}
+                          variant="filled"
+                          color={getStatusColor(r.status)}
+                        />
+                        <Chip
+                          size="small"
+                          label={`Liquidación: ${r.liquidation?.status ?? "—"}`}
+                          variant="outlined"
+                        />
                       </Stack>
                       <Typography variant="body2" sx={{ mt: 1 }}>
-                        <strong>Desc. / Recomp.:</strong> {formatMoney(r.newBusinessDiscountSnapshot)} / {formatMoney(r.promoterRewardSnapshot)}
+                        <strong>Desc. / Recomp.:</strong>{" "}
+                        {formatMoney(r.newBusinessDiscountSnapshot)} /{" "}
+                        {formatMoney(r.promoterRewardSnapshot)}
                       </Typography>
-                      <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
-                        <Button size="small" startIcon={<History />} onClick={() => openEvents(r.id)}>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ mt: 1, flexWrap: "wrap" }}
+                      >
+                        <Button
+                          size="small"
+                          startIcon={<History />}
+                          onClick={() => openEvents(r.id)}
+                          sx={{ minHeight: "44px" }}
+                        >
                           Historial
                         </Button>
                         {r.status === REFERRAL_STATUS.liquidationPending && (
-                          <Button size="small" variant="outlined" onClick={() => openLiquidate(r)}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => openLiquidate(r)}
+                            sx={{ minHeight: "44px" }}
+                          >
                             Liquidar
                           </Button>
                         )}
@@ -532,40 +734,73 @@ export default function ReferidosAdminPage() {
               )}
             </Box>
 
-            <TableContainer sx={{ overflowX: 'auto', display: { xs: 'none', sm: 'block' } }}>
+            <TableContainer
+              sx={{ overflowX: "auto", display: { xs: "none", sm: "block" } }}
+            >
               <Table size="small" sx={{ minWidth: 960 }}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Negocio</TableCell>
-                    <TableCell>Promotor</TableCell>
-                    <TableCell>Estado</TableCell>
-                    <TableCell>Desc. / Recomp.</TableCell>
-                    <TableCell>Liquidación</TableCell>
-                    <TableCell align="right">Acciones</TableCell>
+                  <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
+                    <TableCell sx={{ fontWeight: 600 }}>Negocio</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Promotor</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Estado</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>
+                      Desc. / Recomp.
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Liquidación</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>
+                      Acciones
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {referrals.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell>{r.newBusiness?.nombre ?? '—'}</TableCell>
+                    <TableRow
+                      key={r.id}
+                      sx={{ "&:hover": { bgcolor: "semantic.surface.sunken" } }}
+                    >
+                      <TableCell>{r.newBusiness?.nombre ?? "—"}</TableCell>
                       <TableCell>
-                        <Typography variant="body2">{r.promoter.fullName}</Typography>
+                        <Typography variant="body2">
+                          {r.promoter.fullName}
+                        </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {r.promoter.promoCode}
                         </Typography>
                       </TableCell>
-                      <TableCell>{REFERRAL_STATUS_LABELS[r.status] ?? r.status}</TableCell>
                       <TableCell>
-                        {formatMoney(r.newBusinessDiscountSnapshot)} / {formatMoney(r.promoterRewardSnapshot)}
+                        <Chip
+                          size="small"
+                          label={REFERRAL_STATUS_LABELS[r.status] ?? r.status}
+                          variant="filled"
+                          color={getStatusColor(r.status)}
+                        />
                       </TableCell>
-                      <TableCell>{r.liquidation?.status ?? '—'}</TableCell>
+                      <TableCell>
+                        {formatMoney(r.newBusinessDiscountSnapshot)} /{" "}
+                        {formatMoney(r.promoterRewardSnapshot)}
+                      </TableCell>
+                      <TableCell>{r.liquidation?.status ?? "—"}</TableCell>
                       <TableCell align="right">
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end">
-                          <Button size="small" startIcon={<History />} onClick={() => openEvents(r.id)}>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                          justifyContent="flex-end"
+                        >
+                          <Button
+                            size="small"
+                            startIcon={<History />}
+                            onClick={() => openEvents(r.id)}
+                            sx={{ minHeight: "44px" }}
+                          >
                             Historial
                           </Button>
                           {r.status === REFERRAL_STATUS.liquidationPending && (
-                            <Button size="small" variant="outlined" onClick={() => openLiquidate(r)}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => openLiquidate(r)}
+                              sx={{ minHeight: "44px" }}
+                            >
                               Liquidar
                             </Button>
                           )}
@@ -577,7 +812,10 @@ export default function ReferidosAdminPage() {
               </Table>
             </TableContainer>
             {referrals.length === 0 && !loading && (
-              <Alert severity="info" sx={{ display: { xs: 'none', sm: 'flex' } }}>
+              <Alert
+                severity="info"
+                sx={{ display: { xs: "none", sm: "flex" } }}
+              >
                 No hay referidos con los filtros actuales.
               </Alert>
             )}
@@ -587,24 +825,41 @@ export default function ReferidosAdminPage() {
         {tab === 2 && (
           <Stack spacing={2}>
             <Alert severity="info">
-              Para registrar el <strong>primer pago</strong> de un referido, el plan elegido debe tener una regla
-              aquí y el plan debe estar <strong>activo</strong>. El descuento aplica al negocio referido y la
-              recompensa al promotor (valores en la moneda del plan, p. ej. USD).
+              Para registrar el <strong>primer pago</strong> de un referido, el
+              plan elegido debe tener una regla aquí y el plan debe estar{" "}
+              <strong>activo</strong>. El descuento aplica al negocio referido y
+              la recompensa al promotor (valores en la moneda del plan, p. ej.
+              USD).
             </Alert>
-            <Stack direction="row" justifyContent={{ xs: 'stretch', sm: 'flex-end' }}>
+            <Stack
+              direction="row"
+              justifyContent={{ xs: "stretch", sm: "flex-end" }}
+            >
               <Button
                 variant="contained"
-                startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <Refresh />}
+                startIcon={
+                  loading ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : (
+                    <Refresh />
+                  )
+                }
                 onClick={loadRewardRules}
                 disabled={loading}
-                sx={{ width: { xs: '100%', sm: 'auto' } }}
+                sx={{
+                  width: { xs: "100%", sm: "auto" },
+                  minHeight: "44px",
+                }}
               >
                 Actualizar
               </Button>
             </Stack>
-            <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+
+            <Box sx={{ display: { xs: "block", sm: "none" } }}>
               {rewardRows.length === 0 ? (
-                !loading && <Alert severity="warning">No hay planes en el sistema.</Alert>
+                !loading && (
+                  <Alert severity="warning">No hay planes en el sistema.</Alert>
+                )
               ) : (
                 <Stack spacing={1.5}>
                   {rewardRows.map((row) => (
@@ -612,34 +867,65 @@ export default function ReferidosAdminPage() {
                       key={row.planId}
                       sx={{
                         p: 1.5,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 2,
-                        bgcolor: 'background.paper',
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 1,
+                        bgcolor: "background.paper",
                       }}
                     >
                       <Typography fontWeight={700}>{row.planNombre}</Typography>
-                      <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
-                        <Chip size="small" label={row.planActivo ? 'Plan activo' : 'Plan inactivo'} color={row.planActivo ? 'success' : 'default'} variant="outlined" />
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ mt: 1, flexWrap: "wrap" }}
+                      >
+                        <Chip
+                          size="small"
+                          label={
+                            row.planActivo ? "Plan activo" : "Plan inactivo"
+                          }
+                          color={row.planActivo ? "success" : "default"}
+                          variant="filled"
+                        />
                         {!row.rule ? (
-                          <Chip size="small" label="Sin regla" color="warning" variant="outlined" />
+                          <Chip
+                            size="small"
+                            label="Sin regla"
+                            color="warning"
+                            variant="filled"
+                          />
                         ) : (
                           <Chip
                             size="small"
-                            label={row.rule.isActive ? 'Regla activa' : 'Regla inactiva'}
-                            color={row.rule.isActive ? 'success' : 'default'}
-                            variant="outlined"
+                            label={
+                              row.rule.isActive
+                                ? "Regla activa"
+                                : "Regla inactiva"
+                            }
+                            color={row.rule.isActive ? "success" : "default"}
+                            variant="filled"
                           />
                         )}
                       </Stack>
                       <Typography variant="body2" sx={{ mt: 1 }}>
-                        <strong>Descuento:</strong> {row.rule != null ? formatMoney(row.rule.discountForNewBusiness) : '—'}
+                        <strong>Descuento:</strong>{" "}
+                        {row.rule != null
+                          ? formatMoney(row.rule.discountForNewBusiness)
+                          : "—"}
                       </Typography>
                       <Typography variant="body2">
-                        <strong>Recompensa:</strong> {row.rule != null ? formatMoney(row.rule.rewardForPromoter) : '—'}
+                        <strong>Recompensa:</strong>{" "}
+                        {row.rule != null
+                          ? formatMoney(row.rule.rewardForPromoter)
+                          : "—"}
                       </Typography>
-                      <Button size="small" startIcon={<Edit />} sx={{ mt: 1 }} onClick={() => openRuleDialog(row)}>
-                        {row.rule ? 'Editar' : 'Crear'}
+                      <Button
+                        size="small"
+                        startIcon={<Edit />}
+                        sx={{ mt: 1, minHeight: "44px" }}
+                        onClick={() => openRuleDialog(row)}
+                      >
+                        {row.rule ? "Editar" : "Crear"}
                       </Button>
                     </Box>
                   ))}
@@ -647,51 +933,76 @@ export default function ReferidosAdminPage() {
               )}
             </Box>
 
-            <TableContainer sx={{ overflowX: 'auto', display: { xs: 'none', sm: 'block' } }}>
+            <TableContainer
+              sx={{ overflowX: "auto", display: { xs: "none", sm: "block" } }}
+            >
               <Table size="small" sx={{ minWidth: 880 }}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Plan</TableCell>
-                    <TableCell>Plan activo</TableCell>
-                    <TableCell align="right">Descuento negocio</TableCell>
-                    <TableCell align="right">Recompensa promotor</TableCell>
-                    <TableCell>Regla</TableCell>
-                    <TableCell align="right">Acciones</TableCell>
+                  <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
+                    <TableCell sx={{ fontWeight: 600 }}>Plan</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Plan activo</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>
+                      Descuento negocio
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>
+                      Recompensa promotor
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Regla</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>
+                      Acciones
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {rewardRows.map((row) => (
-                    <TableRow key={row.planId}>
+                    <TableRow
+                      key={row.planId}
+                      sx={{ "&:hover": { bgcolor: "semantic.surface.sunken" } }}
+                    >
                       <TableCell>{row.planNombre}</TableCell>
                       <TableCell>
                         <Chip
                           size="small"
-                          label={row.planActivo ? 'Sí' : 'No'}
-                          color={row.planActivo ? 'success' : 'default'}
-                          variant="outlined"
+                          label={row.planActivo ? "Sí" : "No"}
+                          color={row.planActivo ? "success" : "default"}
+                          variant="filled"
                         />
                       </TableCell>
                       <TableCell align="right">
-                        {row.rule != null ? formatMoney(row.rule.discountForNewBusiness) : '—'}
+                        {row.rule != null
+                          ? formatMoney(row.rule.discountForNewBusiness)
+                          : "—"}
                       </TableCell>
                       <TableCell align="right">
-                        {row.rule != null ? formatMoney(row.rule.rewardForPromoter) : '—'}
+                        {row.rule != null
+                          ? formatMoney(row.rule.rewardForPromoter)
+                          : "—"}
                       </TableCell>
                       <TableCell>
                         {!row.rule ? (
-                          <Chip size="small" label="Sin regla" color="warning" variant="outlined" />
+                          <Chip
+                            size="small"
+                            label="Sin regla"
+                            color="warning"
+                            variant="filled"
+                          />
                         ) : (
                           <Chip
                             size="small"
-                            label={row.rule.isActive ? 'Activa' : 'Inactiva'}
-                            color={row.rule.isActive ? 'success' : 'default'}
-                            variant="outlined"
+                            label={row.rule.isActive ? "Activa" : "Inactiva"}
+                            color={row.rule.isActive ? "success" : "default"}
+                            variant="filled"
                           />
                         )}
                       </TableCell>
                       <TableCell align="right">
-                        <Button size="small" startIcon={<Edit />} onClick={() => openRuleDialog(row)}>
-                          {row.rule ? 'Editar' : 'Crear'}
+                        <Button
+                          size="small"
+                          startIcon={<Edit />}
+                          onClick={() => openRuleDialog(row)}
+                          sx={{ minHeight: "44px" }}
+                        >
+                          {row.rule ? "Editar" : "Crear"}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -700,7 +1011,10 @@ export default function ReferidosAdminPage() {
               </Table>
             </TableContainer>
             {rewardRows.length === 0 && !loading && (
-              <Alert severity="warning" sx={{ display: { xs: 'none', sm: 'flex' } }}>
+              <Alert
+                severity="warning"
+                sx={{ display: { xs: "none", sm: "flex" } }}
+              >
                 No hay planes en el sistema.
               </Alert>
             )}
@@ -708,12 +1022,32 @@ export default function ReferidosAdminPage() {
         )}
       </ContentCard>
 
-      <Dialog open={liquidateOpen} onClose={() => setLiquidateOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Liquidar referido</DialogTitle>
+      <Dialog
+        open={liquidateOpen}
+        onClose={() => setLiquidateOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Liquidar referido
+          {isMobile && (
+            <IconButton onClick={() => setLiquidateOpen(false)}>
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Negocio: {selectedReferral?.newBusiness?.nombre ?? '—'} · Recompensa snapshot:{' '}
+              Negocio: {selectedReferral?.newBusiness?.nombre ?? "—"} ·
+              Recompensa snapshot:{" "}
               {formatMoney(selectedReferral?.promoterRewardSnapshot ?? null)}
             </Typography>
             <TextField
@@ -747,23 +1081,59 @@ export default function ReferidosAdminPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setLiquidateOpen(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={submitLiquidate}>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={() => setLiquidateOpen(false)}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={submitLiquidate}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
+          >
             Confirmar liquidación
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={ruleDialogOpen} onClose={() => setRuleDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Regla de recompensa — {ruleEditPlanNombre}</DialogTitle>
+      <Dialog
+        open={ruleDialogOpen}
+        onClose={() => setRuleDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Regla de recompensa — {ruleEditPlanNombre}
+          {isMobile && (
+            <IconButton onClick={() => setRuleDialogOpen(false)}>
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
               label="Descuento para el negocio referido"
               type="number"
               fullWidth
-              inputProps={{ min: 0, step: 'any' }}
+              inputProps={{ min: 0, step: "any" }}
               value={ruleDiscount}
               onChange={(e) => setRuleDiscount(e.target.value)}
               helperText="Importe de beneficio/descuento para el negocio que llega referido (según tu política comercial)."
@@ -772,48 +1142,112 @@ export default function ReferidosAdminPage() {
               label="Recompensa para el promotor"
               type="number"
               fullWidth
-              inputProps={{ min: 0, step: 'any' }}
+              inputProps={{ min: 0, step: "any" }}
               value={ruleReward}
               onChange={(e) => setRuleReward(e.target.value)}
               helperText="Importe que verá el promotor al calificar el referido con este plan."
             />
             <FormControlLabel
-              control={<Switch checked={ruleIsActive} onChange={(_, c) => setRuleIsActive(c)} color="primary" />}
+              control={
+                <Switch
+                  checked={ruleIsActive}
+                  onChange={(_, c) => setRuleIsActive(c)}
+                  color="primary"
+                />
+              }
               label="Regla activa (solo las activas permiten registrar primer pago con este plan)"
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRuleDialogOpen(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={submitRuleDialog}>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={() => setRuleDialogOpen(false)}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={submitRuleDialog}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
+          >
             Guardar
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={eventsOpen} onClose={() => setEventsOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Historial de eventos</DialogTitle>
+      <Dialog
+        open={eventsOpen}
+        onClose={() => setEventsOpen(false)}
+        maxWidth="md"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Historial de eventos
+          {isMobile && (
+            <IconButton onClick={() => setEventsOpen(false)}>
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           {eventsLoading ? (
             <CircularProgress />
           ) : (
             <Stack spacing={1} sx={{ mt: 1 }}>
               {events.map((ev) => (
-                <Box key={ev.id} sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1 }}>
+                <Box
+                  key={ev.id}
+                  sx={{
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    pb: 1,
+                  }}
+                >
                   <Typography variant="caption" color="text.secondary">
-                    {new Date(ev.createdAt).toLocaleString('es-ES')} · {ev.eventType}
+                    {new Date(ev.createdAt).toLocaleString("es-ES")} ·{" "}
+                    {ev.eventType}
                   </Typography>
-                  <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>
-                    {ev.payload ? JSON.stringify(ev.payload, null, 2) : '—'}
+                  <Typography
+                    variant="body2"
+                    component="pre"
+                    sx={{ whiteSpace: "pre-wrap", fontSize: 12 }}
+                  >
+                    {ev.payload ? JSON.stringify(ev.payload, null, 2) : "—"}
                   </Typography>
                 </Box>
               ))}
-              {events.length === 0 && <Typography color="text.secondary">Sin eventos registrados.</Typography>}
+              {events.length === 0 && (
+                <Typography color="text.secondary">
+                  Sin eventos registrados.
+                </Typography>
+              )}
             </Stack>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEventsOpen(false)}>Cerrar</Button>
+          <Button
+            onClick={() => setEventsOpen(false)}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cerrar
+          </Button>
         </DialogActions>
       </Dialog>
     </PageContainer>

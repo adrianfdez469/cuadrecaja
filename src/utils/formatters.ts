@@ -99,7 +99,11 @@ export const getRelativeDate = (date: number | Date): string => {
  * Formatea días restantes con texto descriptivo
  */
 export const formatDaysRemaining = (days: number): string => {
-  if (days <= 0) return "Expirado";
+  if (days === 0) return "Venció hoy";
+  if (days < 0) {
+    const expired = Math.abs(days);
+    return expired === 1 ? "Venció hace 1 día" : `Venció hace ${expired} días`;
+  }
   if (days === 1) return "1 día restante";
   if (days <= 7) return `${days} días restantes`;
   if (days <= 30) return `${days} días restantes`;
@@ -262,3 +266,72 @@ export const formatAdvertenciasCaja = (
         `La compra en ${a.moneda} superó el efectivo en caja (disponible: ${formatMontoEnMoneda(a.disponible, a.moneda)}) — se tomaron ${formatMontoEnMoneda(a.fondeoExterno, a.moneda)} de fondeo externo`,
     )
     .join(". ");
+
+/**
+ * Matches a v4-shaped UUID anywhere in a string.
+ * Kept loose on the version nibble so older seeded ids still match.
+ */
+const UUID_PATTERN =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+
+/**
+ * Makes a stock movement's reason readable.
+ *
+ * The backend stores the originating sale inside the text — `Venta
+ * 587664ec-63a7-436a-adb3-36c1b7f2d2b4` — and the table printed it verbatim,
+ * so a 36-character identifier nobody can read pushed every other column
+ * sideways. Shortening rather than stripping keeps the row traceable: the
+ * first block is enough to match against a sale, and the full id is still on
+ * the record.
+ *
+ * Applied at render time on purpose — the reasons already stored in the
+ * database carry the full id, so fixing only the writers would leave every
+ * historical row untouched.
+ */
+export const formatMovimientoMotivo = (
+  motivo: string | null | undefined,
+): string => {
+  if (!motivo) return "";
+  return motivo.replace(UUID_PATTERN, (id) => `#${id.slice(0, 8)}`).trim();
+};
+
+/**
+ * Compact form for large amounts: `$20.015.010.459,71` becomes `$20,02 MM`.
+ *
+ * Summary tiles show totals that in CUP routinely run to ten or eleven digits,
+ * and at that length the number stops being readable — it overflows the tile
+ * and, worse, two tiles side by side can no longer be compared at a glance,
+ * which is the only reason the tile exists.
+ *
+ * Only for display in tiles and charts. Anywhere the exact figure matters —
+ * tables, receipts, closings, anything the user reconciles against cash — keep
+ * using `formatCurrency` or `formatMontoEnMoneda`.
+ *
+ * Spanish scale abbreviations, not the English ones: `mil`, `MM` (millones) and
+ * `MMM` (miles de millones).
+ */
+const COMPACT_TIERS = [
+  { threshold: 1_000_000_000, divisor: 1_000_000_000, suffix: "MMM" },
+  { threshold: 1_000_000, divisor: 1_000_000, suffix: "MM" },
+  { threshold: 10_000, divisor: 1_000, suffix: "mil" },
+] as const;
+
+export const formatCompactAmount = (amount: number): string => {
+  const value = amount || 0;
+  const magnitude = Math.abs(value);
+  const tier = COMPACT_TIERS.find((t) => magnitude >= t.threshold);
+
+  // Below the smallest tier the plain figure is already short enough, and
+  // rounding it would lose precision the reader can see is missing.
+  if (!tier) return formatAmount(value, LOCALE);
+
+  return `${formatNumberWith(
+    value / tier.divisor,
+    { minimumFractionDigits: 0, maximumFractionDigits: 2 },
+    LOCALE,
+  )} ${tier.suffix}`;
+};
+
+/** `formatCompactAmount` with the base-currency symbol. Tiles and charts only. */
+export const formatCurrencyCompact = (amount: number): string =>
+  `${CURRENCY_SYMBOL}${formatCompactAmount(amount)}`;

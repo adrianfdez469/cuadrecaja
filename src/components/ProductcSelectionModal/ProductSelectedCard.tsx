@@ -169,13 +169,12 @@ const ProductSelectedCard: React.FC<ProductSelectedCardProps> = ({
                   : formatCurrency(costoTotal)}
               </Typography>
               <IconButton
-                size="small"
                 color="error"
                 onClick={onEliminar}
                 aria-label={`Eliminar ${name} de la selección`}
-                sx={{ p: 0.5 }}
+                sx={{ width: 44, height: 44 }}
               >
-                <Delete fontSize="small" />
+                <Delete />
               </IconButton>
             </Box>
           </Box>

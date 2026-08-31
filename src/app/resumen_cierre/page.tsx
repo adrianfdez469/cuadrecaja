@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { StatStrip } from "@/components/StatStrip";
+import { SectionLabel } from "@/components/SectionLabel";
 import {
   Box,
   Table,
@@ -44,17 +46,10 @@ import {
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import {
   Close,
-  AttachMoney,
-  TrendingUp,
-  TrendingDown,
-  Assessment,
   Refresh,
   FilterList,
   ArrowForward,
   AccountBalance,
-  ShoppingCart,
-  BrokenImage,
-  Undo,
 } from "@mui/icons-material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
@@ -450,63 +445,6 @@ export default function ResumenCierrePage() {
   };
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color,
-  }: {
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: "100%" }}>
-      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 1 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: isMobile ? 40 : 48,
-              minHeight: isMobile ? 40 : 48,
-            }}
-          >
-            {icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="bold"
-              sx={{
-                fontSize: isMobile ? "1.25rem" : "2rem",
-                lineHeight: 1.2,
-                wordBreak: "break-all",
-              }}
-            >
-              {value}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? "0.75rem" : "0.875rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   const breadcrumbs = [
     { label: "Inicio", href: "/home" },
     { label: "Resumen de Cierres" },
@@ -682,160 +620,71 @@ export default function ResumenCierrePage() {
 
       {data && data.cierres.length > 0 && (
         <>
-          {/* Estadísticas generales */}
-          <Grid
-            container
-            spacing={isMobile ? 2 : 3}
-            sx={{ mb: isMobile ? 3 : 4 }}
-          >
-            <Grid item xs={12} sm={6} md={4}>
-              <StatCard
-                icon={<AttachMoney fontSize={"medium"} />}
-                value={fmtS(data.sumTotalVentas)}
-                label="Total Ventas"
-                color="success.light"
-              />
-            </Grid>
+          {/* Bandas de cifras agrupadas con eyebrows */}
 
-            <Grid item xs={12} sm={6} md={4}>
-              <StatCard
-                icon={<TrendingUp fontSize={"medium"} />}
-                value={fmtS(
+          {/* Resultado del rango */}
+          <SectionLabel>Resultado del rango</SectionLabel>
+          <StatStrip
+            variant="card"
+            stats={[
+              { label: "Total Ventas", value: fmtS(data.sumTotalVentas) },
+              {
+                label: "Ganancia Final",
+                value: fmtS(
                   data.sumTotalGananciaFinal ?? data.sumTotalGanancia,
-                )}
-                label="Ganancia Final"
-                color="info.light"
-              />
-            </Grid>
+                ),
+                tone:
+                  (data.sumTotalGananciaFinal ?? data.sumTotalGanancia) < 0
+                    ? "negative"
+                    : undefined,
+              },
+              ...((data.sumTotalGastos || 0) > 0
+                ? [
+                    {
+                      label: "Total Gastos",
+                      value: fmtS(data.sumTotalGastos || 0),
+                    },
+                  ]
+                : []),
+            ]}
+          />
 
-            {/* Gastos totales del intervalo */}
-            {(data.sumTotalGastos || 0) > 0 && (
-              <Grid item xs={12} sm={6} md={4}>
-                <StatCard
-                  icon={<TrendingDown fontSize={"medium"} />}
-                  value={fmtS(data.sumTotalGastos || 0)}
-                  label="Total Gastos"
-                  color="error.light"
-                />
-              </Grid>
-            )}
-
-            {/* Compras de mercancía pagadas con efectivo de caja — no afecta ganancia */}
-            {(data.sumTotalComprasCaja || 0) > 0 && (
-              <Grid item xs={12} sm={6} md={4}>
-                <StatCard
-                  icon={<ShoppingCart fontSize={"medium"} />}
-                  value={fmtS(data.sumTotalComprasCaja || 0)}
-                  label="Compras (efectivo de caja)"
-                  color="warning.light"
-                />
-              </Grid>
-            )}
-
-            {/* Merma — resta de ganancia, no de caja */}
-            {(data.sumTotalMerma || 0) > 0 && (
-              <Grid item xs={12} sm={6} md={4}>
-                <StatCard
-                  icon={<BrokenImage fontSize={"medium"} />}
-                  value={fmtS(data.sumTotalMerma || 0)}
-                  label="Merma"
-                  color="error.light"
-                />
-              </Grid>
-            )}
-
-            {/* Devoluciones de venta — resta de ganancia y de caja */}
-            {(data.sumTotalDevoluciones || 0) > 0 && (
-              <Grid item xs={12} sm={6} md={4}>
-                <StatCard
-                  icon={<Undo fontSize={"medium"} />}
-                  value={fmtS(data.sumTotalDevoluciones || 0)}
-                  label="Devoluciones de venta"
-                  color="error.light"
-                />
-              </Grid>
-            )}
-
-            <Grid item xs={12} sm={6} md={4}>
-              <StatCard
-                icon={<Assessment fontSize={"medium"} />}
-                value={fmtS(data.sumTotalInversion)}
-                label="Inversión Total"
-                color="warning.light"
-              />
-            </Grid>
-
-            {/* Ventas Brutas acumuladas (suma de precio*cantidad) */}
-            {typeof data.sumTotalVentasBrutas === "number" && (
-              <Grid item xs={12} sm={6} md={4}>
-                <StatCard
-                  icon={<AttachMoney fontSize={"medium"} />}
-                  value={fmtS(data.sumTotalVentasBrutas || 0)}
-                  label="Total Ventas (Bruto)"
-                  color="success.light"
-                />
-              </Grid>
-            )}
-
-            {/* Total de Descuentos del intervalo */}
-            {typeof data.sumTotalDescuentos === "number" &&
-              (data.sumTotalDescuentos || 0) > 0 && (
-                <Grid item xs={12} sm={6} md={4}>
-                  <StatCard
-                    icon={<TrendingUp fontSize={"medium"} />}
-                    value={fmtS(data.sumTotalDescuentos || 0)}
-                    label="Descuentos (intervalo)"
-                    color="error.light"
-                  />
-                </Grid>
-              )}
-
-            <Grid item xs={12} sm={6} md={4}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent sx={{ p: isMobile ? 1 : 3 }}>
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={isMobile ? 1 : 2}
-                  >
-                    <Box
-                      sx={{
-                        p: isMobile ? 1 : 1.5,
-                        borderRadius: 2,
-                        bgcolor: "primary.light",
-                        color: "white",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        minWidth: isMobile ? 40 : 48,
-                        minHeight: isMobile ? 40 : 48,
-                      }}
-                    >
-                      <Assessment fontSize={"medium"} />
-                    </Box>
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography
-                        variant={isMobile ? "h5" : "h4"}
-                        fontWeight="bold"
-                        sx={{
-                          fontSize: isMobile ? "1.25rem" : "2rem",
-                          lineHeight: 1.2,
-                          wordBreak: "break-all",
-                        }}
-                      >
-                        {fmtS(data.sumTotalTransferencia)}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          fontSize: isMobile ? "0.75rem" : "0.875rem",
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        Transferencias
-                      </Typography>
-                    </Box>
+          {/* Composición de las ventas */}
+          <SectionLabel>Composición de las ventas</SectionLabel>
+          <Box sx={{ mb: 3 }}>
+            <StatStrip
+              variant="card"
+              stats={[
+                ...((data.sumTotalVentasBrutas || 0) > 0
+                  ? [
+                      {
+                        label: "Total Ventas (Bruto)",
+                        value: fmtS(data.sumTotalVentasBrutas || 0),
+                      },
+                    ]
+                  : []),
+                {
+                  label: "Ventas Propias",
+                  value: fmtS(data?.sumTotalVentasPropias || 0),
+                },
+                {
+                  label: "Ventas Consignación",
+                  value: fmtS(data?.sumTotalVentasConsignacion || 0),
+                },
+                ...(typeof data.sumTotalDescuentos === "number" &&
+                (data.sumTotalDescuentos || 0) > 0
+                  ? [
+                      {
+                        label: "Descuentos (intervalo)",
+                        value: fmtS(data.sumTotalDescuentos || 0),
+                        tone: "negative" as const,
+                      },
+                    ]
+                  : []),
+                {
+                  label: "Transferencias",
+                  value: fmtS(data.sumTotalTransferencia),
+                  action: (
                     <Tooltip
                       title={
                         expandedTransfer ? "Ocultar desglose" : "Ver desglose"
@@ -845,54 +694,81 @@ export default function ResumenCierrePage() {
                         onClick={handleExpandTransferClick}
                         aria-expanded={expandedTransfer}
                         aria-label="mostrar desglose de transferencias"
-                        size={isMobile ? "small" : "medium"}
+                        size="small"
                         sx={{
+                          flexShrink: 0,
+                          color: "text.secondary",
                           transform: expandedTransfer
                             ? "rotate(180deg)"
                             : "rotate(0deg)",
                           transition: theme.transitions.create("transform", {
                             duration: theme.transitions.duration.shortest,
                           }),
-                          bgcolor: "action.hover",
-                          "&:hover": {
-                            bgcolor: "action.selected",
-                          },
                         }}
                       >
                         <ExpandMoreIcon />
                       </IconButton>
                     </Tooltip>
-                  </Stack>
-                </CardContent>
-                <Collapse in={expandedTransfer} timeout="auto" unmountOnExit>
-                  <CardContent sx={{ pt: 0 }}>
-                    <TransferenciasDesglose
-                      transferencias={data.desgloseTransferencias}
-                    />
-                  </CardContent>
-                </Collapse>
-              </Card>
-            </Grid>
+                  ),
+                },
+              ]}
+            />
 
-            {/* NUEVAS ESTADÍSTICAS DE CONSIGNACIÓN */}
-            <Grid item xs={12} sm={6} md={4}>
-              <StatCard
-                icon={<StoreIcon fontSize={"medium"} />}
-                value={fmtS(data?.sumTotalVentasPropias || 0)}
-                label="Ventas Propias"
-                color="success.dark"
-              />
-            </Grid>
+            <Collapse in={expandedTransfer} timeout="auto" unmountOnExit>
+              <Box
+                sx={{
+                  mt: 2,
+                  p: isMobile ? 2 : 3,
+                  bgcolor: "background.paper",
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 1.5,
+                }}
+              >
+                <TransferenciasDesglose
+                  transferencias={data.desgloseTransferencias}
+                />
+              </Box>
+            </Collapse>
+          </Box>
 
-            <Grid item xs={12} sm={6} md={4}>
-              <StatCard
-                icon={<HandshakeIcon fontSize={"medium"} />}
-                value={fmtS(data?.sumTotalVentasConsignacion || 0)}
-                label="Ventas Consignación"
-                color="secondary.light"
-              />
-            </Grid>
-          </Grid>
+          {/* Costos y pérdidas */}
+          <SectionLabel>Costos y pérdidas</SectionLabel>
+          <StatStrip
+            variant="card"
+            stats={[
+              {
+                label: "Inversión Total",
+                value: fmtS(data.sumTotalInversion),
+              },
+              ...((data.sumTotalComprasCaja || 0) > 0
+                ? [
+                    {
+                      label: "Compras (efectivo de caja)",
+                      value: fmtS(data.sumTotalComprasCaja || 0),
+                    },
+                  ]
+                : []),
+              ...((data.sumTotalMerma || 0) > 0
+                ? [
+                    {
+                      label: "Merma",
+                      value: fmtS(data.sumTotalMerma || 0),
+                      tone: "negative" as const,
+                    },
+                  ]
+                : []),
+              ...((data.sumTotalDevoluciones || 0) > 0
+                ? [
+                    {
+                      label: "Devoluciones de venta",
+                      value: fmtS(data.sumTotalDevoluciones || 0),
+                      tone: "negative" as const,
+                    },
+                  ]
+                : []),
+            ]}
+          />
 
           {/* Tabla de cierres */}
           <ContentCard
@@ -913,7 +789,7 @@ export default function ResumenCierrePage() {
                       sx={{
                         cursor: "pointer",
                         "&:hover": {
-                          backgroundColor: "action.hover",
+                          backgroundColor: "semantic.surface.sunken",
                         },
                       }}
                       onClick={() => handleViewMore(row)}
@@ -1201,10 +1077,7 @@ export default function ResumenCierrePage() {
                         key={row.id}
                         sx={{
                           "&:hover": {
-                            backgroundColor: "action.hover",
-                          },
-                          "&:nth-of-type(odd)": {
-                            backgroundColor: "rgba(0, 0, 0, 0.02)",
+                            backgroundColor: "semantic.surface.sunken",
                           },
                         }}
                       >
@@ -1322,7 +1195,10 @@ export default function ResumenCierrePage() {
 
                     {/* Fila de totales */}
                     <TableRow
-                      sx={{ bgcolor: "action.hover", fontWeight: "bold" }}
+                      sx={{
+                        bgcolor: "semantic.surface.sunken",
+                        fontWeight: "bold",
+                      }}
                     >
                       <TableCell colSpan={2}>
                         <Typography variant="body2" fontWeight="bold">
@@ -1499,8 +1375,8 @@ export default function ResumenCierrePage() {
                       onClick={handleCloseDetail}
                       size={isMobile ? "small" : "medium"}
                       sx={{
-                        bgcolor: "action.hover",
-                        "&:hover": { bgcolor: "action.selected" },
+                        bgcolor: "semantic.surface.sunken",
+                        "&:hover": { bgcolor: "semantic.surface.border" },
                       }}
                     >
                       <Close />
@@ -1565,122 +1441,75 @@ export default function ResumenCierrePage() {
                   />
 
                   {/* Estadísticas del cierre específico */}
-                  <Grid
-                    container
-                    spacing={isMobile ? 1.5 : 3}
-                    sx={{ mb: isMobile ? 2 : 3 }}
-                  >
-                    <Grid item xs={6} sm={6} md={3}>
-                      <StatCard
-                        icon={
-                          <AttachMoney
-                            fontSize={isMobile ? "medium" : "large"}
-                          />
+                  {/* The closed period's own figures, on one scale. Profit
+                      keeps its own panel — it is the answer the period was
+                      opened to produce. */}
+                  {verificarPermiso("operaciones.cierre.gananciascostos") && (
+                    <Box sx={{ mb: isMobile ? 2 : 3 }}>
+                      <GananciaCard
+                        gananciaBruta={cierreProducData.ciereData.totalGanancia}
+                        gananciaFinal={
+                          cierreProducData.totalGananciaFinal ??
+                          cierreProducData.ciereData.totalGanancia
                         }
-                        value={fmtD(cierreProducData.ciereData.totalVentas)}
-                        label="Total Ventas"
-                        color="success.light"
+                        deducciones={
+                          cierreProducData.ciereData.gananciaDeducciones || []
+                        }
+                        isMobile={isMobile}
+                        formatMonto={fmtD}
                       />
-                    </Grid>
+                    </Box>
+                  )}
 
-                    {verificarPermiso("operaciones.cierre.gananciascostos") ? (
-                      <Grid item xs={12} sm={6} md={3}>
-                        <GananciaCard
-                          gananciaBruta={
-                            cierreProducData.ciereData.totalGanancia
-                          }
-                          gananciaFinal={
-                            cierreProducData.totalGananciaFinal ??
-                            cierreProducData.ciereData.totalGanancia
-                          }
-                          deducciones={
-                            cierreProducData.ciereData.gananciaDeducciones || []
-                          }
-                          isMobile={isMobile}
-                          formatMonto={fmtD}
-                        />
-                      </Grid>
-                    ) : (
-                      <Grid item xs={6} sm={6} md={3}>
-                        <StatCard
-                          icon={
-                            <TrendingUp
-                              fontSize={isMobile ? "medium" : "large"}
-                            />
-                          }
-                          value={fmtD(
-                            cierreProducData.totalGananciaFinal ??
-                              cierreProducData.ciereData.totalGanancia,
-                          )}
-                          label="Ganancia Final"
-                          color="info.light"
-                        />
-                      </Grid>
-                    )}
-
-                    {/* Bruto y Descuentos del período */}
-                    <Grid item xs={6} sm={6} md={3}>
-                      <StatCard
-                        icon={
-                          <AttachMoney
-                            fontSize={isMobile ? "medium" : "large"}
-                          />
-                        }
-                        value={fmtD(
+                  <StatStrip
+                    variant="card"
+                    stats={[
+                      {
+                        label: "Total Ventas",
+                        value: fmtD(cierreProducData.ciereData.totalVentas),
+                      },
+                      ...(verificarPermiso("operaciones.cierre.gananciascostos")
+                        ? []
+                        : [
+                            {
+                              label: "Ganancia Final",
+                              value: fmtD(
+                                cierreProducData.totalGananciaFinal ??
+                                  cierreProducData.ciereData.totalGanancia,
+                              ),
+                            },
+                          ]),
+                      {
+                        label: "Total Ventas (Bruto)",
+                        value: fmtD(
                           cierreProducData.ciereData.totalVentasBrutas ?? 0,
-                        )}
-                        label="Total Ventas (Bruto)"
-                        color="success.light"
-                      />
-                    </Grid>
-
-                    {(cierreProducData.ciereData.totalDescuentos ?? 0) > 0 && (
-                      <Grid item xs={6} sm={6} md={3}>
-                        <StatCard
-                          icon={
-                            <TrendingUp
-                              fontSize={isMobile ? "medium" : "large"}
-                            />
-                          }
-                          value={fmtD(
-                            cierreProducData.ciereData.totalDescuentos ?? 0,
-                          )}
-                          label="Descuentos del Período"
-                          color="error.light"
-                        />
-                      </Grid>
-                    )}
-
-                    <Grid item xs={6} sm={6} md={3}>
-                      <StatCard
-                        icon={
-                          <Assessment
-                            fontSize={isMobile ? "medium" : "large"}
-                          />
-                        }
-                        value={formatNumber(
+                        ),
+                      },
+                      ...((cierreProducData.ciereData.totalDescuentos ?? 0) > 0
+                        ? [
+                            {
+                              label: "Descuentos del Período",
+                              value: fmtD(
+                                cierreProducData.ciereData.totalDescuentos ?? 0,
+                              ),
+                              tone: "negative" as const,
+                            },
+                          ]
+                        : []),
+                      {
+                        label: "Productos Vendidos",
+                        value: formatNumber(
                           cierreProducData.totales.totalCantidad,
-                        )}
-                        label="Productos Vendidos"
-                        color="primary.light"
-                      />
-                    </Grid>
-
-                    <Grid item xs={6} sm={6} md={3}>
-                      <StatCard
-                        icon={
-                          <AttachMoney
-                            fontSize={isMobile ? "medium" : "large"}
-                          />
-                        }
-                        value={fmtD(
+                        ),
+                      },
+                      {
+                        label: "Transferencias",
+                        value: fmtD(
                           cierreProducData.ciereData.totalTransferencia,
-                        )}
-                        label="Transferencias"
-                        color="warning.light"
-                      />
-                    </Grid>
-                  </Grid>
+                        ),
+                      },
+                    ]}
+                  />
 
                   {/* Desglose por moneda (multimoneda) */}
                   {cierreProducData.ciereData.resumenMonedas &&

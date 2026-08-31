@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -34,47 +34,61 @@ import {
   InputLabel,
   FormControl,
   FormHelperText,
-} from '@mui/material';
-import { Add, Delete, Edit, WorkspacePremium } from '@mui/icons-material';
-import { useRouter } from 'next/navigation';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { PageContainer } from '@/components/PageContainer';
-import { ContentCard } from '@/components/ContentCard';
-import { useAppContext } from '@/context/AppContext';
-import { useMessageContext } from '@/context/MessageContext';
-import { getPlanes, createPlan, updatePlan, deletePlan } from '@/services/planService';
-import { createPlanSchema, type IPlan, type ICreatePlan } from '@/schemas/plan';
+} from "@mui/material";
+import { Add, Delete, Edit, Close } from "@mui/icons-material";
+import { useRouter } from "next/navigation";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { PageContainer } from "@/components/PageContainer";
+import { ContentCard } from "@/components/ContentCard";
+import { useAppContext } from "@/context/AppContext";
+import { useMessageContext } from "@/context/MessageContext";
+import {
+  getPlanes,
+  createPlan,
+  updatePlan,
+  deletePlan,
+} from "@/services/planService";
+import { createPlanSchema, type IPlan, type ICreatePlan } from "@/schemas/plan";
 
-const MUI_COLORS = ['info', 'primary', 'secondary', 'warning', 'success', 'error', 'default'] as const;
+const MUI_COLORS = [
+  "info",
+  "primary",
+  "secondary",
+  "warning",
+  "success",
+  "error",
+  "default",
+] as const;
 
-const formatLimite = (val: number) => (val === -1 ? '∞' : String(val));
-const formatPrecio = (val: number) => (val === -1 ? 'Negociable' : `$${val}`);
-const formatDuracion = (val: number) => (val === -1 ? 'Negociable' : `${val} días`);
+const formatLimite = (val: number) => (val === -1 ? "∞" : String(val));
+const formatPrecio = (val: number) => (val === -1 ? "Negociable" : `$${val}`);
+const formatDuracion = (val: number) =>
+  val === -1 ? "Negociable" : `${val} días`;
 
 const DEFAULT_VALUES: ICreatePlan = {
-  nombre: '',
-  descripcion: '',
+  nombre: "",
+  descripcion: "",
   limiteLocales: 1,
   limiteUsuarios: 1,
   limiteProductos: 100,
   precio: 0,
-  moneda: 'USD',
+  moneda: "USD",
   duracion: 30,
   recomendado: false,
-  color: 'primary',
+  color: "primary",
   activo: true,
 };
 
 const breadcrumbs = [
-  { label: 'Inicio', href: '/home' },
-  { label: 'Configuración', href: '/configuracion' },
-  { label: 'Planes de Negocio' },
+  { label: "Inicio", href: "/home" },
+  { label: "Configuración", href: "/configuracion" },
+  { label: "Planes de Negocio" },
 ];
 
 export default function PlanesAdminPage() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const router = useRouter();
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
@@ -105,9 +119,9 @@ export default function PlanesAdminPage() {
 
   // Guard SUPER_ADMIN
   useEffect(() => {
-    if (!loadingContext && user && user.rol !== 'SUPER_ADMIN') {
-      showMessage('No tienes permisos para acceder a esta sección', 'error');
-      router.push('/home');
+    if (!loadingContext && user && user.rol !== "SUPER_ADMIN") {
+      showMessage("No tienes permisos para acceder a esta sección", "error");
+      router.push("/home");
     }
   }, [user, loadingContext, router, showMessage]);
 
@@ -117,14 +131,14 @@ export default function PlanesAdminPage() {
       const data = await getPlanes();
       setPlanes(data);
     } catch {
-      showMessage('Error al cargar los planes', 'error');
+      showMessage("Error al cargar los planes", "error");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user?.rol === 'SUPER_ADMIN') fetchPlanes();
+    if (user?.rol === "SUPER_ADMIN") fetchPlanes();
   }, [user]);
 
   const handleOpenCreate = () => {
@@ -142,7 +156,7 @@ export default function PlanesAdminPage() {
     setEditingPlan(plan);
     reset({
       nombre: plan.nombre,
-      descripcion: plan.descripcion ?? '',
+      descripcion: plan.descripcion ?? "",
       limiteLocales: plan.limiteLocales === -1 ? 1 : plan.limiteLocales,
       limiteUsuarios: plan.limiteUsuarios === -1 ? 1 : plan.limiteUsuarios,
       limiteProductos: plan.limiteProductos === -1 ? 1 : plan.limiteProductos,
@@ -180,39 +194,79 @@ export default function PlanesAdminPage() {
     try {
       if (editingPlan) {
         await updatePlan(editingPlan.id, payload);
-        showMessage('Plan actualizado satisfactoriamente', 'success');
+        showMessage("Plan actualizado satisfactoriamente", "success");
       } else {
         await createPlan(payload);
-        showMessage('Plan creado satisfactoriamente', 'success');
+        showMessage("Plan creado satisfactoriamente", "success");
       }
       await fetchPlanes();
       handleClose();
     } catch {
-      showMessage(`Error al ${editingPlan ? 'actualizar' : 'crear'} el plan`, 'error');
+      showMessage(
+        `Error al ${editingPlan ? "actualizar" : "crear"} el plan`,
+        "error",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (plan: IPlan) => {
-    if (!confirm(`¿Estás seguro de que deseas eliminar el plan "${plan.nombre}"? Esta acción no se puede deshacer.`)) return;
+    if (
+      !confirm(
+        `¿Estás seguro de que deseas eliminar el plan "${plan.nombre}"? Esta acción no se puede deshacer.`,
+      )
+    )
+      return;
 
     setLoading(true);
     try {
       await deletePlan(plan.id);
-      showMessage('Plan eliminado satisfactoriamente', 'success');
+      showMessage("Plan eliminado satisfactoriamente", "success");
       await fetchPlanes();
     } catch (error: unknown) {
-      const msg = (error as { response?: { data?: { error?: string } } })?.response?.data?.error
-        || 'Error al eliminar el plan';
-      showMessage(msg, 'error');
+      const msg =
+        (error as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Error al eliminar el plan";
+      showMessage(msg, "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const LimiteCelda = ({ valor }: { valor: number }) => (
-    <Chip label={formatLimite(valor)} size="small" variant="outlined" />
+  // `component="span"` because this sits inside `LimitesCell`'s
+  // `<Typography>` (a `<p>`) — a `<div>` there breaks hydration.
+  const ColorDot = ({ color }: { color: string }) => (
+    <Box
+      component="span"
+      sx={{
+        width: 14,
+        height: 14,
+        borderRadius: "4px",
+        backgroundColor: `${color}.main`,
+        display: "inline-block",
+        mr: 1,
+        verticalAlign: "middle",
+      }}
+    />
+  );
+
+  const LimitesCell = ({
+    locales,
+    usuarios,
+    productos,
+    color,
+  }: {
+    locales: number;
+    usuarios: number;
+    productos: number;
+    color: string;
+  }) => (
+    <Typography variant="body2" color="text.secondary">
+      <ColorDot color={color} />
+      {formatLimite(locales)} locales · {formatLimite(usuarios)} usuarios ·{" "}
+      {formatLimite(productos)} productos
+    </Typography>
   );
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -223,23 +277,37 @@ export default function PlanesAdminPage() {
       subtitle="Gestiona los planes de suscripción disponibles"
       breadcrumbs={breadcrumbs}
       headerActions={
-        <Button variant="contained" startIcon={<Add />} onClick={handleOpenCreate}>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={handleOpenCreate}
+        >
           Nuevo Plan
         </Button>
       }
     >
-      {/* Stats */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {/* Stats — same card the table sits in, three across even on a phone. */}
+      <Grid container spacing={{ xs: 1.25, sm: 2 }} sx={{ mb: 3 }}>
         {[
-          { label: 'Total de planes', value: planes.length },
-          { label: 'Planes activos', value: planes.filter(p => p.activo).length },
-          { label: 'Planes recomendados', value: planes.filter(p => p.recomendado).length },
-        ].map(stat => (
-          <Grid item xs={12} sm={4} key={stat.label}>
-            <Card variant="outlined">
-              <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                <Typography variant="h4" fontWeight="bold">{stat.value}</Typography>
-                <Typography variant="body2" color="text.secondary">{stat.label}</Typography>
+          { label: "Total de planes", value: planes.length },
+          {
+            label: "Planes activos",
+            value: planes.filter((p) => p.activo).length,
+          },
+          {
+            label: "Planes recomendados",
+            value: planes.filter((p) => p.recomendado).length,
+          },
+        ].map((stat) => (
+          <Grid item xs={4} key={stat.label}>
+            <Card>
+              <CardContent sx={{ textAlign: "center", py: 2 }}>
+                <Typography variant="h4" fontWeight="bold">
+                  {stat.value}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {stat.label}
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -248,55 +316,107 @@ export default function PlanesAdminPage() {
 
       <ContentCard>
         {loading && planes.length === 0 ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
             <CircularProgress />
           </Box>
         ) : isMobile ? (
           // ── Vista móvil ─────────────────────────────────────────────────
           <Stack spacing={2}>
-            {planes.map(plan => (
+            {planes.map((plan) => (
               <Card key={plan.id} variant="outlined">
                 <CardContent>
-                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                    <Box>
-                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                        <Typography variant="subtitle1" fontWeight="bold">{plan.nombre}</Typography>
-                        <Chip label={plan.color} color={plan.color as never} size="small" />
-                        {plan.recomendado && <Chip label="Recomendado" size="small" color="primary" variant="outlined" />}
-                        {!plan.activo && <Chip label="Inactivo" size="small" color="default" />}
-                      </Stack>
-                      {plan.descripcion && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          {plan.descripcion}
-                        </Typography>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
+                    spacing={1}
+                  >
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      {plan.nombre}
+                    </Typography>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={0.5}
+                      sx={{ flexShrink: 0 }}
+                    >
+                      {plan.recomendado ? (
+                        <Chip
+                          label="★ Recomendado"
+                          size="small"
+                          sx={{
+                            bgcolor: "semantic.hue.accent.surface",
+                            color: "semantic.hue.accent.main",
+                          }}
+                        />
+                      ) : (
+                        <Chip
+                          label={plan.activo ? "Activo" : "Inactivo"}
+                          size="small"
+                          sx={{
+                            bgcolor: plan.activo
+                              ? "semantic.hue.positive.surface"
+                              : "semantic.hue.neutral.surface",
+                            color: plan.activo
+                              ? "semantic.hue.positive.main"
+                              : "semantic.hue.neutral.main",
+                          }}
+                        />
                       )}
-                    </Box>
-                    <Stack direction="row">
                       <Tooltip title="Editar">
-                        <IconButton size="small" onClick={() => handleOpenEdit(plan)}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenEdit(plan)}
+                        >
                           <Edit fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Eliminar">
-                        <IconButton size="small" color="error" onClick={() => handleDelete(plan)}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(plan)}
+                        >
                           <Delete fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     </Stack>
                   </Stack>
 
-                  <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1.5 }}>
-                    <Chip icon={<WorkspacePremium fontSize="small" />} label={formatPrecio(plan.precio)} size="small" />
-                    <Chip label={`${formatLimite(plan.limiteLocales)} locales`} size="small" variant="outlined" />
-                    <Chip label={`${formatLimite(plan.limiteUsuarios)} usuarios`} size="small" variant="outlined" />
-                    <Chip label={`${formatLimite(plan.limiteProductos)} productos`} size="small" variant="outlined" />
-                    <Chip label={formatDuracion(plan.duracion)} size="small" variant="outlined" />
-                  </Stack>
+                  {plan.descripcion && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {plan.descripcion}
+                    </Typography>
+                  )}
+
+                  <Box sx={{ mt: 1.5 }}>
+                    <LimitesCell
+                      locales={plan.limiteLocales}
+                      usuarios={plan.limiteUsuarios}
+                      productos={plan.limiteProductos}
+                      color={plan.color}
+                    />
+                  </Box>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    Precio {formatPrecio(plan.precio)} ·{" "}
+                    {formatDuracion(plan.duracion)}
+                  </Typography>
                 </CardContent>
               </Card>
             ))}
             {planes.length === 0 && (
-              <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+              <Typography
+                color="text.secondary"
+                sx={{ textAlign: "center", py: 4 }}
+              >
                 No hay planes registrados
               </Typography>
             )}
@@ -310,58 +430,79 @@ export default function PlanesAdminPage() {
                   <TableCell>Nombre</TableCell>
                   <TableCell>Descripción</TableCell>
                   <TableCell align="center">Precio</TableCell>
-                  <TableCell align="center">Locales</TableCell>
-                  <TableCell align="center">Usuarios</TableCell>
-                  <TableCell align="center">Productos</TableCell>
+                  <TableCell align="center">Límites</TableCell>
                   <TableCell align="center">Duración</TableCell>
-                  <TableCell align="center">Color</TableCell>
                   <TableCell align="center">Estado</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {planes.map(plan => (
+                {planes.map((plan) => (
                   <TableRow key={plan.id} hover>
                     <TableCell>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography fontWeight="medium">{plan.nombre}</Typography>
+                        <Typography fontWeight="medium">
+                          {plan.nombre}
+                        </Typography>
                         {plan.recomendado && (
-                          <Chip label="★" size="small" color="primary" />
+                          <Chip
+                            label="★ Recomendado"
+                            size="small"
+                            sx={{
+                              bgcolor: "semantic.hue.accent.surface",
+                              color: "semantic.hue.accent.main",
+                            }}
+                          />
                         )}
                       </Stack>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
-                        {plan.descripcion || '—'}
+                        {plan.descripcion || "—"}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <Typography fontWeight="medium">{formatPrecio(plan.precio)}</Typography>
-                    </TableCell>
-                    <TableCell align="center"><LimiteCelda valor={plan.limiteLocales} /></TableCell>
-                    <TableCell align="center"><LimiteCelda valor={plan.limiteUsuarios} /></TableCell>
-                    <TableCell align="center"><LimiteCelda valor={plan.limiteProductos} /></TableCell>
-                    <TableCell align="center">
-                      <Chip label={formatDuracion(plan.duracion)} size="small" variant="outlined" />
+                      <Typography fontWeight="medium">
+                        {formatPrecio(plan.precio)}
+                      </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <Chip label={plan.color} color={plan.color as never} size="small" />
+                      <LimitesCell
+                        locales={plan.limiteLocales}
+                        usuarios={plan.limiteUsuarios}
+                        productos={plan.limiteProductos}
+                        color={plan.color}
+                      />
                     </TableCell>
                     <TableCell align="center">
                       <Chip
-                        label={plan.activo ? 'Activo' : 'Inactivo'}
-                        color={plan.activo ? 'success' : 'default'}
+                        label={formatDuracion(plan.duracion)}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={plan.activo ? "Activo" : "Inactivo"}
+                        color={plan.activo ? "success" : "default"}
                         size="small"
                       />
                     </TableCell>
                     <TableCell align="center">
                       <Tooltip title="Editar">
-                        <IconButton size="small" onClick={() => handleOpenEdit(plan)}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenEdit(plan)}
+                        >
                           <Edit fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Eliminar">
-                        <IconButton size="small" color="error" onClick={() => handleDelete(plan)}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(plan)}
+                        >
                           <Delete fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -371,7 +512,9 @@ export default function PlanesAdminPage() {
                 {planes.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={10} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">No hay planes registrados</Typography>
+                      <Typography color="text.secondary">
+                        No hay planes registrados
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 )}
@@ -382,15 +525,34 @@ export default function PlanesAdminPage() {
       </ContentCard>
 
       {/* ── Dialog crear/editar ────────────────────────────────────────────── */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
         <form onSubmit={handleSubmit(onSubmit)}>
-          <DialogTitle>{editingPlan ? 'Editar Plan' : 'Nuevo Plan'}</DialogTitle>
+          <DialogTitle
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            {editingPlan ? "Editar Plan" : "Nuevo Plan"}
+            {isMobile && (
+              <IconButton onClick={handleClose}>
+                <Close />
+              </IconButton>
+            )}
+          </DialogTitle>
 
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <TextField
                 label="Nombre"
-                {...register('nombre')}
+                {...register("nombre")}
                 error={!!errors.nombre}
                 helperText={errors.nombre?.message}
                 fullWidth
@@ -398,7 +560,7 @@ export default function PlanesAdminPage() {
 
               <TextField
                 label="Descripción (opcional)"
-                {...register('descripcion')}
+                {...register("descripcion")}
                 multiline
                 rows={2}
                 fullWidth
@@ -409,7 +571,7 @@ export default function PlanesAdminPage() {
                 <TextField
                   label="Precio"
                   type="number"
-                  {...register('precio', { valueAsNumber: true })}
+                  {...register("precio", { valueAsNumber: true })}
                   error={!!errors.precio}
                   helperText={errors.precio?.message}
                   disabled={precioNegociable}
@@ -419,14 +581,14 @@ export default function PlanesAdminPage() {
                   control={
                     <Checkbox
                       checked={precioNegociable}
-                      onChange={e => {
+                      onChange={(e) => {
                         setPrecioNegociable(e.target.checked);
-                        if (e.target.checked) setValue('precio', 0);
+                        if (e.target.checked) setValue("precio", 0);
                       }}
                     />
                   }
                   label="Negociable"
-                  sx={{ whiteSpace: 'nowrap' }}
+                  sx={{ whiteSpace: "nowrap" }}
                 />
               </Stack>
 
@@ -438,8 +600,10 @@ export default function PlanesAdminPage() {
                   <FormControl fullWidth>
                     <InputLabel>Moneda</InputLabel>
                     <Select {...field} label="Moneda">
-                      {['USD', 'EUR', 'CUP'].map(m => (
-                        <MenuItem key={m} value={m}>{m}</MenuItem>
+                      {["USD", "EUR", "CUP"].map((m) => (
+                        <MenuItem key={m} value={m}>
+                          {m}
+                        </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
@@ -451,7 +615,7 @@ export default function PlanesAdminPage() {
                 <TextField
                   label="Duración (días)"
                   type="number"
-                  {...register('duracion', { valueAsNumber: true })}
+                  {...register("duracion", { valueAsNumber: true })}
                   error={!!errors.duracion}
                   helperText={errors.duracion?.message}
                   disabled={duracionNegociable}
@@ -461,26 +625,46 @@ export default function PlanesAdminPage() {
                   control={
                     <Checkbox
                       checked={duracionNegociable}
-                      onChange={e => {
+                      onChange={(e) => {
                         setDuracionNegociable(e.target.checked);
-                        if (e.target.checked) setValue('duracion', 30);
+                        if (e.target.checked) setValue("duracion", 30);
                       }}
                     />
                   }
                   label="Negociable"
-                  sx={{ whiteSpace: 'nowrap' }}
+                  sx={{ whiteSpace: "nowrap" }}
                 />
               </Stack>
 
               {/* Límites */}
               {(
                 [
-                  { field: 'limiteLocales', label: 'Límite de locales', state: ilimitadoLocales, setter: setIlimitadoLocales },
-                  { field: 'limiteUsuarios', label: 'Límite de usuarios', state: ilimitadoUsuarios, setter: setIlimitadoUsuarios },
-                  { field: 'limiteProductos', label: 'Límite de productos', state: ilimitadoProductos, setter: setIlimitadoProductos },
+                  {
+                    field: "limiteLocales",
+                    label: "Límite de locales",
+                    state: ilimitadoLocales,
+                    setter: setIlimitadoLocales,
+                  },
+                  {
+                    field: "limiteUsuarios",
+                    label: "Límite de usuarios",
+                    state: ilimitadoUsuarios,
+                    setter: setIlimitadoUsuarios,
+                  },
+                  {
+                    field: "limiteProductos",
+                    label: "Límite de productos",
+                    state: ilimitadoProductos,
+                    setter: setIlimitadoProductos,
+                  },
                 ] as const
               ).map(({ field, label, state, setter }) => (
-                <Stack key={field} direction="row" spacing={2} alignItems="center">
+                <Stack
+                  key={field}
+                  direction="row"
+                  spacing={2}
+                  alignItems="center"
+                >
                   <TextField
                     label={label}
                     type="number"
@@ -494,14 +678,14 @@ export default function PlanesAdminPage() {
                     control={
                       <Checkbox
                         checked={state}
-                        onChange={e => {
+                        onChange={(e) => {
                           setter(e.target.checked);
                           if (e.target.checked) setValue(field, 1);
                         }}
                       />
                     }
                     label="Ilimitado"
-                    sx={{ whiteSpace: 'nowrap' }}
+                    sx={{ whiteSpace: "nowrap" }}
                   />
                 </Stack>
               ))}
@@ -516,17 +700,19 @@ export default function PlanesAdminPage() {
                     <Select
                       {...field}
                       label="Color"
-                      renderValue={val => (
+                      renderValue={(val) => (
                         <Chip label={val} color={val as never} size="small" />
                       )}
                     >
-                      {MUI_COLORS.map(c => (
+                      {MUI_COLORS.map((c) => (
                         <MenuItem key={c} value={c}>
                           <Chip label={c} color={c as never} size="small" />
                         </MenuItem>
                       ))}
                     </Select>
-                    {errors.color && <FormHelperText>{errors.color.message}</FormHelperText>}
+                    {errors.color && (
+                      <FormHelperText>{errors.color.message}</FormHelperText>
+                    )}
                   </FormControl>
                 )}
               />
@@ -538,7 +724,12 @@ export default function PlanesAdminPage() {
                   control={control}
                   render={({ field }) => (
                     <FormControlLabel
-                      control={<Switch checked={field.value} onChange={field.onChange} />}
+                      control={
+                        <Switch
+                          checked={field.value}
+                          onChange={field.onChange}
+                        />
+                      }
                       label="Recomendado"
                     />
                   )}
@@ -548,7 +739,12 @@ export default function PlanesAdminPage() {
                   control={control}
                   render={({ field }) => (
                     <FormControlLabel
-                      control={<Switch checked={field.value} onChange={field.onChange} />}
+                      control={
+                        <Switch
+                          checked={field.value}
+                          onChange={field.onChange}
+                        />
+                      }
                       label="Activo"
                     />
                   )}
@@ -557,15 +753,41 @@ export default function PlanesAdminPage() {
             </Stack>
           </DialogContent>
 
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={handleClose} color="secondary">Cancelar</Button>
-            <Button type="submit" variant="contained" disabled={loading}>
-              {loading ? <CircularProgress size={20} /> : editingPlan ? 'Guardar cambios' : 'Crear plan'}
+          <DialogActions
+            sx={{
+              px: 3,
+              pb: 2,
+              flexDirection: isMobile ? "column-reverse" : "row",
+              alignItems: "stretch",
+            }}
+          >
+            <Button
+              onClick={handleClose}
+              color="secondary"
+              fullWidth={isMobile}
+              sx={{ minHeight: isMobile ? 44 : undefined }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={loading}
+              fullWidth={isMobile}
+              size={isMobile ? "large" : "medium"}
+              sx={{ minHeight: isMobile ? 56 : undefined }}
+            >
+              {loading ? (
+                <CircularProgress size={20} />
+              ) : editingPlan ? (
+                "Guardar cambios"
+              ) : (
+                "Crear plan"
+              )}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
-
     </PageContainer>
   );
 }

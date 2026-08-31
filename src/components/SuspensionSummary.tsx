@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import {
   Box,
   Card,
@@ -32,7 +33,16 @@ interface SuspensionStats {
   gracePeriod: number;
 }
 
-export default function SuspensionSummary() {
+interface SuspensionSummaryProps {
+  /**
+   * Rendered inside the card, under its content. The panel is the subscription
+   * on this screen, so the plan's limits belong in it rather than in a second
+   * bordered box underneath — which is what a card inside a card looks like.
+   */
+  footer?: ReactNode;
+}
+
+export default function SuspensionSummary({ footer }: SuspensionSummaryProps = {}) {
   const { user, gotToPath } = useAppContext();
   const { showMessage } = useMessageContext();
   
@@ -220,6 +230,7 @@ export default function SuspensionSummary() {
           </Box>
         )}
       </CardContent>
+      {footer}
     </Card>
   );
 }

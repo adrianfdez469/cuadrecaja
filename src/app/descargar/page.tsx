@@ -1,4 +1,9 @@
 import React from 'react';
+import { Button } from '@mui/material';
+import CloudOff from '@mui/icons-material/CloudOff';
+
+import { StatusScreen } from '@/components/StatusScreen';
+
 import DownloadClient from './DownloadClient';
 import { DeviceArchitecture } from '@/utils/deviceDetection';
 
@@ -27,39 +32,17 @@ export default async function DownloadPage() {
     } catch (error) {
         console.error('Error fetching release data:', error);
         return (
-            <div style={{
-                height: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontFamily: 'sans-serif',
-                textAlign: 'center',
-                padding: '20px',
-                background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
-            }}>
-                <div style={{
-                    backgroundColor: 'white',
-                    padding: '40px',
-                    borderRadius: '16px',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                    maxWidth: '400px'
-                }}>
-                    <h1 style={{ color: '#d32f2f', marginTop: 0 }}>Oops!</h1>
-                    <p style={{ color: '#555', marginBottom: '30px' }}>No pudimos cargar la información de descarga en este momento.</p>
-                    <a href="/descargar" style={{
-                        padding: '12px 24px',
-                        backgroundColor: '#1976d2',
-                        color: 'white',
-                        textDecoration: 'none',
-                        borderRadius: '8px',
-                        fontWeight: 'bold',
-                        display: 'inline-block'
-                    }}>
+            <StatusScreen
+                icon={<CloudOff />}
+                hue="negative"
+                title="No pudimos cargar la descarga"
+                description="La información de la versión no está disponible en este momento. Vuelve a intentarlo en unos minutos."
+                actions={
+                    <Button variant="contained" href="/descargar">
                         Reintentar
-                    </a>
-                </div>
-            </div>
+                    </Button>
+                }
+            />
         );
     }
 }

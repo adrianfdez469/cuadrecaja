@@ -10,13 +10,17 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   Stack,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import {
   IGastoAdHocCreate,
   TipoCalculoEnum,
@@ -56,6 +60,8 @@ export default function GastoAdHocDialog({
   onClose,
   onSave,
 }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [nombre, setNombre] = useState("");
   const [categoria, setCategoria] = useState("");
   const [tipoCalculo, setTipoCalculo] =
@@ -125,8 +131,27 @@ export default function GastoAdHocDialog({
   const calculado = montoCalculado();
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Registrar gasto ad-hoc</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      fullScreen={isMobile}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        Registrar gasto ad-hoc
+        {isMobile && (
+          <IconButton onClick={onClose} disabled={loading}>
+            <CloseIcon />
+          </IconButton>
+        )}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} mt={0.5}>
           <TextField
@@ -251,7 +276,7 @@ export default function GastoAdHocDialog({
                 fullWidth
               />
               {calculado > 0 && (
-                <Box bgcolor="action.hover" p={1} borderRadius={1}>
+                <Box bgcolor="semantic.surface.sunken" p={1} borderRadius={1}>
                   <Typography variant="body2">
                     Monto calculado: <strong>${calculado.toFixed(2)}</strong>
                   </Typography>
@@ -266,11 +291,28 @@ export default function GastoAdHocDialog({
           )}
         </Stack>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : undefined }}
+        >
           Cancelar
         </Button>
-        <Button variant="contained" onClick={handleSave} disabled={loading}>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={loading}
+          fullWidth={isMobile}
+          size={isMobile ? "large" : "medium"}
+          sx={{ minHeight: isMobile ? 56 : undefined }}
+        >
           {loading ? "Guardando..." : "Registrar gasto"}
         </Button>
       </DialogActions>

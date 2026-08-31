@@ -1,4 +1,5 @@
 import { ITipoMovimiento } from "@/schemas/movimiento";
+import { FlowRole } from "@/theme/tokens";
 
 // Todos los tipos de movimiento disponibles
 export const TIPOS_MOVIMIENTO: ITipoMovimiento[] = [
@@ -103,18 +104,29 @@ export const TIPO_MOVIMIENTO_EJEMPLOS: Record<ITipoMovimiento, string> = {
     "Ejemplo: Un cliente vuelve tres días después con un producto defectuoso que le vendiste y le devolvés el dinero. El producto vuelve al inventario, se resta de la ganancia y de la caja de hoy — aunque la venta original ya haya cerrado su período.",
 };
 
-// Colores para cada tipo de movimiento
-export const TIPO_MOVIMIENTO_COLORS: Record<ITipoMovimiento, string> = {
-  COMPRA: "#2e7d32", // Verde oscuro
-  VENTA: "#1976d2", // Azul
-  AJUSTE_ENTRADA: "#388e3c", // Verde
-  AJUSTE_SALIDA: "#f57c00", // Naranja
-  TRASPASO_ENTRADA: "#0288d1", // Azul claro
-  TRASPASO_SALIDA: "#0277bd", // Azul medio
-  DESAGREGACION_BAJA: "#7b1fa2", // Púrpura
-  DESAGREGACION_ALTA: "#8e24aa", // Púrpura claro
-  CONSIGNACION_ENTRADA: "#2e7d32", // Verde oscuro
-  CONSIGNACION_DEVOLUCION: "#1976d2", // Azul
-  MERMA: "#c62828", // Rojo
-  DEVOLUCION_VENTA: "#ad1457", // Rosa oscuro
+/**
+ * What each movement does to the stock count, expressed as a semantic role.
+ *
+ * Replaces the twelve hardcoded hex values this file used to carry. Two of those
+ * were duplicates that meant different things (COMPRA and CONSIGNACION_ENTRADA
+ * shared a green; VENTA and CONSIGNACION_DEVOLUCION shared a blue), so the colour
+ * never actually distinguished them.
+ *
+ * DESAGREGACION_ALTA and DESAGREGACION_BAJA now share the `split` role. They are
+ * the two halves of one operation — opening a box to sell its loose units — and
+ * showing one green and the other red read as a success next to a failure.
+ */
+export const TIPO_MOVIMIENTO_FLOW: Record<ITipoMovimiento, FlowRole> = {
+  COMPRA: "in",
+  VENTA: "out",
+  AJUSTE_ENTRADA: "correction",
+  AJUSTE_SALIDA: "correction",
+  TRASPASO_ENTRADA: "transfer",
+  TRASPASO_SALIDA: "transfer",
+  DESAGREGACION_BAJA: "split",
+  DESAGREGACION_ALTA: "split",
+  CONSIGNACION_ENTRADA: "external",
+  CONSIGNACION_DEVOLUCION: "external",
+  MERMA: "loss",
+  DEVOLUCION_VENTA: "in",
 };

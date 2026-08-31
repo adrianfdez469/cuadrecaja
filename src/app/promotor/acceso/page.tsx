@@ -1,66 +1,71 @@
 "use client";
 
-import { FormEvent, useState } from 'react';
-import Link from 'next/link';
-import { Alert, Box, Button, Card, Container, TextField, Typography } from '@mui/material';
+import { FormEvent, useState } from "react";
+import NextLink from "next/link";
+import {
+  Alert,
+  Box,
+  Button,
+  Link,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { AuthCardLayout } from "@/components/auth/AuthCardLayout";
 
 export default function PromotorAccesoPage() {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
-    setStatus('idle');
-    setMessage('');
+    setStatus("idle");
+    setMessage("");
 
     try {
-      const response = await fetch('/api/promoters/magic-link/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/promoters/magic-link/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
       const data = await response.json();
 
       if (!response.ok) {
-        setStatus('error');
-        setMessage(data.error ?? 'No se pudo enviar el enlace de acceso.');
+        setStatus("error");
+        setMessage(data.error ?? "No se pudo enviar el enlace de acceso.");
         return;
       }
 
-      setStatus('success');
-      setMessage(data.message ?? 'Si existe una cuenta activa, enviamos un enlace de acceso.');
+      setStatus("success");
+      setMessage(
+        data.message ??
+          "Si existe una cuenta activa, enviamos un enlace de acceso.",
+      );
     } catch {
-      setStatus('error');
-      setMessage('Error de conexión. Inténtalo nuevamente.');
+      setStatus("error");
+      setMessage("Error de conexión. Inténtalo nuevamente.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        bgcolor: '#1a1d29',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        py: 4,
-      }}
-    >
-      <Container maxWidth="sm">
-        <Card sx={{ p: 4 }}>
-          <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>
+    <AuthCardLayout>
+      <Stack spacing={3}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
             Acceso de Promotor
           </Typography>
-          <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
+          <Typography variant="body2" color="text.secondary">
             Ingresa tu correo y te enviaremos un enlace mágico para entrar.
           </Typography>
+        </Box>
 
-          <Box component="form" onSubmit={onSubmit}>
+        <Box component="form" onSubmit={onSubmit}>
+          <Stack spacing={2}>
             <TextField
               type="email"
               label="Correo electrónico"
@@ -68,27 +73,47 @@ export default function PromotorAccesoPage() {
               onChange={(event) => setEmail(event.target.value)}
               required
               fullWidth
-              sx={{ mb: 2 }}
+              size="small"
+              inputProps={{ maxLength: 255 }}
             />
-            <Button type="submit" variant="contained" disabled={loading} fullWidth>
-              {loading ? 'Enviando...' : 'Enviar enlace de acceso'}
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={loading}
+              fullWidth
+              sx={{ minHeight: 56, fontWeight: 700 }}
+            >
+              {loading ? "Enviando…" : "Enviar enlace de acceso"}
             </Button>
-          </Box>
+          </Stack>
+        </Box>
 
-          {status !== 'idle' && (
-            <Alert severity={status} sx={{ mt: 2 }}>
-              {message}
-            </Alert>
-          )}
+        {status !== "idle" && (
+          <Alert severity={status} variant="filled">
+            {message}
+          </Alert>
+        )}
 
-          <Typography variant="body2" sx={{ mt: 3, textAlign: 'center', color: 'text.secondary' }}>
-            ¿Aún no tienes cuenta de promotor?{' '}
-            <Button component={Link} href="/promotor/registro" size="small" sx={{ fontWeight: 700 }}>
-              Regístrate aquí
-            </Button>
-          </Typography>
-        </Card>
-      </Container>
-    </Box>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ textAlign: "center" }}
+        >
+          ¿Aún no tienes cuenta de promotor?{" "}
+          <Link
+            component={NextLink}
+            href="/promotor/registro"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              minHeight: "44px",
+              fontWeight: 700,
+            }}
+          >
+            Regístrate aquí
+          </Link>
+        </Typography>
+      </Stack>
+    </AuthCardLayout>
   );
 }

@@ -14,7 +14,10 @@ import type { ISalesTrendsResponse } from "@/schemas/reports/salesTrends";
 // Fuera del bundle inicial: `@mui/x-charts` es la dependencia más
 // pesada de esta pantalla y solo hace falta para pintar el gráfico.
 const SalesTrendChart = dynamic(
-  () => import("@/components/reports/trends/SalesTrendChart").then((m) => m.SalesTrendChart),
+  () =>
+    import("@/components/reports/trends/SalesTrendChart").then(
+      (m) => m.SalesTrendChart,
+    ),
   { ssr: false },
 );
 
@@ -40,7 +43,7 @@ export default function TendenciasPage() {
       onRefresh={refetch}
     >
       {data && (
-        <Stack spacing={3}>
+        <Stack spacing={2.5}>
           <PeriodComparisonCards
             actual={data.actual}
             anterior={data.anterior}

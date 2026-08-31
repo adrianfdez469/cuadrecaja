@@ -20,14 +20,10 @@ import {
   CircularProgress,
   InputAdornment,
   Grid,
-  Card,
-  CardContent,
   Stack,
   Tooltip,
-  Chip,
   useTheme,
   useMediaQuery,
-  Collapse,
   FormControl,
   InputLabel,
   Select,
@@ -40,12 +36,12 @@ import {
   Add,
   Search,
   Refresh,
-  ExpandMore,
-  ExpandLess,
+  PlayCircleOutline,
   Warning,
   Info,
   Campaign,
   Message,
+  Close,
 } from "@mui/icons-material";
 import { NotificationApiService } from "@/services/notificationApiService";
 import {
@@ -57,6 +53,10 @@ import {
 } from "@/schemas/notificacion";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
+import { StatStrip } from "@/components/StatStrip";
+import { StatusPill } from "@/components/StatusPill";
+import type { PillHue } from "@/components/StatusPill";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
 import { useMessageContext } from "@/context/MessageContext";
@@ -71,7 +71,6 @@ export default function NotificacionesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const [stats, setStats] = useState<INotificacionStats | null>(null);
   const [negocios, setNegocios] = useState<INegocio[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -183,17 +182,22 @@ export default function NotificacionesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    confirmDialog("¿Estás seguro de eliminar esta notificación?", async () => {
-      try {
-        await NotificationApiService.deleteNotification(id);
-        showMessage("Notificación eliminada exitosamente", "success");
-        fetchNotificaciones();
-        fetchStats();
-      } catch (error) {
-        console.error("Error al eliminar la notificación", error);
-        showMessage("Error al eliminar la notificación", "error");
-      }
-    });
+    confirmDialog(
+      "¿Estás seguro de eliminar esta notificación?",
+      async () => {
+        try {
+          await NotificationApiService.deleteNotification(id);
+          showMessage("Notificación eliminada exitosamente", "success");
+          fetchNotificaciones();
+          fetchStats();
+        } catch (error) {
+          console.error("Error al eliminar la notificación", error);
+          showMessage("Error al eliminar la notificación", "error");
+        }
+      },
+      undefined,
+      { severity: "error" },
+    );
   };
 
   const handleSave = async () => {
@@ -268,17 +272,20 @@ export default function NotificacionesPage() {
     }
   };
 
-  const getImportanceColor = (nivel: NivelImportancia) => {
-    switch (nivel) {
-      case "CRITICA":
-        return "error";
-      case "ALTA":
-        return "warning";
-      case "MEDIA":
-        return "info";
-      default:
-        return "success";
-    }
+  /** The stored enum shouts; the column does not have to. */
+  const IMPORTANCE: Record<NivelImportancia, { label: string; hue: PillHue }> =
+    {
+      CRITICA: { label: "Crítica", hue: "negative" },
+      ALTA: { label: "Alta", hue: "caution" },
+      MEDIA: { label: "Media", hue: "info" },
+      BAJA: { label: "Baja", hue: "neutral" },
+    };
+
+  const TIPO_LABELS: Record<TipoNotificacion, string> = {
+    ALERTA: "Alerta",
+    NOTIFICACION: "Notificación",
+    PROMOCION: "Promoción",
+    MENSAJE: "Mensaje",
   };
 
   const isActive = (notificacion: INotificacion) => {
@@ -303,7 +310,7 @@ export default function NotificacionesPage() {
           disabled={loading}
           size="small"
         >
-          <Refresh />
+          <PlayCircleOutline />
         </IconButton>
       </Tooltip>
       <Tooltip title="Actualizar notificaciones">
@@ -315,20 +322,6 @@ export default function NotificacionesPage() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
-      )}
       <Button
         variant="contained"
         startIcon={!isMobile ? <Add /> : undefined}
@@ -348,62 +341,26 @@ export default function NotificacionesPage() {
     >
       {ConfirmDialogComponent}
 
-      {/* Estadísticas */}
+      {/* The four counts, bare on the page ground. They were four bordered
+          cards, each figure in a different hue — the total in violet, so the
+          number that means nothing in particular was the one painted like an
+          action. Only «Activas» and «No leídas» carry a verdict. */}
       {stats && (
-        <Collapse in={!isMobile || statsExpanded}>
-          <ContentCard>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="primary">
-                      {stats.total}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      Total Notificaciones
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="success.main">
-                      {stats.activas}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      Activas
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="warning.main">
-                      {stats.leidas}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      Leídas ({stats.porcentajeLeidas}%)
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="error.main">
-                      {stats.noLeidas}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      No Leídas
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </ContentCard>
-        </Collapse>
+        <StatStrip
+          stats={[
+            { label: "Total Notificaciones", value: stats.total },
+            { label: "Activas", value: stats.activas, tone: "positive" },
+            {
+              label: `Leídas (${stats.porcentajeLeidas}%)`,
+              value: stats.leidas,
+            },
+            {
+              label: "No Leídas",
+              value: stats.noLeidas,
+              tone: stats.noLeidas > 0 ? "negative" : undefined,
+            },
+          ]}
+        />
       )}
 
       {/* Tabla de Notificaciones */}
@@ -426,9 +383,111 @@ export default function NotificacionesPage() {
         </Box>
 
         {loading ? (
-          <Box display="flex" justifyContent="center" p={3}>
-            <CircularProgress />
-          </Box>
+          <LoadingState variant="table" />
+        ) : isMobile ? (
+          // `rediseno/notificaciones-movil.html`: título primero, fechas al
+          // pie — una card por notificación, no la tabla de escritorio
+          // recortada.
+          <Stack spacing={1.5}>
+            {filteredNotificaciones.map((notificacion) => (
+              <Box
+                key={notificacion.id}
+                sx={{
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 1.5,
+                  p: 2,
+                }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  flexWrap="wrap"
+                  useFlexGap
+                >
+                  {getTipoIcon(notificacion.tipo)}
+                  <Typography variant="caption" color="text.secondary">
+                    {TIPO_LABELS[notificacion.tipo] || notificacion.tipo}
+                  </Typography>
+                  <StatusPill
+                    label={
+                      IMPORTANCE[notificacion.nivelImportancia]?.label ??
+                      notificacion.nivelImportancia
+                    }
+                    hue={
+                      IMPORTANCE[notificacion.nivelImportancia]?.hue ??
+                      "neutral"
+                    }
+                  />
+                  <StatusPill
+                    label={isActive(notificacion) ? "Activa" : "Inactiva"}
+                    hue={isActive(notificacion) ? "positive" : "neutral"}
+                  />
+                </Stack>
+
+                <Typography sx={{ mt: 1, fontWeight: 700, fontSize: "1rem" }}>
+                  {notificacion.titulo}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 0.5 }}
+                >
+                  {notificacion.descripcion.substring(0, 50)}...
+                </Typography>
+
+                <Stack
+                  spacing={0.375}
+                  sx={{
+                    mt: 1.5,
+                    pt: 1.5,
+                    borderTop: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    Inicio:{" "}
+                    {dayjs(notificacion.fechaInicio).format("DD/MM/YYYY HH:mm")}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Fin:{" "}
+                    {dayjs(notificacion.fechaFin).format("DD/MM/YYYY HH:mm")}
+                  </Typography>
+                </Stack>
+
+                <Stack
+                  direction="row"
+                  justifyContent="flex-end"
+                  sx={{
+                    mt: 0.75,
+                    pt: 0.75,
+                    borderTop: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <IconButton onClick={() => handleOpen(notificacion)}>
+                    <Edit fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDelete(notificacion.id)}
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </Box>
+            ))}
+            {filteredNotificaciones.length === 0 && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ textAlign: "center", py: 4 }}
+              >
+                No hay notificaciones para mostrar.
+              </Typography>
+            )}
+          </Stack>
         ) : (
           <TableContainer>
             <Table>
@@ -450,7 +509,7 @@ export default function NotificacionesPage() {
                       <Stack direction="row" alignItems="center" spacing={1}>
                         {getTipoIcon(notificacion.tipo)}
                         <Typography variant="body2">
-                          {notificacion.tipo}
+                          {TIPO_LABELS[notificacion.tipo] || notificacion.tipo}
                         </Typography>
                       </Stack>
                     </TableCell>
@@ -463,19 +522,21 @@ export default function NotificacionesPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={notificacion.nivelImportancia}
-                        color={getImportanceColor(
-                          notificacion.nivelImportancia,
-                        )}
-                        size="small"
+                      <StatusPill
+                        label={
+                          IMPORTANCE[notificacion.nivelImportancia]?.label ??
+                          notificacion.nivelImportancia
+                        }
+                        hue={
+                          IMPORTANCE[notificacion.nivelImportancia]?.hue ??
+                          "neutral"
+                        }
                       />
                     </TableCell>
                     <TableCell>
-                      <Chip
+                      <StatusPill
                         label={isActive(notificacion) ? "Activa" : "Inactiva"}
-                        color={isActive(notificacion) ? "success" : "default"}
-                        size="small"
+                        hue={isActive(notificacion) ? "positive" : "neutral"}
                       />
                     </TableCell>
                     <TableCell>
@@ -522,11 +583,28 @@ export default function NotificacionesPage() {
       </ContentCard>
 
       {/* Dialog para crear/editar notificación */}
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {selectedNotificacion
             ? "Editar Notificación"
             : "Crear Nueva Notificación"}
+          {isMobile && (
+            <IconButton onClick={handleClose}>
+              <Close />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -668,12 +746,26 @@ export default function NotificacionesPage() {
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancelar</Button>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={handleClose}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
           <Button
             onClick={handleSave}
             variant="contained"
             disabled={saving}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
             startIcon={saving ? <CircularProgress size={20} /> : undefined}
           >
             {saving ? "Guardando..." : "Guardar"}

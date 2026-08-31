@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { Box, Button, Container, Typography, Alert } from "@mui/material";
+import { Box, Button, Container, Typography } from "@mui/material";
 import { ErrorOutline, Refresh, Home } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
+
+import { shape, touch } from "@/theme/tokens";
 
 export default function Error({
   error,
@@ -31,12 +33,19 @@ export default function Error({
           gap: 3,
         }}
       >
-        <Box sx={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box
+          sx={{
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <Typography
             sx={{
               fontSize: { xs: "6rem", sm: "9rem" },
               fontWeight: 700,
-              color: "error.main",
+              color: "semantic.hue.negative.main",
               lineHeight: 1,
               opacity: 0.12,
               userSelect: "none",
@@ -47,7 +56,7 @@ export default function Error({
           <ErrorOutline
             sx={{
               fontSize: 56,
-              color: "error.main",
+              color: "semantic.hue.negative.main",
               position: "absolute",
             }}
           />
@@ -63,24 +72,55 @@ export default function Error({
         </Box>
 
         {error.digest && (
-          <Alert severity="info" sx={{ width: "100%", textAlign: "left" }}>
-            Código de error: <strong>{error.digest}</strong>
-          </Alert>
+          <Box
+            sx={{
+              px: 2,
+              py: 1.5,
+              bgcolor: "semantic.hue.neutral.surface",
+              borderRadius: `${shape.radius.md}px`,
+              fontSize: "0.8125rem",
+              fontFamily: "monospace",
+              color: "semantic.hue.neutral.main",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            Código de error:{" "}
+            <Box component="strong" sx={{ fontWeight: 700 }}>
+              {error.digest}
+            </Box>
+          </Box>
         )}
 
-        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
+        >
           <Button
             variant="outlined"
+            color="inherit"
             startIcon={<Home />}
             onClick={() => router.push("/home")}
+            sx={{
+              minHeight: touch.comfortable,
+              px: 2,
+              borderRadius: `${shape.radius.md}px`,
+            }}
           >
             Ir al inicio
           </Button>
           <Button
             variant="contained"
-            color="error"
             startIcon={<Refresh />}
             onClick={reset}
+            sx={{
+              minHeight: touch.comfortable,
+              px: 2,
+              borderRadius: `${shape.radius.md}px`,
+            }}
           >
             Intentar de nuevo
           </Button>

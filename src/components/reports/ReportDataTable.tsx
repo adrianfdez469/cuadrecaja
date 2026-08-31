@@ -2,7 +2,6 @@
 
 import { ReactNode, useMemo, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Stack,
@@ -17,6 +16,7 @@ import {
 } from "@mui/material";
 import { Download } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
+import { EmptyState } from "@/components/EmptyState";
 
 export type ReportColumn<TRow> = {
   key: string;
@@ -120,7 +120,10 @@ export function ReportDataTable<TRow>({
   };
 
   if (rows.length === 0) {
-    return <Alert severity="info">{emptyMessage}</Alert>;
+    // A report with no rows is almost always a period or filter that matched
+    // nothing, not a business that has never traded — so it points at the
+    // filter rather than inviting the user to create something.
+    return <EmptyState variant="no-results" title={emptyMessage} />;
   }
 
   return (

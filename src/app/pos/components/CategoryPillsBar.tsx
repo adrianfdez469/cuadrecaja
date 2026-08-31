@@ -1,36 +1,49 @@
 "use client";
 
 import { memo } from "react";
-import { Box, Chip, Stack, useTheme } from "@mui/material";
-import type { Theme } from "@mui/material";
+import { Chip, Stack } from "@mui/material";
 import type { IPosCategoria } from "@/schemas/producto";
+import { shape } from "@/theme";
+
+/**
+ * The category filter, as one row of pills.
+ *
+ * Each pill used to be painted in its own category's colour — a dot when
+ * idle, the whole chip when selected — so the row could show seven saturated
+ * hues at once, and "selected" was said by a different colour every time.
+ * Nothing else on the screen could then use colour to mean anything.
+ *
+ * The redesign spends violet on selection and nothing else, here as
+ * everywhere: idle pills are the neutral wash, the selected one is violet.
+ * The category's own colour is still its identity in configuration and in the
+ * reports; it just stops competing with the price of every product.
+ */
 
 const ROOT_SX = {
   flexShrink: 0,
   overflowX: "auto",
-  px: 1,
-  py: 1,
-  borderBottom: "1px solid",
-  borderColor: "divider",
+  px: 1.5,
+  pb: 1.25,
+  // No scrollbar track stealing height from a 36px row on desktop.
+  "&::-webkit-scrollbar": { display: "none" },
+  scrollbarWidth: "none",
 } as const;
-const PILL_SX = { height: 36, cursor: "pointer", flexShrink: 0 } as const;
-const PILL_LABEL_SX = {
-  display: "flex",
-  alignItems: "center",
-  gap: 0.75,
-} as const;
-const PILL_DOT_SX = {
-  width: 8,
-  height: 8,
-  borderRadius: "50%",
+
+// 36px and 13.5px, regular weight while idle: the theme's chip is 12px and
+// semibold because it labels a status on a table row, and here it is a
+// filter the cashier reads and taps at arm's length.
+const PILL_SX = {
+  height: 36,
+  cursor: "pointer",
   flexShrink: 0,
+  borderRadius: `${shape.radius.pill}px`,
+  maxWidth: 180,
+  fontSize: "0.84375rem",
+  fontWeight: 400,
+  "& .MuiChip-label": { px: 1.75 },
 } as const;
-const PILL_TEXT_SX = {
-  maxWidth: 140,
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-} as const;
+
+const PILL_SELECTED_SX = { ...PILL_SX, fontWeight: 700 } as const;
 
 interface CategoryPillsBarProps {
   categories: IPosCategoria[];
@@ -38,34 +51,21 @@ interface CategoryPillsBarProps {
   onSelectCategory: (categoryId: string | null) => void;
 }
 
-// theme.palette.getContrastText throws on a color string it can't parse.
-// The UI's own color picker always produces valid hex, but nothing enforces
-// that at the data layer (direct DB edits, imports, etc.), so a bad stored
-// value must degrade instead of crashing the whole POS product-browsing view.
-function getSafeContrastText(color: string, theme: Theme): string {
-  try {
-    return theme.palette.getContrastText(color);
-  } catch {
-    return theme.palette.text.primary;
-  }
-}
-
 function CategoryPillsBarComponent({
   categories,
   selectedCategoryId,
   onSelectCategory,
 }: CategoryPillsBarProps) {
-  const theme = useTheme();
+  const allSelected = selectedCategoryId === null;
 
   return (
-    <Stack direction="row" spacing={1} sx={ROOT_SX}>
+    <Stack direction="row" spacing={0.75} sx={ROOT_SX}>
       <Chip
         label="Todas"
-        variant={selectedCategoryId === null ? "filled" : "outlined"}
-        color={selectedCategoryId === null ? "primary" : "default"}
+        color={allSelected ? "primary" : "default"}
         onClick={() => onSelectCategory(null)}
-        aria-pressed={selectedCategoryId === null}
-        sx={PILL_SX}
+        aria-pressed={allSelected}
+        sx={allSelected ? PILL_SELECTED_SX : PILL_SX}
       />
       {categories.map((category, index) => {
         const isSelected = selectedCategoryId === category.id;
@@ -73,28 +73,11 @@ function CategoryPillsBarComponent({
           <Chip
             key={category.id}
             {...(index === 0 ? { "data-tour": "pos-category-first" } : {})}
-            label={
-              <Box sx={PILL_LABEL_SX}>
-                {!isSelected && (
-                  <Box sx={PILL_DOT_SX} bgcolor={category.color} />
-                )}
-                <Box sx={PILL_TEXT_SX}>{category.nombre}</Box>
-              </Box>
-            }
-            variant={isSelected ? "filled" : "outlined"}
+            label={category.nombre}
+            color={isSelected ? "primary" : "default"}
             onClick={() => onSelectCategory(isSelected ? null : category.id)}
             aria-pressed={isSelected}
-            sx={
-              isSelected
-                ? {
-                    ...PILL_SX,
-                    bgcolor: category.color,
-                    color: getSafeContrastText(category.color, theme),
-                    borderColor: category.color,
-                    "&:hover": { bgcolor: category.color, opacity: 0.9 },
-                  }
-                : PILL_SX
-            }
+            sx={isSelected ? PILL_SELECTED_SX : PILL_SX}
           />
         );
       })}

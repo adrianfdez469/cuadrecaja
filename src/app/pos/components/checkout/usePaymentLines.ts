@@ -30,6 +30,15 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/**
+ * The payments the customer hands over, as the charge screen edits them.
+ *
+ * It opens with the base currency's cash line already at the exact amount:
+ * the common sale is one currency, one bill, and the screen should be ready
+ * to confirm it in a tap. Until the cashier touches anything (`dirty`) that
+ * line tracks the total, so a discount or a tip landing later does not leave
+ * it stale.
+ */
 export function usePaymentLines({
   finalTotal,
   monedaBase,
@@ -203,7 +212,6 @@ export function usePaymentLines({
   /**
    * Sets the transfer amount for `currency`'s embedded transfer field and
    * reduces that currency's cash line by the same delta, clamped at zero —
-   * the same contract the old per-currency panel guaranteed by construction,
    * so typing a transfer amount can never inflate the total paid.
    */
   const setTransferAmount = useCallback(

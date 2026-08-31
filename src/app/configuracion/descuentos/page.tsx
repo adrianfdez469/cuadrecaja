@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  Box,
   Button,
-  Card,
-  CardContent,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,16 +18,22 @@ import {
   Switch,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
+  Box,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/DeleteOutline";
-import EditIcon from "@mui/icons-material/EditOutlined";
-import CheckIcon from "@mui/icons-material/CheckCircleOutline";
-import CloseIcon from "@mui/icons-material/CloseOutlined";
 import LocalOfferIcon from "@mui/icons-material/LocalOffer";
+import CloseIcon from "@mui/icons-material/Close";
+import { PageContainer } from "@/components/PageContainer";
+import { ContentCard } from "@/components/ContentCard";
+import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/LoadingState";
 import dayjs from "dayjs";
 import PercentageField from "@/components/PercentageField";
 import MoneyField from "@/components/MoneyField";
+import useConfirmDialog from "@/components/confirmDialog";
+import { DiscountRuleCard } from "./components/DiscountRuleCard";
 
 type DiscountType = "PERCENTAGE" | "FIXED" | "PROMO_CODE";
 type DiscountAppliesTo = "TICKET" | "PRODUCT" | "CATEGORY" | "CUSTOMER";
@@ -97,6 +100,10 @@ async function deleteRule(id: string) {
 }
 
 export default function DiscountsPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
+
   const [rules, setRules] = useState<DiscountRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -212,195 +219,196 @@ export default function DiscountsPage() {
     }
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("¿Eliminar esta regla?")) return;
+  const remove = async (rule: DiscountRule) => {
+    confirmDialog(
+      `¿Eliminar la regla "${rule.name}"? Esta acción no se puede deshacer.`,
+      async () => {
+        try {
+          await deleteRule(rule.id);
+          await load();
+        } catch (e) {
+          console.error(e);
+          alert("No se pudo eliminar");
+        }
+      },
+      undefined,
+      { severity: "error" },
+    );
+  };
+
+  const handleOpenNewRule = async () => {
+    setOpenDialog(true);
     try {
-      await deleteRule(id);
-      await load();
-    } catch (e) {
-      console.error(e);
-      alert("No se pudo eliminar");
+      setLoadingOptions(true);
+      const res = await fetch("/api/discounts/options");
+      if (res.ok) {
+        const data = await res.json();
+        setOptions(data);
+      }
+    } finally {
+      setLoadingOptions(false);
     }
   };
 
-  return (
-    <Box p={2}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        mb={2}
-      >
-        <Stack direction="row" spacing={1} alignItems="center">
-          <LocalOfferIcon />
-          <Typography variant="h5">Descuentos</Typography>
-        </Stack>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={async () => {
-            // cargar opciones al abrir
-            setOpenDialog(true);
-            try {
-              setLoadingOptions(true);
-              const res = await fetch("/api/discounts/options");
-              if (res.ok) {
-                const data = await res.json();
-                setOptions(data);
-              }
-            } finally {
-              setLoadingOptions(false);
-            }
-          }}
-        >
-          Nueva Regla
-        </Button>
-      </Stack>
+  const handleOpenEditRule = async (rule: DiscountRule) => {
+    setEditingId(rule.id);
+    const cond: DiscountConditions =
+      (rule.conditions as DiscountConditions) || {};
+    setForm({
+      name: rule.name,
+      type: rule.type,
+      value: rule.value,
+      appliesTo: rule.appliesTo,
+      code: cond.code || "",
+      minTotal: cond.minTotal?.toString?.() || "",
+      startDate: rule.startDate
+        ? dayjs(rule.startDate).format("YYYY-MM-DD")
+        : "",
+      endDate: rule.endDate ? dayjs(rule.endDate).format("YYYY-MM-DD") : "",
+      isActive: rule.isActive,
+      productIds: cond.productIds || [],
+      categoryIds: cond.categoryIds || [],
+    });
+    try {
+      setLoadingOptions(true);
+      const res = await fetch("/api/discounts/options");
+      if (res.ok) setOptions(await res.json());
+    } finally {
+      setLoadingOptions(false);
+    }
+    setOpenDialog(true);
+  };
 
-      <Card>
-        <CardContent>
+  const headerActions = !isMobile ? (
+    <Button
+      variant="contained"
+      startIcon={<AddIcon />}
+      onClick={handleOpenNewRule}
+    >
+      Nueva Regla
+    </Button>
+  ) : undefined;
+
+  return (
+    <PageContainer
+      title="Descuentos"
+      subtitle="Reglas de descuento aplicables en el punto de venta"
+      headerActions={headerActions}
+    >
+      {isMobile && (
+        <Box sx={{ mb: 2 }}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenNewRule}
+            fullWidth
+          >
+            Nueva Regla
+          </Button>
+        </Box>
+      )}
+
+      {isMobile ? (
+        <Stack spacing={1.5}>
           {loading ? (
-            <Typography>Cargando…</Typography>
+            <LoadingState variant="list" count={3} />
           ) : rules.length === 0 ? (
-            <Typography>No hay reglas de descuento aún.</Typography>
+            <EmptyState
+              title="Todavía no hay reglas de descuento"
+              description="Creá una regla para aplicar descuentos automáticos por producto, categoría o monto en el punto de venta."
+              icon={
+                <Box
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    backgroundColor: "#F4F2FB",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "inherit",
+                    color: "#5B4CA8",
+                  }}
+                >
+                  <LocalOfferIcon sx={{ fontSize: "inherit" }} />
+                </Box>
+              }
+            />
+          ) : (
+            rules.map((r) => (
+              <DiscountRuleCard
+                key={r.id}
+                rule={r}
+                onEdit={handleOpenEditRule}
+                onDelete={remove}
+                onToggleActive={toggleActive}
+                isMobile={true}
+              />
+            ))
+          )}
+        </Stack>
+      ) : (
+        <ContentCard title="Descuentos">
+          {loading ? (
+            <LoadingState variant="list" count={3} />
+          ) : rules.length === 0 ? (
+            <EmptyState
+              title="Todavía no hay reglas de descuento"
+              description="Creá una regla para aplicar descuentos automáticos por producto, categoría o monto en el punto de venta."
+              icon={
+                <Box
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    backgroundColor: "#F4F2FB",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "inherit",
+                    color: "#5B4CA8",
+                  }}
+                >
+                  <LocalOfferIcon sx={{ fontSize: "inherit" }} />
+                </Box>
+              }
+            />
           ) : (
             <Grid container spacing={2}>
-              {rules.map((r) => {
-                const conditions: DiscountConditions =
-                  (r.conditions as DiscountConditions) || {};
-                return (
-                  <Grid item xs={12} md={6} lg={4} key={r.id}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Stack
-                          direction="row"
-                          justifyContent="space-between"
-                          alignItems="start"
-                          mb={1}
-                        >
-                          <Typography variant="h6">{r.name}</Typography>
-                          <Stack direction="row" spacing={1}>
-                            <IconButton
-                              onClick={() => toggleActive(r)}
-                              size="small"
-                              title={r.isActive ? "Desactivar" : "Activar"}
-                            >
-                              {r.isActive ? (
-                                <CheckIcon color="success" />
-                              ) : (
-                                <CloseIcon color="error" />
-                              )}
-                            </IconButton>
-                            <IconButton
-                              onClick={async () => {
-                                // Preparar edición
-                                setEditingId(r.id);
-                                const cond: DiscountConditions =
-                                  (r.conditions as DiscountConditions) || {};
-                                setForm({
-                                  name: r.name,
-                                  type: r.type,
-                                  value: r.value,
-                                  appliesTo: r.appliesTo,
-                                  code: cond.code || "",
-                                  minTotal: cond.minTotal?.toString?.() || "",
-                                  startDate: r.startDate
-                                    ? dayjs(r.startDate).format("YYYY-MM-DD")
-                                    : "",
-                                  endDate: r.endDate
-                                    ? dayjs(r.endDate).format("YYYY-MM-DD")
-                                    : "",
-                                  isActive: r.isActive,
-                                  productIds: cond.productIds || [],
-                                  categoryIds: cond.categoryIds || [],
-                                });
-                                // cargar opciones para edición
-                                try {
-                                  setLoadingOptions(true);
-                                  const res = await fetch(
-                                    "/api/discounts/options",
-                                  );
-                                  if (res.ok) setOptions(await res.json());
-                                } finally {
-                                  setLoadingOptions(false);
-                                }
-                                setOpenDialog(true);
-                              }}
-                              size="small"
-                              title="Editar"
-                            >
-                              <EditIcon />
-                            </IconButton>
-                            <IconButton
-                              onClick={() => remove(r.id)}
-                              size="small"
-                              color="error"
-                              title="Eliminar"
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </Stack>
-                        </Stack>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          gutterBottom
-                        >
-                          Tipo: {r.type} · Ámbito: {r.appliesTo}
-                        </Typography>
-                        <Typography variant="body2" gutterBottom>
-                          Valor:{" "}
-                          {r.type === "PERCENTAGE"
-                            ? `${r.value}%`
-                            : `${r.value}`}
-                        </Typography>
-                        {(conditions?.code || conditions?.minTotal) && (
-                          <Typography variant="body2" color="text.secondary">
-                            Condiciones:{" "}
-                            {conditions?.code
-                              ? `código "${conditions.code}"`
-                              : ""}
-                            {conditions?.code && conditions?.minTotal
-                              ? " · "
-                              : ""}
-                            {conditions?.minTotal
-                              ? `mínimo ${conditions.minTotal}`
-                              : ""}
-                          </Typography>
-                        )}
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          display="block"
-                          mt={1}
-                        >
-                          Vigencia:{" "}
-                          {r.startDate
-                            ? dayjs(r.startDate).format("YYYY-MM-DD")
-                            : "—"}{" "}
-                          a{" "}
-                          {r.endDate
-                            ? dayjs(r.endDate).format("YYYY-MM-DD")
-                            : "—"}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                );
-              })}
+              {rules.map((r) => (
+                <DiscountRuleCard
+                  key={r.id}
+                  rule={r}
+                  onEdit={handleOpenEditRule}
+                  onDelete={remove}
+                  onToggleActive={toggleActive}
+                />
+              ))}
             </Grid>
           )}
-        </CardContent>
-      </Card>
+        </ContentCard>
+      )}
 
       <Dialog
         open={openDialog}
         onClose={() => setOpenDialog(false)}
         fullWidth
         maxWidth="sm"
+        fullScreen={isMobile}
       >
-        <DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {editingId ? "Editar Regla de Descuento" : "Nueva Regla de Descuento"}
+          {isMobile && (
+            <IconButton onClick={() => setOpenDialog(false)}>
+              <CloseIcon />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Grid container mt={1} spacing={3}>
@@ -637,8 +645,19 @@ export default function DiscountsPage() {
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={() => setOpenDialog(false)}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
           <Button
             onClick={handleSave}
             variant="contained"
@@ -648,11 +667,16 @@ export default function DiscountsPage() {
               (loadingOptions &&
                 (form.appliesTo === "PRODUCT" || form.appliesTo === "CATEGORY"))
             }
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             {editingId ? "Actualizar" : "Guardar"}
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+
+      {ConfirmDialogComponent}
+    </PageContainer>
   );
 }

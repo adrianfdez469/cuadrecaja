@@ -10,11 +10,15 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   TextField,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { useState, useEffect, useMemo } from "react";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { ChangeQtyOptions } from "../hooks/useGestionInventario";
@@ -37,6 +41,8 @@ interface Props {
 }
 
 export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { monedasNegocio, tasasVigentes, monedaBase } = useAppContext();
   const [newQtyStr, setNewQtyStr] = useState("");
   const [costoUnitario, setCostoUnitario] = useState("");
@@ -117,8 +123,27 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
   const isExtraCurrency = mostrarCosto && monedaCompra !== monedaBase;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Cambiar cantidad — {producto.producto.nombre}</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      fullScreen={isMobile}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        Cambiar cantidad — {producto.producto.nombre}
+        {isMobile && (
+          <IconButton onClick={onClose} disabled={saving}>
+            <CloseIcon />
+          </IconButton>
+        )}
+      </DialogTitle>
       <DialogContent>
         <Box display="flex" flexDirection="column" gap={2} pt={1}>
           <Box display="flex" gap={2}>
@@ -211,14 +236,27 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
           )}
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={saving}>
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
+        <Button
+          onClick={onClose}
+          disabled={saving}
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : undefined }}
+        >
           Cancelar
         </Button>
         <Button
           onClick={handleSave}
           variant="contained"
           disabled={saving || delta === 0}
+          fullWidth={isMobile}
+          size={isMobile ? "large" : "medium"}
+          sx={{ minHeight: isMobile ? 56 : undefined }}
           startIcon={
             saving ? <CircularProgress size={16} color="inherit" /> : undefined
           }

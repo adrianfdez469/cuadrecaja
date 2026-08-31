@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -74,7 +74,6 @@ import {
 } from "@/utils/formatters";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
-import SelectableTextField from "@/components/SelectableTextField";
 import { useRouter } from "next/navigation";
 import { registerFirstPaymentForNegocio } from "@/services/referralAdminService";
 
@@ -114,7 +113,6 @@ export default function Negocios() {
   const [negocioStats, setNegocioStats] = useState<
     Record<string, NegocioStats>
   >({});
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const { showMessage } = useMessageContext();
   const { user, loadingContext } = useAppContext();
 
@@ -393,11 +391,6 @@ export default function Negocios() {
 
   // Cálculos para estadísticas
   const totalNegocios = negocios.length;
-  const negociosActivos = negocios.filter(
-    (n) => getDaysRemaining(n.limitTime) > 0,
-  ).length;
-  const negociosExpirados = totalNegocios - negociosActivos;
-  const negociosVisibles = filteredNegocios.length;
 
   // Componente para mostrar estadísticas de uso
   const UsageStatsCard = ({
@@ -530,63 +523,6 @@ export default function Negocios() {
   };
 
   // Componente de estadística general
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color,
-  }: {
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: "100%" }}>
-      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 1 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: isMobile ? 40 : 48,
-              minHeight: isMobile ? 40 : 48,
-            }}
-          >
-            {icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="bold"
-              sx={{
-                fontSize: isMobile ? "1.25rem" : "2rem",
-                lineHeight: 1.2,
-                wordBreak: "break-all",
-              }}
-            >
-              {value}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? "0.75rem" : "0.875rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   // Componente de tarjeta de negocio para móviles
   const NegocioCard = ({ negocio }: { negocio: INegocio }) => {
     const days = getDaysRemaining(negocio.limitTime);
@@ -816,20 +752,6 @@ export default function Negocios() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
-      )}
       <Button
         variant="contained"
         startIcon={!isMobile ? <Add /> : undefined}
@@ -903,83 +825,22 @@ export default function Negocios() {
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas de negocios */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Business fontSize={"medium"} />}
-                  value={totalNegocios.toLocaleString()}
-                  label="Total Negocios"
-                  color="primary.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<TrendingUp fontSize={"medium"} />}
-                  value={negociosActivos.toLocaleString()}
-                  label="Activos"
-                  color="success.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Schedule fontSize={"medium"} />}
-                  value={negociosExpirados.toLocaleString()}
-                  label="Expirados"
-                  color="error.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Search fontSize={"medium"} />}
-                  value={negociosVisibles.toLocaleString()}
-                  label="Visibles"
-                  color="info.light"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Business fontSize="large" />}
-              value={totalNegocios.toLocaleString()}
-              label="Total Negocios"
-              color="primary.light"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<TrendingUp fontSize="large" />}
-              value={negociosActivos.toLocaleString()}
-              label="Negocios Activos"
-              color="success.light"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Schedule fontSize="large" />}
-              value={negociosExpirados.toLocaleString()}
-              label="Negocios Expirados"
-              color="error.light"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Search fontSize="large" />}
-              value={negociosVisibles.toLocaleString()}
-              label="Resultados Visibles"
-              color="info.light"
-            />
-          </Grid>
-        </Grid>
-      )}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary">
+          Total Negocios
+        </Typography>
+        <Typography
+          variant="h4"
+          fontWeight="bold"
+          sx={{
+            fontSize: "1.625rem",
+            lineHeight: 1.2,
+            mt: 0.5,
+          }}
+        >
+          {totalNegocios}
+        </Typography>
+      </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -1015,7 +876,7 @@ export default function Negocios() {
                 },
               }}
             />
-            <SelectableTextField
+            <TextField
               size="small"
               placeholder={isMobile ? "Buscar..." : "Buscar negocio..."}
               value={searchTerm}
@@ -1076,7 +937,7 @@ export default function Negocios() {
                   const isExpanded = expandedNegocio === negocio.id;
 
                   return (
-                    <>
+                    <Fragment key={negocio.id}>
                       <TableRow
                         key={negocio.id}
                         sx={{
@@ -1213,137 +1074,117 @@ export default function Negocios() {
                           </Stack>
                         </TableCell>
                       </TableRow>
-                      <TableRow>
-                        <TableCell
-                          style={{ paddingBottom: 0, paddingTop: 0 }}
-                          colSpan={5}
+                      {isExpanded && (
+                        <TableRow
+                          sx={{
+                            backgroundColor:
+                              theme.palette.semantic.hue.accent.surface,
+                            "&:hover": {
+                              backgroundColor:
+                                theme.palette.semantic.hue.accent.surface,
+                            },
+                          }}
                         >
-                          <Collapse
-                            in={isExpanded}
-                            timeout="auto"
-                            unmountOnExit
-                          >
-                            <Box sx={{ margin: 2 }}>
-                              <Typography
-                                variant="h6"
-                                gutterBottom
-                                component="div"
+                          <TableCell colSpan={5} sx={{ py: 2.5, px: 3 }}>
+                            {stats ? (
+                              <Grid container spacing={3} alignItems="center">
+                                <Grid item xs={12} sm={4}>
+                                  <Stack spacing={0.5}>
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                      fontWeight="medium"
+                                    >
+                                      Tiendas
+                                    </Typography>
+                                    <Typography
+                                      variant="h6"
+                                      fontWeight="bold"
+                                      sx={{ fontSize: "1.25rem" }}
+                                    >
+                                      {stats.tiendas.actual}
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {stats.tiendas.limite === -1
+                                        ? "Sin límite"
+                                        : `de ${stats.tiendas.limite}`}
+                                    </Typography>
+                                  </Stack>
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                  <Stack spacing={0.5}>
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                      fontWeight="medium"
+                                    >
+                                      Usuarios
+                                    </Typography>
+                                    <Typography
+                                      variant="h6"
+                                      fontWeight="bold"
+                                      sx={{ fontSize: "1.25rem" }}
+                                    >
+                                      {stats.usuarios.actual}
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {stats.usuarios.limite === -1
+                                        ? "Sin límite"
+                                        : `de ${stats.usuarios.limite}`}
+                                    </Typography>
+                                  </Stack>
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                  <Stack spacing={0.5}>
+                                    <Typography
+                                      variant="body2"
+                                      color="text.secondary"
+                                      fontWeight="medium"
+                                    >
+                                      Productos
+                                    </Typography>
+                                    <Typography
+                                      variant="h6"
+                                      fontWeight="bold"
+                                      sx={{ fontSize: "1.25rem" }}
+                                    >
+                                      {stats.productos.actual}
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {stats.productos.limite === -1
+                                        ? "Sin límite"
+                                        : `de ${stats.productos.limite}`}
+                                    </Typography>
+                                  </Stack>
+                                </Grid>
+                              </Grid>
+                            ) : (
+                              <Box
                                 sx={{
                                   display: "flex",
                                   alignItems: "center",
-                                  gap: 1,
+                                  gap: 2,
                                 }}
                               >
-                                <TrendingUp color="primary" />
-                                Estadísticas de Uso - {negocio.nombre}
-                              </Typography>
-
-                              {stats ? (
-                                <Grid container spacing={3}>
-                                  <Grid item xs={12} md={9}>
-                                    <Grid container spacing={2}>
-                                      <Grid item xs={12} sm={4}>
-                                        <UsageStatsCard
-                                          icon={<Store color="primary" />}
-                                          title="Tiendas"
-                                          actual={stats.tiendas.actual}
-                                          limite={stats.tiendas.limite}
-                                          porcentaje={stats.tiendas.porcentaje}
-                                          color="primary"
-                                        />
-                                      </Grid>
-                                      <Grid item xs={12} sm={4}>
-                                        <UsageStatsCard
-                                          icon={<Person color="secondary" />}
-                                          title="Usuarios"
-                                          actual={stats.usuarios.actual}
-                                          limite={stats.usuarios.limite}
-                                          porcentaje={stats.usuarios.porcentaje}
-                                          color="secondary"
-                                        />
-                                      </Grid>
-                                      <Grid item xs={12} sm={4}>
-                                        <UsageStatsCard
-                                          icon={<Inventory color="info" />}
-                                          title="Productos"
-                                          actual={stats.productos.actual}
-                                          limite={stats.productos.limite}
-                                          porcentaje={
-                                            stats.productos.porcentaje
-                                          }
-                                          color="info"
-                                        />
-                                      </Grid>
-                                    </Grid>
-                                  </Grid>
-
-                                  <Grid item xs={12} md={3}>
-                                    <Card
-                                      variant="outlined"
-                                      sx={{ height: "100%" }}
-                                    >
-                                      <CardContent
-                                        sx={{ p: 2, textAlign: "center" }}
-                                      >
-                                        <Stack alignItems="center" spacing={1}>
-                                          <Schedule
-                                            color={getDaysRemainingColor(
-                                              stats.diasRestantes,
-                                            )}
-                                            sx={{ fontSize: 32 }}
-                                          />
-                                          <Typography
-                                            variant="h6"
-                                            fontWeight="bold"
-                                          >
-                                            {formatDaysRemaining(
-                                              stats.diasRestantes,
-                                            )}
-                                          </Typography>
-                                          <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                          >
-                                            Vence el{" "}
-                                            {formatDate(stats.fechaVencimiento)}
-                                          </Typography>
-                                          <Chip
-                                            label={
-                                              stats.diasRestantes <= 0
-                                                ? "Expirado"
-                                                : "Activo"
-                                            }
-                                            color={getDaysRemainingColor(
-                                              stats.diasRestantes,
-                                            )}
-                                            variant="filled"
-                                            size="small"
-                                          />
-                                        </Stack>
-                                      </CardContent>
-                                    </Card>
-                                  </Grid>
-                                </Grid>
-                              ) : (
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 2,
-                                    p: 2,
-                                  }}
-                                >
-                                  <CircularProgress size={20} />
-                                  <Typography variant="body2">
-                                    Cargando estadísticas...
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          </Collapse>
-                        </TableCell>
-                      </TableRow>
-                    </>
+                                <CircularProgress size={20} />
+                                <Typography variant="body2">
+                                  Cargando estadísticas...
+                                </Typography>
+                              </Box>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
                   );
                 })}
               </TableBody>

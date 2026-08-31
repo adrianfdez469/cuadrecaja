@@ -11,9 +11,6 @@ import {
   Box,
   Button,
   Chip,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Card,
   CardContent,
   Grid,
@@ -26,7 +23,6 @@ import {
   CircularProgress,
   useMediaQuery,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
@@ -72,6 +68,12 @@ interface IProps {
   totales: ITotales;
   handleCerrarCaja?: () => Promise<void>;
   hideTotales?: boolean;
+  // La banda de totales y los dos "Resumen de Ventas por..." de acá abajo
+  // quedaron duplicados en /cierre una vez que CierreTotalsCard y
+  // VentasSummaryCard empezaron a mostrar lo mismo más arriba en la página.
+  // No se reutiliza `hideTotales` para esto: resumen_cierre y el drawer de
+  // ventas del POS ya dependen de su comportamiento actual.
+  hideResumenes?: boolean;
   showOnlyCants?: boolean;
   isProcessing?: boolean;
   formatAmount?: (n: number) => string;
@@ -82,6 +84,7 @@ export const TablaProductosCierre: FC<IProps> = ({
   totales,
   handleCerrarCaja,
   hideTotales,
+  hideResumenes,
   showOnlyCants,
   isProcessing = false,
   formatAmount = formatCurrency,
@@ -89,11 +92,8 @@ export const TablaProductosCierre: FC<IProps> = ({
   const { user } = useAppContext();
   const { showMessage } = useMessageContext();
   const [disableCierreBtn, setDisableCierreBtn] = useState(false);
-  const [expandedConsignacion, setExpandedConsignacion] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [anchorElConsignacion, setAnchorElConsignacion] =
-    useState<null | HTMLElement>(null);
 
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -111,9 +111,8 @@ export const TablaProductosCierre: FC<IProps> = ({
       setExporting(true);
       // Importado bajo demanda: `xlsx` solo hace falta al exportar, y
       // estáticamente entraba en el bundle inicial del cierre.
-      const { exportProductosVendidosToExcel } = await import(
-        "@/utils/excelExport"
-      );
+      const { exportProductosVendidosToExcel } =
+        await import("@/utils/excelExport");
       await exportProductosVendidosToExcel({
         cierreData,
         tiendaNombre: user.localActual.nombre,
@@ -132,9 +131,8 @@ export const TablaProductosCierre: FC<IProps> = ({
   const handleExportProveedor = async (proveedorId: string) => {
     try {
       setExporting(true);
-      const { exportProductosProveedorToExcel } = await import(
-        "@/utils/excelExport"
-      );
+      const { exportProductosProveedorToExcel } =
+        await import("@/utils/excelExport");
       await exportProductosProveedorToExcel({
         cierreData,
         tiendaNombre: user.localActual.nombre,
@@ -160,21 +158,12 @@ export const TablaProductosCierre: FC<IProps> = ({
     setAnchorEl(null);
   };
 
-  const handleMenuConsignacionOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorElConsignacion(event.currentTarget);
-  };
-
-  const handleMenuConsignacionClose = () => {
-    setAnchorElConsignacion(null);
-  };
-
   const {
     totalVentas,
     totalGanancia,
     totalGananciaFinal,
     totalTransferencia,
     // Totales ampliados desde el backend
-    totalVentasBrutas,
     totalDescuentos,
     totalVentasPropias,
     totalVentasConsignacion,
@@ -273,219 +262,88 @@ export const TablaProductosCierre: FC<IProps> = ({
     );
   };
 
-  // Función para renderizar tabla con agrupamiento
-  const ProductTable = ({
-    productos,
-    title,
-    isConsignacion = false,
-  }: {
-    productos: ProductoVendido[];
-    title: string;
-    isConsignacion?: boolean;
-  }) => {
-    if (!productos || productos.length === 0) {
-      return (
-        <TableContainer component={Paper} sx={{ mt: 2 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell colSpan={7} align="center">
-                  <Typography variant="body2" color="text.secondary">
-                    No hay productos{" "}
-                    {isConsignacion ? "en consignación" : "propios"} vendidos
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-          </Table>
-        </TableContainer>
-      );
-    }
+  // Agrupar todos los productos (propios y consignación) por productoId —
+  // una sola lista en vez de dos tablas separadas.
+  const productosAgrupados = productosVendidos.reduce(
+    (acc, producto) => {
+      const key = producto.productoId || producto.id;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(producto);
+      return acc;
+    },
+    {} as Record<string, ProductoVendido[]>,
+  );
 
-    // Agrupar productos por productoId
-    const productosAgrupados = productos.reduce(
-      (acc, producto) => {
-        const key = producto.productoId;
-        if (!acc[key]) {
-          acc[key] = [];
-        }
-        acc[key].push(producto);
-        return acc;
-      },
-      {} as Record<string, ProductoVendido[]>,
-    );
+  const gruposOrdenados: ProductoAgrupado[] = Object.entries(productosAgrupados)
+    .map(([productoId, items]) => ({
+      productoId,
+      items: items.sort((a, b) => (a.costo || 0) - (b.costo || 0)),
+      nombre: items[0]?.nombre || "Producto sin nombre",
+    }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-    // Convertir a array y ordenar por nombre
-    const gruposOrdenados: ProductoAgrupado[] = Object.entries(
-      productosAgrupados,
-    )
-      .map(([productoId, items]) => ({
-        productoId,
-        items: items.sort((a, b) => (a.costo || 0) - (b.costo || 0)), // Ordenar por costo dentro del grupo
-        nombre: items[0].nombre,
-      }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-    // Ya no se prorratea: se muestra el descuento real por producto recibido del backend
-
-    return (
-      <TableContainer component={Paper} sx={{ mt: 2 }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>
-                <Box display="flex" alignItems="center" gap={1}>
-                  {isConsignacion ? (
-                    <HandshakeIcon fontSize="small" />
-                  ) : (
-                    <StoreIcon fontSize="small" />
-                  )}
-                  {title}
-                </Box>
-              </TableCell>
-              <TableCell>Cantidad</TableCell>
-              {!showOnlyCants && (
-                <>
-                  <TableCell>Venta</TableCell>
-                  {/* Columna: Descuento real por producto (propios y consignación) */}
-                  <TableCell>Descuento</TableCell>
-                  {/* Ganancia debe ser neta (descontando el descuento real del producto) */}
-                  {!showOnlyCants && <TableCell>Ganancia</TableCell>}
-                  {!showOnlyCants && <TableCell>Costo</TableCell>}
-                  {!showOnlyCants && <TableCell>Precio</TableCell>}
-                  {isConsignacion && <TableCell>Proveedor</TableCell>}
-                </>
-              )}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {gruposOrdenados.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={isConsignacion ? 7 : 7} align="center">
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ py: 2 }}
-                  >
-                    No hay productos{" "}
-                    {isConsignacion ? "en consignación" : "propios"} vendidos
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              gruposOrdenados.map((grupo) =>
-                grupo.items.map((producto, index) => (
-                  <TableRow key={`${grupo.productoId}-${index}`}>
-                    {/* Celda del nombre del producto con rowSpan */}
-                    {index === 0 && (
-                      <TableCell
-                        rowSpan={grupo.items.length}
-                        sx={{
-                          verticalAlign: "top",
-                          borderRight: "1px solid #e0e0e0",
-                        }}
-                      >
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Typography variant="body2" fontWeight="medium">
-                            {producto.nombre || "Producto sin nombre"}
-                          </Typography>
-                          {isConsignacion && (
-                            <Chip
-                              label="Consignación"
-                              size="small"
-                              color="secondary"
-                              variant="outlined"
-                            />
-                          )}
-                          {grupo.items.length > 1 && (
-                            <Chip
-                              label={`${grupo.items.length} variantes`}
-                              size="small"
-                              color="info"
-                              variant="outlined"
-                            />
-                          )}
-                        </Box>
-                      </TableCell>
-                    )}
-
-                    {/* Celdas de datos específicos de cada variante */}
-                    <TableCell>
-                      {formatNumber(producto.cantidad || 0)}
-                    </TableCell>
-                    {!showOnlyCants && (
-                      <>
-                        <TableCell>
-                          {formatAmount(producto.total || 0)}
-                        </TableCell>
-                        {/* Descuento real del producto */}
-                        <TableCell>
-                          -{formatAmount(producto.descuento || 0)}
-                        </TableCell>
-                        {/* Ganancia neta = ganancia - descuento real del producto */}
-                        {!showOnlyCants && (
-                          <TableCell>
-                            {formatAmount(
-                              (producto.ganancia || 0) -
-                                (producto.descuento || 0),
-                            )}
-                          </TableCell>
-                        )}
-                        {!showOnlyCants && (
-                          <TableCell>
-                            <Typography
-                              variant="body2"
-                              color={
-                                grupo.items.length > 1
-                                  ? "primary.main"
-                                  : "inherit"
-                              }
-                            >
-                              {formatAmount(producto.costo || 0)}
-                            </Typography>
-                          </TableCell>
-                        )}
-                        {!showOnlyCants && (
-                          <TableCell>
-                            <Typography
-                              variant="body2"
-                              color={
-                                grupo.items.length > 1
-                                  ? "primary.main"
-                                  : "inherit"
-                              }
-                            >
-                              {formatAmount(producto.precio || 0)}
-                            </Typography>
-                          </TableCell>
-                        )}
-                        {isConsignacion && (
-                          <TableCell>
-                            <Chip
-                              label={
-                                producto.proveedor?.nombre || "Sin proveedor"
-                              }
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                            />
-                          </TableCell>
-                        )}
-                      </>
-                    )}
-                  </TableRow>
-                )),
-              )
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    );
-  };
+  // Una fila por variante: cantidad/venta con peso, ganancia en verde,
+  // descuento/costo/precio en gris de apoyo (rojo el descuento si aplica).
+  const renderVariantLine = (item: ProductoVendido) => (
+    <>
+      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+        <Typography variant="caption" color="text.secondary">
+          Cant. {formatNumber(item.cantidad || 0)}
+        </Typography>
+        {!showOnlyCants && (
+          <Typography
+            sx={{
+              fontSize: "0.9375rem",
+              fontWeight: 700,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {formatAmount(item.total || 0)}
+          </Typography>
+        )}
+      </Box>
+      {!showOnlyCants && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 1,
+            mt: 0.25,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Costo {formatAmount(item.costo || 0)} · Precio{" "}
+            {formatAmount(item.precio || 0)}
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{ fontWeight: 600, color: "semantic.hue.positive.main" }}
+          >
+            Ganancia{" "}
+            {formatAmount((item.ganancia || 0) - (item.descuento || 0))}
+          </Typography>
+        </Box>
+      )}
+      {!showOnlyCants && (item.descuento || 0) > 0 && (
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            mt: 0.25,
+            color: "semantic.hue.negative.main",
+          }}
+        >
+          Descuento -{formatAmount(item.descuento || 0)}
+        </Typography>
+      )}
+    </>
+  );
 
   return (
     <>
-      {!hideTotales && (
+      {!hideTotales && !hideResumenes && (
         <Paper
           sx={{
             p: 2,
@@ -634,508 +492,549 @@ export const TablaProductosCierre: FC<IProps> = ({
               </Button>
             </Box>
           )}
-
-          {/* Menú de exportación general */}
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-            anchorOrigin={{
-              vertical: "bottom",
-              horizontal: "right",
-            }}
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-          >
-            <MenuItem onClick={handleExportAll} disabled={exporting}>
-              <ListItemIcon>
-                <FileDownloadIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Exportar todos los productos</ListItemText>
-            </MenuItem>
-          </Menu>
         </Paper>
       )}
 
-      {/* Resumen de Ventas por Usuario */}
+      {/* Menú de exportación — vive fuera de la sección de productos: el
+          botón que lo abre se renderiza siempre, con o sin
+          `hideTotales`/`hideResumenes`. Junta lo que antes eran dos menús
+          (general + por proveedor) ahora que el acordeón de consignación
+          desapareció y no queda un botón propio para el segundo. */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+      >
+        <MenuItem onClick={handleExportAll} disabled={exporting}>
+          <ListItemIcon>
+            <FileDownloadIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Exportar todos los productos</ListItemText>
+        </MenuItem>
+        {proveedoresUnicos.map((proveedor) => (
+          <MenuItem
+            key={proveedor.id}
+            onClick={() => {
+              handleExportProveedor(proveedor.id);
+              handleMenuClose();
+            }}
+            disabled={exporting}
+          >
+            <ListItemIcon>
+              <FileDownloadIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              Exportar productos de {proveedor.nombre}
+            </ListItemText>
+          </MenuItem>
+        ))}
+      </Menu>
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          📊 Resumen de Ventas por Usuario
-        </Typography>
-        <Grid container spacing={2}>
-          {totalVentasPorUsuario.map((usuario) => (
-            <Grid item xs={12} md={6} key={usuario.id}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Box display="flex" alignItems="center" gap={1} mb={1}>
-                    <StoreIcon color="primary" />
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      {usuario.nombre}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Ventas: {formatAmount(usuario.total)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
-
-      {/* Resumen de Consignación con datos reales */}
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          📊 Resumen de Ventas por Tipo
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <Card variant="outlined">
-              <CardContent>
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <StoreIcon color="primary" />
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    Productos Propios
-                  </Typography>
-                </Box>
-                <VentaConDescuento
-                  bruto={totalVentasPropias}
-                  neto={totalVentasPropiasNeto}
-                />
-                {!showOnlyCants && (
-                  <Typography variant="body2" color="text.secondary">
-                    Ganancia: {formatAmount(totalGananciasPropias)}
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Card variant="outlined">
-              <CardContent>
-                <Box display="flex" alignItems="center" gap={1} mb={1}>
-                  <HandshakeIcon color="secondary" />
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    Productos Consginación
-                  </Typography>
-                </Box>
-                <VentaConDescuento
-                  bruto={totalVentasConsignacion}
-                  neto={totalVentasConsignacionNeto}
-                />
-                {!showOnlyCants && (
-                  <Typography variant="body2" color="text.secondary">
-                    Ganancia: {formatAmount(totalGananciasConsignacion)}
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {totalVentasPorProveedor.map(
-            (item: {
-              id: string;
-              nombre: string;
-              total: number;
-              ganancia: number;
-            }) => {
-              return (
-                <Grid item xs={6} md={3} key={item.id}>
+      {!hideResumenes && (
+        <>
+          {/* Resumen de Ventas por Usuario */}
+          <Paper sx={{ p: 2, mb: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Resumen de Ventas por Usuario
+            </Typography>
+            <Grid container spacing={2}>
+              {totalVentasPorUsuario.map((usuario) => (
+                <Grid item xs={12} md={6} key={usuario.id}>
                   <Card variant="outlined">
                     <CardContent>
                       <Box display="flex" alignItems="center" gap={1} mb={1}>
-                        <HandshakeIcon color="secondary" />
+                        <StoreIcon color="primary" />
                         <Typography variant="subtitle1" fontWeight="bold">
-                          {item.nombre}
+                          {usuario.nombre}
                         </Typography>
                       </Box>
                       <Typography variant="body2" color="text.secondary">
-                        Ventas: {formatAmount(item.total)}
+                        Ventas: {formatAmount(usuario.total)}
                       </Typography>
-                      {!showOnlyCants && (
-                        <Typography variant="body2" color="text.secondary">
-                          Ganancia: {formatAmount(item.ganancia)}
-                        </Typography>
-                      )}
                     </CardContent>
                   </Card>
                 </Grid>
-              );
-            },
-          )}
-        </Grid>
-      </Paper>
+              ))}
+            </Grid>
+          </Paper>
 
-      {/* Acordeones para productos separados con datos reales */}
-      <Box sx={{ mb: 2 }}>
-        {productosVendidos.filter((p) => p.proveedor).length > 0 && (
-          <Accordion expanded={expandedConsignacion}>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              onClick={() => setExpandedConsignacion(!expandedConsignacion)}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                pr: 1,
-              }}
-            >
-              <Box display="flex" alignItems="center" gap={1}>
-                <HandshakeIcon color="secondary" />
-                <Typography variant="subtitle1" fontWeight="bold">
-                  {isMobile ? "Consignación" : "Productos Consignación"} (
-                  {productosVendidos.filter((p) => p.proveedor).length})
-                </Typography>
-              </Box>
-              <Box
-                onClick={(e) => e.stopPropagation()}
-                flex={1}
-                display={"flex"}
-                justifyContent={"flex-end"}
-              >
-                <Tooltip title="Exportar productos en consignación">
-                  <IconButton
-                    onClick={handleMenuConsignacionOpen}
-                    disabled={exporting}
-                    size="small"
-                    color="secondary"
-                  >
-                    {exporting ? (
-                      <CircularProgress size={16} />
-                    ) : (
-                      <FileDownloadIcon />
+          {/* Resumen de Consignación con datos reales */}
+          <Paper sx={{ p: 2, mb: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Resumen de Ventas por Tipo
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <StoreIcon color="primary" />
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        Productos Propios
+                      </Typography>
+                    </Box>
+                    <VentaConDescuento
+                      bruto={totalVentasPropias}
+                      neto={totalVentasPropiasNeto}
+                    />
+                    {!showOnlyCants && (
+                      <Typography variant="body2" color="text.secondary">
+                        Ganancia: {formatAmount(totalGananciasPropias)}
+                      </Typography>
                     )}
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              <ProductTable
-                productos={productosVendidos.filter((p) => p.proveedor)}
-                title="Productos en Consignación"
-                isConsignacion={true}
-              />
-            </AccordionDetails>
-          </Accordion>
-        )}
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <HandshakeIcon color="secondary" />
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        Productos Consignación
+                      </Typography>
+                    </Box>
+                    <VentaConDescuento
+                      bruto={totalVentasConsignacion}
+                      neto={totalVentasConsignacionNeto}
+                    />
+                    {!showOnlyCants && (
+                      <Typography variant="body2" color="text.secondary">
+                        Ganancia: {formatAmount(totalGananciasConsignacion)}
+                      </Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
 
-        {/* Menú de exportación para productos en consignación */}
-        <Menu
-          anchorEl={anchorElConsignacion}
-          open={Boolean(anchorElConsignacion)}
-          onClose={handleMenuConsignacionClose}
-          anchorOrigin={{
-            vertical: "bottom",
-            horizontal: "right",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "right",
+              {totalVentasPorProveedor.map(
+                (item: {
+                  id: string;
+                  nombre: string;
+                  total: number;
+                  ganancia: number;
+                }) => {
+                  return (
+                    <Grid item xs={6} md={3} key={item.id}>
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Box
+                            display="flex"
+                            alignItems="center"
+                            gap={1}
+                            mb={1}
+                          >
+                            <HandshakeIcon color="secondary" />
+                            <Typography variant="subtitle1" fontWeight="bold">
+                              {item.nombre}
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Ventas: {formatAmount(item.total)}
+                          </Typography>
+                          {!showOnlyCants && (
+                            <Typography variant="body2" color="text.secondary">
+                              Ganancia: {formatAmount(item.ganancia)}
+                            </Typography>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  );
+                },
+              )}
+            </Grid>
+          </Paper>
+        </>
+      )}
+
+      {/* Productos vendidos y consignación — una sola lista en vez de un
+          acordeón de consignación aparte más "Todos los Productos": el
+          proveedor va como chip junto al nombre, y el neto tras descuento
+          se lee en la propia fila de Total en vez de en una tercera card. */}
+      <Box
+        sx={{
+          bgcolor: "background.paper",
+          border: 1,
+          borderColor: "divider",
+          borderRadius: "12px",
+          overflow: "hidden",
+          mb: 2,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            px: isMobile ? 2 : 2.5,
+            py: isMobile ? 1.75 : 2.25,
           }}
         >
-          {proveedoresUnicos.map((proveedor) => (
-            <MenuItem
-              key={proveedor.id}
-              onClick={() => {
-                handleExportProveedor(proveedor.id);
-                handleMenuConsignacionClose();
-              }}
-              disabled={exporting}
-            >
-              <ListItemIcon>
-                <FileDownloadIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>
-                Exportar productos de {proveedor.nombre}
-              </ListItemText>
-            </MenuItem>
-          ))}
-        </Menu>
-      </Box>
-
-      {/* Tabla original (mantenida para compatibilidad) */}
-      <Box sx={{ m: 2 }}>
-        <Box display={"flex"} flexDirection={"row"} gap={2}>
-          <Typography variant="h6" gutterBottom>
-            {isMobile ? "📋 Todos" : "📋 Todos los Productos"}
+          <Typography sx={{ fontSize: "1.0625rem", fontWeight: 700, flex: 1 }}>
+            Productos vendidos y consignación
           </Typography>
-
-          <Box
-            onClick={(e) => e.stopPropagation()}
-            flex={1}
-            display={"flex"}
-            justifyContent={"flex-end"}
-          >
-            <Tooltip title="Exportar a Excel">
-              <IconButton
-                onClick={handleMenuOpen}
-                disabled={exporting}
-                color="primary"
-              >
-                {exporting ? (
-                  <CircularProgress size={20} />
-                ) : (
-                  <FileDownloadIcon />
-                )}
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-        <TableContainer component={Paper} sx={{ mt: 2 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Producto</TableCell>
-                <TableCell>Cantidad</TableCell>
-                {!showOnlyCants && (
-                  <>
-                    <TableCell>Venta</TableCell>
-                    {/* Nueva columna: Descuento (global) */}
-                    <TableCell>Descuento</TableCell>
-                    {/* Ganancia neta considerando descuentos */}
-                    {!showOnlyCants && <TableCell>Ganancia</TableCell>}
-                    {!showOnlyCants && <TableCell>Costo</TableCell>}
-                    {!showOnlyCants && <TableCell>Precio</TableCell>}
-                  </>
-                )}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {productosVendidos.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={showOnlyCants ? 2 : 7} align="center">
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ py: 2 }}
-                    >
-                      No hay productos vendidos en este período
-                    </Typography>
-                  </TableCell>
-                </TableRow>
+          <Tooltip title="Exportar">
+            <IconButton
+              onClick={handleMenuOpen}
+              disabled={exporting}
+              size="small"
+            >
+              {exporting ? (
+                <CircularProgress size={18} />
               ) : (
-                (() => {
-                  // Agrupar productos por productoId
-                  const productosAgrupados = productosVendidos.reduce(
-                    (acc, producto) => {
-                      const key = producto.productoId || producto.id;
-                      if (!acc[key]) {
-                        acc[key] = [];
-                      }
-                      acc[key].push(producto);
-                      return acc;
-                    },
-                    {} as Record<string, ProductoVendido[]>,
-                  );
-
-                  // Convertir a array y ordenar por nombre
-                  const gruposOrdenados = Object.entries(productosAgrupados)
-                    .map(([productoId, items]) => ({
-                      productoId,
-                      items: Array.isArray(items)
-                        ? items.sort((a, b) => (a.costo || 0) - (b.costo || 0))
-                        : [],
-                      nombre: items[0]?.nombre || "Producto sin nombre",
-                    }))
-                    .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-                  return gruposOrdenados.map((grupo) =>
-                    grupo.items.map((producto, index) => (
-                      <TableRow key={`${grupo.productoId}-${index}`}>
-                        {/* Celda del nombre del producto con rowSpan */}
-                        {index === 0 && (
-                          <TableCell
-                            rowSpan={grupo.items.length}
-                            sx={{
-                              verticalAlign: "top",
-                              borderRight: "1px solid #e0e0e0",
-                            }}
-                          >
-                            <Box
-                              display="flex"
-                              alignItems="center"
-                              gap={1}
-                              flexWrap="wrap"
-                            >
-                              <Typography variant="body2" fontWeight="medium">
-                                {producto.nombre || "Producto sin nombre"}
-                              </Typography>
-                              {grupo.items.some((i) => i.proveedor) && (
-                                <Chip
-                                  label={
-                                    producto.proveedor
-                                      ? `Consignación · ${producto.proveedor.nombre}`
-                                      : "Consignación"
-                                  }
-                                  size="small"
-                                  color="secondary"
-                                  variant="outlined"
-                                />
-                              )}
-                              {grupo.items.length > 1 && (
-                                <Chip
-                                  label={`${grupo.items.length} variantes`}
-                                  size="small"
-                                  color="info"
-                                  variant="outlined"
-                                />
-                              )}
-                            </Box>
-                          </TableCell>
-                        )}
-
-                        {
-                          /* Celdas de datos específicos de cada variante */
-                          // Cálculo de descuento por fila en tabla global (Todos los Productos)
-                        }
-                        <TableCell>
-                          {formatNumber(producto.cantidad || 0)}
-                        </TableCell>
-                        {!showOnlyCants && (
-                          <>
-                            <TableCell>
-                              {formatAmount(producto.total || 0)}
-                            </TableCell>
-                            {/* Descuento real por producto */}
-                            <TableCell>
-                              -{formatAmount(producto.descuento || 0)}
-                            </TableCell>
-                            {/* Ganancia neta usando descuento real */}
-                            {!showOnlyCants && (
-                              <TableCell>
-                                {formatAmount(
-                                  (producto.ganancia || 0) -
-                                    (producto.descuento || 0),
-                                )}
-                              </TableCell>
-                            )}
-                            {!showOnlyCants && (
-                              <TableCell>
-                                <Typography
-                                  variant="body2"
-                                  color={
-                                    grupo.items.length > 1
-                                      ? "primary.main"
-                                      : "inherit"
-                                  }
-                                >
-                                  {formatAmount(producto.costo || 0)}
-                                </Typography>
-                              </TableCell>
-                            )}
-                            {!showOnlyCants && (
-                              <TableCell>
-                                <Typography
-                                  variant="body2"
-                                  color={
-                                    grupo.items.length > 1
-                                      ? "primary.main"
-                                      : "inherit"
-                                  }
-                                >
-                                  {formatAmount(producto.precio || 0)}
-                                </Typography>
-                              </TableCell>
-                            )}
-                          </>
-                        )}
-                      </TableRow>
-                    )),
-                  );
-                })()
+                <FileDownloadIcon fontSize="small" />
               )}
-              {!hideTotales && productosVendidos.length > 0 && (
-                <TableRow
-                  sx={{ fontWeight: "bold", backgroundColor: "#f0f0f0" }}
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {gruposOrdenados.length === 0 ? (
+          <Box sx={{ px: 2.5, py: 3, borderTop: 1, borderColor: "divider" }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              textAlign="center"
+            >
+              No hay productos vendidos en este período
+            </Typography>
+          </Box>
+        ) : isMobile ? (
+          <>
+            {gruposOrdenados.map((grupo) => {
+              const proveedorItem = grupo.items.find((i) => i.proveedor);
+              const consignacionLabel = proveedorItem
+                ? `Consignación · ${proveedorItem.proveedor!.nombre}`
+                : undefined;
+              return (
+                <Box key={grupo.productoId}>
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      borderTop: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    <Typography sx={{ fontSize: "0.9375rem", fontWeight: 600 }}>
+                      {grupo.nombre}
+                    </Typography>
+                    {(consignacionLabel || grupo.items.length > 1) && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 0.75,
+                          flexWrap: "wrap",
+                          mt: 0.75,
+                          mb: 0.75,
+                        }}
+                      >
+                        {consignacionLabel && (
+                          <Chip
+                            label={consignacionLabel}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                        {grupo.items.length > 1 && (
+                          <Chip
+                            label={`${grupo.items.length} variantes`}
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+                    )}
+                    {showOnlyCants ? (
+                      <Typography variant="caption" color="text.secondary">
+                        Cantidad: {formatNumber(grupo.items[0].cantidad || 0)}
+                      </Typography>
+                    ) : (
+                      renderVariantLine(grupo.items[0])
+                    )}
+                  </Box>
+                  {grupo.items.slice(1).map((item, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        px: 2,
+                        py: 1.5,
+                        borderTop: 1,
+                        borderColor: "divider",
+                      }}
+                    >
+                      {showOnlyCants ? (
+                        <Typography variant="caption" color="text.secondary">
+                          Cantidad: {formatNumber(item.cantidad || 0)}
+                        </Typography>
+                      ) : (
+                        renderVariantLine(item)
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              );
+            })}
+
+            {!hideTotales && (
+              <Box
+                sx={{
+                  px: 2,
+                  py: 1.5,
+                  borderTop: 1,
+                  borderColor: "divider",
+                  bgcolor: "semantic.surface.sunken",
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 1,
+                  }}
                 >
-                  <TableCell>Total</TableCell>
-                  <TableCell>
-                    {formatNumber(totales?.totalCantidad || 0)}
-                  </TableCell>
+                  <Typography sx={{ fontSize: "0.9375rem", fontWeight: 700 }}>
+                    Total · {formatNumber(totales?.totalCantidad || 0)} uds.
+                  </Typography>
+                  {!showOnlyCants && (
+                    <Typography
+                      sx={{
+                        fontSize: "1rem",
+                        fontWeight: 700,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {formatAmount(totales?.totalMonto || 0)}
+                    </Typography>
+                  )}
+                </Box>
+                {!showOnlyCants && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 1,
+                      mt: 0.25,
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color:
+                          (totalDescuentos || 0) > 0
+                            ? "semantic.hue.negative.main"
+                            : "text.secondary",
+                      }}
+                    >
+                      {(totalDescuentos || 0) > 0
+                        ? `Descuento -${formatAmount(totalDescuentos || 0)} · neto ${formatAmount(totalVentas)}`
+                        : ""}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 700,
+                        color: "semantic.hue.positive.main",
+                      }}
+                    >
+                      Ganancia {formatAmount(totalGananciaFilas)}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+          </>
+        ) : (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Producto</TableCell>
+                  <TableCell align="right">Cantidad</TableCell>
                   {!showOnlyCants && (
                     <>
-                      <TableCell>
-                        {formatAmount(totales?.totalMonto || 0)}
+                      <TableCell align="right">Venta</TableCell>
+                      <TableCell align="right">Ganancia</TableCell>
+                      <TableCell align="right" sx={{ color: "text.secondary" }}>
+                        Descuento
                       </TableCell>
-                      {/* Total descuentos global */}
-                      <TableCell>
-                        - {formatAmount(totalDescuentos || 0)}
+                      <TableCell align="right" sx={{ color: "text.secondary" }}>
+                        Costo
                       </TableCell>
-                      {/* Suma de la ganancia de cada fila (bruta) — no resta gastos/merma/devoluciones */}
-                      <TableCell>{formatAmount(totalGananciaFilas)}</TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
+                      <TableCell align="right" sx={{ color: "text.secondary" }}>
+                        Precio
+                      </TableCell>
                     </>
                   )}
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {gruposOrdenados.map((grupo) => {
+                  const proveedorItem = grupo.items.find((i) => i.proveedor);
+                  const consignacionLabel = proveedorItem
+                    ? `Consignación · ${proveedorItem.proveedor!.nombre}`
+                    : undefined;
+                  return grupo.items.map((item, index) => (
+                    <TableRow key={`${grupo.productoId}-${index}`}>
+                      {index === 0 && (
+                        <TableCell
+                          rowSpan={grupo.items.length}
+                          sx={{
+                            verticalAlign: "top",
+                            borderRight: "1px solid",
+                            borderColor: "divider",
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 0.75,
+                            }}
+                          >
+                            <Typography variant="body2" fontWeight={600}>
+                              {grupo.nombre}
+                            </Typography>
+                            {(consignacionLabel || grupo.items.length > 1) && (
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  gap: 0.5,
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                {consignacionLabel && (
+                                  <Chip
+                                    label={consignacionLabel}
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                )}
+                                {grupo.items.length > 1 && (
+                                  <Chip
+                                    label={`${grupo.items.length} variantes`}
+                                    size="small"
+                                    color="info"
+                                    variant="outlined"
+                                  />
+                                )}
+                              </Box>
+                            )}
+                          </Box>
+                        </TableCell>
+                      )}
+                      <TableCell align="right">
+                        {formatNumber(item.cantidad || 0)}
+                      </TableCell>
+                      {!showOnlyCants && (
+                        <>
+                          <TableCell align="right" sx={{ fontWeight: 600 }}>
+                            {formatAmount(item.total || 0)}
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{
+                              fontWeight: 600,
+                              color: "semantic.hue.positive.main",
+                            }}
+                          >
+                            {formatAmount(
+                              (item.ganancia || 0) - (item.descuento || 0),
+                            )}
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{
+                              color:
+                                (item.descuento || 0) > 0
+                                  ? "semantic.hue.negative.main"
+                                  : "text.secondary",
+                            }}
+                          >
+                            -{formatAmount(item.descuento || 0)}
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{ color: "text.secondary" }}
+                          >
+                            {formatAmount(item.costo || 0)}
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{ color: "text.secondary" }}
+                          >
+                            {formatAmount(item.precio || 0)}
+                          </TableCell>
+                        </>
+                      )}
+                    </TableRow>
+                  ));
+                })}
+                {!hideTotales && (
+                  <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
+                    <TableCell sx={{ fontWeight: 700 }}>
+                      Total
+                      {!showOnlyCants && (totalDescuentos || 0) > 0 && (
+                        <Typography
+                          component="span"
+                          variant="body2"
+                          sx={{ fontWeight: 400, color: "text.secondary" }}
+                        >
+                          {" "}
+                          · neto {formatAmount(totalVentas)} tras -
+                          {formatAmount(totalDescuentos)} de descuento
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>
+                      {formatNumber(totales?.totalCantidad || 0)}
+                    </TableCell>
+                    {!showOnlyCants && (
+                      <>
+                        <TableCell align="right" sx={{ fontWeight: 700 }}>
+                          {formatAmount(totales?.totalMonto || 0)}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            fontWeight: 700,
+                            color: "semantic.hue.positive.main",
+                          }}
+                        >
+                          {formatAmount(totalGananciaFilas)}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            fontWeight: 700,
+                            color:
+                              (totalDescuentos || 0) > 0
+                                ? "semantic.hue.negative.main"
+                                : "text.secondary",
+                          }}
+                        >
+                          -{formatAmount(totalDescuentos || 0)}
+                        </TableCell>
+                        <TableCell />
+                        <TableCell />
+                      </>
+                    )}
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
       </Box>
-
-      {/* Resumen final con descuentos (Bruto -> Descuentos -> Neto) */}
-      <Paper sx={{ p: 2, mt: 2 }}>
-        {(() => {
-          // Usar totales del backend con fallbacks seguros
-          const bruto =
-            typeof totalVentasBrutas === "number"
-              ? totalVentasBrutas
-              : totales?.totalMonto || 0;
-          const descuentos =
-            typeof totalDescuentos === "number" ? totalDescuentos : 0;
-          const neto =
-            typeof totalVentas === "number"
-              ? totalVentas
-              : Math.max(0, bruto - descuentos);
-
-          return (
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
-                <Box textAlign="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Total Ventas (Bruto)
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    color="success.main"
-                  >
-                    {formatAmount(bruto)}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Box textAlign="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Descuentos aplicados
-                  </Typography>
-                  <Typography variant="h6" fontWeight="bold" color="error.main">
-                    - {formatAmount(descuentos)}
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Box textAlign="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Total Ventas (Neto)
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    color="primary.main"
-                  >
-                    {formatAmount(neto)}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          );
-        })()}
-      </Paper>
     </>
   );
 };

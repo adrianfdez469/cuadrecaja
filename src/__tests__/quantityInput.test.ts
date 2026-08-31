@@ -3,8 +3,7 @@ import {
   parseQuantityText,
   clampQuantity,
   resolveCommittedQuantity,
-  getStepChips,
-  getDefaultStep,
+  getQuickAddChips,
   roundQuantity,
   sanitizeQuantityDraft,
 } from "@/utils/quantityInput";
@@ -109,38 +108,46 @@ describe("resolveCommittedQuantity", () => {
   });
 });
 
-describe("getStepChips", () => {
-  it("returns the fixed decimal chip set for decimal-allowed products", () => {
-    expect(getStepChips(true, false, false, false)).toEqual([
-      { value: 0.01, label: "0.01" },
-      { value: 0.1, label: "0.1" },
-      { value: 0.5, label: "0.5" },
-      { value: 1, label: "1" },
+describe("getQuickAddChips", () => {
+  it("offers fractions of a unit for a decimal-allowed product", () => {
+    expect(getQuickAddChips(true, 86)).toEqual([
+      { value: 0.1, label: "+0,1" },
+      { value: 0.5, label: "+0,5" },
+      { value: 1, label: "+1" },
     ]);
   });
 
-  it("returns only the 1 chip when no bulk thresholds are met", () => {
-    expect(getStepChips(false, false, false, false)).toEqual([
-      { value: 1, label: "1" },
+  it("leaves out anything the shop cannot supply", () => {
+    expect(getQuickAddChips(false, 9)).toEqual([]);
+    expect(getQuickAddChips(false, 10)).toEqual([{ value: 10, label: "+10" }]);
+    expect(getQuickAddChips(false, 120)).toEqual([
+      { value: 10, label: "+10" },
+      { value: 50, label: "+50" },
+      { value: 100, label: "+100" },
     ]);
   });
 
-  it("adds bulk chips as thresholds are met", () => {
-    expect(getStepChips(false, true, false, false)).toEqual([
-      { value: 1, label: "1" },
-      { value: 10, label: "10" },
-    ]);
-    expect(getStepChips(false, true, true, true)).toEqual([
-      { value: 1, label: "1" },
-      { value: 10, label: "10" },
-      { value: 50, label: "50" },
-      { value: 100, label: "100" },
+  it("adds the box a fraction is broken out of", () => {
+    expect(getQuickAddChips(false, 120, 20)).toEqual([
+      { value: 10, label: "+10" },
+      { value: 50, label: "+50" },
+      { value: 100, label: "+100" },
+      { value: 20, label: "Caja \u00d7 20" },
     ]);
   });
-});
 
-describe("getDefaultStep", () => {
-  it("is always 1, even for decimal-allowed products", () => {
-    expect(getDefaultStep()).toBe(1);
+  it("skips the box chip when it duplicates a shortcut or exceeds the stock", () => {
+    expect(getQuickAddChips(false, 120, 10)).toEqual([
+      { value: 10, label: "+10" },
+      { value: 50, label: "+50" },
+      { value: 100, label: "+100" },
+    ]);
+    expect(getQuickAddChips(false, 15, 20)).toEqual([
+      { value: 10, label: "+10" },
+    ]);
+  });
+
+  it("never offers more than the four the row fits", () => {
+    expect(getQuickAddChips(false, 1000, 7)).toHaveLength(4);
   });
 });

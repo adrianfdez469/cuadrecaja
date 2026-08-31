@@ -291,7 +291,7 @@ const TableProductosDisponibles: React.FC<IProps> = ({
             py: 8,
           }}
         >
-          <CircularProgress size={40} thickness={4} sx={{ color: "#1976d2" }} />
+          <CircularProgress size={40} thickness={4} />
           <Typography
             variant="body2"
             color="primary"

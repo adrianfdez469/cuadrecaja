@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { StatStrip } from "@/components/StatStrip";
+import { StatusPill } from "@/components/StatusPill";
 import {
   Box,
   Table,
@@ -11,8 +13,6 @@ import {
   TableRow,
   Typography,
   TablePagination,
-  Grid,
-  CircularProgress,
   IconButton,
   Card,
   CardContent,
@@ -20,21 +20,13 @@ import {
   useTheme,
   useMediaQuery,
   Tooltip,
-  Chip,
 } from "@mui/material";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { LoadingState } from "@/components/LoadingState";
 import { formatCurrency } from "@/utils/formatters";
 import { useRouter } from "next/navigation";
-import {
-  TrendingUp,
-  Refresh,
-  Visibility,
-  Person,
-  LocalShipping,
-  MonetizationOn,
-  Inventory2,
-} from "@mui/icons-material";
+import { Refresh, Visibility } from "@mui/icons-material";
 import { IProveedorConsignacion } from "@/schemas/proveedor";
 import { getProveedoresConsignacion } from "@/services/preoveedoresService";
 
@@ -52,34 +44,36 @@ export default function ProveedoresPage() {
   });
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
   const router = useRouter();
 
-
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // Simulando llamada a API
       const proveedoresConsignación = await getProveedoresConsignacion();
-      
+
       setProveedores(proveedoresConsignación);
 
       // Calcular totales
-      const totalesCalculados = proveedoresConsignación.reduce((acc, proveedor) => {
-        acc.totalLiquidado += proveedor.dineroLiquidado;
-        acc.totalPorLiquidar += proveedor.dineroPorLiquidar;
-        acc.totalProductosConsignacion += proveedor.totalProductosConsignacion;
-        acc.valorConsignacion += proveedor.valorConsignacion;
-        return acc;
-      }, {
-        totalLiquidado: 0,
-        totalPorLiquidar: 0,
-        totalProveedores: proveedoresConsignación.length,
-        totalProductosConsignacion: 0,
-        valorConsignacion: 0,
-      });
+      const totalesCalculados = proveedoresConsignación.reduce(
+        (acc, proveedor) => {
+          acc.totalLiquidado += proveedor.dineroLiquidado;
+          acc.totalPorLiquidar += proveedor.dineroPorLiquidar;
+          acc.totalProductosConsignacion +=
+            proveedor.totalProductosConsignacion;
+          acc.valorConsignacion += proveedor.valorConsignacion;
+          return acc;
+        },
+        {
+          totalLiquidado: 0,
+          totalPorLiquidar: 0,
+          totalProveedores: proveedoresConsignación.length,
+          totalProductosConsignacion: 0,
+          valorConsignacion: 0,
+        },
+      );
 
       setTotales(totalesCalculados);
     } catch (error) {
@@ -87,17 +81,19 @@ export default function ProveedoresPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, [page, rowsPerPage]);
+  }, [fetchData]);
 
   const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -107,72 +103,23 @@ export default function ProveedoresPage() {
   };
 
   // Componente de estadística
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color
-  }: {
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 1 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minWidth: isMobile ? 40 : 48,
-              minHeight: isMobile ? 40 : 48,
-            }}
-          >
-            {icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="bold"
-              sx={{
-                fontSize: isMobile ? '1.25rem' : '2rem',
-                lineHeight: 1.2,
-                wordBreak: 'break-all'
-              }}
-            >
-              {value}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? '0.75rem' : '0.875rem',
-                lineHeight: 1.2
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Proveedores' }
+    { label: "Inicio", href: "/home" },
+    { label: "Proveedores" },
   ];
 
   const headerActions = (
-    <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
+    <Stack
+      direction={isMobile ? "column" : "row"}
+      spacing={1}
+      sx={{ width: isMobile ? "100%" : "auto" }}
+    >
       <Tooltip title="Actualizar datos">
-        <IconButton onClick={fetchData} disabled={loading} size={isMobile ? "small" : "medium"}>
+        <IconButton
+          onClick={fetchData}
+          disabled={loading}
+          size={isMobile ? "small" : "medium"}
+        >
           <Refresh />
         </IconButton>
       </Tooltip>
@@ -186,12 +133,7 @@ export default function ProveedoresPage() {
         subtitle="Gestión de proveedores y liquidaciones"
         breadcrumbs={breadcrumbs}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress />
-          <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-            Cargando proveedores...
-          </Typography>
-        </Box>
+        <LoadingState variant="table" />
       </PageContainer>
     );
   }
@@ -199,65 +141,50 @@ export default function ProveedoresPage() {
   return (
     <PageContainer
       title="Proveedores"
-      subtitle={!isMobile ? "Gestión de proveedores, liquidaciones y productos en consignación" : undefined}
+      subtitle="Gestión de proveedores, liquidaciones y productos en consignación"
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas generales */}
-      <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 3 : 4 }}>
-        <Grid item xs={6} sm={6} md={4}>
-          <StatCard
-            icon={<Person fontSize={"medium"} />}
-            value={totales.totalProveedores.toString()}
-            label="Total Proveedores"
-            color="primary.light"
-          />
-        </Grid>
-
-        <Grid item xs={6} sm={6} md={4}>
-          <StatCard
-            icon={<LocalShipping fontSize={"medium"} />}
-            value={totales.totalProductosConsignacion.toString()}
-            label="Productos en Consignación"
-            color="info.light"
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard
-            icon={<Inventory2 fontSize={"medium"} />}
-            value={formatCurrency(totales.valorConsignacion)}
-            label="Valor en Consignación"
-            color="secondary.light"
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard
-            icon={<MonetizationOn fontSize={"medium"} />}
-            value={formatCurrency(totales.totalLiquidado)}
-            label="Dinero Liquidado"
-            color="success.light"
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard
-            icon={<TrendingUp fontSize={"medium"} />}
-            value={formatCurrency(totales.totalPorLiquidar)}
-            label="Por Liquidar"
-            color="warning.light"
-          />
-        </Grid>
-
-        
-      </Grid>
+      <Box sx={{ mb: 3 }}>
+        <StatStrip
+          variant={isMobile ? undefined : "card"}
+          stats={[
+            {
+              label: "Total Proveedores",
+              value: totales.totalProveedores.toString(),
+            },
+            {
+              label: "Productos en Consignación",
+              value: totales.totalProductosConsignacion.toString(),
+            },
+            {
+              label: "Valor en Consignación",
+              value: formatCurrency(totales.valorConsignacion),
+            },
+            {
+              // The only figure here with a verdict attached: money that came
+              // back in. The other three are counts, and counts are ink.
+              label: "Dinero Liquidado",
+              value: formatCurrency(totales.totalLiquidado),
+              tone: "positive",
+            },
+            {
+              label: "Por Liquidar",
+              value: formatCurrency(totales.totalPorLiquidar),
+            },
+          ]}
+        />
+      </Box>
 
       {/* Tabla de proveedores */}
       <ContentCard
         title="Listado de Proveedores"
-        subtitle={!isMobile ? `${proveedores.length} proveedores registrados` : undefined}
+        subtitle={
+          !isMobile
+            ? `${proveedores.length} proveedores registrados`
+            : undefined
+        }
         noPadding
         fullHeight
       >
@@ -269,78 +196,153 @@ export default function ProveedoresPage() {
                 <Card
                   key={proveedor.id}
                   sx={{
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
+                    cursor: "pointer",
+                    "&:hover": {
+                      backgroundColor: "semantic.surface.sunken",
                     },
                   }}
                   onClick={() => handleVerDetalle(proveedor.id)}
                 >
                   <CardContent sx={{ p: 2 }}>
-                    <Stack spacing={2}>
-                      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                        <Box>
-                          <Typography variant="subtitle1" fontWeight="medium">
-                            {proveedor.nombre}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {proveedor.telefono}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip
-                            label={proveedor.estado}
-                            color={proveedor.estado === 'activo' ? 'success' : 'default'}
-                            size="small"
-                          />
-                          <IconButton size="small" color="primary">
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </Box>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      gap={1.5}
+                    >
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        gap={1.25}
+                        sx={{ minWidth: 0 }}
+                      >
+                        <Typography
+                          variant="subtitle1"
+                          fontWeight={700}
+                          sx={{ lineHeight: 1.35 }}
+                        >
+                          {proveedor.nombre}
+                        </Typography>
+                        <StatusPill
+                          label={proveedor.estado}
+                          hue={
+                            proveedor.estado === "activo"
+                              ? "positive"
+                              : "neutral"
+                          }
+                        />
+                      </Stack>
+                      <IconButton color="primary" sx={{ flexShrink: 0 }}>
+                        <Visibility fontSize="small" />
+                      </IconButton>
+                    </Box>
 
-                      <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Liquidado
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="success.main">
-                            {formatCurrency(proveedor.dineroLiquidado)}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Por Liquidar
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="warning.main">
-                            {formatCurrency(proveedor.dineroPorLiquidar)}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Productos
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {proveedor.totalProductosConsignacion}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Valor en Consignación
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="secondary.main">
-                            {formatCurrency(proveedor.valorConsignacion)}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Última Liquidación
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {proveedor.ultimaLiquidacion ? new Date(proveedor.ultimaLiquidacion).toLocaleDateString() : 'Sin liquidar'}
-                          </Typography>
-                        </Grid>
-                      </Grid>
+                    <Stack
+                      spacing={0.5}
+                      sx={{
+                        mt: 1.25,
+                        pt: 1.5,
+                        borderTop: 1,
+                        borderColor: "divider",
+                      }}
+                    >
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Contacto
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color={
+                            proveedor.telefono
+                              ? "text.primary"
+                              : "text.disabled"
+                          }
+                        >
+                          {proveedor.telefono || "—"}
+                        </Typography>
+                      </Box>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Dinero Liquidado
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                          color={
+                            proveedor.dineroLiquidado > 0
+                              ? "success.main"
+                              : "text.primary"
+                          }
+                        >
+                          {formatCurrency(proveedor.dineroLiquidado)}
+                        </Typography>
+                      </Box>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Por Liquidar
+                        </Typography>
+                        <Typography variant="body2">
+                          {formatCurrency(proveedor.dineroPorLiquidar)}
+                        </Typography>
+                      </Box>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Productos
+                        </Typography>
+                        <Typography variant="body2">
+                          {proveedor.totalProductosConsignacion}
+                        </Typography>
+                      </Box>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Valor en Consignación
+                        </Typography>
+                        <Typography variant="body2">
+                          {formatCurrency(proveedor.valorConsignacion)}
+                        </Typography>
+                      </Box>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Última Liquidación
+                        </Typography>
+                        <Typography variant="body2">
+                          {proveedor.ultimaLiquidacion
+                            ? new Date(
+                                proveedor.ultimaLiquidacion,
+                              ).toLocaleDateString()
+                            : "Sin liquidar"}
+                        </Typography>
+                      </Box>
                     </Stack>
                   </CardContent>
                 </Card>
@@ -371,9 +373,9 @@ export default function ProveedoresPage() {
                   <TableCell>Contacto</TableCell>
                   <TableCell align="right">Dinero Liquidado</TableCell>
                   <TableCell align="right">Por Liquidar</TableCell>
-                  <TableCell align="center">Productos</TableCell>
+                  <TableCell align="right">Productos</TableCell>
                   <TableCell align="right">Valor en Consignación</TableCell>
-                  <TableCell align="center">Última Liquidación</TableCell>
+                  <TableCell>Última Liquidación</TableCell>
                   <TableCell align="center">Estado</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
@@ -383,11 +385,8 @@ export default function ProveedoresPage() {
                   <TableRow
                     key={proveedor.id}
                     sx={{
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
-                      },
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      "&:hover": {
+                        backgroundColor: "semantic.surface.sunken",
                       },
                     }}
                   >
@@ -402,40 +401,69 @@ export default function ProveedoresPage() {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">
-                        {proveedor.telefono}
+                      <Typography
+                        variant="body2"
+                        color={
+                          proveedor.telefono ? "text.primary" : "text.secondary"
+                        }
+                      >
+                        {proveedor.telefono || "—"}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography variant="body2" fontWeight="medium" color="success.main">
+                      <Typography
+                        variant="body2"
+                        fontWeight="medium"
+                        color={
+                          proveedor.dineroLiquidado > 0
+                            ? "success.main"
+                            : "text.primary"
+                        }
+                      >
                         {formatCurrency(proveedor.dineroLiquidado)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography variant="body2" fontWeight="medium" color="warning.main">
+                      <Typography variant="body2" fontWeight="medium">
                         {formatCurrency(proveedor.dineroPorLiquidar)}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2">
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
                         {proveedor.totalProductosConsignacion}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography variant="body2" fontWeight="medium" color="secondary.main">
+                      <Typography
+                        variant="body2"
+                        fontWeight="medium"
+                        color="secondary.main"
+                      >
                         {formatCurrency(proveedor.valorConsignacion)}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2">
-                        {proveedor.ultimaLiquidacion ? new Date(proveedor.ultimaLiquidacion).toLocaleDateString() : 'Sin liquidar'}
+                    <TableCell>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {proveedor.ultimaLiquidacion
+                          ? new Date(
+                              proveedor.ultimaLiquidacion,
+                            ).toLocaleDateString()
+                          : "Sin liquidar"}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <Chip
+                      <StatusPill
                         label={proveedor.estado}
-                        color={proveedor.estado === 'activo' ? 'success' : 'default'}
-                        size="small"
+                        hue={
+                          proveedor.estado === "activo" ? "positive" : "neutral"
+                        }
                       />
                     </TableCell>
                     <TableCell align="center">
@@ -470,4 +498,4 @@ export default function ProveedoresPage() {
       </ContentCard>
     </PageContainer>
   );
-} 
+}

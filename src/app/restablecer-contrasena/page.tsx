@@ -8,16 +8,21 @@ import {
   Button,
   TextField,
   Typography,
-  Container,
-  Paper,
-  CardContent,
   Alert,
   CircularProgress,
   InputAdornment,
   IconButton,
+  Link as MuiLink,
 } from "@mui/material";
-import { Visibility, VisibilityOff, Lock, Login as LoginIcon } from "@mui/icons-material";
+import {
+  Visibility,
+  VisibilityOff,
+  Lock,
+  Login as LoginIcon,
+} from "@mui/icons-material";
+import { AuthCardLayout } from "@/components/auth/AuthCardLayout";
 import { LOGIN_CREDENTIALS_SESSION_KEY } from "@/constants/userAccount";
+import { touch } from "@/theme/tokens";
 
 function RestablecerForm() {
   const searchParams = useSearchParams();
@@ -56,14 +61,18 @@ function RestablecerForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "No se pudo restablecer la contraseña.");
+        setError(
+          typeof data.error === "string"
+            ? data.error
+            : "No se pudo restablecer la contraseña.",
+        );
         return;
       }
       const email = typeof data.usuario === "string" ? data.usuario : "";
       try {
         sessionStorage.setItem(
           LOGIN_CREDENTIALS_SESSION_KEY,
-          JSON.stringify({ usuario: email, password })
+          JSON.stringify({ usuario: email, password }),
         );
       } catch {
         // ignore
@@ -78,89 +87,136 @@ function RestablecerForm() {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ py: 6 }}>
-      <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden" }}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h5" fontWeight={700} gutterBottom>
-            Nueva contraseña
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Define una contraseña nueva (mayúsculas, minúsculas y números; mínimo 8 caracteres).
-          </Typography>
+    <AuthCardLayout>
+      <Typography
+        component="h2"
+        sx={{
+          fontSize: { xs: "1.375rem", md: "1.75rem" },
+          fontWeight: 700,
+          lineHeight: 1.25,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        Nueva contraseña
+      </Typography>
+      <Typography
+        sx={{
+          mt: 1,
+          mb: 3.5,
+          fontSize: "0.9375rem",
+          lineHeight: 1.55,
+          color: "text.secondary",
+          textWrap: "pretty",
+        }}
+      >
+        Define una contraseña nueva (mayúsculas, minúsculas y números; mínimo 8
+        caracteres).
+      </Typography>
 
-          {error ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          ) : null}
-          {done ? (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Contraseña actualizada. Redirigiendo al inicio de sesión…
-            </Alert>
-          ) : null}
+      {error ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      ) : null}
+      {done ? (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          Contraseña actualizada. Redirigiendo al inicio de sesión…
+        </Alert>
+      ) : null}
 
-          <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              type={showPassword ? "text" : "password"}
-              label="Nueva contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              sx={{ mb: 2 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" aria-label="Mostrar u ocultar contraseña">
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <TextField
-              fullWidth
-              type={showPassword ? "text" : "password"}
-              label="Confirmar contraseña"
-              value={passwordConfirm}
-              onChange={(e) => setPasswordConfirm(e.target.value)}
-              sx={{ mb: 3 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" aria-label="Mostrar u ocultar confirmación de contraseña">
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              size="large"
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : <LoginIcon />}
-            >
-              {loading ? "Guardando…" : "Guardar contraseña"}
-            </Button>
-            <Button fullWidth component={Link} href="/login" sx={{ mt: 2 }} color="inherit">
-              Volver al inicio de sesión
-            </Button>
-          </Box>
-        </CardContent>
-      </Paper>
-    </Container>
+      <Box component="form" onSubmit={handleSubmit}>
+        <TextField
+          fullWidth
+          type={showPassword ? "text" : "password"}
+          label="Nueva contraseña"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          sx={{ mb: 2 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Lock color="action" />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                  aria-label="Mostrar u ocultar contraseña"
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        <TextField
+          fullWidth
+          type={showPassword ? "text" : "password"}
+          label="Confirmar contraseña"
+          value={passwordConfirm}
+          onChange={(e) => setPasswordConfirm(e.target.value)}
+          sx={{ mb: 3 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Lock color="action" />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                  aria-label="Mostrar u ocultar confirmación de contraseña"
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+          disabled={loading}
+          startIcon={
+            loading ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              <LoginIcon />
+            )
+          }
+          sx={{
+            minHeight: touch.comfortable,
+            fontSize: "1rem",
+          }}
+        >
+          {loading ? "Guardando…" : "Guardar contraseña"}
+        </Button>
+      </Box>
+
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 1.5 }}>
+        <MuiLink
+          component={Link}
+          href="/login"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            minHeight: touch.min,
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            color: "primary.main",
+            textDecoration: "none",
+            "&:hover": { textDecoration: "underline" },
+          }}
+        >
+          Volver al inicio de sesión
+        </MuiLink>
+      </Box>
+    </AuthCardLayout>
   );
 }
 
@@ -168,7 +224,14 @@ export default function RestablecerContrasenaPage() {
   return (
     <Suspense
       fallback={
-        <Box display="flex" justifyContent="center" py={8}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "100dvh",
+          }}
+        >
           <CircularProgress />
         </Box>
       }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -8,9 +8,13 @@ import {
   TextField,
   Typography,
   Box,
-  Alert
-} from '@mui/material';
-import {IProductoDisponible} from "@/components/ProductcSelectionModal/ProductSelectionModal";
+  Alert,
+  IconButton,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { IProductoDisponible } from "@/components/ProductcSelectionModal/ProductSelectionModal";
 
 interface RejectionModalProps {
   open: boolean;
@@ -25,9 +29,11 @@ export const RejectionModal: React.FC<RejectionModalProps> = ({
   onClose,
   onConfirm,
   producto,
-  loading = false
+  loading = false,
 }) => {
-  const [motivo, setMotivo] = useState('');
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [motivo, setMotivo] = useState("");
 
   const handleConfirm = () => {
     if (motivo.trim()) {
@@ -36,8 +42,27 @@ export const RejectionModal: React.FC<RejectionModalProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Rechazar Entrada de Producto</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      fullScreen={isMobile}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        Rechazar Entrada de Producto
+        {isMobile && (
+          <IconButton onClick={onClose} disabled={loading}>
+            <CloseIcon />
+          </IconButton>
+        )}
+      </DialogTitle>
       <DialogContent>
         <Box sx={{ mt: 1, mb: 2 }}>
           <Typography variant="body1" gutterBottom>
@@ -45,8 +70,12 @@ export const RejectionModal: React.FC<RejectionModalProps> = ({
           </Typography>
           {producto && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              <Typography variant="subtitle2"><strong>Producto:</strong> {producto.nombre}</Typography>
-              <Typography variant="body2"><strong>Cantidad:</strong> {producto.existencia}</Typography>
+              <Typography variant="subtitle2">
+                <strong>Producto:</strong> {producto.nombre}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Cantidad:</strong> {producto.existencia}
+              </Typography>
             </Alert>
           )}
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -62,22 +91,37 @@ export const RejectionModal: React.FC<RejectionModalProps> = ({
             onChange={(e) => setMotivo(e.target.value)}
             placeholder="Escribe el motivo del rechazo aquí..."
             required
-            error={!motivo.trim() && motivo !== ''}
-            helperText={!motivo.trim() && motivo !== '' ? 'El motivo es obligatorio' : ''}
+            error={!motivo.trim() && motivo !== ""}
+            helperText={
+              !motivo.trim() && motivo !== "" ? "El motivo es obligatorio" : ""
+            }
           />
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : undefined }}
+        >
           Cancelar
         </Button>
-        <Button 
-          onClick={handleConfirm} 
-          color="error" 
-          variant="contained" 
+        <Button
+          onClick={handleConfirm}
+          color="error"
+          variant="contained"
           disabled={!motivo.trim() || loading}
+          fullWidth={isMobile}
+          size={isMobile ? "large" : "medium"}
+          sx={{ minHeight: isMobile ? 56 : undefined }}
         >
-          {loading ? 'Procesando...' : 'Confirmar Rechazo'}
+          {loading ? "Procesando..." : "Confirmar Rechazo"}
         </Button>
       </DialogActions>
     </Dialog>

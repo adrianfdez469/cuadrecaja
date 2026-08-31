@@ -8,7 +8,6 @@ import {
   Chip,
   CircularProgress,
   IconButton,
-  Paper,
   Stack,
   Table,
   TableBody,
@@ -20,8 +19,6 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
-  Card,
-  CardContent,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -44,16 +41,14 @@ import {
   updatePlantilla,
   deletePlantilla,
 } from "@/services/gastoService";
-import {
-  TIPO_CALCULO_LABELS,
-  TIPO_CALCULO_COLORS,
-  RECURRENCIA_LABELS,
-  RECURRENCIA_COLORS,
-} from "@/constants/gastos";
+import { RECURRENCIA_LABELS, TIPO_CALCULO_LABELS } from "@/constants/gastos";
 import { formatearCuandoAplica } from "@/utils/gastos";
 import GastoFormDialog from "../components/GastoFormDialog";
+import PlantillaCard from "../components/PlantillaCard";
 
-type PlantillaConCount = IGastoPlantilla & { _count?: { asignaciones: number } };
+type PlantillaConCount = IGastoPlantilla & {
+  _count?: { asignaciones: number };
+};
 
 export default function PlantillasPage() {
   const { loadingContext } = useAppContext();
@@ -62,7 +57,9 @@ export default function PlantillasPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { verificarPermiso } = usePermisos();
 
-  const canManage = verificarPermiso("configuracion.gastos.plantillas.gestionar");
+  const canManage = verificarPermiso(
+    "configuracion.gastos.plantillas.gestionar",
+  );
 
   const [plantillas, setPlantillas] = useState<PlantillaConCount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +86,9 @@ export default function PlantillasPage() {
     if (!loadingContext && canManage) load();
   }, [loadingContext, canManage, load]);
 
-  const handleSave = async (data: ICreateGastoPlantilla | ICreateGastoTienda) => {
+  const handleSave = async (
+    data: ICreateGastoPlantilla | ICreateGastoTienda,
+  ) => {
     try {
       if (editTarget) {
         await updatePlantilla(editTarget.id, data as ICreateGastoPlantilla);
@@ -100,7 +99,8 @@ export default function PlantillasPage() {
       }
       await load();
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      const msg = (err as { response?: { data?: { error?: string } } })
+        ?.response?.data?.error;
       showMessage(msg ?? "Error al guardar plantilla", "error");
       throw err;
     }
@@ -118,17 +118,22 @@ export default function PlantillasPage() {
           showMessage("Plantilla eliminada", "success");
           await load();
         } catch (err: unknown) {
-          const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+          const msg = (err as { response?: { data?: { error?: string } } })
+            ?.response?.data?.error;
           showMessage(msg ?? "Error al eliminar plantilla", "error");
         }
-      }
+      },
+      undefined,
+      { severity: "error" },
     );
   };
 
   if (!loadingContext && !canManage) {
     return (
       <PageContainer title="Plantillas de Gastos">
-        <Alert severity="error">No tienes permisos para acceder a esta sección.</Alert>
+        <Alert severity="error">
+          No tienes permisos para acceder a esta sección.
+        </Alert>
       </PageContainer>
     );
   }
@@ -139,70 +144,47 @@ export default function PlantillasPage() {
         title="Plantillas de gastos"
         subtitle="Plantillas a nivel de negocio que pueden asignarse a tiendas específicas"
         headerActions={
-          <Button startIcon={<AddIcon />} variant="contained" size="small" onClick={() => { setEditTarget(null); setFormOpen(true); }}>
+          <Button
+            startIcon={<AddIcon />}
+            variant="contained"
+            size="small"
+            onClick={() => {
+              setEditTarget(null);
+              setFormOpen(true);
+            }}
+          >
             Nueva plantilla
           </Button>
         }
       >
         {loading ? (
-          <Box py={4} textAlign="center"><CircularProgress size={32} /></Box>
+          <Box py={4} textAlign="center">
+            <CircularProgress size={32} />
+          </Box>
         ) : isMobile ? (
-          <Stack spacing={1.5} sx={{ p: 0.5 }}>
+          <Stack spacing={1.5}>
             {plantillas.length === 0 ? (
               <Box py={4} textAlign="center">
-                <Typography color="text.secondary">No hay plantillas creadas</Typography>
+                <Typography color="text.secondary">
+                  No hay plantillas creadas
+                </Typography>
               </Box>
             ) : (
               plantillas.map((p) => (
-                <Card key={p.id} sx={{ opacity: p.activo ? 1 : 0.6 }}>
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1}>
-                      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                        <Box flex={1} mr={1}>
-                          <Typography variant="subtitle2" fontWeight="bold">{p.nombre}</Typography>
-                          <Typography variant="caption" color="text.secondary">{p.categoria}</Typography>
-                        </Box>
-                        <Chip
-                          label={RECURRENCIA_LABELS[p.recurrencia]}
-                          size="small"
-                          sx={{ backgroundColor: RECURRENCIA_COLORS[p.recurrencia], color: "#fff", height: 20, fontSize: "0.6875rem" }}
-                        />
-                      </Box>
-                      <Box display="flex" gap={1} alignItems="center">
-                        <Chip
-                          label={TIPO_CALCULO_LABELS[p.tipoCalculo]}
-                          size="small"
-                          sx={{ backgroundColor: TIPO_CALCULO_COLORS[p.tipoCalculo], color: "#fff", height: 20, fontSize: "0.6875rem" }}
-                        />
-                        {(p._count?.asignaciones ?? 0) > 0 && (
-                          <Chip
-                            icon={<LinkIcon />}
-                            label={`${p._count?.asignaciones} tienda(s)`}
-                            size="small"
-                            variant="outlined"
-                            sx={{ height: 20, fontSize: "0.6875rem" }}
-                          />
-                        )}
-                      </Box>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Typography variant="caption" color="text.secondary">{formatearCuandoAplica(p)}</Typography>
-                        <Box>
-                          <IconButton size="small" onClick={() => { setEditTarget(p); setFormOpen(true); }}>
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton size="small" color="error" onClick={() => handleDelete(p)}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+                <PlantillaCard
+                  key={p.id}
+                  plantilla={p}
+                  onEdit={(plantilla) => {
+                    setEditTarget(plantilla);
+                    setFormOpen(true);
+                  }}
+                  onDelete={handleDelete}
+                />
               ))
             )}
           </Stack>
         ) : (
-          <TableContainer component={Paper} variant="outlined">
+          <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -219,30 +201,34 @@ export default function PlantillasPage() {
                 {plantillas.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} align="center">
-                      <Typography color="text.secondary" py={2}>No hay plantillas creadas</Typography>
+                      <Typography color="text.secondary" py={2}>
+                        No hay plantillas creadas
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 ) : (
                   plantillas.map((p) => (
                     <TableRow key={p.id} sx={{ opacity: p.activo ? 1 : 0.5 }}>
                       <TableCell>{p.nombre}</TableCell>
-                      <TableCell><Typography variant="body2" color="text.secondary">{p.categoria}</Typography></TableCell>
                       <TableCell>
-                        <Chip
-                          label={TIPO_CALCULO_LABELS[p.tipoCalculo]}
-                          size="small"
-                          sx={{ backgroundColor: TIPO_CALCULO_COLORS[p.tipoCalculo], color: "#fff", fontSize: "0.6875rem" }}
-                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {p.categoria}
+                        </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={RECURRENCIA_LABELS[p.recurrencia]}
-                          size="small"
-                          sx={{ backgroundColor: RECURRENCIA_COLORS[p.recurrencia], color: "#fff", fontSize: "0.6875rem" }}
-                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {TIPO_CALCULO_LABELS[p.tipoCalculo]}
+                        </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="caption" color="text.secondary">{formatearCuandoAplica(p)}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {RECURRENCIA_LABELS[p.recurrencia]}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatearCuandoAplica(p)}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         {(p._count?.asignaciones ?? 0) > 0 ? (
@@ -255,14 +241,26 @@ export default function PlantillasPage() {
                             />
                           </Tooltip>
                         ) : (
-                          <Typography variant="caption" color="text.disabled">Sin asignar</Typography>
+                          <Typography variant="caption" color="text.disabled">
+                            Sin asignar
+                          </Typography>
                         )}
                       </TableCell>
                       <TableCell align="center">
-                        <IconButton size="small" onClick={() => { setEditTarget(p); setFormOpen(true); }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setEditTarget(p);
+                            setFormOpen(true);
+                          }}
+                        >
                           <EditIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDelete(p)}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(p)}
+                        >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </TableCell>
@@ -280,7 +278,10 @@ export default function PlantillasPage() {
         mode="plantilla"
         initial={editTarget}
         categoriasExistentes={categoriasExistentes}
-        onClose={() => { setFormOpen(false); setEditTarget(null); }}
+        onClose={() => {
+          setFormOpen(false);
+          setEditTarget(null);
+        }}
         onSave={handleSave}
       />
 

@@ -1,367 +1,220 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
-  Container,
-  Typography,
-  Grid2 as Grid,
-  Card,
-  CardContent,
-  Button,
-  Chip,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ToggleButtonGroup,
-  ToggleButton,
   CircularProgress,
-} from '@mui/material';
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
+
+import type { IPlan } from "@/schemas/plan";
+import { getPlanes } from "@/services/planService";
 import {
-  CheckCircle,
-  Star,
-  Security,
-  CloudSync,
-  Support,
-} from '@mui/icons-material';
-import { Stack } from '@mui/material';
-import type { IPlan } from '@/schemas/plan';
-import { getPlanes } from '@/services/planService';
-import { buildPlanFeatures } from '@/utils/planUtils';
+  LANDING_CTA_SECTION_ID,
+  LANDING_PRICING_SECTION_ID,
+  scrollToLandingSection,
+} from "@/constants/landingContact";
+import { buildPlanLimits } from "@/utils/planUtils";
+import { shape } from "@/theme/tokens";
 
-const COLOR_MAP: Record<string, string> = {
-  info: '#2196F3',
-  primary: '#1976D2',
-  secondary: '#9C27B0',
-  warning: '#FF9800',
-  success: '#4CAF50',
-  error: '#F44336',
-  default: '#9E9E9E',
-};
+import { CustomPlanRow } from "./CustomPlanRow";
+import { LandingSection } from "./LandingSection";
+import { PlanCard } from "./PlanCard";
+import type { PlanCardData } from "./PlanCard";
 
-const additionalServices = [
-  {
-    icon: Support,
-    title: 'Capacitación Personalizada',
-    description: 'Entrenamos a tu equipo para aprovechar al máximo el sistema',
-    price: 'Gratis con cualquiera de nuestros planes'
-  },
-  {
-    icon: CloudSync,
-    title: 'Migración de Datos',
-    description: 'Transferimos tu información actual al nuevo sistema',
-    price: 'Gratis con cualquiera de nuestros planes'
-  },
-  {
-    icon: Security,
-    title: 'Soporte Técnico Premium',
-    description: 'Atención prioritaria 24/7 con técnico dedicado',
-    price: 'Gratis con cualquiera de nuestros planes'
-  }
-];
+type BillingCycle = "monthly" | "yearly";
 
+/** A year costs ten months: the two saved are the reason to prepay. */
+const MONTHS_CHARGED_PER_YEAR = 10;
+const DAYS_PER_YEAR = 365;
 
-export default function PricingSection() {
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+/** `-1` is the API's way of saying «negotiable». */
+const NEGOTIABLE = -1;
+
+/** Title-cases the stored name, which arrives shouting from the database. */
+function displayName(plan: IPlan): string {
+  return plan.nombre.charAt(0) + plan.nombre.slice(1).toLowerCase();
+}
+
+function toCardData(plan: IPlan, cycle: BillingCycle): PlanCardData {
+  const yearly = cycle === "yearly";
+  const free = plan.precio === 0;
+  const name = displayName(plan);
+
+  return {
+    id: plan.id,
+    name,
+    price: free
+      ? "$0"
+      : `$${yearly ? plan.precio * MONTHS_CHARGED_PER_YEAR : plan.precio}`,
+    period: free ? "/semana" : yearly ? "/año" : "/mes",
+    validity: free
+      ? `Prueba de ${plan.duracion} días`
+      : `${plan.moneda} · ${yearly ? DAYS_PER_YEAR : plan.duracion} días`,
+    limits: buildPlanLimits(plan),
+    ctaLabel: free ? "Empezar" : plan.recomendado ? `Elegir ${name}` : "Elegir",
+    recommended: plan.recomendado,
+  };
+}
+
+/**
+ * The plans, as the database has them.
+ *
+ * The design draws four cards and a row, but the list is whatever the API
+ * returns and active: adding a plan in configuración has to show up here
+ * without a deploy. Plans priced `-1` are negotiated, so they drop out of the
+ * grid and into the row underneath, which is the only shape that fits a plan
+ * with no number to compare.
+ */
+export function PricingSection() {
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [planes, setPlanes] = useState<IPlan[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getPlanes()
-      .then(data => setPlanes(data.filter(p => p.activo)))
+      .then((data) => setPlanes(data.filter((plan) => plan.activo)))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  const displayPlans = planes.map(plan => ({
-    plan,
-    name: plan.nombre.charAt(0) + plan.nombre.slice(1).toLowerCase(),
-    price: plan.precio === -1
-      ? 'Cotización'
-      : plan.precio === 0
-        ? '$0'
-        : billingCycle === 'monthly'
-          ? `$${plan.precio}`
-          : `$${plan.precio * 10}`,
-    period: plan.precio === 0
-      ? '/semana'
-      : plan.precio === -1
-        ? ''
-        : billingCycle === 'monthly' ? '/mes' : '/año',
-    validezText: plan.duracion === -1
-      ? 'Duración negociable'
-      : `Validez ${billingCycle === 'monthly' ? plan.duracion : 365} días`,
-    color: COLOR_MAP[plan.color] ?? '#9E9E9E',
-    features: buildPlanFeatures(plan),
-  }));
+  const { priced, negotiated } = useMemo(
+    () => ({
+      priced: planes.filter((plan) => plan.precio !== NEGOTIABLE),
+      negotiated: planes.filter((plan) => plan.precio === NEGOTIABLE),
+    }),
+    [planes],
+  );
 
-  const scrollToContact = () => {
-    const contactSection = document.getElementById('contact-section');
-    if (contactSection) {
-      contactSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const TEAL = '#4ECDC4';
+  const goToForm = () => scrollToLandingSection(LANDING_CTA_SECTION_ID);
 
   return (
-    <Box sx={{ py: 10, bgcolor: '#1e2433' }}>
-      <Container maxWidth="lg">
-        <Box sx={{ textAlign: 'center', mb: 8 }}>
-          <Chip
-            label="💰 Planes y Precios"
-            sx={{
-              bgcolor: 'rgba(78, 205, 196, 0.15)',
-              color: '#6ee7de',
-              border: '1px solid rgba(78, 205, 196, 0.35)',
-              mb: 2,
-              px: 2,
-              fontWeight: 600,
-            }}
-          />
-          <Typography
-            variant="h3"
-            component="h2"
-            gutterBottom
-            sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}
-          >
-            Elige el Plan Perfecto para tu Negocio
-          </Typography>
-          <Typography
-            variant="h6"
-            sx={{
-              color: 'rgba(255,255,255,0.7)',
-              maxWidth: 600,
-              mx: 'auto',
-              lineHeight: 1.6,
-              mb: 4
-            }}
-          >
-            Planes flexibles con límites claros por suscripción.
-            Comienza gratis por 7 días y escala según tu crecimiento.
-          </Typography>
+    <LandingSection id={LANDING_PRICING_SECTION_ID} tone="sunken" divider>
+      <Box
+        sx={{ textAlign: { xs: "left", md: "center" }, mb: { xs: 3, md: 5 } }}
+      >
+        <Typography
+          component="h2"
+          sx={{
+            fontSize: { xs: "1.625rem", md: "2.125rem" },
+            fontWeight: 700,
+            lineHeight: 1.15,
+            letterSpacing: "-0.025em",
+          }}
+        >
+          Elige el plan de tu negocio
+        </Typography>
 
-          <Stack
-            direction="row"
-            spacing={2}
-            alignItems="center"
-            justifyContent="center"
-            sx={{ mb: 4 }}
-          >
-            <ToggleButtonGroup
-              value={billingCycle}
-              exclusive
-              onChange={(_e, value) => value && setBillingCycle(value)}
-              aria-label="Ciclo de facturación"
-              sx={{
-                '& .MuiToggleButton-root': {
-                  color: 'rgba(255,255,255,0.8)',
-                  borderColor: 'rgba(255,255,255,0.2)',
-                  '&.Mui-selected': { bgcolor: 'rgba(78, 205, 196, 0.2)', color: '#6ee7de', borderColor: TEAL },
+        <Typography
+          sx={{
+            maxWidth: 560,
+            mx: { xs: 0, md: "auto" },
+            mt: 1.5,
+            fontSize: { xs: "1rem", md: "1.1875rem" },
+            lineHeight: 1.55,
+            color: "text.secondary",
+          }}
+        >
+          Empieza gratis 7 días. Capacitación, migración de datos y soporte
+          incluidos en cualquier plan.
+        </Typography>
+
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: { xs: "flex-start", md: "center" },
+            gap: 1.5,
+            mt: 3,
+          }}
+        >
+          <ToggleButtonGroup
+            value={billingCycle}
+            exclusive
+            size="small"
+            onChange={(_event, value) => value && setBillingCycle(value)}
+            aria-label="Ciclo de facturación"
+            sx={{
+              bgcolor: "semantic.surface.raised",
+              "& .MuiToggleButton-root": {
+                px: 2,
+                borderColor: "semantic.surface.border",
+                color: "text.secondary",
+                fontWeight: 600,
+                "&.Mui-selected": {
+                  bgcolor: "semantic.hue.accent.surface",
+                  color: "semantic.hue.accent.main",
+                  "&:hover": { bgcolor: "semantic.hue.accent.surface" },
                 },
+              },
+            }}
+          >
+            <ToggleButton value="monthly">Mensual</ToggleButton>
+            <ToggleButton value="yearly">Anual</ToggleButton>
+          </ToggleButtonGroup>
+
+          {billingCycle === "yearly" && (
+            <Box
+              component="span"
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                height: 26,
+                px: 1.25,
+                borderRadius: `${shape.radius.pill}px`,
+                bgcolor: "semantic.hue.positive.surface",
+                color: "semantic.hue.positive.main",
+                fontSize: "0.75rem",
+                fontWeight: 700,
               }}
             >
-              <ToggleButton value="monthly">Mensual</ToggleButton>
-              <ToggleButton value="yearly">Anual</ToggleButton>
-            </ToggleButtonGroup>
-          </Stack>
-          {billingCycle === 'yearly' && (
-            <Chip
-              label="¡Ahorras 2 meses!"
-              size="medium"
-              sx={{ fontWeight: 'bold', bgcolor: 'rgba(78, 205, 196, 0.2)', color: '#6ee7de', border: '1px solid rgba(78, 205, 196, 0.4)' }}
-            />
+              Ahorras 2 meses
+            </Box>
           )}
         </Box>
+      </Box>
 
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress sx={{ color: TEAL }} />
-          </Box>
-        ) : (
-          <Grid container spacing={4} sx={{ mb: 8 }}>
-            {displayPlans.map(({ plan, name, price, period, validezText, color, features }) => (
-              <Grid size={{ xs: 12, md: 4 }} key={plan.id}>
-                <Card
-                  sx={{
-                    height: '100%',
-                    position: 'relative',
-                    transition: 'all 0.3s ease',
-                    bgcolor: 'rgba(255,255,255,0.04)',
-                    border: plan.recomendado ? `2px solid ${TEAL}` : '1px solid rgba(255,255,255,0.08)',
-                    '&:hover': {
-                      transform: 'translateY(-6px)',
-                      boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
-                      borderColor: plan.recomendado ? TEAL : 'rgba(78, 205, 196, 0.3)',
-                    },
-                  }}
-                >
-                  {plan.recomendado && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: -5,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        zIndex: 1,
-                      }}
-                    >
-                      <Chip
-                        icon={<Star />}
-                        label="MÁS POPULAR"
-                        sx={{
-                          bgcolor: TEAL,
-                          color: '#1a1d29',
-                          fontWeight: 'bold',
-                          px: 2,
-                        }}
-                      />
-                    </Box>
-                  )}
-
-                  <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ textAlign: 'center', mb: 3 }}>
-                      <Typography
-                        variant="h4"
-                        component="h3"
-                        sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)', mb: 1 }}
-                      >
-                        {name}
-                      </Typography>
-                      <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
-                        {plan.descripcion}
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', mb: 2 }}>
-                        <Typography
-                          variant="h3"
-                          component="span"
-                          sx={{ fontWeight: 'bold', color: plan.recomendado ? TEAL : color }}
-                        >
-                          {price}
-                        </Typography>
-                        {period && (
-                          <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                            {period}
-                          </Typography>
-                        )}
-                      </Box>
-                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                        {plan.moneda} • {validezText}
-                      </Typography>
-                    </Box>
-
-                    <List dense sx={{ mb: 3, flexGrow: 1 }}>
-                      {features.map((feature, idx) => (
-                        <ListItem key={idx} sx={{ px: 0, py: 0.5 }}>
-                          <ListItemIcon sx={{ minWidth: 32 }}>
-                            <CheckCircle sx={{ fontSize: 20, color: plan.recomendado ? TEAL : color }} />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={
-                              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)' }}>
-                                {feature}
-                              </Typography>
-                            }
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-
-                    <Button
-                      variant={plan.recomendado ? "contained" : "outlined"}
-                      size="large"
-                      fullWidth
-                      onClick={scrollToContact}
-                      sx={{
-                        py: 1.5,
-                        fontSize: '1.1rem',
-                        fontWeight: 600,
-                        bgcolor: plan.recomendado ? TEAL : 'transparent',
-                        borderColor: TEAL,
-                        color: plan.recomendado ? '#1a1d29' : '#6ee7de',
-                        '&:hover': {
-                          bgcolor: plan.recomendado ? '#45b8b0' : 'rgba(78, 205, 196, 0.15)',
-                          borderColor: TEAL,
-                          color: plan.recomendado ? '#1a1d29' : '#6ee7de',
-                        },
-                      }}
-                    >
-                      {plan.recomendado ? 'Comenzar Ahora' : 'Probar gratis'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-
-        {/* Additional Services */}
-        <Box sx={{ textAlign: 'center', mb: 6 }}>
-          <Typography
-            variant="h4"
-            component="h3"
-            gutterBottom
-            sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}
-          >
-            Servicios Adicionales
-          </Typography>
-          <Typography
-            variant="h6"
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          <Box
             sx={{
-              color: 'rgba(255,255,255,0.7)',
-              maxWidth: 600,
-              mx: 'auto',
-              lineHeight: 1.6,
-              mb: 4
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(4, minmax(0, 1fr))",
+              },
+              gap: 2,
             }}
           >
-            Servicios profesionales para garantizar el éxito de tu implementación
-          </Typography>
-        </Box>
+            {priced.map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={toCardData(plan, billingCycle)}
+                onChoose={goToForm}
+              />
+            ))}
+          </Box>
 
-        <Grid container spacing={4} sx={{ mb: 6 }}>
-          {additionalServices.map((service, index) => {
-            const IconComponent = service.icon;
-            return (
-              <Grid size={{ xs: 12, md: 4 }} key={index}>
-                <Card
-                  sx={{
-                    height: '100%',
-                    p: 3,
-                    textAlign: 'center',
-                    bgcolor: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      borderColor: 'rgba(78, 205, 196, 0.25)',
-                      boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
-                    },
-                  }}
-                >
-                  <IconComponent sx={{ fontSize: 48, color: TEAL, mb: 2 }} />
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.95)' }}>
-                    {service.title}
-                  </Typography>
-                  <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
-                    {service.description}
-                  </Typography>
-                  <Chip
-                    label={service.price}
-                    sx={{
-                      bgcolor: 'rgba(78, 205, 196, 0.2)',
-                      color: '#6ee7de',
-                      border: '1px solid rgba(78, 205, 196, 0.4)',
-                      fontWeight: 'bold'
-                    }}
-                  />
-                </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
-      </Container>
-    </Box>
+          {negotiated.map((plan) => (
+            <CustomPlanRow
+              key={plan.id}
+              name={displayName(plan)}
+              description={
+                plan.descripcion ??
+                "Locales, usuarios y funcionalidades a medida. Duración negociable."
+              }
+              onRequestQuote={goToForm}
+            />
+          ))}
+        </>
+      )}
+    </LandingSection>
   );
 }

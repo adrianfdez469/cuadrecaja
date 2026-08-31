@@ -27,6 +27,31 @@ type MobileQrScannerProps = {
   onOpenChange?: (open: boolean) => void;
 };
 
+/**
+ * The scanner draws on top of a live camera image, not on the app's page.
+ *
+ * That is why these values sit outside `src/theme`: the palette's hues are
+ * chosen to read as ink on paper-coloured surfaces, and at those luminances
+ * they simply disappear over video. What the overlay needs is the opposite —
+ * maximum contrast against an unpredictable, moving background.
+ *
+ * Named here rather than inlined so it stays visible that they are a
+ * deliberate exception and not an unmigrated leftover.
+ */
+const SCANNER = {
+  /** Corner brackets of the target box. Bright enough to survive any frame. */
+  target: "#00e676",
+  /** The torch button when the light is on. */
+  torchOn: "#ffeb3b",
+  /** Everything outside the target box. */
+  scrim: "rgba(0, 0, 0, 0.5)",
+  /** The header gradient over the top of the feed. */
+  headerScrim: "linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)",
+  /** The target box outline, and outlined controls over the feed. */
+  hairline: "rgba(255, 255, 255, 0.5)",
+  controlBorder: "rgba(255, 255, 255, 0.3)",
+} as const;
+
 export interface MobileQrScannerRef {
   openScanner: () => void;
 }
@@ -155,7 +180,7 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
 
     return (
       <>
-        <Button size="large" startIcon={<QrCode2Icon />} onClick={handleOpen} variant="contained" color='info'>
+        <Button size="large" startIcon={<QrCode2Icon />} onClick={handleOpen} variant="contained" color="primary">
           {buttonLabel}
         </Button>
 
@@ -186,7 +211,7 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
               zIndex: 10,
               display: 'flex',
               justifyContent: 'space-between',
-              background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)'
+              background: SCANNER.headerScrim
             }}>
               <IconButton onClick={handleStop} sx={{ color: 'white' }}>
                 <CloseIcon />
@@ -212,7 +237,7 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
 
                 {/* Torch Toggle */}
                 {hasTorch && (
-                  <IconButton onClick={onToggleTorch} sx={{ color: torchOn ? '#ffeb3b' : 'white' }}>
+                  <IconButton onClick={onToggleTorch} sx={{ color: torchOn ? SCANNER.torchOn : 'common.white' }}>
                     {torchOn ? <FlashOnIcon /> : <FlashOffIcon />}
                   </IconButton>
                 )}
@@ -220,25 +245,25 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
             </Box>
 
             {/* Viewfinder Area */}
-            <Box sx={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#000' }}>
+            <Box sx={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'common.black' }}>
               <div id="qrTest" style={{ width: '100%', height: '100%' }} />
 
               {/* Scan Overlay Guide */}
               {!loading && !error && (
                 <Box sx={{
                   position: 'absolute',
-                  border: '2px solid rgba(255, 255, 255, 0.5)',
-                  boxShadow: '0 0 0 4000px rgba(0, 0, 0, 0.5)',
+                  border: `2px solid ${SCANNER.hairline}`,
+                  boxShadow: `0 0 0 4000px ${SCANNER.scrim}`,
                   borderRadius: 2,
                   width: '70%',
                   aspectRatio: '1/1',
                   zIndex: 5,
                   pointerEvents: 'none'
                 }}>
-                  <Box sx={{ position: 'absolute', top: -2, left: -2, width: 20, height: 20, borderLeft: '4px solid #00e676', borderTop: '4px solid #00e676', borderRadius: '4px 0 0 0' }} />
-                  <Box sx={{ position: 'absolute', top: -2, right: -2, width: 20, height: 20, borderRight: '4px solid #00e676', borderTop: '4px solid #00e676', borderRadius: '0 4px 0 0' }} />
-                  <Box sx={{ position: 'absolute', bottom: -2, left: -2, width: 20, height: 20, borderLeft: '4px solid #00e676', borderBottom: '4px solid #00e676', borderRadius: '0 0 0 4px' }} />
-                  <Box sx={{ position: 'absolute', bottom: -2, right: -2, width: 20, height: 20, borderRight: '4px solid #00e676', borderBottom: '4px solid #00e676', borderRadius: '0 0 4px 0' }} />
+                  <Box sx={{ position: 'absolute', top: -2, left: -2, width: 20, height: 20, borderLeft: `4px solid ${SCANNER.target}`, borderTop: `4px solid ${SCANNER.target}`, borderRadius: '4px 0 0 0' }} />
+                  <Box sx={{ position: 'absolute', top: -2, right: -2, width: 20, height: 20, borderRight: `4px solid ${SCANNER.target}`, borderTop: `4px solid ${SCANNER.target}`, borderRadius: '0 4px 0 0' }} />
+                  <Box sx={{ position: 'absolute', bottom: -2, left: -2, width: 20, height: 20, borderLeft: `4px solid ${SCANNER.target}`, borderBottom: `4px solid ${SCANNER.target}`, borderRadius: '0 0 0 4px' }} />
+                  <Box sx={{ position: 'absolute', bottom: -2, right: -2, width: 20, height: 20, borderRight: `4px solid ${SCANNER.target}`, borderBottom: `4px solid ${SCANNER.target}`, borderRadius: '0 0 4px 0' }} />
                 </Box>
               )}
 
@@ -271,7 +296,7 @@ const MobileQrScanner = forwardRef<MobileQrScannerRef, MobileQrScannerProps>(
                   variant="outlined"
                   onClick={onSwitchCamera}
                   startIcon={<CameraswitchIcon />}
-                  sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}
+                  sx={{ color: 'common.white', borderColor: SCANNER.controlBorder }}
                 >
                   Cambiar Cámara
                 </Button>

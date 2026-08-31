@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { StatStrip } from "@/components/StatStrip";
+import { StatusPill } from "@/components/StatusPill";
+import { touch } from "@/theme";
 import {
   Box,
   Button,
@@ -12,12 +15,8 @@ import {
   TableRow,
   IconButton,
   Typography,
-  CircularProgress,
   TextField,
   InputAdornment,
-  Grid,
-  Card,
-  CardContent,
   Stack,
   Tooltip,
   Chip,
@@ -27,8 +26,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Collapse,
-  Divider,
   FormControlLabel,
   Switch,
 } from "@mui/material";
@@ -37,14 +34,10 @@ import {
   Edit,
   Add,
   Category,
-  Palette,
   ColorLens,
-  Label,
   Search,
   Refresh,
-  ExpandLess,
-  ExpandMore,
-  Public,
+  Close,
 } from "@mui/icons-material";
 import {
   fetchCategories,
@@ -55,6 +48,7 @@ import {
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
 import { useSession } from "next-auth/react";
@@ -79,8 +73,6 @@ export default function CategoriasPage() {
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
-  const [statsExpanded, setStatsExpanded] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -134,20 +126,25 @@ export default function CategoriasPage() {
   };
 
   const handleDelete = async (id: string) => {
-    confirmDialog("¿Está seguro que desea eliminar la categoría?", async () => {
-      try {
-        await deleteCategory(id);
-        showMessage("Categoría eliminada", "success");
-      } catch (error) {
-        console.error(error);
-        showMessage(
-          "Error al intentar eliminar la categoría. Es probable que esté en uso!",
-          "error",
-        );
-      } finally {
-        await loadCategories();
-      }
-    });
+    confirmDialog(
+      "¿Está seguro que desea eliminar la categoría?",
+      async () => {
+        try {
+          await deleteCategory(id);
+          showMessage("Categoría eliminada", "success");
+        } catch (error) {
+          console.error(error);
+          showMessage(
+            "Error al intentar eliminar la categoría. Es probable que esté en uso!",
+            "error",
+          );
+        } finally {
+          await loadCategories();
+        }
+      },
+      undefined,
+      { severity: "error" },
+    );
   };
 
   const filteredCategories = categories.filter((category) =>
@@ -165,189 +162,74 @@ export default function CategoriasPage() {
     { label: "Categorías" },
   ];
 
+  // The stats toggle is gone with the cards it used to hide: a StatStrip is two
+  // lines tall, so there is nothing left to fold away.
   const headerActions = (
     <Stack direction="row" spacing={0.5} alignItems="center">
       <Tooltip title="Actualizar categorías">
-        <IconButton onClick={loadCategories} disabled={loading} size="small">
+        <IconButton onClick={loadCategories} disabled={loading}>
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
+      {!isMobile && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => handleOpen()}
         >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
+          Agregar Categoría
+        </Button>
       )}
-      <Button
-        variant="contained"
-        startIcon={!isMobile ? <Add /> : undefined}
-        onClick={() => handleOpen()}
-        size="small"
-      >
-        {isMobile ? "Agregar" : "Agregar Categoría"}
-      </Button>
     </Stack>
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color,
-  }: {
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: "100%" }}>
-      <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 0.75 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: isMobile ? 32 : 48,
-              minHeight: isMobile ? 32 : 48,
-            }}
-          >
-            {React.isValidElement(icon)
-              ? React.cloneElement(icon, {
-                  fontSize: isMobile ? "small" : "large",
-                } as Record<string, unknown>)
-              : icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant={isMobile ? "subtitle1" : "h4"}
-              fontWeight="bold"
-              sx={{
-                fontSize: isMobile ? "1rem" : "2rem",
-                lineHeight: 1.2,
-                wordBreak: "break-all",
-              }}
-            >
-              {value}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? "0.6875rem" : "0.875rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
+      <PageContainer
+        title="Gestión de Categorías"
+        subtitle="Organiza tus productos con categorías personalizadas"
+        breadcrumbs={breadcrumbs}
+        maxWidth="xl"
       >
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando categorías...
-        </Typography>
-      </Box>
+        <LoadingState variant="table" />
+      </PageContainer>
     );
   }
 
   return (
     <PageContainer
       title="Gestión de Categorías"
-      subtitle={
-        !isMobile
-          ? "Organiza tus productos con categorías personalizadas"
-          : undefined
-      }
+      subtitle="Organiza tus productos con categorías personalizadas"
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas de categorías */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={4}>
-                <StatCard
-                  icon={<Category />}
-                  value={totalCategorias.toLocaleString()}
-                  label="Total"
-                  color="primary.light"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <StatCard
-                  icon={<Palette />}
-                  value={coloresUnicos.toLocaleString()}
-                  label="Colores"
-                  color="success.light"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <StatCard
-                  icon={<Label />}
-                  value={categoriasVisibles.toLocaleString()}
-                  label="Visibles"
-                  color="info.light"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<Category />}
-              value={totalCategorias.toLocaleString()}
-              label="Total Categorías"
-              color="primary.light"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<Palette />}
-              value={coloresUnicos.toLocaleString()}
-              label="Colores Únicos"
-              color="success.light"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              icon={<Label />}
-              value={categoriasVisibles.toLocaleString()}
-              label="Categorías Visibles"
-              color="info.light"
-            />
-          </Grid>
-        </Grid>
+      {isMobile && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          fullWidth
+          onClick={() => handleOpen()}
+          sx={{ minHeight: touch.comfortable, mb: 2.5 }}
+        >
+          Agregar
+        </Button>
       )}
+
+      <StatStrip
+        stats={[
+          {
+            label: "Total Categorías",
+            value: totalCategorias.toLocaleString(),
+          },
+          { label: "Colores Únicos", value: coloresUnicos.toLocaleString() },
+          {
+            label: "Categorías Visibles",
+            value: categoriasVisibles.toLocaleString(),
+          },
+        ]}
+      />
 
       {/* Lista de categorías */}
       <ContentCard
@@ -396,104 +278,78 @@ export default function CategoriasPage() {
             </Box>
           </Box>
         ) : isMobile ? (
-          // Vista móvil con cards más densos
-          <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.5}>
-              {filteredCategories.map((categoria) => {
-                const isGlobalReadOnly = categoria.esGlobal && !isSuperAdmin;
-                return (
-                  <Card
-                    key={categoria.id}
-                    onClick={() => handleOpen(categoria)}
+          // One card holding rows, not a card per category: nesting a card in a
+          // card cost a border and an indent per row and pushed the list down
+          // the screen. The swatch is the data here, so it stays saturated and
+          // everything around it goes quiet.
+          <Box>
+            {filteredCategories.map((categoria, index) => {
+              const isGlobalReadOnly = categoria.esGlobal && !isSuperAdmin;
+              return (
+                <Box
+                  key={categoria.id}
+                  onClick={() => !isGlobalReadOnly && handleOpen(categoria)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    minHeight: 64,
+                    pl: 2,
+                    pr: 0.5,
+                    py: 1,
+                    cursor: isGlobalReadOnly ? "default" : "pointer",
+                    ...(index > 0 && { borderTop: 1, borderColor: "divider" }),
+                  }}
+                >
+                  <Box
                     sx={{
-                      cursor: isGlobalReadOnly ? "default" : "pointer",
-                      "&:hover": {
-                        backgroundColor: isGlobalReadOnly
-                          ? undefined
-                          : "action.hover",
-                      },
+                      width: 22,
+                      height: 22,
+                      flex: "0 0 22px",
+                      borderRadius: "6px",
+                      bgcolor: categoria.color,
+                      border: "1px solid",
+                      borderColor: "divider",
                     }}
+                  />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Typography sx={{ fontSize: "1rem", fontWeight: 600 }}>
+                        {categoria.nombre}
+                      </Typography>
+                      {categoria.esGlobal && <StatusPill label="Global" />}
+                    </Box>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.25, fontFamily: "monospace" }}
+                    >
+                      {categoria.color}
+                    </Typography>
+                  </Box>
+                  <Tooltip
+                    title={
+                      isGlobalReadOnly
+                        ? "Las categorías globales no se pueden eliminar"
+                        : "Eliminar categoría"
+                    }
                   >
-                    <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                      <Stack spacing={1.5}>
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
-                        >
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Box
-                              sx={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: 1,
-                                bgcolor: categoria.color,
-                                border: "1px solid",
-                                borderColor: "divider",
-                              }}
-                            />
-                            <Typography
-                              variant="subtitle2"
-                              fontWeight="medium"
-                              sx={{ fontSize: "0.875rem" }}
-                            >
-                              {categoria.nombre}
-                            </Typography>
-                            {categoria.esGlobal && (
-                              <Chip
-                                icon={
-                                  <Public
-                                    sx={{ fontSize: "0.75rem !important" }}
-                                  />
-                                }
-                                label="Global"
-                                size="small"
-                                color="info"
-                                variant="outlined"
-                                sx={{
-                                  fontSize: "0.65rem",
-                                  height: 18,
-                                  "& .MuiChip-label": { px: 0.5 },
-                                }}
-                              />
-                            )}
-                          </Box>
-                          <Tooltip
-                            title={
-                              isGlobalReadOnly
-                                ? "Las categorías globales no se pueden eliminar"
-                                : "Eliminar categoría"
-                            }
-                          >
-                            <span>
-                              <IconButton
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(categoria.id);
-                                }}
-                                size="small"
-                                color="error"
-                                disabled={isGlobalReadOnly}
-                              >
-                                <Delete fontSize="small" />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        </Box>
-
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ fontSize: "0.6875rem" }}
-                        >
-                          Color: {categoria.color}
-                        </Typography>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </Stack>
+                    <span>
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(categoria.id);
+                        }}
+                        color="error"
+                        disabled={isGlobalReadOnly}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Box>
+              );
+            })}
           </Box>
         ) : (
           // Vista desktop con tabla
@@ -518,10 +374,7 @@ export default function CategoriasPage() {
                         "&:hover": {
                           backgroundColor: isGlobalReadOnly
                             ? undefined
-                            : "action.hover",
-                        },
-                        "&:nth-of-type(odd)": {
-                          backgroundColor: "rgba(0, 0, 0, 0.02)",
+                            : "semantic.surface.sunken",
                         },
                       }}
                     >
@@ -529,9 +382,10 @@ export default function CategoriasPage() {
                         <Box display="flex" alignItems="center" gap={1.5}>
                           <Box
                             sx={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: 1,
+                              width: 22,
+                              height: 22,
+                              flex: "0 0 22px",
+                              borderRadius: "6px",
                               bgcolor: categoria.color,
                               border: "1px solid",
                               borderColor: "divider",
@@ -541,18 +395,9 @@ export default function CategoriasPage() {
                             {categoria.nombre}
                           </Typography>
                           {categoria.esGlobal && (
-                            <Chip
-                              icon={
-                                <Public
-                                  sx={{ fontSize: "0.75rem !important" }}
-                                />
-                              }
-                              label="Global"
-                              size="small"
-                              color="info"
-                              variant="outlined"
-                              sx={{ fontSize: "0.7rem" }}
-                            />
+                            // Almost every row carries this: repeated facts do
+                            // not get to be the loudest thing in the cell.
+                            <StatusPill label="Global" />
                           )}
                         </Box>
                       </TableCell>
@@ -625,9 +470,26 @@ export default function CategoriasPage() {
       </ContentCard>
 
       {/* Dialog para crear/editar categoría */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {editingCategory ? "Editar Categoría" : "Nueva Categoría"}
+          {isMobile && (
+            <IconButton onClick={handleClose}>
+              <Close />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
@@ -700,8 +562,18 @@ export default function CategoriasPage() {
             )}
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} color="secondary">
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={handleClose}
+            color="secondary"
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
             Cancelar
           </Button>
           <Button
@@ -709,6 +581,9 @@ export default function CategoriasPage() {
             variant="contained"
             color="primary"
             disabled={!nombre.trim()}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             Guardar
           </Button>

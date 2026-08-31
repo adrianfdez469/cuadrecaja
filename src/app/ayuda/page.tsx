@@ -1,25 +1,21 @@
 "use client";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { Box, Button, Container, Typography } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { useAppContext } from "@/context/AppContext";
+import { PageContainer } from "@/components/PageContainer";
 import { PrimerosPasosSettings } from "@/features/onboarding/components/PrimerosPasosSettings";
 
 export default function AyudaPage() {
   const { gotToPath } = useAppContext();
 
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 2, sm: 4 } }}>
-      <Box
-        display="flex"
-        alignItems="flex-start"
-        justifyContent="space-between"
-        gap={2}
-        mb={1}
-      >
-        <Typography variant="h4" fontWeight={700}>
-          Ayuda
-        </Typography>
+    <PageContainer
+      title="Ayuda"
+      subtitle="Configura las guías interactivas y consulta recursos de apoyo."
+      breadcrumbs={[{ label: "Inicio", href: "/home" }, { label: "Ayuda" }]}
+      maxWidth="md"
+      headerActions={
         <Button
           variant="outlined"
           startIcon={<ArrowBackIcon />}
@@ -28,14 +24,11 @@ export default function AyudaPage() {
         >
           Cerrar
         </Button>
-      </Box>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Configura las guías interactivas y consulta recursos de apoyo.
-      </Typography>
-
+      }
+    >
       <Box display="flex" flexDirection="column" gap={3}>
         <PrimerosPasosSettings />
       </Box>
-    </Container>
+    </PageContainer>
   );
 }

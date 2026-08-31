@@ -10,11 +10,15 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  IconButton,
   Stack,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import CloseIcon from "@mui/icons-material/Close";
 import MoneyField from "@/components/MoneyField";
 import {
   fetchInitialCashFundHistory,
@@ -41,6 +45,8 @@ export default function InitialCashFundDialog({
   onClose,
   onSaved,
 }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [history, setHistory] = useState<IInitialCashFundEntry[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -86,8 +92,27 @@ export default function InitialCashFundDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Fondo inicial de caja</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      fullScreen={isMobile}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        Fondo inicial de caja
+        {isMobile && (
+          <IconButton onClick={onClose} disabled={saving}>
+            <CloseIcon />
+          </IconButton>
+        )}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} mt={0.5}>
           <Typography variant="body2" color="text.secondary">
@@ -148,14 +173,27 @@ export default function InitialCashFundDialog({
           )}
         </Stack>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={saving}>
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
+        <Button
+          onClick={onClose}
+          disabled={saving}
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : undefined }}
+        >
           Cancelar
         </Button>
         <Button
           variant="contained"
           onClick={handleSave}
           disabled={saving || loading}
+          fullWidth={isMobile}
+          size={isMobile ? "large" : "medium"}
+          sx={{ minHeight: isMobile ? 56 : undefined }}
         >
           {saving ? "Guardando..." : "Guardar"}
         </Button>

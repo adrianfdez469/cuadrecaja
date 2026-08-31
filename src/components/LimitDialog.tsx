@@ -42,6 +42,7 @@ import {
 import type { IPlan } from '@/schemas/plan';
 import { getPlanes } from '@/services/planService';
 import { buildPlanFeatures } from '@/utils/planUtils';
+import { WHATSAPP_GREEN } from "@/constants/brandColors";
 
 export type LimitType = 'locales' | 'usuarios' | 'productos';
 
@@ -371,7 +372,7 @@ const LimitDialog: React.FC<LimitDialogProps> = ({
                 sx={{ 
                   mb: 2,
                   cursor: 'pointer',
-                  '&:hover': { bgcolor: 'action.hover' },
+                  '&:hover': { bgcolor: 'semantic.surface.sunken' },
                   border: selectedSupport === user.name ? 2 : 1,
                   borderColor: selectedSupport === user.name ? 'primary.main' : 'divider'
                 }}
@@ -405,8 +406,8 @@ const LimitDialog: React.FC<LimitDialogProps> = ({
                         </Typography>
                       </Stack>
                       <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.5 }}>
-                        <WhatsApp fontSize="small" sx={{ color: '#25D366' }} />
-                        <Typography variant="body2" sx={{ color: '#25D366', fontSize: isMobile ? '0.75rem' : '0.875rem' }}>
+                        <WhatsApp fontSize="small" sx={{ color: WHATSAPP_GREEN }} />
+                        <Typography variant="body2" sx={{ color: WHATSAPP_GREEN, fontSize: isMobile ? '0.75rem' : '0.875rem' }}>
                           Disponible en WhatsApp
                         </Typography>
                       </Stack>

@@ -1,16 +1,11 @@
 "use client";
 
+import { Box, ButtonBase, Typography } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
 import {
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Stack,
-  Typography,
-} from "@mui/material";
-import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
-import CreditCardIcon from "@mui/icons-material/CreditCard";
+  BottomSheet,
+  SHEET_ROW_SX,
+} from "@/app/pos/components/checkout/BottomSheet";
 import { formatMontoEnMoneda } from "@/utils/formatters";
 import type { PaymentLineKind } from "@/app/pos/utils/paymentMath";
 
@@ -21,85 +16,117 @@ export interface PaymentOption {
   suggested: number;
   /** Base equivalent of `suggested`, or null when this is the base currency. */
   equivalentBase: number | null;
+  /** The whole amount owed in this currency — what the row shows once the
+   * payment is already covered and there is nothing left to suggest. */
+  owed: number;
+  owedBase: number | null;
 }
 
 interface AddPaymentSheetProps {
   open: boolean;
   options: PaymentOption[];
   base: string;
+  /** The payment already reaches the total: the sheet says so in green. */
+  covered: boolean;
   onClose: () => void;
   onPick: (option: PaymentOption) => void;
 }
+
+/**
+ * One more currency or method for the sale: a 56px row per option with
+ * what it would have to cover, already converted. When the payment already
+ * reaches the total, the sheet says so in green instead of on every row.
+ */
+
+const NAME_SX = { fontWeight: 600 } as const;
+
+const AMOUNT_SX = {
+  ml: "auto",
+  textAlign: "right",
+  fontWeight: 700,
+  fontVariantNumeric: "tabular-nums",
+  lineHeight: 1.25,
+} as const;
+
+const EQUIVALENT_SX = {
+  display: "block",
+  fontSize: "0.6875rem",
+  fontWeight: 400,
+  color: "text.secondary",
+} as const;
+
+const COVERED_SX = {
+  display: "flex",
+  alignItems: "center",
+  gap: 0.75,
+  minHeight: 48,
+  px: 2,
+  borderTop: "1px solid",
+  borderColor: "divider",
+  color: "semantic.hue.positive.main",
+  fontSize: "0.84375rem",
+  fontWeight: 600,
+} as const;
 
 export function AddPaymentSheet({
   open,
   options,
   base,
+  covered,
   onClose,
   onPick,
 }: AddPaymentSheetProps) {
   return (
-    <Drawer
-      anchor="bottom"
-      open={open}
-      onClose={onClose}
-      // See AmountKeypad.tsx: the pinned cart sidebar and the mobile
-      // CartDrawer sit at theme.zIndex.drawer + 1, and this Drawer portals to
-      // document.body regardless of nesting, so it needs an explicit zIndex
-      // above them or it renders behind whichever one is on screen.
-      sx={{ zIndex: (theme) => theme.zIndex.modal }}
-      PaperProps={{ sx: { borderRadius: "16px 16px 0 0" } }}
-    >
-      <Stack
-        gap={1}
-        sx={{ p: 2, pb: "calc(16px + env(safe-area-inset-bottom))" }}
-      >
-        <Typography variant="caption" color="text.secondary">
-          AGREGAR FORMA DE PAGO
-        </Typography>
-
+    <BottomSheet open={open} onClose={onClose} title="Agregar forma de pago">
+      <Box sx={{ mt: 0.75 }}>
         {options.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" py={2}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ px: 2, py: 2 }}
+          >
             No hay otras formas de pago configuradas para este negocio.
           </Typography>
         ) : (
-          <List disablePadding>
-            {options.map((option) => (
-              <ListItemButton
-                key={`${option.kind}-${option.currency}`}
-                onClick={() => onPick(option)}
-                sx={{
-                  minHeight: 44,
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  mb: 1,
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  {option.kind === "cash" ? (
-                    <PaymentsOutlinedIcon fontSize="small" />
-                  ) : (
-                    <CreditCardIcon fontSize="small" />
-                  )}
-                </ListItemIcon>
-                <ListItemText
-                  primary={`${option.kind === "cash" ? "Efectivo" : "Transferencia"} ${option.currency}`}
-                  secondary={
-                    option.suggested > 0
-                      ? option.equivalentBase !== null
-                        ? `Sugerido: ${formatMontoEnMoneda(option.suggested, option.currency)} · ≈ ${formatMontoEnMoneda(option.equivalentBase, base)}`
-                        : `Sugerido: ${formatMontoEnMoneda(option.suggested, option.currency)}`
-                      : "Ya está cubierto el total"
-                  }
-                  primaryTypographyProps={{ fontWeight: 600, variant: "body2" }}
-                  secondaryTypographyProps={{ variant: "caption" }}
-                />
-              </ListItemButton>
-            ))}
-          </List>
+          options.map((option) => (
+            <ButtonBase
+              key={`${option.kind}-${option.currency}`}
+              onClick={() => onPick(option)}
+              sx={SHEET_ROW_SX}
+            >
+              <Box component="span" sx={NAME_SX}>
+                {option.kind === "cash" ? "Efectivo" : "Transferencia"}{" "}
+                {option.currency}
+              </Box>
+              <Box component="span" sx={AMOUNT_SX}>
+                {formatMontoEnMoneda(
+                  option.suggested > 0 ? option.suggested : option.owed,
+                  option.currency,
+                )}
+                {(option.suggested > 0
+                  ? option.equivalentBase
+                  : option.owedBase) !== null && (
+                  <Box component="span" sx={EQUIVALENT_SX}>
+                    ≈{" "}
+                    {formatMontoEnMoneda(
+                      (option.suggested > 0
+                        ? option.equivalentBase
+                        : option.owedBase) as number,
+                      base,
+                    )}
+                  </Box>
+                )}
+              </Box>
+            </ButtonBase>
+          ))
         )}
-      </Stack>
-    </Drawer>
+        {covered && options.length > 0 && (
+          <Box sx={COVERED_SX}>
+            <CheckIcon fontSize="small" />
+            Ya está cubierto el total
+          </Box>
+        )}
+      </Box>
+    </BottomSheet>
   );
 }

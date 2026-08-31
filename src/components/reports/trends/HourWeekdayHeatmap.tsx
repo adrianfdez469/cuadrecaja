@@ -123,7 +123,7 @@ export function HourWeekdayHeatmap({
                         bgcolor:
                           intensity > 0
                             ? theme.palette.primary.main
-                            : theme.palette.action.hover,
+                            : theme.palette.semantic.surface.sunken,
                         opacity: intensity > 0 ? 0.25 + intensity * 0.75 : 1,
                         cursor: "default",
                       }}

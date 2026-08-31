@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { StatStrip } from "@/components/StatStrip";
 import { useVirtualRows } from "@/hooks/useVirtualRows";
 import {
   VENTAS_CARD_ESTIMATED_HEIGHT,
@@ -21,25 +22,20 @@ import {
   Alert,
   Button,
   InputAdornment,
-  Grid,
   Card,
   CardContent,
   Stack,
   Tooltip,
   useTheme,
   useMediaQuery,
-  Collapse,
-  Divider,
+  alpha,
 } from "@mui/material";
 import {
   Delete,
-  AttachMoney,
-  CalendarToday,
   Search,
   Refresh,
-  ExpandMore,
-  ExpandLess,
   Visibility,
+  ReceiptLong,
 } from "@mui/icons-material";
 import { fetchLastPeriod, openPeriod } from "@/services/cierrePeriodService";
 import { useAppContext } from "@/context/AppContext";
@@ -54,6 +50,7 @@ import {
 } from "@/services/sellService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { LoadingState } from "@/components/LoadingState";
 import SelectableTextField from "@/components/SelectableTextField";
 import VentaDetailDialog from "./components/VentaDetailDialog";
 import { formatDate, formatDateTime, isToday } from "@/utils/formatters";
@@ -73,7 +70,6 @@ const Ventas = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [noPeriodFound, setNoPeriodFound] = useState(false);
   const [noLocalActual, setNoLocalActual] = useState(false);
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const [isProcessingPeriod, setIsProcessingPeriod] = useState(false);
   const { ConfirmDialogComponent, confirmDialog } = useConfirmDialog();
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -167,6 +163,8 @@ const Ventas = () => {
           setDeletingVentaId(null);
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 
@@ -204,6 +202,8 @@ const Ventas = () => {
           }
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 
@@ -253,17 +253,13 @@ const Ventas = () => {
 
   if (loadingContext || isDataLoading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
+      <PageContainer
+        title="Ventas"
+        breadcrumbs={[{ label: "Inicio", href: "/home" }, { label: "Ventas" }]}
+        maxWidth="xl"
       >
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando ventas...
-        </Typography>
-      </Box>
+        <LoadingState variant={isMobile ? "cards" : "table"} />
+      </PageContainer>
     );
   }
 
@@ -338,97 +334,10 @@ const Ventas = () => {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
-      )}
     </Stack>
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color,
-  }: {
-    icon: React.ReactNode;
-    value: React.ReactNode;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: "100%" }}>
-      <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 0.75 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: isMobile ? 32 : 48,
-              minHeight: isMobile ? 32 : 48,
-            }}
-          >
-            {React.isValidElement(icon)
-              ? React.cloneElement(icon, {
-                  fontSize: isMobile ? "small" : "large",
-                } as Record<string, unknown>)
-              : icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            {/* value puede ser un nodo (MultiCurrencyAmount) que renderiza su propia tipografía */}
-            <Box
-              sx={{
-                fontSize: isMobile ? "1rem" : "2rem",
-                fontWeight: "bold",
-                lineHeight: 1.2,
-                wordBreak: "break-all",
-              }}
-            >
-              {value}
-            </Box>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? "0.6875rem" : "0.875rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {label}
-            </Typography>
-            {searchTerm && (
-              <Typography
-                variant="body2"
-                color="warning"
-                sx={{
-                  fontSize: isMobile ? "0.6875rem" : "0.875rem",
-                  lineHeight: 1.2,
-                }}
-              >
-                Filtro Aplicado
-              </Typography>
-            )}
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   return (
     <PageContainer
       title={`Ventas - Período ${currentPeriod ? formatDate(currentPeriod.fechaInicio) : ""}`}
@@ -439,64 +348,47 @@ const Ventas = () => {
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas de ventas */}
       {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={12} sm={12} md={6}>
-                <StatCard
-                  icon={<AttachMoney />}
-                  value={
-                    <MultiCurrencyAmount
-                      amount={montoTotal}
-                      variant="emphasized"
-                    />
-                  }
-                  label="Total Vendido"
-                  color="success.light"
-                />
-              </Grid>
-              <Grid item xs={12} sm={12} md={6}>
-                <StatCard
-                  icon={<CalendarToday />}
-                  value={
-                    <MultiCurrencyAmount
-                      amount={montoHoy}
-                      variant="emphasized"
-                    />
-                  }
-                  label="Monto Hoy"
-                  color="warning.light"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
+        // En mobile las dos cifras van apiladas en una sola caja, no en
+        // columnas — el mockup (`ventas-con-datos-movil.html`) las dibuja
+        // como filas de una tarjeta, no como el grid 2-up de `StatStrip`.
+        <Box
+          sx={{
+            bgcolor: "background.paper",
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 3,
+            mb: 2,
+            overflow: "hidden",
+          }}
+        >
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Typography variant="body2" color="text.secondary">
+              Total Vendido
+            </Typography>
+            <MultiCurrencyAmount amount={montoTotal} variant="stat" />
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Monto Hoy
+            </Typography>
+            <MultiCurrencyAmount amount={montoHoy} variant="stat" />
+          </Box>
         </Box>
       ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={12} md={6}>
-            <StatCard
-              icon={<AttachMoney />}
-              value={
-                <MultiCurrencyAmount amount={montoTotal} variant="emphasized" />
-              }
-              label="Total Vendido"
-              color="success.light"
-            />
-          </Grid>
-          <Grid item xs={12} sm={12} md={6}>
-            <StatCard
-              icon={<CalendarToday />}
-              value={
-                <MultiCurrencyAmount amount={montoHoy} variant="emphasized" />
-              }
-              label="Monto Hoy"
-              color="warning.light"
-            />
-          </Grid>
-        </Grid>
+        <StatStrip
+          variant="card"
+          stats={[
+            {
+              label: "Total Vendido",
+              value: <MultiCurrencyAmount amount={montoTotal} variant="stat" />,
+            },
+            {
+              label: "Monto Hoy",
+              value: <MultiCurrencyAmount amount={montoHoy} variant="stat" />,
+            },
+          ]}
+        />
       )}
 
       {/* Lista de ventas */}
@@ -521,8 +413,7 @@ const Ventas = () => {
               ),
             }}
             sx={{
-              minWidth: isMobile ? 160 : 250,
-              maxWidth: isMobile ? 200 : "none",
+              width: isMobile ? "100%" : 250,
             }}
           />
         }
@@ -530,35 +421,102 @@ const Ventas = () => {
         fullHeight
       >
         {filteredVentas.length === 0 ? (
-          <Box sx={{ p: 2 }}>
-            <Alert severity="info" sx={{ mt: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                {searchTerm
-                  ? "No se encontraron ventas"
-                  : "No hay ventas registradas en este período"}
-              </Typography>
-              <Typography variant="body1" gutterBottom>
-                {searchTerm
-                  ? "Intenta con otros términos de búsqueda"
-                  : "Las ventas aparecerán aquí cuando:"}
-              </Typography>
-              {!searchTerm && (
-                <Typography variant="body2" component="div">
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              py: 6,
+              px: 2,
+            }}
+          >
+            {/* Icon with wash background */}
+            <Box
+              sx={{
+                bgcolor: alpha(theme.palette.info.main, 0.1),
+                borderRadius: "50%",
+                p: 2,
+                mb: 2,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 64,
+                height: 64,
+              }}
+            >
+              <ReceiptLong
+                sx={{
+                  fontSize: 48,
+                  color: theme.palette.info.main,
+                }}
+              />
+            </Box>
+
+            {/* Main heading */}
+            <Typography
+              variant="body1"
+              sx={{
+                fontSize: "17px",
+                fontWeight: 700,
+                mb: 1,
+                textAlign: "center",
+              }}
+            >
+              {searchTerm
+                ? "No se encontraron ventas"
+                : "No hay ventas registradas en este período"}
+            </Typography>
+
+            {/* Subheading */}
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                fontSize: "14px",
+                mb: searchTerm ? 0 : 2,
+                textAlign: "center",
+              }}
+            >
+              {searchTerm
+                ? "Intenta con otros términos de búsqueda"
+                : "Las ventas aparecerán aquí cuando:"}
+            </Typography>
+
+            {/* Bullet points */}
+            {!searchTerm && (
+              <Stack spacing={0.5} sx={{ mt: 1 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: "13px" }}
+                >
                   • Se realicen ventas desde el POS
-                  <br />
-                  • Se procesen transacciones
-                  <br />• Se registren pagos de clientes
                 </Typography>
-              )}
-            </Alert>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: "13px" }}
+                >
+                  • Se procesen transacciones
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: "13px" }}
+                >
+                  • Se registren pagos de clientes
+                </Typography>
+              </Stack>
+            )}
           </Box>
         ) : isMobile ? (
           // Vista móvil con cards más densos
           // Con muchas ventas la lista gana su propio scroll y solo pinta las
           // tarjetas visibles; con pocas se comporta igual que antes.
-          <Box ref={ventasVirtual.containerRef} sx={{ p: 1.5 }}>
+          <Box ref={ventasVirtual.containerRef} sx={{ p: 1 }}>
             <Stack
-              spacing={1.5}
+              spacing={1}
               sx={
                 ventasVirtual.needsVirtualization
                   ? {
@@ -588,65 +546,37 @@ const Ventas = () => {
                   sx={{
                     cursor: "pointer",
                     "&:hover": {
-                      backgroundColor: "action.hover",
+                      backgroundColor: "semantic.surface.sunken",
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1.5}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography
-                          variant="subtitle2"
-                          fontWeight="medium"
-                          sx={{ fontSize: "0.875rem" }}
+                  <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="flex-start"
+                      gap={1.5}
+                    >
+                      {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
+                      <MultiCurrencyAmount
+                        amount={venta.total}
+                        variant="stat"
+                      />
+                      <Stack direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
+                        <IconButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenVenta(venta);
+                          }}
+                          color="primary"
                         >
-                          Venta #{venta.id.slice(-8)}
-                        </Typography>
-                        {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
-                        <MultiCurrencyAmount
-                          amount={venta.total}
-                          variant="compact"
-                          align="right"
-                          color="success.main"
-                        />
-                      </Box>
-
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Box>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.6875rem" }}
-                          >
-                            {formatDateTime(venta.createdAt)}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.75rem" }}
-                          >
-                            {venta.productos?.length || 0} productos
-                          </Typography>
-                        </Box>
-
-                        <Typography variant="body2">
-                          {venta.usuario?.nombre || ""}
-                        </Typography>
-
+                          <Visibility fontSize="small" />
+                        </IconButton>
                         <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
                             handleCancelVenta(venta);
                           }}
-                          size="small"
                           color="error"
                           disabled={deletingVentaId === venta.id}
                         >
@@ -656,8 +586,49 @@ const Ventas = () => {
                             <Delete fontSize="small" />
                           )}
                         </IconButton>
-                      </Box>
+                      </Stack>
+                    </Box>
+
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      gap={1}
+                      sx={{
+                        mt: 1.5,
+                        pt: 1.25,
+                        borderTop: 1,
+                        borderColor: "divider",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        #{venta.id.slice(-8)}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        · {formatDateTime(venta.createdAt)}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ ml: "auto", fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {venta.productos?.length || 0} prod.
+                      </Typography>
                     </Stack>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: 0.5 }}
+                    >
+                      {venta.usuario?.nombre || ""}
+                    </Typography>
                   </CardContent>
                 </Card>
               ))}
@@ -671,10 +642,10 @@ const Ventas = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>ID Venta</TableCell>
-                  <TableCell align="center">Fecha</TableCell>
+                  <TableCell>Fecha</TableCell>
                   <TableCell align="right">Monto Total</TableCell>
-                  <TableCell align="center">Productos</TableCell>
-                  <TableCell align="center">Usuario</TableCell>
+                  <TableCell align="right">Productos</TableCell>
+                  <TableCell>Usuario</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
@@ -697,10 +668,7 @@ const Ventas = () => {
                     sx={{
                       cursor: "pointer",
                       "&:hover": {
-                        backgroundColor: "action.hover",
-                      },
-                      "&:nth-of-type(odd)": {
-                        backgroundColor: "rgba(0, 0, 0, 0.02)",
+                        backgroundColor: "semantic.surface.sunken",
                       },
                     }}
                   >
@@ -709,29 +677,30 @@ const Ventas = () => {
                         #{venta.id.slice(-8)}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2">
-                        {formatDate(venta.createdAt)}
-                      </Typography>
-                      <Typography variant="body2">
+                    <TableCell>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {formatDate(venta.createdAt)} ·{" "}
                         {formatDateTime(venta.createdAt).split(" • ")[1]}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
                       {/* venta.total ya está en moneda base; mostramos base + equivalentes */}
-                      <MultiCurrencyAmount
-                        amount={venta.total}
-                        align="right"
-                        color="success.main"
-                      />
+                      <MultiCurrencyAmount amount={venta.total} align="right" />
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2">
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
                         {venta.productos?.length || 0}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2">
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
                         {venta.usuario?.nombre || ""}
                       </Typography>
                     </TableCell>

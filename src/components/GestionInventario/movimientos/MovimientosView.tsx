@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
+import { StatStrip } from "@/components/StatStrip";
+import { squareIconButtonSx } from "@/theme";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -19,12 +21,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress,
   LinearProgress,
   Stack,
   Alert,
   InputAdornment,
-  Grid,
   Card,
   CardContent,
   Tooltip,
@@ -42,16 +42,11 @@ import {
 import {
   Add,
   Dock,
-  TrendingUp,
-  TrendingDown,
-  SwapVert,
-  Inventory,
   Search,
   Refresh,
-  ExpandMore,
   ExpandLess,
   FilterAlt,
-  CleaningServices,
+  FilterListOff,
 } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { Dayjs } from "dayjs";
@@ -68,12 +63,19 @@ import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { ITipoMovimiento, MovimientoTipoEnum } from "@/schemas/movimiento";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/LoadingState";
 import SelectableTextField from "@/components/SelectableTextField";
 import {
   formatNumber,
   formatDateTime,
+  formatMovimientoMotivo,
   formatQuantity,
 } from "@/utils/formatters";
+import {
+  TIPO_MOVIMIENTO_FLOW,
+  TIPO_MOVIMIENTO_LABELS,
+} from "@/constants/movimientos";
 import {
   IProductoDisponible,
   OperacionTipo,
@@ -86,24 +88,14 @@ import { PendingReceptionBanner } from "./PendingReceptionBanner";
 
 const PAGE_SIZE = 20;
 
-const TIPO_LABELS: Record<ITipoMovimiento, string> = {
-  COMPRA: "Compra",
-  VENTA: "Venta",
-  AJUSTE_ENTRADA: "Ajuste Entrada",
-  AJUSTE_SALIDA: "Ajuste Salida",
-  TRASPASO_ENTRADA: "Traspaso Entrada",
-  TRASPASO_SALIDA: "Traspaso Salida",
-  DESAGREGACION_BAJA: "Desagregación Baja",
-  DESAGREGACION_ALTA: "Desagregación Alta",
-  CONSIGNACION_ENTRADA: "Consignación Entrada",
-  CONSIGNACION_DEVOLUCION: "Consignación Devolución",
-  MERMA: "Merma",
-  DEVOLUCION_VENTA: "Devolución de venta",
-};
-
 const TODOS_TIPOS = MovimientoTipoEnum.options;
 
-export default function MovimientosView() {
+interface MovimientosViewProps {
+  /** Pestañas Inventario/Movimientos, dibujadas por el padre bajo el título. */
+  tabs?: ReactNode;
+}
+
+export default function MovimientosView({ tabs }: MovimientosViewProps) {
   const [movimientos, setMovimientos] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [devolucionDialogOpen, setDevolucionDialogOpen] = useState(false);
@@ -115,7 +107,6 @@ export default function MovimientosView() {
   // una barra de progreso sin desmontar la vista ni los diálogos abiertos.
   const [primeraCarga, setPrimeraCarga] = useState(true);
   const [noLocalActual, setNoLocalActual] = useState(false);
-  const [statsExpanded, setStatsExpanded] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { items: pendienteRecepcion, fetch: fetchPendienteRecepcion } =
     usePendingReceptionStore();
@@ -143,14 +134,17 @@ export default function MovimientosView() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.down("md"));
-  const disabledCleanFilter =
-    !(
-      searchTerm ||
-      searchInputValue ||
-      tipoFilter.length > 0 ||
-      fechaInicio ||
-      fechaFin
-    ) || loadingData;
+  // An empty table means two different things, and they need opposite answers:
+  // a filter that matched nothing offers a way to clear it, a store with no
+  // history explains where movements come from.
+  const hayFiltrosActivos = Boolean(
+    searchTerm ||
+    searchInputValue ||
+    tipoFilter.length > 0 ||
+    fechaInicio ||
+    fechaFin,
+  );
+  const disabledCleanFilter = !hayFiltrosActivos || loadingData;
 
   const [skip, setSkip] = useState(0);
 
@@ -393,18 +387,30 @@ export default function MovimientosView() {
   ].length;
 
   if (loadingContext || (primeraCarga && loadingData)) {
+    // Skeleton inside the page shell, not instead of it. A skeleton exists to
+    // hold the layout still, so the header and the title have to already be
+    // there — otherwise the whole page still jumps when the rows land, which
+    // is what the old full-screen spinner did.
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
+      <PageContainer
+        title="Movimientos de Stock"
+        subtitle="Historial de entradas y salidas de inventario"
+        tabs={tabs}
+        maxWidth="xl"
       >
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando movimientos...
-        </Typography>
-      </Box>
+        <ContentCard>
+          {/*
+            This view renders a table on desktop and one card per movement on
+            phones, so the skeleton has to follow. A table skeleton in front of
+            incoming cards is just a spinner with extra steps.
+          */}
+          {isMobile ? (
+            <LoadingState variant="cards" count={5} />
+          ) : (
+            <LoadingState variant="table" columns={6} count={8} />
+          )}
+        </ContentCard>
+      </PageContainer>
     );
   }
 
@@ -412,6 +418,7 @@ export default function MovimientosView() {
     return (
       <PageContainer
         title="Movimientos de Stock"
+        tabs={tabs}
         breadcrumbs={[
           { label: "Inicio", href: "/home" },
           { label: "Movimientos" },
@@ -448,137 +455,79 @@ export default function MovimientosView() {
     setImportDialogOpen(true);
   };
 
-  const headerActions = (
-    <Stack direction="row" spacing={0.5} alignItems="center">
+  const puedeDevolucionVenta = verificarPermiso(
+    "operaciones.movimientos.crear.devolucion_venta",
+  );
+  const puedeImportarExcel =
+    (movimientos.length === 0 && !searchTerm) || user.rol === "SUPER_ADMIN";
+
+  // Orden del mockup: secundarias primero, "Crear Movimiento" al final — es
+  // la acción principal y va pegada al borde, no perdida entre las demás.
+  // En mobile no vive acá: baja al contenido como botón de ancho completo
+  // (mismo criterio que "Cerrar caja" en /cierre, ver pattern_mobile_sticky_cta).
+  const headerActions = !isMobile ? (
+    <Stack direction="row" spacing={1} alignItems="center">
+      {puedeDevolucionVenta && (
+        <Button
+          variant="outlined"
+          onClick={() => setDevolucionDialogOpen(true)}
+        >
+          Devolución de venta
+        </Button>
+      )}
+      {puedeImportarExcel && (
+        <Button
+          variant="outlined"
+          startIcon={<Dock />}
+          onClick={handleImportExcel}
+        >
+          Importar Excel
+        </Button>
+      )}
       <Tooltip title="Actualizar movimientos">
         <IconButton
           onClick={() => fetchMovimientos(skip)}
           disabled={loadingData}
-          size="small"
+          sx={squareIconButtonSx}
         >
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
-        >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
-      )}
-
       <Button
         variant="contained"
-        startIcon={!isMobile ? <Add /> : undefined}
+        startIcon={<Add />}
         onClick={() => setDialogOpen(true)}
-        size={isMobile ? "small" : "medium"}
-        fullWidth={isMobile}
       >
-        {isMobile ? "Crear" : "Crear Movimiento"}
+        Crear Movimiento
       </Button>
-      {verificarPermiso("operaciones.movimientos.crear.devolucion_venta") && (
-        <Button
-          variant="outlined"
-          onClick={() => setDevolucionDialogOpen(true)}
-          size={isMobile ? "small" : "medium"}
-          fullWidth={isMobile}
-        >
-          {isMobile ? "Devolución" : "Devolución de venta"}
-        </Button>
-      )}
-      {((movimientos.length === 0 && !searchTerm) ||
-        user.rol === "SUPER_ADMIN") && (
-        <Button
-          variant="outlined"
-          startIcon={!isMobile ? <Dock /> : undefined}
-          onClick={() => handleImportExcel()}
-          size={isMobile ? "small" : "medium"}
-          fullWidth={isMobile}
-        >
-          {isMobile ? "Importar" : "Importar Excel"}
-        </Button>
-      )}
     </Stack>
-  );
+  ) : undefined;
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color,
-  }: {
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: "100%" }}>
-      <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 0.75 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: isMobile ? 32 : 48,
-              minHeight: isMobile ? 32 : 48,
-            }}
-          >
-            {React.isValidElement(icon)
-              ? React.cloneElement(icon, {
-                  fontSize: isMobile ? "small" : "large",
-                } as Record<string, unknown>)
-              : icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant={isMobile ? "subtitle1" : "h4"}
-              fontWeight="bold"
-              sx={{
-                fontSize: isMobile ? "1rem" : "2rem",
-                lineHeight: 1.2,
-                wordBreak: "break-all",
-              }}
-            >
-              {value}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? "0.6875rem" : "0.875rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
+  /**
+   * The chip printed the raw enum — `DESAGREGACION_ALTA` — even though readable
+   * labels already existed and the filter dropdown right above it used them.
+   *
+   * Colour follows the movement's flow role rather than a rises/falls boolean.
+   * Under the old rule the two halves of one disaggregation came out green and
+   * red, reading as a success beside a failure when they are a single operation:
+   * opening a box to sell its loose units.
+   */
   const getMovimientoChip = (tipo: string) => {
-    const isBaja = isMovimientoBaja(tipo as ITipoMovimiento);
+    const flow =
+      theme.palette.semantic.flow[
+        TIPO_MOVIMIENTO_FLOW[tipo as ITipoMovimiento]
+      ];
     return (
       <Chip
-        label={tipo}
+        label={TIPO_MOVIMIENTO_LABELS[tipo as ITipoMovimiento] ?? tipo}
         size="small"
-        color={isBaja ? "error" : "success"}
         variant="filled"
-        sx={{ fontWeight: "medium" }}
+        sx={{
+          fontWeight: 500,
+          bgcolor: flow.surface,
+          color: flow.main,
+        }}
       />
     );
   };
@@ -586,9 +535,8 @@ export default function MovimientosView() {
   return (
     <PageContainer
       title="Movimientos de Stock"
-      subtitle={
-        !isMobile ? "Historial de entradas y salidas de inventario" : undefined
-      }
+      subtitle="Historial de entradas y salidas de inventario"
+      tabs={tabs}
       headerActions={headerActions}
       maxWidth="xl"
     >
@@ -597,82 +545,99 @@ export default function MovimientosView() {
         onClick={() => pendienteRecepcionOpenModal("ENTRADA")}
       />
 
-      {/* Estadísticas de movimientos */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<SwapVert />}
-                  value={formatNumber(totalMovimientos)}
-                  label="Total"
-                  color="primary.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<TrendingUp />}
-                  value={formatNumber(movimientosEntrada)}
-                  label="Entradas"
-                  color="success.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<TrendingDown />}
-                  value={formatNumber(movimientosSalida)}
-                  label="Salidas"
-                  color="error.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Inventory />}
-                  value={formatNumber(productosAfectados)}
-                  label="Productos"
-                  color="info.light"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<SwapVert />}
-              value={formatNumber(totalMovimientos)}
-              label="Total Movimientos"
-              color="primary.light"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<TrendingUp />}
-              value={formatNumber(movimientosEntrada)}
-              label="Entradas"
-              color="success.light"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<TrendingDown />}
-              value={formatNumber(movimientosSalida)}
-              label="Salidas"
-              color="error.light"
-            />
-          </Grid>
-          <Grid item xs={6} sm={6} md={3}>
-            <StatCard
-              icon={<Inventory />}
-              value={formatNumber(productosAfectados)}
-              label="Productos"
-              color="info.light"
-            />
-          </Grid>
-        </Grid>
+      <StatStrip
+        stats={
+          // El orden cambia por viewport: mobile agrupa "Productos" antes de
+          // Entradas/Salidas (rejilla 2×2), desktop las deja seguidas.
+          isMobile
+            ? [
+                {
+                  label: "Total Movimientos",
+                  value: formatNumber(totalMovimientos),
+                },
+                {
+                  label: "Productos",
+                  value: formatNumber(productosAfectados),
+                },
+                {
+                  label: "Entradas",
+                  value: formatNumber(movimientosEntrada),
+                  tone: "positive",
+                },
+                {
+                  label: "Salidas",
+                  value: formatNumber(movimientosSalida),
+                  tone: "negative",
+                },
+              ]
+            : [
+                {
+                  label: "Total Movimientos",
+                  value: formatNumber(totalMovimientos),
+                },
+                {
+                  label: "Entradas",
+                  value: formatNumber(movimientosEntrada),
+                  tone: "positive",
+                },
+                {
+                  label: "Salidas",
+                  value: formatNumber(movimientosSalida),
+                  tone: "negative",
+                },
+                {
+                  label: "Productos",
+                  value: formatNumber(productosAfectados),
+                },
+              ]
+        }
+      />
+
+      {/* En mobile, "Crear Movimiento" es de ancho completo y las secundarias
+          bajan a una fila propia — mismo criterio que el header de escritorio
+          usa Stack, acá no entraban ni comprimidas. */}
+      {isMobile && (
+        <Stack spacing={1.25} sx={{ mb: 2 }}>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<Add />}
+            onClick={() => setDialogOpen(true)}
+            sx={{ minHeight: 52 }}
+          >
+            Crear Movimiento
+          </Button>
+          <Stack direction="row" spacing={1}>
+            {puedeDevolucionVenta && (
+              <Button
+                variant="outlined"
+                onClick={() => setDevolucionDialogOpen(true)}
+                sx={{ flex: 1 }}
+              >
+                Devolución de venta
+              </Button>
+            )}
+            {puedeImportarExcel && (
+              <Tooltip title="Importar Excel">
+                <IconButton
+                  onClick={handleImportExcel}
+                  sx={{ ...squareIconButtonSx, flex: "0 0 auto" }}
+                >
+                  <Dock />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title="Actualizar movimientos">
+              <IconButton
+                onClick={() => fetchMovimientos(skip)}
+                disabled={loadingData}
+                sx={{ ...squareIconButtonSx, flex: "0 0 auto" }}
+              >
+                <Refresh />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Stack>
       )}
 
       {/* Lista de movimientos */}
@@ -684,65 +649,124 @@ export default function MovimientosView() {
             : undefined
         }
         headerActions={
-          <Stack direction="row" spacing={1} alignItems="center">
-            <SelectableTextField
-              size="small"
-              placeholder={isMobile ? "Buscar..." : "Buscar movimiento..."}
-              value={searchInputValue}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === "Enter") handleFilter();
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                minWidth: isMobile ? 120 : 200,
-                maxWidth: isMobile ? 150 : 250,
-              }}
-            />
-            <Tooltip
-              title={filtersExpanded ? "Ocultar filtros" : "Más filtros"}
-            >
-              <IconButton
+          isMobile ? (
+            // El mockup (`rediseno/movimientos-stock-movil.html`) parte esta
+            // barra en dos filas a 390px: buscar+Filtrar arriba, Limpiar
+            // filtros abajo. El toggle "Más filtros" (panel de Tipo/Fecha) no
+            // está en el mockup — es una función previa a la migración que
+            // hay que conservar, así que se suma a la segunda fila.
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1}>
+                <SelectableTextField
+                  size="small"
+                  placeholder="Buscar..."
+                  value={searchInputValue}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") handleFilter();
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ flex: 1, minWidth: 0 }}
+                />
+                <Button
+                  variant="outlined"
+                  startIcon={<FilterAlt fontSize="small" />}
+                  onClick={handleFilter}
+                  disabled={loadingData}
+                  sx={{ flexShrink: 0 }}
+                >
+                  Filtrar
+                </Button>
+              </Stack>
+              <Stack direction="row" spacing={1}>
+                <Tooltip
+                  title={filtersExpanded ? "Ocultar filtros" : "Más filtros"}
+                >
+                  <IconButton
+                    onClick={() => setFiltersExpanded((v) => !v)}
+                    color={
+                      tipoFilter.length > 0 || fechaInicio || fechaFin
+                        ? "primary"
+                        : "default"
+                    }
+                    sx={squareIconButtonSx}
+                  >
+                    {filtersExpanded ? <ExpandLess /> : <FilterAlt />}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Limpiar todos los filtros">
+                  <Button
+                    variant="outlined"
+                    startIcon={<FilterListOff fontSize="small" />}
+                    onClick={handleClearSearch}
+                    disabled={disabledCleanFilter}
+                  >
+                    Limpiar filtros
+                  </Button>
+                </Tooltip>
+              </Stack>
+            </Stack>
+          ) : (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <SelectableTextField
                 size="small"
-                onClick={() => setFiltersExpanded((v) => !v)}
-                color={
-                  tipoFilter.length > 0 || fechaInicio || fechaFin
-                    ? "primary"
-                    : "default"
-                }
+                placeholder="Buscar movimiento..."
+                value={searchInputValue}
+                onChange={(e) => handleInputChange(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") handleFilter();
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ minWidth: 200, maxWidth: 250 }}
+              />
+              <Tooltip
+                title={filtersExpanded ? "Ocultar filtros" : "Más filtros"}
               >
-                {filtersExpanded ? <ExpandLess /> : <FilterAlt />}
-              </IconButton>
-            </Tooltip>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleFilter}
-              disabled={loadingData}
-              sx={{ minWidth: "auto", px: 2 }}
-            >
-              Filtrar
-            </Button>
-
-            <Tooltip title="Limpiar todos los filtros">
+                <IconButton
+                  onClick={() => setFiltersExpanded((v) => !v)}
+                  color={
+                    tipoFilter.length > 0 || fechaInicio || fechaFin
+                      ? "primary"
+                      : "default"
+                  }
+                  sx={squareIconButtonSx}
+                >
+                  {filtersExpanded ? <ExpandLess /> : <FilterAlt />}
+                </IconButton>
+              </Tooltip>
               <Button
-                size="small"
-                onClick={handleClearSearch}
-                disabled={disabledCleanFilter}
+                variant="outlined"
+                startIcon={<FilterAlt fontSize="small" />}
+                onClick={handleFilter}
+                disabled={loadingData}
               >
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                  <CleaningServices fontSize="small" />
-                  <span>Limpiar filtros</span>
-                </Stack>
+                Filtrar
               </Button>
-            </Tooltip>
-          </Stack>
+
+              <Tooltip title="Limpiar todos los filtros">
+                <Button
+                  variant="outlined"
+                  startIcon={<FilterListOff fontSize="small" />}
+                  onClick={handleClearSearch}
+                  disabled={disabledCleanFilter}
+                >
+                  Limpiar filtros
+                </Button>
+              </Tooltip>
+            </Stack>
+          )
         }
         noPadding
         fullHeight
@@ -771,13 +795,13 @@ export default function MovimientosView() {
                   }
                   renderValue={(selected) =>
                     (selected as ITipoMovimiento[])
-                      .map((t) => TIPO_LABELS[t])
+                      .map((t) => TIPO_MOVIMIENTO_LABELS[t])
                       .join(", ")
                   }
                 >
                   {TODOS_TIPOS.map((tipo) => (
                     <MenuItem key={tipo} value={tipo}>
-                      {TIPO_LABELS[tipo]}
+                      {TIPO_MOVIMIENTO_LABELS[tipo]}
                     </MenuItem>
                   ))}
                 </Select>
@@ -815,67 +839,41 @@ export default function MovimientosView() {
         </Collapse>
 
         {movimientos.length === 0 ? (
-          <Box sx={{ p: 2 }}>
-            <Alert severity="info" sx={{ mt: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                {searchTerm
-                  ? "No se encontraron movimientos"
-                  : "No hay movimientos de stock registrados"}
-              </Typography>
-              <Typography variant="body1" gutterBottom>
-                {searchTerm
-                  ? "Intenta con otros términos de búsqueda"
-                  : "Los movimientos de stock se crean automáticamente cuando:"}
-              </Typography>
-              {!searchTerm && (
-                <Typography variant="body2" component="div">
-                  • Se realizan ventas desde el POS
-                  <br />
-                  • Se agregan productos al inventario
-                  <br />
-                  • Se realizan ajustes manuales
-                  <br />• Se hacen traspasos entre tiendas
-                </Typography>
-              )}
-              {!searchTerm && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 1 }}
-                >
-                  {`También puedes crear movimientos manuales usando el botón \"Crear Movimiento\".`}
-                </Typography>
-              )}
-            </Alert>
-          </Box>
+          hayFiltrosActivos ? (
+            <EmptyState
+              variant="no-results"
+              title="No se encontraron movimientos"
+              description="Ningún movimiento coincide con los filtros aplicados."
+              action={{ label: "Limpiar filtros", onClick: handleClearSearch }}
+            />
+          ) : (
+            <EmptyState
+              title="Todavía no hay movimientos de stock"
+              description="Se registran solos con cada venta, entrada de inventario, ajuste o traspaso entre tiendas. También podés crear uno a mano."
+            />
+          )
         ) : isMobile ? (
-          // Vista móvil con cards más compactas
+          // Vista móvil: `rediseno/movimientos-stock-movil.html` — nombre y
+          // pill apilados a la izquierda, la cantidad es el dato grande a la
+          // derecha; motivo y usuario van sin etiquetas ("Motivo:"/"Por:"
+          // eran redundantes, el texto ya se explica solo).
           <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.5}>
+            <Stack spacing={1.25}>
               {movimientos.map((movimiento, i) => (
-                <Card
-                  key={i}
-                  sx={{
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="flex-start"
-                      >
+                <Card key={i} variant="outlined">
+                  <CardContent sx={{ p: 1.75, "&:last-child": { pb: 1.75 } }}>
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="flex-start"
+                      gap={1.5}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
                         <Typography
-                          variant="subtitle2"
-                          fontWeight="medium"
                           sx={{
-                            flex: 1,
-                            pr: 1,
-                            fontSize: "0.875rem",
-                            lineHeight: 1.2,
+                            fontSize: "1rem",
+                            fontWeight: 700,
+                            lineHeight: 1.35,
                           }}
                         >
                           {movimiento.proveedor?.nombre
@@ -883,76 +881,56 @@ export default function MovimientosView() {
                             : movimiento.productoTienda?.producto?.nombre ||
                               "Producto no encontrado"}
                         </Typography>
-                        {getMovimientoChip(movimiento.tipo)}
-                      </Box>
-
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Typography
-                            variant="body2"
-                            fontWeight="bold"
-                            color={
-                              isMovimientoBaja(movimiento.tipo)
-                                ? "error.main"
-                                : "success.main"
-                            }
-                            sx={{ fontSize: "0.8125rem" }}
-                          >
-                            {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
-                            {formatQuantity(Math.abs(movimiento.cantidad))}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.6875rem" }}
-                          >
-                            unidades
-                          </Typography>
+                        <Box sx={{ mt: 0.75 }}>
+                          {getMovimientoChip(movimiento.tipo)}
                         </Box>
+                      </Box>
+                      <Typography
+                        sx={{
+                          flexShrink: 0,
+                          fontSize: "1.375rem",
+                          fontWeight: 700,
+                          letterSpacing: "-0.02em",
+                          color: isMovimientoBaja(movimiento.tipo)
+                            ? "error.main"
+                            : "success.main",
+                        }}
+                      >
+                        {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
+                        {formatNumber(Math.abs(movimiento.cantidad))}
+                      </Typography>
+                    </Box>
+
+                    {movimiento?.motivo && (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 1.25 }}
+                      >
+                        {formatMovimientoMotivo(movimiento.motivo)}
+                      </Typography>
+                    )}
+
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      sx={{
+                        mt: 1.5,
+                        pt: 1.25,
+                        borderTop: 1,
+                        borderColor: "divider",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        {formatDateTime(movimiento.fecha)}
+                      </Typography>
+                      {movimiento.usuario?.nombre && (
                         <Typography
                           variant="caption"
                           color="text.secondary"
-                          sx={{ fontSize: "0.6875rem" }}
+                          sx={{ ml: "auto" }}
                         >
-                          {formatDateTime(movimiento.fecha).split(" • ")[0]}
-                        </Typography>
-                      </Box>
-                      {movimiento?.motivo && (
-                        <Typography
-                          variant="subtitle2"
-                          gutterBottom
-                          sx={{ fontSize: "0.6875rem" }}
-                        >
-                          Motivo:{" "}
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.6875rem" }}
-                          >
-                            {" "}
-                            {movimiento.motivo}
-                          </Typography>
-                        </Typography>
-                      )}
-
-                      {movimiento.usuario?.nombre && (
-                        <Typography
-                          variant="subtitle2"
-                          sx={{ fontSize: "0.6875rem" }}
-                        >
-                          Por:{" "}
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ fontSize: "0.6875rem" }}
-                          >
-                            {" "}
-                            {movimiento.usuario.nombre}
-                          </Typography>
+                          {movimiento.usuario.nombre}
                         </Typography>
                       )}
                     </Stack>
@@ -980,9 +958,7 @@ export default function MovimientosView() {
                   <TableRow
                     key={i}
                     sx={{
-                      "&:nth-of-type(odd)": {
-                        backgroundColor: "rgba(0, 0, 0, 0.02)",
-                      },
+                      "&:nth-of-type(odd)": {},
                     }}
                   >
                     <TableCell>
@@ -999,7 +975,9 @@ export default function MovimientosView() {
                             "Producto no encontrado"}
                       </Typography>
                     </TableCell>
-                    <TableCell>{movimiento.motivo}</TableCell>
+                    <TableCell>
+                      {formatMovimientoMotivo(movimiento.motivo)}
+                    </TableCell>
                     <TableCell align="center">
                       <Typography
                         variant="body2"
@@ -1078,7 +1056,7 @@ export default function MovimientosView() {
               >
                 Filtros activos:{searchTerm ? ` "${searchTerm}"` : ""}
                 {tipoFilter.length > 0
-                  ? ` · ${tipoFilter.map((t) => TIPO_LABELS[t]).join(", ")}`
+                  ? ` · ${tipoFilter.map((t) => TIPO_MOVIMIENTO_LABELS[t]).join(", ")}`
                   : ""}
                 {fechaInicio
                   ? ` · desde ${fechaInicio.format("DD/MM/YYYY")}`

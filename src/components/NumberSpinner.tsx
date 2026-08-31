@@ -42,7 +42,7 @@ export default function NumberSpinner({
               borderColor: "divider",
               minWidth: compact ? 28 : 0,
               px: compact ? 0.5 : undefined,
-              bgcolor: "action.hover",
+              bgcolor: "semantic.surface.sunken",
               "&:not(.Mui-disabled)": {
                 color: "text.primary",
               },

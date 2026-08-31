@@ -2,6 +2,7 @@
 
 import CloseIcon from "@mui/icons-material/Close";
 import { Box, Button, Chip, IconButton, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import type { TooltipRenderProps } from "react-joyride";
@@ -61,7 +62,8 @@ export function OnboardingTooltip({
         bgcolor: "background.paper",
         borderRadius: 3,
         boxShadow:
-          "0 20px 50px -12px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(226, 232, 240, 0.95)",
+          (theme) =>
+            `0 20px 50px -12px ${alpha(theme.palette.common.black, 0.28)}, 0 0 0 1px ${theme.palette.divider}`,
         overflow: "hidden",
         textAlign: "left",
         ...(fixedMobilePlacement === "top"
@@ -112,8 +114,8 @@ export function OnboardingTooltip({
             right: 8,
             zIndex: 2,
             color: "text.secondary",
-            bgcolor: "action.hover",
-            "&:hover": { bgcolor: "action.selected" },
+            bgcolor: "semantic.surface.sunken",
+            "&:hover": { bgcolor: "semantic.surface.border" },
           }}
         >
           <CloseIcon fontSize="small" />

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Alert, Box, Typography, IconButton, Collapse } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import React, { useState, useEffect, useRef } from "react";
+import { Alert, Box, Typography, IconButton, Collapse } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 export const OfflineBanner: React.FC = () => {
   const { isOnline, wasOffline, lastStatusChange } = useNetworkStatus();
@@ -70,40 +70,48 @@ export const OfflineBanner: React.FC = () => {
   return (
     <Box
       sx={{
-        width: '100%',
+        width: "100%",
         zIndex: 1400,
         my: 1, // Margen vertical para separar del contenido
-        mx: 'auto',
+        mx: "auto",
         maxWidth: 600, // Limitar ancho máximo
       }}
     >
       <Collapse in={showBanner}>
         <Alert
           severity={isOnline ? "success" : "warning"}
+          icon={
+            <Box
+              sx={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                bgcolor: "currentColor",
+                mt: 0.75,
+              }}
+            />
+          }
           sx={{
-            borderRadius: 2,
             boxShadow: 2,
-            '& .MuiAlert-message': {
-              width: '100%',
-              textAlign: 'center'
-            }
+            "& .MuiAlert-message": {
+              width: "100%",
+              textAlign: "center",
+            },
           }}
           action={
             <IconButton
               aria-label="close"
               color="inherit"
-              size="small"
               onClick={handleClose}
             >
-              <CloseIcon fontSize="inherit" />
+              <CloseIcon fontSize="small" />
             </IconButton>
           }
         >
           <Typography variant="body2" fontWeight="bold">
             {isOnline
-              ? "🟢 Conexión restaurada - Los datos se sincronizarán automáticamente"
-              : "🔴 Modo Offline - Los datos se guardan localmente y se sincronizarán cuando haya conexión"
-            }
+              ? "Conexión restaurada - Los datos se sincronizarán automáticamente"
+              : "Modo Offline - Los datos se guardan localmente y se sincronizarán cuando haya conexión"}
           </Typography>
         </Alert>
       </Collapse>
@@ -111,4 +119,4 @@ export const OfflineBanner: React.FC = () => {
   );
 };
 
-export default OfflineBanner; 
+export default OfflineBanner;

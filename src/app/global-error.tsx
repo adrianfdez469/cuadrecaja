@@ -17,8 +17,9 @@ export default function GlobalError({
     <html lang="es">
       <body
         style={{
-          fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-          background: "#f8fafc",
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          background: "#F7F7FA",
           margin: 0,
           display: "flex",
           alignItems: "center",
@@ -26,12 +27,14 @@ export default function GlobalError({
           minHeight: "100vh",
         }}
       >
-        <div style={{ textAlign: "center", padding: "2rem", maxWidth: "480px" }}>
+        <div
+          style={{ textAlign: "center", padding: "2rem", maxWidth: "480px" }}
+        >
           <div
             style={{
               fontSize: "8rem",
               fontWeight: 700,
-              color: "#d32f2f",
+              color: "#A5382A",
               opacity: 0.12,
               lineHeight: 1,
               userSelect: "none",
@@ -39,36 +42,60 @@ export default function GlobalError({
           >
             500
           </div>
-          <h1 style={{ color: "#1a202c", margin: "0.5rem 0", fontSize: "1.75rem" }}>
+          <h1
+            style={{
+              color: "#131417",
+              margin: "0.5rem 0",
+              fontSize: "1.75rem",
+              fontWeight: 700,
+            }}
+          >
             Error crítico
           </h1>
-          <p style={{ color: "#718096", marginBottom: "1.5rem", lineHeight: 1.6 }}>
-            Ocurrió un error inesperado en la aplicación. Recarga la página o intenta de nuevo.
+          <p
+            style={{
+              color: "#5F5E68",
+              marginBottom: "1.5rem",
+              lineHeight: 1.6,
+              fontSize: "1rem",
+            }}
+          >
+            Ocurrió un error inesperado en la aplicación. Recarga la página o
+            intenta de nuevo.
           </p>
           {error.digest && (
             <p
               style={{
-                color: "#9ca3af",
-                fontSize: "0.8rem",
+                color: "#5B5A63",
+                fontSize: "0.8125rem",
                 marginBottom: "1.5rem",
-                background: "#f1f5f9",
-                padding: "0.5rem 1rem",
-                borderRadius: "6px",
+                background: "#F3F2F6",
+                padding: "0.75rem 1rem",
+                borderRadius: "12px",
                 display: "inline-block",
+                fontFamily: "monospace",
+                fontVariantNumeric: "tabular-nums",
               }}
             >
               Código: {error.digest}
             </p>
           )}
-          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "0.75rem",
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
             <button
               onClick={() => (window.location.href = "/home")}
               style={{
                 background: "transparent",
-                color: "#1976d2",
-                border: "1px solid #1976d2",
-                borderRadius: "8px",
-                padding: "10px 24px",
+                color: "#5B4CA8",
+                border: "1px solid #5B4CA8",
+                borderRadius: "12px",
+                padding: "12px 24px",
                 fontSize: "0.875rem",
                 fontWeight: 600,
                 cursor: "pointer",
@@ -79,11 +106,11 @@ export default function GlobalError({
             <button
               onClick={reset}
               style={{
-                background: "#1976d2",
-                color: "#ffffff",
+                background: "#5B4CA8",
+                color: "#FFFFFF",
                 border: "none",
-                borderRadius: "8px",
-                padding: "10px 24px",
+                borderRadius: "12px",
+                padding: "12px 24px",
                 fontSize: "0.875rem",
                 fontWeight: 600,
                 cursor: "pointer",

@@ -1,27 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Close, Delete } from "@mui/icons-material";
-import {
-  Box,
-  Typography,
-  Chip,
-  IconButton,
-  Stack,
-  Tooltip,
-  Fade,
-} from "@mui/material";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import { ICartItem, useCartStore } from "@/store/cartStore";
+import { useCallback, useEffect, useState } from "react";
+import { Close } from "@mui/icons-material";
+import { Box, IconButton, Fade } from "@mui/material";
+import { alpha, type Theme } from "@mui/material/styles";
+import { useCartStore } from "@/store/cartStore";
+import { useCartTotals } from "@/store/useCartTotals";
+import { useCartLineActions } from "@/store/useCartLineActions";
 import { useCartTotal } from "@/hooks/useCartTotal";
 import { useDiscountRulesStore } from "@/store/discountRulesStore";
-import { applyDiscounts } from "@/lib/discounts/engine";
 import useConfirmDialog from "@/components/confirmDialog";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
 import { CartItemCard } from "@/components/cartDrawer/components/CartItemCard";
 import { CartSummaryFooter } from "@/components/cartDrawer/components/CartSummaryFooter";
 import { CheckoutView } from "@/app/pos/components/checkout/CheckoutView";
+import { SaleDoneView } from "@/app/pos/components/checkout/SaleDoneView";
+import type { SaleReceipt } from "@/app/pos/components/checkout/saleReceipt";
+import { CartAccountTabs } from "@/app/pos/components/CartAccountTabs";
+import { PosListHeading } from "@/app/pos/components/PosListHeading";
 import { Frozen } from "@/components/Frozen";
 import type { IMultimonedaExtras } from "@/schemas/pago";
 import type { ITransferDestination } from "@/schemas/transferDestination";
@@ -49,6 +46,14 @@ interface ICommonProps {
   step?: CartStep;
   /** Notifies every step change, controlled or not. */
   onStepChange?: (step: CartStep) => void;
+  /**
+   * An account name is being typed in the tabs above the basket. The POS page
+   * keeps the hardware scanner listening, and every keystroke would otherwise
+   * arrive as a scanned barcode.
+   */
+  onRenamingCart?: (renaming: boolean) => void;
+  /** Reprints the last sale's ticket. Absent where printing is not available. */
+  onPrintLastSale?: () => void;
 }
 
 // A "panel" cart has no way to close — it's a permanent sidebar — so
@@ -59,7 +64,26 @@ type IProps =
   | (ICommonProps & { variant: "drawer"; onClose: () => void })
   | (ICommonProps & { variant: "panel" });
 
-export type CartStep = "cart" | "checkout";
+export type CartStep = "cart" | "checkout" | "done";
+
+// «En la venta · 5 artículos», 12/14/8 as the redesign pads it inside the
+// panel; the lines under it carry their own 14px.
+const CART_LIST_HEADER_SX = { px: 1.75, pt: 1.5, pb: 1 } as const;
+
+// Hoisted, and a function so the tints resolve against the active scheme
+// instead of being three hardcoded blacks: on a dark ground a black-on-black
+// scrollbar is invisible. This list repaints on every `+` and `-`.
+const CART_SCROLLBAR_SX = (theme: Theme) => ({
+  "&::-webkit-scrollbar": { width: "6px" },
+  "&::-webkit-scrollbar-track": {
+    background: alpha(theme.palette.text.primary, 0.05),
+  },
+  "&::-webkit-scrollbar-thumb": {
+    background: alpha(theme.palette.text.primary, 0.2),
+    borderRadius: "3px",
+    "&:hover": { background: alpha(theme.palette.text.primary, 0.3) },
+  },
+});
 
 export const CartContent = (props: IProps) => {
   const {
@@ -72,6 +96,8 @@ export const CartContent = (props: IProps) => {
     cierreId,
     step: controlledStep,
     onStepChange,
+    onRenamingCart,
+    onPrintLastSale,
   } = props;
   // Read here instead of taken as props: the POS page used to hold this
   // subscription and pass it down, which meant every cart mutation re-rendered
@@ -98,14 +124,14 @@ export const CartContent = (props: IProps) => {
     [onStepChange],
   );
 
-  useEffect(() => {
-    // Reports back to the cart step on unmount: the drawer variant is
-    // destroyed when it closes, and a listener left believing a checkout is
-    // still in progress would keep the POS dimmed with nothing on screen to
-    // bring it back.
-    return () => onStepChange?.("cart");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // No unmount reset here on purpose. This used to report back "cart" when
+  // the drawer was destroyed, so a listener could not be left believing a
+  // checkout was still in progress with nothing on screen to end it. But an
+  // unmount cleanup also runs on React's development double-mount, which
+  // fired the moment the drawer opened — and once the step is driven from
+  // outside, that silently threw away a caller's request to open straight on
+  // the checkout. Closing the drawer is the owner's own action, so the owner
+  // resets the step there.
 
   // Payment lines belong to ONE basket. The checkout is remounted when the
   // sale is submitted or when the cashier switches to another cart/account,
@@ -116,8 +142,16 @@ export const CartContent = (props: IProps) => {
   // The old fast path was safe only because it resynced the cash amount on
   // every total change; the `dirty` flag deliberately stops doing that.
   const activeCartId = useCartStore((state) => state.activeCartId);
+  // The charge bar names the account it is about to charge. Selected as a
+  // plain string so the selector can't churn identities on every render.
+  const activeCartName = useCartStore(
+    (state) => state.carts.find((c) => c.id === state.activeCartId)?.name,
+  );
   const [saleCount, setSaleCount] = useState(0);
   const checkoutKey = `${activeCartId}:${saleCount}`;
+  // What «Cobro registrado» shows. Kept here because the basket that produced
+  // it is cleared the moment the sale is saved.
+  const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
 
   // ─── Discount ─────────────────────────────────────────────────────────────
   // Priced locally, synchronously, from rules loaded once with the catalog.
@@ -127,29 +161,27 @@ export const CartContent = (props: IProps) => {
   //
   // The server recomputes discounts when the sale is confirmed, so it remains
   // the authority; what happens here is what the cashier sees while deciding.
+  // Only the draft in the input is local: the codes actually in force belong
+  // to the cart, so the charge bar outside this drawer reads the same total.
   const [promoCode, setPromoCode] = useState("");
-  const [appliedCodes, setAppliedCodes] = useState<string[]>([]);
   const rules = useDiscountRulesStore((state) => state.rules);
-  const productMeta = useDiscountRulesStore((state) => state.productMeta);
-
-  const discountResult = useMemo(
-    () =>
-      applyDiscounts({
-        rules,
-        products: cart.map((item) => ({
-          productoTiendaId: item.productoTiendaId,
-          cantidad: item.quantity,
-          precio: item.price,
-        })),
-        productMeta,
-        discountCodes: appliedCodes,
-      }),
-    [rules, productMeta, cart, appliedCodes],
+  const setActiveCartDiscountCodes = useCartStore(
+    (state) => state.setActiveCartDiscountCodes,
   );
+  const { discountTotal, finalTotal, applied, unitCount, discountCodes } =
+    useCartTotals();
 
-  const discountTotal = discountResult.discountTotal;
-  const applied = discountResult.applied;
-  const finalTotal = Math.max(0, total - discountTotal);
+  // The draft must not outlive the account it was typed for. On desktop this
+  // drawer stays mounted while accounts are switched, so a code left in the
+  // box would sit there over a cart it no longer discounts — the same trap the
+  // applied codes just stopped falling into, one layer up. Read imperatively:
+  // the effect fires on the switch, not on every edit of the codes it reads.
+  useEffect(() => {
+    const codes =
+      useCartStore.getState().carts.find((c) => c.id === activeCartId)
+        ?.discountCodes ?? [];
+    setPromoCode(codes[0] ?? "");
+  }, [activeCartId]);
 
   // Applying a code is now just adding it to the set the memo above reads.
   // It still tells the cashier when a code matched nothing, which is the one
@@ -159,10 +191,10 @@ export const CartContent = (props: IProps) => {
   const handleApplyPromoCode = useCallback(() => {
     const code = promoCode.trim();
     if (!code) {
-      setAppliedCodes([]);
+      setActiveCartDiscountCodes([]);
       return;
     }
-    setAppliedCodes([code]);
+    setActiveCartDiscountCodes([code]);
     const matches = rules.some((rule) => {
       const ruleCode = (rule.conditions as { code?: unknown } | null)?.code;
       return (
@@ -173,66 +205,57 @@ export const CartContent = (props: IProps) => {
     if (!matches) {
       showMessage("El código de descuento no es válido", "warning");
     }
-  }, [promoCode, rules, showMessage]);
+  }, [promoCode, rules, showMessage, setActiveCartDiscountCodes]);
 
   /**
    * Fired at the point a sale actually submits — never inferred from cart
    * contents, so it cannot false-positive when switching carts/accounts
    * while the cart is pinned and therefore never unmounts.
    */
-  const resetCheckoutState = () => {
-    goToStep("cart");
+  const handleSaleComplete = (saleReceipt: SaleReceipt) => {
+    setReceipt(saleReceipt);
+    goToStep("done");
     setPromoCode("");
-    setAppliedCodes([]);
+    setActiveCartDiscountCodes([]);
     // Bumps `checkoutKey`, so the next sale starts from a clean checkout
     // rather than inheriting this one's payment lines.
     setSaleCount((count) => count + 1);
   };
 
-  // The three below are memoized because they are the props of every
-  // CartItemCard, and that component is memoized: recreating them on each
-  // render would re-render every line of the basket on every `+`.
-  // They read the basket through `getState()` rather than closing over `cart`,
-  // which is what keeps their identity stable across those changes — and is
-  // also more correct, since the quantity they act on is the current one.
-  const handleRemoveItem = useCallback(
-    (item: ICartItem) => {
-      if (removeItem) removeItem(item.id);
-    },
-    [removeItem],
-  );
+  // The sale could not be saved after all: back to the basket, which the
+  // page has already emptied, rather than a receipt for nothing.
+  const handleSaleFailed = () => {
+    setReceipt(null);
+    goToStep("cart");
+  };
 
-  const decreaseQty = useCallback(
-    (id: string) => {
-      const product = useCartStore.getState().items.find((p) => p.id === id);
-      if (!product) return;
-      if (product.quantity === 1) {
-        if (removeItem) {
-          removeItem(id);
-        } else {
-          showMessage("No puede elminar completamente el producto", "warning");
-        }
-      } else {
-        updateQuantity(id, product.quantity - 1);
-      }
-    },
-    [removeItem, updateQuantity, showMessage],
-  );
+  // «Nueva venta»: on a phone the drawer closes and the POS is right there;
+  // on a desktop the panel simply goes back to the (new, empty) basket.
+  const handleNewSale = () => {
+    setReceipt(null);
+    if (props.variant === "drawer") props.onClose();
+    else goToStep("cart");
+  };
 
-  const increaseQty = useCallback(
-    (id: string) => {
-      const product = useCartStore.getState().items.find((p) => p.id === id);
-      if (!product) return;
-      updateQuantity(id, product.quantity + 1);
-    },
-    [updateQuantity],
+  // Shared with the charge bar's own line list, which has to answer «−» and
+  // «+» exactly the same way — including removing the line on the last unit.
+  const onRemoveUnavailable = useCallback(
+    () => showMessage("No puede elminar completamente el producto", "warning"),
+    [showMessage],
   );
+  const { decrease: decreaseQty, increase: increaseQty } = useCartLineActions({
+    updateQuantity,
+    removeItem,
+    onRemoveUnavailable,
+  });
 
   const handleClearCart = () => {
     if (clear && cart.length > 0) {
       confirmDialog(
         `¿Estás seguro de que deseas vaciar el carrito? Se eliminarán ${cart.length} producto${cart.length !== 1 ? "s" : ""}.`,
         () => clear(),
+        undefined,
+        { severity: "warning" },
       );
     }
   };
@@ -245,10 +268,11 @@ export const CartContent = (props: IProps) => {
         // for the panel's width) — this just fills it. "drawer" is only
         // ever mounted on mobile, so it fills the full viewport width.
         width: variant === "panel" ? "100%" : "100vw",
-        p: 2,
-        pt: variant === "drawer" ? "calc(16px + env(safe-area-inset-top))" : 2,
-        pb:
-          variant === "drawer" ? "calc(16px + env(safe-area-inset-bottom))" : 2,
+        // Drawn edge to edge: tabs, headings, rows and the charge bar each
+        // carry their own side padding, as the redesign measures them against
+        // the panel's border, and the bar takes the home-indicator edge itself.
+        p: 0,
+        pt: variant === "drawer" ? "env(safe-area-inset-top)" : 0,
         display: "flex",
         flexDirection: "column",
         height: variant === "panel" ? "100%" : "100dvh",
@@ -258,48 +282,18 @@ export const CartContent = (props: IProps) => {
       }}
     >
       {step === "cart" && (
-        <Box
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-          mb={2}
-        >
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Typography variant="h6">Venta</Typography>
-            <Chip
-              icon={<ShoppingCartIcon sx={{ fontSize: "1rem !important" }} />}
-              label={cart.length}
-              size="small"
-              color="success"
-              variant="outlined"
-              sx={{ height: 24, fontWeight: 700 }}
-            />
-          </Stack>
-
-          {/* Vaciar and Close share this row so they line up at the same
-              height. Close only renders in "drawer": a "panel" cart can't
-              be closed, so there's nothing to disable-and-show. */}
-          <Stack direction="row" alignItems="center" gap={0.5}>
-            {clear && (
-              <Tooltip title="Vaciar carrito">
-                <span>
-                  <IconButton
-                    onClick={handleClearCart}
-                    disabled={cart.length === 0}
-                    aria-label="Vaciar carrito"
-                  >
-                    <Delete color={cart.length === 0 ? "disabled" : "action"} />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            )}
-            {props.variant === "drawer" && (
+        <CartAccountTabs
+          onRenamingChange={onRenamingCart}
+          onClearCart={clear ? handleClearCart : undefined}
+          canClearCart={cart.length > 0}
+          endAdornment={
+            props.variant === "drawer" ? (
               <IconButton onClick={props.onClose} aria-label="Cerrar">
-                <Close color="error" />
+                <Close />
               </IconButton>
-            )}
-          </Stack>
-        </Box>
+            ) : undefined
+          }
+        />
       )}
 
       {/*
@@ -322,25 +316,20 @@ export const CartContent = (props: IProps) => {
               minHeight={0}
               minWidth={0}
               overflow="auto"
-              sx={{
-                "&::-webkit-scrollbar": { width: "6px" },
-                "&::-webkit-scrollbar-track": {
-                  background: "rgba(0,0,0,0.05)",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: "rgba(0,0,0,0.2)",
-                  borderRadius: "3px",
-                  "&:hover": { background: "rgba(0,0,0,0.3)" },
-                },
-              }}
+              sx={CART_SCROLLBAR_SX}
             >
+              {/* «En la venta · 5 artículos». The basket used to open with the
+                  word "Venta" and a green chip carrying a bare number, which
+                  never said how many of what. */}
+              <PosListHeading sx={CART_LIST_HEADER_SX}>
+                {`En la venta · ${unitCount} ${unitCount === 1 ? "artículo" : "artículos"}`}
+              </PosListHeading>
               {cart.map((item) => (
                 <CartItemCard
                   key={item.id}
                   item={item}
                   onDecrease={decreaseQty}
                   onIncrease={increaseQty}
-                  onRemove={removeItem ? handleRemoveItem : undefined}
                   canUpdateQuantity={Boolean(updateQuantity)}
                 />
               ))}
@@ -354,6 +343,8 @@ export const CartContent = (props: IProps) => {
               applied={applied}
               promoCode={promoCode}
               canCheckout={cart.length > 0}
+              cartName={activeCartName}
+              unitCount={unitCount}
               onCodeChange={setPromoCode}
               onApply={handleApplyPromoCode}
               onCheckout={() => goToStep("checkout")}
@@ -388,16 +379,37 @@ export const CartContent = (props: IProps) => {
                 key={checkoutKey}
                 finalTotal={finalTotal}
                 discountTotal={discountTotal}
-                promoCode={promoCode}
+                discountCodes={discountCodes}
                 transferDestinations={transferDestinations}
                 tiendaId={tiendaId}
                 cierreId={cierreId}
                 itemCount={cart.length}
                 onBack={handleBackToCart}
                 makePay={makePay}
-                onSaleComplete={resetCheckoutState}
+                onSaleComplete={handleSaleComplete}
+                onSaleFailed={handleSaleFailed}
               />
             </Frozen>
+          </Box>
+        </Fade>
+
+        {/* The close of the sale, over everything else. Mounted only while
+            it is shown: it has nothing to keep between sales. */}
+        <Fade
+          in={step === "done" && receipt !== null}
+          timeout={200}
+          unmountOnExit
+        >
+          <Box
+            sx={{ position: "absolute", inset: 0, bgcolor: "background.paper" }}
+          >
+            {receipt && (
+              <SaleDoneView
+                receipt={receipt}
+                onNewSale={handleNewSale}
+                onPrint={onPrintLastSale}
+              />
+            )}
           </Box>
         </Fade>
       </Box>

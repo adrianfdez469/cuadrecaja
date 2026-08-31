@@ -2,9 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { Alert, Stack } from "@mui/material";
-import Grid from "@mui/material/Grid2";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import { ShrinkageByProductTable } from "@/components/reports/shrinkage/ShrinkageByProductTable";
 import { useReportFilters } from "@/hooks/useReportFilters";
 import { useDisplayCurrency } from "@/hooks/useDisplayCurrency";
@@ -51,27 +50,21 @@ export default function MermasPage() {
             cierres incluidos, para que cuadre con el estado de resultados.
           </Alert>
 
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <StatCard
-                title="Pérdida total"
-                value={currency.format(data.perdidaTotal)}
-                color="error.main"
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 4 }}>
-              <StatCard
-                title="Merma"
-                value={currency.format(data.totalMerma)}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 4 }}>
-              <StatCard
-                title="Devoluciones"
-                value={currency.format(data.totalDevoluciones)}
-              />
-            </Grid>
-          </Grid>
+          <StatStrip
+            variant="card"
+            stats={[
+              {
+                label: "Pérdida total",
+                value: currency.format(data.perdidaTotal),
+                tone: "negative",
+              },
+              { label: "Merma", value: currency.format(data.totalMerma) },
+              {
+                label: "Devoluciones",
+                value: currency.format(data.totalDevoluciones),
+              },
+            ]}
+          />
 
           <ShrinkageByReasonChart
             rows={data.motivos}

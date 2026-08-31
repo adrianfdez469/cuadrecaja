@@ -1,19 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  Box, 
-  Typography, 
-  Card, 
-  CardContent, 
-  Grid, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  Paper,
+import {
+  Box,
+  Typography,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Chip,
   Alert,
   CircularProgress,
@@ -24,25 +21,30 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  LinearProgress,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  IconButton,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Analytics, 
-  Warning, 
-  History,
+import {
+  TrendingUp,
+  TrendingDown,
   ExpandMore,
-  CloudSync
+  CloudSync,
+  Close,
 } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
+import { StatStrip } from "@/components/StatStrip";
+import { LoadingState } from "@/components/LoadingState";
+
+import { ReliabilityMark } from "./components/ReliabilityMark";
+import { CppProductCard } from "./components/CppProductCard";
 import { ContentCard } from "@/components/ContentCard";
-import { formatCurrency } from '@/utils/formatters';
+import { formatCurrency } from "@/utils/formatters";
 import { fetchCPPAnalisis, fetchCPPDesviaciones } from "@/services/cppService";
 
 interface CPPAnalysis {
@@ -74,19 +76,22 @@ interface ReporteMigracion {
 }
 
 export default function CPPAnalysisPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [tabValue, setTabValue] = useState(0);
   const [analisis, setAnalisis] = useState<CPPAnalysis[]>([]);
   const [desviaciones, setDesviaciones] = useState<CPPDesviacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [migrationDialog, setMigrationDialog] = useState(false);
   const [migrationLoading, setMigrationLoading] = useState(false);
-  const [migrationReport, setMigrationReport] = useState<ReporteMigracion | null>(null);
+  const [migrationReport, setMigrationReport] =
+    useState<ReporteMigracion | null>(null);
   const { user, loadingContext } = useAppContext();
   const { showMessage } = useMessageContext();
 
   const fetchAnalisis = async () => {
     if (!user?.localActual?.id) return;
-    
+
     try {
       setLoading(true);
       // const [analisisRes, desviacionesRes] = await Promise.all([
@@ -97,7 +102,7 @@ export default function CPPAnalysisPage() {
       // if (analisisRes.ok && desviacionesRes.ok) {
       //   const analisisData = await analisisRes.json();
       //   const desviacionesData = await desviacionesRes.json();
-        
+
       //   setAnalisis(analisisData);
       //   setDesviaciones(desviacionesData);
       // } else {
@@ -106,14 +111,11 @@ export default function CPPAnalysisPage() {
 
       const [analisisRes, desviacionesRes] = await Promise.all([
         fetchCPPAnalisis(user.localActual.id),
-        fetchCPPDesviaciones(user.localActual.id, 0)
+        fetchCPPDesviaciones(user.localActual.id, 0),
       ]);
-      
-      
-        
-        setAnalisis(analisisRes);
-        setDesviaciones(desviacionesRes);
-      
+
+      setAnalisis(analisisRes);
+      setDesviaciones(desviacionesRes);
     } catch (error) {
       console.error("Error:", error);
       showMessage("Error al cargar análisis de CPP", "error");
@@ -124,11 +126,11 @@ export default function CPPAnalysisPage() {
 
   const handleMigrationPreview = async () => {
     if (!user?.localActual?.id) return;
-    
+
     try {
       setMigrationLoading(true);
       const response = await fetch(`/api/cpp/${user.localActual.id}/migrate`);
-      
+
       if (response.ok) {
         const data = await response.json();
         setMigrationReport(data.reporte);
@@ -146,22 +148,22 @@ export default function CPPAnalysisPage() {
 
   const handleMigrationExecute = async () => {
     if (!user?.localActual?.id) return;
-    
+
     try {
       setMigrationLoading(true);
       const response = await fetch(`/api/cpp/${user.localActual.id}/migrate`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ dryRun: false })
+        body: JSON.stringify({ dryRun: false }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setMigrationReport(data.reporte);
         showMessage("Migración completada exitosamente", "success");
-        
+
         // Refrescar análisis
         fetchAnalisis();
       } else {
@@ -190,16 +192,11 @@ export default function CPPAnalysisPage() {
       <PageContainer
         title="Análisis de Costo Promedio Ponderado"
         breadcrumbs={[
-          { label: 'Inicio', href: '/home' },
-          { label: 'Análisis CPP' }
+          { label: "Inicio", href: "/home" },
+          { label: "Análisis CPP" },
         ]}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-          <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-            Cargando análisis...
-          </Typography>
-        </Box>
+        <LoadingState variant="table" />
       </PageContainer>
     );
   }
@@ -209,8 +206,8 @@ export default function CPPAnalysisPage() {
       <PageContainer
         title="Análisis de Costo Promedio Ponderado"
         breadcrumbs={[
-          { label: 'Inicio', href: '/home' },
-          { label: 'Análisis CPP' }
+          { label: "Inicio", href: "/home" },
+          { label: "Análisis CPP" },
         ]}
       >
         <Alert severity="warning">
@@ -218,44 +215,52 @@ export default function CPPAnalysisPage() {
             No hay tienda seleccionada
           </Typography>
           <Typography variant="body1">
-            Para ver el análisis de CPP, necesitas tener una tienda seleccionada.
+            Para ver el análisis de CPP, necesitas tener una tienda
+            seleccionada.
           </Typography>
         </Alert>
       </PageContainer>
     );
   }
 
-  const totalValorInventario = analisis.reduce((sum, item) => sum + item.valorInventarioActual, 0);
+  const totalValorInventario = analisis.reduce(
+    (sum, item) => sum + item.valorInventarioActual,
+    0,
+  );
   const productosConDesviacion = desviaciones.length;
-  
+
   // 🆕 Calcular estadísticas de confiabilidad
-  const productosConDatosHistoricos = analisis.filter(a => a.comprasSinCPP > 0).length;
-  const promedioConfiabilidad = analisis.length > 0 
-    ? analisis.reduce((sum, a) => sum + a.porcentajeConfiabilidad, 0) / analisis.length 
-    : 0;
+  const productosConDatosHistoricos = analisis.filter(
+    (a) => a.comprasSinCPP > 0,
+  ).length;
+  const promedioConfiabilidad =
+    analisis.length > 0
+      ? analisis.reduce((sum, a) => sum + a.porcentajeConfiabilidad, 0) /
+        analisis.length
+      : 0;
 
   return (
     <PageContainer
       title="Análisis de Costo Promedio Ponderado"
       breadcrumbs={[
-        { label: 'Inicio', href: '/home' },
-        { label: 'Análisis CPP' }
+        { label: "Inicio", href: "/home" },
+        { label: "Análisis CPP" },
       ]}
     >
       {/* 🆕 Alerta sobre datos históricos */}
       {productosConDatosHistoricos > 0 && (
-        <Alert 
-          severity="info" 
-          sx={{ mb: 3 }}
+        <Alert
+          severity="info"
+          sx={{ mb: { xs: 2, sm: 2.5, md: 3 } }}
           action={
-            <Button 
-              color="inherit" 
-              size="small" 
+            <Button
+              color="inherit"
+              size="small"
               onClick={handleMigrationPreview}
               disabled={migrationLoading}
               startIcon={<CloudSync />}
             >
-              {migrationLoading ? 'Cargando...' : 'Migrar Datos'}
+              {migrationLoading ? "Cargando..." : "Migrar Datos"}
             </Button>
           }
         >
@@ -263,82 +268,43 @@ export default function CPPAnalysisPage() {
             Datos Históricos Detectados
           </Typography>
           <Typography variant="body2">
-            Se encontraron {productosConDatosHistoricos} productos con movimientos sin datos CPP. 
-            Esto puede afectar la precisión del análisis. Considera migrar los datos históricos.
+            Se encontraron {productosConDatosHistoricos} productos con
+            movimientos sin datos CPP. Esto puede afectar la precisión del
+            análisis. Considera migrar los datos históricos.
           </Typography>
         </Alert>
       )}
 
-      {/* Resumen General */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Analytics color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{analisis.length}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Productos Analizados
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <TrendingUp color="success" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{formatCurrency(totalValorInventario)}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Valor Total Inventario
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Warning color="warning" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{productosConDesviacion}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Productos con Desviación
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <History color={promedioConfiabilidad > 80 ? "success" : "warning"} sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">{promedioConfiabilidad.toFixed(1)}%</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Confiabilidad Promedio
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      {/* The four counts, as a strip. They were bordered cards with a tinted
+          icon each — the page's least interesting numbers wearing its heaviest
+          furniture. Only the deviation count takes a hue, and only when there
+          is something to look at. */}
+      <StatStrip
+        stats={[
+          { label: "Productos Analizados", value: analisis.length },
+          {
+            label: "Valor Total Inventario",
+            value: formatCurrency(totalValorInventario),
+          },
+          {
+            label: "Productos con Desviación",
+            value: productosConDesviacion,
+            tone: productosConDesviacion > 0 ? "caution" : undefined,
+          },
+          {
+            label: "Confiabilidad Promedio",
+            value: `${promedioConfiabilidad.toFixed(1)}%`,
+          },
+        ]}
+      />
 
       {/* Tabs para diferentes vistas */}
       <ContentCard>
-        <Tabs value={tabValue} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          sx={{ borderBottom: 1, borderColor: "divider" }}
+        >
           <Tab label="Análisis General" />
           <Tab label="Productos con Desviación" />
           <Tab label="Confiabilidad de Datos" />
@@ -346,69 +312,200 @@ export default function CPPAnalysisPage() {
 
         {/* Tab 1: Análisis General */}
         {tabValue === 0 && (
-          <Box sx={{ p: 3 }}>
-            <TableContainer component={Paper}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Producto</TableCell>
-                    <TableCell align="right">Existencia</TableCell>
-                    <TableCell align="right">Costo Actual</TableCell>
-                    <TableCell align="right">Promedio Cambios en Costo</TableCell>
-                    <TableCell align="right">Valor Inventario</TableCell>
-                    <TableCell align="right">Ultimo Mov. Cambio Costo</TableCell>
-                    <TableCell align="center">Confiabilidad</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {analisis.map((item) => (
-                    <TableRow key={item.productoId}>
-                      <TableCell>{item.productoNombre}</TableCell>
-                      <TableCell align="right">{item.existenciaActual}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.costoActual)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.promedioCompras)}</TableCell>
-                      <TableCell align="right">{formatCurrency(item.valorInventarioActual)}</TableCell>
+          <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
+            {isMobile ? (
+              <Stack spacing={1.5}>
+                {analisis.map((item) => (
+                  <CppProductCard
+                    key={item.productoId}
+                    title={item.productoNombre}
+                    subtitle={`${item.existenciaActual} en existencia`}
+                    headerRight={
+                      <ReliabilityMark
+                        value={item.porcentajeConfiabilidad}
+                        suffix=" confiable"
+                      />
+                    }
+                    rows={[
+                      {
+                        label: "Costo Actual",
+                        value: formatCurrency(item.costoActual),
+                      },
+                      {
+                        label: "Promedio Cambios en Costo",
+                        value: formatCurrency(item.promedioCompras),
+                      },
+                      {
+                        label: "Valor Inventario",
+                        value: formatCurrency(item.valorInventarioActual),
+                      },
+                      {
+                        label: "Ultimo Mov. Cambio Costo",
+                        value: item.ultimaCompra
+                          ? new Date(item.ultimaCompra).toLocaleDateString()
+                          : "N/A",
+                        valueColor: item.ultimaCompra
+                          ? undefined
+                          : "text.disabled",
+                      },
+                    ]}
+                  />
+                ))}
+              </Stack>
+            ) : (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Producto</TableCell>
+                      <TableCell align="right">Existencia</TableCell>
+                      <TableCell align="right">Costo Actual</TableCell>
                       <TableCell align="right">
-                        {item.ultimaCompra ? new Date(item.ultimaCompra).toLocaleDateString() : 'N/A'}
+                        Promedio Cambios en Costo
                       </TableCell>
-                      <TableCell align="center">
-                        <Chip 
-                          label={`${item.porcentajeConfiabilidad.toFixed(0)}%`}
-                          color={item.porcentajeConfiabilidad > 80 ? "success" : item.porcentajeConfiabilidad > 50 ? "warning" : "error"}
-                          size="small"
-                        />
+                      <TableCell align="right">Valor Inventario</TableCell>
+                      <TableCell align="right">
+                        Ultimo Mov. Cambio Costo
                       </TableCell>
+                      <TableCell align="center">Confiabilidad</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                  </TableHead>
+                  <TableBody>
+                    {analisis.map((item) => (
+                      <TableRow key={item.productoId}>
+                        <TableCell>{item.productoNombre}</TableCell>
+                        <TableCell align="right">
+                          {item.existenciaActual}
+                        </TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(item.costoActual)}
+                        </TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(item.promedioCompras)}
+                        </TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(item.valorInventarioActual)}
+                        </TableCell>
+                        <TableCell align="right">
+                          {item.ultimaCompra
+                            ? new Date(item.ultimaCompra).toLocaleDateString()
+                            : "N/A"}
+                        </TableCell>
+                        <TableCell align="center">
+                          <ReliabilityMark
+                            value={item.porcentajeConfiabilidad}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </Box>
         )}
 
         {/* Tab 2: Productos con Desviación */}
         {tabValue === 1 && (
-          <Box sx={{ p: 3 }}>
+          <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
             {desviaciones.length === 0 ? (
               <Alert severity="success">
                 <Typography variant="h6" gutterBottom>
                   ¡Excelente! No hay productos con desviaciones significativas
                 </Typography>
                 <Typography variant="body1">
-                  Todos los productos tienen costos actuales consistentes con sus promedios de compra.
+                  Todos los productos tienen costos actuales consistentes con
+                  sus promedios de compra.
                 </Typography>
               </Alert>
+            ) : isMobile ? (
+              <Stack spacing={1.5}>
+                {desviaciones.map((item) => (
+                  <CppProductCard
+                    key={item.productoId}
+                    title={item.productoNombre}
+                    headerRight={
+                      <ReliabilityMark
+                        value={item.porcentajeConfiabilidad}
+                        suffix=" confiable"
+                      />
+                    }
+                    rows={[
+                      {
+                        label: "Costo Actual",
+                        value: formatCurrency(item.costoActual),
+                      },
+                      {
+                        label: "Ultimo Mov. Cambio Costo",
+                        value: formatCurrency(item.ultimoCostoUnitario),
+                      },
+                      {
+                        label: "Variación",
+                        value: (
+                          <Box
+                            component="span"
+                            sx={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
+                            {item.diferenciaMonto > 0 ? (
+                              <TrendingUp color="error" sx={{ fontSize: 16 }} />
+                            ) : (
+                              <TrendingDown
+                                color="success"
+                                sx={{ fontSize: 16 }}
+                              />
+                            )}
+                            {formatCurrency(Math.abs(item.diferenciaMonto))}
+                          </Box>
+                        ),
+                      },
+                      {
+                        label: "% Diferencia",
+                        value: (
+                          <Chip
+                            label={`${item.diferenciaPorcentaje.toFixed(1)}%`}
+                            color={
+                              item.diferenciaPorcentaje > 25
+                                ? "error"
+                                : "warning"
+                            }
+                            size="small"
+                          />
+                        ),
+                      },
+                      {
+                        label: "Promedio Cambios en Costo",
+                        value: formatCurrency(item.promedioCompras),
+                      },
+                      {
+                        label: "Impacto en Inventario",
+                        value: formatCurrency(
+                          Math.abs(item.diferenciaMonto) *
+                            item.existenciaActual,
+                        ),
+                      },
+                    ]}
+                  />
+                ))}
+              </Stack>
             ) : (
-              <TableContainer component={Paper}>
+              <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Producto</TableCell>
                       <TableCell align="right">Costo Actual</TableCell>
-                      <TableCell align="right">Ultimo Mov. Cambio Costo</TableCell>
+                      <TableCell align="right">
+                        Ultimo Mov. Cambio Costo
+                      </TableCell>
                       <TableCell align="right">Variación</TableCell>
                       <TableCell align="right">% Diferencia</TableCell>
-                      <TableCell align="right">Promedio Cambios en Costo</TableCell>
+                      <TableCell align="right">
+                        Promedio Cambios en Costo
+                      </TableCell>
                       <TableCell align="right">Impacto en Inventario</TableCell>
                       <TableCell align="center">Confiabilidad</TableCell>
                     </TableRow>
@@ -417,11 +514,19 @@ export default function CPPAnalysisPage() {
                     {desviaciones.map((item) => (
                       <TableRow key={item.productoId}>
                         <TableCell>{item.productoNombre}</TableCell>
-                        <TableCell align="right">{formatCurrency(item.costoActual)}</TableCell>
-                        <TableCell align="right">{formatCurrency(item.ultimoCostoUnitario)}</TableCell>
-                        
                         <TableCell align="right">
-                          <Box display="flex" alignItems="center" justifyContent="flex-end">
+                          {formatCurrency(item.costoActual)}
+                        </TableCell>
+                        <TableCell align="right">
+                          {formatCurrency(item.ultimoCostoUnitario)}
+                        </TableCell>
+
+                        <TableCell align="right">
+                          <Box
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="flex-end"
+                          >
                             {item.diferenciaMonto > 0 ? (
                               <TrendingUp color="error" sx={{ mr: 1 }} />
                             ) : (
@@ -431,22 +536,29 @@ export default function CPPAnalysisPage() {
                           </Box>
                         </TableCell>
                         <TableCell align="right">
-                          <Chip 
+                          <Chip
                             label={`${item.diferenciaPorcentaje.toFixed(1)}%`}
-                            color={item.diferenciaPorcentaje > 25 ? "error" : "warning"}
+                            color={
+                              item.diferenciaPorcentaje > 25
+                                ? "error"
+                                : "warning"
+                            }
                             size="small"
                           />
                         </TableCell>
-                        <TableCell align="right">{formatCurrency(item.promedioCompras)}</TableCell>
-                        
                         <TableCell align="right">
-                          {formatCurrency(Math.abs(item.diferenciaMonto) * item.existenciaActual)}
+                          {formatCurrency(item.promedioCompras)}
+                        </TableCell>
+
+                        <TableCell align="right">
+                          {formatCurrency(
+                            Math.abs(item.diferenciaMonto) *
+                              item.existenciaActual,
+                          )}
                         </TableCell>
                         <TableCell align="center">
-                          <Chip 
-                            label={`${item.porcentajeConfiabilidad.toFixed(0)}%`}
-                            color={item.porcentajeConfiabilidad > 80 ? "success" : item.porcentajeConfiabilidad > 50 ? "warning" : "error"}
-                            size="small"
+                          <ReliabilityMark
+                            value={item.porcentajeConfiabilidad}
                           />
                         </TableCell>
                       </TableRow>
@@ -460,122 +572,187 @@ export default function CPPAnalysisPage() {
 
         {/* Tab 3: Confiabilidad de Datos */}
         {tabValue === 2 && (
-          <Box sx={{ p: 3 }}>
+          <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
             <Typography variant="h6" gutterBottom>
               Estado de Confiabilidad de Datos CPP
             </Typography>
-            
-            <Grid container spacing={3} sx={{ mb: 3 }}>
-              <Grid item xs={12} md={4}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="success.main">
-                      {analisis.filter(a => a.porcentajeConfiabilidad === 100).length}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Productos con Datos Completos
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="warning.main">
-                      {analisis.filter(a => a.porcentajeConfiabilidad > 50 && a.porcentajeConfiabilidad < 100).length}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Productos con Datos Parciales
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" color="error.main">
-                      {analisis.filter(a => a.porcentajeConfiabilidad <= 50).length}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Productos con Datos Insuficientes
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
 
-            <TableContainer component={Paper}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Producto</TableCell>
-                    <TableCell align="center">Compras con CPP</TableCell>
-                    <TableCell align="center">Compras sin CPP</TableCell>
-                    <TableCell align="center">Total Compras</TableCell>
-                    <TableCell align="center">Confiabilidad</TableCell>
-                    <TableCell align="center">Estado</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {analisis
-                    .sort((a, b) => a.porcentajeConfiabilidad - b.porcentajeConfiabilidad)
-                    .map((item) => (
-                    <TableRow key={item.productoId}>
-                      <TableCell>{item.productoNombre}</TableCell>
-                      <TableCell align="center">{item.comprasConCPP}</TableCell>
-                      <TableCell align="center">{item.comprasSinCPP}</TableCell>
-                      <TableCell align="center">{item.comprasConCPP + item.comprasSinCPP}</TableCell>
-                      <TableCell align="center">
-                        <Box display="flex" alignItems="center" justifyContent="center">
-                          <LinearProgress 
-                            variant="determinate" 
-                            value={item.porcentajeConfiabilidad} 
-                            sx={{ width: 60, mr: 1 }}
-                            color={item.porcentajeConfiabilidad > 80 ? "success" : item.porcentajeConfiabilidad > 50 ? "warning" : "error"}
-                          />
-                          <Typography variant="body2">
-                            {item.porcentajeConfiabilidad.toFixed(0)}%
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip 
-                          label={
-                            item.porcentajeConfiabilidad === 100 ? "Completo" :
-                            item.porcentajeConfiabilidad > 50 ? "Parcial" : "Insuficiente"
-                          }
-                          color={
-                            item.porcentajeConfiabilidad === 100 ? "success" :
-                            item.porcentajeConfiabilidad > 50 ? "warning" : "error"
-                          }
-                          size="small"
-                        />
-                      </TableCell>
-                    </TableRow>
+            <StatStrip
+              variant="card"
+              stats={[
+                {
+                  label: "Productos con Datos Completos",
+                  value: analisis.filter(
+                    (a) => a.porcentajeConfiabilidad === 100,
+                  ).length,
+                },
+                {
+                  label: "Productos con Datos Parciales",
+                  value: analisis.filter(
+                    (a) =>
+                      a.porcentajeConfiabilidad > 50 &&
+                      a.porcentajeConfiabilidad < 100,
+                  ).length,
+                  tone: "caution",
+                },
+                {
+                  label: "Productos con Datos Insuficientes",
+                  value: analisis.filter((a) => a.porcentajeConfiabilidad <= 50)
+                    .length,
+                  tone: "negative",
+                },
+              ]}
+            />
+
+            {isMobile ? (
+              <Stack spacing={1.5}>
+                {[...analisis]
+                  .sort(
+                    (a, b) =>
+                      a.porcentajeConfiabilidad - b.porcentajeConfiabilidad,
+                  )
+                  .map((item) => (
+                    <CppProductCard
+                      key={item.productoId}
+                      title={item.productoNombre}
+                      rows={[
+                        {
+                          label: "Compras con CPP",
+                          value: item.comprasConCPP,
+                        },
+                        {
+                          label: "Compras sin CPP",
+                          value: item.comprasSinCPP,
+                        },
+                        {
+                          label: "Total Compras",
+                          value: item.comprasConCPP + item.comprasSinCPP,
+                        },
+                        {
+                          label: "Confiabilidad",
+                          value: (
+                            <ReliabilityMark
+                              value={item.porcentajeConfiabilidad}
+                            />
+                          ),
+                        },
+                        {
+                          label: "Estado",
+                          value: (
+                            <Chip
+                              label={
+                                item.porcentajeConfiabilidad === 100
+                                  ? "Completo"
+                                  : item.porcentajeConfiabilidad > 50
+                                    ? "Parcial"
+                                    : "Insuficiente"
+                              }
+                              color={
+                                item.porcentajeConfiabilidad === 100
+                                  ? "success"
+                                  : item.porcentajeConfiabilidad > 50
+                                    ? "warning"
+                                    : "error"
+                              }
+                              size="small"
+                            />
+                          ),
+                        },
+                      ]}
+                    />
                   ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+              </Stack>
+            ) : (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Producto</TableCell>
+                      <TableCell align="center">Compras con CPP</TableCell>
+                      <TableCell align="center">Compras sin CPP</TableCell>
+                      <TableCell align="center">Total Compras</TableCell>
+                      <TableCell align="center">Confiabilidad</TableCell>
+                      <TableCell align="center">Estado</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {[...analisis]
+                      .sort(
+                        (a, b) =>
+                          a.porcentajeConfiabilidad - b.porcentajeConfiabilidad,
+                      )
+                      .map((item) => (
+                        <TableRow key={item.productoId}>
+                          <TableCell>{item.productoNombre}</TableCell>
+                          <TableCell align="center">
+                            {item.comprasConCPP}
+                          </TableCell>
+                          <TableCell align="center">
+                            {item.comprasSinCPP}
+                          </TableCell>
+                          <TableCell align="center">
+                            {item.comprasConCPP + item.comprasSinCPP}
+                          </TableCell>
+                          <TableCell align="center">
+                            <ReliabilityMark
+                              value={item.porcentajeConfiabilidad}
+                            />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              label={
+                                item.porcentajeConfiabilidad === 100
+                                  ? "Completo"
+                                  : item.porcentajeConfiabilidad > 50
+                                    ? "Parcial"
+                                    : "Insuficiente"
+                              }
+                              color={
+                                item.porcentajeConfiabilidad === 100
+                                  ? "success"
+                                  : item.porcentajeConfiabilidad > 50
+                                    ? "warning"
+                                    : "error"
+                              }
+                              size="small"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </Box>
         )}
       </ContentCard>
 
       {/* Dialog de Migración */}
-      <Dialog 
-        open={migrationDialog} 
+      <Dialog
+        open={migrationDialog}
         onClose={() => setMigrationDialog(false)}
         maxWidth="md"
         fullWidth
+        fullScreen={isMobile}
       >
         <DialogTitle>
-          <Box display="flex" alignItems="center">
-            <CloudSync sx={{ mr: 2 }} />
-            Migración de Datos Históricos CPP
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Box display="flex" alignItems="center">
+              <CloudSync sx={{ mr: 2 }} />
+              Migración de Datos Históricos CPP
+            </Box>
+            {isMobile && (
+              <IconButton onClick={() => setMigrationDialog(false)}>
+                <Close />
+              </IconButton>
+            )}
           </Box>
         </DialogTitle>
-        
+
         <DialogContent>
           {migrationReport && (
             <Box>
@@ -584,19 +761,21 @@ export default function CPPAnalysisPage() {
                   Resumen de Migración
                 </Typography>
                 <Typography variant="body2">
-                  Se procesarán {migrationReport.movimientosEncontrados} movimientos históricos sin datos CPP.
-                  Estos se marcarán como datos históricos para mantener la consistencia del sistema.
+                  Se procesarán {migrationReport.movimientosEncontrados}{" "}
+                  movimientos históricos sin datos CPP. Estos se marcarán como
+                  datos históricos para mantener la consistencia del sistema.
                 </Typography>
               </Alert>
 
               <Accordion>
                 <AccordionSummary expandIcon={<ExpandMore />}>
                   <Typography variant="subtitle1">
-                    Ver Detalles ({migrationReport.movimientosEncontrados} movimientos)
+                    Ver Detalles ({migrationReport.movimientosEncontrados}{" "}
+                    movimientos)
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
+                  <Box sx={{ maxHeight: 300, overflow: "auto" }}>
                     {migrationReport.detalles.map((detalle, index) => (
                       <Typography key={index} variant="body2" sx={{ mb: 0.5 }}>
                         {detalle}
@@ -612,30 +791,51 @@ export default function CPPAnalysisPage() {
                     Migración Completada
                   </Typography>
                   <Typography variant="body2">
-                    Se procesaron {migrationReport.movimientosProcesados} movimientos exitosamente.
+                    Se procesaron {migrationReport.movimientosProcesados}{" "}
+                    movimientos exitosamente.
                   </Typography>
                 </Alert>
               )}
             </Box>
           )}
         </DialogContent>
-        
-        <DialogActions>
-          <Button onClick={() => setMigrationDialog(false)}>
+
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={() => setMigrationDialog(false)}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
             Cancelar
           </Button>
-          {migrationReport && migrationReport.movimientosEncontrados > 0 && migrationReport.movimientosProcesados === 0 && (
-            <Button 
-              onClick={handleMigrationExecute}
-              variant="contained"
-              disabled={migrationLoading}
-              startIcon={migrationLoading ? <CircularProgress size={20} /> : <CloudSync />}
-            >
-              {migrationLoading ? 'Procesando...' : 'Ejecutar Migración'}
-            </Button>
-          )}
+          {migrationReport &&
+            migrationReport.movimientosEncontrados > 0 &&
+            migrationReport.movimientosProcesados === 0 && (
+              <Button
+                onClick={handleMigrationExecute}
+                variant="contained"
+                disabled={migrationLoading}
+                fullWidth={isMobile}
+                size={isMobile ? "large" : "medium"}
+                sx={{ minHeight: isMobile ? 56 : undefined }}
+                startIcon={
+                  migrationLoading ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    <CloudSync />
+                  )
+                }
+              >
+                {migrationLoading ? "Procesando..." : "Ejecutar Migración"}
+              </Button>
+            )}
         </DialogActions>
       </Dialog>
     </PageContainer>
   );
-} 
+}

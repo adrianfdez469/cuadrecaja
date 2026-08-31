@@ -81,7 +81,7 @@ export function CategoryMarginChart({
 
   return (
     <ContentCard title="Rentabilidad por categoría">
-      <Stack spacing={2}>
+      <Stack spacing={1.5}>
         <BarChart
           height={Math.max(240, top.length * 36 + 80)}
           layout="horizontal"

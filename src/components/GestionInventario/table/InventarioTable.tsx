@@ -2,8 +2,6 @@
 
 import {
   Box,
-  Chip,
-  CircularProgress,
   IconButton,
   Menu,
   MenuItem,
@@ -15,10 +13,11 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { useState } from "react";
 import { useVirtualRows } from "@/hooks/useVirtualRows";
 import { IProductoTiendaV2 } from "@/schemas/producto";
+import { StatusPill } from "@/components/StatusPill";
 import {
   INVENTARIO_ROW_ESTIMATED_HEIGHT,
   INVENTARIO_TABLE_COLUMNS as COLUMNAS,
@@ -26,7 +25,15 @@ import {
 } from "@/constants/inventario";
 import { formatMontoEnMoneda, formatQuantity } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
+import { LoadingState } from "@/components/LoadingState";
+import { EmptyState } from "@/components/EmptyState";
 import { getRentabilidad } from "./rentabilidad";
+import {
+  getExpiryPill,
+  getStockPill,
+  rentabilidadColor,
+  stockTone,
+} from "./statusHelpers";
 
 interface Props {
   productos: IProductoTiendaV2[];
@@ -36,26 +43,6 @@ interface Props {
   onViewMovements: (p: IProductoTiendaV2) => void;
   onCreateMov: (p: IProductoTiendaV2) => void;
   onDelete: (p: IProductoTiendaV2) => void;
-}
-
-function getExpiryChip(fechaVencimiento: string | null | undefined) {
-  if (!fechaVencimiento) return null;
-  const dias = Math.ceil(
-    (new Date(fechaVencimiento).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
-  );
-  if (dias <= 0) return <Chip label="Vencido" color="error" size="small" />;
-  if (dias <= 7) return <Chip label={`${dias}d`} color="error" size="small" />;
-  if (dias <= 30)
-    return <Chip label={`${dias}d`} color="warning" size="small" />;
-  return <Chip label={`${dias}d`} size="small" />;
-}
-
-function getStockChip(existencia: number) {
-  if (existencia <= 0)
-    return <Chip label="Sin stock" color="error" size="small" />;
-  if (existencia <= 5)
-    return <Chip label="Bajo" color="warning" size="small" />;
-  return <Chip label="En stock" color="success" size="small" />;
 }
 
 function ActionsMenu({
@@ -77,7 +64,7 @@ function ActionsMenu({
   return (
     <>
       <IconButton size="small" onClick={(e) => setAnchor(e.currentTarget)}>
-        <MoreVertIcon fontSize="small" />
+        <MoreHorizIcon fontSize="small" />
       </IconButton>
       <Menu
         anchorEl={anchor}
@@ -170,20 +157,18 @@ export function InventarioTable({
   }));
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" py={4}>
-        <CircularProgress />
-      </Box>
-    );
+    // Seven columns, matching the header below, so the rows slot into place
+    // instead of pushing the page down when they arrive.
+    return <LoadingState variant="table" columns={7} count={10} />;
   }
 
   if (productos.length === 0) {
     return (
-      <Box py={4} textAlign="center">
-        <Typography color="text.secondary">
-          No se encontraron productos
-        </Typography>
-      </Box>
+      <EmptyState
+        variant="no-results"
+        title="No se encontraron productos"
+        description="Probá con otro término de búsqueda o quitá los filtros de categoría, stock y vencimiento."
+      />
     );
   }
 
@@ -235,29 +220,21 @@ export function InventarioTable({
                       {p.producto.nombre}
                     </Typography>
                     {p.proveedor && (
-                      <Chip
+                      <StatusPill
                         label={`Consig. ${p.proveedor.nombre}`}
-                        size="small"
-                        variant="outlined"
-                        color="secondary"
+                        hue="accent"
                       />
                     )}
                   </Box>
                 </TableCell>
                 <TableCell>
-                  {p.producto.categoria ? (
-                    <Chip
-                      label={p.producto.categoria.nombre}
-                      size="small"
-                      sx={{
-                        bgcolor: p.producto.categoria.color,
-                        color: "white",
-                        fontWeight: 500,
-                      }}
-                    />
-                  ) : (
-                    "—"
-                  )}
+                  {/* Plain text: a filled chip per row turned the category
+                      column into a wall of colour that outshouted the product
+                      names next to it. The category's own colour is data on the
+                      categories screen, not here. */}
+                  <Typography variant="body2" color="text.secondary">
+                    {p.producto.categoria?.nombre ?? "—"}
+                  </Typography>
                 </TableCell>
                 <TableCell align="right">
                   <Box
@@ -266,10 +243,16 @@ export function InventarioTable({
                     alignItems="flex-end"
                     gap={0.5}
                   >
-                    <Typography variant="body2">
-                      {formatQuantity(p.existencia)}
-                    </Typography>
-                    {getStockChip(p.existencia)}
+                    <Box display="flex" alignItems="center" gap={1}>
+                      {getStockPill(p.existencia)}
+                      <Typography
+                        variant="body2"
+                        fontWeight={stockTone(p.existencia) ? 700 : 600}
+                        sx={{ color: stockTone(p.existencia) }}
+                      >
+                        {formatQuantity(p.existencia)}
+                      </Typography>
+                    </Box>
                   </Box>
                 </TableCell>
                 <TableCell align="right">
@@ -291,17 +274,13 @@ export function InventarioTable({
                 <TableCell align="right">
                   <Typography
                     variant="body2"
-                    color={
-                      parseFloat(rentabilidad) > 0
-                        ? "success.main"
-                        : "text.secondary"
-                    }
+                    color={rentabilidadColor(rentabilidad)}
                   >
                     {rentabilidad}
                   </Typography>
                 </TableCell>
                 <TableCell align="center">
-                  {getExpiryChip(p.fechaVencimiento)}
+                  {getExpiryPill(p.fechaVencimiento)}
                 </TableCell>
                 <TableCell align="center">
                   <ActionsMenu

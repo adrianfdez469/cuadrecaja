@@ -20,7 +20,10 @@ import {
   Chip,
   IconButton,
   Divider,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import {
   Print,
   Add,
@@ -77,6 +80,8 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
   onClose,
   tiendaId,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [productos, setProductos] = useState<ProductoConCodigos[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>(
     [],
@@ -462,11 +467,28 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
   );
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      fullScreen={isMobile}
+    >
       <DialogTitle>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Print />
-          <Typography variant="h6">Imprimir Etiquetas de Precios</Typography>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+        >
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Print />
+            <Typography variant="h6">Imprimir Etiquetas de Precios</Typography>
+          </Stack>
+          {isMobile && (
+            <IconButton onClick={onClose}>
+              <CloseIcon />
+            </IconButton>
+          )}
         </Stack>
       </DialogTitle>
 
@@ -730,8 +752,19 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
         )}
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose}>Cancelar</Button>
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
+        <Button
+          onClick={onClose}
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : undefined }}
+        >
+          Cancelar
+        </Button>
         <Button
           variant="contained"
           onClick={generatePriceLabelsPDF}
@@ -740,6 +773,9 @@ export const PrintLabelsModal: React.FC<PrintLabelsModalProps> = ({
             generating ||
             productsWithoutCodes.length > 0
           }
+          fullWidth={isMobile}
+          size={isMobile ? "large" : "medium"}
+          sx={{ minHeight: isMobile ? 56 : undefined }}
           startIcon={generating ? <CircularProgress size={16} /> : <Print />}
         >
           {generating ? "Generando..." : `Imprimir ${totalLabels} etiqueta(s)`}

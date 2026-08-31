@@ -2,7 +2,6 @@
 
 import {
   Box,
-  Chip,
   IconButton,
   Paper,
   Switch,
@@ -20,10 +19,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import LinkIcon from "@mui/icons-material/Link";
 import { IGastoTienda } from "@/schemas/gastos";
 import {
-  TIPO_CALCULO_LABELS,
-  TIPO_CALCULO_COLORS,
   RECURRENCIA_LABELS,
-  RECURRENCIA_COLORS,
+  TIPO_CALCULO_LABELS,
 } from "@/constants/gastos";
 import { formatearCuandoAplica } from "@/utils/gastos";
 
@@ -59,7 +56,7 @@ export default function GastoTiendaTable({ gastos, canManage, onEdit, onDelete, 
             <TableCell>Nombre</TableCell>
             <TableCell>Categoría</TableCell>
             <TableCell>Tipo de cálculo</TableCell>
-            <TableCell>Valor</TableCell>
+            <TableCell align="right">Valor</TableCell>
             <TableCell>Recurrencia</TableCell>
             <TableCell>Cuándo aplica</TableCell>
             {canManage && <TableCell align="center">Activo</TableCell>}
@@ -88,34 +85,26 @@ export default function GastoTiendaTable({ gastos, canManage, onEdit, onDelete, 
                 </Typography>
               </TableCell>
               <TableCell>
-                <Chip
-                  label={TIPO_CALCULO_LABELS[gasto.tipoCalculo]}
-                  size="small"
-                  sx={{
-                    backgroundColor: TIPO_CALCULO_COLORS[gasto.tipoCalculo],
-                    color: "#fff",
-                    fontSize: "0.6875rem",
-                  }}
-                />
+                <Typography variant="body2" color="text.secondary">
+                  {TIPO_CALCULO_LABELS[gasto.tipoCalculo]}
+                </Typography>
               </TableCell>
-              <TableCell>
-                <Typography variant="body2" fontWeight="bold">
+              <TableCell align="right">
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  sx={{ fontVariantNumeric: "tabular-nums" }}
+                >
                   {formatValor(gasto)}
                 </Typography>
               </TableCell>
               <TableCell>
-                <Chip
-                  label={RECURRENCIA_LABELS[gasto.recurrencia]}
-                  size="small"
-                  sx={{
-                    backgroundColor: RECURRENCIA_COLORS[gasto.recurrencia],
-                    color: "#fff",
-                    fontSize: "0.6875rem",
-                  }}
-                />
+                <Typography variant="body2" color="text.secondary">
+                  {RECURRENCIA_LABELS[gasto.recurrencia]}
+                </Typography>
               </TableCell>
               <TableCell>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   {formatearCuandoAplica(gasto)}
                 </Typography>
               </TableCell>

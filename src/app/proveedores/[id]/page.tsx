@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Box,
@@ -14,7 +14,6 @@ import {
   TablePagination,
   Grid,
   Button,
-  CircularProgress,
   IconButton,
   Card,
   CardContent,
@@ -25,30 +24,33 @@ import {
   Chip,
   Tabs,
   Tab,
-  Avatar,
-  Divider,
 } from "@mui/material";
 import { PageContainer } from "@/components/PageContainer";
+import { StatusPill } from "@/components/StatusPill";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import { formatCurrency } from "@/utils/formatters";
 import {
-  TrendingUp,
   Refresh,
   ArrowBack,
   Receipt,
   Inventory,
   LocalShipping,
-  MonetizationOn,
-  Person,
   Phone,
-  Email,
+  LocationOn,
   CalendarToday,
   Payment,
-  Inventory2,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
-import { getProveedoresConsignacionById, liquidarProveedorConsignacion } from "@/services/preoveedoresService";
-import { ILiquidacionConsignacion, IProductoConsignacion, IProveedorConsignacion } from "@/schemas/proveedor";
+import {
+  getProveedoresConsignacionById,
+  liquidarProveedorConsignacion,
+} from "@/services/preoveedoresService";
+import {
+  ILiquidacionConsignacion,
+  IProductoConsignacion,
+  IProveedorConsignacion,
+} from "@/schemas/proveedor";
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { usePermisos } from "@/utils/permisos_front";
@@ -70,11 +72,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
   );
 }
@@ -83,9 +81,15 @@ export default function ProveedorDetallePage() {
   const { id } = useParams();
   const router = useRouter();
   const [tabValue, setTabValue] = useState(0);
-  const [proveedor, setProveedor] = useState<IProveedorConsignacion | null>(null);
-  const [liquidaciones, setLiquidaciones] = useState<ILiquidacionConsignacion[]>([]);
-  const [productosConsignacion, setProductosConsignacion] = useState<IProductoConsignacion[]>([]);
+  const [proveedor, setProveedor] = useState<IProveedorConsignacion | null>(
+    null,
+  );
+  const [liquidaciones, setLiquidaciones] = useState<
+    ILiquidacionConsignacion[]
+  >([]);
+  const [productosConsignacion, setProductosConsignacion] = useState<
+    IProductoConsignacion[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [pageLiquidaciones, setPageLiquidaciones] = useState(0);
   const [pageProductos, setPageProductos] = useState(0);
@@ -95,16 +99,19 @@ export default function ProveedorDetallePage() {
   const { verificarPermiso } = usePermisos();
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const { proveedor: dataProveedor, liquidaciones: liquidacionesData, productos } =
-        await getProveedoresConsignacionById(id.toString());
+      const {
+        proveedor: dataProveedor,
+        liquidaciones: liquidacionesData,
+        productos,
+      } = await getProveedoresConsignacionById(id.toString());
 
       if (!dataProveedor) {
-        router.push('/proveedores');
+        router.push("/proveedores");
         return;
       }
 
@@ -116,34 +123,38 @@ export default function ProveedorDetallePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router]);
 
   useEffect(() => {
     fetchData();
-  }, [id]);
+  }, [fetchData]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
-  const handleChangePage = (type: 'liquidaciones' | 'productos') =>
-    (_: unknown, newPage: number) => {
-      if (type === 'liquidaciones') {
+  const handleChangePage =
+    (type: "liquidaciones" | "productos") => (_: unknown, newPage: number) => {
+      if (type === "liquidaciones") {
         setPageLiquidaciones(newPage);
       } else {
         setPageProductos(newPage);
       }
     };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPageLiquidaciones(0);
     setPageProductos(0);
   };
 
-  const handleLiquidarProveedor = async (cierreId: string, proveedorId: string) => {
+  const handleLiquidarProveedor = async (
+    cierreId: string,
+    proveedorId: string,
+  ) => {
     try {
-
       // Preguntar si desea liquidar el proveedor
       confirmDialog(
         "¿Está seguro de desea liquidar al proveedor?",
@@ -152,93 +163,40 @@ export default function ProveedorDetallePage() {
           await liquidarProveedorConsignacion(cierreId, proveedorId);
           await fetchData();
           showMessage("Proveedor liquidado correctamente", "success");
-        }
+        },
+        undefined,
+        { severity: "warning" },
       );
-
     } catch (error) {
       console.error("Error al liquidar el proveedor:", error);
-      showMessage( "Error al liquidar el proveedor", "error");
+      showMessage("Error al liquidar el proveedor", "error");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   // Componente de estadística
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color
-  }: {
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: '100%' }}>
-      <CardContent sx={{ p: isMobile ? 1 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 1 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minWidth: isMobile ? 40 : 48,
-              minHeight: isMobile ? 40 : 48,
-            }}
-          >
-            {icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
-              fontWeight="bold"
-              sx={{
-                fontSize: isMobile ? '1.25rem' : '2rem',
-                lineHeight: 1.2,
-                wordBreak: 'break-all'
-              }}
-            >
-              {value}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? '0.75rem' : '0.875rem',
-                lineHeight: 1.2
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Proveedores', href: '/proveedores' },
-    { label: proveedor?.nombre || 'Cargando...' }
+    { label: "Inicio", href: "/home" },
+    { label: "Proveedores", href: "/proveedores" },
+    { label: proveedor?.nombre || "Cargando..." },
   ];
 
+  // En mobile la migaja de pan ya vuelve a /proveedores — el botón "Volver"
+  // duplicaba esa navegación y el mockup mobile no lo dibuja; en desktop sí.
   const headerActions = (
-    <Stack direction={isMobile ? "column" : "row"} spacing={1} sx={{ width: isMobile ? '100%' : 'auto' }}>
-      <Button
-        variant="outlined"
-        startIcon={<ArrowBack />}
-        onClick={() => router.push('/proveedores')}
-        size={isMobile ? "small" : "medium"}
-      >
-        Volver
-      </Button>
+    <Stack direction="row" spacing={1}>
+      {!isMobile && (
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBack />}
+          onClick={() => router.push("/proveedores")}
+        >
+          Volver
+        </Button>
+      )}
       <Tooltip title="Actualizar datos">
-        <IconButton onClick={fetchData} disabled={loading} size={isMobile ? "small" : "medium"}>
+        <IconButton onClick={fetchData} disabled={loading}>
           <Refresh />
         </IconButton>
       </Tooltip>
@@ -249,26 +207,23 @@ export default function ProveedorDetallePage() {
     return (
       <PageContainer
         title="Detalles del Proveedor"
-        subtitle="Cargando información del proveedor..."
+        subtitle="Detalles del proveedor, liquidaciones y productos en consignación"
         breadcrumbs={breadcrumbs}
       >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress />
-          <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-            Cargando detalles del proveedor...
-          </Typography>
-        </Box>
+        <LoadingState variant="table" />
       </PageContainer>
     );
   }
 
   if (!proveedor) {
     return (
-      <PageContainer
-        title="Proveedor no encontrado"
-        breadcrumbs={breadcrumbs}
-      >
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <PageContainer title="Proveedor no encontrado" breadcrumbs={breadcrumbs}>
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="200px"
+        >
           <Typography variant="h6">
             No se pudo encontrar el proveedor solicitado
           </Typography>
@@ -280,59 +235,110 @@ export default function ProveedorDetallePage() {
   return (
     <PageContainer
       title={proveedor.nombre}
-      subtitle={!isMobile ? "Detalles del proveedor, liquidaciones y productos en consignación" : undefined}
+      titleAdornment={
+        <StatusPill
+          label={proveedor.estado}
+          hue={proveedor.estado === "activo" ? "positive" : "neutral"}
+        />
+      }
+      subtitle={
+        !isMobile
+          ? "Detalles del proveedor, liquidaciones y productos en consignación"
+          : undefined
+      }
       breadcrumbs={breadcrumbs}
       headerActions={headerActions}
       maxWidth="xl"
     >
+      {/* Cifras de dinero: 2 columnas en mobile, apiladas en desktop — el
+          mockup invierte el orden entero según el viewport, así que se
+          renderizan directo en la página en vez de dentro de un
+          `ContentCard` compartido con la información del proveedor. */}
+      {isMobile && (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            bgcolor: "background.paper",
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 3,
+            mb: 2,
+            overflow: "hidden",
+          }}
+        >
+          <Box sx={{ p: 2, borderRight: 1, borderColor: "divider" }}>
+            <Typography variant="body2" color="text.secondary">
+              Dinero Liquidado
+            </Typography>
+            <Typography
+              sx={{
+                mt: 0.25,
+                fontSize: "1.5rem",
+                fontWeight: 700,
+                color:
+                  proveedor.dineroLiquidado > 0
+                    ? "success.main"
+                    : "text.primary",
+              }}
+            >
+              {formatCurrency(proveedor.dineroLiquidado)}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Por Liquidar
+            </Typography>
+            <Typography sx={{ mt: 0.25, fontSize: "1.5rem", fontWeight: 700 }}>
+              {formatCurrency(proveedor.dineroPorLiquidar)}
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              p: 2,
+              gridColumn: "1 / -1",
+              borderTop: 1,
+              borderColor: "divider",
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Valor en Consignación
+            </Typography>
+            <Typography sx={{ mt: 0.25, fontSize: "1.5rem", fontWeight: 700 }}>
+              {formatCurrency(proveedor.valorConsignacion)}
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
       {/* Información del proveedor */}
-      <ContentCard
-        title="Información del Proveedor"
-        subtitle={!isMobile ? "Datos de contacto y estado" : undefined}
-      >
+      <ContentCard>
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
             <Stack spacing={2}>
-              <Box display="flex" alignItems="center" gap={2}>
-                <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56 }}>
-                  <Person />
-                </Avatar>
-                <Box>
-                  <Typography variant="h6" fontWeight="bold">
-                    {proveedor.nombre}
-                  </Typography>
-                  <Chip
-                    label={proveedor.estado}
-                    color={proveedor.estado === 'activo' ? 'success' : 'default'}
-                    size="small"
-                  />
-                </Box>
-              </Box>
-
-              <Divider />
-
+              <Typography
+                variant="overline"
+                sx={{
+                  textTransform: "uppercase",
+                  fontSize: "0.6875rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.5px",
+                  color: "text.secondary",
+                }}
+              >
+                Información del Proveedor
+              </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Phone fontSize="small" color="action" />
-                    <Typography variant="body2">
-                      {proveedor.telefono}
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Email fontSize="small" color="action" />
-                    <Typography variant="body2">
-                      {proveedor.direccion}
-                    </Typography>
-                  </Box>
-                </Grid>
                 <Grid item xs={12} sm={6}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <CalendarToday fontSize="small" color="action" />
                     <Typography variant="body2">
-                      Última liquidación: {proveedor.ultimaLiquidacion ? new Date(proveedor.ultimaLiquidacion).toLocaleDateString() : 'Sin liquidar'}
+                      Última liquidación:{" "}
+                      {proveedor.ultimaLiquidacion
+                        ? new Date(
+                            proveedor.ultimaLiquidacion,
+                          ).toLocaleDateString()
+                        : "Sin liquidar"}
                     </Typography>
                   </Box>
                 </Grid>
@@ -340,7 +346,34 @@ export default function ProveedorDetallePage() {
                   <Box display="flex" alignItems="center" gap={1}>
                     <LocalShipping fontSize="small" color="action" />
                     <Typography variant="body2">
-                      {proveedor.totalProductosConsignacion} productos en consignación
+                      {proveedor.totalProductosConsignacion} productos en
+                      consignación
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Phone fontSize="small" color="action" />
+                    <Typography
+                      variant="body2"
+                      color={
+                        proveedor.telefono ? "text.primary" : "text.disabled"
+                      }
+                    >
+                      {proveedor.telefono || "Sin teléfono"}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <LocationOn fontSize="small" color="action" />
+                    <Typography
+                      variant="body2"
+                      color={
+                        proveedor.direccion ? "text.primary" : "text.disabled"
+                      }
+                    >
+                      {proveedor.direccion || "Sin dirección"}
                     </Typography>
                   </Box>
                 </Grid>
@@ -348,40 +381,95 @@ export default function ProveedorDetallePage() {
             </Stack>
           </Grid>
 
-          <Grid item xs={12} md={4}>
-            <Grid container spacing={2}>
-              <Grid item xs={6} md={12}>
-                <StatCard
-                  icon={<MonetizationOn fontSize="medium" />}
-                  value={formatCurrency(proveedor.dineroLiquidado)}
-                  label="Dinero Liquidado"
-                  color="success.light"
-                />
-              </Grid>
-              <Grid item xs={6} md={12}>
-                <StatCard
-                  icon={<TrendingUp fontSize="medium" />}
-                  value={formatCurrency(proveedor.dineroPorLiquidar)}
-                  label="Por Liquidar"
-                  color="warning.light"
-                />
-              </Grid>
-              <Grid item xs={12} md={12}>
-                <StatCard
-                  icon={<Inventory2 fontSize="medium" />}
-                  value={formatCurrency(proveedor.valorConsignacion)}
-                  label="Valor en Consignación"
-                  color="secondary.light"
-                />
-              </Grid>
+          {!isMobile && (
+            <Grid item xs={12} md={4}>
+              <Stack
+                spacing={2}
+                sx={{
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: "8px",
+                  p: 2,
+                }}
+              >
+                <Box>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 0.5 }}
+                  >
+                    Dinero Liquidado
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "1.5rem",
+                      fontWeight: 700,
+                      color:
+                        proveedor.dineroLiquidado > 0
+                          ? "success.main"
+                          : "text.primary",
+                    }}
+                  >
+                    {formatCurrency(proveedor.dineroLiquidado)}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    borderTop: 1,
+                    borderColor: "divider",
+                    pt: 2,
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 0.5 }}
+                  >
+                    Por Liquidar
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "1.5rem",
+                      fontWeight: 700,
+                      color: "text.primary",
+                    }}
+                  >
+                    {formatCurrency(proveedor.dineroPorLiquidar)}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    borderTop: 1,
+                    borderColor: "divider",
+                    pt: 2,
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 0.5 }}
+                  >
+                    Valor en Consignación
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "1.5rem",
+                      fontWeight: 700,
+                      color: "text.primary",
+                    }}
+                  >
+                    {formatCurrency(proveedor.valorConsignacion)}
+                  </Typography>
+                </Box>
+              </Stack>
             </Grid>
-          </Grid>
+          )}
         </Grid>
       </ContentCard>
 
       {/* Pestañas */}
       <ContentCard noPadding>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
           <Tabs
             value={tabValue}
             onChange={handleTabChange}
@@ -415,61 +503,98 @@ export default function ProveedorDetallePage() {
           {isMobile ? (
             // Vista móvil con cards
             <Stack spacing={2} sx={{ mt: 3 }}>
-              {liquidaciones.slice(pageLiquidaciones * rowsPerPage, (pageLiquidaciones + 1) * rowsPerPage).map((liquidacion) => (
-                <Card key={liquidacion.id} variant="outlined">
-                  <CardContent>
-                    <Stack spacing={2}>
-                      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+              {liquidaciones
+                .slice(
+                  pageLiquidaciones * rowsPerPage,
+                  (pageLiquidaciones + 1) * rowsPerPage,
+                )
+                .map((liquidacion) => (
+                  <Card key={liquidacion.id} variant="outlined">
+                    <CardContent>
+                      <Stack spacing={2}>
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="flex-start"
+                        >
+                          <Box>
+                            <Typography variant="subtitle2" fontWeight="medium">
+                              {dayjs(liquidacion.fecha).format("DD/MM/YYYY")}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {liquidacion.productos} productos
+                            </Typography>
+                          </Box>
+                          <Box
+                            display="flex"
+                            flexDirection="column"
+                            alignItems="flex-end"
+                            gap={0.5}
+                          >
+                            <Chip
+                              label={liquidacion.estado}
+                              color={
+                                liquidacion.estado === "completada"
+                                  ? "success"
+                                  : "warning"
+                              }
+                              size="small"
+                            />
+                            {liquidacion.estado === "completada" &&
+                              liquidacion.fechaLiquidacion && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {dayjs(liquidacion.fechaLiquidacion).format(
+                                    "DD/MM/YYYY",
+                                  )}
+                                </Typography>
+                              )}
+                          </Box>
+                        </Box>
+
                         <Box>
-                          <Typography variant="subtitle2" fontWeight="medium">
-                            {dayjs(liquidacion.fecha).format("DD/MM/YYYY")}
+                          <Typography
+                            variant="h6"
+                            color="success.main"
+                            fontWeight="bold"
+                          >
+                            {formatCurrency(liquidacion.monto)}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            {liquidacion.productos} productos
+                            {liquidacion.observaciones}
                           </Typography>
                         </Box>
-                        <Box display="flex" flexDirection="column" alignItems="flex-end" gap={0.5}>
-                          <Chip
-                            label={liquidacion.estado}
-                            color={liquidacion.estado === 'completada' ? 'success' : 'warning'}
-                            size="small"
-                          />
-                          {liquidacion.estado === 'completada' && liquidacion.fechaLiquidacion && (
-                            <Typography variant="caption" color="text.secondary">
-                              {dayjs(liquidacion.fechaLiquidacion).format("DD/MM/YYYY")}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Box>
 
-                      <Box>
-                        <Typography variant="h6" color="success.main" fontWeight="bold">
-                          {formatCurrency(liquidacion.monto)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {liquidacion.observaciones}
-                        </Typography>
-                      </Box>
-
-                      {liquidacion.estado === 'pendiente' && (
-                        <Box sx={{ pt: 1 }}>
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            startIcon={<Payment />}
-                            onClick={() => handleLiquidarProveedor(liquidacion.id, id.toString())}
-                            fullWidth
-                            disabled={!verificarPermiso("configuracion.proveedores.liquidar")}
-                          >
-                            Liquidar
-                          </Button>
-                        </Box>
-                      )}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
+                        {liquidacion.estado === "pendiente" && (
+                          <Box sx={{ pt: 1 }}>
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              size="small"
+                              startIcon={<Payment />}
+                              onClick={() =>
+                                handleLiquidarProveedor(
+                                  liquidacion.id,
+                                  id.toString(),
+                                )
+                              }
+                              fullWidth
+                              disabled={
+                                !verificarPermiso(
+                                  "configuracion.proveedores.liquidar",
+                                )
+                              }
+                            >
+                              Liquidar
+                            </Button>
+                          </Box>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
             </Stack>
           ) : (
             // Vista desktop con tabla
@@ -479,69 +604,92 @@ export default function ProveedorDetallePage() {
                   <TableRow>
                     <TableCell>Fecha</TableCell>
                     <TableCell align="right">Monto</TableCell>
-                    <TableCell align="center">Productos</TableCell>
+                    <TableCell align="right">Productos</TableCell>
                     <TableCell>Observaciones</TableCell>
                     <TableCell align="center">Estado</TableCell>
-                    <TableCell align="center">Fecha Liquidación</TableCell>
+                    <TableCell>Fecha Liquidación</TableCell>
                     <TableCell align="center">Acciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {liquidaciones.slice(pageLiquidaciones * rowsPerPage, (pageLiquidaciones + 1) * rowsPerPage).map((liquidacion) => (
-                    <TableRow key={liquidacion.id}>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {dayjs(liquidacion.fecha).format("DD/MM/YYYY")}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" fontWeight="medium" color="success.main">
-                          {formatCurrency(liquidacion.monto)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Typography variant="body2">
-                          {liquidacion.productos}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {liquidacion.observaciones}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip
-                          label={liquidacion.estado}
-                          color={liquidacion.estado === 'completada' ? 'success' : 'warning'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        {liquidacion.estado === 'completada' && liquidacion.fechaLiquidacion ? (
-                          <Typography variant="body2" color="text.secondary">
-                            {dayjs(liquidacion.fechaLiquidacion).format("DD/MM/YYYY")}
+                  {liquidaciones
+                    .slice(
+                      pageLiquidaciones * rowsPerPage,
+                      (pageLiquidaciones + 1) * rowsPerPage,
+                    )
+                    .map((liquidacion) => (
+                      <TableRow key={liquidacion.id}>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {dayjs(liquidacion.fecha).format("DD/MM/YYYY")}
                           </Typography>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            -
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell align="center">
-                        {liquidacion.estado === 'pendiente' && (
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            startIcon={<Payment />}
-                            onClick={() => handleLiquidarProveedor(liquidacion.id, id.toString())}
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            color="success.main"
                           >
-                            Liquidar
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            {formatCurrency(liquidacion.monto)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            sx={{ fontVariantNumeric: "tabular-nums" }}
+                          >
+                            {liquidacion.productos}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {liquidacion.observaciones}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <StatusPill
+                            label={liquidacion.estado}
+                            hue={
+                              liquidacion.estado === "completada"
+                                ? "positive"
+                                : "caution"
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {liquidacion.estado === "completada" &&
+                          liquidacion.fechaLiquidacion ? (
+                            <Typography variant="body2" color="text.secondary">
+                              {dayjs(liquidacion.fechaLiquidacion).format(
+                                "DD/MM/YYYY",
+                              )}
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              -
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell align="center">
+                          {liquidacion.estado === "pendiente" && (
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              size="small"
+                              startIcon={<Payment />}
+                              onClick={() =>
+                                handleLiquidarProveedor(
+                                  liquidacion.id,
+                                  id.toString(),
+                                )
+                              }
+                            >
+                              Liquidar
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -551,7 +699,7 @@ export default function ProveedorDetallePage() {
             component="div"
             count={liquidaciones.length}
             page={pageLiquidaciones}
-            onPageChange={handleChangePage('liquidaciones')}
+            onPageChange={handleChangePage("liquidaciones")}
             rowsPerPage={rowsPerPage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             rowsPerPageOptions={[5, 10, 25]}
@@ -566,71 +714,96 @@ export default function ProveedorDetallePage() {
             Productos en Consignación
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            {productosConsignacion.length} productos registrados · {formatCurrency(proveedor.valorConsignacion)} en existencia
+            {productosConsignacion.length} productos registrados ·{" "}
+            {formatCurrency(proveedor.valorConsignacion)} en existencia
           </Typography>
 
           {isMobile ? (
             // Vista móvil con cards
             <Stack spacing={2} sx={{ mt: 3 }}>
-              {productosConsignacion.slice(pageProductos * rowsPerPage, (pageProductos + 1) * rowsPerPage).map((producto) => (
-                <Card key={producto.id} variant="outlined">
-                  <CardContent>
-                    <Stack spacing={2}>
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="medium">
-                          {producto.nombre}
-                        </Typography>
-                        {/* <Typography variant="body2" color="text.secondary">
+              {productosConsignacion
+                .slice(
+                  pageProductos * rowsPerPage,
+                  (pageProductos + 1) * rowsPerPage,
+                )
+                .map((producto) => (
+                  <Card key={producto.id} variant="outlined">
+                    <CardContent>
+                      <Stack spacing={2}>
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight="medium">
+                            {producto.nombre}
+                          </Typography>
+                          {/* <Typography variant="body2" color="text.secondary">
                           {producto.codigo} - {producto.categoria}
                         </Typography> */}
-                      </Box>
+                        </Box>
 
-                      <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Costo Unitario
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(producto.costo)}
-                          </Typography>
+                        <Grid container spacing={2}>
+                          <Grid item xs={6}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Costo Unitario
+                            </Typography>
+                            <Typography variant="body2" fontWeight="medium">
+                              {formatCurrency(producto.costo)}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Disponibles
+                            </Typography>
+                            <Typography variant="body2" fontWeight="medium">
+                              {producto.disponibles}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Valor en Existencia
+                            </Typography>
+                            <Typography variant="body2" fontWeight="medium">
+                              {formatCurrency(producto.valor)}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Vendidos
+                            </Typography>
+                            <Typography variant="body2" fontWeight="medium">
+                              {producto.vendidos}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Ganancias
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              fontWeight="medium"
+                              color="success.main"
+                            >
+                              {formatCurrency(producto.ganancias)}
+                            </Typography>
+                          </Grid>
                         </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Disponibles
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="info.main">
-                            {producto.disponibles}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Valor en existencia
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="secondary.main">
-                            {formatCurrency(producto.valor)}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Vendidos
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="success.main">
-                            {producto.vendidos}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" color="text.secondary">
-                            Ganancias
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium" color="success.main">
-                            {formatCurrency(producto.ganancias)}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
             </Stack>
           ) : (
             // Vista desktop con tabla
@@ -642,63 +815,80 @@ export default function ProveedorDetallePage() {
                     {/* <TableCell>Código</TableCell> */}
                     <TableCell>Categoría</TableCell>
                     <TableCell align="right">Costo Unitario</TableCell>
-                    <TableCell align="center">Disponibles</TableCell>
+                    <TableCell align="right">Disponibles</TableCell>
                     <TableCell align="right">Valor en Existencia</TableCell>
-                    <TableCell align="center">Vendidos</TableCell>
+                    <TableCell align="right">Vendidos</TableCell>
                     <TableCell align="right">Ganancias</TableCell>
                     {/* <TableCell align="center">Fecha Ingreso</TableCell> */}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {productosConsignacion.slice(pageProductos * rowsPerPage, (pageProductos + 1) * rowsPerPage).map((producto) => (
-                    <TableRow key={producto.id}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
-                          {producto.nombre}
-                        </Typography>
-                      </TableCell>
-                      {/* <TableCell>
+                  {productosConsignacion
+                    .slice(
+                      pageProductos * rowsPerPage,
+                      (pageProductos + 1) * rowsPerPage,
+                    )
+                    .map((producto) => (
+                      <TableRow key={producto.id}>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
+                            {producto.nombre}
+                          </Typography>
+                        </TableCell>
+                        {/* <TableCell>
                         <Typography variant="body2">
                           {producto.codigo}
                         </Typography>
                       </TableCell> */}
-                      <TableCell>
-                        <Typography variant="body2">
-                          {producto.categoria}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2">
-                          {formatCurrency(producto.costo)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Typography variant="body2" color="info.main" fontWeight="medium">
-                          {producto.disponibles}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" color="secondary.main" fontWeight="medium">
-                          {formatCurrency(producto.valor)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Typography variant="body2" color="success.main" fontWeight="medium">
-                          {producto.vendidos}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" color="success.main" fontWeight="medium">
-                          {formatCurrency(producto.ganancias)}
-                        </Typography>
-                      </TableCell>
-                      {/* <TableCell align="center">
+                        <TableCell>
+                          <Typography variant="body2">
+                            {producto.categoria}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {formatCurrency(producto.costo)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            sx={{ fontVariantNumeric: "tabular-nums" }}
+                          >
+                            {producto.disponibles}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" fontWeight="medium">
+                            {formatCurrency(producto.valor)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            sx={{ fontVariantNumeric: "tabular-nums" }}
+                          >
+                            {producto.vendidos}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            color="success.main"
+                            fontWeight="medium"
+                          >
+                            {formatCurrency(producto.ganancias)}
+                          </Typography>
+                        </TableCell>
+                        {/* <TableCell align="center">
                         <Typography variant="body2">
                           {dayjs(producto.fechaIngreso).format("DD/MM/YYYY")}
                         </Typography>
                       </TableCell> */}
-                    </TableRow>
-                  ))}
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -708,7 +898,7 @@ export default function ProveedorDetallePage() {
             component="div"
             count={productosConsignacion.length}
             page={pageProductos}
-            onPageChange={handleChangePage('productos')}
+            onPageChange={handleChangePage("productos")}
             rowsPerPage={rowsPerPage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             rowsPerPageOptions={[5, 10, 25]}
@@ -720,4 +910,4 @@ export default function ProveedorDetallePage() {
       {ConfirmDialogComponent}
     </PageContainer>
   );
-} 
+}

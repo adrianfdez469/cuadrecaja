@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -12,24 +11,26 @@ import {
   Divider,
   FormControl,
   FormHelperText,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   Stack,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import {
   IGastoPlantilla,
   IAssignPlantilla,
   assignPlantillaSchema,
 } from "@/schemas/gastos";
 import {
-  TIPO_CALCULO_LABELS,
-  TIPO_CALCULO_COLORS,
-  RECURRENCIA_LABELS,
-  RECURRENCIA_COLORS,
   MESES,
   DIAS_MES,
+  RECURRENCIA_LABELS,
+  TIPO_CALCULO_LABELS,
 } from "@/constants/gastos";
 import { formatearCuandoAplica } from "@/utils/gastos";
 import MoneyField from "@/components/MoneyField";
@@ -48,6 +49,8 @@ export default function AssignPlantillaDialog({
   onClose,
   onAssign,
 }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [step, setStep] = useState<1 | 2>(1);
   const [selected, setSelected] = useState<IGastoPlantilla | null>(null);
   const [monto, setMonto] = useState("");
@@ -118,11 +121,28 @@ export default function AssignPlantillaDialog({
   const showAnual = selected?.recurrencia === "ANUAL";
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      fullScreen={isMobile}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         {step === 1
           ? "Seleccionar plantilla"
           : `Configurar: ${selected?.nombre}`}
+        {isMobile && (
+          <IconButton onClick={onClose} disabled={loading}>
+            <CloseIcon />
+          </IconButton>
+        )}
       </DialogTitle>
       <DialogContent>
         {step === 1 && (
@@ -143,7 +163,7 @@ export default function AssignPlantillaDialog({
                   borderColor: "divider",
                   borderRadius: 1,
                   cursor: "pointer",
-                  "&:hover": { backgroundColor: "action.hover" },
+                  "&:hover": { backgroundColor: "semantic.surface.sunken" },
                   opacity: p.activo ? 1 : 0.5,
                 }}
               >
@@ -153,26 +173,14 @@ export default function AssignPlantillaDialog({
                   alignItems="flex-start"
                 >
                   <Typography variant="subtitle2">{p.nombre}</Typography>
-                  <Chip
-                    label={RECURRENCIA_LABELS[p.recurrencia]}
-                    size="small"
-                    sx={{
-                      backgroundColor: RECURRENCIA_COLORS[p.recurrencia],
-                      color: "#fff",
-                      fontSize: "0.6875rem",
-                    }}
-                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {RECURRENCIA_LABELS[p.recurrencia]}
+                  </Typography>
                 </Box>
                 <Box display="flex" gap={1} mt={0.5} alignItems="center">
-                  <Chip
-                    label={TIPO_CALCULO_LABELS[p.tipoCalculo]}
-                    size="small"
-                    sx={{
-                      backgroundColor: TIPO_CALCULO_COLORS[p.tipoCalculo],
-                      color: "#fff",
-                      fontSize: "0.6875rem",
-                    }}
-                  />
+                  <Typography variant="caption" color="text.secondary">
+                    {TIPO_CALCULO_LABELS[p.tipoCalculo]}
+                  </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {p.categoria}
                   </Typography>
@@ -187,7 +195,7 @@ export default function AssignPlantillaDialog({
 
         {step === 2 && selected && (
           <Stack spacing={2} mt={0.5}>
-            <Box p={1.5} bgcolor="action.hover" borderRadius={1}>
+            <Box p={1.5} bgcolor="semantic.surface.sunken" borderRadius={1}>
               <Typography variant="body2" color="text.secondary">
                 Plantilla: <strong>{selected.nombre}</strong> ·{" "}
                 {selected.categoria}
@@ -284,17 +292,39 @@ export default function AssignPlantillaDialog({
           </Stack>
         )}
       </DialogContent>
-      <DialogActions>
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
         {step === 2 && (
-          <Button onClick={() => setStep(1)} disabled={loading}>
+          <Button
+            onClick={() => setStep(1)}
+            disabled={loading}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
             Atrás
           </Button>
         )}
-        <Button onClick={onClose} disabled={loading}>
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : undefined }}
+        >
           Cancelar
         </Button>
         {step === 2 && (
-          <Button variant="contained" onClick={handleAssign} disabled={loading}>
+          <Button
+            variant="contained"
+            onClick={handleAssign}
+            disabled={loading}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
+          >
             {loading ? "Asignando..." : "Asignar"}
           </Button>
         )}

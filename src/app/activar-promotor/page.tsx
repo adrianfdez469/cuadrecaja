@@ -1,98 +1,134 @@
 "use client";
 
-import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Alert, Box, Button, Card, CircularProgress, Container, Typography } from '@mui/material';
-import LoginIcon from '@mui/icons-material/Login';
-import Link from 'next/link';
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Typography,
+} from "@mui/material";
+import LoginIcon from "@mui/icons-material/Login";
+import { AuthCardLayout } from "@/components/auth/AuthCardLayout";
+import { touch } from "@/theme/tokens";
 
-const TEAL = '#4ECDC4';
+type ActivationViewState = "loading" | "success" | "error";
 
-type ActivationViewState = 'loading' | 'success' | 'error';
+function ActivarPromotorTitle() {
+  return (
+    <Typography
+      variant="h5"
+      sx={{
+        fontSize: "1.1875rem",
+        fontWeight: 700,
+        lineHeight: 1.35,
+        mb: 2,
+        textAlign: "left",
+      }}
+    >
+      Activación de Promotor
+    </Typography>
+  );
+}
 
 function ActivarPromotorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [state, setState] = useState<ActivationViewState>('loading');
-  const [message, setMessage] = useState('Estamos validando tu enlace de activación...');
+  const [state, setState] = useState<ActivationViewState>("loading");
+  const [message, setMessage] = useState(
+    "Estamos validando tu enlace de activación…",
+  );
   const [promoCode, setPromoCode] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = searchParams.get('token');
+    const token = searchParams.get("token");
 
     if (!token) {
-      setMessage('No encontramos un token de activación válido.');
-      setState('error');
+      setMessage("No encontramos un token de activación válido.");
+      setState("error");
       return;
     }
 
     const activate = async () => {
       try {
-        const response = await fetch('/api/promoters/activate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/promoters/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),
         });
 
         const data = await response.json();
 
         if (response.ok) {
-          setPromoCode(typeof data.promoter?.promoCode === 'string' ? data.promoter.promoCode : null);
-          setState('success');
+          setPromoCode(
+            typeof data.promoter?.promoCode === "string"
+              ? data.promoter.promoCode
+              : null,
+          );
+          setState("success");
           return;
         }
 
-        setMessage(data.error ?? 'No se pudo activar tu cuenta de promotor.');
-        setState('error');
+        setMessage(data.error ?? "No se pudo activar tu cuenta de promotor.");
+        setState("error");
       } catch {
-        setMessage('Ocurrió un error de conexión. Intenta nuevamente.');
-        setState('error');
+        setMessage("Ocurrió un error de conexión. Intenta nuevamente.");
+        setState("error");
       }
     };
 
     void activate();
   }, [searchParams]);
 
-  if (state === 'loading') {
+  if (state === "loading") {
     return (
-      <Box sx={{ textAlign: 'center', py: 5 }}>
-        <CircularProgress />
-        <Typography sx={{ mt: 2, color: 'rgba(255,255,255,0.8)' }}>{message}</Typography>
+      <Box sx={{ textAlign: "center", py: 3 }}>
+        <ActivarPromotorTitle />
+        <CircularProgress sx={{ color: "primary.main", mb: 2 }} size={40} />
+        <Typography sx={{ color: "text.secondary" }}>{message}</Typography>
       </Box>
     );
   }
 
-  if (state === 'success' && promoCode) {
+  if (state === "success" && promoCode) {
     return (
-      <Box sx={{ py: 1 }}>
-        <Alert severity="success" sx={{ mb: 2, textAlign: 'left' }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>
+      <Box>
+        <ActivarPromotorTitle />
+        <Alert severity="success" sx={{ mb: 2.5 }}>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
             ¡Cuenta activada correctamente!
           </Typography>
-          Este es tu código para compartir con negocios que quieran registrarse con tu referido.
+          Este es tu código para compartir con negocios que quieran registrarse
+          con tu referido.
         </Alert>
 
         <Box
           sx={{
             py: 2.5,
             px: 2,
-            mb: 2,
-            borderRadius: 2,
-            bgcolor: 'rgba(78, 205, 196, 0.1)',
-            border: `1px solid ${TEAL}44`,
-            textAlign: 'center',
+            mb: 2.5,
+            borderRadius: "8px",
+            bgcolor: "semantic.hue.accent.surface",
+            border: "1px solid",
+            borderColor: "semantic.surface.border",
+            textAlign: "center",
           }}
         >
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+          <Typography
+            variant="caption"
+            sx={{ display: "block", mb: 1, color: "text.secondary" }}
+          >
             Tu código de promoción
           </Typography>
           <Typography
             component="span"
             sx={{
-              fontFamily: 'monospace',
-              fontSize: '1.5rem',
+              fontFamily: "monospace",
+              fontSize: "1.5rem",
               fontWeight: 800,
-              color: TEAL,
+              color: "primary.main",
               letterSpacing: 2,
             }}
           >
@@ -100,39 +136,44 @@ function ActivarPromotorContent() {
           </Typography>
         </Box>
 
-        <Alert severity="info" icon={false} sx={{ mb: 2, textAlign: 'left' }}>
-          <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.6 }}>
-            <strong>No hace falta que lo guardes ahora.</strong> Siempre podrás verlo y copiarlo desde tu{' '}
-            <strong>panel de promotor</strong> cuando entres con tu correo y el enlace mágico de acceso.
+        <Alert severity="info" icon={false} sx={{ mb: 2.5 }}>
+          <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+            <strong>No hace falta que lo guardes ahora.</strong> Siempre podrás
+            verlo y copiarlo desde tu <strong>panel de promotor</strong> cuando
+            entres con tu correo y el enlace mágico de acceso.
           </Typography>
         </Alert>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          También encontrarás ahí el enlace para invitar desde la landing y el estado de tus referidos.
+        <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
+          También encontrarás ahí el enlace para invitar desde la landing y el
+          estado de tus referidos.
         </Typography>
 
-        <StackButtons onHome={() => router.push('/')} />
+        <StackButtons onHome={() => router.push("/")} />
       </Box>
     );
   }
 
-  if (state === 'success' && !promoCode) {
+  if (state === "success" && !promoCode) {
     return (
-      <Box sx={{ textAlign: 'center', py: 2 }}>
-        <Alert severity="success" sx={{ mb: 3 }}>
-          Cuenta activada. Ya puedes iniciar sesión con el enlace mágico desde el acceso de promotor.
+      <Box sx={{ textAlign: "center" }}>
+        <ActivarPromotorTitle />
+        <Alert severity="success" sx={{ mb: 2.5 }}>
+          Cuenta activada. Ya puedes iniciar sesión con el enlace mágico desde
+          el acceso de promotor.
         </Alert>
-        <StackButtons onHome={() => router.push('/')} />
+        <StackButtons onHome={() => router.push("/")} />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ textAlign: 'center', py: 2 }}>
-      <Alert severity="error" sx={{ mb: 3 }}>
+    <Box sx={{ textAlign: "center" }}>
+      <ActivarPromotorTitle />
+      <Alert severity="error" sx={{ mb: 2.5 }}>
         {message}
       </Alert>
-      <Button variant="contained" onClick={() => router.push('/')}>
+      <Button variant="contained" onClick={() => router.push("/")}>
         Volver al inicio
       </Button>
     </Box>
@@ -141,11 +182,34 @@ function ActivarPromotorContent() {
 
 function StackButtons({ onHome }: { onHome: () => void }) {
   return (
-    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1.5, justifyContent: 'center' }}>
-      <Button component={Link} href="/promotor/acceso" variant="contained" startIcon={<LoginIcon />} sx={{ textTransform: 'none' }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: { xs: "column", sm: "row" },
+        gap: 1.5,
+        justifyContent: "center",
+      }}
+    >
+      <Button
+        component={Link}
+        href="/promotor/acceso"
+        variant="contained"
+        startIcon={<LoginIcon />}
+        sx={{
+          minHeight: touch.comfortable,
+          fontSize: "1rem",
+        }}
+      >
         Ir al acceso de mi panel
       </Button>
-      <Button variant="outlined" onClick={onHome} sx={{ textTransform: 'none' }}>
+      <Button
+        variant="outlined"
+        onClick={onHome}
+        sx={{
+          minHeight: touch.comfortable,
+          fontSize: "1rem",
+        }}
+      >
         Volver al inicio
       </Button>
     </Box>
@@ -154,26 +218,24 @@ function StackButtons({ onHome }: { onHome: () => void }) {
 
 export default function ActivarPromotorPage() {
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        bgcolor: '#1a1d29',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        py: 4,
-      }}
+    <Suspense
+      fallback={
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "100dvh",
+            bgcolor: "semantic.surface.page",
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      }
     >
-      <Container maxWidth="sm">
-        <Card sx={{ p: 4 }}>
-          <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
-            Activación de Promotor
-          </Typography>
-          <Suspense fallback={<CircularProgress />}>
-            <ActivarPromotorContent />
-          </Suspense>
-        </Card>
-      </Container>
-    </Box>
+      <AuthCardLayout>
+        <ActivarPromotorContent />
+      </AuthCardLayout>
+    </Suspense>
   );
 }

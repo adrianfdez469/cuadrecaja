@@ -2,67 +2,82 @@
 
 import { memo, Ref, RefObject } from "react";
 import type { MouseEvent } from "react";
-import {
-  Box,
-  Chip,
-  IconButton,
-  InputAdornment,
-  Stack,
-  Grid2 as Grid,
-  Alert,
-  alpha,
-} from "@mui/material";
-import type { Theme } from "@mui/material";
+import { Box, IconButton, InputAdornment, Stack, Alert } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
-import EditIcon from "@mui/icons-material/Edit";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import SelectableTextField from "@/components/SelectableTextField";
 import ProductProcessorData, {
   ProductProcessorDataRef,
 } from "@/components/ProductProcessorData/ProductProcessorData";
 import { IProcessedData } from "@/schemas/processedData";
-import { ICart } from "@/store/cartStore";
+import { shape, touch } from "@/theme";
 
-// These two rows used to carry `backdrop-filter: blur(10px)`. It bought
-// nothing — both sit on a gradient that is 90-100% opaque, so there was
-// nothing showing through to blur — and cost a great deal: a full-width fixed
-// layer that the browser must re-snapshot and re-blur every time anything
-// repaints behind it, which on this screen means the product grid on every
-// scroll frame, every keystroke and every `+`. On a phone GPU that alone is
-// enough to make the whole view feel sticky.
-const CARTS_ROW_SX = {
-  m: 0,
-  p: 1,
-  background:
-    "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9) 100%)",
-  borderTop: "1px solid rgba(0,0,0,0.1)",
-  boxShadow: "0 -2px 1px rgba(0,0,0,0.1)",
+// Flat `background.paper`, and 12/12/10 as the redesign measures it.
+//
+// This row used to carry a `backdrop-filter: blur(10px)` over a near-opaque
+// gradient — both leftovers from when it was a floating bar over the product
+// list. The blur had nothing to show through it and cost a full-width layer
+// the browser re-snapshots on every scroll frame; the gradient now paints a
+// fade between a colour and itself. In flow at the top of the column, the row
+// simply sits on the page.
+const SEARCH_ROW_SX = {
+  px: 1.5,
+  pt: 1.5,
+  pb: 1.25,
+  bgcolor: "background.paper",
+  boxSizing: "border-box",
+} as const;
+// Painted from here rather than inside the scanner component, which is also
+// mounted in the inventory dialogs: violet and 56px are what this row asks
+// for, not what a scan button is everywhere.
+// The redesign's field: 56px and a near-black 2px rule, so the one control
+// the cashier types into is the most present object on the row. A 1px divider
+// grey box could not carry that job while sitting next to a violet tile.
+const SEARCH_INPUT_SX = {
+  height: touch.comfortable,
+  bgcolor: "background.paper",
+  borderRadius: `${shape.radius.md}px`,
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderWidth: 2,
+    borderColor: "semantic.surface.inverse",
+  },
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "semantic.surface.inverse",
+  },
 } as const;
 
-const searchRowSx = (compact: boolean) =>
-  ({
-    p: compact ? 0.75 : 1,
-    background: (theme: Theme) =>
-      `linear-gradient(to top, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
-    boxSizing: "border-box",
-  }) as const;
+const SCANNER_SX = {
+  flexShrink: 0,
+  alignSelf: "center",
+  "& .MuiButton-root": {
+    minWidth: touch.comfortable,
+    width: touch.comfortable,
+    height: touch.comfortable,
+    p: 0,
+    borderRadius: `${shape.radius.md}px`,
+    "& .MuiButton-startIcon": { m: 0 },
+    "& .MuiSvgIcon-root": { fontSize: 26 },
+  },
+} as const;
 
-const SEARCH_ROW_SX = searchRowSx(false);
-const SEARCH_ROW_COMPACT_SX = searchRowSx(true);
+// The redesign gives the three controls of this row the same 56px block: the
+// field, the actions button and the scanner. They are the targets a cashier
+// hits without looking, and the old row mixed a medium field with a 44px and
+// a 40px icon.
+const ACTIONS_BUTTON_SX = {
+  flex: `0 0 ${touch.comfortable}px`,
+  width: touch.comfortable,
+  height: touch.comfortable,
+  alignSelf: "center",
+  bgcolor: "background.paper",
+  border: "1px solid",
+  borderColor: "divider",
+  borderRadius: `${shape.radius.md}px`,
+  color: "text.secondary",
+} as const;
 
 interface PosBottomBarProps {
-  carts: ICart[];
-  activeCartId: string;
-  onSelectCart: (id: string) => void;
-  onCreateCart: () => void;
-  onRemoveActiveCart: () => void;
-  onRenameCart: (id: string, name: string) => void;
-  editingCartId: string | null;
-  onStartEditingCart: (id: string, name: string) => void;
-  editingCartName: string;
-  onEditingCartNameChange: (name: string) => void;
-  onStopEditingCart: () => void;
-  editCartInputRef: RefObject<HTMLInputElement>;
   searchInputRef: RefObject<HTMLInputElement>;
   searchQuery: string;
   onSearchChange: (query: string) => void;
@@ -74,28 +89,12 @@ interface PosBottomBarProps {
   onCameraOpenChange: (open: boolean) => void;
   scannerError: string | null;
   onDismissScannerError: () => void;
+  /** Opens the POS's own actions — sync, my sales, starting point, print. */
+  onOpenActions: () => void;
   rootRef?: Ref<HTMLDivElement>;
-  /**
-   * The cashier is actively searching on mobile. Only shrinks this bar:
-   * every pixel it gives up here is one more pixel of products visible
-   * above the on-screen keyboard.
-   */
-  searchMode?: boolean;
 }
 
 function PosBottomBarComponent({
-  carts,
-  activeCartId,
-  onSelectCart,
-  onCreateCart,
-  onRemoveActiveCart,
-  onRenameCart,
-  editingCartId,
-  onStartEditingCart,
-  editingCartName,
-  onEditingCartNameChange,
-  onStopEditingCart,
-  editCartInputRef,
   searchInputRef,
   searchQuery,
   onSearchChange,
@@ -107,178 +106,33 @@ function PosBottomBarComponent({
   onCameraOpenChange,
   scannerError,
   onDismissScannerError,
+  onOpenActions,
   rootRef,
-  searchMode = false,
 }: PosBottomBarProps) {
   return (
     <Box
       ref={rootRef}
       sx={{
         flexShrink: 0,
-        // Below the cart panel's own breakpoint (page.tsx's
-        // showCartPanel, 700px) there's no sidebar for this to overlap
-        // with, so it's safe — and necessary — to be position:fixed:
-        // that's what correctly follows the on-screen keyboard on mobile
-        // Safari. A flex-flow element inside a dvh-sized column does not
-        // reliably do this. At 700px+ it goes back to normal flow, which
-        // is what avoids the cart-panel overlap this component exists to
-        // prevent in the first place.
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 1200,
-        "@media (min-width:700px)": {
-          position: "static",
-          zIndex: "auto",
-        },
+        // Plain flex child, at the top of the POS column.
+        //
+        // This used to be `position: fixed; bottom: 0` — the only way to keep
+        // a search field above the on-screen keyboard on mobile Safari, which
+        // does not shrink the layout viewport. Moved to the top, the problem
+        // disappears instead of being worked around: the keyboard rises from
+        // the bottom and never reaches here, and the column's top edge is
+        // correct in both modes — below the app bar normally, and at the top
+        // of the visual viewport while it is pinned to it during a search.
       }}
     >
-      {/* Píldoras de carritos: se ocultan mientras se busca. La cuenta
-          activa no cambia por teclear, y es la fila que está justo encima
-          del teclado, donde el espacio es más caro. */}
-      {!searchMode && (
-        <Box sx={CARTS_ROW_SX}>
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ overflowX: "auto", pb: 0.5 }}
-          >
-            {carts.map((c) => (
-              <Box key={c.id} sx={{ display: "flex", alignItems: "center" }}>
-                {editingCartId === c.id ? (
-                  <SelectableTextField
-                    size="small"
-                    value={editingCartName}
-                    autoFocus
-                    ref={editCartInputRef}
-                    onChange={(e) => onEditingCartNameChange(e.target.value)}
-                    onBlur={onStopEditingCart}
-                    onKeyDown={(e) => {
-                      const key = e.key;
-                      // Evitar interferencia de IME y de manejadores globales
-                      const composing = e?.nativeEvent?.isComposing ?? false;
-                      if (
-                        !composing &&
-                        (key === "Enter" || key === "NumpadEnter")
-                      ) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onRenameCart(
-                          c.id,
-                          (editingCartName || "").trim() || c.name,
-                        );
-                        onStopEditingCart();
-                      } else if (key === "Escape") {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onStopEditingCart();
-                      }
-                    }}
-                    InputProps={{
-                      inputProps: {
-                        inputMode: "text",
-                        autoComplete: "off",
-                        autoCorrect: "off",
-                        autoCapitalize: "off",
-                        spellCheck: false,
-                      },
-                    }}
-                    sx={{ minWidth: 140 }}
-                  />
-                ) : (
-                  <Chip
-                    tabIndex={-1}
-                    label={
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.5,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            maxWidth: 140,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {c.name}
-                        </Box>
-                        <IconButton
-                          aria-label="Editar nombre"
-                          size="small"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onStartEditingCart(c.id, c.name);
-                          }}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                          onTouchStart={(e) => {
-                            e.stopPropagation();
-                          }}
-                          onTouchEnd={(e) => {
-                            e.stopPropagation();
-                          }}
-                          onTouchMove={(e) => {
-                            e.stopPropagation();
-                          }}
-                          edge="end"
-                          sx={{ p: 0.25 }}
-                        >
-                          <EditIcon fontSize="inherit" />
-                        </IconButton>
-                      </Box>
-                    }
-                    color={c.id === activeCartId ? "primary" : "default"}
-                    variant={c.id === activeCartId ? "filled" : "outlined"}
-                    onClick={() => onSelectCart(c.id)}
-                    onDelete={() => {
-                      if (carts.length <= 1) return; // mantener al menos uno
-                      if (c.id !== activeCartId) {
-                        onSelectCart(c.id);
-                      }
-                      onRemoveActiveCart();
-                    }}
-                    sx={{
-                      cursor: "pointer",
-                      "& .MuiChip-label": {
-                        maxWidth: 160,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      },
-                    }}
-                  />
-                )}
-              </Box>
-            ))}
-            <Chip
-              label="Nueva cuenta"
-              variant="outlined"
-              onClick={onCreateCart}
-              sx={{ cursor: "pointer" }}
-            />
-          </Stack>
-        </Box>
-      )}
-
       {/* Buscador */}
-      <Box
-        data-tour="pos-search"
-        sx={searchMode ? SEARCH_ROW_COMPACT_SX : SEARCH_ROW_SX}
-      >
+      <Box data-tour="pos-search" sx={SEARCH_ROW_SX}>
         <Stack direction="row" spacing={1}>
           <SelectableTextField
             ref={searchInputRef}
             fullWidth
             variant="outlined"
-            // Cada píxel de esta fila es un píxel menos de resultados
-            // arriba del teclado, así que al buscar el campo se achica.
-            size={searchMode ? "small" : "medium"}
+            size="medium"
             placeholder="Buscar productos..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -322,16 +176,26 @@ function PosBottomBarComponent({
                   setTimeout(() => input.select(), 0);
                 },
               },
-              sx: {
-                bgcolor: "background.paper",
-                borderRadius: "12px",
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                },
-              },
+              sx: SEARCH_INPUT_SX,
             }}
           />
-          <Grid size={{ xs: 7, sm: 10 }} data-tour="pos-toolbar-scanner">
+          {/* Everything the point of sale can do that is not selling: it used
+              to be seven bare icons in the app bar, which at 430px ran off
+              the screen. See PosActionsSheet. */}
+          <IconButton
+            aria-label="Acciones del POS"
+            onClick={onOpenActions}
+            data-tour="pos-toolbar-actions"
+            sx={ACTIONS_BUTTON_SX}
+          >
+            <MoreHorizIcon />
+          </IconButton>
+
+          {/* Plain flex item: this used to be a `<Grid size={{xs:7}}>` with no
+              Grid container above it, so its width came from the flex row
+              anyway — and once the actions button joined the row, the twelfth
+              of nothing it asked for squeezed the scanner under it. */}
+          <Box sx={SCANNER_SX} data-tour="pos-toolbar-scanner">
             <ProductProcessorData
               ref={scannerRef}
               onProcessedData={(data: IProcessedData) => {
@@ -349,7 +213,7 @@ function PosBottomBarComponent({
                 {scannerError}
               </Alert>
             )}
-          </Grid>
+          </Box>
         </Stack>
       </Box>
     </Box>

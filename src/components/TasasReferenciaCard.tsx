@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import { OpenInNew, Refresh } from "@mui/icons-material";
 import { ELTOQUE_LOGO_SRC, ELTOQUE_SOURCE_URL } from "@/constants/eltoque";
+import { shape } from "@/theme/tokens";
 import { getTasasReferencia } from "@/services/tasaReferenciaService";
 import type {
   ITasaReferencia,
@@ -186,11 +187,11 @@ export function TasasReferenciaCard({
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
       <Stack
-        direction="row"
+        direction={isMobile ? "column" : "row"}
         justifyContent="space-between"
-        alignItems="center"
+        alignItems={isMobile ? "flex-start" : "center"}
         flexWrap="wrap"
-        gap={1}
+        gap={isMobile ? 0.25 : 1}
         mb={1.5}
       >
         <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
@@ -198,7 +199,7 @@ export function TasasReferenciaCard({
           <Typography variant="subtitle2" fontWeight="bold">
             Referencia elTOQUE
           </Typography>
-          {data?.actualizadoEn && (
+          {!isMobile && data?.actualizadoEn && (
             <Tooltip
               title={`Consultado a elTOQUE el ${fmtActualizado(data.actualizadoEn)}`}
             >
@@ -219,26 +220,32 @@ export function TasasReferenciaCard({
           )}
         </Stack>
 
-        <Stack direction="row" alignItems="center" gap={0.5}>
-          <Tooltip title="Actualizar">
-            <IconButton
-              size="small"
-              onClick={() => load(true)}
-              disabled={refrescando}
-            >
-              {refrescando ? (
-                <CircularProgress size={16} />
-              ) : (
-                <Refresh fontSize="small" />
-              )}
-            </IconButton>
+        {isMobile && data?.actualizadoEn && (
+          <Tooltip
+            title={`Consultado a elTOQUE el ${fmtActualizado(data.actualizadoEn)}`}
+          >
+            <Typography variant="caption" color="text.secondary">
+              {fmtEdad(data.actualizadoEn)}
+            </Typography>
           </Tooltip>
+        )}
+
+        {/* En mobile, "Aplicar todas" pasa a ser su propia fila de ancho
+            completo junto al refresco — no cabía junto al título. */}
+        <Stack
+          direction="row"
+          alignItems="center"
+          gap={isMobile ? 1 : 0.5}
+          sx={{ width: isMobile ? "100%" : "auto", mt: isMobile ? 1 : 0 }}
+        >
           {desviadas.length > 1 && (
             <Button
               size="small"
               variant="outlined"
               onClick={handleAplicarTodas}
               disabled={aplicando !== null}
+              fullWidth={isMobile}
+              sx={isMobile ? { flex: 1, minHeight: 48 } : undefined}
             >
               {aplicando === "__todas__" ? (
                 <CircularProgress size={16} />
@@ -247,6 +254,31 @@ export function TasasReferenciaCard({
               )}
             </Button>
           )}
+          <Tooltip title="Actualizar">
+            <IconButton
+              size={isMobile ? "medium" : "small"}
+              onClick={() => load(true)}
+              disabled={refrescando}
+              sx={
+                isMobile
+                  ? {
+                      flexShrink: 0,
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: `${shape.radius.md}px`,
+                      width: 48,
+                      height: 48,
+                    }
+                  : undefined
+              }
+            >
+              {refrescando ? (
+                <CircularProgress size={16} />
+              ) : (
+                <Refresh fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
         </Stack>
       </Stack>
 
@@ -265,34 +297,32 @@ export function TasasReferenciaCard({
                 sin tasa registrada
               </Typography>
             ) : (
-              <Typography variant="caption" color="text.secondary">
-                tu tasa: {vigente}
-                {!igual && (
-                  <Box
-                    component="span"
-                    sx={{
-                      ml: 0.75,
-                      fontWeight: "bold",
-                      color: diff > 0 ? "success.main" : "error.main",
-                    }}
-                  >
-                    ({diff > 0 ? "+" : ""}
-                    {Number(diff.toFixed(2))} · {diff > 0 ? "+" : ""}
-                    {pct.toFixed(1)}%)
-                  </Box>
+              <Stack direction="row" gap={0.75} alignItems="center">
+                <Typography variant="caption" color="text.secondary">
+                  tu tasa: {vigente}
+                </Typography>
+                {!igual && diff !== null && (
+                  <Chip
+                    label={`${diff > 0 ? "+" : ""}${Number(diff.toFixed(2))} · ${diff > 0 ? "+" : ""}${pct?.toFixed(1)}%`}
+                    color={diff > 0 ? "success" : "error"}
+                    size="small"
+                    variant="filled"
+                  />
                 )}
                 {igual && (
-                  <Box component="span" sx={{ ml: 0.75 }}>
+                  <Typography variant="caption" color="text.secondary">
                     (=)
-                  </Box>
+                  </Typography>
                 )}
-              </Typography>
+              </Stack>
             );
 
+          // Botón con borde, no texto suelto — es la única acción por fila
+          // que de verdad cambia un precio vigente.
           const boton = (
             <Button
               size="small"
-              variant="text"
+              variant="outlined"
               onClick={() => handleAplicar(fila)}
               disabled={igual || aplicando !== null}
             >

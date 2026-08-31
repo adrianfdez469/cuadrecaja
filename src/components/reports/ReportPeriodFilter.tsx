@@ -9,16 +9,11 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import {
-  CalendarMonth,
-  DateRange,
-  Refresh,
-  ShowChart,
-  Today,
-} from "@mui/icons-material";
+import { Refresh } from "@mui/icons-material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import type { Dayjs } from "dayjs";
 import type { IReportPeriod } from "@/schemas/reports/common";
+import { shape } from "@/theme";
 import { DisplayCurrencySelect } from "./DisplayCurrencySelect";
 
 type ReportPeriodFilterProps = {
@@ -40,17 +35,15 @@ const PERIOD_OPTIONS: {
   value: IReportPeriod;
   label: string;
   shortLabel: string;
-  icon: typeof Today;
 }[] = [
-  { value: "dia", label: "Día", shortLabel: "Día", icon: Today },
-  { value: "semana", label: "Semana", shortLabel: "Sem.", icon: ShowChart },
-  { value: "mes", label: "Mes", shortLabel: "Mes", icon: CalendarMonth },
-  { value: "anio", label: "Año", shortLabel: "Año", icon: CalendarMonth },
+  { value: "dia", label: "Día", shortLabel: "Día" },
+  { value: "semana", label: "Semana", shortLabel: "Sem." },
+  { value: "mes", label: "Mes", shortLabel: "Mes" },
+  { value: "anio", label: "Año", shortLabel: "Año" },
   {
     value: "personalizado",
     label: "Personalizado",
     shortLabel: "Pers.",
-    icon: DateRange,
   },
 ];
 
@@ -78,60 +71,78 @@ export function ReportPeriodFilter({
   return (
     <Stack spacing={1.5} sx={{ width: "100%" }}>
       <Stack
-        direction="row"
-        spacing={1}
-        alignItems="center"
-        justifyContent="flex-end"
+        direction={isMobile ? "column" : "row"}
+        spacing={1.5}
+        alignItems={isMobile ? "stretch" : "center"}
       >
-        {displayCurrency && onDisplayCurrencyChange && (
-          <DisplayCurrencySelect
-            value={displayCurrency}
-            onChange={onDisplayCurrencyChange}
-            currencies={availableCurrencies}
-          />
-        )}
+        <ToggleButtonGroup
+          value={periodo}
+          exclusive
+          onChange={(_, value) =>
+            value && onPeriodoChange(value as IReportPeriod)
+          }
+          sx={{
+            bgcolor: "background.paper",
+            border: 1,
+            borderColor: "divider",
+            borderRadius: `${shape.radius.md}px`,
+            "& .MuiToggleButtonGroup-grouped": {
+              border: 0,
+              borderRadius: `${shape.radius.md}px`,
+            },
+            "& .MuiToggleButton-root": {
+              flex: isMobile ? 1 : "unset",
+              minHeight: 44,
+              px: 2,
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              textTransform: "none",
+              color: "text.secondary",
+              whiteSpace: "nowrap",
+              "&.Mui-selected": {
+                bgcolor: "semantic.hue.accent.surface",
+                color: "semantic.hue.accent.main",
+                fontWeight: 700,
+                "&:hover": { bgcolor: "semantic.hue.accent.surface" },
+              },
+            },
+          }}
+        >
+          {PERIOD_OPTIONS.map(({ value, label, shortLabel }) => (
+            <ToggleButton key={value} value={value}>
+              {isMobile ? shortLabel : label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
 
-        <Tooltip title="Actualizar datos">
-          <span>
-            <IconButton
-              onClick={onRefresh}
-              disabled={loading || !ready}
-              color="primary"
-              size="small"
-            >
-              <Refresh />
-            </IconButton>
-          </span>
-        </Tooltip>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ ml: isMobile ? 0 : "auto" }}
+        >
+          {displayCurrency && onDisplayCurrencyChange && (
+            <DisplayCurrencySelect
+              value={displayCurrency}
+              onChange={onDisplayCurrencyChange}
+              currencies={availableCurrencies}
+            />
+          )}
+
+          <Tooltip title="Actualizar datos">
+            <span>
+              <IconButton
+                onClick={onRefresh}
+                disabled={loading || !ready}
+                color="primary"
+                size="small"
+              >
+                <Refresh />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
       </Stack>
-
-      <ToggleButtonGroup
-        value={periodo}
-        exclusive
-        onChange={(_, value) =>
-          value && onPeriodoChange(value as IReportPeriod)
-        }
-        size="small"
-        color="primary"
-        sx={{
-          bgcolor: "background.paper",
-          boxShadow: 1,
-          "& .MuiToggleButton-root": {
-            flex: isMobile ? 1 : "unset",
-            px: 1,
-            py: 0.75,
-            fontSize: "0.7rem",
-            whiteSpace: "nowrap",
-          },
-        }}
-      >
-        {PERIOD_OPTIONS.map(({ value, label, shortLabel, icon: Icon }) => (
-          <ToggleButton key={value} value={value}>
-            <Icon sx={{ mr: 0.5, fontSize: 18 }} />
-            {isMobile ? shortLabel : label}
-          </ToggleButton>
-        ))}
-      </ToggleButtonGroup>
 
       {periodo === "personalizado" && (
         <Stack direction="row" spacing={1} alignItems="center">

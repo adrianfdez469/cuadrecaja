@@ -3,14 +3,12 @@
 import {
   PropsWithChildren,
   useEffect,
+  useMemo,
   useRef,
   useState,
   Suspense,
 } from "react";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   AppBar,
   Box,
   Button,
@@ -25,11 +23,6 @@ import {
   Drawer,
   FormControlLabel,
   IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
   Menu,
   MenuItem,
   Radio,
@@ -39,18 +32,19 @@ import {
   TextField,
   InputAdornment,
   Alert,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import CloseIcon from "@mui/icons-material/Close";
 import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
 import StoreIcon from "@mui/icons-material/Store";
 import CategoryIcon from "@mui/icons-material/Category";
 import { useAppContext } from "@/context/AppContext";
 import {
   AccountBalanceWallet,
-  AccountCircle,
   Assessment,
   CardGiftcardOutlined,
-  ExpandMore,
   Handshake,
   Inventory,
   LocalShipping,
@@ -82,6 +76,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import ChangeCircleIcon from "@mui/icons-material/ChangeCircleOutlined";
 import NextWeekIcon from "@mui/icons-material/NextWeekOutlined";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useStoreStatus } from "@/hooks/useStoreStatus";
 import OfflineBanner from "./OfflineBanner";
 import UpgradeIcon from "@mui/icons-material/Upgrade";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
@@ -96,13 +91,18 @@ import {
 } from "@/features/onboarding/utils/onboardingNavigation";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import type { CSSProperties } from "react";
+import { NavSection } from "@/components/nav/NavSection";
+import { NavItem } from "@/components/nav/NavItem";
+import { StoreStatus } from "@/components/nav/StoreStatus";
+import { NotificationBell } from "@/components/nav/NotificationBell";
+import { PeriodBadge } from "@/components/nav/PeriodBadge";
 import { usePermisos } from "@/utils/permisos_front";
 import { Avatar } from "@mui/material";
 import LocalOffer from "@mui/icons-material/LocalOffer";
 import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import Loading from "./Loading";
-import Logo from "./Logo";
+import { BrandLockup } from "@/components/brand";
 
 const SUPER_ADMIN_MENU_ITEMS = [
   {
@@ -281,20 +281,18 @@ const RESUMEN_MENU_ITEMS = [
   },
 ];
 
+// Same shape as every other menu list: the component, not a pre-styled
+// element. These two used to hardcode their own colour and margin — one violet,
+// one green, one of them carrying `mr: 2` — which is why their labels did not
+// line up with each other, let alone with the rows above.
 const HELP_MENU_ITEMS = [
-  {
-    label: "Ayuda",
-    path: "/ayuda",
-    icon: <HelpOutlineIcon sx={{ color: "primary.main", fontSize: 22 }} />,
-  },
-  {
-    label: "Descargar App",
-    path: "/descargar",
-    icon: <Android sx={{ mr: 2, color: "success.main" }} />,
-  },
+  { label: "Ayuda", path: "/ayuda", icon: HelpOutlineIcon },
+  { label: "Descargar App", path: "/descargar", icon: Android },
 ];
 
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [open, setOpen] = useState(false);
   const {
     user,
@@ -319,6 +317,21 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const [loadingLocales, setLoadingLocales] = useState(false);
   const [totalLocalesDisponibles, setTotalLocalesDisponibles] = useState(0);
   const { isOnline, wasOffline } = useNetworkStatus();
+
+  // The top bar's second line. It stays empty while everything is fine, which
+  // is why it can be trusted when it is not: an indicator that is always lit
+  // stops being read. Replaces the permanent green «●ON» pill in the POS.
+  const storeStatus = useStoreStatus();
+
+  // Two letters at most: a name and a surname, or the first two of a single
+  // word. `AccountCircle` said "a user"; this says which one.
+  const userInitials = useMemo(() => {
+    const source = user?.nombre || user?.usuario || "";
+    const words = source.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return "?";
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }, [user?.nombre, user?.usuario]);
   const [menuState, setMenuState] = useState<{
     operaciones: boolean;
     resumenes: boolean;
@@ -833,7 +846,11 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   }, [session, isOnline, wasOffline]);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    // `dvh`, never `vh`: on iOS Safari `100vh` is the viewport with the
+    // browser bars hidden, so with them showing the page ran taller than
+    // what was visible, the document scrolled, and the POS's charge bar —
+    // sized to `100dvh` — drifted up leaving a white band under it.
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100dvh" }}>
       {/* Barra superior mejorada */}
       <AppBar
         component="header"
@@ -841,35 +858,14 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         elevation={0}
         sx={{
           top: 0,
-          backgroundColor: "#ffffff",
-          color: "#1a202c",
-          borderBottom: "1px solid #e2e8f0",
-          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
+          backgroundColor: "background.paper",
+          color: "text.primary",
           zIndex: (theme) =>
             isBlockingActive ? theme.zIndex.appBar : theme.zIndex.drawer - 1,
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
-          {!isAuth && (
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Logo size={32} sx={{ mr: 1.5 }} />
-              <Typography
-                variant="h6"
-                component="h1"
-                sx={{
-                  fontWeight: 700,
-                  background:
-                    "linear-gradient(135deg, #1976d2 0%, #dc004e 100%)",
-                  backgroundClip: "text",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  fontSize: { xs: "1.1rem", sm: "1.25rem" },
-                }}
-              >
-                Cuadre de Caja
-              </Typography>
-            </Box>
-          )}
+          {!isAuth && <BrandLockup markSize={32} wordSize={17} />}
           {isAuth && (
             <IconButton
               edge="start"
@@ -881,7 +877,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 mr: { xs: 0, sm: 2 },
                 ...toolbarInteractionSx("nav-menu-button"),
                 "&:hover": {
-                  backgroundColor: "rgba(25, 118, 210, 0.08)",
+                  backgroundColor: "semantic.surface.sunken",
                 },
               }}
             >
@@ -889,23 +885,28 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             </IconButton>
           )}
 
+          {/* The store, then the period right beside it, as the redesign
+              draws the bar: the two facts about *where* and *when* the sale
+              happens sit together on the left, and everything about the
+              session — currency, alerts, user — on the right. The store box
+              shrinks before the spacer does, so a long name still ellipsizes
+              on a phone. No store glyph: the name is the label. */}
           {isAuth && user?.localActual && (
             <Box
               display="flex"
               alignItems="center"
-              gap={0.5}
-              sx={{
-                cursor: isBlockingActive ? "default" : "pointer",
-                ...toolbarInteractionSx(),
-              }}
-              onClick={() => navigateIfAllowed("/home")}
+              sx={{ flex: "0 1 auto", minWidth: 0, ...toolbarInteractionSx() }}
             >
-              <StoreIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-              <Typography variant="body2" fontWeight={700}>
-                {user.localActual.nombre}
-              </Typography>
+              <StoreStatus
+                nombre={user.localActual.nombre}
+                status={storeStatus}
+                disabled={isBlockingActive}
+                onClick={() => navigateIfAllowed("/home")}
+              />
             </Box>
           )}
+
+          {isAuth && <PeriodBadge />}
 
           <Box sx={{ flexGrow: 1 }} />
 
@@ -917,20 +918,28 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               gap={1}
             >
               {monedaBase && (
+                // Violet is action; this is a standing fact about the session.
                 <Chip
                   label={monedaBase}
                   size="small"
                   variant="outlined"
                   icon={<MonetizationOnIcon style={{ fontSize: 14 }} />}
                   sx={{
+                    // Desktop only, like the period badge: every amount in the
+                    // app already carries its currency, so on a phone this pill
+                    // is repeating a fact at the cost of the store's name.
+                    display: { xs: "none", sm: "inline-flex" },
+                    height: 30,
                     fontWeight: 700,
-                    fontSize: "0.7rem",
-                    borderColor: "primary.main",
-                    color: "primary.main",
+                    fontSize: "0.75rem",
+                    borderColor: "divider",
+                    color: "text.secondary",
                     ...toolbarInteractionSx(),
                   }}
                 />
               )}
+
+              <NotificationBell disabled={isBlockingActive} />
 
               <IconButton
                 // size="large"
@@ -945,11 +954,24 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   ...toolbarInteractionSx(),
                   "&:hover": {
                     borderColor: "primary.main",
-                    backgroundColor: "rgba(25, 118, 210, 0.08)",
+                    backgroundColor: "semantic.surface.sunken",
                   },
                 }}
               >
-                <AccountCircle sx={{ color: "primary.main", fontSize: 32 }} />
+                {/* Initials on the accent, not a grey stock glyph: this is the
+                    one place the signed-in person appears. */}
+                <Avatar
+                  sx={{
+                    width: { xs: 32, sm: 36 },
+                    height: { xs: 32, sm: 36 },
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                  }}
+                >
+                  {userInitials}
+                </Avatar>
               </IconButton>
 
               {/* Menú de usuario mejorado */}
@@ -973,7 +995,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     mt: 1,
                     borderRadius: 2,
                     minWidth: 280,
-                    border: "1px solid #e2e8f0",
+                    border: "1px solid",
+                    borderColor: "divider",
                     "& .MuiMenuItem-root": {
                       px: 2,
                       py: 1.5,
@@ -981,7 +1004,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                       mx: 1,
                       my: 0.5,
                       "&:hover": {
-                        backgroundColor: "rgba(25, 118, 210, 0.08)",
+                        backgroundColor: "semantic.surface.sunken",
                       },
                     },
                   },
@@ -1137,7 +1160,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 color: "primary.main",
                 "&:hover": {
                   borderColor: "primary.dark",
-                  backgroundColor: "rgba(25, 118, 210, 0.08)",
+                  backgroundColor: "semantic.surface.sunken",
                 },
               }}
             >
@@ -1164,16 +1187,16 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             }}
             PaperProps={{
               sx: {
-                width: 280,
-                backgroundColor: "#ffffff",
-                borderRight: "1px solid #e2e8f0",
-                boxShadow: "4px 0 12px rgba(0, 0, 0, 0.08)",
+                width: 300,
+                backgroundColor: "background.paper",
+                borderRight: "1px solid",
+                borderColor: "divider",
               },
             }}
           >
             <Box
               sx={{
-                width: 280,
+                width: 300,
                 display: "flex",
                 flexDirection: "column",
                 height: "100%",
@@ -1186,14 +1209,13 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 sx={{
                   p: 2,
                   pt: "calc(16px + env(safe-area-inset-top))",
-                  borderBottom: "1px solid #e2e8f0",
-                  backgroundColor: "#ffffff",
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                  backgroundColor: "background.paper",
                   zIndex: 1,
                 }}
               >
-                <Typography variant="h6" fontWeight={700} color="primary.main">
-                  Menú
-                </Typography>
+                <Typography variant="h5">Menú</Typography>
               </Box>
 
               {/* Contenido (Scrollable) */}
@@ -1204,74 +1226,26 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     "operaciones",
                     user,
                   ).length > 0 && (
-                    <Accordion
-                      style={{ margin: 0 }}
+                    <NavSection
+                      title="Operaciones"
                       expanded={menuState.operaciones}
-                      onChange={() => handleMenuAccordion("operaciones")}
+                      onToggle={() => handleMenuAccordion("operaciones")}
                     >
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography
-                          variant="subtitle2"
-                          color="text.secondary"
-                          sx={{ mb: 1 }}
-                        >
-                          Operaciones
-                        </Typography>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        {user?.localActual && (
-                          <List sx={{ pt: 0 }}>
-                            {getMainMenuItemsByLocalType(
-                              user.localActual.tipo,
-                              "operaciones",
-                              user,
-                            ).map((item) => (
-                              <ListItem
-                                key={item.label}
-                                disablePadding
-                                sx={{ px: 2, mb: 0.5 }}
-                              >
-                                <ListItemButton
-                                  {...(getMenuTourAttr(item.path)
-                                    ? {
-                                        "data-tour": getMenuTourAttr(item.path),
-                                      }
-                                    : {})}
-                                  onClick={() => handleMenuNavigate(item.path)}
-                                  sx={{
-                                    borderRadius: 2,
-                                    py: 1.5,
-                                    "&:hover": {
-                                      backgroundColor:
-                                        "rgba(25, 118, 210, 0.08)",
-                                    },
-                                  }}
-                                >
-                                  <ListItemIcon
-                                    sx={{ minWidth: 40 }}
-                                    color="primary"
-                                  >
-                                    <item.icon
-                                      sx={{
-                                        color: "primary.main",
-                                        fontSize: 22,
-                                      }}
-                                    />
-                                  </ListItemIcon>
-                                  <ListItemText
-                                    primary={item.label}
-                                    primaryTypographyProps={{
-                                      fontWeight: 500,
-                                      fontSize: "0.875rem",
-                                    }}
-                                  />
-                                </ListItemButton>
-                              </ListItem>
-                            ))}
-                          </List>
-                        )}
-                      </AccordionDetails>
-                    </Accordion>
+                      {user?.localActual &&
+                        getMainMenuItemsByLocalType(
+                          user.localActual.tipo,
+                          "operaciones",
+                          user,
+                        ).map((item) => (
+                          <NavItem
+                            key={item.label}
+                            label={item.label}
+                            icon={<item.icon />}
+                            tourAttr={getMenuTourAttr(item.path)}
+                            onClick={() => handleMenuNavigate(item.path)}
+                          />
+                        ))}
+                    </NavSection>
                   )}
 
                 {user.localActual?.tipo &&
@@ -1280,216 +1254,85 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                     "resumen",
                     user,
                   ).length > 0 && (
-                    <Accordion
-                      style={{ margin: 0 }}
+                    <NavSection
+                      title="Resúmenes"
                       expanded={menuState.resumenes}
-                      onChange={() => handleMenuAccordion("resumenes")}
+                      onToggle={() => handleMenuAccordion("resumenes")}
                     >
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Typography
-                          variant="subtitle2"
-                          color="text.secondary"
-                          sx={{ mb: 1 }}
-                        >
-                          Resúmenes
-                        </Typography>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        {user?.localActual && (
-                          <List sx={{ pt: 0 }}>
-                            {getMainMenuItemsByLocalType(
-                              user.localActual?.tipo || "",
-                              "resumen",
-                              user,
-                            ).map((item) => (
-                              <ListItem
-                                key={item.label}
-                                disablePadding
-                                sx={{ px: 2, mb: 0.5 }}
-                              >
-                                <ListItemButton
-                                  onClick={() => handleMenuNavigate(item.path)}
-                                  sx={{
-                                    borderRadius: 2,
-                                    py: 1.5,
-                                    "&:hover": {
-                                      backgroundColor:
-                                        "rgba(25, 118, 210, 0.08)",
-                                    },
-                                  }}
-                                >
-                                  <ListItemIcon
-                                    sx={{ minWidth: 40 }}
-                                    color="primary"
-                                  >
-                                    <item.icon
-                                      sx={{
-                                        color: "primary.main",
-                                        fontSize: 22,
-                                      }}
-                                    />
-                                  </ListItemIcon>
-                                  <ListItemText
-                                    primary={item.label}
-                                    primaryTypographyProps={{
-                                      fontWeight: 500,
-                                      fontSize: "0.875rem",
-                                    }}
-                                  />
-                                </ListItemButton>
-                              </ListItem>
-                            ))}
-                          </List>
-                        )}
-                      </AccordionDetails>
-                    </Accordion>
+                      {user?.localActual &&
+                        getMainMenuItemsByLocalType(
+                          user.localActual?.tipo || "",
+                          "resumen",
+                          user,
+                        ).map((item) => (
+                          <NavItem
+                            key={item.label}
+                            label={item.label}
+                            icon={<item.icon />}
+                            onClick={() => handleMenuNavigate(item.path)}
+                          />
+                        ))}
+                    </NavSection>
                   )}
 
                 {CONFIGURATION_MENU_ITEMS.filter((item) => {
                   return verificarPermiso(item.permission);
                 }).length > 0 && (
-                  <Accordion
+                  <NavSection
+                    title="Configuración"
                     expanded={menuState.configuracion}
-                    onChange={() => handleMenuAccordion("configuracion")}
+                    onToggle={() => handleMenuAccordion("configuracion")}
                   >
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography
-                        variant="subtitle2"
-                        color="text.secondary"
-                        sx={{ mb: 1 }}
-                      >
-                        Configuración
-                      </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <List sx={{ pt: 2 }}>
-                        {CONFIGURATION_MENU_ITEMS.filter((item) =>
-                          verificarPermiso(item.permission),
-                        ).map((item) => (
-                          <ListItem
-                            key={item.label}
-                            disablePadding
-                            sx={{ px: 2, mb: 0.5 }}
-                          >
-                            <ListItemButton
-                              {...(getMenuTourAttr(item.path)
-                                ? { "data-tour": getMenuTourAttr(item.path) }
-                                : {})}
-                              onClick={() => handleMenuNavigate(item.path)}
-                              sx={{
-                                borderRadius: 2,
-                                py: 1.5,
-                                "&:hover": {
-                                  backgroundColor: "rgba(25, 118, 210, 0.08)",
-                                },
-                              }}
-                            >
-                              <ListItemIcon sx={{ minWidth: 40 }}>
-                                <item.icon
-                                  sx={{ color: "primary.main", fontSize: 22 }}
-                                />
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={item.label}
-                                primaryTypographyProps={{
-                                  fontWeight: 500,
-                                  fontSize: "0.875rem",
-                                }}
-                              />
-                            </ListItemButton>
-                          </ListItem>
-                        ))}
-                      </List>
-                    </AccordionDetails>
-                  </Accordion>
+                    {CONFIGURATION_MENU_ITEMS.filter((item) =>
+                      verificarPermiso(item.permission),
+                    ).map((item) => (
+                      <NavItem
+                        key={item.label}
+                        label={item.label}
+                        icon={<item.icon />}
+                        tourAttr={getMenuTourAttr(item.path)}
+                        onClick={() => handleMenuNavigate(item.path)}
+                      />
+                    ))}
+                  </NavSection>
                 )}
 
                 {user.rol === "SUPER_ADMIN" && (
-                  <Accordion
-                    style={{ margin: 0 }}
+                  <NavSection
+                    title="Administración"
                     expanded={menuState.administracion}
-                    onChange={() => handleMenuAccordion("administracion")}
+                    onToggle={() => handleMenuAccordion("administracion")}
                   >
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography
-                        variant="subtitle2"
-                        color="text.secondary"
-                        sx={{ mb: 1 }}
-                      >
-                        Administración
-                      </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <List sx={{ pt: 2 }}>
-                        {SUPER_ADMIN_MENU_ITEMS.map((item) => (
-                          <ListItem
-                            key={item.label}
-                            disablePadding
-                            sx={{ px: 2, mb: 0.5 }}
-                          >
-                            <ListItemButton
-                              onClick={() => {
-                                gotToPath(item.path);
-                                setOpen(false);
-                              }}
-                              sx={{
-                                borderRadius: 2,
-                                py: 1.5,
-                                "&:hover": {
-                                  backgroundColor: "rgba(25, 118, 210, 0.08)",
-                                },
-                              }}
-                            >
-                              <ListItemIcon sx={{ minWidth: 40 }}>
-                                <item.icon
-                                  sx={{ color: "primary.main", fontSize: 22 }}
-                                />
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={item.label}
-                                primaryTypographyProps={{
-                                  fontWeight: 500,
-                                  fontSize: "0.9rem",
-                                }}
-                              />
-                            </ListItemButton>
-                          </ListItem>
-                        ))}
-                      </List>
-                    </AccordionDetails>
-                  </Accordion>
-                )}
-
-                <List sx={{ px: 2 }}>
-                  {HELP_MENU_ITEMS.map((item) => (
-                    <ListItem key={item.label} disablePadding sx={{ mb: 0.5 }}>
-                      <ListItemButton
+                    {SUPER_ADMIN_MENU_ITEMS.map((item) => (
+                      <NavItem
+                        key={item.label}
+                        label={item.label}
+                        icon={<item.icon />}
                         onClick={() => {
                           gotToPath(item.path);
                           setOpen(false);
                         }}
-                        sx={{
-                          borderRadius: 2,
-                          py: 1.5,
-                          "&:hover": {
-                            backgroundColor: "rgba(25, 118, 210, 0.08)",
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 40 }}>
-                          {item.icon}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item.label}
-                          primaryTypographyProps={{
-                            fontWeight: 600,
-                            fontSize: "0.875rem",
-                          }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
+                      />
+                    ))}
+                  </NavSection>
+                )}
+
+                {/* Always present, rarely the reason you opened the menu:
+                    the design parks these below a rule, in a lower voice. */}
+                <Box sx={{ borderTop: 1, borderColor: "divider", py: 1 }}>
+                  {HELP_MENU_ITEMS.map((item) => (
+                    <NavItem
+                      key={item.label}
+                      label={item.label}
+                      icon={<item.icon />}
+                      variant="muted"
+                      onClick={() => {
+                        gotToPath(item.path);
+                        setOpen(false);
+                      }}
+                    />
                   ))}
-                </List>
+                </Box>
               </Box>
             </Box>
           </Drawer>
@@ -1501,7 +1344,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          backgroundColor: "#f8fafc",
+          backgroundColor: "background.default",
           p: { xs: 0, sm: 0.5, md: 0.5 },
         }}
       >
@@ -1528,32 +1371,52 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         disableEscapeKeyDown={
           !user?.localActual && localesDisponibles.length > 0
         }
+        fullScreen={isMobile}
         PaperProps={{
           sx: {
-            borderRadius: 3,
-            minWidth: 400,
+            borderRadius: isMobile ? 0 : 3,
+            minWidth: isMobile ? undefined : 400,
           },
         }}
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Typography
-            variant="h6"
-            fontWeight={600}
-            component="span"
-            display="block"
-          >
-            {!user?.localActual ? "Seleccionar local" : "Cambiar local"}
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            component="span"
-            display="block"
-          >
-            {!user?.localActual
-              ? "Necesitas seleccionar un local para comenzar a trabajar"
-              : "Selecciona el local donde deseas trabajar"}
-          </Typography>
+        <DialogTitle
+          sx={{
+            pb: 1,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Box>
+            <Typography
+              variant="h6"
+              fontWeight={600}
+              component="span"
+              display="block"
+            >
+              {!user?.localActual ? "Seleccionar local" : "Cambiar local"}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              component="span"
+              display="block"
+            >
+              {!user?.localActual
+                ? "Necesitas seleccionar un local para comenzar a trabajar"
+                : "Selecciona el local donde deseas trabajar"}
+            </Typography>
+          </Box>
+          {isMobile &&
+            (user?.localActual || localesDisponibles.length === 0) && (
+              <IconButton
+                onClick={() => handleCloseCambiarLocal()}
+                size="small"
+              >
+                <CloseIcon />
+              </IconButton>
+            )}
         </DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           {!user?.localActual && localesDisponibles.length === 1 && (
@@ -1561,11 +1424,11 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               sx={{
                 mb: 2,
                 p: 2,
-                backgroundColor: "info.light",
+                backgroundColor: "semantic.hue.info.surface",
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" color="info.contrastText">
+              <Typography variant="body2" color="semantic.hue.info.main">
                 <strong>Nota:</strong> Necesitas seleccionar un local para
                 acceder al sistema.
               </Typography>
@@ -1576,17 +1439,17 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               sx={{
                 mb: 2,
                 p: 2,
-                backgroundColor: "warning.light",
+                backgroundColor: "semantic.hue.caution.surface",
                 borderRadius: 1,
                 textAlign: "center",
               }}
             >
-              <Typography variant="body2" color="warning.contrastText">
+              <Typography variant="body2" color="semantic.hue.caution.main">
                 <strong>Sin locales disponibles</strong>
               </Typography>
               <Typography
                 variant="body2"
-                color="warning.contrastText"
+                color="semantic.hue.caution.main"
                 sx={{ mt: 1 }}
               >
                 Este negocio no tiene locales configuradas. Contacta al
@@ -1619,7 +1482,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                       p: 1,
                       borderRadius: 2,
                       "&:hover": {
-                        backgroundColor: "action.hover",
+                        backgroundColor: "semantic.surface.sunken",
                       },
                     }}
                   />
@@ -1632,6 +1495,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             <Button
               onClick={() => handleCloseCambiarLocal()}
               variant="outlined"
+              fullWidth={isMobile}
+              sx={{ minHeight: isMobile ? 44 : undefined }}
             >
               {localesDisponibles.length === 0 ? "Cerrar" : "Cancelar"}
             </Button>
@@ -1643,14 +1508,29 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         <Dialog
           open={openSelectNegocio}
           onClose={() => handleCloseCambiarNegocio()}
+          fullScreen={isMobile}
           PaperProps={{
             sx: {
-              borderRadius: 3,
-              minWidth: 400,
+              borderRadius: isMobile ? 0 : 3,
+              minWidth: isMobile ? undefined : 400,
             },
           }}
         >
-          <DialogTitle sx={{ pb: 1 }}>Cambiar negocio</DialogTitle>
+          <DialogTitle
+            sx={{
+              pb: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            Cambiar negocio
+            {isMobile && (
+              <IconButton onClick={handleCloseCambiarNegocio} size="small">
+                <CloseIcon />
+              </IconButton>
+            )}
+          </DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
             {loadingNegocios ? (
               <Box display="flex" justifyContent="center" py={4}>
@@ -1677,7 +1557,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                         p: 1,
                         borderRadius: 2,
                         "&:hover": {
-                          backgroundColor: "action.hover",
+                          backgroundColor: "semantic.surface.sunken",
                         },
                       }}
                     />
@@ -1686,7 +1566,12 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             )}
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3 }}>
-            <Button onClick={handleCloseCambiarNegocio} variant="outlined">
+            <Button
+              onClick={handleCloseCambiarNegocio}
+              variant="outlined"
+              fullWidth={isMobile}
+              sx={{ minHeight: isMobile ? 44 : undefined }}
+            >
               Cancelar
             </Button>
           </DialogActions>

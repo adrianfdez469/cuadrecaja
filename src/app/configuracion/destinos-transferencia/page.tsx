@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { StatStrip } from "@/components/StatStrip";
+import { StatusPill } from "@/components/StatusPill";
+import { touch } from "@/theme";
 import {
   Box,
   Button,
@@ -12,12 +15,8 @@ import {
   TableRow,
   IconButton,
   Typography,
-  CircularProgress,
   TextField,
   InputAdornment,
-  Grid,
-  Card,
-  CardContent,
   Stack,
   Tooltip,
   Chip,
@@ -27,8 +26,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Collapse,
-  Divider,
   FormControlLabel,
   Switch,
 } from "@mui/material";
@@ -36,12 +33,10 @@ import {
   Delete,
   Add,
   AccountBalance,
-  Description,
   Star,
   Search,
   Refresh,
-  ExpandLess,
-  ExpandMore,
+  Close,
 } from "@mui/icons-material";
 import {
   fetchTransferDestinations,
@@ -52,6 +47,7 @@ import {
 import { useMessageContext } from "@/context/MessageContext";
 import useConfirmDialog from "@/components/confirmDialog";
 import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
 import SelectableTextField from "@/components/SelectableTextField";
 import { useAppContext } from "@/context/AppContext";
@@ -73,8 +69,6 @@ export default function DestinosTransferenciaPage() {
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
-  const [statsExpanded, setStatsExpanded] = useState(false);
 
   useEffect(() => {
     if (user?.localActual?.id) {
@@ -165,6 +159,8 @@ export default function DestinosTransferenciaPage() {
           await loadDestinations();
         }
       },
+      undefined,
+      { severity: "error" },
     );
   };
 
@@ -198,94 +194,21 @@ export default function DestinosTransferenciaPage() {
           <Refresh />
         </IconButton>
       </Tooltip>
-      {isMobile && (
-        <Tooltip
-          title={
-            statsExpanded ? "Ocultar estadísticas" : "Mostrar estadísticas"
-          }
+      {!isMobile && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => handleOpen()}
+          size="small"
+          disabled={!user?.localActual?.id}
         >
-          <IconButton
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            size="small"
-          >
-            {statsExpanded ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
-        </Tooltip>
+          Agregar Destino
+        </Button>
       )}
-      <Button
-        variant="contained"
-        startIcon={!isMobile ? <Add /> : undefined}
-        onClick={() => handleOpen()}
-        size="small"
-        disabled={!user?.localActual?.id}
-      >
-        {isMobile ? "Agregar" : "Agregar Destino"}
-      </Button>
     </Stack>
   );
 
   // Componente de estadística móvil optimizado
-  const StatCard = ({
-    icon,
-    value,
-    label,
-    color,
-  }: {
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-    color: string;
-  }) => (
-    <Card sx={{ height: "100%" }}>
-      <CardContent sx={{ p: isMobile ? 1.5 : 3 }}>
-        <Stack direction="row" alignItems="center" spacing={isMobile ? 1 : 2}>
-          <Box
-            sx={{
-              p: isMobile ? 0.75 : 1.5,
-              borderRadius: 2,
-              bgcolor: color,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: isMobile ? 32 : 48,
-              minHeight: isMobile ? 32 : 48,
-            }}
-          >
-            {React.isValidElement(icon)
-              ? React.cloneElement(icon, {
-                  fontSize: isMobile ? "small" : "large",
-                } as Record<string, unknown>)
-              : icon}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant={isMobile ? "subtitle1" : "h4"}
-              fontWeight="bold"
-              sx={{
-                fontSize: isMobile ? "1rem" : "2rem",
-                lineHeight: 1.2,
-                wordBreak: "break-all",
-              }}
-            >
-              {value}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: isMobile ? "0.6875rem" : "0.875rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-
   if (!user?.localActual?.id) {
     return (
       <Box
@@ -303,17 +226,13 @@ export default function DestinosTransferenciaPage() {
 
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
+      <PageContainer
+        title="Gestión de Destinos de Transferencia"
+        breadcrumbs={breadcrumbs}
+        maxWidth="xl"
       >
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2, ml: 2 }}>
-          Cargando destinos de transferencia...
-        </Typography>
-      </Box>
+        <LoadingState variant="table" />
+      </PageContainer>
     );
   }
 
@@ -329,67 +248,33 @@ export default function DestinosTransferenciaPage() {
       headerActions={headerActions}
       maxWidth="xl"
     >
-      {/* Estadísticas */}
-      {isMobile ? (
-        <Box sx={{ mb: 2 }}>
-          <Collapse in={statsExpanded}>
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<AccountBalance />}
-                  value={totalDestinations.toLocaleString()}
-                  label="Total"
-                  color="primary.light"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <StatCard
-                  icon={<Star />}
-                  value={defaultDestinations.toLocaleString()}
-                  label="Por Defecto"
-                  color="warning.light"
-                />
-              </Grid>
-            </Grid>
-            <Divider sx={{ mb: 2 }} />
-          </Collapse>
-        </Box>
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<AccountBalance />}
-              value={totalDestinations.toLocaleString()}
-              label="Total Destinos"
-              color="primary.light"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Star />}
-              value={defaultDestinations.toLocaleString()}
-              label="Por Defecto"
-              color="warning.light"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Description />}
-              value={destinationsWithDescription.toLocaleString()}
-              label="Con Descripción"
-              color="success.light"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              icon={<Search />}
-              value={destinationsVisible.toLocaleString()}
-              label="Visibles"
-              color="info.light"
-            />
-          </Grid>
-        </Grid>
+      {isMobile && (
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          fullWidth
+          onClick={() => handleOpen()}
+          disabled={!user?.localActual?.id}
+          sx={{ minHeight: touch.comfortable, mb: 2.5 }}
+        >
+          Agregar Destino
+        </Button>
       )}
+
+      <StatStrip
+        stats={[
+          {
+            label: "Total Destinos",
+            value: totalDestinations.toLocaleString(),
+          },
+          { label: "Por Defecto", value: defaultDestinations.toLocaleString() },
+          {
+            label: "Con Descripción",
+            value: destinationsWithDescription.toLocaleString(),
+          },
+          { label: "Visibles", value: destinationsVisible.toLocaleString() },
+        ]}
+      />
 
       {/* Lista de destinos */}
       <ContentCard
@@ -438,66 +323,61 @@ export default function DestinosTransferenciaPage() {
             </Box>
           </Box>
         ) : isMobile ? (
-          // Vista móvil con cards
-          <Box sx={{ p: 1.5 }}>
-            <Stack spacing={1.5}>
-              {filteredDestinations.map((destination) => (
-                <Card
-                  key={destination.id}
-                  onClick={() => handleOpen(destination)}
-                  sx={{
-                    cursor: "pointer",
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
-                  }}
-                >
-                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                    <Stack spacing={1.5}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <AccountBalance color="primary" />
-                          <Typography
-                            variant="subtitle2"
-                            fontWeight="medium"
-                            sx={{ fontSize: "0.875rem" }}
-                          >
-                            {destination.nombre}
-                          </Typography>
-                          {destination.default && (
-                            <Star color="warning" fontSize="small" />
-                          )}
-                        </Box>
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(destination.id);
-                          }}
-                          size="small"
-                          color="error"
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </Box>
-
-                      {destination.descripcion && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ fontSize: "0.6875rem" }}
-                        >
-                          {destination.descripcion}
-                        </Typography>
-                      )}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
+          // Un destino por fila en una sola caja — no una tarjeta por fila
+          // (mismo criterio que /configuracion/categorias: la tarjeta
+          // dentro de tarjeta cuesta un borde y una sangría por fila).
+          <Box>
+            {filteredDestinations.map((destination, index) => (
+              <Box
+                key={destination.id}
+                onClick={() => handleOpen(destination)}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  minHeight: 72,
+                  pl: 2,
+                  pr: 0.5,
+                  py: 1.25,
+                  cursor: "pointer",
+                  ...(index > 0 && { borderTop: 1, borderColor: "divider" }),
+                }}
+              >
+                <AccountBalance
+                  sx={{ color: "text.secondary", flexShrink: 0 }}
+                />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: "1rem", fontWeight: 600 }}>
+                    {destination.nombre}
+                  </Typography>
+                  {destination.descripcion && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.375 }}
+                    >
+                      {destination.descripcion}
+                    </Typography>
+                  )}
+                  {destination.default && (
+                    <Box sx={{ mt: 0.75 }}>
+                      <StatusPill label="Por Defecto" hue="caution" />
+                    </Box>
+                  )}
+                </Box>
+                <Tooltip title="Eliminar">
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(destination.id);
+                    }}
+                    color="error"
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            ))}
           </Box>
         ) : (
           // Vista desktop con tabla
@@ -507,8 +387,8 @@ export default function DestinosTransferenciaPage() {
                 <TableRow>
                   <TableCell>Nombre</TableCell>
                   <TableCell>Descripción</TableCell>
-                  <TableCell align="center">Por Defecto</TableCell>
-                  <TableCell align="center">Acciones</TableCell>
+                  <TableCell>Por Defecto</TableCell>
+                  <TableCell align="right">Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -519,10 +399,7 @@ export default function DestinosTransferenciaPage() {
                     sx={{
                       cursor: "pointer",
                       "&:hover": {
-                        backgroundColor: "action.hover",
-                      },
-                      "&:nth-of-type(odd)": {
-                        backgroundColor: "rgba(0, 0, 0, 0.02)",
+                        backgroundColor: "semantic.surface.sunken",
                       },
                     }}
                   >
@@ -539,7 +416,7 @@ export default function DestinosTransferenciaPage() {
                         {destination.descripcion || "-"}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell>
                       {destination.default ? (
                         <Chip
                           icon={<Star />}
@@ -549,21 +426,23 @@ export default function DestinosTransferenciaPage() {
                         />
                       ) : (
                         <Typography variant="body2" color="text.secondary">
-                          -
+                          —
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell align="center">
-                      <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(destination.id);
-                        }}
-                        size="small"
-                        color="error"
-                      >
-                        <Delete />
-                      </IconButton>
+                    <TableCell align="right">
+                      <Tooltip title="Eliminar">
+                        <IconButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(destination.id);
+                          }}
+                          size="small"
+                          color="error"
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -574,11 +453,28 @@ export default function DestinosTransferenciaPage() {
       </ContentCard>
 
       {/* Modal de edición/creación */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           {editingDestination
             ? "Editar Destino de Transferencia"
             : "Nuevo Destino de Transferencia"}
+          {isMobile && (
+            <IconButton onClick={handleClose}>
+              <Close />
+            </IconButton>
+          )}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
@@ -613,12 +509,26 @@ export default function DestinosTransferenciaPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancelar</Button>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={handleClose}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
           <Button
             onClick={handleSave}
             variant="contained"
             disabled={!nombre.trim()}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             {editingDestination ? "Actualizar" : "Crear"}
           </Button>

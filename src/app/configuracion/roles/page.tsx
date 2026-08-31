@@ -34,17 +34,11 @@ import {
   Card,
   CardContent,
   Divider,
+  Stack,
   useTheme,
   useMediaQuery,
 } from "@mui/material";
-import {
-  Delete,
-  Edit,
-  Add,
-  Security,
-  InfoOutlined,
-  LockOutlined,
-} from "@mui/icons-material";
+import { Delete, Edit, Add, InfoOutlined } from "@mui/icons-material";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
 import { IRol, ICreateRol, IUpdateRol, IPermiso } from "@/schemas/rol";
@@ -57,7 +51,11 @@ import {
   getPermisosTemplates,
 } from "@/services/rolService";
 import { PageContainer } from "@/components/PageContainer";
-import { ContentCard } from "@/components/ContentCard";
+import { LoadingState } from "@/components/LoadingState";
+import { EmptyState } from "@/components/EmptyState";
+import { RolCard } from "@/components/roles/RolCard";
+import { RolGlobalBadge } from "@/components/roles/RolGlobalBadge";
+import { RolPermisosPreview } from "@/components/roles/RolPermisosPreview";
 
 interface PermisosData {
   [key: string]: IPermiso;
@@ -278,347 +276,304 @@ export default function RolesPage() {
 
   if (loadingContext) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="200px"
-      >
-        <CircularProgress />
-      </Box>
+      <PageContainer title="Gestión de Roles">
+        <LoadingState variant="list" />
+      </PageContainer>
     );
   }
 
+  const esSuperAdmin = user?.rol === "SUPER_ADMIN";
+  const nuevoRolButton = (
+    <Button
+      variant="contained"
+      startIcon={<Add />}
+      onClick={() => handleOpenDialog()}
+      disabled={loading}
+      fullWidth={isMobile}
+      size={isMobile ? "large" : "medium"}
+    >
+      Nuevo Rol
+    </Button>
+  );
+
   return (
-    <PageContainer title="Gestión de Roles">
-      <ContentCard>
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={3}
-        >
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpenDialog()}
-            disabled={loading}
-          >
-            Nuevo Rol
-          </Button>
-        </Box>
+    <PageContainer
+      title="Gestión de Roles"
+      headerActions={!isMobile ? nuevoRolButton : undefined}
+    >
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+      {isMobile && <Box sx={{ mb: 3 }}>{nuevoRolButton}</Box>}
 
-        {loading ? (
-          <Box display="flex" justifyContent="center" p={4}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell>Descripción</TableCell>
-                  <TableCell>Permisos</TableCell>
-                  <TableCell align="center">Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {roles.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+      {loading ? (
+        <LoadingState variant={isMobile ? "cards" : "table"} count={4} />
+      ) : roles.length === 0 ? (
+        <EmptyState
+          title="No hay roles configurados"
+          size={isMobile ? "compact" : "page"}
+        />
+      ) : isMobile ? (
+        <Stack spacing={1.5}>
+          {roles.map((rol) => (
+            <RolCard
+              key={rol.id}
+              rol={rol}
+              puedeEditar={!rol.isGlobal || esSuperAdmin}
+              onEdit={() => handleOpenDialog(rol)}
+              onDelete={() => handleDelete(rol)}
+            />
+          ))}
+        </Stack>
+      ) : (
+        <TableContainer component={Paper} variant="outlined">
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Nombre</TableCell>
+                <TableCell>Descripción</TableCell>
+                <TableCell>Permisos</TableCell>
+                <TableCell align="center">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {roles.map((rol) => {
+                const puedeEditar = !rol.isGlobal || esSuperAdmin;
+                return (
+                  <TableRow key={rol.id} hover>
+                    <TableCell>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2" fontWeight="medium">
+                          {rol.nombre}
+                        </Typography>
+                        {rol.isGlobal && <RolGlobalBadge />}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
                       <Typography variant="body2" color="text.secondary">
-                        No hay roles configurados
+                        {rol.descripcion || "Sin descripción"}
                       </Typography>
                     </TableCell>
+                    <TableCell>
+                      <RolPermisosPreview permisos={rol.permisos.split("|")} />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip
+                        title={
+                          puedeEditar
+                            ? "Editar"
+                            : "Solo un superadmin puede modificar roles globales"
+                        }
+                      >
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenDialog(rol)}
+                            color="primary"
+                            disabled={!puedeEditar}
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          rol.isGlobal
+                            ? "Los roles globales no pueden ser eliminados"
+                            : "Eliminar"
+                        }
+                      >
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(rol)}
+                            color="error"
+                            disabled={rol.isGlobal}
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
-                ) : (
-                  roles.map((rol) => {
-                    const esSuperAdmin = user?.rol === "SUPER_ADMIN";
-                    const puedeEditar = !rol.isGlobal || esSuperAdmin;
-                    return (
-                      <TableRow key={rol.id} hover>
-                        <TableCell>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Security fontSize="small" color="primary" />
-                            <Typography variant="body2" fontWeight="medium">
-                              {rol.nombre}
-                            </Typography>
-                            {rol.isGlobal && (
-                              <Chip
-                                icon={
-                                  <LockOutlined
-                                    sx={{ fontSize: "14px !important" }}
-                                  />
-                                }
-                                label="Global"
-                                size="small"
-                                color="secondary"
-                                variant="outlined"
-                              />
-                            )}
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="text.secondary">
-                            {rol.descripcion || "Sin descripción"}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Box display="flex" flexWrap="wrap" gap={0.5}>
-                            {rol.permisos
-                              .split("|")
-                              .slice(0, 3)
-                              .map((permiso) => (
-                                <Chip
-                                  key={permiso}
-                                  label={permiso}
-                                  size="small"
-                                  variant="outlined"
-                                  color="primary"
-                                />
-                              ))}
-                            {rol.permisos.split("|").length > 3 && (
-                              <Chip
-                                label={`+${rol.permisos.split("|").length - 3} más`}
-                                size="small"
-                                variant="outlined"
-                                color="default"
-                              />
-                            )}
-                          </Box>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Tooltip
-                            title={
-                              puedeEditar
-                                ? "Editar"
-                                : "Solo un superadmin puede modificar roles globales"
-                            }
-                          >
-                            <span>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleOpenDialog(rol)}
-                                color="primary"
-                                disabled={!puedeEditar}
-                              >
-                                <Edit fontSize="small" />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                          <Tooltip
-                            title={
-                              rol.isGlobal
-                                ? "Los roles globales no pueden ser eliminados"
-                                : "Eliminar"
-                            }
-                          >
-                            <span>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleDelete(rol)}
-                                color="error"
-                                disabled={rol.isGlobal}
-                              >
-                                <Delete fontSize="small" />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
-        {/* Dialog para crear/editar rol */}
-        <Dialog
-          open={open}
-          onClose={handleCloseDialog}
-          maxWidth="md"
-          fullWidth
-          fullScreen={isMobile}
-        >
-          <DialogTitle>{selectedRol ? "Editar Rol" : "Nuevo Rol"}</DialogTitle>
-          <DialogContent>
-            <Box display="flex" flexDirection="column" gap={3} pt={1}>
-              <TextField
-                label="Nombre del Rol"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                fullWidth
-                required
-                placeholder="Ej: Vendedor, Administrador"
-              />
+      {/* Dialog para crear/editar rol */}
+      <Dialog
+        open={open}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle>{selectedRol ? "Editar Rol" : "Nuevo Rol"}</DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" gap={3} pt={1}>
+            <TextField
+              label="Nombre del Rol"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              fullWidth
+              required
+              placeholder="Ej: Vendedor, Administrador"
+            />
 
-              <TextField
-                label="Descripción"
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-                fullWidth
-                multiline
-                rows={2}
-                placeholder="Descripción opcional del rol..."
-              />
+            <TextField
+              label="Descripción"
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              fullWidth
+              multiline
+              rows={2}
+              placeholder="Descripción opcional del rol..."
+            />
 
-              {!selectedRol && (
-                <FormControl fullWidth>
-                  <InputLabel>Plantilla de Permisos (Opcional)</InputLabel>
-                  <Select
-                    value={plantillaSeleccionada}
-                    onChange={handlePlantillaChange}
-                    input={
-                      <OutlinedInput label="Plantilla de Permisos (Opcional)" />
-                    }
-                    disabled={permisosLoading}
-                  >
-                    <MenuItem value="">
-                      <em>Seleccionar una plantilla predefinida...</em>
-                    </MenuItem>
-                    {templates &&
-                      Object.entries(templates).map((item) => {
-                        const nombrePlantilla = item[0];
-
-                        return (
-                          <MenuItem
-                            key={nombrePlantilla}
-                            value={nombrePlantilla}
-                          >
-                            <Box>
-                              <Typography variant="body2" fontWeight="medium">
-                                {nombrePlantilla}
-                              </Typography>
-                            </Box>
-                          </MenuItem>
-                        );
-                      })}
-                  </Select>
-                </FormControl>
-              )}
-
-              {plantillaSeleccionada && !selectedRol && templates && (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  <Typography variant="body2">
-                    <strong>Plantilla aplicada:</strong> {plantillaSeleccionada}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    display="block"
-                    sx={{ mt: 0.5 }}
-                  >
-                    Puedes modificar los permisos seleccionados según tus
-                    necesidades específicas.
-                  </Typography>
-                </Alert>
-              )}
-
+            {!selectedRol && (
               <FormControl fullWidth>
-                <InputLabel>Permisos</InputLabel>
+                <InputLabel>Plantilla de Permisos (Opcional)</InputLabel>
                 <Select
-                  multiple
-                  value={permisosSeleccionados}
-                  onChange={handlePermisosChange}
-                  input={<OutlinedInput label="Permisos" />}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {selected.map((value) => (
-                        <Chip key={value} label={value} size="small" />
-                      ))}
-                    </Box>
-                  )}
+                  value={plantillaSeleccionada}
+                  onChange={handlePlantillaChange}
+                  input={
+                    <OutlinedInput label="Plantilla de Permisos (Opcional)" />
+                  }
                   disabled={permisosLoading}
                 >
-                  {permisosLoading ? (
-                    <MenuItem disabled>
-                      <CircularProgress size={20} />
-                      <Typography sx={{ ml: 1 }}>
-                        Cargando permisos...
-                      </Typography>
-                    </MenuItem>
-                  ) : (
-                    Object.entries(groupPermissions(permisos))
-                      .map(([module, modulePermisos]) => [
-                        <MenuItem
-                          key={`header-${module}`}
-                          disabled
-                          sx={{ fontWeight: "bold" }}
-                        >
-                          <Typography variant="subtitle2" color="primary">
-                            {getModuleDisplayName(module)}
-                          </Typography>
-                        </MenuItem>,
-                        ...Object.entries(modulePermisos).map(
-                          ([permisoKey, permisoData]) => (
-                            <MenuItem key={permisoKey} value={permisoKey}>
-                              <Checkbox
-                                checked={
-                                  permisosSeleccionados.indexOf(permisoKey) > -1
-                                }
-                              />
-                              <ListItemText
-                                primary={permisoKey}
-                                secondary={permisoData.descripcion}
-                                sx={{ ml: 1 }}
-                              />
-                            </MenuItem>
-                          ),
-                        ),
-                      ])
-                      .flat()
-                  )}
+                  <MenuItem value="">
+                    <em>Seleccionar una plantilla predefinida...</em>
+                  </MenuItem>
+                  {templates &&
+                    Object.entries(templates).map((item) => {
+                      const nombrePlantilla = item[0];
+
+                      return (
+                        <MenuItem key={nombrePlantilla} value={nombrePlantilla}>
+                          <Box>
+                            <Typography variant="body2" fontWeight="medium">
+                              {nombrePlantilla}
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      );
+                    })}
                 </Select>
               </FormControl>
+            )}
 
-              {permisosSeleccionados.length > 0 && (
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Permisos seleccionados ({permisosSeleccionados.length})
-                    </Typography>
-                    <Divider sx={{ mb: 2 }} />
-                    <Grid container spacing={1}>
-                      {permisosSeleccionados.map((permiso) => (
-                        <Grid item xs={12} sm={6} md={4} key={permiso}>
-                          <Tooltip title={permisos[permiso]?.descripcion || ""}>
-                            <Chip
-                              label={permiso}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                              deleteIcon={<InfoOutlined />}
-                              sx={{ width: "100%" }}
+            {plantillaSeleccionada && !selectedRol && templates && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  <strong>Plantilla aplicada:</strong> {plantillaSeleccionada}
+                </Typography>
+                <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                  Puedes modificar los permisos seleccionados según tus
+                  necesidades específicas.
+                </Typography>
+              </Alert>
+            )}
+
+            <FormControl fullWidth>
+              <InputLabel>Permisos</InputLabel>
+              <Select
+                multiple
+                value={permisosSeleccionados}
+                onChange={handlePermisosChange}
+                input={<OutlinedInput label="Permisos" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                    {selected.map((value) => (
+                      <Chip key={value} label={value} size="small" />
+                    ))}
+                  </Box>
+                )}
+                disabled={permisosLoading}
+              >
+                {permisosLoading ? (
+                  <MenuItem disabled>
+                    <CircularProgress size={20} />
+                    <Typography sx={{ ml: 1 }}>Cargando permisos...</Typography>
+                  </MenuItem>
+                ) : (
+                  Object.entries(groupPermissions(permisos))
+                    .map(([module, modulePermisos]) => [
+                      <MenuItem
+                        key={`header-${module}`}
+                        disabled
+                        sx={{ fontWeight: "bold" }}
+                      >
+                        <Typography variant="subtitle2" color="primary">
+                          {getModuleDisplayName(module)}
+                        </Typography>
+                      </MenuItem>,
+                      ...Object.entries(modulePermisos).map(
+                        ([permisoKey, permisoData]) => (
+                          <MenuItem key={permisoKey} value={permisoKey}>
+                            <Checkbox
+                              checked={
+                                permisosSeleccionados.indexOf(permisoKey) > -1
+                              }
                             />
-                          </Tooltip>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </CardContent>
-                </Card>
-              )}
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDialog}>Cancelar</Button>
-            <Button
-              onClick={handleSubmit}
-              variant="contained"
-              disabled={!nombre.trim() || permisosSeleccionados.length === 0}
-            >
-              {selectedRol ? "Actualizar" : "Crear"}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </ContentCard>
+                            <ListItemText
+                              primary={permisoKey}
+                              secondary={permisoData.descripcion}
+                              sx={{ ml: 1 }}
+                            />
+                          </MenuItem>
+                        ),
+                      ),
+                    ])
+                    .flat()
+                )}
+              </Select>
+            </FormControl>
+
+            {permisosSeleccionados.length > 0 && (
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Permisos seleccionados ({permisosSeleccionados.length})
+                  </Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  <Grid container spacing={1}>
+                    {permisosSeleccionados.map((permiso) => (
+                      <Grid item xs={12} sm={6} md={4} key={permiso}>
+                        <Tooltip title={permisos[permiso]?.descripcion || ""}>
+                          <Chip
+                            label={permiso}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            deleteIcon={<InfoOutlined />}
+                            sx={{ width: "100%" }}
+                          />
+                        </Tooltip>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </CardContent>
+              </Card>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancelar</Button>
+          <Button
+            onClick={handleSubmit}
+            variant="contained"
+            disabled={!nombre.trim() || permisosSeleccionados.length === 0}
+          >
+            {selectedRol ? "Actualizar" : "Crear"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </PageContainer>
   );
 }

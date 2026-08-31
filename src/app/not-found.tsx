@@ -4,6 +4,8 @@ import { Box, Button, Container, Typography } from "@mui/material";
 import { SearchOff, Home } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 
+import { shape, touch } from "@/theme/tokens";
+
 export default function NotFound() {
   const router = useRouter();
 
@@ -20,12 +22,19 @@ export default function NotFound() {
           gap: 3,
         }}
       >
-        <Box sx={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box
+          sx={{
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <Typography
             sx={{
               fontSize: { xs: "6rem", sm: "9rem" },
               fontWeight: 700,
-              color: "primary.main",
+              color: "semantic.hue.neutral.main",
               lineHeight: 1,
               opacity: 0.12,
               userSelect: "none",
@@ -36,7 +45,7 @@ export default function NotFound() {
           <SearchOff
             sx={{
               fontSize: 56,
-              color: "primary.main",
+              color: "semantic.hue.neutral.main",
               position: "absolute",
             }}
           />
@@ -55,7 +64,11 @@ export default function NotFound() {
           variant="contained"
           startIcon={<Home />}
           onClick={() => router.push("/home")}
-          size="large"
+          sx={{
+            minHeight: touch.comfortable,
+            px: 3,
+            borderRadius: `${shape.radius.md}px`,
+          }}
         >
           Ir al inicio
         </Button>

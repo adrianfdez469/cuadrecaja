@@ -15,6 +15,7 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -32,11 +33,13 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Add, History, TrendingUp } from "@mui/icons-material";
+import { Add, Close, History, TrendingUp } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
+import { LoadingState } from "@/components/LoadingState";
 import { ContentCard } from "@/components/ContentCard";
+import { StatusPill } from "@/components/StatusPill";
 import { TasasReferenciaCard } from "@/components/TasasReferenciaCard";
 import useConfirmDialog from "@/components/confirmDialog";
 import {
@@ -215,9 +218,9 @@ export default function TasasCambioPage() {
 
   if (loadingContext || loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
-        <CircularProgress />
-      </Box>
+      <PageContainer title="Tasas de cambio" breadcrumbs={breadcrumbs}>
+        <LoadingState variant="table" />
+      </PageContainer>
     );
   }
 
@@ -243,40 +246,32 @@ export default function TasasCambioPage() {
     b.localeCompare(a),
   );
 
-  return (
-    <PageContainer title="Tasas de cambio" breadcrumbs={breadcrumbs}>
-      <ContentCard>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={2}
-          flexWrap="wrap"
-          gap={1}
-        >
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              Moneda base:{" "}
-              <Chip
-                label={monedaBase}
-                size="small"
-                color="primary"
-                sx={{ ml: 0.5 }}
-              />
-            </Typography>
-          </Box>
-          {monedasDisponibles.length > 0 && (
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={openAdd}
-              size={isMobile ? "small" : "medium"}
-            >
-              {isMobile ? "Nueva tasa" : "Registrar tasa"}
-            </Button>
-          )}
-        </Stack>
+  const registrarTasaButton = monedasDisponibles.length > 0 && (
+    <Button
+      variant="contained"
+      startIcon={<Add />}
+      onClick={openAdd}
+      fullWidth={isMobile}
+      sx={isMobile ? { minHeight: 52 } : undefined}
+    >
+      Registrar tasa
+    </Button>
+  );
 
+  return (
+    <PageContainer
+      title="Tasas de cambio"
+      breadcrumbs={breadcrumbs}
+      titleAdornment={
+        <StatusPill label={`Moneda base: ${monedaBase}`} hue="accent" />
+      }
+      headerActions={!isMobile ? registrarTasaButton : undefined}
+    >
+      {isMobile && registrarTasaButton && (
+        <Box sx={{ mb: 2.5 }}>{registrarTasaButton}</Box>
+      )}
+
+      <ContentCard>
         {monedasDisponibles.length === 0 && (
           <Alert severity="info" sx={{ mb: 2 }}>
             Habilita otras monedas en &quot;Monedas del negocio&quot; para
@@ -305,11 +300,13 @@ export default function TasasCambioPage() {
                 {vigentesExternas.map(([code, tasa]) => (
                   <Chip
                     key={code}
-                    icon={<TrendingUp />}
                     label={`1 ${code} = ${tasa} CUP`}
-                    color="primary"
                     variant="outlined"
                     size={isMobile ? "small" : "medium"}
+                    sx={{
+                      bgcolor: "background.paper",
+                      color: "text.secondary",
+                    }}
                   />
                 ))}
               </Stack>
@@ -325,35 +322,58 @@ export default function TasasCambioPage() {
             )}
 
             {isMobile ? (
-              <Stack spacing={1.5}>
-                {vigentesRows.map(({ code, tasa }) => (
-                  <Card key={code} variant="outlined">
-                    <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Stack direction="row" gap={1} alignItems="center">
-                          <Chip
-                            label={code}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                          <Chip label="Vigente" color="success" size="small" />
-                        </Stack>
-                        <Typography variant="body1" fontWeight="bold">
-                          1 {code} = {tasa} CUP
+              vigentesRows.length === 0 ? (
+                <Alert severity="info">No hay tasas registradas.</Alert>
+              ) : (
+                <Box
+                  sx={{
+                    bgcolor: "background.paper",
+                    border: 1,
+                    borderColor: "divider",
+                    borderRadius: 3,
+                    overflow: "hidden",
+                  }}
+                >
+                  <Typography
+                    variant="overline"
+                    color="text.disabled"
+                    sx={{ display: "block", px: 2, pt: 1.75, pb: 1 }}
+                  >
+                    Tasa vigente
+                  </Typography>
+                  {vigentesRows.map(({ code, tasa }) => (
+                    <Stack
+                      key={code}
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      gap={1.5}
+                      sx={{
+                        minHeight: 56,
+                        px: 2,
+                        borderTop: 1,
+                        borderColor: "divider",
+                      }}
+                    >
+                      <Stack direction="row" alignItems="center" gap={1.25}>
+                        <Chip
+                          label={code}
+                          size="small"
+                          sx={{ bgcolor: "semantic.surface.sunken" }}
+                        />
+                        <Typography variant="body2">
+                          1 {code} = <strong>{tasa}</strong> CUP
                         </Typography>
                       </Stack>
-                    </CardContent>
-                  </Card>
-                ))}
-                {vigentesRows.length === 0 && (
-                  <Alert severity="info">No hay tasas registradas.</Alert>
-                )}
-              </Stack>
+                      <StatusPill
+                        label="Vigente"
+                        hue="positive"
+                        sx={{ flexShrink: 0 }}
+                      />
+                    </Stack>
+                  ))}
+                </Box>
+              )
             ) : (
               <TableContainer>
                 <Table size="small">
@@ -547,7 +567,20 @@ export default function TasasCambioPage() {
         fullWidth
         fullScreen={isMobile}
       >
-        <DialogTitle>Registrar tasa de cambio</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Registrar tasa de cambio
+          {isMobile && (
+            <IconButton onClick={() => setOpenDialog(false)} disabled={saving}>
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           <Stack gap={2} mt={1}>
             <FormControl fullWidth>
@@ -579,9 +612,28 @@ export default function TasasCambioPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={saveTasa} disabled={saving}>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={() => setOpenDialog(false)}
+            disabled={saving}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={saveTasa}
+            disabled={saving}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
+          >
             {saving ? <CircularProgress size={20} /> : "Registrar"}
           </Button>
         </DialogActions>

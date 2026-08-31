@@ -7,7 +7,11 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  IconButton,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { ITicketPayload } from "../types/ITicketData";
 import { buildTicketLines } from "../lib/buildTicketLines";
 import { printHtmlSilently } from "../lib/printHtmlSilently";
@@ -27,6 +31,8 @@ export const TicketPreviewDialog: React.FC<TicketPreviewDialogProps> = ({
   onClose,
   payload,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const ancho = payload
     ? ((payload.plantilla.anchoPapel === 80 ? 80 : 58) as 58 | 80)
     : 58;
@@ -59,16 +65,51 @@ export const TicketPreviewDialog: React.FC<TicketPreviewDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Vista previa del ticket</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      fullScreen={isMobile}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        Vista previa del ticket
+        {isMobile && (
+          <IconButton onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        )}
+      </DialogTitle>
       <DialogContent>
-        {payload ? (
-          <TicketPreviewContent payload={payload} />
-        ) : null}
+        {payload ? <TicketPreviewContent payload={payload} /> : null}
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cerrar</Button>
-        <Button variant="contained" onClick={handlePrint} disabled={!payload}>
+      <DialogActions
+        sx={{
+          flexDirection: isMobile ? "column-reverse" : "row",
+          alignItems: "stretch",
+        }}
+      >
+        <Button
+          onClick={onClose}
+          fullWidth={isMobile}
+          sx={{ minHeight: isMobile ? 44 : undefined }}
+        >
+          Cerrar
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handlePrint}
+          disabled={!payload}
+          fullWidth={isMobile}
+          size={isMobile ? "large" : "medium"}
+          sx={{ minHeight: isMobile ? 56 : undefined }}
+        >
           Imprimir
         </Button>
       </DialogActions>

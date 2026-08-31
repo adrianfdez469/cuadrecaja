@@ -5,7 +5,6 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   Alert,
   Box,
-  Checkbox,
   FormControlLabel,
   IconButton,
   Paper,
@@ -100,41 +99,58 @@ export function PrimerosPasosSettings() {
           const disabled = !hasPermission || !isTienda;
 
           return (
-            <Box
+            <FormControlLabel
               key={tour.id}
+              control={
+                <Switch
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={(_, value) =>
+                    setTourEnabled(userId, tour.id, value)
+                  }
+                />
+              }
+              label={
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    flex: 1,
+                  }}
+                >
+                  <Box flex={1}>
+                    <Typography fontWeight={600}>{tour.title}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {tour.description}
+                    </Typography>
+                  </Box>
+                  {!hasPermission ? (
+                    <Tooltip
+                      title={`No tienes permiso para esta guía: ${getPermisoLabel(tour.permission)}`}
+                      arrow
+                      placement="left"
+                    >
+                      <IconButton
+                        size="small"
+                        aria-label="Requisito de permiso"
+                      >
+                        <InfoOutlinedIcon fontSize="small" color="action" />
+                      </IconButton>
+                    </Tooltip>
+                  ) : null}
+                </Box>
+              }
               sx={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 0.5,
+                mb: 1,
+                ml: 0,
                 py: 1,
                 borderTop: "1px solid",
                 borderColor: "divider",
+                alignItems: "flex-start",
+                ".MuiFormControlLabel-label": { flex: 1 },
               }}
-            >
-              <Checkbox
-                checked={checked}
-                disabled={disabled}
-                onChange={(_, value) => setTourEnabled(userId, tour.id, value)}
-                sx={{ mt: 0.25 }}
-              />
-              <Box flex={1}>
-                <Typography fontWeight={600}>{tour.title}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {tour.description}
-                </Typography>
-              </Box>
-              {!hasPermission ? (
-                <Tooltip
-                  title={`No tienes permiso para esta guía: ${getPermisoLabel(tour.permission)}`}
-                  arrow
-                  placement="left"
-                >
-                  <IconButton size="small" aria-label="Requisito de permiso">
-                    <InfoOutlinedIcon fontSize="small" color="action" />
-                  </IconButton>
-                </Tooltip>
-              ) : null}
-            </Box>
+            />
           );
         })}
       </Box>

@@ -1,9 +1,8 @@
 "use client";
 
 import { Stack } from "@mui/material";
-import Grid from "@mui/material/Grid2";
 import { ReportPageShell } from "@/components/reports/ReportPageShell";
-import { StatCard } from "@/components/StatCard";
+import { StatStrip } from "@/components/StatStrip";
 import { SellerPerformanceTable } from "@/components/reports/operations/SellerPerformanceTable";
 import { PaymentMixChart } from "@/components/reports/operations/PaymentMixChart";
 import { useReportFilters } from "@/hooks/useReportFilters";
@@ -44,42 +43,35 @@ export default function OperacionPage() {
     >
       {data && (
         <Stack spacing={3}>
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Total cobrado"
-                value={currency.format(data.pagos.totalBase)}
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Efectivo"
-                value={currency.format(efectivo ?? 0)}
-                subtitle={
+          <StatStrip
+            variant="card"
+            stats={[
+              {
+                label: "Total cobrado",
+                value: currency.format(data.pagos.totalBase),
+              },
+              {
+                label: "Efectivo",
+                value: currency.format(efectivo ?? 0),
+                note:
                   data.pagos.totalBase > 0
                     ? `${(((efectivo ?? 0) / data.pagos.totalBase) * 100).toFixed(1)}% del total`
-                    : undefined
-                }
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Transferencia"
-                value={currency.format(transferencia ?? 0)}
-                subtitle={
+                    : undefined,
+              },
+              {
+                label: "Transferencia",
+                value: currency.format(transferencia ?? 0),
+                note:
                   data.pagos.totalBase > 0
                     ? `${(((transferencia ?? 0) / data.pagos.totalBase) * 100).toFixed(1)}% del total`
-                    : undefined
-                }
-              />
-            </Grid>
-            <Grid size={{ xs: 6, md: 3 }}>
-              <StatCard
-                title="Vendedores activos"
-                value={formatNumber(data.vendedores.length)}
-              />
-            </Grid>
-          </Grid>
+                    : undefined,
+              },
+              {
+                label: "Vendedores activos",
+                value: formatNumber(data.vendedores.length),
+              },
+            ]}
+          />
 
           <SellerPerformanceTable
             rows={data.vendedores}

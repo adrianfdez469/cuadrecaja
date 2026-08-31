@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -28,8 +28,10 @@ import {
   Radio,
   LinearProgress,
   CircularProgress,
-  ToggleButtonGroup, ToggleButton,
-} from '@mui/material';
+  ToggleButtonGroup,
+  ToggleButton,
+  IconButton,
+} from "@mui/material";
 import {
   CheckCircle,
   Star,
@@ -43,20 +45,22 @@ import {
   Schedule,
   Warning,
   Error as ErrorIcon,
-} from '@mui/icons-material';
-import { PageContainer } from '@/components/PageContainer';
-import { useAppContext } from '@/context/AppContext';
-import { useMessageContext } from '@/context/MessageContext';
+  Close,
+} from "@mui/icons-material";
+import { PageContainer } from "@/components/PageContainer";
+import { useAppContext } from "@/context/AppContext";
+import { useMessageContext } from "@/context/MessageContext";
 import {
   formatDate,
   formatDaysRemaining,
   getDaysRemainingColor,
-  formatPercentage
-} from '@/utils/formatters';
-import type { IPlan } from '@/schemas/plan';
-import { getPlanes } from '@/services/planService';
-import { getNegocioStats } from '@/services/negocioServce';
-import { buildPlanFeatures } from '@/utils/planUtils';
+  formatPercentage,
+} from "@/utils/formatters";
+import type { IPlan } from "@/schemas/plan";
+import { getPlanes } from "@/services/planService";
+import { getNegocioStats } from "@/services/negocioServce";
+import { buildPlanFeatures } from "@/utils/planUtils";
+import { WHATSAPP_GREEN } from "@/constants/brandColors";
 
 interface SupportUser {
   name: string;
@@ -86,28 +90,30 @@ interface NegocioStats {
 
 const supportUsers: SupportUser[] = [
   {
-    name: 'Adrian',
-    phone: '+53 5 3334449',
-    whatsapp: '+5353334449'
+    name: "Adrian",
+    phone: "+53 5 3334449",
+    whatsapp: "+5353334449",
   },
   {
-    name: 'Camilo',
-    phone: '+53 5 4319958',
-    whatsapp: '+5354319958'
-  }
+    name: "Camilo",
+    phone: "+53 5 4319958",
+    whatsapp: "+5354319958",
+  },
 ];
 
 export default function PlanesPage() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
   const { user } = useAppContext();
   const { showMessage } = useMessageContext();
   const [showContactSupport, setShowContactSupport] = useState(false);
-  const [selectedSupport, setSelectedSupport] = useState<string>('');
+  const [selectedSupport, setSelectedSupport] = useState<string>("");
   const [stats, setStats] = useState<NegocioStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
+    "monthly",
+  );
   const [planes, setPlanes] = useState<IPlan[]>([]);
   const [loadingPlanes, setLoadingPlanes] = useState(true);
 
@@ -119,8 +125,8 @@ export default function PlanesPage() {
         const data = await getNegocioStats();
         setStats(data);
       } catch (error) {
-        console.error('Error al cargar estadísticas:', error);
-        showMessage('Error al cargar estadísticas del negocio', 'error');
+        console.error("Error al cargar estadísticas:", error);
+        showMessage("Error al cargar estadísticas del negocio", "error");
       } finally {
         setLoadingStats(false);
       }
@@ -132,8 +138,8 @@ export default function PlanesPage() {
         const data = await getPlanes();
         setPlanes(data);
       } catch (error) {
-        console.error('Error al cargar planes:', error);
-        showMessage('Error al cargar planes de suscripción', 'error');
+        console.error("Error al cargar planes:", error);
+        showMessage("Error al cargar planes de suscripción", "error");
       } finally {
         setLoadingPlanes(false);
       }
@@ -151,18 +157,21 @@ export default function PlanesPage() {
 
   const handleCloseContactSupport = () => {
     setShowContactSupport(false);
-    setSelectedSupport('');
+    setSelectedSupport("");
   };
 
   const handleContactSelected = () => {
-    const selectedUser = supportUsers.find(u => u.name === selectedSupport);
+    const selectedUser = supportUsers.find((u) => u.name === selectedSupport);
     if (selectedUser) {
       // Abrir WhatsApp con mensaje predefinido
       const message = encodeURIComponent(
-        `Hola ${selectedUser.name}, me interesa obtener más información sobre los planes de suscripción de Cuadre de Caja. Mi negocio es: ${user?.negocio?.nombre || 'Sin especificar'}`
+        `Hola ${selectedUser.name}, me interesa obtener más información sobre los planes de suscripción de Cuadre de Caja. Mi negocio es: ${user?.negocio?.nombre || "Sin especificar"}`,
       );
-      window.open(`https://wa.me/${selectedUser.whatsapp.replace(/\s/g, '')}?text=${message}`, '_blank');
-      showMessage('Redirigiendo a WhatsApp...', 'info');
+      window.open(
+        `https://wa.me/${selectedUser.whatsapp.replace(/\s/g, "")}?text=${message}`,
+        "_blank",
+      );
+      showMessage("Redirigiendo a WhatsApp...", "info");
     }
     handleCloseContactSupport();
   };
@@ -170,34 +179,47 @@ export default function PlanesPage() {
   // Determinar el plan actual del usuario
   const getCurrentPlan = (): IPlan | null => {
     if (!user?.negocio || planes.length === 0) return null;
-    return planes.find(p => p.id === user.negocio.planId) ?? null;
+    return planes.find((p) => p.id === user.negocio.planId) ?? null;
   };
 
   const currentPlan = getCurrentPlan();
 
-  const displayPlans = planes.map(plan => ({
+  const displayPlans = planes.map((plan) => ({
     plan,
-    price: plan.precio === -1 ? 'Cotización' : plan.precio === 0 ? '$0' : `$${plan.precio}`,
-    period: plan.precio === 0 || plan.precio === -1 ? '' : 'mes',
-    duration: plan.duracion === -1 ? 'Duración negociable' : `${plan.duracion} días de validez`,
+    price:
+      plan.precio === -1
+        ? "Cotización"
+        : plan.precio === 0
+          ? "$0"
+          : `$${plan.precio}`,
+    period: plan.precio === 0 || plan.precio === -1 ? "" : "mes",
+    duration:
+      plan.duracion === -1
+        ? "Duración negociable"
+        : `${plan.duracion} días de validez`,
     features: buildPlanFeatures(plan),
     isCurrent: currentPlan?.id === plan.id,
   }));
 
   const breadcrumbs = [
-    { label: 'Inicio', href: '/home' },
-    { label: 'Configuración', href: '/configuracion' },
-    { label: 'Planes y Suscripción' }
+    { label: "Inicio", href: "/home" },
+    { label: "Configuración", href: "/configuracion" },
+    { label: "Planes y Suscripción" },
   ];
 
   // Componente para mostrar estadísticas de uso
-  const UsageStatsCard = ({ icon, title, actual, limite, porcentaje }: {
+  const UsageStatsCard = ({
+    icon,
+    title,
+    actual,
+    limite,
+    porcentaje,
+  }: {
     icon: React.ReactNode;
     title: string;
     actual: number;
     limite: number;
     porcentaje: number;
-    color: string;
   }) => {
     const isUnlimited = limite === -1;
     const isNearLimit = porcentaje >= 80 && !isUnlimited;
@@ -216,13 +238,15 @@ export default function PlanesPage() {
             {actual}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            de {isUnlimited ? '∞' : limite}
+            de {isUnlimited ? "∞" : limite}
           </Typography>
           {!isUnlimited && (
             <Chip
               label={formatPercentage(porcentaje)}
               size="small"
-              color={isOverLimit ? 'error' : isNearLimit ? 'warning' : 'success'}
+              color={
+                isOverLimit ? "error" : isNearLimit ? "warning" : "primary"
+              }
               variant="outlined"
             />
           )}
@@ -235,11 +259,15 @@ export default function PlanesPage() {
               mt: 1,
               height: 6,
               borderRadius: 3,
-              backgroundColor: 'grey.200',
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: isOverLimit ? 'error.main' : isNearLimit ? 'warning.main' : 'success.main',
+              backgroundColor: "grey.200",
+              "& .MuiLinearProgress-bar": {
+                backgroundColor: isOverLimit
+                  ? "error.main"
+                  : isNearLimit
+                    ? "warning.main"
+                    : "primary.main",
                 borderRadius: 3,
-              }
+              },
             }}
           />
         )}
@@ -250,32 +278,38 @@ export default function PlanesPage() {
   return (
     <PageContainer
       title="Planes y Suscripción"
-      subtitle={!isMobile ? "Elige el plan que mejor se adapte a las necesidades de tu negocio" : undefined}
+      subtitle={
+        !isMobile
+          ? "Elige el plan que mejor se adapte a las necesidades de tu negocio"
+          : undefined
+      }
       breadcrumbs={breadcrumbs}
     >
       {/* Información del plan actual con estadísticas */}
       {currentPlan && (
-        <Alert
-          severity="info"
-          sx={{ mb: 4 }}
-          icon={<Business />}
-        >
+        <Alert severity="info" sx={{ mb: 4 }} icon={<Business />}>
           <Box>
             <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
-              Plan Actual: {currentPlan?.nombre ?? 'CUSTOM'}
+              Plan Actual: {currentPlan?.nombre ?? "CUSTOM"}
             </Typography>
 
             {loadingStats ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mt: 2 }}
+              >
                 <CircularProgress size={20} />
-                <Typography variant="body2">Cargando estadísticas...</Typography>
+                <Typography variant="body2">
+                  Cargando estadísticas...
+                </Typography>
               </Box>
             ) : stats ? (
               <Grid container spacing={3}>
                 {/* Estadísticas de uso */}
                 <Grid item xs={12} md={8}>
                   <Typography variant="body2" sx={{ mb: 2 }}>
-                    {user?.negocio?.nombre} está usando el plan {(currentPlan?.nombre ?? 'CUSTOM').toLowerCase()} con el siguiente uso:
+                    {user?.negocio?.nombre} está usando el plan{" "}
+                    {(currentPlan?.nombre ?? "CUSTOM").toLowerCase()} con el
+                    siguiente uso:
                   </Typography>
 
                   <Grid container spacing={2}>
@@ -286,7 +320,6 @@ export default function PlanesPage() {
                         actual={stats.tiendas.actual}
                         limite={stats.tiendas.limite}
                         porcentaje={stats.tiendas.porcentaje}
-                        color="primary"
                       />
                     </Grid>
                     <Grid item xs={12} sm={4}>
@@ -296,7 +329,6 @@ export default function PlanesPage() {
                         actual={stats.usuarios.actual}
                         limite={stats.usuarios.limite}
                         porcentaje={stats.usuarios.porcentaje}
-                        color="secondary"
                       />
                     </Grid>
                     <Grid item xs={12} sm={4}>
@@ -306,7 +338,6 @@ export default function PlanesPage() {
                         actual={stats.productos.actual}
                         limite={stats.productos.limite}
                         porcentaje={stats.productos.porcentaje}
-                        color="info"
                       />
                     </Grid>
                   </Grid>
@@ -314,10 +345,10 @@ export default function PlanesPage() {
 
                 {/* Información de vencimiento */}
                 <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ height: '100%' }}>
+                  <Card variant="outlined" sx={{ height: "100%" }}>
                     <CardContent>
                       <Stack alignItems="center" spacing={2}>
-                        <Box sx={{ textAlign: 'center' }}>
+                        <Box sx={{ textAlign: "center" }}>
                           {stats.diasRestantes <= 0 ? (
                             <ErrorIcon color="error" sx={{ fontSize: 40 }} />
                           ) : stats.diasRestantes <= 7 ? (
@@ -327,7 +358,7 @@ export default function PlanesPage() {
                           )}
                         </Box>
 
-                        <Box sx={{ textAlign: 'center' }}>
+                        <Box sx={{ textAlign: "center" }}>
                           <Typography variant="h6" fontWeight="bold">
                             {formatDaysRemaining(stats.diasRestantes)}
                           </Typography>
@@ -337,7 +368,11 @@ export default function PlanesPage() {
                         </Box>
 
                         <Chip
-                          label={stats.diasRestantes <= 0 ? 'Plan Expirado' : 'Plan Activo'}
+                          label={
+                            stats.diasRestantes <= 0
+                              ? "Plan Expirado"
+                              : "Plan Activo"
+                          }
                           color={getDaysRemainingColor(stats.diasRestantes)}
                           variant="filled"
                           size="small"
@@ -358,42 +393,45 @@ export default function PlanesPage() {
           ⏰ Importante: Validez de los Planes
         </Typography>
         <Typography variant="body2">
-          {billingCycle === 'monthly' ? (
+          {billingCycle === "monthly" ? (
             <>
-              Todos los planes tienen una <strong>validez de 30 días (excepto el FREEMIUM)</strong> desde su activación.
-              Después de este período, será necesario renovar la suscripción mensual para continuar
-              usando el servicio sin interrupciones.
+              Todos los planes tienen una{" "}
+              <strong>validez de 30 días (excepto el FREEMIUM)</strong> desde su
+              activación. Después de este período, será necesario renovar la
+              suscripción mensual para continuar usando el servicio sin
+              interrupciones.
             </>
           ) : (
             <>
-              Todos los planes tienen una <strong>validez de 365 días (excepto el FREEMIUM)</strong> desde su activación.
-              Después de este período, será necesario renovar la suscripción anual para continuar
-              usando el servicio sin interrupciones.
+              Todos los planes tienen una{" "}
+              <strong>validez de 365 días (excepto el FREEMIUM)</strong> desde
+              su activación. Después de este período, será necesario renovar la
+              suscripción anual para continuar usando el servicio sin
+              interrupciones.
             </>
           )}
         </Typography>
       </Alert>
 
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-          <Stack
-              direction="row"
-              spacing={2}
-              alignItems="center"
-              justifyContent="center"
-              sx={{ mb: 4 }}
+      <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
+        <Stack
+          direction="row"
+          spacing={2}
+          alignItems="center"
+          justifyContent="center"
+          sx={{ mb: 4 }}
+        >
+          <ToggleButtonGroup
+            color="primary"
+            value={billingCycle}
+            exclusive
+            onChange={(e, value) => setBillingCycle(value)}
+            aria-label="Platform"
           >
-            <ToggleButtonGroup
-                color="primary"
-                value={billingCycle}
-                exclusive
-                onChange={(e, value) => setBillingCycle(value)}
-                aria-label="Platform"
-            >
-              <ToggleButton value="monthly">Mensual</ToggleButton>
-              <ToggleButton value="yearly">Anual</ToggleButton>
-            </ToggleButtonGroup>
-          </Stack>
-
+            <ToggleButton value="monthly">Mensual</ToggleButton>
+            <ToggleButton value="yearly">Anual</ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
       </Box>
 
       {/* Planes disponibles */}
@@ -402,113 +440,31 @@ export default function PlanesPage() {
           Planes Disponibles
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          Compara las características de cada plan y elige el que mejor se adapte a tu negocio.
+          Compara las características de cada plan y elige el que mejor se
+          adapte a tu negocio.
         </Typography>
 
         {loadingPlanes ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
             <CircularProgress />
           </Box>
         ) : isMobile ? (
           // Vista móvil: Stack vertical con cards más compactas
           <Stack spacing={3}>
-            {displayPlans.map(({ plan, price, period, duration, features, isCurrent }) => (
-              <Card
-                key={plan.id}
-                variant="outlined"
-                sx={{
-                  position: 'relative',
-                  border: plan.recomendado ? 2 : 1,
-                  borderColor: plan.recomendado ? 'primary.main' : 'divider',
-                  '&:hover': {
-                    boxShadow: plan.recomendado ? 4 : 2,
-                    transform: 'translateY(-2px)',
-                    transition: 'all 0.2s'
-                  }
-                }}
-              >
-                {plan.recomendado && !isCurrent && (
-                  <Chip
-                    label="Recomendado"
-                    color="primary"
-                    size="small"
-                    icon={<Star />}
-                    sx={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}
-                  />
-                )}
-                {isCurrent && (
-                  <Chip
-                    label="Plan Actual"
-                    color="success"
-                    size="small"
-                    sx={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}
-                  />
-                )}
-                <CardContent sx={{ p: 3 }}>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="h6" component="h3" sx={{ fontSize: '1.25rem', fontWeight: 600 }}>
-                        {plan.nombre}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-                        {plan.descripcion}
-                      </Typography>
-                      <Typography variant="caption" color="warning.main" sx={{ fontStyle: 'italic', display: 'block', mt: 0.5 }}>
-                        {plan.duracion === -1 ? duration : billingCycle === 'monthly' ? `${plan.duracion} días de validez` : '365 días de validez'}
-                      </Typography>
-                      <Box sx={{ mt: 2, display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                        <Typography variant="h4" component="span" color="primary" sx={{ fontSize: '2rem', fontWeight: 700 }}>
-                          {plan.precio === -1 || plan.precio === 0
-                            ? price
-                            : `$${billingCycle === 'monthly' ? plan.precio : plan.precio * 10}`}
-                        </Typography>
-                        {period && (
-                          <Typography variant="body2" component="span" color="text.secondary">
-                            /{billingCycle === 'monthly' ? 'mes' : 'año'}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Box>
-
-                    <Divider />
-
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontSize: '1rem', fontWeight: 600, mb: 2 }}>
-                        Características incluidas:
-                      </Typography>
-                      <Stack spacing={1}>
-                        {features.map((feature, index) => (
-                          <Stack key={index} direction="row" alignItems="center" spacing={1.5}>
-                            <CheckCircle color="success" sx={{ fontSize: 20 }} />
-                            <Typography variant="body2" sx={{ fontSize: '0.875rem', lineHeight: 1.4 }}>
-                              {feature}
-                            </Typography>
-                          </Stack>
-                        ))}
-                      </Stack>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
-        ) : (
-          // Vista desktop/tablet: Grid
-          <Grid container spacing={isTablet ? 3 : 4}>
-            {displayPlans.map(({ plan, price, period, duration, features, isCurrent }) => (
-              <Grid item xs={12} sm={6} md={4} key={plan.id}>
+            {displayPlans.map(
+              ({ plan, price, period, duration, features, isCurrent }) => (
                 <Card
+                  key={plan.id}
                   variant="outlined"
                   sx={{
-                    height: '100%',
-                    position: 'relative',
+                    position: "relative",
                     border: plan.recomendado ? 2 : 1,
-                    borderColor: plan.recomendado ? 'primary.main' : 'divider',
-                    '&:hover': {
+                    borderColor: plan.recomendado ? "primary.main" : "divider",
+                    "&:hover": {
                       boxShadow: plan.recomendado ? 4 : 2,
-                      transform: 'translateY(-4px)',
-                      transition: 'all 0.3s'
-                    }
+                      transform: "translateY(-2px)",
+                      transition: "all 0.2s",
+                    },
                   }}
                 >
                   {plan.recomendado && !isCurrent && (
@@ -517,64 +473,258 @@ export default function PlanesPage() {
                       color="primary"
                       size="small"
                       icon={<Star />}
-                      sx={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}
+                      sx={{ position: "absolute", top: 0, right: 0, zIndex: 1 }}
                     />
                   )}
                   {isCurrent && (
                     <Chip
-                      label="Plan Actual"
-                      color="success"
+                      label="Tu plan"
+                      color="primary"
                       size="small"
-                      sx={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}
+                      sx={{ position: "absolute", top: 0, right: 0, zIndex: 1 }}
                     />
                   )}
-                  <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ textAlign: 'center', mb: 3 }}>
-                      <Typography variant="h5" component="h3" sx={{ fontSize: isTablet ? '1.5rem' : '1.75rem', fontWeight: 600 }}>
-                        {plan.nombre}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: isTablet ? '0.875rem' : '1rem', mt: 1 }}>
-                        {plan.descripcion}
-                      </Typography>
-                      <Typography variant="caption" color="warning.main" sx={{ fontStyle: 'italic', display: 'block', mt: 0.5 }}>
-                        {plan.duracion === -1 ? duration : billingCycle === 'monthly' ? `${plan.duracion} días de validez` : '365 días de validez'}
-                      </Typography>
-                      <Box sx={{ my: 3 }}>
-                        <Typography variant="h3" component="span" color="primary" sx={{ fontSize: isTablet ? '2.5rem' : '3rem', fontWeight: 700 }}>
-                          {plan.precio === -1 || plan.precio === 0
-                            ? price
-                            : `$${billingCycle === 'monthly' ? plan.precio : plan.precio * 10}`}
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography
+                          variant="h6"
+                          component="h3"
+                          sx={{ fontSize: "1.25rem", fontWeight: 600 }}
+                        >
+                          {plan.nombre}
                         </Typography>
-                        {period && (
-                          <Typography variant="h6" component="span" color="text.secondary">
-                            /{billingCycle === 'monthly' ? 'mes' : 'año'}
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontSize: "0.875rem" }}
+                        >
+                          {plan.descripcion}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="warning.main"
+                          sx={{
+                            fontStyle: "italic",
+                            display: "block",
+                            mt: 0.5,
+                          }}
+                        >
+                          {plan.duracion === -1
+                            ? duration
+                            : billingCycle === "monthly"
+                              ? `${plan.duracion} días de validez`
+                              : "365 días de validez"}
+                        </Typography>
+                        <Box
+                          sx={{
+                            mt: 2,
+                            display: "flex",
+                            alignItems: "baseline",
+                            gap: 0.5,
+                          }}
+                        >
+                          <Typography
+                            variant="h4"
+                            component="span"
+                            color="primary"
+                            sx={{ fontSize: "2rem", fontWeight: 700 }}
+                          >
+                            {plan.precio === -1 || plan.precio === 0
+                              ? price
+                              : `$${billingCycle === "monthly" ? plan.precio : plan.precio * 10}`}
                           </Typography>
-                        )}
+                          {period && (
+                            <Typography
+                              variant="body2"
+                              component="span"
+                              color="text.secondary"
+                            >
+                              /{billingCycle === "monthly" ? "mes" : "año"}
+                            </Typography>
+                          )}
+                        </Box>
                       </Box>
-                    </Box>
 
-                    <Divider sx={{ mb: 3 }} />
+                      <Divider />
 
-                    <List dense sx={{ flexGrow: 1 }}>
-                      {features.map((feature, index) => (
-                        <ListItem key={index} sx={{ px: 0, py: 0.5 }}>
-                          <ListItemIcon sx={{ minWidth: 36 }}>
-                            <CheckCircle color="success" fontSize="small" />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={feature}
-                            primaryTypographyProps={{
-                              fontSize: isTablet ? '0.875rem' : '1rem',
-                              fontWeight: 500
-                            }}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
+                      <Box>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{ fontSize: "1rem", fontWeight: 600, mb: 2 }}
+                        >
+                          Características incluidas:
+                        </Typography>
+                        <Stack spacing={1}>
+                          {features.map((feature, index) => (
+                            <Stack
+                              key={index}
+                              direction="row"
+                              alignItems="center"
+                              spacing={1.5}
+                            >
+                              <CheckCircle
+                                color="success"
+                                sx={{ fontSize: 20 }}
+                              />
+                              <Typography
+                                variant="body2"
+                                sx={{ fontSize: "0.875rem", lineHeight: 1.4 }}
+                              >
+                                {feature}
+                              </Typography>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      </Box>
+                    </Stack>
                   </CardContent>
                 </Card>
-              </Grid>
-            ))}
+              ),
+            )}
+          </Stack>
+        ) : (
+          // Vista desktop/tablet: Grid
+          <Grid container spacing={isTablet ? 3 : 4}>
+            {displayPlans.map(
+              ({ plan, price, period, duration, features, isCurrent }) => (
+                <Grid item xs={12} sm={6} md={4} key={plan.id}>
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      height: "100%",
+                      position: "relative",
+                      border: plan.recomendado ? 2 : 1,
+                      borderColor: plan.recomendado
+                        ? "primary.main"
+                        : "divider",
+                      "&:hover": {
+                        boxShadow: plan.recomendado ? 4 : 2,
+                        transform: "translateY(-4px)",
+                        transition: "all 0.3s",
+                      },
+                    }}
+                  >
+                    {plan.recomendado && !isCurrent && (
+                      <Chip
+                        label="Recomendado"
+                        color="primary"
+                        size="small"
+                        icon={<Star />}
+                        sx={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          zIndex: 1,
+                        }}
+                      />
+                    )}
+                    {isCurrent && (
+                      <Chip
+                        label="Tu plan"
+                        color="primary"
+                        size="small"
+                        sx={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          zIndex: 1,
+                        }}
+                      />
+                    )}
+                    <CardContent
+                      sx={{
+                        p: 4,
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                    >
+                      <Box sx={{ textAlign: "center", mb: 3 }}>
+                        <Typography
+                          variant="h5"
+                          component="h3"
+                          sx={{
+                            fontSize: isTablet ? "1.5rem" : "1.75rem",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {plan.nombre}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            fontSize: isTablet ? "0.875rem" : "1rem",
+                            mt: 1,
+                          }}
+                        >
+                          {plan.descripcion}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="warning.main"
+                          sx={{
+                            fontStyle: "italic",
+                            display: "block",
+                            mt: 0.5,
+                          }}
+                        >
+                          {plan.duracion === -1
+                            ? duration
+                            : billingCycle === "monthly"
+                              ? `${plan.duracion} días de validez`
+                              : "365 días de validez"}
+                        </Typography>
+                        <Box sx={{ my: 3 }}>
+                          <Typography
+                            variant="h3"
+                            component="span"
+                            color="primary"
+                            sx={{
+                              fontSize: isTablet ? "2.5rem" : "3rem",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {plan.precio === -1 || plan.precio === 0
+                              ? price
+                              : `$${billingCycle === "monthly" ? plan.precio : plan.precio * 10}`}
+                          </Typography>
+                          {period && (
+                            <Typography
+                              variant="h6"
+                              component="span"
+                              color="text.secondary"
+                            >
+                              /{billingCycle === "monthly" ? "mes" : "año"}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+
+                      <Divider sx={{ mb: 3 }} />
+
+                      <List dense sx={{ flexGrow: 1 }}>
+                        {features.map((feature, index) => (
+                          <ListItem key={index} sx={{ px: 0, py: 0.5 }}>
+                            <ListItemIcon sx={{ minWidth: 36 }}>
+                              <CheckCircle color="success" fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={feature}
+                              primaryTypographyProps={{
+                                fontSize: isTablet ? "0.875rem" : "1rem",
+                                fontWeight: 500,
+                              }}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ),
+            )}
           </Grid>
         )}
       </Box>
@@ -582,13 +732,17 @@ export default function PlanesPage() {
       {/* Información adicional */}
       <Box sx={{ mb: 4 }}>
         <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2" sx={{ fontSize: isMobile ? '0.875rem' : '1rem' }}>
-            <strong>¿Necesitas ayuda para elegir?</strong> Nuestro equipo de soporte puede ayudarte a seleccionar
-            el plan que mejor se adapte a las necesidades específicas de tu negocio.
+          <Typography
+            variant="body2"
+            sx={{ fontSize: isMobile ? "0.875rem" : "1rem" }}
+          >
+            <strong>¿Necesitas ayuda para elegir?</strong> Nuestro equipo de
+            soporte puede ayudarte a seleccionar el plan que mejor se adapte a
+            las necesidades específicas de tu negocio.
           </Typography>
         </Alert>
 
-        <Box sx={{ textAlign: 'center' }}>
+        <Box sx={{ textAlign: "center" }}>
           <Button
             variant="contained"
             size="large"
@@ -597,8 +751,8 @@ export default function PlanesPage() {
             sx={{
               py: 1.5,
               px: 4,
-              fontSize: isMobile ? '1rem' : '1.125rem',
-              fontWeight: 600
+              fontSize: isMobile ? "1rem" : "1.125rem",
+              fontWeight: 600,
             }}
           >
             Contactar para Actualizar Plan
@@ -612,26 +766,37 @@ export default function PlanesPage() {
         onClose={handleCloseContactSupport}
         maxWidth="sm"
         fullWidth
+        fullScreen={isMobile}
         PaperProps={{
           sx: {
-            borderRadius: 3,
-            p: 1
-          }
+            borderRadius: isMobile ? 0 : 3,
+            p: 1,
+          },
         }}
       >
         <DialogTitle>
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <ContactSupport color="primary" />
-            <Typography variant="h6">
-              Contactar Soporte
-            </Typography>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <ContactSupport color="primary" />
+              <Typography variant="h6">Contactar Soporte</Typography>
+            </Stack>
+            {isMobile && (
+              <IconButton onClick={handleCloseContactSupport}>
+                <Close />
+              </IconButton>
+            )}
           </Stack>
         </DialogTitle>
 
         <DialogContent>
           <Stack spacing={3}>
             <Typography variant="body1">
-              Selecciona con quién te gustaría hablar para obtener más información sobre nuestros planes:
+              Selecciona con quién te gustaría hablar para obtener más
+              información sobre nuestros planes:
             </Typography>
 
             <RadioGroup
@@ -644,8 +809,15 @@ export default function PlanesPage() {
                   value={user.name}
                   control={<Radio />}
                   label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
-                      <Avatar sx={{ bgcolor: 'primary.main' }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        py: 1,
+                      }}
+                    >
+                      <Avatar sx={{ bgcolor: "primary.main" }}>
                         {user.name.charAt(0)}
                       </Avatar>
                       <Box>
@@ -657,7 +829,9 @@ export default function PlanesPage() {
                           <Typography variant="body2" color="text.secondary">
                             {user.phone}
                           </Typography>
-                          <WhatsApp sx={{ fontSize: 16, color: '#25D366' }} />
+                          <WhatsApp
+                            sx={{ fontSize: 16, color: WHATSAPP_GREEN }}
+                          />
                         </Stack>
                       </Box>
                     </Box>
@@ -666,9 +840,9 @@ export default function PlanesPage() {
                     m: 0,
                     p: 1,
                     borderRadius: 2,
-                    '&:hover': {
-                      backgroundColor: 'rgba(25, 118, 210, 0.04)'
-                    }
+                    "&:hover": {
+                      backgroundColor: "semantic.surface.sunken",
+                    },
                   }}
                 />
               ))}
@@ -676,11 +850,20 @@ export default function PlanesPage() {
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ p: 3, gap: 1 }}>
+        <DialogActions
+          sx={{
+            p: 3,
+            gap: 1,
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
           <Button
             onClick={handleCloseContactSupport}
             color="secondary"
             size="large"
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
           >
             Cancelar
           </Button>
@@ -690,6 +873,8 @@ export default function PlanesPage() {
             startIcon={<WhatsApp />}
             disabled={!selectedSupport}
             size="large"
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             Contactar por WhatsApp
           </Button>
@@ -697,4 +882,4 @@ export default function PlanesPage() {
       </Dialog>
     </PageContainer>
   );
-} 
+}
