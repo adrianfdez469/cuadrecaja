@@ -50,9 +50,9 @@ const ROW_TAPPABLE_SX = {
   // Pointer devices only: on touch the hover sticks after the tap, and here
   // that would leave a highlighted row behind for every product added.
   "@media (hover: hover)": {
-    "&:hover": { bgcolor: "action.hover" },
+    "&:hover": { bgcolor: "semantic.surface.sunken" },
   },
-  "&:active": { bgcolor: "action.selected" },
+  "&:active": { bgcolor: "semantic.surface.border" },
 } as const;
 
 const NAME_COL_SX = { flex: 1, minWidth: 0 } as const;

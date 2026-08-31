@@ -212,7 +212,7 @@ function ActivarUsuarioForm() {
             minHeight: touch.min,
             fontSize: "0.875rem",
             fontWeight: 600,
-            color: "#5B4CA8",
+            color: "primary.main",
             textDecoration: "none",
             "&:hover": { textDecoration: "underline" },
           }}

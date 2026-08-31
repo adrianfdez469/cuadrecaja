@@ -464,7 +464,7 @@ export default function UsuariosPage() {
                         sx={{
                           cursor: "pointer",
                           "&:hover": {
-                            backgroundColor: "action.hover",
+                            backgroundColor: "semantic.surface.sunken",
                           },
                         }}
                       >

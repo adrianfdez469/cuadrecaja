@@ -487,7 +487,7 @@ export default function ReferidosAdminPage() {
             >
               <Table size="small" sx={{ minWidth: 760 }}>
                 <TableHead>
-                  <TableRow sx={{ bgcolor: "action.hover" }}>
+                  <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
                     <TableCell sx={{ fontWeight: 600 }}>Nombre</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Correo</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Código</TableCell>
@@ -505,7 +505,7 @@ export default function ReferidosAdminPage() {
                   {promoters.map((p) => (
                     <TableRow
                       key={p.id}
-                      sx={{ "&:hover": { bgcolor: "action.hover" } }}
+                      sx={{ "&:hover": { bgcolor: "semantic.surface.sunken" } }}
                     >
                       <TableCell>{p.fullName}</TableCell>
                       <TableCell>{p.email}</TableCell>
@@ -739,7 +739,7 @@ export default function ReferidosAdminPage() {
             >
               <Table size="small" sx={{ minWidth: 960 }}>
                 <TableHead>
-                  <TableRow sx={{ bgcolor: "action.hover" }}>
+                  <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
                     <TableCell sx={{ fontWeight: 600 }}>Negocio</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Promotor</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Estado</TableCell>
@@ -756,7 +756,7 @@ export default function ReferidosAdminPage() {
                   {referrals.map((r) => (
                     <TableRow
                       key={r.id}
-                      sx={{ "&:hover": { bgcolor: "action.hover" } }}
+                      sx={{ "&:hover": { bgcolor: "semantic.surface.sunken" } }}
                     >
                       <TableCell>{r.newBusiness?.nombre ?? "—"}</TableCell>
                       <TableCell>
@@ -938,7 +938,7 @@ export default function ReferidosAdminPage() {
             >
               <Table size="small" sx={{ minWidth: 880 }}>
                 <TableHead>
-                  <TableRow sx={{ bgcolor: "action.hover" }}>
+                  <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
                     <TableCell sx={{ fontWeight: 600 }}>Plan</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Plan activo</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 600 }}>
@@ -957,7 +957,7 @@ export default function ReferidosAdminPage() {
                   {rewardRows.map((row) => (
                     <TableRow
                       key={row.planId}
-                      sx={{ "&:hover": { bgcolor: "action.hover" } }}
+                      sx={{ "&:hover": { bgcolor: "semantic.surface.sunken" } }}
                     >
                       <TableCell>{row.planNombre}</TableCell>
                       <TableCell>

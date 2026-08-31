@@ -8,7 +8,7 @@ export const ProductAvatarPlaceholder = () => {
         width: 56,
         height: 56,
         borderRadius: 2,
-        bgcolor: "action.hover",
+        bgcolor: "semantic.surface.sunken",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

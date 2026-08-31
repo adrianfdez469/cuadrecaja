@@ -42,8 +42,6 @@ interface Credentials {
   incluirProductosPrueba?: boolean;
 }
 
-const BRAND = "#5B4CA8";
-
 function CopiarCampo({ label, value }: { label: string; value: string }) {
   const [copiado, setCopiado] = useState(false);
 
@@ -60,9 +58,10 @@ function CopiarCampo({ label, value }: { label: string; value: string }) {
         alignItems: "center",
         justifyContent: "space-between",
         p: 2,
-        bgcolor: "#F4F2FB",
+        bgcolor: "semantic.hue.accent.surface",
         borderRadius: "8px",
-        border: "1px solid #E8E6F0",
+        border: "1px solid",
+        borderColor: "semantic.surface.border",
       }}
     >
       <Box>
@@ -87,7 +86,7 @@ function CopiarCampo({ label, value }: { label: string; value: string }) {
         <IconButton
           onClick={copiar}
           size="small"
-          sx={{ color: copiado ? BRAND : "text.disabled" }}
+          sx={{ color: copiado ? "primary.main" : "text.disabled" }}
         >
           <ContentCopy fontSize="small" />
         </IconButton>
@@ -182,7 +181,7 @@ function ActivarContent() {
   if (estado === "loading" || estado === "activating") {
     return (
       <Box sx={{ textAlign: "center", py: 4 }}>
-        <CircularProgress sx={{ color: BRAND, mb: 2.5 }} size={48} />
+        <CircularProgress sx={{ color: "primary.main", mb: 2.5 }} size={48} />
         <Typography
           variant="h5"
           sx={{
@@ -207,7 +206,7 @@ function ActivarContent() {
     return (
       <>
         <Box sx={{ textAlign: "center", mb: 3.5 }}>
-          <CheckCircle sx={{ fontSize: 56, color: BRAND, mb: 2 }} />
+          <CheckCircle sx={{ fontSize: 56, color: "primary.main", mb: 2 }} />
           <Typography
             variant="h4"
             sx={{
@@ -220,7 +219,12 @@ function ActivarContent() {
           </Typography>
           <Typography variant="body1" sx={{ color: "text.secondary" }}>
             Negocio{" "}
-            <strong style={{ color: BRAND }}>{credentials.negocio}</strong>{" "}
+            <Box
+              component="strong"
+              sx={{ color: "primary.main", fontWeight: 700 }}
+            >
+              {credentials.negocio}
+            </Box>{" "}
             creado exitosamente
           </Typography>
         </Box>
@@ -228,9 +232,10 @@ function ActivarContent() {
         <Box
           sx={{
             p: 2.5,
-            bgcolor: "#F4F2FB",
+            bgcolor: "semantic.hue.accent.surface",
             borderRadius: "8px",
-            border: "1px solid #E8E6F0",
+            border: "1px solid",
+            borderColor: "semantic.surface.border",
             mb: 2.5,
           }}
         >
@@ -284,7 +289,7 @@ function ActivarContent() {
                 <CheckCircle
                   sx={{
                     fontSize: 16,
-                    color: BRAND,
+                    color: "semantic.hue.positive.main",
                     mt: 0.3,
                     flexShrink: 0,
                   }}
@@ -324,23 +329,35 @@ function ActivarContent() {
     }
   > = {
     error_expired: {
-      icon: <AccessTime sx={{ fontSize: 48, color: "#FFA726" }} />,
+      icon: (
+        <AccessTime sx={{ fontSize: 48, color: "semantic.hue.caution.main" }} />
+      ),
       title: "Enlace expirado",
       chip: `El enlace era válido por ${LANDING_ACTIVATION_TTL_LABEL}`,
       severity: "warning",
     },
     error_used: {
-      icon: <CheckCircle sx={{ fontSize: 48, color: "#0288D1" }} />,
+      icon: (
+        <CheckCircle sx={{ fontSize: 48, color: "semantic.hue.info.main" }} />
+      ),
       title: "Cuenta ya activada",
       severity: "info",
     },
     error_conflict: {
-      icon: <WarningAmber sx={{ fontSize: 48, color: "#FFA726" }} />,
+      icon: (
+        <WarningAmber
+          sx={{ fontSize: 48, color: "semantic.hue.caution.main" }}
+        />
+      ),
       title: "No se pudo completar el registro",
       severity: "warning",
     },
     error_invalid: {
-      icon: <ErrorOutline sx={{ fontSize: 48, color: "#EF5350" }} />,
+      icon: (
+        <ErrorOutline
+          sx={{ fontSize: 48, color: "semantic.hue.negative.main" }}
+        />
+      ),
       title: "Enlace inválido",
       severity: "error",
     },
@@ -401,7 +418,7 @@ export default function ActivarPage() {
             justifyContent: "center",
             alignItems: "center",
             minHeight: "100dvh",
-            bgcolor: "#F7F7FA",
+            bgcolor: "semantic.surface.page",
           }}
         >
           <CircularProgress />

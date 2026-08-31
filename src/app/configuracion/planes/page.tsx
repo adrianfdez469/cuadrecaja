@@ -841,7 +841,7 @@ export default function PlanesPage() {
                     p: 1,
                     borderRadius: 2,
                     "&:hover": {
-                      backgroundColor: "action.hover",
+                      backgroundColor: "semantic.surface.sunken",
                     },
                   }}
                 />

@@ -271,7 +271,7 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                           py: 0.5,
                           px: 1,
                           borderRadius: 1,
-                          bgcolor: "action.hover",
+                          bgcolor: "semantic.surface.sunken",
                         }}
                       >
                         <Typography variant="body2">

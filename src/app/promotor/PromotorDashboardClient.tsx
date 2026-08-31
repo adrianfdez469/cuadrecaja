@@ -226,7 +226,7 @@ export default function PromotorDashboardClient({
     <TableRow
       key={r.id}
       sx={{
-        "&:hover": { bgcolor: "action.hover" },
+        "&:hover": { bgcolor: "semantic.surface.sunken" },
         "& td": { borderColor: "divider" },
       }}
     >
@@ -375,7 +375,7 @@ export default function PromotorDashboardClient({
                         bgcolor:
                           copied === "code"
                             ? "semantic.hue.positive.surface"
-                            : "action.hover",
+                            : "semantic.surface.sunken",
                       },
                     }}
                     aria-label="Copiar código de promoción"
@@ -463,7 +463,7 @@ export default function PromotorDashboardClient({
                             bgcolor:
                               copied === "link"
                                 ? "semantic.hue.positive.surface"
-                                : "action.hover",
+                                : "semantic.surface.sunken",
                           },
                         }}
                         aria-label="Copiar enlace de invitación"
@@ -486,7 +486,7 @@ export default function PromotorDashboardClient({
                           color: "#25D366",
                           minHeight: "44px",
                           minWidth: "44px",
-                          "&:hover": { bgcolor: "action.hover" },
+                          "&:hover": { bgcolor: "semantic.surface.sunken" },
                         }}
                         aria-label="Compartir enlace por WhatsApp"
                       >
@@ -504,7 +504,7 @@ export default function PromotorDashboardClient({
                           color: "#1877F2",
                           minHeight: "44px",
                           minWidth: "44px",
-                          "&:hover": { bgcolor: "action.hover" },
+                          "&:hover": { bgcolor: "semantic.surface.sunken" },
                         }}
                         aria-label="Compartir enlace por Facebook"
                       >
@@ -522,7 +522,7 @@ export default function PromotorDashboardClient({
                           color: "#E4405F",
                           minHeight: "44px",
                           minWidth: "44px",
-                          "&:hover": { bgcolor: "action.hover" },
+                          "&:hover": { bgcolor: "semantic.surface.sunken" },
                         }}
                         aria-label="Compartir enlace por Instagram"
                       >

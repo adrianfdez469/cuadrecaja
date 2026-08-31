@@ -372,7 +372,7 @@ const LimitDialog: React.FC<LimitDialogProps> = ({
                 sx={{ 
                   mb: 2,
                   cursor: 'pointer',
-                  '&:hover': { bgcolor: 'action.hover' },
+                  '&:hover': { bgcolor: 'semantic.surface.sunken' },
                   border: selectedSupport === user.name ? 2 : 1,
                   borderColor: selectedSupport === user.name ? 'primary.main' : 'divider'
                 }}

@@ -228,7 +228,7 @@ export default function Proveedores() {
           onClick={() => setOpen(true)}
           size="small"
         >
-          Agregar Proveedor
+          Nuevo Proveedor
         </Button>
       )}
     </Stack>
@@ -248,7 +248,7 @@ export default function Proveedores() {
           onClick={() => setOpen(true)}
           sx={{ minHeight: 52, mb: 2.5 }}
         >
-          Agregar Proveedor
+          Nuevo Proveedor
         </Button>
       )}
 
@@ -274,7 +274,7 @@ export default function Proveedores() {
           <SelectableTextField
             size="small"
             fullWidth={isMobile}
-            placeholder="Buscar proveedores..."
+            placeholder="Buscar proveedor…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -314,7 +314,7 @@ export default function Proveedores() {
                 startIcon={<Add />}
                 onClick={() => setOpen(true)}
               >
-                Agregar Proveedor
+                Nuevo Proveedor
               </Button>
             )}
           </Box>
@@ -387,7 +387,7 @@ export default function Proveedores() {
                     sx={{
                       cursor: "pointer",
                       "&:hover": {
-                        backgroundColor: "action.hover",
+                        backgroundColor: "semantic.surface.sunken",
                       },
                     }}
                   >

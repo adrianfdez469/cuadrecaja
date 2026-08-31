@@ -114,8 +114,8 @@ export function OnboardingTooltip({
             right: 8,
             zIndex: 2,
             color: "text.secondary",
-            bgcolor: "action.hover",
-            "&:hover": { bgcolor: "action.selected" },
+            bgcolor: "semantic.surface.sunken",
+            "&:hover": { bgcolor: "semantic.surface.border" },
           }}
         >
           <CloseIcon fontSize="small" />

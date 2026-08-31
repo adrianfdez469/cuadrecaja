@@ -15,6 +15,7 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -32,7 +33,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Add, History, TrendingUp } from "@mui/icons-material";
+import { Add, Close, History, TrendingUp } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
@@ -566,7 +567,20 @@ export default function TasasCambioPage() {
         fullWidth
         fullScreen={isMobile}
       >
-        <DialogTitle>Registrar tasa de cambio</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Registrar tasa de cambio
+          {isMobile && (
+            <IconButton onClick={() => setOpenDialog(false)} disabled={saving}>
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           <Stack gap={2} mt={1}>
             <FormControl fullWidth>
@@ -598,9 +612,28 @@ export default function TasasCambioPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={saveTasa} disabled={saving}>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={() => setOpenDialog(false)}
+            disabled={saving}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={saveTasa}
+            disabled={saving}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
+          >
             {saving ? <CircularProgress size={20} /> : "Registrar"}
           </Button>
         </DialogActions>

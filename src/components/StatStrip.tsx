@@ -29,6 +29,14 @@ export interface Stat {
    * grew, red when it shrank. Omit it when there is nothing comparable.
    */
   delta?: number;
+  /**
+   * A trailing control rendered at the cell's far edge — e.g. a chevron
+   * that expands a breakdown below the strip. Only meaningful on the
+   * `card` variant: it switches that one cell to a row layout with the
+   * figure on the left and the action pinned right, instead of the usual
+   * label-over-value stack.
+   */
+  action?: ReactNode;
 }
 
 const isLast = (index: number, stats: Stat[]) => index === stats.length - 1;
@@ -122,89 +130,113 @@ export function StatStrip({ stats, variant = "strip" }: StatStripProps) {
             }),
       }}
     >
-      {stats.map((stat, index) => (
-        <Box
-          key={stat.label}
-          sx={
-            card
-              ? {
-                  p: "18px 22px",
-                  borderRight: { md: isLast(index, stats) ? 0 : 1 },
-                  borderColor: "divider",
-                }
-              : {
-                  // The rule and its gutters belong to every stat but the last.
-                  pr: { md: isLast(index, stats) ? 0 : 3.5 },
-                  mr: { md: isLast(index, stats) ? 0 : 3.5 },
-                  borderRight: { md: isLast(index, stats) ? 0 : 1 },
-                  borderColor: "divider",
-                }
-          }
-        >
-          <Typography variant="body2" color="text.secondary">
-            {stat.label}
-          </Typography>
-          {typeof stat.value === "string" || typeof stat.value === "number" ? (
-          <Typography
-            sx={{
-              mt: card ? 0.375 : 0.25,
-              fontSize: card
-                ? { xs: "1.375rem", md: "1.625rem" }
-                : { xs: "1.25rem", md: "1.375rem" },
-              fontWeight: 700,
-              lineHeight: 1.15,
-              letterSpacing: "-0.025em",
-              fontVariantNumeric: "tabular-nums",
-              ...(stat.tone && { color: `semantic.hue.${stat.tone}.main` }),
-            }}
-          >
-            {stat.value}
-          </Typography>
-          ) : (
-            // A ready-made node (a MultiCurrencyAmount, say) brings its own
-            // type scale; wrapping it in ours would fight it.
-            <Box sx={{ mt: card ? 0.375 : 0.25 }}>{stat.value}</Box>
-          )}
-          {stat.note && (
-            <Typography
-              sx={{
-                mt: 0.5,
-                fontSize: "0.75rem",
-                lineHeight: 1.45,
-                color: "text.secondary",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {stat.note}
+      {stats.map((stat, index) => {
+        const content = (
+          <>
+            <Typography variant="body2" color="text.secondary">
+              {stat.label}
             </Typography>
-          )}
-          {typeof stat.delta === "number" && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.625,
-                height: 22,
-                mt: 1,
-                px: 1,
-                borderRadius: `${shape.radius.pill}px`,
-                fontSize: "0.75rem",
-                fontWeight: 700,
-                fontVariantNumeric: "tabular-nums",
-                bgcolor: `semantic.hue.${stat.delta >= 0 ? "positive" : "negative"}.surface`,
-                color: `semantic.hue.${stat.delta >= 0 ? "positive" : "negative"}.main`,
-              }}
-            >
-              {stat.delta >= 0 ? (
-                <TrendingUpIcon sx={{ fontSize: 13 }} />
-              ) : (
-                <TrendingDownIcon sx={{ fontSize: 13 }} />
-              )}
-              {`${stat.delta >= 0 ? "+" : ""}${stat.delta.toFixed(1)}%`}
-            </Box>
-          )}
-        </Box>
-      ))}
+            {typeof stat.value === "string" ||
+            typeof stat.value === "number" ? (
+              <Typography
+                sx={{
+                  mt: card ? 0.375 : 0.25,
+                  fontSize: card
+                    ? { xs: "1.375rem", md: "1.625rem" }
+                    : { xs: "1.25rem", md: "1.375rem" },
+                  fontWeight: 700,
+                  lineHeight: 1.15,
+                  letterSpacing: "-0.025em",
+                  fontVariantNumeric: "tabular-nums",
+                  ...(stat.tone && {
+                    color: `semantic.hue.${stat.tone}.main`,
+                  }),
+                }}
+              >
+                {stat.value}
+              </Typography>
+            ) : (
+              // A ready-made node (a MultiCurrencyAmount, say) brings its own
+              // type scale; wrapping it in ours would fight it.
+              <Box sx={{ mt: card ? 0.375 : 0.25 }}>{stat.value}</Box>
+            )}
+            {stat.note && (
+              <Typography
+                sx={{
+                  mt: 0.5,
+                  fontSize: "0.75rem",
+                  lineHeight: 1.45,
+                  color: "text.secondary",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {stat.note}
+              </Typography>
+            )}
+            {typeof stat.delta === "number" && (
+              <Box
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.625,
+                  height: 22,
+                  mt: 1,
+                  px: 1,
+                  borderRadius: `${shape.radius.pill}px`,
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  fontVariantNumeric: "tabular-nums",
+                  bgcolor: `semantic.hue.${stat.delta >= 0 ? "positive" : "negative"}.surface`,
+                  color: `semantic.hue.${stat.delta >= 0 ? "positive" : "negative"}.main`,
+                }}
+              >
+                {stat.delta >= 0 ? (
+                  <TrendingUpIcon sx={{ fontSize: 13 }} />
+                ) : (
+                  <TrendingDownIcon sx={{ fontSize: 13 }} />
+                )}
+                {`${stat.delta >= 0 ? "+" : ""}${stat.delta.toFixed(1)}%`}
+              </Box>
+            )}
+          </>
+        );
+
+        return (
+          <Box
+            key={stat.label}
+            sx={
+              card
+                ? {
+                    p: "18px 22px",
+                    borderRight: { md: isLast(index, stats) ? 0 : 1 },
+                    borderColor: "divider",
+                    ...(stat.action && {
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 1,
+                    }),
+                  }
+                : {
+                    // The rule and its gutters belong to every stat but the last.
+                    pr: { md: isLast(index, stats) ? 0 : 3.5 },
+                    mr: { md: isLast(index, stats) ? 0 : 3.5 },
+                    borderRight: { md: isLast(index, stats) ? 0 : 1 },
+                    borderColor: "divider",
+                  }
+            }
+          >
+            {stat.action ? (
+              <>
+                <Box sx={{ minWidth: 0 }}>{content}</Box>
+                {stat.action}
+              </>
+            ) : (
+              content
+            )}
+          </Box>
+        );
+      })}
     </Box>
   );
 }

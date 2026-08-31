@@ -14,9 +14,24 @@ import LoginIcon from "@mui/icons-material/Login";
 import { AuthCardLayout } from "@/components/auth/AuthCardLayout";
 import { touch } from "@/theme/tokens";
 
-const BRAND = "#5B4CA8";
-
 type ActivationViewState = "loading" | "success" | "error";
+
+function ActivarPromotorTitle() {
+  return (
+    <Typography
+      variant="h5"
+      sx={{
+        fontSize: "1.1875rem",
+        fontWeight: 700,
+        lineHeight: 1.35,
+        mb: 2,
+        textAlign: "left",
+      }}
+    >
+      Activación de Promotor
+    </Typography>
+  );
+}
 
 function ActivarPromotorContent() {
   const router = useRouter();
@@ -70,7 +85,8 @@ function ActivarPromotorContent() {
   if (state === "loading") {
     return (
       <Box sx={{ textAlign: "center", py: 3 }}>
-        <CircularProgress sx={{ color: BRAND, mb: 2 }} size={40} />
+        <ActivarPromotorTitle />
+        <CircularProgress sx={{ color: "primary.main", mb: 2 }} size={40} />
         <Typography sx={{ color: "text.secondary" }}>{message}</Typography>
       </Box>
     );
@@ -79,6 +95,7 @@ function ActivarPromotorContent() {
   if (state === "success" && promoCode) {
     return (
       <Box>
+        <ActivarPromotorTitle />
         <Alert severity="success" sx={{ mb: 2.5 }}>
           <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
             ¡Cuenta activada correctamente!
@@ -93,8 +110,9 @@ function ActivarPromotorContent() {
             px: 2,
             mb: 2.5,
             borderRadius: "8px",
-            bgcolor: "#F4F2FB",
-            border: `1px solid #E8E6F0`,
+            bgcolor: "semantic.hue.accent.surface",
+            border: "1px solid",
+            borderColor: "semantic.surface.border",
             textAlign: "center",
           }}
         >
@@ -110,7 +128,7 @@ function ActivarPromotorContent() {
               fontFamily: "monospace",
               fontSize: "1.5rem",
               fontWeight: 800,
-              color: BRAND,
+              color: "primary.main",
               letterSpacing: 2,
             }}
           >
@@ -139,6 +157,7 @@ function ActivarPromotorContent() {
   if (state === "success" && !promoCode) {
     return (
       <Box sx={{ textAlign: "center" }}>
+        <ActivarPromotorTitle />
         <Alert severity="success" sx={{ mb: 2.5 }}>
           Cuenta activada. Ya puedes iniciar sesión con el enlace mágico desde
           el acceso de promotor.
@@ -150,6 +169,7 @@ function ActivarPromotorContent() {
 
   return (
     <Box sx={{ textAlign: "center" }}>
+      <ActivarPromotorTitle />
       <Alert severity="error" sx={{ mb: 2.5 }}>
         {message}
       </Alert>
@@ -206,7 +226,7 @@ export default function ActivarPromotorPage() {
             justifyContent: "center",
             alignItems: "center",
             minHeight: "100dvh",
-            bgcolor: "#F7F7FA",
+            bgcolor: "semantic.surface.page",
           }}
         >
           <CircularProgress />

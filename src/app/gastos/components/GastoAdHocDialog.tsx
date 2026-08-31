@@ -276,7 +276,7 @@ export default function GastoAdHocDialog({
                 fullWidth
               />
               {calculado > 0 && (
-                <Box bgcolor="action.hover" p={1} borderRadius={1}>
+                <Box bgcolor="semantic.surface.sunken" p={1} borderRadius={1}>
                   <Typography variant="body2">
                     Monto calculado: <strong>${calculado.toFixed(2)}</strong>
                   </Typography>

@@ -163,7 +163,7 @@ export default function AssignPlantillaDialog({
                   borderColor: "divider",
                   borderRadius: 1,
                   cursor: "pointer",
-                  "&:hover": { backgroundColor: "action.hover" },
+                  "&:hover": { backgroundColor: "semantic.surface.sunken" },
                   opacity: p.activo ? 1 : 0.5,
                 }}
               >
@@ -195,7 +195,7 @@ export default function AssignPlantillaDialog({
 
         {step === 2 && selected && (
           <Stack spacing={2} mt={0.5}>
-            <Box p={1.5} bgcolor="action.hover" borderRadius={1}>
+            <Box p={1.5} bgcolor="semantic.surface.sunken" borderRadius={1}>
               <Typography variant="body2" color="text.secondary">
                 Plantilla: <strong>{selected.nombre}</strong> ·{" "}
                 {selected.categoria}

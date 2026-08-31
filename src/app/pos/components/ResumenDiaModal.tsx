@@ -108,7 +108,7 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
         {/* Bloque superior: Inicial + Existencia actual */}
         <Grid container spacing={1} mb={1.5}>
           <Grid size={6}>
-            <Box sx={{ bgcolor: "action.hover", borderRadius: 2, p: 1.5 }}>
+            <Box sx={{ bgcolor: "semantic.surface.sunken", borderRadius: 2, p: 1.5 }}>
               <Typography
                 variant="caption"
                 color="text.secondary"
@@ -178,7 +178,7 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
           <Grid size={4}>
             <Box
               sx={{
-                bgcolor: "action.hover",
+                bgcolor: "semantic.surface.sunken",
                 borderRadius: 2,
                 p: 1,
                 textAlign: "center",
@@ -204,7 +204,7 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
           <Grid size={4}>
             <Box
               sx={{
-                bgcolor: "action.hover",
+                bgcolor: "semantic.surface.sunken",
                 borderRadius: 2,
                 p: 1,
                 textAlign: "center",
@@ -230,7 +230,7 @@ function ProductoCard({ p }: { p: IResumenDiaProducto }) {
           <Grid size={4}>
             <Box
               sx={{
-                bgcolor: "action.hover",
+                bgcolor: "semantic.surface.sunken",
                 borderRadius: 2,
                 p: 1,
                 textAlign: "center",
@@ -679,7 +679,7 @@ const ResumenDiaModal: FC<IProps> = ({ open, onClose, tiendaId, cierreId }) => {
                           <TableRow>
                             <TableCell
                               colSpan={6}
-                              sx={{ py: 0.5, bgcolor: "action.hover" }}
+                              sx={{ py: 0.5, bgcolor: "semantic.surface.sunken" }}
                             >
                               <Stack
                                 direction="row"

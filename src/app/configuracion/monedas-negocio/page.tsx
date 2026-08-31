@@ -14,6 +14,7 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -29,7 +30,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Add, CurrencyExchange, Warning } from "@mui/icons-material";
+import { Add, Close, CurrencyExchange, Warning } from "@mui/icons-material";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { PageContainer } from "@/components/PageContainer";
@@ -354,7 +355,20 @@ export default function MonedasNegocioPage() {
         fullWidth
         fullScreen={isMobile}
       >
-        <DialogTitle>Habilitar moneda</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Habilitar moneda
+          {isMobile && (
+            <IconButton onClick={() => setOpenHabilitar(false)}>
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           <Stack gap={2} mt={1}>
             <FormControl fullWidth>
@@ -391,12 +405,26 @@ export default function MonedasNegocioPage() {
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenHabilitar(false)}>Cancelar</Button>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
+          <Button
+            onClick={() => setOpenHabilitar(false)}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
+          >
+            Cancelar
+          </Button>
           <Button
             variant="contained"
             onClick={habilitar}
             disabled={saving || !selectedCode}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             {saving ? <CircularProgress size={20} /> : "Habilitar"}
           </Button>
@@ -411,7 +439,23 @@ export default function MonedasNegocioPage() {
         fullWidth
         fullScreen={isMobile}
       >
-        <DialogTitle>Cambiar moneda base a {nuevaBase}</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Cambiar moneda base a {nuevaBase}
+          {isMobile && (
+            <IconButton
+              onClick={() => setOpenCambioBase(false)}
+              disabled={ejecutando}
+            >
+              <Close />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent>
           {loadingPreview && (
             <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -494,10 +538,17 @@ export default function MonedasNegocioPage() {
             </Stack>
           )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions
+          sx={{
+            flexDirection: isMobile ? "column-reverse" : "row",
+            alignItems: "stretch",
+          }}
+        >
           <Button
             onClick={() => setOpenCambioBase(false)}
             disabled={ejecutando}
+            fullWidth={isMobile}
+            sx={{ minHeight: isMobile ? 44 : undefined }}
           >
             Cancelar
           </Button>
@@ -506,6 +557,9 @@ export default function MonedasNegocioPage() {
             color="warning"
             onClick={ejecutarCambio}
             disabled={ejecutando || loadingPreview || !preview}
+            fullWidth={isMobile}
+            size={isMobile ? "large" : "medium"}
+            sx={{ minHeight: isMobile ? 56 : undefined }}
           >
             {ejecutando ? <CircularProgress size={20} /> : "Confirmar cambio"}
           </Button>

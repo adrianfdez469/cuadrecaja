@@ -546,7 +546,7 @@ const Ventas = () => {
                   sx={{
                     cursor: "pointer",
                     "&:hover": {
-                      backgroundColor: "action.hover",
+                      backgroundColor: "semantic.surface.sunken",
                     },
                   }}
                 >
@@ -668,7 +668,7 @@ const Ventas = () => {
                     sx={{
                       cursor: "pointer",
                       "&:hover": {
-                        backgroundColor: "action.hover",
+                        backgroundColor: "semantic.surface.sunken",
                       },
                     }}
                   >

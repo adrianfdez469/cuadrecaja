@@ -66,8 +66,8 @@ export function NotificationBell({ disabled }: NotificationBellProps) {
             sx={{
               width: touch.min,
               height: touch.min,
-              color: "text.secondary",
-              backgroundColor: panelOpen ? "action.hover" : "transparent",
+              color: "semantic.hue.accent.main",
+              backgroundColor: "semantic.hue.accent.surface",
               borderRadius: "50%",
               transition: "background-color 0.2s",
             }}

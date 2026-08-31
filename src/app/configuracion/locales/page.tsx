@@ -425,7 +425,7 @@ export default function Locales() {
                         sx={{
                           cursor: "pointer",
                           "&:hover": {
-                            backgroundColor: "action.hover",
+                            backgroundColor: "semantic.surface.sunken",
                           },
                         }}
                       >

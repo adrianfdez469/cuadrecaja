@@ -283,7 +283,7 @@ export const DevolucionVentaDialog: FC<IProps> = ({
                     sx={{
                       mt: 1.5,
                       p: 1.5,
-                      bgcolor: "action.hover",
+                      bgcolor: "semantic.surface.sunken",
                       borderRadius: 1,
                     }}
                   >

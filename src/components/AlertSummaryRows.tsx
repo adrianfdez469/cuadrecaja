@@ -98,7 +98,7 @@ export default function AlertSummaryRows({ tiendaId }: AlertSummaryRowsProps) {
             borderRadius: 1,
             transition: "background-color 0.2s, border-color 0.2s",
             "&:hover": {
-              backgroundColor: "action.hover",
+              backgroundColor: "semantic.surface.sunken",
               borderColor: "error.main",
             },
           }}
@@ -165,7 +165,7 @@ export default function AlertSummaryRows({ tiendaId }: AlertSummaryRowsProps) {
             borderRadius: 1,
             transition: "background-color 0.2s, border-color 0.2s",
             "&:hover": {
-              backgroundColor: "action.hover",
+              backgroundColor: "semantic.surface.sunken",
               borderColor: "error.main",
             },
           }}

@@ -118,8 +118,8 @@ function NotificationList({
               p: 2,
               backgroundColor: notification.yaLeida
                 ? "transparent"
-                : "action.hover",
-              "&:hover": { backgroundColor: "action.selected" },
+                : "semantic.surface.sunken",
+              "&:hover": { backgroundColor: "semantic.surface.border" },
               cursor: "default",
             }}
           >

@@ -32,8 +32,11 @@ import {
   TextField,
   InputAdornment,
   Alert,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import CloseIcon from "@mui/icons-material/Close";
 import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
 import StoreIcon from "@mui/icons-material/Store";
 import CategoryIcon from "@mui/icons-material/Category";
@@ -288,6 +291,8 @@ const HELP_MENU_ITEMS = [
 ];
 
 const Layout: React.FC<PropsWithChildren> = ({ children }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [open, setOpen] = useState(false);
   const {
     user,
@@ -872,7 +877,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 mr: { xs: 0, sm: 2 },
                 ...toolbarInteractionSx("nav-menu-button"),
                 "&:hover": {
-                  backgroundColor: "action.hover",
+                  backgroundColor: "semantic.surface.sunken",
                 },
               }}
             >
@@ -949,7 +954,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                   ...toolbarInteractionSx(),
                   "&:hover": {
                     borderColor: "primary.main",
-                    backgroundColor: "action.hover",
+                    backgroundColor: "semantic.surface.sunken",
                   },
                 }}
               >
@@ -999,7 +1004,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                       mx: 1,
                       my: 0.5,
                       "&:hover": {
-                        backgroundColor: "action.hover",
+                        backgroundColor: "semantic.surface.sunken",
                       },
                     },
                   },
@@ -1155,7 +1160,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                 color: "primary.main",
                 "&:hover": {
                   borderColor: "primary.dark",
-                  backgroundColor: "action.hover",
+                  backgroundColor: "semantic.surface.sunken",
                 },
               }}
             >
@@ -1366,32 +1371,52 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         disableEscapeKeyDown={
           !user?.localActual && localesDisponibles.length > 0
         }
+        fullScreen={isMobile}
         PaperProps={{
           sx: {
-            borderRadius: 3,
-            minWidth: 400,
+            borderRadius: isMobile ? 0 : 3,
+            minWidth: isMobile ? undefined : 400,
           },
         }}
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Typography
-            variant="h6"
-            fontWeight={600}
-            component="span"
-            display="block"
-          >
-            {!user?.localActual ? "Seleccionar local" : "Cambiar local"}
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            component="span"
-            display="block"
-          >
-            {!user?.localActual
-              ? "Necesitas seleccionar un local para comenzar a trabajar"
-              : "Selecciona el local donde deseas trabajar"}
-          </Typography>
+        <DialogTitle
+          sx={{
+            pb: 1,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Box>
+            <Typography
+              variant="h6"
+              fontWeight={600}
+              component="span"
+              display="block"
+            >
+              {!user?.localActual ? "Seleccionar local" : "Cambiar local"}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              component="span"
+              display="block"
+            >
+              {!user?.localActual
+                ? "Necesitas seleccionar un local para comenzar a trabajar"
+                : "Selecciona el local donde deseas trabajar"}
+            </Typography>
+          </Box>
+          {isMobile &&
+            (user?.localActual || localesDisponibles.length === 0) && (
+              <IconButton
+                onClick={() => handleCloseCambiarLocal()}
+                size="small"
+              >
+                <CloseIcon />
+              </IconButton>
+            )}
         </DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           {!user?.localActual && localesDisponibles.length === 1 && (
@@ -1399,11 +1424,11 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               sx={{
                 mb: 2,
                 p: 2,
-                backgroundColor: "info.light",
+                backgroundColor: "semantic.hue.info.surface",
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" color="info.contrastText">
+              <Typography variant="body2" color="semantic.hue.info.main">
                 <strong>Nota:</strong> Necesitas seleccionar un local para
                 acceder al sistema.
               </Typography>
@@ -1414,17 +1439,17 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
               sx={{
                 mb: 2,
                 p: 2,
-                backgroundColor: "warning.light",
+                backgroundColor: "semantic.hue.caution.surface",
                 borderRadius: 1,
                 textAlign: "center",
               }}
             >
-              <Typography variant="body2" color="warning.contrastText">
+              <Typography variant="body2" color="semantic.hue.caution.main">
                 <strong>Sin locales disponibles</strong>
               </Typography>
               <Typography
                 variant="body2"
-                color="warning.contrastText"
+                color="semantic.hue.caution.main"
                 sx={{ mt: 1 }}
               >
                 Este negocio no tiene locales configuradas. Contacta al
@@ -1457,7 +1482,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                       p: 1,
                       borderRadius: 2,
                       "&:hover": {
-                        backgroundColor: "action.hover",
+                        backgroundColor: "semantic.surface.sunken",
                       },
                     }}
                   />
@@ -1470,6 +1495,8 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             <Button
               onClick={() => handleCloseCambiarLocal()}
               variant="outlined"
+              fullWidth={isMobile}
+              sx={{ minHeight: isMobile ? 44 : undefined }}
             >
               {localesDisponibles.length === 0 ? "Cerrar" : "Cancelar"}
             </Button>
@@ -1481,14 +1508,29 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
         <Dialog
           open={openSelectNegocio}
           onClose={() => handleCloseCambiarNegocio()}
+          fullScreen={isMobile}
           PaperProps={{
             sx: {
-              borderRadius: 3,
-              minWidth: 400,
+              borderRadius: isMobile ? 0 : 3,
+              minWidth: isMobile ? undefined : 400,
             },
           }}
         >
-          <DialogTitle sx={{ pb: 1 }}>Cambiar negocio</DialogTitle>
+          <DialogTitle
+            sx={{
+              pb: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            Cambiar negocio
+            {isMobile && (
+              <IconButton onClick={handleCloseCambiarNegocio} size="small">
+                <CloseIcon />
+              </IconButton>
+            )}
+          </DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
             {loadingNegocios ? (
               <Box display="flex" justifyContent="center" py={4}>
@@ -1515,7 +1557,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                         p: 1,
                         borderRadius: 2,
                         "&:hover": {
-                          backgroundColor: "action.hover",
+                          backgroundColor: "semantic.surface.sunken",
                         },
                       }}
                     />
@@ -1524,7 +1566,12 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
             )}
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3 }}>
-            <Button onClick={handleCloseCambiarNegocio} variant="outlined">
+            <Button
+              onClick={handleCloseCambiarNegocio}
+              variant="outlined"
+              fullWidth={isMobile}
+              sx={{ minHeight: isMobile ? 44 : undefined }}
+            >
               Cancelar
             </Button>
           </DialogActions>

@@ -38,7 +38,7 @@ const KEY_SX = {
   fontWeight: 600,
   fontVariantNumeric: "tabular-nums",
   "@media (hover: hover)": {
-    "&:hover": { bgcolor: "action.hover" },
+    "&:hover": { bgcolor: "semantic.surface.sunken" },
   },
   "&.Mui-disabled": { color: "action.disabled" },
 } as const;

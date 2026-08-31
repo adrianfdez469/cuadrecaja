@@ -46,7 +46,6 @@ import {
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import {
   Close,
-  Assessment,
   Refresh,
   FilterList,
   ArrowForward,
@@ -682,56 +681,10 @@ export default function ResumenCierrePage() {
                       },
                     ]
                   : []),
-              ]}
-            />
-
-            {/* Transferencias card: uniquely expandable within this section */}
-            <Box sx={{ mt: 2 }}>
-              <Card sx={{ height: "100%" }}>
-                <CardContent sx={{ p: isMobile ? 2 : 3 }}>
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={isMobile ? 1 : 2}
-                  >
-                    <Box
-                      sx={{
-                        p: isMobile ? 1 : 1.5,
-                        borderRadius: 2,
-                        bgcolor: "primary.light",
-                        color: "white",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        minWidth: isMobile ? 40 : 48,
-                        minHeight: isMobile ? 40 : 48,
-                      }}
-                    >
-                      <Assessment fontSize={"medium"} />
-                    </Box>
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography
-                        variant={isMobile ? "h5" : "h4"}
-                        fontWeight="bold"
-                        sx={{
-                          fontSize: isMobile ? "1.25rem" : "2rem",
-                          lineHeight: 1.2,
-                          wordBreak: "break-all",
-                        }}
-                      >
-                        {fmtS(data.sumTotalTransferencia)}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          fontSize: isMobile ? "0.75rem" : "0.875rem",
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        Transferencias
-                      </Typography>
-                    </Box>
+                {
+                  label: "Transferencias",
+                  value: fmtS(data.sumTotalTransferencia),
+                  action: (
                     <Tooltip
                       title={
                         expandedTransfer ? "Ocultar desglose" : "Ver desglose"
@@ -741,34 +694,42 @@ export default function ResumenCierrePage() {
                         onClick={handleExpandTransferClick}
                         aria-expanded={expandedTransfer}
                         aria-label="mostrar desglose de transferencias"
-                        size={isMobile ? "small" : "medium"}
+                        size="small"
                         sx={{
+                          flexShrink: 0,
+                          color: "text.secondary",
                           transform: expandedTransfer
                             ? "rotate(180deg)"
                             : "rotate(0deg)",
                           transition: theme.transitions.create("transform", {
                             duration: theme.transitions.duration.shortest,
                           }),
-                          bgcolor: "action.hover",
-                          "&:hover": {
-                            bgcolor: "action.selected",
-                          },
                         }}
                       >
                         <ExpandMoreIcon />
                       </IconButton>
                     </Tooltip>
-                  </Stack>
-                </CardContent>
-                <Collapse in={expandedTransfer} timeout="auto" unmountOnExit>
-                  <CardContent sx={{ pt: 0 }}>
-                    <TransferenciasDesglose
-                      transferencias={data.desgloseTransferencias}
-                    />
-                  </CardContent>
-                </Collapse>
-              </Card>
-            </Box>
+                  ),
+                },
+              ]}
+            />
+
+            <Collapse in={expandedTransfer} timeout="auto" unmountOnExit>
+              <Box
+                sx={{
+                  mt: 2,
+                  p: isMobile ? 2 : 3,
+                  bgcolor: "background.paper",
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 1.5,
+                }}
+              >
+                <TransferenciasDesglose
+                  transferencias={data.desgloseTransferencias}
+                />
+              </Box>
+            </Collapse>
           </Box>
 
           {/* Costos y pérdidas */}
@@ -828,7 +789,7 @@ export default function ResumenCierrePage() {
                       sx={{
                         cursor: "pointer",
                         "&:hover": {
-                          backgroundColor: "action.hover",
+                          backgroundColor: "semantic.surface.sunken",
                         },
                       }}
                       onClick={() => handleViewMore(row)}
@@ -1116,7 +1077,7 @@ export default function ResumenCierrePage() {
                         key={row.id}
                         sx={{
                           "&:hover": {
-                            backgroundColor: "action.hover",
+                            backgroundColor: "semantic.surface.sunken",
                           },
                         }}
                       >
@@ -1234,7 +1195,10 @@ export default function ResumenCierrePage() {
 
                     {/* Fila de totales */}
                     <TableRow
-                      sx={{ bgcolor: "action.hover", fontWeight: "bold" }}
+                      sx={{
+                        bgcolor: "semantic.surface.sunken",
+                        fontWeight: "bold",
+                      }}
                     >
                       <TableCell colSpan={2}>
                         <Typography variant="body2" fontWeight="bold">
@@ -1411,8 +1375,8 @@ export default function ResumenCierrePage() {
                       onClick={handleCloseDetail}
                       size={isMobile ? "small" : "medium"}
                       sx={{
-                        bgcolor: "action.hover",
-                        "&:hover": { bgcolor: "action.selected" },
+                        bgcolor: "semantic.surface.sunken",
+                        "&:hover": { bgcolor: "semantic.surface.border" },
                       }}
                     >
                       <Close />

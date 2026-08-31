@@ -208,7 +208,7 @@ function RestablecerForm() {
             minHeight: touch.min,
             fontSize: "0.875rem",
             fontWeight: 600,
-            color: "text.secondary",
+            color: "primary.main",
             textDecoration: "none",
             "&:hover": { textDecoration: "underline" },
           }}

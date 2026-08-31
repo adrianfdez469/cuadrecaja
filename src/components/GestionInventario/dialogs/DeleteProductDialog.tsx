@@ -111,7 +111,7 @@ export function DeleteProductDialog({
                           ? "error.main"
                           : "divider",
                         bgcolor: s.isCurrentTienda
-                          ? "action.selected"
+                          ? "semantic.surface.border"
                           : undefined,
                       }}
                     >

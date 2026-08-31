@@ -49,7 +49,7 @@ export function SupportContactList({
             fontWeight: 600,
             fontVariantNumeric: "tabular-nums",
             textDecoration: "none",
-            "&:hover": { bgcolor: "action.hover" },
+            "&:hover": { bgcolor: "semantic.surface.sunken" },
           }}
         >
           <WhatsApp sx={{ fontSize: 18 }} />

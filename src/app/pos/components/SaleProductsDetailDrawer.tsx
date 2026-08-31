@@ -202,7 +202,7 @@ export const SaleProductsDetailDrawer: React.FC<
                   </TableRow>
                 );
               })}
-              <TableRow sx={{ bgcolor: "action.hover" }}>
+              <TableRow sx={{ bgcolor: "semantic.surface.sunken" }}>
                 <TableCell colSpan={allowDelete ? 3 : 3}>
                   <Typography fontWeight="bold">Total</Typography>
                 </TableCell>

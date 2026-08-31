@@ -191,7 +191,7 @@ export default function ProveedoresPage() {
                   sx={{
                     cursor: "pointer",
                     "&:hover": {
-                      backgroundColor: "action.hover",
+                      backgroundColor: "semantic.surface.sunken",
                     },
                   }}
                   onClick={() => handleVerDetalle(proveedor.id)}
@@ -365,7 +365,7 @@ export default function ProveedoresPage() {
                     key={proveedor.id}
                     sx={{
                       "&:hover": {
-                        backgroundColor: "action.hover",
+                        backgroundColor: "semantic.surface.sunken",
                       },
                     }}
                   >

@@ -374,7 +374,7 @@ export default function CategoriasPage() {
                         "&:hover": {
                           backgroundColor: isGlobalReadOnly
                             ? undefined
-                            : "action.hover",
+                            : "semantic.surface.sunken",
                         },
                       }}
                     >

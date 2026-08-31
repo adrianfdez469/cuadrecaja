@@ -55,7 +55,7 @@ const TALLY_SX = {
   px: 1,
   py: 0.5,
   borderRadius: `${shape.radius.sm}px`,
-  bgcolor: "action.hover",
+  bgcolor: "semantic.surface.sunken",
 } as const;
 
 const UNDO_SX = {

@@ -1,13 +1,15 @@
 "use client";
 
 import { Box, LinearProgress } from "@mui/material";
+import { BrandMark } from "@/components/brand";
 
 /**
  * A loading/transition screen shown while the app is switching states or loading pages.
  *
- * The center displays the app logo in a 72px square with stroke-dash animation
- * (two halves closing the square with staggered delay), and below it a 120px
- * indeterminate progress bar in the app's accent hue.
+ * The center displays the app's brand mark, closing itself in the same
+ * stroke-dash animation the splash screen uses (`BrandMark`'s `animated`
+ * prop), and below it a 120px indeterminate progress bar in the app's
+ * accent hue.
  *
  * Skeletal content blocks render in the background to suggest what's loading.
  */
@@ -25,97 +27,8 @@ export function TransitionScreen() {
         backgroundColor: "semantic.surface.page",
       }}
     >
-      {/* Logo with animated stroke-dash */}
-      <Box
-        sx={{
-          position: "relative",
-          width: 72,
-          height: 72,
-          mb: 4,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <svg
-          viewBox="0 0 72 72"
-          width={72}
-          height={72}
-          xmlns="http://www.w3.org/2000/svg"
-          style={{ overflow: "visible" }}
-        >
-          {/* Top-left to top-right stroke (first half) */}
-          <path
-            d="M 12 12 L 60 12"
-            stroke="#5B4CA8"
-            strokeWidth={3}
-            fill="none"
-            strokeLinecap="round"
-            style={{
-              strokeDasharray: 48,
-              strokeDashoffset: 48,
-              animation: "drawStroke1 0.8s ease-in-out forwards 0.2s",
-            }}
-          />
-          {/* Top-right to bottom-right stroke (second half) */}
-          <path
-            d="M 60 12 L 60 60"
-            stroke="#5B4CA8"
-            strokeWidth={3}
-            fill="none"
-            strokeLinecap="round"
-            style={{
-              strokeDasharray: 48,
-              strokeDashoffset: 48,
-              animation: "drawStroke2 0.8s ease-in-out forwards 0.6s",
-            }}
-          />
-          {/* Bottom-right to bottom-left (third segment) */}
-          <path
-            d="M 60 60 L 12 60"
-            stroke="#5B4CA8"
-            strokeWidth={3}
-            fill="none"
-            strokeLinecap="round"
-            style={{
-              strokeDasharray: 48,
-              strokeDashoffset: 48,
-              animation: "drawStroke3 0.8s ease-in-out forwards 1s",
-            }}
-          />
-          {/* Bottom-left to top-left (close) */}
-          <path
-            d="M 12 60 L 12 12"
-            stroke="#5B4CA8"
-            strokeWidth={3}
-            fill="none"
-            strokeLinecap="round"
-            style={{
-              strokeDasharray: 48,
-              strokeDashoffset: 48,
-              animation: "drawStroke4 0.8s ease-in-out forwards 1.4s",
-            }}
-          />
-
-          <style>{`
-            @keyframes drawStroke1 {
-              from { stroke-dashoffset: 48; }
-              to { stroke-dashoffset: 0; }
-            }
-            @keyframes drawStroke2 {
-              from { stroke-dashoffset: 48; }
-              to { stroke-dashoffset: 0; }
-            }
-            @keyframes drawStroke3 {
-              from { stroke-dashoffset: 48; }
-              to { stroke-dashoffset: 0; }
-            }
-            @keyframes drawStroke4 {
-              from { stroke-dashoffset: 48; }
-              to { stroke-dashoffset: 0; }
-            }
-          `}</style>
-        </svg>
+      <Box sx={{ mb: 4 }}>
+        <BrandMark size={72} tone="accent" animated />
       </Box>
 
       {/* Progress bar: 120px wide, indeterminate, accent color */}
