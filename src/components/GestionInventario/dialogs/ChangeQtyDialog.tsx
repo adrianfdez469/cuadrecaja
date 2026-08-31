@@ -22,7 +22,12 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useState, useEffect, useMemo } from "react";
 import { IProductoTiendaV2 } from "@/schemas/producto";
 import { ChangeQtyOptions } from "../hooks/useGestionInventario";
-import { formatNumber } from "@/utils/formatters";
+import { formatQuantity } from "@/utils/formatters";
+import {
+  parseQuantityText,
+  roundQuantity,
+  sanitizeQuantityDraft,
+} from "@/utils/quantityInput";
 import { useAppContext } from "@/context/AppContext";
 import { convertToBase } from "@/lib/currency";
 import MoneyField from "@/components/MoneyField";
@@ -56,7 +61,7 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
   useEffect(() => {
     if (open && producto) {
       // Use raw number string to avoid locale-formatted separators breaking parseFloat
-      setNewQtyStr(String(producto.existencia));
+      setNewQtyStr(formatQuantity(producto.existencia));
       setCostoUnitario(String(producto.costo));
       setMonedaCompra(producto.monedaCostoCode ?? monedaBase);
       setMotivo("");
@@ -66,8 +71,11 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
   if (!producto) return null;
 
   const esConsignacion = !!producto.proveedorId;
-  const newQty = parseFloat(newQtyStr) || 0;
-  const delta = newQty - producto.existencia;
+  const permiteDecimal = !!producto.producto.permiteDecimal;
+  // The draft already arrives with "," normalized to "." — `parseFloat` alone
+  // read "2,5" as 2 and silently registered an adjustment for the difference.
+  const newQty = parseQuantityText(newQtyStr, permiteDecimal) ?? 0;
+  const delta = roundQuantity(newQty - producto.existencia);
   const tipo =
     delta > 0
       ? esConsignacion
@@ -141,7 +149,7 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
           <Box display="flex" gap={2}>
             <TextField
               label="Cantidad actual"
-              value={formatNumber(producto.existencia)}
+              value={formatQuantity(producto.existencia)}
               disabled
               size="small"
               sx={{ flex: 1 }}
@@ -149,10 +157,17 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
             <SelectableTextField
               label="Nueva cantidad"
               value={newQtyStr}
-              onChange={(e) => setNewQtyStr(e.target.value.replace(/-/g, ""))}
+              onChange={(e) =>
+                setNewQtyStr(
+                  sanitizeQuantityDraft(e.target.value, permiteDecimal),
+                )
+              }
               size="small"
               sx={{ flex: 1 }}
-              inputProps={{ inputMode: "decimal", min: 0 }}
+              inputProps={{
+                inputMode: permiteDecimal ? "decimal" : "numeric",
+                min: 0,
+              }}
               autoFocus
             />
           </Box>
@@ -160,7 +175,7 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
           {delta > 0 && tipoLabel && (
             <Alert severity="info">
               Se creará un movimiento de <strong>{tipoLabel}</strong> por{" "}
-              {formatNumber(delta)} unidades.
+              {formatQuantity(delta)} unidades.
               {esConsignacion && producto.proveedor && (
                 <>
                   {" "}
@@ -172,7 +187,7 @@ export function ChangeQtyDialog({ open, producto, onClose, onSave }: Props) {
           {delta < 0 && tipoLabel && (
             <Alert severity="warning">
               Se creará un <strong>{tipoLabel}</strong> por{" "}
-              {formatNumber(Math.abs(delta))} unidades.
+              {formatQuantity(Math.abs(delta))} unidades.
             </Alert>
           )}
           {delta === 0 && newQtyStr && (

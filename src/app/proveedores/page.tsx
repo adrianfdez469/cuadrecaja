@@ -40,6 +40,7 @@ export default function ProveedoresPage() {
     totalPorLiquidar: 0,
     totalProveedores: 0,
     totalProductosConsignacion: 0,
+    valorConsignacion: 0,
   });
 
   const theme = useTheme();
@@ -62,6 +63,7 @@ export default function ProveedoresPage() {
           acc.totalPorLiquidar += proveedor.dineroPorLiquidar;
           acc.totalProductosConsignacion +=
             proveedor.totalProductosConsignacion;
+          acc.valorConsignacion += proveedor.valorConsignacion;
           return acc;
         },
         {
@@ -69,6 +71,7 @@ export default function ProveedoresPage() {
           totalPorLiquidar: 0,
           totalProveedores: proveedoresConsignación.length,
           totalProductosConsignacion: 0,
+          valorConsignacion: 0,
         },
       );
 
@@ -154,6 +157,10 @@ export default function ProveedoresPage() {
             {
               label: "Productos en Consignación",
               value: totales.totalProductosConsignacion.toString(),
+            },
+            {
+              label: "Valor en Consignación",
+              value: formatCurrency(totales.valorConsignacion),
             },
             {
               // The only figure here with a verdict attached: money that came
@@ -313,6 +320,19 @@ export default function ProveedoresPage() {
                         gap={1.5}
                       >
                         <Typography variant="body2" color="text.secondary">
+                          Valor en Consignación
+                        </Typography>
+                        <Typography variant="body2">
+                          {formatCurrency(proveedor.valorConsignacion)}
+                        </Typography>
+                      </Box>
+                      <Box
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="baseline"
+                        gap={1.5}
+                      >
+                        <Typography variant="body2" color="text.secondary">
                           Última Liquidación
                         </Typography>
                         <Typography variant="body2">
@@ -354,6 +374,7 @@ export default function ProveedoresPage() {
                   <TableCell align="right">Dinero Liquidado</TableCell>
                   <TableCell align="right">Por Liquidar</TableCell>
                   <TableCell align="right">Productos</TableCell>
+                  <TableCell align="right">Valor en Consignación</TableCell>
                   <TableCell>Última Liquidación</TableCell>
                   <TableCell align="center">Estado</TableCell>
                   <TableCell align="center">Acciones</TableCell>
@@ -413,6 +434,15 @@ export default function ProveedoresPage() {
                         sx={{ fontVariantNumeric: "tabular-nums" }}
                       >
                         {proveedor.totalProductosConsignacion}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        fontWeight="medium"
+                        color="secondary.main"
+                      >
+                        {formatCurrency(proveedor.valorConsignacion)}
                       </Typography>
                     </TableCell>
                     <TableCell>

@@ -49,14 +49,32 @@ const sanitizarString = (str: string, maxLength: number = 255): string => {
   return sanitizado;
 };
 
+// Blank spreadsheet cells reach the API as null, undefined or "" and all mean
+// zero. Anything else that is not a number becomes NaN so validation rejects it.
+const normalizeNumericField = (value: unknown): number => {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed === "" ? 0 : Number(trimmed);
+  }
+  return typeof value === "number" ? value : NaN;
+};
+
 // Función para validar y sanitizar un item
 const validarYSanitizarItem = (
-  item: IImportarItemsMov,
+  rawItem: IImportarItemsMov,
 ): {
   itemSanitizado?: IImportarItemsMov;
   errores: string[];
 } => {
   const errores = [];
+
+  const item: IImportarItemsMov = {
+    ...rawItem,
+    costo: normalizeNumericField(rawItem.costo),
+    precio: normalizeNumericField(rawItem.precio),
+    cantidad: normalizeNumericField(rawItem.cantidad),
+  };
 
   // Validar nombreProducto
   if (!item.nombreProducto || typeof item.nombreProducto !== "string") {
@@ -103,8 +121,8 @@ const validarYSanitizarItem = (
     !isFinite(item.cantidad)
   ) {
     errores.push("cantidad debe ser un número válido");
-  } else if (item.cantidad <= 0) {
-    errores.push("cantidad debe ser mayor a 0");
+  } else if (item.cantidad < 0) {
+    errores.push("cantidad no puede ser negativa");
   } else if (item.cantidad > 999999) {
     errores.push("cantidad excede el límite máximo permitido");
   }

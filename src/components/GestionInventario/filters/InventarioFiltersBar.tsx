@@ -16,6 +16,7 @@ import {
   IconButton,
   Tooltip,
   Collapse,
+  ListSubheader,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
@@ -29,7 +30,12 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import { useRef, useState, useMemo } from "react";
 import { ICategory } from "@/schemas/categoria";
-import { StockFilter, ExpiryFilter } from "../hooks/useGestionInventario";
+import {
+  StockFilter,
+  ExpiryFilter,
+  ConsignmentFilter,
+  CONSIGNMENT_SUPPLIER_PREFIX,
+} from "../hooks/useGestionInventario";
 import { uniqueBy } from "@/utils/arrayUtils";
 import SelectableTextField from "@/components/SelectableTextField";
 import { ActionSheet } from "@/components/ActionSheet";
@@ -45,6 +51,9 @@ interface InventarioFiltersBarProps {
   onExpiryChange: (v: ExpiryFilter) => void;
   stockFilter: StockFilter;
   onStockChange: (v: StockFilter) => void;
+  consignmentFilter: ConsignmentFilter;
+  onConsignmentChange: (v: ConsignmentFilter) => void;
+  proveedoresConsignacion: { id: string; nombre: string }[];
   /** Solo se usa en mobile: en desktop "Nuevo producto" vive en el header. */
   onCreateProduct: () => void;
   onRefresh: () => void;
@@ -65,6 +74,12 @@ const STOCK_OPTIONS: { value: StockFilter; label: string }[] = [
   { value: "sin_stock", label: "Sin stock" },
 ];
 
+const CONSIGNMENT_OPTIONS: { value: ConsignmentFilter; label: string }[] = [
+  { value: "todos", label: "Todos" },
+  { value: "propios", label: "Solo propios" },
+  { value: "consignacion", label: "Solo consignación" },
+];
+
 const EXPIRY_OPTIONS: { value: ExpiryFilter; label: string }[] = [
   { value: "todos", label: "Todos" },
   { value: "proximos", label: "Próximos a vencer" },
@@ -75,11 +90,13 @@ function hasActiveFilters(
   selectedCategorias: string[],
   stockFilter: StockFilter,
   expiryFilter: ExpiryFilter,
+  consignmentFilter: ConsignmentFilter,
 ) {
   return (
     selectedCategorias.length > 0 ||
     stockFilter !== "todo" ||
-    expiryFilter !== "todos"
+    expiryFilter !== "todos" ||
+    consignmentFilter !== "todos"
   );
 }
 
@@ -93,6 +110,9 @@ export function InventarioFiltersBar({
   onExpiryChange,
   stockFilter,
   onStockChange,
+  consignmentFilter,
+  onConsignmentChange,
+  proveedoresConsignacion,
   onCreateProduct,
   onRefresh,
   loading,
@@ -125,13 +145,50 @@ export function InventarioFiltersBar({
     selectedCategorias,
     stockFilter,
     expiryFilter,
+    consignmentFilter,
   );
+
+  // A supplier can disappear between renders (store switch, product deleted).
+  // Leaving the stale id as the Select value would render an out-of-range
+  // option and warn, so it falls back to showing everything.
+  const consignmentValue =
+    consignmentFilter.startsWith(CONSIGNMENT_SUPPLIER_PREFIX) &&
+    !proveedoresConsignacion.some(
+      (proveedor) =>
+        `${CONSIGNMENT_SUPPLIER_PREFIX}${proveedor.id}` === consignmentFilter,
+    )
+      ? "todos"
+      : consignmentFilter;
+
+  const consignmentItems = [
+    ...CONSIGNMENT_OPTIONS.map((o) => (
+      <MenuItem key={o.value} value={o.value}>
+        {o.label}
+      </MenuItem>
+    )),
+    ...(proveedoresConsignacion.length > 0
+      ? [
+          <ListSubheader key="proveedores-subheader">
+            Por consignatario
+          </ListSubheader>,
+          ...proveedoresConsignacion.map((proveedor) => (
+            <MenuItem
+              key={proveedor.id}
+              value={`${CONSIGNMENT_SUPPLIER_PREFIX}${proveedor.id}`}
+            >
+              {proveedor.nombre}
+            </MenuItem>
+          )),
+        ]
+      : []),
+  ];
 
   const handleClearFilters = () => {
     onSearchChange("");
     onCategoriasChange([]);
     onStockChange("todo");
     onExpiryChange("todos");
+    onConsignmentChange("todos");
   };
 
   if (isMobile) {
@@ -331,6 +388,19 @@ export function InventarioFiltersBar({
             </FormControl>
 
             <FormControl size="small" fullWidth>
+              <InputLabel>Consignación</InputLabel>
+              <Select
+                label="Consignación"
+                value={consignmentValue}
+                onChange={(e) =>
+                  onConsignmentChange(e.target.value as ConsignmentFilter)
+                }
+              >
+                {consignmentItems}
+              </Select>
+            </FormControl>
+
+            <FormControl size="small" fullWidth>
               <InputLabel>Vencimiento</InputLabel>
               <Select
                 label="Vencimiento"
@@ -406,6 +476,19 @@ export function InventarioFiltersBar({
                 {o.label}
               </MenuItem>
             ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Consignación</InputLabel>
+          <Select
+            label="Consignación"
+            value={consignmentValue}
+            onChange={(e) =>
+              onConsignmentChange(e.target.value as ConsignmentFilter)
+            }
+          >
+            {consignmentItems}
           </Select>
         </FormControl>
 

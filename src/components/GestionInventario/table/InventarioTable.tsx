@@ -23,7 +23,7 @@ import {
   INVENTARIO_TABLE_COLUMNS as COLUMNAS,
   INVENTARIO_VIRTUALIZATION_MIN_ROWS,
 } from "@/constants/inventario";
-import { formatMontoEnMoneda, formatNumber } from "@/utils/formatters";
+import { formatMontoEnMoneda, formatQuantity } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import { LoadingState } from "@/components/LoadingState";
 import { EmptyState } from "@/components/EmptyState";
@@ -250,7 +250,7 @@ export function InventarioTable({
                         fontWeight={stockTone(p.existencia) ? 700 : 600}
                         sx={{ color: stockTone(p.existencia) }}
                       >
-                        {formatNumber(p.existencia)}
+                        {formatQuantity(p.existencia)}
                       </Typography>
                     </Box>
                   </Box>

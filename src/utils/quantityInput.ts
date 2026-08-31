@@ -1,3 +1,11 @@
+/**
+ * Quantity input helpers, shared by the POS and by inventory management.
+ *
+ * They live outside the POS because every screen that types a quantity has the
+ * same two problems: a Spanish mobile keypad emits "," where `parseFloat`
+ * expects ".", and stock is a Float that must not grow a third decimal.
+ */
+
 export interface QuantityQuickChip {
   /** How much this chip adds to what is already on screen. */
   value: number;
@@ -42,15 +50,24 @@ export function parseQuantityText(
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+/**
+ * Rounds to the 2 decimals the inputs accept and `formatQuantity` prints.
+ *
+ * Stock is a Float built by adding and subtracting, so it drifts: subtracting a
+ * typed 8.7 from a stored 8.699999999999999 yields 1e-15, which is not "no
+ * change" to a raw comparison and would record a movement out of nothing.
+ */
+export function roundQuantity(value: number): number {
+  return Math.round((value || 0) * 100) / 100;
+}
+
 export function clampQuantity(
   value: number,
   min: number,
   max: number,
   allowDecimal: boolean,
 ): number {
-  const rounded = allowDecimal
-    ? Math.round(value * 100) / 100
-    : Math.round(value);
+  const rounded = allowDecimal ? roundQuantity(value) : Math.round(value);
 
   return Math.min(Math.max(rounded, min), max);
 }

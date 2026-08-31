@@ -70,6 +70,7 @@ import {
   formatNumber,
   formatDateTime,
   formatMovimientoMotivo,
+  formatQuantity,
 } from "@/utils/formatters";
 import {
   TIPO_MOVIMIENTO_FLOW,
@@ -988,7 +989,7 @@ export default function MovimientosView({ tabs }: MovimientosViewProps) {
                         }
                       >
                         {isMovimientoBaja(movimiento.tipo) ? "-" : "+"}
-                        {Math.abs(movimiento.cantidad)}
+                        {formatQuantity(Math.abs(movimiento.cantidad))}
                       </Typography>
                     </TableCell>
                     {!isTablet && (

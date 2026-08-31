@@ -23,7 +23,7 @@ import {
   INVENTARIO_CARD_ESTIMATED_HEIGHT,
   INVENTARIO_VIRTUALIZATION_MIN_ROWS,
 } from "@/constants/inventario";
-import { formatMontoEnMoneda, formatNumber } from "@/utils/formatters";
+import { formatMontoEnMoneda, formatQuantity } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import { LoadingState } from "@/components/LoadingState";
 import { EmptyState } from "@/components/EmptyState";
@@ -170,7 +170,7 @@ function ProductCard({
                   Stock
                 </Typography>
                 <Typography variant="body2" fontWeight={600}>
-                  {formatNumber(p.existencia)}
+                  {formatQuantity(p.existencia)}
                 </Typography>
               </Box>
               <Box>

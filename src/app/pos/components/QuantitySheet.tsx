@@ -20,7 +20,7 @@ import {
   getQuickAddChips,
   parseQuantityText,
   sanitizeQuantityDraft,
-} from "@/app/pos/utils/quantityInput";
+} from "@/utils/quantityInput";
 import { QuantityKeypad, type QuantityKey } from "./QuantityKeypad";
 import { shape, touch } from "@/theme";
 

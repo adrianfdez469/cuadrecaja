@@ -32,11 +32,44 @@ export const proveedorConsignacionSchema = z.object({
   dineroLiquidado: z.number(),
   dineroPorLiquidar: z.number(),
   totalProductosConsignacion: z.number(),
+  // Stock on hand valued at cost, in base currency: what would be owed to the
+  // supplier if all of it sold.
+  valorConsignacion: z.number(),
   ultimaLiquidacion: z.string().nullable(),
   estado: z.enum(['activo', 'inactivo']),
+});
+
+// One row of the supplier detail screen: current consignment stock joined with
+// what has already been sold for that product across closed periods.
+export const productoConsignacionSchema = z.object({
+  id: z.string(),
+  nombre: z.string(),
+  categoria: z.string(),
+  // Unit cost in base currency — what is paid to the supplier per unit. The
+  // sale price is deliberately absent: showing it next to a cost-based stock
+  // value made the row read as two contradictory numbers.
+  costo: z.number(),
+  vendidos: z.number(),
+  disponibles: z.number(),
+  // disponibles x costo, in base currency.
+  valor: z.number(),
+  ganancias: z.number(),
+});
+
+// A supplier settlement, aggregated per closing period.
+export const liquidacionConsignacionSchema = z.object({
+  id: z.string(),
+  fecha: z.string(),
+  monto: z.number(),
+  productos: z.number(),
+  observaciones: z.string(),
+  estado: z.enum(['completada', 'pendiente']),
+  fechaLiquidacion: z.string().nullable().optional(),
 });
 
 export type IProveedor = z.infer<typeof proveedorSchema>;
 export type IProveedorCreate = z.infer<typeof createProveedorSchema>;
 export type IProveedorUpdate = z.infer<typeof updateProveedorSchema>;
 export type IProveedorConsignacion = z.infer<typeof proveedorConsignacionSchema>;
+export type IProductoConsignacion = z.infer<typeof productoConsignacionSchema>;
+export type ILiquidacionConsignacion = z.infer<typeof liquidacionConsignacionSchema>;
