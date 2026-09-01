@@ -4,11 +4,14 @@ import {
   changeErrors,
   changeOptions,
   customChangeSplit,
+  distributionBase,
   hasChangeErrors,
   mainCashCurrency,
   toVueltoLineas,
 } from "@/app/pos/utils/changeMath";
+import { changeBase, paidBase } from "@/app/pos/utils/paymentMath";
 import type { PaymentLine } from "@/app/pos/utils/paymentMath";
+import { suggestedAmounts } from "@/app/pos/utils/suggestedAmounts";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
 const RATES: ITasaSnapshot = { USD: 350 };
@@ -169,10 +172,11 @@ describe("changeOptions", () => {
 
     for (const split of splits(options)) {
       const total = (split.USD ?? 0) * 675 + (split.CUP ?? 0);
-      // The base part is ceiled to its smallest bill, so a split may exceed
-      // the debt by less than one CUP but can never fall short of it.
-      expect(total).toBeGreaterThanOrEqual(changeAmount);
-      expect(total).toBeLessThan(changeAmount + 1);
+      // Both parts are floored to their own bill, so a split may fall short
+      // of the debt by less than one CUP but can never exceed it — money
+      // leaving the till that the sale never took.
+      expect(total).toBeLessThanOrEqual(changeAmount);
+      expect(total).toBeGreaterThan(changeAmount - 1);
     }
   });
 
@@ -206,8 +210,10 @@ describe("changeOptions", () => {
     ).toEqual([{ CUP: 250 }]);
   });
 
-  it("rounds the remainder up to a deliverable bill", () => {
-    // CUPT circulates only whole units, so a 0.4 remainder has to become 1.
+  it("drops a remainder below the smallest bill instead of rounding it up", () => {
+    // CUPT circulates only whole units, so a 0.4 remainder cannot be handed
+    // over at all. Rounding it up to 1 would give back 0.6 the sale never
+    // took — the bug this module exists to prevent.
     const cupt = denoms({ CUPT: [1], USD: USD_BILLS });
     const rates: ITasaSnapshot = { USD: 600, CUPT: 1 };
     const options = changeOptions(
@@ -218,7 +224,50 @@ describe("changeOptions", () => {
       ["CUPT", "USD"],
       cupt,
     );
-    expect(splits(options)[0]).toEqual({ USD: 1, CUPT: 1 });
+    expect(splits(options)[0]).toEqual({ USD: 1 });
+  });
+
+  /**
+   * The reported bug, in its simplest form: a 2,75 sale covered with 3
+   * because CUP has no bill under 1. The 0,25 owed back cannot be handed
+   * over in any denomination, so no split is offered and the overpayment
+   * stays in the drawer — where the cash count expects it. Rounding it up
+   * to a whole CUP took 0,75 out of the till on every fractional sale.
+   */
+  it("offers no split when the whole change is below the smallest bill", () => {
+    expect(
+      changeOptions([cash("CUP", 3)], 0.25, RATES, BASE, ["CUP"], STANDARD),
+    ).toEqual([]);
+  });
+
+  it("truncates a fractional change down to a deliverable bill", () => {
+    const options = changeOptions(
+      [cash("CUP", 1200)],
+      145.99,
+      RATES,
+      BASE,
+      ["CUP"],
+      STANDARD,
+    );
+    expect(splits(options)).toEqual([{ CUP: 145 }]);
+  });
+
+  it("never offers a split with a fraction in it", () => {
+    const rates: ITasaSnapshot = { USD: 675 };
+    const options = changeOptions(
+      [cash("USD", 100)],
+      42750.6,
+      rates,
+      BASE,
+      CURRENCIES,
+      STANDARD,
+    );
+    expect(options.length).toBeGreaterThan(0);
+    for (const split of splits(options)) {
+      for (const amount of Object.values(split)) {
+        expect(amount % 1).toBe(0);
+      }
+    }
   });
 
   /**
@@ -233,7 +282,11 @@ describe("changeOptions", () => {
     const rates: ITasaSnapshot = { USD: 675 };
     const options = changeOptions(
       [cash("USD", 100)],
-      63.333333,
+      // 42 750 CUP expressed in USD. Written as the quotient, not as
+      // 63.333333: `changeBase` quantizes on the anchor's cent grid, so the
+      // real input is exact to the last CUP and a truncated fixture would
+      // floor the remainder a whole bill down.
+      42750 / 675,
       rates,
       "USD",
       ["USD", "CUP"],
@@ -247,7 +300,7 @@ describe("changeOptions", () => {
   it("never hands over more than is owed when base is the coarse currency", () => {
     const usdBase = denoms({ USD: USD_BILLS, CUP: CUP_BILLS });
     const rates: ITasaSnapshot = { USD: 675 };
-    const changeAmount = 63.333333;
+    const changeAmount = 42750 / 675;
     const options = changeOptions(
       [cash("USD", 100)],
       changeAmount,
@@ -259,10 +312,10 @@ describe("changeOptions", () => {
 
     for (const split of splits(options)) {
       const totalInUsd = (split.USD ?? 0) + (split.CUP ?? 0) / 675;
-      expect(totalInUsd).toBeGreaterThanOrEqual(changeAmount - 0.0001);
+      expect(totalInUsd).toBeLessThanOrEqual(changeAmount + 0.0001);
       // One CUP of slack, not one USD — the old behaviour would have
       // overshot by up to a whole dollar.
-      expect(totalInUsd).toBeLessThan(changeAmount + 1 / 675 + 0.0001);
+      expect(totalInUsd).toBeGreaterThan(changeAmount - 1 / 675 - 0.0001);
     }
   });
 
@@ -352,10 +405,19 @@ describe("customChangeSplit", () => {
       const { distribution } = split({ USD: usd }, 1750);
       const total =
         (distribution.USD ?? 0) * RATES.USD + (distribution.CUP ?? 0);
-      expect(total).toBeGreaterThanOrEqual(1750);
-      // Never over by more than the finest bill it had to round up to.
-      expect(total).toBeLessThan(1750 + 1);
+      // Never over: the remainder is floored to the finest bill, so it can
+      // fall short by less than one and never hands back money not owed.
+      expect(total).toBeLessThanOrEqual(1750);
+      expect(total).toBeGreaterThan(1750 - 1);
     }
+  });
+
+  it("omits the remainder when it is below the finest bill", () => {
+    // 4.99 USD = 1746.5 CUP of a 1747 CUP change: the 0.5 left cannot be
+    // handed over, so no CUP line is added and the sale is not blocked.
+    const { distribution, overshootBase } = split({ USD: 4.99 }, 1747);
+    expect(distribution).toEqual({ USD: 4.99 });
+    expect(overshootBase).toBe(0);
   });
 
   it("accepts amounts off the denomination grid — that is what it is for", () => {
@@ -408,7 +470,101 @@ describe("customChangeSplit", () => {
       STANDARD,
     );
     expect(result.remainderCurrency).toBe("CUP");
-    expect(result.distribution).toEqual({ CUP: 22166 });
+    // 63,33 USD is 22 165,5 CUP: floored to the bill, never rounded up.
+    expect(result.distribution).toEqual({ CUP: 22165 });
+  });
+});
+
+/**
+ * The reported bug, walked through the real checkout pipeline rather than
+ * through `changeOptions` alone: what the cashier types, what the drawer ends
+ * up holding, and what the sale records — the three numbers that have to
+ * agree for the cash count to come out.
+ */
+describe("a 2,75 sale in a currency with no coins", () => {
+  const TOTAL = 2.75;
+  const scenario = (handedOver: number) => {
+    const lines = [cash("CUP", handedOver)];
+    const change = changeBase(
+      paidBase(lines, RATES, BASE),
+      TOTAL,
+      RATES,
+      BASE,
+    );
+    const options = changeOptions(
+      lines,
+      change,
+      RATES,
+      BASE,
+      ["CUP"],
+      STANDARD,
+    );
+    const distribution = options[0]?.distribution ?? {};
+    return {
+      change,
+      distribution,
+      given: distributionBase(distribution, RATES, BASE),
+      vueltoDetalle: toVueltoLineas(distribution),
+      /** What `buildResumenMonedas` will expect to find in the drawer. */
+      drawerExpects: handedOver - distributionBase(distribution, RATES, BASE),
+    };
+  };
+
+  it("asks for 3, the smallest amount the customer can actually hand over", () => {
+    expect(suggestedAmounts(TOTAL, CUP_BILLS).exact).toBe(3);
+  });
+
+  it("hands nothing back and leaves the 0,25 in the drawer", () => {
+    const { change, distribution, given, vueltoDetalle } = scenario(3);
+    // The overpayment is real...
+    expect(change).toBe(0.25);
+    // ...but there is no bill for it, so none is offered and none recorded.
+    expect(distribution).toEqual({});
+    expect(given).toBe(0);
+    expect(vueltoDetalle).toEqual([]);
+  });
+
+  it("expects exactly the cash that is physically in the drawer", () => {
+    // The bug handed back a whole CUP against a 0,25 debt: the count then
+    // expected 2 against a 2,75 sale, 0,75 short on every fractional sale.
+    expect(scenario(3).drawerExpects).toBe(3);
+  });
+
+  it("still gives change when there is a bill to give it in", () => {
+    // Paying with 5 owes 2,25 — two CUP are deliverable, the 0,25 is not.
+    const { change, distribution, drawerExpects } = scenario(5);
+    expect(change).toBe(2.25);
+    expect(distribution).toEqual({ CUP: 2 });
+    expect(drawerExpects).toBe(3);
+  });
+});
+
+describe("distributionBase", () => {
+  it("is zero for a split with nothing in it", () => {
+    expect(distributionBase({}, RATES, BASE)).toBe(0);
+  });
+
+  it("adds every currency up in base", () => {
+    const rates: ITasaSnapshot = { USD: 675 };
+    expect(distributionBase({ USD: 63, CUP: 225 }, rates, BASE)).toBe(42750);
+  });
+
+  it("ignores zero amounts", () => {
+    expect(distributionBase({ CUP: 250, USD: 0 }, RATES, BASE)).toBe(250);
+  });
+
+  it("is what the split hands over, not what is owed", () => {
+    // The gap is the point: the checkout shows the green block only when
+    // something actually leaves the drawer.
+    const options = changeOptions(
+      [cash("CUP", 1200)],
+      145.99,
+      RATES,
+      BASE,
+      ["CUP"],
+      STANDARD,
+    );
+    expect(distributionBase(options[0].distribution, RATES, BASE)).toBe(145);
   });
 });
 

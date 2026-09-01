@@ -18,6 +18,7 @@ import {
 import { ChangeSheet } from "@/app/pos/components/checkout/ChangeSheet";
 import { ChangeBlock } from "@/app/pos/components/checkout/ChangeBlock";
 import { MissingBlock } from "@/app/pos/components/checkout/MissingBlock";
+import { UndeliverableChangeNote } from "@/app/pos/components/checkout/UndeliverableChangeNote";
 import { TipChip, TipLink } from "@/app/pos/components/checkout/TipControls";
 import { TipSheet } from "@/app/pos/components/checkout/TipSheet";
 import { usePaymentLines } from "@/app/pos/components/checkout/usePaymentLines";
@@ -31,7 +32,7 @@ import {
   toPagoLineas,
 } from "@/app/pos/utils/paymentMath";
 import type { PaymentLine } from "@/app/pos/utils/paymentMath";
-import { toVueltoLineas } from "@/app/pos/utils/changeMath";
+import { distributionBase, toVueltoLineas } from "@/app/pos/utils/changeMath";
 import { suggestedAmounts } from "@/app/pos/utils/suggestedAmounts";
 import {
   tipLinesFromAmounts,
@@ -530,14 +531,22 @@ export function CheckoutView({
     !needsTransferDestination &&
     !hasErrors;
 
-  const hasChange = !missing && change > 0;
-  const changeLabel =
-    formatChangeSplit(distribution) || formatMontoEnMoneda(change, monedaBase);
+  // What the split actually hands back, which is not the change owed: an
+  // overpayment below the smallest bill cannot be given and stays in the
+  // drawer. Deciding the green block on `change` instead would announce a
+  // «Cambio 0,25» the cashier has no coin for.
+  const changeGivenBase = useMemo(
+    () => distributionBase(distribution, tasasVigentes, monedaBase),
+    [distribution, tasasVigentes, monedaBase],
+  );
+  const hasChange = !missing && changeGivenBase > 0;
+  /** Overpayment too small to hand back in any denomination. */
+  const undeliverableChange = !missing && change > 0 && !hasChange ? change : 0;
+  const changeLabel = formatChangeSplit(distribution);
 
   /** «Pagado 13,00 USD» — or what the payment came to, as the bar says it. */
-  const paidLabel = missing
-    ? `Pagado ${formatMontoEnMoneda(paid, monedaBase)}`
-    : hasChange
+  const paidLabel =
+    missing || hasChange || undeliverableChange > 0
       ? `Pagado ${formatMontoEnMoneda(paid, monedaBase)}`
       : `Pago exacto ${formatMontoEnMoneda(0, monedaBase)}`;
 
@@ -601,6 +610,7 @@ export function CheckoutView({
       base: monedaBase,
       tipTotalBase: tipTotal,
       change: distribution,
+      undeliverableChangeBase: undeliverableChange,
       lines,
       confirmedAt: Date.now(),
     });
@@ -723,13 +733,19 @@ export function CheckoutView({
                   tasasVigentes,
                   monedaBase,
                 ),
-                capBase: change,
+                capBase: changeGivenBase,
               });
             }}
             onOpenTip={() => setTipOpen(true)}
             base={monedaBase}
             error={firstError}
             overshootBase={overshootBase}
+          />
+        )}
+        {undeliverableChange > 0 && tipTotal === 0 && (
+          <UndeliverableChangeNote
+            amount={undeliverableChange}
+            currency={monedaBase}
           />
         )}
         {tipTotal > 0 ? (

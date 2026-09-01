@@ -3,7 +3,6 @@ import {
   convertFromBase,
   roundBaseToAnchorCents,
 } from "@/lib/currency";
-import { ceilToStep } from "@/app/pos/utils/suggestedAmounts";
 import type { PaymentLine } from "@/app/pos/utils/paymentMath";
 import type { IVueltoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
@@ -87,12 +86,47 @@ function optionId(distribution: ChangeDistribution): string {
     .join("|");
 }
 
+/** A split with nothing in it — the change owed is below the finest bill. */
+function isEmptySplit(distribution: ChangeDistribution): boolean {
+  return Object.keys(distribution).length === 0;
+}
+
+/** Wraps a single split, or offers none at all when it is empty. */
+function asOptions(distribution: ChangeDistribution): ChangeOption[] {
+  return isEmptySplit(distribution)
+    ? []
+    : [{ id: optionId(distribution), distribution }];
+}
+
+/**
+ * Base-currency value of a split: what actually leaves the drawer.
+ *
+ * Not the same number as the change owed — whatever falls below one bill of
+ * the finest currency is never handed over and stays in the till — so this is
+ * what the checkout must show and what caps a tip taken from the change.
+ */
+export function distributionBase(
+  distribution: ChangeDistribution,
+  rates: ITasaSnapshot,
+  base: string,
+): number {
+  const total = Object.entries(distribution).reduce(
+    (sum, [currency, amount]) =>
+      amount > 0 ? sum + convertToBase(amount, currency, rates, base) : sum,
+    0,
+  );
+  return roundBaseToAnchorCents(total, rates, base);
+}
+
 /**
  * Splits `changeAmountBase` given `amountInMain` units of the main currency,
- * with the remainder in `remainderCurrency`. The main part is floored to its
- * own bill size and the remainder is ceiled to the finer one: the coarse
- * currency never overshoots what is owed, and the fine one absorbs the
- * difference rather than leaving an undeliverable fraction behind.
+ * with the remainder in `remainderCurrency`. Both parts are floored to their
+ * own bill size, so no split ever hands over more than is owed.
+ *
+ * What is left below one bill of the finest currency cannot be handed over at
+ * all, so no line is emitted for it: it stays in the drawer, where the cash
+ * count expects it, instead of being rounded up to a whole bill the sale
+ * never took.
  */
 function splitWith(
   amountInMain: number,
@@ -110,10 +144,11 @@ function splitWith(
     changeAmountBase - convertToBase(amountInMain, mainCurrency, rates, base);
 
   if (remainderBase > EPS) {
-    distribution[remainderCurrency] = ceilToStep(
+    const remainderAmount = floorToStep(
       convertFromBase(remainderBase, remainderCurrency, rates, base),
       remainderDenomination,
     );
+    if (remainderAmount > 0) distribution[remainderCurrency] = remainderAmount;
   }
   return distribution;
 }
@@ -160,8 +195,14 @@ export function remainderCurrencyFor(
  * customer paid with, hand over none of it and settle in the finer currency,
  * or stop at a round bill in between — always a denomination, never an
  * arbitrary number. So the options are generated from the denominations
- * themselves, and a split that does not add up to what is owed cannot be
- * expressed at all.
+ * themselves, and every split adds up to what is owed save for the sliver
+ * below one bill of the finest currency, which no split can express and none
+ * hands over.
+ *
+ * Nothing is ever rounded up: a split that overshot the debt would be money
+ * leaving the till that the sale never took. When the whole change is that
+ * sliver — a 0.25 debt where the smallest bill is 1 — there is no option at
+ * all and the overpayment stays in the drawer.
  *
  * Replayed against 207 real multi-currency sales, the first option matches
  * what the cashier actually handed over 84% of the time and the list covers
@@ -186,19 +227,21 @@ export function changeOptions(
   const remainderDenomination = smallestDenomination(
     denominationsFor(remainderCurrency),
   );
-  const allInRemainder: ChangeDistribution = {
-    [remainderCurrency]: ceilToStep(
-      convertFromBase(changeAmountBase, remainderCurrency, rates, base),
-      remainderDenomination,
-    ),
-  };
+  const allInRemainderAmount = floorToStep(
+    convertFromBase(changeAmountBase, remainderCurrency, rates, base),
+    remainderDenomination,
+  );
+  const allInRemainder: ChangeDistribution =
+    allInRemainderAmount > 0
+      ? { [remainderCurrency]: allInRemainderAmount }
+      : {};
 
   const mainCurrency = mainCashCurrency(lines, rates, base);
 
   // Paid in the finest currency already (or not in cash at all): there is no
   // coarser denomination to split against, so there is nothing to choose.
   if (!mainCurrency || mainCurrency === remainderCurrency) {
-    return [{ id: optionId(allInRemainder), distribution: allInRemainder }];
+    return asOptions(allInRemainder);
   }
 
   const mainDenominations = denominationsFor(mainCurrency);
@@ -212,7 +255,7 @@ export function changeOptions(
   const maxInMain = floorToStep(changeInMain, mainDenomination);
 
   if (maxInMain <= 0) {
-    return [{ id: optionId(allInRemainder), distribution: allInRemainder }];
+    return asOptions(allInRemainder);
   }
 
   // Round stopping points below the maximum: the largest multiple of each
@@ -252,11 +295,13 @@ export function changeOptions(
     return { id: optionId(distribution), distribution };
   });
 
-  // A split can collapse onto another once both parts are rounded (a tiny
-  // remainder ceiling to the same base amount, say). Identical ids would
-  // then render as duplicate choices and make selection ambiguous.
+  // A split can collapse onto another once both parts are floored (two
+  // amounts whose remainders truncate to the same bill, say). Identical ids
+  // would then render as duplicate choices and make selection ambiguous. The
+  // empty split is dropped outright: "hand over nothing" is not a choice.
   const seen = new Set<string>();
   return options.filter((option) => {
+    if (isEmptySplit(option.distribution)) return false;
     if (seen.has(option.id)) return false;
     seen.add(option.id);
     return true;
@@ -330,10 +375,11 @@ export function customChangeSplit(
     base,
   );
   if (remainderBase > EPS) {
-    distribution[remainderCurrency] = ceilToStep(
+    const remainderAmount = floorToStep(
       convertFromBase(remainderBase, remainderCurrency, rates, base),
       remainderDenomination,
     );
+    if (remainderAmount > 0) distribution[remainderCurrency] = remainderAmount;
   }
 
   return {

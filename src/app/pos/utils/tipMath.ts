@@ -5,12 +5,15 @@
  * that does not belong to the business. The invariant the whole feature
  * rests on is
  *
- *   Σ pagosDetalle.equivalenteBase − Σ vueltoDetalle(base) = total + tipTotal
+ *   Σ pagosDetalle.equivalenteBase − Σ vueltoDetalle(base)
+ *     = total + tipTotal + residue
  *
- * which is why the cash drawer needs no knowledge of tips — the bill is
- * already counted there. These helpers only decide *which* currency and
- * payment method each unit of tip is attributed to, so it can be reported
- * and handed out later.
+ * where `residue` is the overpayment too small to hand back in any bill —
+ * 0 ≤ residue < the smallest deliverable denomination (see `changeMath`).
+ * Both the tip and the residue stay in the drawer, which is why the cash
+ * count needs no knowledge of either: the bills are already counted there.
+ * These helpers only decide *which* currency and payment method each unit of
+ * tip is attributed to, so it can be reported and handed out later.
  */
 
 import { convertToBase, roundBaseToAnchorCents } from "@/lib/currency";

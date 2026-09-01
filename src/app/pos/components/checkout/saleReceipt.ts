@@ -13,8 +13,17 @@ export interface SaleReceipt {
   amountBase: number;
   base: string;
   tipTotalBase: number;
-  /** The change handed back, by currency. Empty when the payment was exact. */
+  /**
+   * The change handed back, by currency. Empty both when the payment was
+   * exact and when what was owed back was too small to hand over — see
+   * `undeliverableChangeBase` for telling the two apart.
+   */
   change: ChangeDistribution;
+  /**
+   * Overpayment left in the drawer because no denomination could express it
+   * — 0,25 on a 2,75 sale covered with 3. Zero on an exact payment.
+   */
+  undeliverableChangeBase: number;
   lines: PaymentLine[];
   /** When the sale was confirmed, as a timestamp. */
   confirmedAt: number;
