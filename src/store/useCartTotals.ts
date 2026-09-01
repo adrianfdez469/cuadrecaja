@@ -51,7 +51,7 @@ export function useCartTotals(): CartTotals {
         products: items.map((item) => ({
           productoTiendaId: item.productoTiendaId,
           cantidad: item.quantity,
-          precio: item.price,
+          precio: item.priceBase ?? item.price,
         })),
         productMeta,
         discountCodes: codes,

@@ -33,7 +33,10 @@ interface CartState {
 
 // Helpers
 const calcTotal = (items: ICartItem[]) =>
-  items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  items.reduce(
+    (sum, item) => sum + (item.priceBase ?? item.price) * item.quantity,
+    0,
+  );
 
 const createEmptyCart = (index: number): ICart => ({
   id: String(index),
