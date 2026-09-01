@@ -10,7 +10,6 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
-      "runtimeExecutable": "/Users/macbook/.nvm/versions/node/v20.19.1/bin/node",
       "env": {
         "NODE_ENV": "development"
       }
@@ -35,7 +34,6 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
-      "runtimeExecutable": "/Users/macbook/.nvm/versions/node/v20.19.1/bin/node",
       "env": {
         "NODE_ENV": "development"
       },

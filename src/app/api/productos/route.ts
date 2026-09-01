@@ -92,6 +92,10 @@ export async function POST(req: Request) {
       }),
     ]);
 
+    if (!negocio) {
+      return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+    }
+
     const productlimit = negocio.plan?.limiteProductos ?? -1;
     if (productlimit !== -1 && productlimit <= productosCounter) {
       return NextResponse.json(

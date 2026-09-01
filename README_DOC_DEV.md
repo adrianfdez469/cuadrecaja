@@ -232,7 +232,7 @@ erDiagram
 
 ### Prerrequisitos
 
-- **Node.js** 18+ (ver `.nvmrc`)
+- **Node.js** 24+ (ver `.nvmrc`)
 - **PostgreSQL** 14+
 - **npm/yarn/pnpm**
 - **Git**
