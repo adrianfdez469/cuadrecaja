@@ -164,8 +164,15 @@ export function SaleDoneView({
     (state) => state.sales.filter((sale) => !sale.synced).length,
   );
 
-  const { amountBase, base, tipTotalBase, change, lines, confirmedAt } =
-    receipt;
+  const {
+    amountBase,
+    base,
+    tipTotalBase,
+    change,
+    undeliverableChangeBase,
+    lines,
+    confirmedAt,
+  } = receipt;
 
   const changeEntries = Object.entries(change).filter(
     ([, amount]) => amount > 0,
@@ -189,6 +196,13 @@ export function SaleDoneView({
   if (changeEntries.length > 0) {
     detailParts.push(
       `vuelto entregado en ${changeEntries.map(([currency]) => currency).join(" y ")}`,
+    );
+  } else if (undeliverableChangeBase > 0) {
+    // Not an exact payment: the customer covered a fractional total with a
+    // whole bill and nothing could be handed back, so the difference stayed
+    // in the drawer. Calling it exact would hide it from whoever counts.
+    detailParts.push(
+      `sin vuelto entregable · ${formatMontoEnMoneda(undeliverableChangeBase, base)} en caja`,
     );
   } else {
     detailParts.push("pago exacto");
