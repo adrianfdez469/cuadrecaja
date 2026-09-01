@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "project": "cuadrecaja",
+  "updated_at": "2026-08-31",
+  "rules": [
+    "Solo se cambia 'passes' a true cuando TODOS los acceptance_criteria fueron verificados ejecutando algo, no leyendo código.",
+    "Nunca se borra un feature: se marca 'status': 'deprecated' y se explica en 'notes'.",
+    "Nunca se modifica un acceptance_criteria ya escrito. Si está mal, se agrega un feature nuevo que lo corrija.",
+    "El backlog de producto lo define el humano. Un agente no agrega features por iniciativa propia.",
+    "No se empieza un feature cuyos 'depends_on' no tengan 'passes': true.",
+    "Un feature con 'passes': false y sin archivo en .agents/progress/ está sin empezar. Si tiene archivo, se retoma desde ahí.",
+    "Antes de tocar código: leer features.json completo, AGENTS.md, y el progress/ del feature elegido.",
+    "Al cerrar sesión con trabajo a medias es OBLIGATORIO actualizar .agents/progress/<id>.md, con 'Próximo paso concreto' relleno.",
+    "Todo error que costó más de un intento resolver se registra en .agents/errors/<id>.md y se indexa en .agents/COMMON_ERRORS.md.",
+    "Toda decisión técnica no evidente se registra como ADR en docs/adr/ y se referencia desde 'notes' del feature."
+  ],
+  "features": []
+}
