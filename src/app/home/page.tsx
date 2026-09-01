@@ -88,9 +88,14 @@ const HomePage = () => {
   useEffect(() => {
     const fetchNegocioStats = async () => {
       setLoadingNegocioStats(true);
-      const stats = await getNegocioStats();
-      setNegocioStats(stats);
-      setLoadingNegocioStats(false);
+      try {
+        const stats = await getNegocioStats();
+        setNegocioStats(stats);
+      } catch (error) {
+        console.error("Error al cargar estadisticas del negocio:", error);
+      } finally {
+        setLoadingNegocioStats(false);
+      }
     };
     fetchNegocioStats();
   }, [user?.negocio?.id]);

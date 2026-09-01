@@ -91,7 +91,11 @@ export async function POST(req: Request) {
       }),
     ]);
 
-    const userlimit = negocio?.plan?.limiteUsuarios ?? -1;
+    if (!negocio) {
+      return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+    }
+
+    const userlimit = negocio.plan?.limiteUsuarios ?? -1;
     if (userlimit !== -1 && userlimit <= usersCounter) {
       return NextResponse.json(
         { error: "Limite de usuarios exedido" },
@@ -148,7 +152,7 @@ export async function POST(req: Request) {
       request: req,
       usuarioId: usuario.id,
       negocioId: user.negocio.id,
-      negocioNombre: negocio?.nombre ?? "",
+      negocioNombre: negocio.nombre,
       creadorNombre: user.nombre ?? "",
       creadorEmail: user.usuario ?? "",
       invitadoNombre: nombre,

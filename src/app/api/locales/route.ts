@@ -74,6 +74,10 @@ export async function POST(request: Request) {
       })
     ]);
 
+    if (!negocio) {
+      return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+    }
+
     const locallimit = negocio.plan?.limiteLocales ?? -1;
     if (locallimit !== -1 && locallimit <= tiendasCounter) {
       return NextResponse.json(

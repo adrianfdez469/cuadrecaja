@@ -59,6 +59,10 @@ export async function GET(req: Request): Promise<NextResponse<NegocioStats | { e
       })
     ]);
 
+    if (!negocio) {
+      return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+    }
+
     const locallimit = negocio.plan?.limiteLocales ?? -1;
     const userlimit = negocio.plan?.limiteUsuarios ?? -1;
     const productlimit = negocio.plan?.limiteProductos ?? -1;
