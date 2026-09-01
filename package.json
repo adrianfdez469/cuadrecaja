@@ -2,6 +2,9 @@
   "name": "cuadre-caja",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:https": "node server.mjs",
@@ -60,7 +63,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/file-saver": "^2.0.7",
-    "@types/node": "^20",
+    "@types/node": "^24",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
