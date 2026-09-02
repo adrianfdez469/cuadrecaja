@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "cuadrecaja",
-  "updated_at": "2026-08-31",
+  "updated_at": "2026-09-01",
   "rules": [
     "Solo se cambia 'passes' a true cuando TODOS los acceptance_criteria fueron verificados ejecutando algo, no leyendo código.",
     "Nunca se borra un feature: se marca 'status': 'deprecated' y se explica en 'notes'.",
@@ -12,7 +12,491 @@
     "Antes de tocar código: leer features.json completo, AGENTS.md, y el progress/ del feature elegido.",
     "Al cerrar sesión con trabajo a medias es OBLIGATORIO actualizar .agents/progress/<id>.md, con 'Próximo paso concreto' relleno.",
     "Todo error que costó más de un intento resolver se registra en .agents/errors/<id>.md y se indexa en .agents/COMMON_ERRORS.md.",
-    "Toda decisión técnica no evidente se registra como ADR en docs/adr/ y se referencia desde 'notes' del feature."
+    "Toda decisión técnica no evidente se registra como ADR en docs/adr/ y se referencia desde 'notes' del feature.",
+    "Ningún archivo de .agents/ puede contener una ruta del sistema de archivos de una máquina concreta: se comparten por git y la ruta de un dev no existe en la máquina de otro. La documentación externa se declara en references.external_docs con una variable de entorno y la URL de su repositorio; si la variable no está definida, PARAR y preguntarle al humano dónde está esa documentación — nunca adivinar una ruta ni continuar sin leerla.",
+    "Antes de empezar un feature, leer la documentación externa que declare en 'requires_docs'. Para el contrato de QAB el chequeo es la VERSIÓN, no el contenido: comparar la versión vigente del documento con references.external_docs.qab.contrato.version_verificada siguiendo los pasos de 'como_detectar_cambios'. Si difiere, PARAR y avisar al humano antes de tocar código.",
+    "'passes': true es relativo a la versión del contrato con la que se verificó, que queda anotada en el campo 'contrato_version' del feature. Cuando el contrato sube de versión y el cambio afecta a un feature ya cerrado, ese feature deja de estar verificado: no se edita su 'passes' a mano ni se tocan sus acceptance_criteria — se abre un feature nuevo de migración que los reemplace, y se explica en 'notes' del viejo. Solo QA, ejecutando, cierra el nuevo."
   ],
-  "features": []
+  "references": {
+    "external_docs": {
+      "_como_funciona": "Documentación que este proyecto necesita y que NO vive en este repositorio. Cada entrada se resuelve por su 'env_var', que cada desarrollador define en su propio .env apuntando a donde tenga clonado ese repo. Aquí nunca se escribe una ruta concreta: no existiría en la máquina de nadie más. 'repo' es el identificador estable; la ruta local es un detalle de cada máquina.",
+      "qab": {
+        "que_es": "queandabuscando (QAB) es el sistema de tiendas online. cuadrecaja (CC) es la fuente de la verdad de productos, precios, existencias y pedidos; QAB muestra lo que CC le manda y recoge los pedidos. Todas las llamadas HTTP las inicia CC.",
+        "env_var": "QAB_DOCS_PATH",
+        "repo": "queandabuscando",
+        "subruta": "docs/",
+        "si_falta": "Preguntarle al humano dónde tiene clonado el repo de QAB y pedirle que defina QAB_DOCS_PATH en su .env. No adivinar la ruta, no seguir sin leer el contrato.",
+        "volatilidad": "ALTA. Estos documentos cambian conforme QAB se desarrolla y el contrato ya rompió compatibilidad tres veces (v3 en autenticación, v4 en el payload de PRODUCT, v5 en el enum de estados de pedido). No hay copia versionada en este repo a propósito: una copia se queda vieja en silencio, y una copia vieja de este contrato es peor que no tenerla. Leer siempre el original.",
+        "documentos": {
+          "sync-contract.md": "El contrato que implementa CC: endpoints, payloads, enums, códigos de error, idempotencia, reconciliación. Es el documento vinculante.",
+          "guia-del-negocio.md": "Quién hace qué y dónde, en lenguaje de negocio. Útil para redactar specs y textos de UI.",
+          "flujos-cc-qab.html": "Los mismos flujos paso a paso, marcando qué está implementado en QAB y qué falta en CC.",
+          "despliegue.md": "Puesta en producción.",
+          "adr/": "Por qué cada decisión del contrato es como es.",
+          "traspaso-cuadrecaja-envio-cotizado.md": "NUEVO en la v6. Documento corto de traspaso: las 4 cosas que cuadrecaja tiene que implementar para el envío cotizado, con su porqué. Leer este antes que el contrato para esa parte."
+        },
+        "invariantes_del_contrato": [
+          "Tienda de CC ↔ Store de QAB es 1:1, en todos los endpoints (storeId, storeExternalId, StoreProduct, storeIds del SSO).",
+          "Storefront (marca) es la capa de agrupación de QAB: una URL y una identidad sobre N sucursales. Hoy solo se agrupa desde el panel de QAB y desagrupar no existe.",
+          "Un pedido pertenece a exactamente una sucursal. No existe el pedido multi-origen y el carrito del comprador es por tienda.",
+          "El token de autenticación es por negocio, lo acuña QAB y se ve una sola vez. Se guarda en la configuración de ese negocio dentro de CC.",
+          "El cursor del pull de pedidos es por negocio, y los ids tienen huecos: eso es correcto, no son pedidos perdidos.",
+          "CC nunca envía costo, margen, el entero de existencia, ventas, movimientos, cierres, usuarios, roles, credenciales ni proveedores. El DTO es la frontera de seguridad."
+        ],
+        "huecos_conocidos_del_contrato": [
+          "No hay forma de agrupar ni desagrupar sucursales bajo una marca desde el sync: es manual en el panel de QAB e irreversible.",
+          "CERRADO en la v7: checkoutMode, deliveryEnabled, deliveryFee, deliveryFeeMode y orderExpiryHours ya viajan en el payload de STORE y las escribe cuadrecaja. Ver F-016.",
+          "CERRADO en la v7: orderExpiryHours pasó a ser de cuadrecaja.",
+          "El token se entrega a mano por el equipo técnico; el alta automática está propuesta pero no construida.",
+          "NUEVO: no hay forma de releer UN pedido concreto. El único endpoint de lectura es GET /orders?since=&limit=, que filtra id > since, y una propuesta se resuelve sobre un pedido que el POS ya pulleó (id menor que el cursor). El contrato exige la relectura de los AWAITING_CUSTOMER (§ El timbre del canal negocio:) pero no da parámetro para hacerla: hay que emularla con since=<id-1>&limit=1 por pedido. Pedir a QAB un filtro por ids o por estado."
+        ],
+        "contrato": {
+          "archivo": "sync-contract.md",
+          "es_el_documento_vinculante": true,
+          "version_verificada": 7,
+          "fecha_de_esa_version": "2026-09-01",
+          "verificada_el": "2026-09-01",
+          "donde_esta_la_version": "Línea 3 del documento, con el formato exacto '**Versión N** · <fecha>'. Es el único de los documentos de QAB que lleva versión: la guía de negocio, el HTML de flujos y el de despliegue no la llevan, así que la versión del contrato es el único reloj de toda la integración.",
+          "como_detectar_cambios": [
+            "1. Leer la versión vigente:  grep -m1 '^\\*\\*Versión' \"$QAB_DOCS_PATH/sync-contract.md\"",
+            "2. Si coincide con version_verificada, la documentación no cambió en nada vinculante. Seguir.",
+            "3. Si es mayor, NO leer el contrato entero de nuevo. El propio documento trae en su cabecera una sección '## Cambios respecto a la vN' por cada salto: leer las que van desde version_verificada hasta la vigente. Ahí está, escrito por el autor, qué cambió y si el cambio es aditivo o rompe.",
+            "4. Contrastar cada cambio contra los features de este backlog: los que tengan contrato_version menor y toquen el área afectada dejan de ser fiables, incluidos los que ya estén en passes: true.",
+            "5. Avisar al humano con la lista de features afectados ANTES de tocar código. Actualizar version_verificada solo cuando esa revisión esté hecha."
+          ],
+          "historial_de_roturas": {
+            "_para_que_sirve": "Un salto de versión de este contrato NO es aditivo por defecto: tres de los cuatro saltos rompieron compatibilidad, y el autor lo justifica siempre igual — en cuadrecaja no había nada construido, así que no había consumidor vivo al que migrar sin cortar. Ese argumento deja de valer en cuanto este backlog empiece a cerrar features: a partir de ahí hay un consumidor vivo, y un salto que rompa hay que negociarlo, no encajarlo.",
+            "v3": "ROMPE. El token deja de ser global y pasa a ser por negocio; el cursor del pull pasa a ser por negocio.",
+            "v4": "ROMPE. El payload de PRODUCT cambia barcode (uno) por barcodes (lista), y la clave singular queda prohibida: su sola presencia tumba el lote entero con 400 INVALID_BATCH.",
+            "v5": "ROMPE. El enum de status de pedido pasa de 6 a 9 valores. Un switch exhaustivo se rompe sin ningún error HTTP que avise.",
+            "no_rompen": "Las aclaraciones aditivas (el SQL espejo de reconciliación, MISSING_STORE_ID) llegan sin bump de versión: si la versión no subió, nada vinculante cambió.",
+            "v5.1": "NO rompe (menor). Publica el SQL espejo exacto de la reconciliación y añade el timbre del canal negocio: (F-020), un Broadcast opcional que adelanta el pull. Quien no lo implemente sigue siendo un lector correcto.",
+            "v6": "ROMPE en dos cosas (F-031). POST /orders/status gana la primera guarda de transición del contrato (409 ORDER_DELIVERY_NOT_QUOTED) y la línea 'sin guardas de transición, el POS es la autoridad' deja de ser cierta. Y todos los importes del pull pasan a traer dos decimales: hasta la v5.1 se emitían sin ceros de relleno y el ejemplo publicado nunca fue cierto. Aditivo: el envío sin cotizar (deliveryFeePending).",
+            "v7": "Aditivo en el cable (F-032), pero cambia una propiedad. Las cinco columnas de configuración de compra viajan en el payload de STORE, y orderExpiryHours pasa de ser de queandabuscando a ser de cuadrecaja. Omitir una clave deja la columna intacta; null solo tiene significado en deliveryFee y en las otras cuatro es 400 INVALID_BATCH."
+          },
+          "politica_de_versionado_de_qab": "Declarada por QAB en § «Versionado de este documento» (nueva en la v7). Toda edición mueve la versión: MAYOR (5→6) cuando cambia lo que el POS envía o recibe —endpoint, campo, enum, código de error o regla de validación—, sea aditivo o no, y se coordina con cuadrecaja antes de publicarla; MENOR (5→5.1) cuando solo se aclara lo ya acordado, incluidos los mecanismos opcionales que quien no los implemente sigue siendo un lector correcto. No hay cambios silenciosos: si la versión no se movió, el documento no se tocó.",
+          "trampa_central_vigente": "v6: un pedido sin cotizar y uno con el envío regalado traen el MISMO deliveryFee \"0.00\". deliveryFeePending es lo único que los distingue. Todo atajo —tratar el 0.00 como gratis, mirar si hay contact.address, comparar total con subtotal— acierta hoy y falla con el primer envío regalado, cobrando de menos en silencio."
+        },
+        "estado_del_lado_receptor": "Ya NO es 'todo implementado y verificado'. La v7 lo dice explícitamente: lo que introduce la v6 está acordado y publicado ANTES de estar implementado en queandabuscando, para que cuadrecaja pueda empezar en paralelo. Mientras eso dure, un pedido nunca llega con deliveryFeePending, POST /orders/status no devuelve todavía el 409, y los importes siguen saliendo sin los ceros de relleno. QAB avisa cuando esté en pie; si hace falta antes para probar, se pide y lo priorizan. Consecuencia para el harness: los criterios de aceptación de F-015 no se pueden verificar de punta a punta hasta ese aviso — confirmar el estado con QAB antes de empezarlo."
+      }
+    },
+    "solicitudes_abiertas": "Lo que el contrato exige o presupone y la API de QAB no ofrece hoy, con el feature que bloquea cada cosa: .agents/solicitudes-qab.md. Un feature en status 'blocked' por causa externa debe nombrar ahí su solicitud."
+  },
+  "features": [
+    {
+      "id": "F-001",
+      "category": "tienda-online",
+      "description": "Fundaciones de datos de la integración: campos aditivos y nullable en Negocio, Producto, ProductoTienda y Tienda, más las tablas OutboxEvento, PedidoEntrante y PedidoEntranteLinea, y el índice parcial de divergencia de disponibilidad.",
+      "depends_on": [],
+      "acceptance_criteria": [
+        "npx prisma migrate dev aplica la migración sobre una base con datos sin reescribir ninguna tabla: todos los campos nuevos son nullable o llevan default.",
+        "npx prisma generate y npx tsc --noEmit terminan sin error.",
+        "Ejecutar en psql el SQL espejo de reconciliación del contrato (§ ⑤, 'El SQL espejo') contra el schema real: corre sin error de columna inexistente.",
+        "Con las cuatro filas del vector de prueba del contrato (precios 1990.00, 1990.50, 1990.10 y 0.00, ids a/b/c/d, CUP, AVAILABLE) ese SQL devuelve products = 4 y hash = 62e399684e3a8eafadaae58391537955.",
+        "El índice parcial de divergencia existe en la base: SELECT indexdef FROM pg_indexes WHERE indexname = 'idx_disp_divergente' devuelve una fila.",
+        "Negocio.qabToken no aparece en ninguna respuesta de API: grep sobre los selects de Prisma y una llamada real a los endpoints de negocio lo confirman."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "CREATE INDEX CONCURRENTLY no puede correr dentro de la transacción en la que Prisma envuelve cada migración; hay que aplicarlo con prisma db execute o en una migración marcada aparte. Campos: Negocio.tiendaOnlineHabilitada/qabToken/qabTokenActualizadoAt/qabUltimoPedidoVisto, Producto.publicarEnTienda/productoCanonicoId, ProductoTienda.dispPublicada/umbralBajo, Tienda.publicarEnTienda/slug/direccion/latitud/longitud/horarios/descripcion/ciudad/provincia/telefono/whatsapp/email/motivoDespublicacion.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 5
+    },
+    {
+      "id": "F-002",
+      "category": "tienda-online",
+      "description": "Outbox transaccional y cron de sincronización: el evento se inserta dentro de la misma transacción que muta la entidad, y un cron cada 2 minutos drena el lote con FOR UPDATE SKIP LOCKED, acusando por id.",
+      "depends_on": [
+        "F-001"
+      ],
+      "acceptance_criteria": [
+        "Mutar un producto dentro de una transacción que después hace rollback no deja ninguna fila en OutboxEvento.",
+        "GET /api/crons/sync-tienda sin cabecera Authorization responde 401; con Bearer ${CRON_SECRET} responde 200.",
+        "Con 600 eventos pendientes, una corrida toma como máximo 500 y deja el resto para la siguiente.",
+        "Dos corridas lanzadas a la vez toman lotes disjuntos: ningún eventId aparece en las dos.",
+        "Un evento cuyo POST falla queda con procesadoAt null e intentos incrementado; al llegar a 6 deja de tomarse y los posteriores siguen fluyendo.",
+        "Las dos corridas concurrentes no ejecutan el pull de pedidos del mismo negocio a la vez: la segunda no obtiene el advisory lock y sale sin llamar al endpoint.",
+        "vercel.json declara el cron con schedule '*/2 * * * *'."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "Los crons existentes viven en src/app/api/crons/ y se autentican con Bearer ${CRON_SECRET}: seguir ese patrón. El contrato exige un solo poller por negocio (§ ③④): usar pg_try_advisory_lock por negocioId, porque los crons de Vercel sí se solapan. Un cron cada 2 minutos requiere plan Pro en Vercel — confirmarlo antes de empezar.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 5
+    },
+    {
+      "id": "F-003",
+      "category": "tienda-online",
+      "description": "El súper administrador habilita la tienda online por negocio y guarda el token que QAB acuñó para ese negocio.",
+      "depends_on": [
+        "F-001"
+      ],
+      "acceptance_criteria": [
+        "En /configuracion/negocios, un SUPER_ADMIN activa el interruptor de tienda online de un negocio y el cambio persiste tras recargar.",
+        "Un usuario que no es SUPER_ADMIN recibe 403 al llamar al endpoint que cambia ese interruptor, aunque tenga todos los permisos del negocio.",
+        "Pegar un token y guardar: la respuesta de la API y el HTML servido muestran solo los últimos 4 caracteres, nunca el valor completo.",
+        "Guardar un token nuevo sobre uno existente lo reemplaza y actualiza qabTokenActualizadoAt.",
+        "Un negocio con el interruptor apagado no genera eventos en OutboxEvento ni se incluye en la corrida del cron, aunque tenga token."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "Hoy el token lo entrega a mano el equipo técnico de QAB y se ve una sola vez (guia-del-negocio.md, parte 1 paso 2). QAB tiene propuesta el alta automática; si llega, este feature se simplifica.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 5
+    },
+    {
+      "id": "F-004",
+      "category": "tienda-online",
+      "description": "Permisos y menú del módulo: cuatro permisos nuevos separando ver de actuar, y la sección 'Tienda Online' con sus dos entradas, con doble gate de permiso y de habilitación del negocio.",
+      "depends_on": [
+        "F-003"
+      ],
+      "acceptance_criteria": [
+        "permisos.json contiene tiendaonline.configuracion.acceder, tiendaonline.pedidos.acceder, tiendaonline.pedidos.gestionar y tiendaonline.pedidos.proponer, cada uno con descripción.",
+        "La plantilla 'administrador' incluye los cuatro; la plantilla 'vendedor' incluye acceder y gestionar de pedidos.",
+        "Un usuario sin tiendaonline.configuracion.acceder no ve la entrada de configuración en el menú y recibe 403 al llamar a su API directamente con curl.",
+        "Un negocio con el interruptor apagado no muestra la sección del menú a NINGÚN usuario, ni siquiera al administrador con los cuatro permisos, y sus endpoints responden 403.",
+        "Un usuario con tiendaonline.pedidos.acceder pero sin .gestionar ve la bandeja y recibe 403 al intentar cambiar un estado."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "El menú se define en src/components/Layout.tsx. Permisos validados en ambos lados: permisos_front.ts y permisos_back.ts. Este feature toca autorización: pasar por security-guardian es obligatorio.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 5
+    },
+    {
+      "id": "F-005",
+      "category": "tienda-online",
+      "description": "Publicar un local como tienda online: datos públicos de la sucursal, previsualización de la URL antes de publicar, y el evento STORE que crea marca, sucursal y slug en QAB.",
+      "depends_on": [
+        "F-002",
+        "F-003",
+        "F-004"
+      ],
+      "acceptance_criteria": [
+        "Publicar un local emite un evento STORE en OutboxEvento con el payload completo del contrato (§ ① 'payload de STORE'), y a los 2 minutos la URL responde 200 con el nombre del local.",
+        "Un local con tipo ALMACEN no ofrece el interruptor de publicar, y forzar la llamada por curl responde 400.",
+        "La pantalla del slug consulta GET /api/internal/slug-availability y muestra resolvedSlug y url reales; con un slug tomado muestra el siguiente libre antes de publicar.",
+        "Despublicar el local con un motivo envía publishToStore false y unpublishReason, y la URL pasa a mostrar el aviso de cerrada sin dejar de responder 200.",
+        "Editar solo el teléfono de un local publicado NO reabre una tienda que el comerciante cerró desde el panel de QAB: el evento repite el mismo publishToStore.",
+        "Antes del primer publish la UI pregunta explícitamente si el local abre su propia tienda o se suma a una existente, y advierte que agrupar es manual e irreversible.",
+        "Un evento STORE con el businessId de otro negocio responde 403 BUSINESS_MISMATCH y no escribe nada: verificado enviando un lote cruzado."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "Primer hito demostrable de punta a punta. La agrupación bajo una marca no se puede automatizar hoy (ver references.huecos_conocidos_del_contrato): la segunda opción de la pregunta abre una solicitud a soporte, y la UI debe decirlo tal cual en vez de fingir que lo hace.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 5
+    },
+    {
+      "id": "F-006",
+      "category": "tienda-online",
+      "description": "Publicación de productos y sincronización del catálogo: toggle por producto con acción masiva, y los eventos PRODUCT, CATEGORY, CURRENCY y EXCHANGE_RATE en el formato v5.",
+      "depends_on": [
+        "F-005"
+      ],
+      "acceptance_criteria": [
+        "Marcar un producto como publicado emite un PRODUCT con barcodes como lista y sin la clave barcode singular; el lote responde processed.",
+        "Un producto sin códigos de barras emite barcodes: [] y se publica igual, con su nombre local.",
+        "Reenviar el mismo lote responde duplicate y no cambia nada en QAB.",
+        "Un evento con la clave barcode singular responde 400 INVALID_BATCH y ninguna fila del lote se escribe: verificado enviándolo a propósito.",
+        "Todo price serializado lleva como máximo 2 decimales: un producto con precio 2.675 viaja como 2.67.",
+        "La acción masiva por categoría publica N productos y genera exactamente N eventos, en una sola transacción.",
+        "Un evento de un local no publicado responde skipped_not_published y se marca como procesado, no como fallo.",
+        "El payload no contiene costo, margen, existencia, ni ningún campo de la lista prohibida del contrato: verificado inspeccionando el cuerpo real de la petición."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "Se construye contra la v5 desde el primer día: no hay consumidor legacy que preservar y el contrato lo dice explícitamente. Los nombres del cable van en inglés aunque el schema esté en español (§ ① 'Mapeo de nombres').",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 5
+    },
+    {
+      "id": "F-007",
+      "category": "tienda-online",
+      "description": "Sincronización de disponibilidad por query convergente contra dispPublicada, enviando el enum de tres valores y nunca el entero de existencia.",
+      "depends_on": [
+        "F-006"
+      ],
+      "acceptance_criteria": [
+        "Vender hasta dejar existencia en 0 hace que la siguiente corrida envíe OUT_OF_STOCK para ese ProductoTienda.",
+        "Vender 3 unidades de 40 no genera ninguna escritura ni ningún item en el lote: el enum no cambió.",
+        "El cuerpo de la petición no contiene el entero de existencia en ningún campo.",
+        "Tras la respuesta, solo se escriben en dispPublicada los items que vinieron en confirmed; uno ausente sigue divergente y se reintenta en la corrida siguiente.",
+        "Poner dispPublicada a NULL en 50 filas hace que la siguiente corrida las levante las 50 y converja en una sola pasada.",
+        "Si el cron no corre durante 3 horas, la corrida siguiente envía exactamente las filas divergentes, no el catálogo entero."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "No usar WHERE updatedAt > ultimaSincronizacion: tiene un bug de pérdida de datos documentado en el ADR 0003 de QAB. Este camino no debe tocar el flujo de venta, que ya hace 18-19 queries y ya tuvo timeouts.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 5
+    },
+    {
+      "id": "F-008",
+      "category": "tienda-online",
+      "description": "Reconciliación diaria por tienda contra el hash de QAB, con recuperación automática y alerta cuando la sincronización lleva 30 minutos sin una corrida exitosa.",
+      "depends_on": [
+        "F-007"
+      ],
+      "acceptance_criteria": [
+        "Con las dos bases en el mismo estado, el hash local y el de GET /api/internal/reconciliation coinciden y no se dispara ninguna acción.",
+        "Cambiar un precio directamente en la base de QAB hace que los hashes difieran; la corrida pone dispPublicada = NULL en las filas de ese local y emite la alerta.",
+        "Una tienda publicada y sin productos da hash d41d8cd98f00b204e9800998ecf8427e en los dos lados.",
+        "Un storeId de otro negocio responde 404 UNKNOWN_STORE, igual que uno inexistente.",
+        "Detener el cron 31 minutos dispara la alerta de sincronización parada.",
+        "El test unitario del vector de prueba del contrato está en src/__tests__/ y pasa."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "Es lo único que detecta que la sincronización se rompió: sin esto los datos se quedan viejos sin que nada falle. El orden del hash es de bytes (COLLATE \"C\"), no el de la colación por defecto: dos colaciones dan hashes distintos sobre los mismos datos.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 5
+    },
+    {
+      "id": "F-009",
+      "category": "tienda-online",
+      "description": "Enlace SSO de un solo uso hacia el panel de QAB, para que el comerciante edite fotos, descripciones, promociones y colores sin una contraseña nueva.",
+      "depends_on": [
+        "F-004",
+        "F-005"
+      ],
+      "acceptance_criteria": [
+        "El botón abre /admin/sso?token=... y la sesión queda iniciada en el panel de QAB sin pedir contraseña.",
+        "El JWT lleva jti, sub, name, email, businessId y storeIds, y caduca en ~60 segundos.",
+        "Reutilizar el mismo enlace una segunda vez es rechazado por QAB: el jti ya está consumido.",
+        "Un usuario con acceso a 1 de los 3 locales del negocio recibe un token con un solo storeId y en el panel ve una sola sucursal.",
+        "La contraseña del usuario no aparece en el token ni en ninguna petición hacia QAB.",
+        "Quitar el acceso a un local en CC lo quita del panel en el siguiente inicio de sesión."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "Barato y desbloquea de golpe todo lo que CC no edita por diseño. Requiere SSO_JWT_SECRET compartido con QAB; QAB verifica con 30 s de tolerancia de reloj. Toca autenticación: security-guardian obligatorio.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 5
+    },
+    {
+      "id": "F-010",
+      "category": "tienda-online",
+      "description": "Pull de pedidos entrantes dentro del cron, con cursor por negocio, idempotencia por pedido y lectura del enum de 9 estados.",
+      "depends_on": [
+        "F-002",
+        "F-003"
+      ],
+      "acceptance_criteria": [
+        "Crear un pedido en la tienda y esperar una corrida: aparece en PedidoEntrante con sus líneas, contacto, importes y rateSnapshot, y qabUltimoPedidoVisto avanza.",
+        "deliveryFeePending se persiste como campo propio de PedidoEntrante: un pedido sin cotizar y uno con el envío regalado se distinguen en la base, no solo en la pantalla.",
+        "La corrida siguiente no vuelve a traerlo y no crea un duplicado.",
+        "Entregar dos veces el mismo pedido (simulando pollers solapados) crea una sola fila: la clave (negocioId, qabOrderId) lo impide.",
+        "Los ids recibidos con huecos no disparan ninguna alerta ni ningún reintento: el cursor avanza igual.",
+        "Un pedido en AWAITING_CUSTOMER, IN_TRANSIT o REJECTED_BY_STORE se persiste sin lanzar excepción: no hay switch exhaustivo sin default.",
+        "El cursor de un negocio no se ve afectado por los pedidos de otro: verificado con dos negocios sincronizando a la vez.",
+        "Todos los importes se parsean como número y no como cadena: un mismo importe que llegue como \"880\" o como \"880.00\" produce el mismo valor guardado. Verificado con un test sobre los dos formatos.",
+        "Con deliveryFeePending false se cumple total = subtotal - discountTotal + deliveryFee; con true se cumple total = subtotal - discountTotal. La validación no rechaza el segundo caso."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "REESCRITO contra el contrato v7 el 2026-09-01 (antes v5, sin empezar y sin verificar; decisión del humano de editar en sitio en vez de abrir un feature de migración). Cambios: se añade deliveryFeePending (v6) al modelo, y la igualdad de importes deja de ser una sola —con el envío sin cotizar el total es PARCIAL y la fórmula de siempre no se sostiene—. Los importes del pull ahora traen dos decimales siempre (v6): sin efecto si se parsean a número, roto si se comparan como cadenas. El enum sigue con los nueve valores de la v5 y su modo de falla sigue vigente: no hay error HTTP que avise, el fallo es del lado de CC. Order.code es la única credencial de una página pública con nombre, teléfono y dirección: no va a logs.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 7
+    },
+    {
+      "id": "F-011",
+      "category": "tienda-online",
+      "description": "Bandeja de pedidos online: listado filtrado por las tiendas del usuario, con detalle completo del pedido y aviso de pedidos nuevos.",
+      "depends_on": [
+        "F-004",
+        "F-010"
+      ],
+      "acceptance_criteria": [
+        "Un usuario con acceso solo al local 2 ve únicamente los pedidos con storeExternalId del local 2; los del local 1 no aparecen ni por API directa.",
+        "Un administrador con acceso a los tres locales ve los pedidos de los tres.",
+        "El detalle muestra líneas, cantidades, importes, datos de contacto, notas y el estado actual.",
+        "Un pedido con deliveryFeePending true y otro con el envío regalado, ambos con deliveryFee \"0.00\", se muestran distinto: 'envío por cotizar' y 'envío gratis'. La pantalla NUNCA deduce el estado del envío del importe.",
+        "Con el envío por cotizar, el total se presenta como parcial y la pantalla no lo llama importe final.",
+        "Un pedido con líneas priceadas en otra moneda muestra el importe original y el convertido, y recomputar unitPrice con las tasas del rateSnapshot da el mismo céntimo.",
+        "El contador de pedidos sin atender coincide con el número de filas en estado PULLED de las tiendas del usuario.",
+        "Order.code no aparece en ningún log del servidor: verificado provocando un pedido y revisando la salida."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "REESCRITO contra el contrato v7 el 2026-09-01 (antes v5, sin empezar y sin verificar; decisión del humano de editar en sitio en vez de abrir un feature de migración). El criterio del 0.00 es la trampa central de la v6 y está escrito para que un atajo la reviente: tratar el cero como gratis, mirar si hay contact.address o comparar total con subtotal acierta hoy y falla con el primer envío regalado, cobrando de menos en silencio. El filtro sigue siendo por UsuarioTienda, no por negocio.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 7
+    },
+    {
+      "id": "F-012",
+      "category": "tienda-online",
+      "description": "Reportar el avance del pedido hacia QAB y ofrecer el enlace de WhatsApp hacia el comprador, que abre siempre una persona.",
+      "depends_on": [
+        "F-011"
+      ],
+      "acceptance_criteria": [
+        "Sobre un pedido con el envío ya resuelto, cambiar a CONFIRMED, READY, IN_TRANSIT, DELIVERED, CANCELLED o REJECTED_BY_STORE llama a POST /api/internal/orders/status y la página del comprador refleja el cambio.",
+        "Intentar reportar AWAITING_CUSTOMER responde 400 y la UI no ofrece esa opción.",
+        "Un orderId de otro negocio responde 404 UNKNOWN_ORDER, igual que uno inexistente.",
+        "Un 409 ORDER_DELIVERY_NOT_QUOTED se propaga a la UI como 'falta cotizar el envío' y NO se reintenta: reintentar no lo arregla. El tratamiento completo de ese caso es F-015.",
+        "El botón de WhatsApp abre customerWhatsappUrl en una pestaña nueva; el sistema no envía ningún mensaje por su cuenta en ningún momento.",
+        "Un pedido sin dígitos utilizables en el teléfono no muestra el botón y explica por qué.",
+        "Un usuario sin tiendaonline.pedidos.gestionar recibe 403 al intentar cambiar un estado."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "REESCRITO contra el contrato v7 el 2026-09-01 (antes v5, sin empezar y sin verificar; decisión del humano de editar en sitio en vez de abrir un feature de migración). El motivo del cambio: la v6 introduce la PRIMERA guarda de transición del contrato y la nota anterior de este feature —«QAB no pone guardas de transición, el POS es la autoridad»— dejó de ser cierta, literalmente esa línea. Ahora READY, IN_TRANSIT y DELIVERED pueden responder 409 sobre un pedido sin cotizar, así que el criterio de recorrer los estados se acota a los pedidos con el envío resuelto. Las guardas razonables del resto de transiciones siguen siendo cosa de la UI de CC. El envío del WhatsApp lo hace siempre una persona: es una regla del contrato, no una preferencia.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 7
+    },
+    {
+      "id": "F-013",
+      "category": "tienda-online",
+      "description": "Renegociación del pedido: proponer nuevos importes y líneas al comprador, con un tarifario de zonas por sucursal que precarga el costo de envío.",
+      "depends_on": [
+        "F-012"
+      ],
+      "acceptance_criteria": [
+        "Proponer un cambio llama a POST /api/internal/orders/proposal, el pedido pasa a AWAITING_CUSTOMER y la página del comprador muestra el total anterior y el propuesto lado a lado.",
+        "El encargado configura un tarifario de zonas para una sucursal y al proponer sobre un pedido de esa zona el deliveryFee llega precargado.",
+        "El items de la llamada lleva siempre al menos una línea: para cambiar solo el envío se reenvían las mismas líneas que el pull entregó, con los mismos importes.",
+        "Una propuesta en una moneda distinta de Order.currencyCode responde 400 CURRENCY_MISMATCH y no escribe nada.",
+        "Proponer sobre un pedido en READY responde 409 ORDER_NOT_PROPOSABLE con el estado actual, y la UI lo explica en vez de mostrar un error genérico.",
+        "El comprador acepta y el encargado LO VE en la bandeja: el pedido queda en CONFIRMED con los importes nuevos y el rateSnapshot idéntico byte a byte al original.",
+        "El comprador rechaza y el encargado lo ve: CANCELLED con cancelledBy CUSTOMER, distinguible del vencimiento (EXPIRY) y del cierre por la tienda (STORE).",
+        "Los dos literales de cancelReason por vencimiento se distinguen: el de la propuesta vencida y el del pedido que nadie cotizó.",
+        "Una segunda propuesta reemplaza a la primera y reinicia el plazo.",
+        "Se cumple total = subtotal - discountTotal + deliveryFee y la suma de lineTotal es igual a subtotal, validado antes de enviar."
+      ],
+      "passes": false,
+      "status": "blocked",
+      "notes": "REESCRITO contra el contrato v7 el 2026-09-01 (antes v5, sin empezar y sin verificar; decisión del humano de editar en sitio en vez de abrir un feature de migración). BLOQUEADO por un hueco del contrato, no por trabajo pendiente aquí: no existe forma de releer UN pedido. El único endpoint de lectura filtra id > since y una propuesta se resuelve sobre un pedido que el POS ya pulleó, con id MENOR que el cursor — así que el pull incremental devuelve la lista vacía y el encargado nunca ve la respuesta del comprador. El criterio anterior («la siguiente corrida trae el pedido en CONFIRMED») era directamente falso. Decisión del humano el 2026-09-01: NO emular con since=<id-1>&limit=1; se le pide a QAB un filtro por ids o por estado y se espera. Ver .agents/solicitudes-qab.md. Lo demás del feature está listo para empezar en cuanto se desbloquee. El costo de envío es el disparador dominante y no un caso raro; no perseguir geodistancia: el comprador escribe la dirección como texto libre y nadie geocodifica.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 7
+    },
+    {
+      "id": "F-014",
+      "category": "tienda-online",
+      "description": "Aterrizaje del pedido online en CC: cuándo se descuenta el inventario y cuándo se genera la Venta que entra al cierre de caja.",
+      "depends_on": [
+        "F-012"
+      ],
+      "acceptance_criteria": [
+        "Existe un ADR en docs/adr/ que fija el momento del descuento de stock y el de la generación de la Venta, con las alternativas descartadas.",
+        "Pasar un pedido a CONFIRMED genera el MovimientoStock correspondiente en la tienda del pedido y la existencia baja.",
+        "Cancelar o rechazar un pedido ya confirmado genera el movimiento de reverso y la existencia vuelve al valor anterior.",
+        "Pasar a DELIVERED genera la Venta con su forma de pago, y esa venta aparece en el cierre del período de esa tienda.",
+        "El total de la Venta generada coincide con el total del pedido, incluido el deliveryFee acordado tras una renegociación.",
+        "Un pedido entregado aparece en los reportes de ventas de esa tienda con su origen identificable como tienda online.",
+        "La corrida de disponibilidad posterior propaga el nuevo enum de stock a QAB."
+      ],
+      "passes": false,
+      "status": "blocked",
+      "notes": "DECISIÓN ABIERTA, y no está en ninguno de los documentos de QAB porque es enteramente de CC. Un pedido que descuenta stock pero nunca se convierte en Venta deja el cierre descuadrado y la mercancía desaparecida de los reportes — en un producto que se llama Cuadre de Caja eso no es un detalle. Propuesta a decidir con el humano: MovimientoStock al CONFIRMED (reserva, con reverso al cancelar) y Venta al DELIVERED (cuando se cobra). Cerrar la decisión con un ADR antes de empezar; condiciona el modelo de PedidoEntrante de F-010. v6: el total de un pedido puede ser PARCIAL mientras el envío no esté cotizado, así que el ADR tiene que decir también qué pasa si se confirma stock sobre un total que todavía va a crecer.",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 5
+    },
+    {
+      "id": "F-015",
+      "category": "tienda-online",
+      "description": "Envío sin cotizar (contrato v6): leer deliveryFeePending antes que deliveryFee, cotizar por el endpoint de propuesta, y tratar el 409 ORDER_DELIVERY_NOT_QUOTED como 'falta cotizar' y no como un fallo transitorio.",
+      "depends_on": [
+        "F-013"
+      ],
+      "acceptance_criteria": [
+        "Un pedido con deliveryFeePending true y uno con el envío regalado llegan en la misma respuesta con deliveryFee \"0.00\" idéntico, y la bandeja los distingue: el primero dice 'envío por cotizar', el segundo 'envío gratis'.",
+        "Con deliveryFeePending true la UI muestra el total como parcial y no afirma que sea el importe final.",
+        "El total de un pedido sin cotizar cumple total = subtotal - discountTotal; el de uno cotizado cumple total = subtotal - discountTotal + deliveryFee. Verificado con los dos pedidos del ejemplo del contrato.",
+        "Cotizar solo el envío reenvía a POST /orders/proposal las mismas líneas que el pull entregó, con los mismos importes, y el pedido pasa a AWAITING_CUSTOMER.",
+        "Intentar llevar a READY, IN_TRANSIT o DELIVERED un pedido con deliveryFeePending true responde 409 ORDER_DELIVERY_NOT_QUOTED; la UI dice 'falta cotizar el envío' y NO reintenta.",
+        "Ese mismo 409 sobre un pedido de otro negocio responde 404 UNKNOWN_ORDER: el aislamiento se comprueba antes que la cotización.",
+        "Un pedido que nadie cotiza vence a las orderExpiryHours desde su creación y llega CANCELLED con cancelledBy EXPIRY; la bandeja lo distingue del vencimiento de una propuesta, que tiene otro cancelReason literal.",
+        "Todos los importes del pull se parsean como número, nunca comparando cadenas: un importe que llegue como \"880\" y otro como \"880.00\" se tratan igual. Verificado con un test sobre los dos formatos."
+      ],
+      "passes": false,
+      "status": "blocked",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 7,
+      "notes": "Leer primero traspaso-cuadrecaja-envio-cotizado.md, que es el documento corto de esta parte. LA TRAMPA CENTRAL de la v6: el 0.00 de un pedido sin cotizar y el de un envío regalado son el mismo string; deliveryFeePending es lo único que los distingue, y cualquier atajo cobra de menos en silencio. La v6 no pide ninguna columna nueva: es todo código. OJO: QAB todavía no tiene implementado el lado receptor de la v6 (ver estado_del_lado_receptor); confirmar con ellos antes de empezar o no se puede verificar nada de punta a punta. BLOQUEADO por dos motivos, ninguno de código propio: QAB todavía no tiene en pie el lado receptor de la v6, y depende de F-013, bloqueado por el hueco de la relectura."
+    },
+    {
+      "id": "F-016",
+      "category": "tienda-online",
+      "description": "Configuración de compra de la tienda (contrato v7): las cinco columnas que deciden cómo se compra pasan a ser de cuadrecaja — modo de checkout, domicilio, tarifa, modo de envío y horas de vencimiento — con su pantalla y su emisión en el evento STORE.",
+      "depends_on": [
+        "F-005"
+      ],
+      "acceptance_criteria": [
+        "Tienda tiene las cinco columnas nuevas con sus defaults y la migración no reescribe la tabla.",
+        "La pantalla de configuración del local permite fijar las cinco y el cambio persiste tras recargar.",
+        "Cambiar cualquiera de las cinco emite un evento STORE que las lleva planas, y a los 2 minutos la tienda online se comporta según el valor nuevo.",
+        "Un evento STORE rutinario que solo corrige el teléfono NO incluye las cinco claves, y la configuración de compra de esa tienda queda intacta: verificado configurando una a mano y comprobando que sigue igual tras el evento.",
+        "Enviar null en checkoutMode, deliveryEnabled, deliveryFeeMode u orderExpiryHours responde 400 INVALID_BATCH; enviar null en deliveryFee escribe NULL y es válido.",
+        "Un deliveryFee con más de dos decimales (12.345) responde 400 INVALID_BATCH y tumba el lote entero: la UI valida el importe antes de encolar el evento para que eso no ocurra nunca.",
+        "Un payload con deliveryEnabled true + deliveryFeeMode FLAT_RATE + deliveryFee null responde 400 INVALID_BATCH; el mismo invariante detectado solo contra la fila guardada llega como failed con STORE_DELIVERY_CONFIG_INCONSISTENT dentro de un 207, y ese evento NO se marca como procesado.",
+        "orderExpiryHours fuera de 1..8760 se rechaza en la UI antes de encolar el evento.",
+        "Poner deliveryFeeMode en QUOTED_PER_ORDER hace que los pedidos a domicilio de esa tienda lleguen con deliveryFeePending true."
+      ],
+      "passes": false,
+      "status": "pending",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 7,
+      "notes": "Cierra dos de los cuatro huecos que este backlog tenía registrados. Los nombres del cable son los que atan (checkoutMode, deliveryEnabled, deliveryFee, deliveryFeeMode, orderExpiryHours); los de Prisma son una propuesta de QAB y el schema es nuestro. LA REGLA CRÍTICA es 'omitir no es apagar': un evento que mande las cinco a sus defaults apagaría el domicilio de una tienda que un humano configuró a mano. Ver ADR 0028 de QAB. El riesgo operativo también es real: un solo valor mal formado tumba el lote entero y el reintento vuelve a fallar igual, así que el outbox del negocio se para hasta corregirlo — de ahí la validación en la UI."
+    },
+    {
+      "id": "F-017",
+      "category": "tienda-online",
+      "description": "Timbre del canal negocio: (contrato v5.1, opcional) — suscripción a un Broadcast de Supabase Realtime que adelanta el pull, más la relectura de los pedidos en AWAITING_CUSTOMER que el pull incremental nunca devuelve.",
+      "depends_on": [
+        "F-010",
+        "F-013"
+      ],
+      "acceptance_criteria": [
+        "POST /api/internal/realtime/credential con el bearer del negocio devuelve url, apikey, channel, event, token y expiresAt, y el canal es el del negocio autenticado.",
+        "Crear un pedido en la tienda dispara el pull en menos de 5 segundos, sin esperar al ciclo de 2 minutos.",
+        "Que el comprador resuelva una propuesta también dispara el pull.",
+        "Al oír el timbre se hacen DOS lecturas: el pull incremental y la relectura de los pedidos en AWAITING_CUSTOMER. Con el timbre del segundo disparador, el encargado ve el cambio aunque el pull incremental devuelva la lista vacía.",
+        "Con tres pestañas abiertas oyendo el mismo timbre solo hay UN pull en vuelo para ese negocio: verificado contando las peticiones que llegan al endpoint.",
+        "Matar el Realtime no pierde ningún pedido: llega igual en el siguiente ciclo del cron.",
+        "503 REALTIME_NOT_CONFIGURED no bloquea nada: el POS sigue con su cron.",
+        "La credencial se renueva volviendo a pedirla antes de expiresAt, sin intervención."
+      ],
+      "passes": false,
+      "status": "blocked",
+      "requires_docs": [
+        "qab"
+      ],
+      "contrato_version": 7,
+      "notes": "Aditivo y opcional: quien no lo implemente se queda con el cron de 2 minutos y sigue siendo un lector correcto. PERO la relectura de los AWAITING_CUSTOMER no es opcional y hoy no tiene endpoint propio: el pull filtra id > since y una propuesta se resuelve sobre un pedido con id MENOR que el cursor, así que sin esa segunda lectura el encargado nunca ve la respuesta del comprador. Hay que emularla con since=<id-1>&limit=1 por pedido, y pedirle a QAB un filtro por ids o por estado. El timbre convierte 'un solo poller por negocio' en algo mucho más fácil de violar: antes hacían falta dos crons mal configurados, ahora bastan tres pestañas. BLOQUEADO: su criterio de la relectura de los AWAITING_CUSTOMER no se puede cumplir hasta que QAB añada el filtro por ids o por estado (decisión del humano: pedirlo y esperar, no emularlo). El resto del timbre sí sería construible, pero sin la relectura el segundo disparador no sirve de nada."
+    }
+  ]
 }
