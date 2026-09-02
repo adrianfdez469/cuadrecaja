@@ -22,6 +22,7 @@ import {
   sanitizeQuantityDraft,
 } from "@/utils/quantityInput";
 import { QuantityKeypad, type QuantityKey } from "./QuantityKeypad";
+import { QuantityValueField } from "./QuantityValueField";
 import { shape, touch } from "@/theme";
 
 /**
@@ -52,15 +53,6 @@ const HEAD_SX = {
   px: 2,
   pt: 1.75,
   pb: 1.5,
-} as const;
-
-const VALUE_SX = {
-  fontSize: "2.375rem",
-  fontWeight: 700,
-  lineHeight: 1,
-  letterSpacing: "-0.02em",
-  fontVariantNumeric: "tabular-nums",
-  color: "primary.main",
 } as const;
 
 const QUICK_ROW_SX = {
@@ -208,6 +200,14 @@ export const QuantitySheet = ({
     commit(next);
   };
 
+  // The physical-keyboard counterpart of `handleKey`: the browser already
+  // hands over the full edited string, so it goes straight to `commit`
+  // instead of being built key by key.
+  const handleTypedChange = (raw: string) => {
+    setPristine(false);
+    commit(raw);
+  };
+
   const setQuantity = (value: number) => {
     setPristine(false);
     setDraft(String(clampQuantity(value, 0, maxQuantity, allowDecimal)));
@@ -283,9 +283,13 @@ export const QuantitySheet = ({
               </Typography>
             </Box>
             <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-              <Typography component="p" sx={VALUE_SX}>
-                {toDisplay(draft)}
-              </Typography>
+              <QuantityValueField
+                key={productoTienda.id}
+                display={toDisplay(draft)}
+                disabled={!hasStock}
+                allowDecimal={allowDecimal}
+                onDraftChange={handleTypedChange}
+              />
               <MultiCurrencyAmount
                 amount={unitPriceBase * quantity}
                 variant="compact"

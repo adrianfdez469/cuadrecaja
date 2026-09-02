@@ -152,7 +152,7 @@ const Ventas = () => {
         try {
           setDeletingVentaId(venta.id);
           const tiendaId = user.localActual.id;
-          await removeSell(tiendaId, currentPeriod.id, venta.id, user.id);
+          await removeSell(tiendaId, currentPeriod.id, venta.id);
           setVentas((prev) => prev.filter((v) => v.id !== venta.id));
           showMessage("La venta fue eliminada satisfactoriamente", "success");
           handleCloseDetail();
@@ -765,7 +765,6 @@ const Ventas = () => {
         deletingVenta={!!selectedVenta && deletingVentaId === selectedVenta.id}
         canDeleteProducts={
           !!selectedVenta &&
-          (selectedVenta.usuarioId === user.id || user.rol === "SUPER_ADMIN") &&
           (verificarPermiso("operaciones.pos-venta.cancelarventa") ||
             verificarPermiso("operaciones.ventas.eliminar"))
         }

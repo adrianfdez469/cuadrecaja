@@ -358,7 +358,10 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                     producto.monedaProducto,
                   );
                   return (
-                    <Card key={producto.id || index} variant="outlined">
+                    <Card
+                      key={producto.ventaProductoId || producto.id || index}
+                      variant="outlined"
+                    >
                       <CardContent sx={{ p: 2 }}>
                         <Stack spacing={1}>
                           <Box
@@ -480,7 +483,9 @@ const VentaDetailDialog: React.FC<VentaDetailDialogProps> = ({
                         producto.monedaProducto,
                       );
                       return (
-                        <TableRow key={producto.id || index}>
+                        <TableRow
+                          key={producto.ventaProductoId || producto.id || index}
+                        >
                           <TableCell>
                             <Typography variant="body2" fontWeight="medium">
                               {producto.name || `Producto ${index + 1}`}

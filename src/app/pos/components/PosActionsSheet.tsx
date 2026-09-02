@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, type ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import {
   Box,
   ButtonBase,
@@ -18,11 +18,8 @@ import UndoIcon from "@mui/icons-material/Undo";
 import PrintIcon from "@mui/icons-material/Print";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
-import { useSalesStore } from "@/store/salesStore";
-import { usePrintQueueStore } from "@/features/printing/store/printQueueStore";
-import { useMessageContext } from "@/context/MessageContext";
-import { useMonedasAlternativas } from "@/components/MultiCurrencyAmount/useMonedasAlternativas";
-import { useShowAlternativeCurrencies } from "@/hooks/useShowAlternativeCurrencies";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
+import { usePosActionsController } from "@/hooks/usePosActionsController";
 import { shape, touch } from "@/theme";
 
 interface PosActionsSheetProps {
@@ -49,8 +46,6 @@ interface PosActionsSheetProps {
  * very top; this sheet is only what belongs to the point of sale, which is why
  * it opens from the work row and not from the app bar.
  */
-
-const REFRESH_MSG_ID = "pos-refresh-msg";
 
 const SHEET_PAPER_SX = {
   borderTopLeftRadius: `${shape.radius.lg}px`,
@@ -127,38 +122,22 @@ function PosActionsSheet({
   onPrintQueue,
   onRefresh,
 }: PosActionsSheetProps) {
-  const sales = useSalesStore((state) => state.sales);
-  const pendingTickets = usePrintQueueStore((state) => state.getPendingCount());
-  const { showMessage, removeMessage } = useMessageContext();
-  const [refreshing, setRefreshing] = useState(false);
-  const { hasAlternativas } = useMonedasAlternativas();
-  const { show: showCurrencies, toggle: toggleCurrencies } =
-    useShowAlternativeCurrencies();
-
-  const pending = sales.filter((s) => !s.synced).length;
+  const {
+    salesCount,
+    pending,
+    pendingTickets,
+    refreshing,
+    handleRefresh,
+    hasAlternativas,
+    showCurrencies,
+    toggleCurrencies,
+    showSaleReceipt,
+    toggleShowSaleReceipt,
+  } = usePosActionsController(onRefresh);
 
   const run = (action?: () => void) => () => {
     onClose();
     action?.();
-  };
-
-  // The catalog refresh reports into the app's own message rail, not into a
-  // spinner that vanishes with the sheet: the cashier closes this and keeps
-  // selling while it runs.
-  const handleRefresh = async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    showMessage("Actualizando el catálogo...", "info", true, REFRESH_MSG_ID);
-    try {
-      await onRefresh();
-      removeMessage(REFRESH_MSG_ID);
-      showMessage("Catálogo actualizado", "success");
-    } catch {
-      removeMessage(REFRESH_MSG_ID);
-      showMessage("No se pudo actualizar el catálogo", "error");
-    } finally {
-      setRefreshing(false);
-    }
   };
 
   return (
@@ -178,7 +157,7 @@ function PosActionsSheet({
           ACCIONES DEL POS
         </Typography>
         <Typography variant="caption">
-          {sales.length} {sales.length === 1 ? "venta" : "ventas"} hoy
+          {salesCount} {salesCount === 1 ? "venta" : "ventas"} hoy
         </Typography>
       </Stack>
 
@@ -254,6 +233,20 @@ function PosActionsSheet({
           onClick={toggleCurrencies}
         />
       )}
+
+      <Row
+        icon={<FactCheckOutlinedIcon />}
+        title="Pantalla de cobro registrado"
+        detail="Muestra el cambio y «Nueva venta» al terminar en vez de saltarla"
+        right={
+          <Switch
+            checked={showSaleReceipt}
+            onChange={toggleShowSaleReceipt}
+            inputProps={{ "aria-label": "Pantalla de cobro registrado" }}
+          />
+        }
+        onClick={toggleShowSaleReceipt}
+      />
     </Drawer>
   );
 }

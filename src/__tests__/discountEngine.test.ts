@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   applyDiscounts,
+  recomputeAppliedDiscountsAfterRemoval,
   selectApplicableRules,
+  type AppliedDiscountRecord,
   type DiscountRuleInput,
   type ProductMeta,
 } from "@/lib/discounts/engine";
@@ -210,5 +212,144 @@ describe("applyDiscounts", () => {
     expect(
       applyDiscounts({ rules: [rule()], products: [], now: NOW }),
     ).toMatchObject({ baseTotal: 0, discountTotal: 0, finalTotal: 0 });
+  });
+});
+
+describe("recomputeAppliedDiscountsAfterRemoval", () => {
+  // pt-a stays (2 × 100 = 200); pt-b (1 × 50 = 50) is the line being removed.
+  const REMAINING = [{ productoTiendaId: "pt-a", cantidad: 2, precio: 100 }];
+
+  function applied(
+    overrides: Partial<AppliedDiscountRecord> = {},
+  ): AppliedDiscountRecord {
+    return {
+      id: "ad-1",
+      amount: 25,
+      productsAffected: [
+        { productoTiendaId: "pt-a", cantidad: 2 },
+        { productoTiendaId: "pt-b", cantidad: 1 },
+      ],
+      rule: {
+        type: "PERCENTAGE",
+        value: 10,
+        appliesTo: "TICKET",
+        conditions: {},
+      },
+      ...overrides,
+    };
+  }
+
+  it("drops a PRODUCT-scoped discount that loses its only affected product", () => {
+    const result = recomputeAppliedDiscountsAfterRemoval({
+      appliedDiscounts: [
+        applied({
+          amount: 25,
+          productsAffected: [{ productoTiendaId: "pt-b", cantidad: 1 }],
+          rule: {
+            type: "PERCENTAGE",
+            value: 50,
+            appliesTo: "PRODUCT",
+            conditions: {},
+          },
+        }),
+      ],
+      remainingProducts: REMAINING,
+      removedProductoTiendaId: "pt-b",
+    });
+    expect(result.deletes).toEqual(["ad-1"]);
+    expect(result.updates).toHaveLength(0);
+    expect(result.discountTotal).toBe(0);
+  });
+
+  it("shrinks a TICKET-scoped discount to the smaller basket", () => {
+    const result = recomputeAppliedDiscountsAfterRemoval({
+      appliedDiscounts: [applied({ amount: 25 })],
+      remainingProducts: REMAINING,
+      removedProductoTiendaId: "pt-b",
+    });
+    // 10% of the remaining 200, not of the original 250.
+    expect(result.updates).toEqual([
+      {
+        id: "ad-1",
+        amount: 20,
+        productsAffected: [{ productoTiendaId: "pt-a", cantidad: 2 }],
+      },
+    ]);
+    expect(result.deletes).toHaveLength(0);
+    expect(result.discountTotal).toBe(20);
+  });
+
+  it("leaves a discount untouched when the removed line wasn't in its scope", () => {
+    const result = recomputeAppliedDiscountsAfterRemoval({
+      appliedDiscounts: [
+        applied({
+          amount: 100,
+          productsAffected: [{ productoTiendaId: "pt-a", cantidad: 2 }],
+          rule: {
+            type: "PERCENTAGE",
+            value: 50,
+            appliesTo: "PRODUCT",
+            conditions: {},
+          },
+        }),
+      ],
+      remainingProducts: REMAINING,
+      removedProductoTiendaId: "pt-b",
+    });
+    expect(result.updates).toEqual([
+      {
+        id: "ad-1",
+        amount: 100,
+        productsAffected: [{ productoTiendaId: "pt-a", cantidad: 2 }],
+      },
+    ]);
+    expect(result.deletes).toHaveLength(0);
+  });
+
+  it("drops a discount whose minTotal is no longer met", () => {
+    const result = recomputeAppliedDiscountsAfterRemoval({
+      appliedDiscounts: [
+        applied({
+          rule: {
+            type: "PERCENTAGE",
+            value: 10,
+            appliesTo: "TICKET",
+            conditions: { minTotal: 250 },
+          },
+        }),
+      ],
+      remainingProducts: REMAINING,
+      removedProductoTiendaId: "pt-b",
+    });
+    expect(result.deletes).toEqual(["ad-1"]);
+    expect(result.discountTotal).toBe(0);
+  });
+
+  it("caps a FIXED discount to the shrunk subtotal", () => {
+    const result = recomputeAppliedDiscountsAfterRemoval({
+      appliedDiscounts: [
+        applied({
+          amount: 250,
+          rule: {
+            type: "FIXED",
+            value: 250,
+            appliesTo: "TICKET",
+            conditions: {},
+          },
+        }),
+      ],
+      remainingProducts: REMAINING,
+      removedProductoTiendaId: "pt-b",
+    });
+    expect(result.updates[0]).toMatchObject({ id: "ad-1", amount: 200 });
+  });
+
+  it("does nothing with no applied discounts", () => {
+    const result = recomputeAppliedDiscountsAfterRemoval({
+      appliedDiscounts: [],
+      remainingProducts: REMAINING,
+      removedProductoTiendaId: "pt-b",
+    });
+    expect(result).toEqual({ discountTotal: 0, updates: [], deletes: [] });
   });
 });

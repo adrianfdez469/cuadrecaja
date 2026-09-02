@@ -2,9 +2,10 @@
 
 import { memo, useState } from "react";
 import type { MouseEvent } from "react";
-import { Remove, Add } from "@mui/icons-material";
+import { Remove, Add, DeleteOutline } from "@mui/icons-material";
 import {
   Box,
+  Button,
   ButtonBase,
   Divider,
   Typography,
@@ -16,6 +17,7 @@ import {
 } from "@mui/material";
 import { ICartItem } from "@/store/cartStore";
 import { MultiCurrencyAmount } from "@/components/MultiCurrencyAmount";
+import { useShowAlternativeCurrencies } from "@/hooks/useShowAlternativeCurrencies";
 import { formatQuantity } from "@/utils/formatters";
 import { shape, touch } from "@/theme";
 import { POS_CATALOG_ROW_HEIGHT } from "@/constants/pos";
@@ -29,9 +31,22 @@ import { POS_CATALOG_ROW_HEIGHT } from "@/constants/pos";
  * six products was six boxes stacked inside a seventh.
  *
  * The row is the same information in one line: how many, of what, for how
- * much, and the two buttons that change it. The bin is gone because «−» to
- * zero already removes the line, and a red icon per row spent the palette's
- * loudest colour on the most routine correction there is.
+ * much, and the two buttons that change it. No bin sits on the row itself —
+ * a red icon per row spent the palette's loudest colour on the most routine
+ * correction there is, and «−» to zero already removes the line one unit at
+ * a time. Dropping a line outright (skipping the countdown on a high
+ * quantity) lives one tap deeper, in the same popover that already shows the
+ * unit price and subtotal — reachable from either the name or the amount, so
+ * the whole row is the target, not just its right edge.
+ *
+ * The foreign-currency equivalents stay off the row by default, same as the
+ * catalogue's price — see `useShowAlternativeCurrencies`, the same toggle the
+ * POS toolbar drives. When on, each currency prints on its own line under
+ * the price (`MultiCurrencyAmount`'s `stackAlternatives`) instead of one wide
+ * line next to it, so it never has to compete with the name for width.
+ * Turning it on doesn't shrink the popover away: unlike the catalogue card,
+ * this popover's real job is the "Quitar" button, which stays reachable
+ * either way.
  */
 
 // Hoisted out of the render: this component is mounted once per line of the
@@ -71,6 +86,18 @@ const NAME_SX = {
   textOverflow: "ellipsis",
 } as const;
 
+// `component="div"` — a `ButtonBase` defaults to a `<button>`, and the expiry
+// chip beside the name renders its own `<div>`; nesting one inside the other
+// is invalid HTML (the amount button next to it has the same shape, wrapping
+// `MultiCurrencyAmount`'s own `<div>` root).
+const NAME_BUTTON_SX = {
+  ...NAME_SX,
+  justifyContent: "flex-start",
+  textAlign: "left",
+  borderRadius: `${shape.radius.sm}px`,
+  cursor: "pointer",
+} as const;
+
 const AMOUNT_BUTTON_SX = {
   flexShrink: 0,
   borderRadius: `${shape.radius.sm}px`,
@@ -94,6 +121,7 @@ const STEP_BUTTON_SX = {
 
 const CHIP_SX = { height: 18, fontSize: "0.65rem", ml: 1 } as const;
 const DETAIL_SX = { p: 1.5, minWidth: 200 } as const;
+const REMOVE_BUTTON_SX = { justifyContent: "flex-start", px: 1 } as const;
 const DETAIL_LABEL_SX = {
   mb: 0.25,
   fontSize: "0.65rem",
@@ -154,6 +182,8 @@ interface CartItemCardProps {
   onDecrease: (id: string) => void;
   onIncrease: (id: string) => void;
   canUpdateQuantity: boolean;
+  /** Absent where the caller is not allowed to drop a line outright. */
+  onRemove?: (id: string) => void;
 }
 
 function CartItemCardComponent({
@@ -161,12 +191,14 @@ function CartItemCardComponent({
   onDecrease,
   onIncrease,
   canUpdateQuantity,
+  onRemove,
 }: CartItemCardProps) {
   const [detailAnchor, setDetailAnchor] = useState<HTMLElement | null>(null);
   // Use priceBase (monedaBase equivalent) for MultiCurrencyAmount display;
   // fall back to raw price if not set.
   const unitPrice = item.priceBase ?? item.price;
   const lineTotal = unitPrice * item.quantity;
+  const { show: showAlternativeCurrencies } = useShowAlternativeCurrencies();
 
   const openDetail = (event: MouseEvent<HTMLElement>) =>
     setDetailAnchor(event.currentTarget);
@@ -177,27 +209,29 @@ function CartItemCardComponent({
         {formatQuantity(item.quantity)} ×
       </Typography>
 
-      <Box sx={NAME_SX}>
-        <Typography
-          component="span"
-          fontWeight={600}
-          fontSize="inherit"
-          noWrap
-        >
+      {/* Same target as the amount below it: either one opens the line's
+          popover, which is where "Quitar del carrito" lives. */}
+      <ButtonBase
+        component="div"
+        onClick={openDetail}
+        aria-label={`Ver detalle de ${item.name}`}
+        sx={NAME_BUTTON_SX}
+      >
+        <Typography component="span" fontWeight={600} fontSize="inherit" noWrap>
           {item.name}
         </Typography>
         {item.fechaVencimiento && (
           <ExpiryChip fechaVencimiento={item.fechaVencimiento} />
         )}
-      </Box>
+      </ButtonBase>
 
       {/* The bare figure, as the redesign draws the line («9 × pepe 450,00»):
-          no conversions and no code. The code is stated once, by the total
-          under the list, and at 390px this is also the only way the product's
-          name survives — a line carrying two conversions left the name 63px
-          of a 354px row, which is two letters and an ellipsis. Nothing is
-          lost: the popover below still carries the unit price and the
-          subtotal with every equivalence, one tap away. */}
+          no code — it's stated once, by the total under the list. The
+          foreign-currency equivalents follow the POS-wide toggle; off by
+          default so the name keeps the room a 354px row gives it. When on,
+          `stackAlternatives` puts each currency on its own line rather than
+          one wide "·"-joined line — that's what stops it competing with the
+          name for width in the first place. */}
       <ButtonBase
         onClick={openDetail}
         aria-label={`Ver detalle de precio de ${item.name}`}
@@ -207,7 +241,8 @@ function CartItemCardComponent({
           amount={lineTotal}
           variant="line"
           align="right"
-          showAlternatives={false}
+          showAlternatives={showAlternativeCurrencies}
+          stackAlternatives
           showCode={false}
         />
       </ButtonBase>
@@ -266,6 +301,23 @@ function CartItemCardComponent({
               </Typography>
               <MultiCurrencyAmount amount={lineTotal} variant="compact" />
             </Box>
+            {onRemove && (
+              <>
+                <Divider />
+                <Button
+                  color="error"
+                  size="small"
+                  startIcon={<DeleteOutline fontSize="small" />}
+                  sx={REMOVE_BUTTON_SX}
+                  onClick={() => {
+                    setDetailAnchor(null);
+                    onRemove(item.id);
+                  }}
+                >
+                  Quitar del carrito
+                </Button>
+              </>
+            )}
           </Stack>
         </Popover>
       )}

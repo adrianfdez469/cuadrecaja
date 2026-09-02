@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <meta name="theme-color" content="#1976d2" />
+        <meta name="theme-color" content="#5B4CA8" />
         <meta
           name="description"
           content="Sistema de punto de venta y gestión de inventario"

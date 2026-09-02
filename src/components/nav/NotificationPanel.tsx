@@ -8,6 +8,7 @@ import {
   Link,
   Stack,
   CircularProgress,
+  ClickAwayListener,
   Divider,
   IconButton,
   alpha,
@@ -30,6 +31,9 @@ interface NotificationPanelProps {
   open: boolean;
   anchorEl: HTMLElement | null;
   onClose: () => void;
+  /** Notified right after notifications are marked read, so the bell's own
+   * unread count doesn't wait for the panel to close to catch up. */
+  onRead?: () => void;
 }
 
 const IMPORTANCE: Record<NivelImportancia, { label: string; hue: PillHue }> = {
@@ -74,9 +78,11 @@ const getTipoPaletteColor = (tipo: TipoNotificacion): string => {
 function NotificationList({
   loading,
   notifications,
+  onSelect,
 }: {
   loading: boolean;
   notifications: INotificacionConEstado[];
+  onSelect: (notification: INotificacionConEstado) => void;
 }) {
   if (loading) {
     return (
@@ -114,13 +120,19 @@ function NotificationList({
       {notifications.map((notification, idx) => (
         <Box key={notification.id}>
           <Box
+            onClick={() => onSelect(notification)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") onSelect(notification);
+            }}
             sx={{
               p: 2,
               backgroundColor: notification.yaLeida
                 ? "transparent"
                 : "semantic.surface.sunken",
               "&:hover": { backgroundColor: "semantic.surface.border" },
-              cursor: "default",
+              cursor: "pointer",
             }}
           >
             <Stack direction="row" spacing={1.5} alignItems="flex-start">
@@ -251,6 +263,7 @@ export function NotificationPanel({
   open,
   anchorEl,
   onClose,
+  onRead,
 }: NotificationPanelProps) {
   const [notifications, setNotifications] = useState<INotificacionConEstado[]>(
     [],
@@ -277,6 +290,24 @@ export function NotificationPanel({
     }
   };
 
+  const handleNotificationClick = async (
+    notification: INotificacionConEstado,
+  ) => {
+    if (notification.yaLeida) return;
+    try {
+      await NotificationApiService.markAsRead(notification.id);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notification.id ? { ...n, yaLeida: true } : n,
+        ),
+      );
+      onRead?.();
+    } catch (error) {
+      console.error("Error marking notification as read", error);
+      showMessage("Error al marcar la notificación como leída", "error");
+    }
+  };
+
   const handleMarkAllAsRead = async () => {
     try {
       const unreadIds = notifications
@@ -288,6 +319,7 @@ export function NotificationPanel({
       }
 
       setNotifications((prev) => prev.map((n) => ({ ...n, yaLeida: true })));
+      onRead?.();
       showMessage("Todas las notificaciones marcadas como leídas", "success");
     } catch (error) {
       console.error("Error marking notifications as read", error);
@@ -353,7 +385,11 @@ export function NotificationPanel({
         </Box>
 
         <ScrollArea>
-          <NotificationList loading={loading} notifications={notifications} />
+          <NotificationList
+            loading={loading}
+            notifications={notifications}
+            onSelect={handleNotificationClick}
+          />
         </ScrollArea>
 
         <Link
@@ -386,67 +422,73 @@ export function NotificationPanel({
   const right = window.innerWidth - rect.right;
 
   return (
-    <Paper
-      sx={(t) => ({
-        position: "fixed",
-        top,
-        right,
-        width: 396,
-        maxHeight: 500,
-        borderRadius: 2,
-        boxShadow: `0 20px 25px -5px ${alpha(t.palette.common.black, 0.1)}, 0 10px 10px -5px ${alpha(t.palette.common.black, 0.04)}`,
-        zIndex: 1300,
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "background.paper",
-      })}
-    >
-      <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Typography variant="h6">Notificaciones</Typography>
-          <Link
-            component="button"
-            onClick={(e) => {
-              e.preventDefault();
-              handleMarkAllAsRead();
-            }}
-            underline="hover"
-            sx={{ fontSize: "0.8125rem", cursor: "pointer" }}
-          >
-            Marcar todas como leídas
-          </Link>
-        </Stack>
-      </Box>
-
-      <ScrollArea>
-        <NotificationList loading={loading} notifications={notifications} />
-      </ScrollArea>
-
-      <Box
-        sx={{
-          p: 2,
-          borderTop: "1px solid",
-          borderColor: "divider",
+    <ClickAwayListener onClickAway={onClose}>
+      <Paper
+        sx={(t) => ({
+          position: "fixed",
+          top,
+          right,
+          width: 396,
+          maxHeight: 500,
+          borderRadius: 2,
+          boxShadow: `0 20px 25px -5px ${alpha(t.palette.common.black, 0.1)}, 0 10px 10px -5px ${alpha(t.palette.common.black, 0.04)}`,
+          zIndex: 1300,
+          display: "flex",
+          flexDirection: "column",
           backgroundColor: "background.paper",
-        }}
+        })}
       >
-        <Link
-          href="/configuracion/notificaciones"
-          underline="hover"
+        <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Typography variant="h6">Notificaciones</Typography>
+            <Link
+              component="button"
+              onClick={(e) => {
+                e.preventDefault();
+                handleMarkAllAsRead();
+              }}
+              underline="hover"
+              sx={{ fontSize: "0.8125rem", cursor: "pointer" }}
+            >
+              Marcar todas como leídas
+            </Link>
+          </Stack>
+        </Box>
+
+        <ScrollArea>
+          <NotificationList
+            loading={loading}
+            notifications={notifications}
+            onSelect={handleNotificationClick}
+          />
+        </ScrollArea>
+
+        <Box
           sx={{
-            fontSize: "0.8125rem",
-            display: "block",
-            textAlign: "center",
-            cursor: "pointer",
+            p: 2,
+            borderTop: "1px solid",
+            borderColor: "divider",
+            backgroundColor: "background.paper",
           }}
         >
-          Ver y gestionar todas
-        </Link>
-      </Box>
-    </Paper>
+          <Link
+            href="/configuracion/notificaciones"
+            underline="hover"
+            sx={{
+              fontSize: "0.8125rem",
+              display: "block",
+              textAlign: "center",
+              cursor: "pointer",
+            }}
+          >
+            Ver y gestionar todas
+          </Link>
+        </Box>
+      </Paper>
+    </ClickAwayListener>
   );
 }

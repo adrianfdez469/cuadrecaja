@@ -314,7 +314,7 @@ export const SalesDrawer: FC<IProps> = ({
           if (sale.synced) {
             // eliminar de las ventas en backend
             const tiendaId = user.localActual.id;
-            await removeSell(tiendaId, period.id, sale.dbId, user.id);
+            await removeSell(tiendaId, period.id, sale.dbId);
           }
 
           // eliminar de las ventas y los productos en el storage

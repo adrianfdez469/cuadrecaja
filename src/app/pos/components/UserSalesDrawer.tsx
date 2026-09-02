@@ -169,8 +169,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
 
   const canDeleteProducts =
     viewMode === "historical" &&
-    verificarPermiso("operaciones.pos-venta.cancelarventa") &&
-    (onlyOwnSales || user?.rol === "SUPER_ADMIN");
+    verificarPermiso("operaciones.pos-venta.cancelarventa");
 
   const handleDeleteProduct = (producto: ProductoDataHistorial) => {
     const { sale, product } = producto;
@@ -225,12 +224,7 @@ export const UserSalesDrawer: React.FC<IProps> = ({
         setDeletingSaleId(sale.dbId ?? sale.identifier);
         try {
           if (sale.synced && sale.dbId && period && user?.localActual?.id) {
-            await removeSell(
-              user.localActual.id,
-              period.id,
-              sale.dbId,
-              user.id,
-            );
+            await removeSell(user.localActual.id, period.id, sale.dbId);
           }
           deleteSale(sale.identifier);
           sale.productos.forEach((p) => {
