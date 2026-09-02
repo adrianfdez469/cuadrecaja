@@ -4,6 +4,17 @@
 > Sin código, sin `sx`, sin JSX: el `implementer` ejecuta este contrato.
 > Todo color se nombra con su ruta `semantic.*`; ningún `#RRGGBB` entra aquí.
 
+## Fuentes
+
+<De dónde se escribió este contrato: el spec, la entrada de `features.json`, los modelos de
+Prisma, y la versión de la documentación externa si el feature declara `requires_docs`. Si el spec
+no existía todavía, decirlo aquí.>
+
+## Lo que este feature NO diseña
+
+<Lo que queda explícitamente fuera, y de qué feature es. Evita que el implementer rellene huecos
+que pertenecen a otro, y que el QA rechace por algo que nunca estuvo en el alcance.>
+
 ## Pantallas afectadas
 
 | Pantalla | Ruta | Nueva o existente |
@@ -66,6 +77,15 @@
 | Control | Tamaño |
 |---|---|
 | <...> | <≥ 44 px> |
+
+### Prohibiciones de copy
+
+<Lo que la pantalla NO debe decir nunca, y por qué. Cuando un criterio de aceptación depende de
+que dos situaciones distintas no se presenten igual, la prohibición es la parte verificable.>
+
+| Nunca | Porque |
+|---|---|
+| <texto o presentación prohibida> | <qué induce a creer que es falso> |
 
 ---
 

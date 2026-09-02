@@ -35,6 +35,12 @@ hacen de pie, con una mano, en un mostrador.
 1. `.agents/specs/F-###.md` **entero**, incluida su sección `## Contrato de interfaces`: los datos
    que la pantalla puede mostrar salen de ahí, no de tu imaginación.
 2. `AGENTS.md` — convenciones del proyecto.
+2b. **Si el feature declara `requires_docs` en `.agents/features.json`, la documentación externa
+   no es opcional: comprueba su versión contra `contrato.version_verificada` y lee la sección que
+   aplica antes de diseñar.** Buena parte de lo que hace o rompe una pantalla de integración vive
+   ahí y no en este repo: qué campo no se puede deducir de otro, qué importe es parcial, qué dato
+   es una credencial. Si la variable de entorno que apunta a esos documentos no está definida,
+   **para y pregunta al humano** — no diseñes a ciegas.
 3. **`src/theme/tokens.ts` y `src/theme/index.ts`, enteros.** Cerca del 40 % de esos dos archivos
    son comentarios que explican el *porqué* de cada decisión: son el documento de diseño real de
    este proyecto, y no hay otro.
