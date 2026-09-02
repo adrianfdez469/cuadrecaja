@@ -7,13 +7,7 @@ import { useMonedasAlternativas } from "./useMonedasAlternativas";
 import { formatAmount } from "@/utils/numberFormat";
 
 type MultiCurrencyVariant =
-  | "default"
-  | "compact"
-  | "emphasized"
-  | "hero"
-  | "line"
-  | "stat"
-  | "total";
+  "default" | "compact" | "emphasized" | "hero" | "line" | "stat" | "total";
 
 interface MultiCurrencyAmountProps {
   amount: number;
@@ -40,6 +34,14 @@ interface MultiCurrencyAmountProps {
   /** Set false to show only the base-currency amount, e.g. a compact row
    * where the conversions belong behind a tap instead of always on screen. */
   showAlternatives?: boolean;
+  /**
+   * Each equivalent currency on its own line instead of "·"-joined on one
+   * (wrapped only if it doesn't fit). For a row that already has something
+   * else competing for the same width — the basket line's product name —
+   * where a wide joined line eats into it; the narrower single-currency
+   * lines this produces don't.
+   */
+  stackAlternatives?: boolean;
   /**
    * Set false to print the bare figure, without the currency code. The
    * redesign does this on the lines of the basket only («9 × pepe 450,00»):
@@ -160,6 +162,7 @@ function MultiCurrencyAmountComponent({
   align = "left",
   layout = "stacked",
   showAlternatives = true,
+  stackAlternatives = false,
   showCode = true,
   sx,
 }: MultiCurrencyAmountProps) {
@@ -233,32 +236,55 @@ function MultiCurrencyAmountComponent({
         )}
       </Typography>
 
-      {hasAlternativas && showAlternatives && (
-        <Typography
-          variant={styles.secondary as "caption"}
-          color={onInverse ? INVERSE_SECONDARY : "text.secondary"}
-          component="span"
-          sx={{
-            display: "inline-flex",
-            flexWrap: "wrap",
-            gap: 0.5,
-            lineHeight: 1.35,
-            justifyContent: isInline ? "flex-start" : justify,
-            maxWidth: "100%",
-          }}
-        >
-          {alternativas.map((alt, index) => (
-            <Box key={alt.code} component="span" sx={ALT_ITEM_SX}>
-              {index > 0 && (
-                <Box component="span" sx={ALT_SEPARATOR_SX}>
-                  ·
-                </Box>
-              )}
-              ≈ {alt.label}
-            </Box>
-          ))}
-        </Typography>
-      )}
+      {hasAlternativas &&
+        showAlternatives &&
+        (stackAlternatives ? (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: justify,
+              rowGap: 0.125,
+              maxWidth: "100%",
+            }}
+          >
+            {alternativas.map((alt) => (
+              <Typography
+                key={alt.code}
+                variant={styles.secondary as "caption"}
+                color={onInverse ? INVERSE_SECONDARY : "text.secondary"}
+                sx={{ lineHeight: 1.35 }}
+              >
+                ≈ {alt.label}
+              </Typography>
+            ))}
+          </Box>
+        ) : (
+          <Typography
+            variant={styles.secondary as "caption"}
+            color={onInverse ? INVERSE_SECONDARY : "text.secondary"}
+            component="span"
+            sx={{
+              display: "inline-flex",
+              flexWrap: "wrap",
+              gap: 0.5,
+              lineHeight: 1.35,
+              justifyContent: isInline ? "flex-start" : justify,
+              maxWidth: "100%",
+            }}
+          >
+            {alternativas.map((alt, index) => (
+              <Box key={alt.code} component="span" sx={ALT_ITEM_SX}>
+                {index > 0 && (
+                  <Box component="span" sx={ALT_SEPARATOR_SX}>
+                    ·
+                  </Box>
+                )}
+                ≈ {alt.label}
+              </Box>
+            ))}
+          </Typography>
+        ))}
     </Box>
   );
 }

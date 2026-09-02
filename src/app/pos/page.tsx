@@ -114,6 +114,11 @@ const desktopPanelSx = {
   backgroundColor: "background.paper",
 } as const;
 
+// Shared across every "Procesando venta..." → outcome pair below: passing the
+// same id makes the outcome toast replace the processing one in place instead
+// of stacking a second toast beside it while the sync round-trip is fast.
+const SALE_PROCESSING_MSG_ID = "sale-processing-msg";
+
 export default function POSInterface() {
   const [categories, setCategories] = useState<IPosCategoria[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
@@ -136,7 +141,7 @@ export default function POSInterface() {
   const [noLocalActual, setNoLocalActual] = useState(false);
   const { user, loadingContext, gotToPath, tasasVigentes, monedaBase } =
     useAppContext();
-  const { showMessage } = useMessageContext();
+  const { showMessage, removeMessage } = useMessageContext();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { addSale, markSynced, markSyncing, checkSyncTimeouts, markSyncError } =
     useSalesStore();
@@ -328,7 +333,11 @@ export default function POSInterface() {
     const sale = lastSaleRef.current;
     if (!sale || !printContext || !user?.localActual?.id) return;
     void printService
-      .reprintSale({ sale, tiendaId: user.localActual.id, context: printContext })
+      .reprintSale({
+        sale,
+        tiendaId: user.localActual.id,
+        context: printContext,
+      })
       .catch(() => {
         /* errors are handled by the print queue */
       });
@@ -1063,7 +1072,12 @@ export default function POSInterface() {
         useCashBalanceStore.getState().invalidate(tiendaId, cierreId);
 
         // 4. Mostrar notificación inicial (solo una)
-        showMessage("💳 Procesando venta...", "info");
+        showMessage(
+          "💳 Procesando venta...",
+          "info",
+          false,
+          SALE_PROCESSING_MSG_ID,
+        );
 
         // 5. Intentar sincronizar con el backend si estamos online
         if (isOnline) {
@@ -1086,12 +1100,14 @@ export default function POSInterface() {
               multimoneda,
             );
             markSynced(identifier, ventaDb.id);
+            removeMessage(SALE_PROCESSING_MSG_ID);
             showMessage(
               "✅ Venta procesada y sincronizada exitosamente",
               "success",
             );
           } catch (syncError) {
             console.error(syncError);
+            removeMessage(SALE_PROCESSING_MSG_ID);
 
             // Manejo mejorado de errores de sincronización
             if (syncError.message?.includes("TIMEOUT_ERROR")) {
@@ -1141,6 +1157,7 @@ export default function POSInterface() {
             }
           }
         } else {
+          removeMessage(SALE_PROCESSING_MSG_ID);
           showMessage(
             "📱 Venta guardada localmente. Se sincronizará cuando haya conexión.",
             "info",
@@ -1151,6 +1168,7 @@ export default function POSInterface() {
       }
     } catch (error) {
       console.error(error);
+      removeMessage(SALE_PROCESSING_MSG_ID);
       showMessage("❌ Error al procesar el pago", "error");
       // En caso de error, también limpiar el carrito para evitar estados inconsistentes
       clearCart();
@@ -1667,6 +1685,21 @@ export default function POSInterface() {
           scannerError={scannerError}
           onDismissScannerError={handleDismissScannerError}
           onOpenActions={() => setPosActionsOpen(true)}
+          isDesktop={showCartPanel}
+          onSync={handleShowSyncView}
+          onMySales={handleShowUserSales}
+          onStartingPoint={() => setResumenDiaOpen(true)}
+          onSaleReturn={
+            puedeDevolucionVenta
+              ? () => setDevolucionVentaOpen(true)
+              : undefined
+          }
+          onPrintQueue={
+            puedeImprimir && user?.localActual?.id
+              ? () => setPrinterSetupOpen(true)
+              : undefined
+          }
+          onRefresh={handleRefresh}
         />
 
         {/* Nothing here moves when the field is tapped. The categories used
@@ -1725,24 +1758,29 @@ export default function POSInterface() {
           onCheckout={handlePayBarCheckout}
         />
 
-        <PosActionsSheet
-          open={posActionsOpen}
-          onClose={() => setPosActionsOpen(false)}
-          onSync={handleShowSyncView}
-          onMySales={handleShowUserSales}
-          onStartingPoint={() => setResumenDiaOpen(true)}
-          onSaleReturn={
-            puedeDevolucionVenta
-              ? () => setDevolucionVentaOpen(true)
-              : undefined
-          }
-          onPrintQueue={
-            puedeImprimir && user?.localActual?.id
-              ? () => setPrinterSetupOpen(true)
-              : undefined
-          }
-          onRefresh={handleRefresh}
-        />
+        {/* En desktop las mismas acciones ya están sueltas en PosBottomBar
+            (ver PosDesktopToolbar) — esta hoja es solo el equivalente móvil
+            del botón «•••», que ahí no se renderiza. */}
+        {!showCartPanel && (
+          <PosActionsSheet
+            open={posActionsOpen}
+            onClose={() => setPosActionsOpen(false)}
+            onSync={handleShowSyncView}
+            onMySales={handleShowUserSales}
+            onStartingPoint={() => setResumenDiaOpen(true)}
+            onSaleReturn={
+              puedeDevolucionVenta
+                ? () => setDevolucionVentaOpen(true)
+                : undefined
+            }
+            onPrintQueue={
+              puedeImprimir && user?.localActual?.id
+                ? () => setPrinterSetupOpen(true)
+                : undefined
+            }
+            onRefresh={handleRefresh}
+          />
+        )}
 
         {/* Carrito de compras (overlay, solo mobile) */}
         <CartDrawer

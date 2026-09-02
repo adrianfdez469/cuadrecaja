@@ -9,6 +9,7 @@ import {
   convertFromBase,
   pagadaConUnSoloPago,
 } from "@/lib/currency";
+import { recomputeAppliedDiscountsAfterRemoval } from "@/lib/discounts";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IPagoLinea } from "@/schemas/pago";
 
@@ -56,33 +57,40 @@ export async function DELETE(
 
     const { tiendaId, ventaId, ventaProductoId } = await params;
 
+    // La tienda debe pertenecer al negocio del usuario autenticado — sin este
+    // filtro, `ventaProductoId` es un UUID adivinable que deja borrar
+    // productos de ventas de CUALQUIER negocio, no solo el propio.
+    const tienda = await prisma.tienda.findFirst({
+      where: { id: tiendaId, negocioId: user.negocio.id },
+      select: { negocio: { select: { monedaBase: true } } },
+    });
+    if (!tienda) {
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 },
+      );
+    }
+
     const ventaProducto = await prisma.ventaProducto.findUnique({
       where: { id: ventaProductoId },
       include: {
         venta: {
           include: {
             cierrePeriodo: { select: { fechaFin: true } },
-            tienda: { select: { negocio: { select: { monedaBase: true } } } },
             _count: { select: { productos: true } },
           },
         },
       },
     });
 
-    if (!ventaProducto || ventaProducto.ventaId !== ventaId) {
+    if (
+      !ventaProducto ||
+      ventaProducto.ventaId !== ventaId ||
+      ventaProducto.venta.tiendaId !== tiendaId
+    ) {
       return NextResponse.json(
         { error: "Producto no encontrado en la venta" },
         { status: 404 },
-      );
-    }
-
-    // Solo ventas del usuario o administrador
-    const isAdmin = user.rol === "SUPER_ADMIN";
-    const isOwnSale = ventaProducto.venta.usuarioId === user.id;
-    if (!isAdmin && !isOwnSale) {
-      return NextResponse.json(
-        { error: "Solo puede eliminar productos de sus propias ventas" },
-        { status: 403 },
       );
     }
 
@@ -96,7 +104,7 @@ export async function DELETE(
     const { cantidad, productoTiendaId, precio, monedaPrecioCode } =
       ventaProducto;
 
-    const monedaBase = ventaProducto.venta.tienda.negocio.monedaBase;
+    const monedaBase = tienda.negocio.monedaBase;
     const tasas = (ventaProducto.venta.tasaSnapshot ?? {}) as ITasaSnapshot;
     const pagos = (ventaProducto.venta.pagosDetalle ?? null) as
       IPagoLinea[] | null;
@@ -184,6 +192,30 @@ export async function DELETE(
           totalcash: true,
           totaltransfer: true,
           pagosDetalle: true,
+          discountTotal: true,
+          productos: {
+            select: {
+              id: true,
+              productoTiendaId: true,
+              cantidad: true,
+              precio: true,
+            },
+          },
+          appliedDiscounts: {
+            select: {
+              id: true,
+              amount: true,
+              productsAffected: true,
+              discountRule: {
+                select: {
+                  type: true,
+                  value: true,
+                  appliesTo: true,
+                  conditions: true,
+                },
+              },
+            },
+          },
         },
       });
       const totalAnterior = Number(v!.total);
@@ -191,17 +223,72 @@ export async function DELETE(
         totalAnterior > 0 ? Number(v!.totalcash) / totalAnterior : 0;
       const ratioTransfer =
         totalAnterior > 0 ? Number(v!.totaltransfer) / totalAnterior : 0;
-      const nuevoTotal = Math.max(0, totalAnterior - montoProductoBase);
 
-      // 5. Restar el monto también de lo "recibido" en pagosDetalle.
-      // Ya se validó que hay como máximo un único pago, así que se ajusta
-      // directo esa línea — no hace falta repartir entre varias.
+      // 4.1 Re-cotizar los descuentos ya aplicados contra lo que queda de la
+      // venta: un descuento por producto/categoría puede quedarse sin ámbito,
+      // uno de ticket completo se encoge, y un `minTotal` que se cumplía puede
+      // dejar de cumplirse. Nunca vuelve a seleccionar reglas por código —
+      // solo re-cotiza lo que ya estaba aplicado (ver recomputeAppliedDiscountsAfterRemoval).
+      const remainingProducts = v!.productos
+        .filter((p) => p.id !== ventaProductoId)
+        .map((p) => ({
+          productoTiendaId: p.productoTiendaId,
+          cantidad: p.cantidad,
+          precio: p.precio ?? 0,
+        }));
+
+      const {
+        discountTotal: nuevoDiscountTotal,
+        updates: descuentosActualizar,
+        deletes: descuentosEliminar,
+      } = recomputeAppliedDiscountsAfterRemoval({
+        appliedDiscounts: v!.appliedDiscounts.map((ad) => ({
+          id: ad.id,
+          amount: ad.amount,
+          productsAffected: ad.productsAffected as
+            { productoTiendaId: string; cantidad: number }[] | null,
+          rule: ad.discountRule,
+        })),
+        remainingProducts,
+        removedProductoTiendaId: productoTiendaId,
+      });
+
+      if (descuentosEliminar.length > 0) {
+        await tx.appliedDiscount.deleteMany({
+          where: { id: { in: descuentosEliminar } },
+        });
+      }
+      for (const d of descuentosActualizar) {
+        await tx.appliedDiscount.update({
+          where: { id: d.id },
+          data: { amount: d.amount, productsAffected: d.productsAffected },
+        });
+      }
+
+      // Cuánto MENOS descuento se está dando ahora — 0 si el descuento
+      // restante sigue cubriendo exactamente lo mismo que antes.
+      const discountTotalAnterior = Number(v!.discountTotal ?? 0);
+      const discountDelta = discountTotalAnterior - nuevoDiscountTotal;
+
+      const nuevoTotal = Math.max(
+        0,
+        totalAnterior - montoProductoBase + discountDelta,
+      );
+
+      // 5. Restar el monto también de lo "recibido" en pagosDetalle. Se ajusta
+      // por el neto: el precio del producto eliminado, menos lo que el
+      // descuento dejó de cubrir (si el descuento se achicó o desapareció, el
+      // total a pagar por lo que queda es más alto de lo que una resta simple
+      // del precio del producto daría). Ya se validó que hay como máximo un
+      // único pago, así que se ajusta directo esa línea — no hace falta
+      // repartir entre varias.
       const pagosActuales = (v!.pagosDetalle ?? null) as IPagoLinea[] | null;
       let nuevoPagosDetalle: IPagoLinea[] | undefined;
       if (pagosActuales?.length === 1) {
         const pago = pagosActuales[0];
+        const netoAjusteBase = montoProductoBase - discountDelta;
         const montoConv = convertFromBase(
-          montoProductoBase,
+          netoAjusteBase,
           pago.moneda,
           tasas,
           monedaBase,
@@ -212,7 +299,7 @@ export async function DELETE(
             monto: Math.max(0, round2(pago.monto - montoConv)),
             equivalenteBase: Math.max(
               0,
-              round2(pago.equivalenteBase - montoProductoBase),
+              round2(pago.equivalenteBase - netoAjusteBase),
             ),
           },
         ];
@@ -226,6 +313,7 @@ export async function DELETE(
         where: { id: ventaId },
         data: {
           total: nuevoTotal,
+          discountTotal: nuevoDiscountTotal,
           totalcash: Math.max(
             0,
             Math.round(nuevoTotal * ratioCash * 100) / 100,

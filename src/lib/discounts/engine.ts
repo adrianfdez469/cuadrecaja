@@ -249,3 +249,109 @@ export function applyDiscounts(params: {
   const finalTotal = Math.max(0, baseTotal - discountTotal);
   return { baseTotal, discountTotal, finalTotal, applied };
 }
+
+/** An `AppliedDiscount` row as persisted, with the rule fields the arithmetic needs. */
+export interface AppliedDiscountRecord {
+  id: string;
+  amount: number;
+  productsAffected?: { productoTiendaId: string; cantidad: number }[] | null;
+  rule: Pick<DiscountRuleInput, "type" | "value" | "appliesTo" | "conditions">;
+}
+
+export interface RecomputeAfterRemovalResult {
+  discountTotal: number;
+  /** Still applicable, re-priced against what's left of the basket. */
+  updates: {
+    id: string;
+    amount: number;
+    productsAffected: { productoTiendaId: string; cantidad: number }[];
+  }[];
+  /** No longer applicable — scope emptied out, or fell under its `minTotal`. */
+  deletes: string[];
+}
+
+/**
+ * Re-prices a sale's already-applied discounts after one of its lines is
+ * removed — a ticket-scoped rule's subtotal shrinks, a product/category rule
+ * can lose the line it was scoped to entirely, and a `minTotal` gate that used
+ * to be met may no longer be.
+ *
+ * Deliberately does not re-run `selectApplicableRules`: a discount gated
+ * behind a promo code was validated once, at sale time, and the code itself
+ * is never persisted, so re-selecting rules here would silently drop every
+ * code-gated discount instead of just the one that stopped applying. Only
+ * what was actually recorded gets re-priced.
+ */
+export function recomputeAppliedDiscountsAfterRemoval(params: {
+  appliedDiscounts: AppliedDiscountRecord[];
+  remainingProducts: DiscountApplicationInputProduct[];
+  removedProductoTiendaId: string;
+}): RecomputeAfterRemovalResult {
+  const { appliedDiscounts, remainingProducts, removedProductoTiendaId } =
+    params;
+
+  const remainingByProductoTiendaId = new Map(
+    remainingProducts.map((p) => [p.productoTiendaId, p]),
+  );
+  const baseTotal = remainingProducts.reduce((acc, p) => acc + lineTotal(p), 0);
+
+  let discountTotal = 0;
+  const updates: RecomputeAfterRemovalResult["updates"] = [];
+  const deletes: string[] = [];
+
+  for (const ad of appliedDiscounts) {
+    const conditions = parseConditions(ad.rule.conditions);
+
+    const affectedItems: DiscountApplicationInputProduct[] =
+      ad.rule.appliesTo === "TICKET"
+        ? remainingProducts
+        : (ad.productsAffected ?? [])
+            .filter((item) => item.productoTiendaId !== removedProductoTiendaId)
+            .map((item) =>
+              remainingByProductoTiendaId.get(item.productoTiendaId),
+            )
+            .filter((p): p is DiscountApplicationInputProduct => Boolean(p));
+
+    const subtotal = affectedItems.reduce((acc, p) => acc + lineTotal(p), 0);
+
+    if (
+      affectedItems.length === 0 ||
+      (typeof conditions.minTotal === "number" &&
+        subtotal < conditions.minTotal)
+    ) {
+      deletes.push(ad.id);
+      continue;
+    }
+
+    let amount = 0;
+    if (ad.rule.type === "PERCENTAGE") {
+      const pct = Math.max(0, Math.min(100, Number(ad.rule.value) || 0));
+      amount = (subtotal * pct) / 100;
+    } else if (ad.rule.type === "FIXED") {
+      amount = Math.min(Math.max(0, Number(ad.rule.value) || 0), subtotal);
+    } else {
+      deletes.push(ad.id);
+      continue;
+    }
+
+    const remainingBudget = Math.max(0, baseTotal - discountTotal);
+    amount = Math.min(amount, remainingBudget);
+
+    if (amount <= 0) {
+      deletes.push(ad.id);
+      continue;
+    }
+
+    discountTotal += amount;
+    updates.push({
+      id: ad.id,
+      amount,
+      productsAffected: affectedItems.map((p) => ({
+        productoTiendaId: p.productoTiendaId,
+        cantidad: p.cantidad,
+      })),
+    });
+  }
+
+  return { discountTotal, updates, deletes };
+}

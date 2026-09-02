@@ -103,13 +103,9 @@ export const removeSell = async (
   tiendaId: string,
   cierreId: string,
   ventaId: string,
-  usuarioId: string,
 ) => {
   const removed = await axiosClient.delete(
     `${API_URL(tiendaId, cierreId)}/${ventaId}`,
-    {
-      params: { usuarioId },
-    },
   );
   return removed.data;
 };

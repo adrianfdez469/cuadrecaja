@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge, IconButton, Tooltip, Box } from "@mui/material";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import { NotificationApiService } from "@/services/notificationApiService";
@@ -31,6 +31,12 @@ export function NotificationBell({ disabled }: NotificationBellProps) {
   const [panelOpen, setPanelOpen] = useState(false);
   const bellRef = useRef<HTMLButtonElement>(null);
 
+  const refreshUnread = useCallback(() => {
+    NotificationApiService.getActiveNotifications()
+      .then((data) => setUnread(data.filter((n) => !n.yaLeida).length))
+      .catch(() => setUnread(0));
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -47,8 +53,6 @@ export function NotificationBell({ disabled }: NotificationBellProps) {
       cancelled = true;
     };
   }, []);
-
-  if (unread === 0) return null;
 
   return (
     <>
@@ -97,6 +101,7 @@ export function NotificationBell({ disabled }: NotificationBellProps) {
         open={panelOpen}
         anchorEl={bellRef.current}
         onClose={() => setPanelOpen(false)}
+        onRead={refreshUnread}
       />
     </>
   );

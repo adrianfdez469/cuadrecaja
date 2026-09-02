@@ -7,6 +7,7 @@ import { alpha, type Theme } from "@mui/material/styles";
 import { useCartStore } from "@/store/cartStore";
 import { useCartTotals } from "@/store/useCartTotals";
 import { useCartLineActions } from "@/store/useCartLineActions";
+import { useShowSaleReceipt } from "@/hooks/useShowSaleReceipt";
 import { useCartTotal } from "@/hooks/useCartTotal";
 import { useDiscountRulesStore } from "@/store/discountRulesStore";
 import useConfirmDialog from "@/components/confirmDialog";
@@ -107,6 +108,7 @@ export const CartContent = (props: IProps) => {
   const total = useCartTotal();
   const { confirmDialog, ConfirmDialogComponent } = useConfirmDialog();
   const { showMessage } = useMessageContext();
+  const { show: showSaleReceipt } = useShowSaleReceipt();
 
   const { user, monedaBase } = useAppContext();
   const tiendaId = user?.localActual?.id ?? "";
@@ -147,8 +149,12 @@ export const CartContent = (props: IProps) => {
   const activeCartName = useCartStore(
     (state) => state.carts.find((c) => c.id === state.activeCartId)?.name,
   );
-  const [saleCount, setSaleCount] = useState(0);
-  const checkoutKey = `${activeCartId}:${saleCount}`;
+  // Bumped to force `CheckoutView` to remount — a fresh `usePaymentLines`,
+  // so no payment line, quick-amount pick, or currency card left over from
+  // a previous attempt survives into the next one.
+  const [checkoutResetCount, setCheckoutResetCount] = useState(0);
+  const resetCheckout = () => setCheckoutResetCount((count) => count + 1);
+  const checkoutKey = `${activeCartId}:${checkoutResetCount}`;
   // What «Cobro registrado» shows. Kept here because the basket that produced
   // it is cleared the moment the sale is saved.
   const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
@@ -213,13 +219,24 @@ export const CartContent = (props: IProps) => {
    * while the cart is pinned and therefore never unmounts.
    */
   const handleSaleComplete = (saleReceipt: SaleReceipt) => {
-    setReceipt(saleReceipt);
-    goToStep("done");
     setPromoCode("");
     setActiveCartDiscountCodes([]);
-    // Bumps `checkoutKey`, so the next sale starts from a clean checkout
-    // rather than inheriting this one's payment lines.
-    setSaleCount((count) => count + 1);
+    // So the next sale starts from a clean checkout rather than inheriting
+    // this one's payment lines.
+    resetCheckout();
+
+    if (showSaleReceipt) {
+      setReceipt(saleReceipt);
+      goToStep("done");
+      return;
+    }
+
+    // Skipped by preference (see `useShowSaleReceipt`, off by default): go
+    // straight back to selling, exactly what tapping "Nueva venta" on that
+    // screen would have done.
+    setReceipt(null);
+    if (props.variant === "drawer") props.onClose();
+    else goToStep("cart");
   };
 
   // The sale could not be saved after all: back to the basket, which the
@@ -253,7 +270,13 @@ export const CartContent = (props: IProps) => {
     if (clear && cart.length > 0) {
       confirmDialog(
         `¿Estás seguro de que deseas vaciar el carrito? Se eliminarán ${cart.length} producto${cart.length !== 1 ? "s" : ""}.`,
-        () => clear(),
+        () => {
+          clear();
+          // Otherwise the payment lines typed for the emptied cart (a quick
+          // amount, a transfer card) stay on screen for whatever gets added
+          // next, priced against a total that no longer exists.
+          resetCheckout();
+        },
         undefined,
         { severity: "warning" },
       );
@@ -331,6 +354,7 @@ export const CartContent = (props: IProps) => {
                   onDecrease={decreaseQty}
                   onIncrease={increaseQty}
                   canUpdateQuantity={Boolean(updateQuantity)}
+                  onRemove={removeItem}
                 />
               ))}
             </Box>

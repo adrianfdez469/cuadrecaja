@@ -2,24 +2,29 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import {
   applyDiscounts,
+  recomputeAppliedDiscountsAfterRemoval,
+  type AppliedDiscountRecord,
   type DiscountApplicationInputProduct,
   type DiscountApplicationResult,
   type DiscountApplicationResultItem,
   type DiscountRuleInput,
   type ProductMeta,
+  type RecomputeAfterRemovalResult,
 } from "./engine";
 
 // Re-exported so existing imports from "@/lib/discounts" keep working; the
 // arithmetic itself now lives in ./engine, which the POS also runs in the
 // browser to price a basket without touching the network.
 export type {
+  AppliedDiscountRecord,
   DiscountApplicationInputProduct,
   DiscountApplicationResult,
   DiscountApplicationResultItem,
   DiscountRuleInput,
   ProductMeta,
+  RecomputeAfterRemovalResult,
 };
-export { applyDiscounts };
+export { applyDiscounts, recomputeAppliedDiscountsAfterRemoval };
 
 /** Prisma row → the plain shape the engine and the client both understand. */
 export function toDiscountRuleInput(rule: {

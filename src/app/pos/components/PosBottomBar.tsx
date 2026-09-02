@@ -11,6 +11,7 @@ import ProductProcessorData, {
   ProductProcessorDataRef,
 } from "@/components/ProductProcessorData/ProductProcessorData";
 import { IProcessedData } from "@/schemas/processedData";
+import { PosDesktopToolbar } from "./PosDesktopToolbar";
 import { shape, touch } from "@/theme";
 
 // Flat `background.paper`, and 12/12/10 as the redesign measures it.
@@ -47,18 +48,42 @@ const SEARCH_INPUT_SX = {
   },
 } as const;
 
-const SCANNER_SX = {
+// Desktop has a toolbar's worth of buttons sharing this row, not just the
+// scanner — a search field that claimed every free pixel left them crowded
+// against the cart panel. No upper bound: whatever the toolbar group (fixed
+// width, pinned to the right below) doesn't need is the field's to fill.
+const SEARCH_FIELD_DESKTOP_SX = {
+  flex: "1 1 240px",
+  minWidth: 0,
+} as const;
+
+// Desktop's toolbar buttons are all `touch.min` (see `PosDesktopToolbar`) —
+// the scanner matches that here so it reads as one more button of the row,
+// not a taller outlier next to it. Mobile keeps the 56px it shares with the
+// field and the "..." button (see `ACTIONS_BUTTON_SX`).
+const scannerSx = (isDesktop: boolean) => {
+  const size = isDesktop ? touch.min : touch.comfortable;
+  return {
+    flexShrink: 0,
+    alignSelf: "center",
+    "& .MuiButton-root": {
+      minWidth: size,
+      width: size,
+      height: size,
+      p: 0,
+      borderRadius: `${shape.radius.md}px`,
+      "& .MuiButton-startIcon": { m: 0 },
+      "& .MuiSvgIcon-root": { fontSize: isDesktop ? 22 : 26 },
+    },
+  } as const;
+};
+
+// Toolbar buttons and the scanner button, clumped together and pinned to
+// the row's right edge — the search field's own flex-grow (above) is what
+// fills the space in front of them, so this group never has to reach for it.
+const TOOLBAR_GROUP_SX = {
   flexShrink: 0,
-  alignSelf: "center",
-  "& .MuiButton-root": {
-    minWidth: touch.comfortable,
-    width: touch.comfortable,
-    height: touch.comfortable,
-    p: 0,
-    borderRadius: `${shape.radius.md}px`,
-    "& .MuiButton-startIcon": { m: 0 },
-    "& .MuiSvgIcon-root": { fontSize: 26 },
-  },
+  alignItems: "center",
 } as const;
 
 // The redesign gives the three controls of this row the same 56px block: the
@@ -91,6 +116,18 @@ interface PosBottomBarProps {
   onDismissScannerError: () => void;
   /** Opens the POS's own actions — sync, my sales, starting point, print. */
   onOpenActions: () => void;
+  /**
+   * Wide enough for the cart's own side panel (the same 700px line the page
+   * already draws it at). There is room here for the actions to stand on
+   * their own instead of behind one tap — see `PosDesktopToolbar`.
+   */
+  isDesktop: boolean;
+  onSync: () => void;
+  onMySales: () => void;
+  onStartingPoint: () => void;
+  onSaleReturn?: () => void;
+  onPrintQueue?: () => void;
+  onRefresh: () => Promise<void>;
   rootRef?: Ref<HTMLDivElement>;
 }
 
@@ -107,6 +144,13 @@ function PosBottomBarComponent({
   scannerError,
   onDismissScannerError,
   onOpenActions,
+  isDesktop,
+  onSync,
+  onMySales,
+  onStartingPoint,
+  onSaleReturn,
+  onPrintQueue,
+  onRefresh,
   rootRef,
 }: PosBottomBarProps) {
   return (
@@ -127,10 +171,10 @@ function PosBottomBarComponent({
     >
       {/* Buscador */}
       <Box data-tour="pos-search" sx={SEARCH_ROW_SX}>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="nowrap">
           <SelectableTextField
             ref={searchInputRef}
-            fullWidth
+            fullWidth={!isDesktop}
             variant="outlined"
             size="medium"
             placeholder="Buscar productos..."
@@ -139,6 +183,7 @@ function PosBottomBarComponent({
             onFocus={onSearchFocus}
             onBlur={onSearchBlur}
             onMouseDown={onSearchMouseDown}
+            sx={isDesktop ? SEARCH_FIELD_DESKTOP_SX : undefined}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -179,42 +224,58 @@ function PosBottomBarComponent({
               sx: SEARCH_INPUT_SX,
             }}
           />
-          {/* Everything the point of sale can do that is not selling: it used
-              to be seven bare icons in the app bar, which at 430px ran off
-              the screen. See PosActionsSheet. */}
-          <IconButton
-            aria-label="Acciones del POS"
-            onClick={onOpenActions}
-            data-tour="pos-toolbar-actions"
-            sx={ACTIONS_BUTTON_SX}
-          >
-            <MoreHorizIcon />
-          </IconButton>
-
-          {/* Plain flex item: this used to be a `<Grid size={{xs:7}}>` with no
-              Grid container above it, so its width came from the flex row
-              anyway — and once the actions button joined the row, the twelfth
-              of nothing it asked for squeezed the scanner under it. */}
-          <Box sx={SCANNER_SX} data-tour="pos-toolbar-scanner">
-            <ProductProcessorData
-              ref={scannerRef}
-              onProcessedData={(data: IProcessedData) => {
-                if (data?.code) onProductScan(data.code);
-              }}
-              enableHardwareScanner={false}
-              onCameraOpenChange={onCameraOpenChange}
-            />
-            {scannerError && (
-              <Alert
-                severity="warning"
-                onClose={onDismissScannerError}
-                sx={{ mt: 1 }}
+          {/* Everything the point of sale can do that is not selling, plus
+              the scanner, clumped together and pinned to the row's right
+              edge — the field's own flex-grow above is what fills the space
+              in front of them. On a phone the actions used to be seven bare
+              icons in the app bar, which at 430px ran off the screen —
+              folded into PosActionsSheet instead, opened from one button the
+              same size as the scanner beside it. Desktop has the room to
+              spare, so the same actions stand on their own, all `touch.min`
+              like the scanner now matches — see PosDesktopToolbar. */}
+          <Stack direction="row" spacing={1} sx={TOOLBAR_GROUP_SX}>
+            {isDesktop ? (
+              <PosDesktopToolbar
+                onSync={onSync}
+                onMySales={onMySales}
+                onStartingPoint={onStartingPoint}
+                onSaleReturn={onSaleReturn}
+                onPrintQueue={onPrintQueue}
+                onRefresh={onRefresh}
+              />
+            ) : (
+              <IconButton
+                aria-label="Acciones del POS"
+                onClick={onOpenActions}
+                data-tour="pos-toolbar-actions"
+                sx={ACTIONS_BUTTON_SX}
               >
-                {scannerError}
-              </Alert>
+                <MoreHorizIcon />
+              </IconButton>
             )}
-          </Box>
+
+            <Box sx={scannerSx(isDesktop)} data-tour="pos-toolbar-scanner">
+              <ProductProcessorData
+                ref={scannerRef}
+                onProcessedData={(data: IProcessedData) => {
+                  if (data?.code) onProductScan(data.code);
+                }}
+                enableHardwareScanner={false}
+                onCameraOpenChange={onCameraOpenChange}
+              />
+            </Box>
+          </Stack>
         </Stack>
+
+        {scannerError && (
+          <Alert
+            severity="warning"
+            onClose={onDismissScannerError}
+            sx={{ mt: 1 }}
+          >
+            {scannerError}
+          </Alert>
+        )}
       </Box>
     </Box>
   );

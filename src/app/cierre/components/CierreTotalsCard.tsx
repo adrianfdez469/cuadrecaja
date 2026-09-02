@@ -20,6 +20,12 @@ interface Props {
   totalVentasPropias?: number;
   totalVentasConsignacion?: number;
   isMobile?: boolean;
+  /**
+   * Gates "Total Ganancia" — same permission (`operaciones.cierre.gananciascostos`)
+   * `GananciaCard` and `TablaProductosCierre`'s `showOnlyCants` already check.
+   * Defaults to hidden: a caller that forgets to pass this must not leak profit.
+   */
+  canViewGanancia?: boolean;
 }
 
 interface CellProps {
@@ -155,6 +161,7 @@ export default function CierreTotalsCard({
   totalVentasPropias = 0,
   totalVentasConsignacion = 0,
   isMobile = false,
+  canViewGanancia = false,
 }: Props) {
   const hasDescuento = (totalDescuentos || 0) > 0;
 
@@ -198,7 +205,9 @@ export default function CierreTotalsCard({
           )
         : undefined,
     },
-    { label: "Total Ganancia", value: totalGanancia, tone: "positive" },
+    ...(canViewGanancia
+      ? [{ label: "Total Ganancia", value: totalGanancia, tone: "positive" }]
+      : []),
     {
       label: "Total Transferencia",
       value: totalTransferencia,
@@ -249,7 +258,12 @@ export default function CierreTotalsCard({
         mb: 2,
       }}
     >
-      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${cells.length}, 1fr)`,
+        }}
+      >
         {cells.map((cell, i) => (
           <Cell key={cell.label} {...cell} borderRight={i < cells.length - 1} />
         ))}

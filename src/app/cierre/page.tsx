@@ -456,6 +456,9 @@ const CierreCajaPage = () => {
           totalVentasPropias={cierreData.totalVentasPropias}
           totalVentasConsignacion={cierreData.totalVentasConsignacion}
           isMobile={isMobile}
+          canViewGanancia={verificarPermiso(
+            "operaciones.cierre.gananciascostos",
+          )}
         />
 
         {/* What's left: how much moved and in how many kinds of product. */}

@@ -35,14 +35,24 @@ export async function DELETE(
     }
 
     const { tiendaId, ventaId } = await params;
-    const { searchParams } = new URL(req.url);
-    const usuarioId = searchParams.get("usuarioId");
+
+    // La tienda debe pertenecer al negocio del usuario autenticado — sin este
+    // filtro, `ventaId` es un UUID adivinable que deja borrar ventas de
+    // CUALQUIER negocio, no solo el propio.
+    const tienda = await prisma.tienda.findFirst({
+      where: { id: tiendaId, negocioId: user.negocio.id },
+      select: { id: true },
+    });
+    if (!tienda) {
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 },
+      );
+    }
 
     // Revisamos si la venta pertenece a un período abierto
-    const venta = await prisma.venta.findUnique({
-      where: {
-        id: ventaId,
-      },
+    const venta = await prisma.venta.findFirst({
+      where: { id: ventaId, tiendaId },
       include: {
         cierrePeriodo: {
           select: {
@@ -52,9 +62,17 @@ export async function DELETE(
       },
     });
 
-    if (venta.cierrePeriodo.fechaFin) {
-      throw Error(
-        "La venta que se trata de elimnar está en un período que ah sido cerrado",
+    if (!venta) {
+      return NextResponse.json(
+        { error: "Venta no encontrada" },
+        { status: 404 },
+      );
+    }
+
+    if (venta.cierrePeriodo?.fechaFin) {
+      return NextResponse.json(
+        { error: "La venta pertenece a un período cerrado" },
+        { status: 400 },
       );
     }
 
@@ -127,7 +145,7 @@ export async function DELETE(
             tipo: tipoMov,
             productoTiendaId: mov.productoTiendaId,
             tiendaId: tiendaId,
-            usuarioId: usuarioId,
+            usuarioId: user.id,
             referenciaId: ventaId,
             existenciaAnterior,
             motivo: "Eliminación de venta",
