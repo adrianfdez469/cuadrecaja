@@ -1,8 +1,15 @@
 # ADR 0006: `Negocio.qabToken` invisible por defecto, con el `omit` global de Prisma
 
-**Estado:** aceptado
+**Estado:** aceptado, **refinado por el [ADR 0013](0013-lectura-del-qabtoken-con-select-explicito.md)**
 **Fecha:** 2026-09-01
 **Feature:** F-001
+
+> ⚠️ **La decisión de fondo de este ADR sigue vigente** —el token es invisible por defecto y
+> pedirlo tiene que ser un acto deliberado—, **pero la forma de leerlo que se prescribe más
+> abajo es incorrecta**: Prisma rechaza `select` y `omit` en la misma consulta
+> (*"Please either use `omit` or `select`, but not both at the same time"*), y un `select`
+> explícito ya vence al `omit` global por sí solo. El patrón correcto es
+> `select: { id: true, qabToken: true }`. Verificado ejecutando en F-002; ver el ADR 0013.
 
 ## Contexto
 
