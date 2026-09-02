@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { prisma } from "./prisma";
+import { prisma, type PrismaClientLike } from "./prisma";
 
 /**
  * Generic idempotency support, reusable by any endpoint — there is no
@@ -57,7 +57,7 @@ interface IdempotencyClaim {
  * @throws {DuplicateRequestError} if another execution already claimed it.
  */
 export const claimIdempotencyKey = async (
-  tx: Prisma.TransactionClient,
+  tx: PrismaClientLike,
   { key, scopeId, endpoint }: IdempotencyClaim,
 ): Promise<void> => {
   try {
@@ -78,7 +78,7 @@ export const claimIdempotencyKey = async (
  * verbatim instead of answering with an empty payload.
  */
 export const storeIdempotentResponse = async (
-  tx: Prisma.TransactionClient,
+  tx: PrismaClientLike,
   key: string,
   response: unknown,
 ): Promise<void> => {
