@@ -15,7 +15,7 @@ _(vacío — ningún error ha llegado todavía a 3 apariciones)_
 
 | ID | Síntoma | Área | Veces |
 |----|---------|------|-------|
-| _(vacío)_ | | | |
+| [E-001](errors/E-001-rutas-de-maquina-en-archivos-compartidos.md) | Una ruta de la máquina de un dev horneada en un archivo que se comparte por git; falla en silencio para todos los demás | build | 2 |
 
 ---
 

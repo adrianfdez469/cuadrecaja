@@ -268,16 +268,49 @@ implementación**, para que los tests verifiquen lo acordado y no lo que se acab
 **Consultores** invocables bajo demanda: `security-guardian` (**obligatorio** si el feature toca
 auth, permisos o datos entre tenants), `ux-ui-designer`, `react-ui-architect`, `code-refactorer`.
 
-### Al crear o regenerar un agente
+### Nada de rutas de una máquina concreta
 
-Los archivos de `.claude/agents/` se comparten por git, así que **no pueden contener rutas
-absolutas**. En concreto, el bloque de memoria debe referenciar
-`.claude/agent-memory/<agente>/` en **relativo**, nunca `/Users/<alguien>/...`.
+Todo lo que vive en `.claude/` y en `.agents/` se comparte por git: es configuración del equipo,
+no de un disco. **Ningún archivo de esas dos carpetas puede contener una ruta absoluta ni una que
+empiece por `~`.**
 
-No es teórico: los 6 agentes originales apuntaban a `/Users/kmilo/WebstormProjects/...`, la ruta
-de la máquina de otro desarrollador, que aquí no existe. La ruta se hornea al generar el agente y
-queda fija para todo el que clone el repo. **Revisa esto cada vez que crees o regeneres uno**; el
-agente `qa` lo verifica automáticamente.
+No es teórico, y ya pasó dos veces (ver [E-001](.agents/errors/E-001-rutas-de-maquina-en-archivos-compartidos.md)):
+
+- Los 6 agentes originales apuntaban a `/Users/kmilo/WebstormProjects/...`, la máquina de otro
+  desarrollador. El bloque de memoria debe referenciar `.claude/agent-memory/<agente>/` en
+  **relativo**.
+- El backlog inicial apuntaba a la carpeta de documentación de QAB en la máquina de quien lo
+  escribió.
+
+La ruta se hornea al generar el archivo y queda fija para todo el que clone el repo. Falla en
+silencio: no hay nada que compile ni que la valide.
+
+**Documentación que vive fuera de este repo** —el contrato de integración con queandabuscando, por
+ejemplo— se declara en `.agents/features.json`, en `references.external_docs`, con **el nombre de
+una variable de entorno** y la URL de su repositorio, nunca con una ruta. Cada desarrollador
+define esa variable en su `.env` (está en `.env.example`). Si no está definida, el agente **para y
+le pregunta al humano**: nunca adivina una ruta, y nunca sigue adelante sin haber leído el
+documento. Y no se guarda una copia versionada aquí: se queda vieja en silencio, y una copia vieja
+de un contrato es peor que no tenerla.
+
+**Esa documentación cambia, y la versión es el mecanismo para saber qué.** El contrato de QAB
+lleva su versión en la línea 3 de `sync-contract.md` (`**Versión N** · <fecha>`) y es el único de
+sus documentos que la lleva: es el reloj de toda la integración. Antes de empezar un feature se
+compara esa versión con `contrato.version_verificada` de `features.json`. Si subió, **no se relee
+el contrato entero**: el propio documento trae una sección `## Cambios respecto a la vN` por cada
+salto, y ahí está escrito qué cambió.
+
+Y lo que hay que tener presente: **un salto de versión de ese contrato no es aditivo por defecto**
+—tres de los cuatro rompieron compatibilidad, sin periodo de convivencia— así que puede invalidar
+un feature ya cerrado. `"passes": true` vale para la versión con la que se verificó, anotada en
+`contrato_version`. Cuando un salto lo afecta, no se edita ese feature: se abre uno de migración.
+
+**Revisa esto cada vez que crees o regeneres un agente, o que toques `.agents/`.** El agente `qa`
+lo verifica; a mano es un comando:
+
+```bash
+grep -rnE '(/Users/|/home/|~/|[A-Z]:\\)' .agents/ .claude/ --include='*.md' --include='*.json'
+```
 
 ### Artefactos
 
