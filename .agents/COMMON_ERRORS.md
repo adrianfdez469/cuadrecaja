@@ -19,6 +19,8 @@ _(vacío — ningún error ha llegado todavía a 3 apariciones)_
 | [E-002](errors/E-002-servidor-dev-con-cliente-prisma-viejo.md) | Un `npm run dev` levantado antes de la migración sirve un cliente de Prisma viejo: la columna nueva "no aparece" y la verificación da un falso aprobado | prisma | 1 |
 | [E-003](errors/E-003-literales-bigint-con-target-es2017.md) | `TS2737: BigInt literals are not available when targeting lower than ES2020` al escribir `880n` | tests | 1 |
 | [E-004](errors/E-004-prisma-migrate-create-only-no-interactivo.md) | `prisma migrate dev --create-only` aborta con "environment is non-interactive" cuando el diff traería una confirmación | prisma | 1 |
+| [E-005](errors/E-005-resize-window-no-cambia-el-viewport.md) | `resize_window` informa de éxito pero el viewport no cambia: la media query móvil sigue en `false` y la verificación responsive da un falso aprobado | ui | 1 |
+| [E-006](errors/E-006-comillas-sin-escapar-en-el-description-de-un-agente.md) | Una comilla sin escapar en el `description` de un agente rompe el frontmatter y lo borra del registro, sin ningún mensaje | build | 1 |
 
 ---
 
