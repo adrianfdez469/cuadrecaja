@@ -35,7 +35,12 @@ import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import PostAddIcon from "@mui/icons-material/PostAdd";
-import { formatDate, formatCurrency, formatNumber } from "@/utils/formatters";
+import {
+  formatDate,
+  formatCurrency,
+  formatNumber,
+  formatQuantity,
+} from "@/utils/formatters";
 import { usePermisos } from "@/utils/permisos_front";
 import GastoAdHocDialog from "@/app/gastos/components/GastoAdHocDialog";
 import {
@@ -473,7 +478,7 @@ const CierreCajaPage = () => {
             },
             {
               label: "Productos Vendidos",
-              value: formatNumber(totales.totalCantidad),
+              value: formatQuantity(totales.totalCantidad),
             },
             {
               label: "Tipos de Productos",

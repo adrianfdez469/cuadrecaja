@@ -35,6 +35,7 @@ import type { PaymentLine } from "@/app/pos/utils/paymentMath";
 import { distributionBase, toVueltoLineas } from "@/app/pos/utils/changeMath";
 import { suggestedAmounts } from "@/app/pos/utils/suggestedAmounts";
 import {
+  round2,
   tipLinesFromAmounts,
   tipLinesFromChange,
   tipTotalBase,
@@ -714,7 +715,7 @@ export function CheckoutView({
         {missing && (
           <MissingBlock amount={missingAmount} currency={monedaBase} />
         )}
-        {hasChange && tipTotal === 0 && (
+        {hasChange && (
           <ChangeBlock
             changeLabel={changeLabel}
             // Only worth opening when there is something else to pick. The
@@ -723,18 +724,34 @@ export function CheckoutView({
             interactive={options.length > 1 || custom.currencies.length > 0}
             onOpenDetail={() => setChangeOpen(true)}
             onLeaveTip={() => {
-              setExplicitTip({});
-              setTipFromChange({
-                signature: linesSignature,
-                // The split already chosen and checked against the drawer:
-                // the currency kept is the currency that was about to leave.
-                detail: tipLinesFromChange(
-                  distribution,
-                  tasasVigentes,
-                  monedaBase,
-                ),
-                capBase: changeGivenBase,
-              });
+              // The split already chosen and checked against the drawer: the
+              // currency kept is the currency that was about to leave.
+              const changeDetail = tipLinesFromChange(
+                distribution,
+                tasasVigentes,
+                monedaBase,
+              );
+              if (Object.keys(explicitTip).length > 0) {
+                // A typed tip already covers part of the overpayment (e.g.
+                // the cashier took 500 CUP via «Otro monto» while 1 USD of
+                // change was still owed): what's left is added on top of it
+                // instead of replacing it, or that first tip would vanish.
+                setExplicitTip((prev) => {
+                  const merged: TipAmounts = { ...prev };
+                  for (const line of changeDetail) {
+                    merged[line.moneda] = round2(
+                      (merged[line.moneda] ?? 0) + line.monto,
+                    );
+                  }
+                  return merged;
+                });
+              } else {
+                setTipFromChange({
+                  signature: linesSignature,
+                  detail: changeDetail,
+                  capBase: changeGivenBase,
+                });
+              }
             }}
             onOpenTip={() => setTipOpen(true)}
             base={monedaBase}
@@ -742,7 +759,7 @@ export function CheckoutView({
             overshootBase={overshootBase}
           />
         )}
-        {undeliverableChange > 0 && tipTotal === 0 && (
+        {undeliverableChange > 0 && (
           <UndeliverableChangeNote
             amount={undeliverableChange}
             currency={monedaBase}

@@ -27,7 +27,7 @@ import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import { ICierreData } from "@/schemas/cierre";
-import { formatCurrency, formatNumber } from "@/utils/formatters";
+import { formatCurrency, formatQuantity } from "@/utils/formatters";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import theme from "@/theme";
@@ -290,7 +290,7 @@ export const TablaProductosCierre: FC<IProps> = ({
     <>
       <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
         <Typography variant="caption" color="text.secondary">
-          Cant. {formatNumber(item.cantidad || 0)}
+          Cant. {formatQuantity(item.cantidad || 0)}
         </Typography>
         {!showOnlyCants && (
           <Typography
@@ -756,7 +756,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                     )}
                     {showOnlyCants ? (
                       <Typography variant="caption" color="text.secondary">
-                        Cantidad: {formatNumber(grupo.items[0].cantidad || 0)}
+                        Cantidad: {formatQuantity(grupo.items[0].cantidad || 0)}
                       </Typography>
                     ) : (
                       renderVariantLine(grupo.items[0])
@@ -774,7 +774,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                     >
                       {showOnlyCants ? (
                         <Typography variant="caption" color="text.secondary">
-                          Cantidad: {formatNumber(item.cantidad || 0)}
+                          Cantidad: {formatQuantity(item.cantidad || 0)}
                         </Typography>
                       ) : (
                         renderVariantLine(item)
@@ -803,7 +803,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                   }}
                 >
                   <Typography sx={{ fontSize: "0.9375rem", fontWeight: 700 }}>
-                    Total · {formatNumber(totales?.totalCantidad || 0)} uds.
+                    Total · {formatQuantity(totales?.totalCantidad || 0)} uds.
                   </Typography>
                   {!showOnlyCants && (
                     <Typography
@@ -933,7 +933,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                         </TableCell>
                       )}
                       <TableCell align="right">
-                        {formatNumber(item.cantidad || 0)}
+                        {formatQuantity(item.cantidad || 0)}
                       </TableCell>
                       {!showOnlyCants && (
                         <>
@@ -996,7 +996,7 @@ export const TablaProductosCierre: FC<IProps> = ({
                       )}
                     </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 700 }}>
-                      {formatNumber(totales?.totalCantidad || 0)}
+                      {formatQuantity(totales?.totalCantidad || 0)}
                     </TableCell>
                     {!showOnlyCants && (
                       <>

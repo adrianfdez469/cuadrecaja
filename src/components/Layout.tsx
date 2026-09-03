@@ -505,6 +505,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const handleCambiarNegocio = async () => {
     try {
       setLoadingNegocios(true);
+      handleClose();
       const negocios = await getNegocios();
       setNegocios(negocios);
       setOpenSelectNegocio(true);
