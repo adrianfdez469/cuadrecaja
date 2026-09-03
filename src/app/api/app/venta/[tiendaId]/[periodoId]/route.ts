@@ -14,6 +14,11 @@ import {
   missingExchangeRateMessage,
   resolveSaleTasaSnapshot,
 } from "@/lib/tasaSnapshotResolver";
+import {
+  grossTotalBase,
+  linePriceInBase,
+  reconcileSaleTotal,
+} from "@/lib/saleTotal";
 
 // Tipos auxiliares
 interface IncomingProduct {
@@ -244,30 +249,8 @@ export async function POST(
       throw new Error(`Cantidad decimal no permitida para algunos productos`);
     }
 
-    // 2. Calcular descuentos (solo lee; NO debe correr dentro del tx)
-    let discountTotalCalc = 0;
-    let discountCalcResult: Awaited<
-      ReturnType<typeof applyDiscountsForSale>
-    > | null = null;
-
-    try {
-      const discountProducts = productosMergeados.map((p) => ({
-        productoTiendaId: String(p.productoTiendaId),
-        cantidad: Number(p.cantidad) || 0,
-        precio: Number(p.precio ?? p.price) || 0,
-      }));
-
-      discountCalcResult = await applyDiscountsForSale({
-        tiendaId,
-        discountCodes: Array.isArray(discountCodes) ? discountCodes : [],
-        products: discountProducts,
-      });
-      discountTotalCalc = discountCalcResult.discountTotal;
-    } catch {
-      discountTotalCalc = 0;
-      discountCalcResult = null;
-    }
-
+    // Base currency and a complete rate snapshot come first: discounts are
+    // priced in base and the total is recomputed in base from the lines.
     const tiendaConNegocio = await prisma.tienda.findUnique({
       where: { id: tiendaId },
       select: { negocio: { select: { id: true, monedaBase: true } } },
@@ -300,11 +283,66 @@ export async function POST(
       );
     }
 
+    // The lines exactly as they are persisted below: DB price in its own
+    // currency. Discounts and the total are both derived from these.
+    const lineasVenta = productosMergeados.map((p) => ({
+      precio: p.precio ?? p.price,
+      cantidad: Number(p.cantidad) || 0,
+      monedaPrecioCode: p.monedaPrecioCode ?? null,
+    }));
+
+    // 2. Calcular descuentos (solo lee; NO debe correr dentro del tx).
+    // Prices go in already converted to base, as the web POS does: a fixed
+    // discount is a base amount, and a CUP price fed as-is to a USD business
+    // would be discounted as if it were dollars.
+    let discountTotalCalc = 0;
+    let discountCalcResult: Awaited<
+      ReturnType<typeof applyDiscountsForSale>
+    > | null = null;
+
+    try {
+      const discountProducts = productosMergeados.map((p, i) => ({
+        productoTiendaId: String(p.productoTiendaId),
+        cantidad: lineasVenta[i].cantidad,
+        precio: linePriceInBase(
+          lineasVenta[i],
+          tasaSnapshotResuelto,
+          monedaBase,
+        ),
+      }));
+
+      discountCalcResult = await applyDiscountsForSale({
+        tiendaId,
+        discountCodes: Array.isArray(discountCodes) ? discountCodes : [],
+        products: discountProducts,
+      });
+      discountTotalCalc = discountCalcResult.discountTotal;
+    } catch {
+      discountTotalCalc = 0;
+      discountCalcResult = null;
+    }
+
+    // The total the books carry is recomputed here from the same prices and
+    // rates the lines are persisted with; the client's figure is only compared
+    // against it. Clients have stored the raw sum of prices across currencies
+    // (a 15 300 CUP basket as 15 300 USD).
+    const totalReconciliado = reconcileSaleTotal(
+      total,
+      grossTotalBase(lineasVenta, tasaSnapshotResuelto, monedaBase) -
+        discountTotalCalc,
+    );
+    if (totalReconciliado.diverged) {
+      console.warn("⚠️ [APP/VENTA/POST] Total del cliente descartado:", {
+        syncId,
+        clientTotal: totalReconciliado.clientTotal,
+        serverTotal: totalReconciliado.total,
+        delta: totalReconciliado.delta,
+      });
+    }
+    const ventaTotal = totalReconciliado.total;
+
     // Igual que en el POS web: la propina no se deriva, se valida contra el
     // excedente realmente cobrado.
-    const ventaTotal = discountCalcResult
-      ? Number(discountCalcResult.finalTotal)
-      : Math.max(0, Number(total) || 0);
     const tipCheck = validateTip({
       tipTotal,
       tipDetail,
@@ -327,9 +365,7 @@ export async function POST(
           data: {
             tiendaId,
             usuarioId,
-            total: discountCalcResult
-              ? Number(discountCalcResult.finalTotal)
-              : Math.max(0, Number(total) || 0),
+            total: ventaTotal,
             totalcash: totalcash || 0,
             totaltransfer: totaltransfer || 0,
             cierrePeriodoId: ultimoPeriodo.id,

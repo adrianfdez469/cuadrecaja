@@ -40,8 +40,9 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
 | **CRÍTICO** | `GET /tasas-cambio`: `vigentes` **incluye `monedaBase`** cuando no es CUP. La app debe enviarlo tal cual como `tasaSnapshot`, sin quitarle la moneda base | No (corrige datos) |
 | **CRÍTICO** | Semántica corregida: cada tasa es "1 `{monedaCode}` = N **CUP**", no "N unidades de `monedaBase`". Afecta al cálculo de `equivalenteBase` en la app | No (corrige datos) |
 | **ALTO** | `POST /venta`: nuevo error 400 `code: MISSING_EXCHANGE_RATE` (permanente — no reintentar hasta que se registre la tasa) | Añadir a `sync_error_messages.dart` |
-| **INFO** | `GET /tasas-cambio` devuelve además `tasasCup` (mismo contenido que `vigentes`; compatibilidad) | No |
+| **ALTO** | `GET /tasas-cambio`: **se elimina `tasasCup`**. Era un segundo objeto "completo" junto a un `vigentes` recortado — dos fuentes de verdad — y así se colaron snapshots sin la base. Queda **solo `vigentes`**, ya completo. Si la app lo leía para cobrar, migrar a `vigentes` **antes** de desplegar el backend | **Sí, si la app leía `tasasCup`** |
 | **INFO** | El backend completa el `tasaSnapshot` recibido con las tasas vigentes del negocio antes de persistir; las tasas enviadas por la app nunca se sobreescriben | No |
+| **INFO** | `POST /venta`: el backend **recalcula `total`** en `monedaBase` desde los productos y persiste su cifra; el `total` de la app solo se compara y se loguea si difiere | No (corrige datos) |
 
 ---
 
@@ -209,7 +210,6 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
 {
   "monedaBase": "CUP",
   "vigentes": { "USD": 400, "EUR": 450 },
-  "tasasCup": { "USD": 400, "EUR": 450 },
   "actualizadoEn": "2026-06-21T12:00:00.000Z"
 }
 ```
@@ -219,7 +219,6 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
 {
   "monedaBase": "USD",
   "vigentes": { "USD": 680, "EUR": 775 },
-  "tasasCup": { "USD": 680, "EUR": 775 },
   "actualizadoEn": "2026-09-02T16:50:31.817Z"
 }
 ```
@@ -230,7 +229,7 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
 - **CUP nunca aparece** en el objeto: su tasa es implícitamente `1`.
 - **`monedaBase` sí aparece** cuando no es CUP (ej. `"USD": 680` en un negocio con base USD). Es imprescindible: convertir cualquier moneda a la base pasa por CUP y necesita la tasa CUP de la propia base.
 - Solo se incluyen tasas `> 0`.
-- `tasasCup` tiene exactamente el mismo contenido que `vigentes`; existe por compatibilidad con versiones de la app que ya lo leían. Usa uno u otro, no los mezcles.
+- **`vigentes` es el único objeto de tasas.** `tasasCup` ya no existe (v2.0.1): úsalo para todo — precios del carrito, `equivalenteBase` y el `tasaSnapshot` de la venta. Cualquier lectura de `tasasCup` en la app debe migrarse a `vigentes`.
 
 **Conversión (misma fórmula que usa el backend):**
 
@@ -410,6 +409,8 @@ equivalenteBase = monto × tasa(moneda) / tasa(monedaBase)     // tasa("CUP") = 
 | USD | 1360 CUP | `{ "USD": 680, "EUR": 775 }` | `1360 × 1 / 680 = 2` |
 | USD | 1 EUR | `{ "USD": 680, "EUR": 775 }` | `1 × 775 / 680 ≈ 1.1397` |
 | USD | 5 USD | cualquiera | `5` (misma moneda: la tasa se cancela) |
+
+**Qué hace el backend con `total` (v2.0.1):** lo **recalcula** desde los productos de la venta —precio de la BD en su propia moneda, convertido a `monedaBase` con el snapshot ya completado— menos los descuentos, y persiste **su** cifra. El `total` que envía la app solo se compara contra ella: si difieren en más de 0.01 en base, se registra en log y se descarta el de la app. Se detectaron ventas donde la app sumaba precios de distintas monedas como si fueran una sola (canasta de 15 300 CUP guardada como `total: 15300` en un negocio USD). La app debe seguir enviando `total` (es obligatorio), pero calculado con la misma fórmula: `Σ aBase(precio, monedaPrecioCode) × cantidad − descuentos`.
 
 **Qué hace el backend con `tasaSnapshot`:** lo completa con las tasas vigentes del negocio en `createdAt` (las claves que la app envía **nunca se sobreescriben**; solo se rellenan las que falten) y persiste el resultado. Si tras completarlo sigue faltando una tasa necesaria —hay pagos o vueltos en una moneda distinta de `monedaBase` y no hay tasa para esa moneda o para la propia base— responde **400 `MISSING_EXCHANGE_RATE`** (ver tabla de errores más abajo). Una venta cobrada íntegramente en `monedaBase` nunca falla por tasas.
 
@@ -613,7 +614,9 @@ Login
 
 Revisión v2.0.1 (sep 2026) — obligatoria si el negocio puede tener base ≠ CUP:
 [ ] tasa_snapshot_model / provider de tasas: NO filtrar monedaBase de `vigentes`; enviar el objeto completo como tasaSnapshot
+[ ] provider de tasas: eliminar toda lectura de `tasasCup` (el backend ya no lo envía); `vigentes` es la única fuente para carrito, pagos y snapshot
 [ ] payment_modal / cálculo de equivalenteBase: usar `monto × tasa(moneda) / tasa(monedaBase)` con tasa("CUP") = 1 (ver § equivalenteBase); nunca asumir que la tasa de monedaBase es 1
+[ ] carrito / `total`: convertir cada precio a monedaBase con esa misma fórmula ANTES de sumar; nunca sumar precios en CUP con precios en la base
 [ ] sync_error_messages.dart: `MISSING_EXCHANGE_RATE` como error permanente (sin reintento automático)
 [ ] payment_modal: si base ≠ CUP y `vigentes` no trae la clave de monedaBase, bloquear cobro en otras monedas con aviso al usuario
 [ ] auth: manejar 403 activación pendiente / sin rol

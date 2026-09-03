@@ -10,26 +10,42 @@ const cupTasa = (code: string, tasas: ITasaSnapshot): number =>
 // avoids Math.ceil bumping an exact multiple (e.g. 20.00000000000006) to the next one.
 const EPS = 1e-6;
 
-/**
- * Builds a tasa snapshot from the latest TasaCambio records per moneda.
- * CUP is always implicit at 1 and is never stored in the snapshot.
- * All rates are expressed as: 1 <code> = <tasa> CUP.
- */
-export function buildTasaSnapshot(
-  tasasCambio: Pick<ITasaCambio, "monedaCode" | "tasa" | "createdAt">[],
-): ITasaSnapshot {
-  const latest: Record<string, { tasa: number; createdAt: Date }> = {};
+type TasaRecord = Pick<ITasaCambio, "monedaCode" | "tasa" | "createdAt">;
 
+/**
+ * The single definition of "the rate in force": for every moneda, the most
+ * recent record. CUP never appears (it is the anchor, implicitly 1) and a
+ * non-positive rate is treated as no rate at all.
+ *
+ * Every snapshot the system hands out — to the web POS, to the mobile app, to
+ * the closing and the reports — is built from this. Nothing else may decide
+ * which monedas a snapshot carries: the business's own monedaBase is a moneda
+ * like any other here, because rates are anchored on CUP and converting into
+ * a non-CUP base needs the base's own CUP rate. A second builder once dropped
+ * it and the mobile app persisted `{ EUR: 775 }` for USD-based businesses,
+ * which made every CUP/EUR → USD conversion fall back to rate 1.
+ */
+function latestRateByMoneda(
+  tasasCambio: TasaRecord[],
+): Map<string, { tasa: number; createdAt: Date }> {
+  const latest = new Map<string, { tasa: number; createdAt: Date }>();
   for (const t of tasasCambio) {
-    if (t.monedaCode === "CUP") continue;
-    const prev = latest[t.monedaCode];
+    if (t.monedaCode === "CUP" || !(t.tasa > 0)) continue;
+    const prev = latest.get(t.monedaCode);
     if (!prev || t.createdAt > prev.createdAt) {
-      latest[t.monedaCode] = { tasa: t.tasa, createdAt: t.createdAt };
+      latest.set(t.monedaCode, { tasa: t.tasa, createdAt: t.createdAt });
     }
   }
+  return latest;
+}
 
+/**
+ * Builds a tasa snapshot from the latest TasaCambio records per moneda.
+ * All rates are expressed as: 1 <code> = <tasa> CUP.
+ */
+export function buildTasaSnapshot(tasasCambio: TasaRecord[]): ITasaSnapshot {
   const snapshot: ITasaSnapshot = {};
-  for (const [code, { tasa }] of Object.entries(latest)) {
+  for (const [code, { tasa }] of latestRateByMoneda(tasasCambio)) {
     snapshot[code] = tasa;
   }
   return snapshot;
@@ -41,33 +57,17 @@ export type ITasaSnapshotMeta = {
 };
 
 /**
- * Builds vigentes snapshot plus the most recent createdAt among included rates.
- * Filters out non-positive rates for app consumption.
- *
- * The business's own monedaBase is deliberately KEPT: rates are anchored on
- * CUP, not on monedaBase, so `cupTasa(monedaBase)` must be resolvable from the
- * snapshot whenever the base is not CUP. An earlier version dropped it and the
- * mobile app persisted snapshots like `{ EUR: 775 }` for USD-based businesses,
- * which made every CUP/EUR → USD conversion fall back to rate 1.
+ * The same snapshot as `buildTasaSnapshot`, plus the most recent createdAt
+ * among the included rates — what a client caching the rates needs to decide
+ * whether to refresh.
  */
 export function buildTasaSnapshotWithMeta(
-  tasasCambio: Pick<ITasaCambio, "monedaCode" | "tasa" | "createdAt">[],
+  tasasCambio: TasaRecord[],
 ): ITasaSnapshotMeta {
-  const latest: Record<string, { tasa: number; createdAt: Date }> = {};
-
-  for (const t of tasasCambio) {
-    if (t.monedaCode === "CUP") continue;
-    const prev = latest[t.monedaCode];
-    if (!prev || t.createdAt > prev.createdAt) {
-      latest[t.monedaCode] = { tasa: t.tasa, createdAt: t.createdAt };
-    }
-  }
-
   const vigentes: ITasaSnapshot = {};
   let maxCreatedAt: Date | null = null;
 
-  for (const [code, { tasa, createdAt }] of Object.entries(latest)) {
-    if (tasa <= 0) continue;
+  for (const [code, { tasa, createdAt }] of latestRateByMoneda(tasasCambio)) {
     vigentes[code] = tasa;
     if (!maxCreatedAt || createdAt > maxCreatedAt) {
       maxCreatedAt = createdAt;
@@ -116,6 +116,28 @@ export function completeTasaSnapshot(
     }
   }
   return result;
+}
+
+/**
+ * The snapshot to value a persisted sale with, given the business's full rate
+ * history (ascending by createdAt).
+ *
+ * Precedence: the sale's own snapshot → the rate in force when the sale
+ * happened → the latest rate ever registered (only for a moneda that had no
+ * rate yet at the time). The sale's own rates are never overridden: they are
+ * what the customer was actually charged with.
+ */
+export function resolveSnapshotFromHistory(
+  history: Pick<ITasaCambio, "monedaCode" | "tasa" | "createdAt">[],
+  saleSnapshot: ITasaSnapshot | null | undefined,
+  momento: Date,
+): ITasaSnapshot {
+  const at = Number.isNaN(momento.getTime()) ? new Date() : momento;
+  return completeTasaSnapshot(
+    saleSnapshot,
+    buildTasaSnapshotAt(history, at),
+    buildTasaSnapshot(history),
+  );
 }
 
 /**

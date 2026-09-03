@@ -8,7 +8,9 @@ import {
   convertToBase,
   convertFromBase,
   pagadaConUnSoloPago,
+  resolveSnapshotFromHistory,
 } from "@/lib/currency";
+import { loadTasaHistory } from "@/lib/tasaSnapshotResolver";
 import { recomputeAppliedDiscountsAfterRemoval } from "@/lib/discounts";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IPagoLinea } from "@/schemas/pago";
@@ -62,7 +64,7 @@ export async function DELETE(
     // productos de ventas de CUALQUIER negocio, no solo el propio.
     const tienda = await prisma.tienda.findFirst({
       where: { id: tiendaId, negocioId: user.negocio.id },
-      select: { negocio: { select: { monedaBase: true } } },
+      select: { negocio: { select: { id: true, monedaBase: true } } },
     });
     if (!tienda) {
       return NextResponse.json(
@@ -105,7 +107,14 @@ export async function DELETE(
       ventaProducto;
 
     const monedaBase = tienda.negocio.monedaBase;
-    const tasas = (ventaProducto.venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+    // The sale's own snapshot, with any missing moneda (the mobile app omitted
+    // the base currency for a while) filled from the rate in force at the time
+    // of the sale — the adjustment below is real money, never a silent 1:1.
+    const tasas = resolveSnapshotFromHistory(
+      await loadTasaHistory(tienda.negocio.id),
+      ventaProducto.venta.tasaSnapshot as ITasaSnapshot | null,
+      ventaProducto.venta.frontendCreatedAt ?? ventaProducto.venta.createdAt,
+    );
     const pagos = (ventaProducto.venta.pagosDetalle ?? null) as
       IPagoLinea[] | null;
 

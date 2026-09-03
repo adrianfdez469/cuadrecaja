@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { ISummaryCierre } from "@/schemas/cierre";
 import { startOfNextDay } from "@/utils/date";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { convertToBase } from "@/lib/currency";
+import { convertToBase, resolveSnapshotFromHistory } from "@/lib/currency";
+import { loadTasaHistory } from "@/lib/tasaSnapshotResolver";
 import { calcularGananciaFinal } from "@/lib/gastos";
 
 type Params = { tiendaId: string };
@@ -40,9 +41,13 @@ export async function GET(
 
     const tienda = await prisma.tienda.findUnique({
       where: { id: tiendaId },
-      select: { negocio: { select: { monedaBase: true } } },
+      select: { negocio: { select: { id: true, monedaBase: true } } },
     });
     const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
+    // A sale's own snapshot can be incomplete (the mobile app omitted the
+    // base currency for a while); gaps are filled with the rate in force when
+    // the sale happened instead of silently converting at 1.
+    const historialTasas = await loadTasaHistory(tienda?.negocio?.id);
 
     const filtrosPeriodo = {
       ...(fechaInicio && {
@@ -126,6 +131,7 @@ export async function GET(
         where: { cierrePeriodoId: { in: cierresIds }, tiendaId },
         select: {
           id: true,
+          createdAt: true,
           discountTotal: true,
           cierrePeriodoId: true,
           tasaSnapshot: true,
@@ -136,7 +142,11 @@ export async function GET(
       });
       const mapMontos: MontosMap = {};
       for (const v of ventasPorCierre) {
-        const tasas = (v.tasaSnapshot ?? {}) as ITasaSnapshot;
+        const tasas = resolveSnapshotFromHistory(
+          historialTasas,
+          v.tasaSnapshot as ITasaSnapshot | null,
+          v.createdAt,
+        );
         const bruto = (v.productos || []).reduce(
           (acc, p) =>
             acc +
@@ -239,6 +249,7 @@ export async function GET(
         cierrePeriodo: filtrosPeriodo,
       },
       select: {
+        createdAt: true,
         discountTotal: true,
         tasaSnapshot: true,
         productos: {
@@ -251,7 +262,11 @@ export async function GET(
       0,
     );
     const sumTotalVentasBrutas = ventasParaTotales.reduce((acc, v) => {
-      const tasas = (v.tasaSnapshot ?? {}) as ITasaSnapshot;
+      const tasas = resolveSnapshotFromHistory(
+        historialTasas,
+        v.tasaSnapshot as ITasaSnapshot | null,
+        v.createdAt,
+      );
       return (
         acc +
         (v.productos || []).reduce(

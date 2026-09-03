@@ -12,6 +12,11 @@ import {
   missingExchangeRateMessage,
   resolveSaleTasaSnapshot,
 } from "@/lib/tasaSnapshotResolver";
+import {
+  grossTotalBase,
+  linePriceInBase,
+  reconcileSaleTotal,
+} from "@/lib/saleTotal";
 
 // El vuelto solicitado en una venta en tiempo real supera el efectivo
 // realmente disponible en esa moneda. Ver la validación dentro de la
@@ -242,40 +247,9 @@ export async function POST(
       );
     }
 
-    // 2. Calcular descuentos SIEMPRE en base a los productos del payload (códigos opcionales)
-    // Solo lee; NO debe correr dentro del tx.
-    let discountTotalCalc = 0;
-    let discountCalcResult: Awaited<
-      ReturnType<typeof applyDiscountsForSale>
-    > | null = null;
-    try {
-      // Construir la lista de productos para el motor de descuentos con datos confiables
-      // Preferimos los valores de la DB (productosMegrados.precio) y hacemos fallback al payload (price | precio)
-      const discountProducts = (productosMegrados as MergedProduct[]).map(
-        (p) => ({
-          productoTiendaId: String(p.productoTiendaId),
-          cantidad: Number(p.cantidad) || 0,
-          precio: Number(p.precio ?? p.price) || 0,
-        }),
-      );
-
-      discountCalcResult = await applyDiscountsForSale({
-        tiendaId,
-        discountCodes: Array.isArray(discountCodes) ? discountCodes : [],
-        products: discountProducts,
-      });
-      discountTotalCalc = discountCalcResult.discountTotal;
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error("❌ [POST /api/venta] Error calculando descuentos:", msg);
-      // En caso de error, continuar sin aplicar descuentos
-      discountTotalCalc = 0;
-      discountCalcResult = null;
-    }
-
-    // Solo hace falta para validar el vuelto contra la caja real (ver más
-    // abajo) — si la venta no da vuelto en efectivo, esta query es innecesaria,
-    // pero es barata y mantiene el código simple.
+    // Base currency and a complete rate snapshot come first: discounts are
+    // priced in base, the total is recomputed in base from the lines, and the
+    // change is validated against the drawer per currency further down.
     const tiendaConNegocio = await prisma.tienda.findUnique({
       where: { id: tiendaId },
       select: { negocio: { select: { id: true, monedaBase: true } } },
@@ -310,6 +284,70 @@ export async function POST(
       );
     }
 
+    // The lines exactly as they are persisted below: DB price in its own
+    // currency. Discounts and the total are both derived from these.
+    const lineasVenta = (productosMegrados as MergedProduct[]).map((p) => ({
+      precio: p.precio ?? p.price,
+      cantidad: Number(p.cantidad) || 0,
+      monedaPrecioCode: p.monedaPrecioCode ?? null,
+    }));
+
+    // 2. Calcular descuentos SIEMPRE en base a los productos del payload
+    // (códigos opcionales). Solo lee; NO debe correr dentro del tx.
+    // Prices go in already converted to base, as the web POS does
+    // (`useCartTotals` feeds `priceBase`): a fixed discount is a base amount,
+    // and a CUP price fed as-is to a USD business would be discounted as if it
+    // were dollars.
+    let discountTotalCalc = 0;
+    let discountCalcResult: Awaited<
+      ReturnType<typeof applyDiscountsForSale>
+    > | null = null;
+    try {
+      const discountProducts = (productosMegrados as MergedProduct[]).map(
+        (p, i) => ({
+          productoTiendaId: String(p.productoTiendaId),
+          cantidad: lineasVenta[i].cantidad,
+          precio: linePriceInBase(
+            lineasVenta[i],
+            tasaSnapshotResuelto,
+            monedaBase,
+          ),
+        }),
+      );
+
+      discountCalcResult = await applyDiscountsForSale({
+        tiendaId,
+        discountCodes: Array.isArray(discountCodes) ? discountCodes : [],
+        products: discountProducts,
+      });
+      discountTotalCalc = discountCalcResult.discountTotal;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("❌ [POST /api/venta] Error calculando descuentos:", msg);
+      // En caso de error, continuar sin aplicar descuentos
+      discountTotalCalc = 0;
+      discountCalcResult = null;
+    }
+
+    // The total the books carry is recomputed here from the same prices and
+    // rates the lines are persisted with; the client's figure is only compared
+    // against it. Clients have stored the raw sum of prices across currencies
+    // (a 15 300 CUP basket as 15 300 USD).
+    const totalReconciliado = reconcileSaleTotal(
+      total,
+      grossTotalBase(lineasVenta, tasaSnapshotResuelto, monedaBase) -
+        discountTotalCalc,
+    );
+    if (totalReconciliado.diverged) {
+      console.warn("⚠️ [POST /api/venta] Total del cliente descartado:", {
+        syncId,
+        clientTotal: totalReconciliado.clientTotal,
+        serverTotal: totalReconciliado.total,
+        delta: totalReconciliado.delta,
+      });
+    }
+    const ventaTotal = totalReconciliado.total;
+
     // La propina se valida fuera de la transacción: solo compara números del
     // propio payload, no toca la base. Una propina sin respaldo en lo cobrado
     // inflaría todos los reportes de propina sin que la caja cambie.
@@ -319,7 +357,7 @@ export async function POST(
       pagosDetalle: pagosLineas,
       vueltoDetalle: vueltosLineas,
       tasaSnapshot: tasaSnapshotResuelto,
-      total: Math.max(0, Number(total) || 0),
+      total: ventaTotal,
       monedaBase,
     });
     if (!tipCheck.ok) {
@@ -384,9 +422,9 @@ export async function POST(
           data: {
             tiendaId,
             usuarioId,
-            // El frontend envía `total` ya convertido a moneda base (useCartTotal + descuento aplicado).
-            // NO usar discountCalcResult.finalTotal: suma precios crudos en monedas mezcladas → incorrecto.
-            total: Math.max(0, Number(total) || 0),
+            // Recomputed above from the persisted lines converted to base; the
+            // client's `total` was only compared against it.
+            total: ventaTotal,
             totalcash,
             totaltransfer,
             cierrePeriodoId: ultimoPeriodo.id,

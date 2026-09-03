@@ -1,13 +1,29 @@
 import { prisma } from "@/lib/prisma";
-import {
-  buildTasaSnapshot,
-  buildTasaSnapshotAt,
-  completeTasaSnapshot,
-  missingRateCodes,
-} from "@/lib/currency";
-import type { ITasaSnapshot } from "@/schemas/tasaCambio";
+import { missingRateCodes, resolveSnapshotFromHistory } from "@/lib/currency";
+import type { ITasaCambio, ITasaSnapshot } from "@/schemas/tasaCambio";
 
 export const MISSING_EXCHANGE_RATE_ERROR = "MISSING_EXCHANGE_RATE";
+
+export type TasaHistory = Pick<
+  ITasaCambio,
+  "monedaCode" | "tasa" | "createdAt"
+>[];
+
+/**
+ * Full exchange-rate history of a business, ascending by createdAt — the input
+ * every historical resolution needs. Load it once per request and reuse it for
+ * every sale being valued; it is small (a few rows per day at most).
+ */
+export async function loadTasaHistory(
+  negocioId: string | null | undefined,
+): Promise<TasaHistory> {
+  if (!negocioId) return [];
+  return prisma.tasaCambio.findMany({
+    where: { negocioId },
+    orderBy: { createdAt: "asc" },
+    select: { monedaCode: true, tasa: true, createdAt: true },
+  });
+}
 
 export interface IResolveSaleTasaSnapshotParams {
   negocioId: string | null | undefined;
@@ -47,21 +63,8 @@ export async function resolveSaleTasaSnapshot({
   momento,
   monedas,
 }: IResolveSaleTasaSnapshotParams): Promise<IResolvedSaleTasaSnapshot> {
-  const history = negocioId
-    ? await prisma.tasaCambio.findMany({
-        where: { negocioId },
-        orderBy: { createdAt: "asc" },
-        select: { monedaCode: true, tasa: true, createdAt: true },
-      })
-    : [];
-
-  const at = Number.isNaN(momento.getTime()) ? new Date() : momento;
-
-  const snapshot = completeTasaSnapshot(
-    clientSnapshot,
-    buildTasaSnapshotAt(history, at),
-    buildTasaSnapshot(history),
-  );
+  const history = await loadTasaHistory(negocioId);
+  const snapshot = resolveSnapshotFromHistory(history, clientSnapshot, momento);
 
   return {
     snapshot,

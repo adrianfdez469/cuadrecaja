@@ -4,7 +4,12 @@ import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { gastoAplicaEnFecha } from "@/utils/gastos";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
+import {
+  convertToBase,
+  buildTasaSnapshot,
+  resolveSnapshotFromHistory,
+} from "@/lib/currency";
+import { loadTasaHistory } from "@/lib/tasaSnapshotResolver";
 import { calcularGananciaFinal } from "@/lib/gastos";
 import { calcularTotalesMovimientosPeriodo } from "@/lib/movimiento/caja";
 
@@ -60,21 +65,21 @@ export async function POST(
     const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
     const negocioId = tienda?.negocio?.id;
 
-    const tasasCambio = negocioId
-      ? await prisma.tasaCambio.findMany({
-          where: { negocioId },
-          orderBy: { createdAt: "desc" },
-          distinct: ["monedaCode"],
-        })
-      : [];
-    const tasasActuales = buildTasaSnapshot(tasasCambio);
+    const historialTasas = await loadTasaHistory(negocioId);
+    const tasasActuales = buildTasaSnapshot(historialTasas);
 
     // Calcular totales actuales del período — igual que cierre/[cierreId]/route.ts
     let totalVentas = 0;
     let totalGanancia = 0;
 
     for (const venta of cierre.ventas) {
-      const tasas = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+      // The sale's own snapshot first; its gaps filled with the rate in force
+      // when it happened, never a silent 1.
+      const tasas = resolveSnapshotFromHistory(
+        historialTasas,
+        venta.tasaSnapshot as ITasaSnapshot | null,
+        venta.frontendCreatedAt ?? venta.createdAt,
+      );
       let ventaBruta = 0;
 
       for (const vp of venta.productos) {

@@ -4,7 +4,12 @@ import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { devolucionVentaCreateSchema } from "@/schemas/devolucionVenta";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { convertToBase } from "@/lib/currency";
+import {
+  convertToBase,
+  missingRateCodes,
+  resolveSnapshotFromHistory,
+} from "@/lib/currency";
+import { loadTasaHistory } from "@/lib/tasaSnapshotResolver";
 import { DEFAULT_CURRENCY } from "@/constants/billDenominations";
 import { CreateMoviento, MOVIMIENTO_TX_OPTIONS } from "@/lib/movimiento";
 import {
@@ -82,7 +87,7 @@ export async function POST(
     const [tienda, venta] = await Promise.all([
       prisma.tienda.findFirst({
         where: { id: tiendaId, negocioId: user.negocio.id },
-        select: { negocio: { select: { monedaBase: true } } },
+        select: { negocio: { select: { id: true, monedaBase: true } } },
       }),
       prisma.venta.findFirst({
         where: { id: ventaId, tiendaId },
@@ -133,19 +138,28 @@ export async function POST(
     }
 
     const monedaBase = tienda?.negocio?.monedaBase ?? DEFAULT_CURRENCY;
-    // Usamos las tasas vigentes AL MOMENTO DE LA VENTA original, no las de hoy
-    const tasasHistoricas = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
+    // The rates in force AT THE TIME of the original sale, never today's: the
+    // sale's own snapshot first, and any moneda it lacks (the mobile app
+    // omitted the base currency for a while) taken from the business history
+    // as of the sale's date.
+    const tasasHistoricas = resolveSnapshotFromHistory(
+      await loadTasaHistory(tienda?.negocio?.id),
+      venta.tasaSnapshot as ITasaSnapshot | null,
+      venta.frontendCreatedAt ?? venta.createdAt,
+    );
 
     const monedaCosto = vp.monedaCostoCode ?? monedaBase;
     const monedaPrecio = vp.monedaPrecioCode ?? monedaBase;
 
     // convertToBase asume tasa=1 si la moneda no está en el snapshot — nunca
     // calcular un reembolso/costo asumiendo 1:1 en silencio si la tasa
-    // histórica de la venta original se perdió: es dinero real.
-    const monedasSinTasaHistorica = [
-      ...new Set([monedaCosto, monedaPrecio]),
-    ].filter(
-      (m) => m !== monedaBase && m !== "CUP" && tasasHistoricas[m] == null,
+    // histórica de la venta original se perdió: es dinero real. The check
+    // includes the base's own rate: with base USD and a price in CUP, the
+    // refund is CUP → USD and needs USD's rate as much as any other.
+    const monedasSinTasaHistorica = missingRateCodes(
+      tasasHistoricas,
+      monedaBase,
+      [monedaCosto, monedaPrecio],
     );
     if (monedasSinTasaHistorica.length > 0) {
       return NextResponse.json(
