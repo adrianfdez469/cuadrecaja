@@ -271,9 +271,10 @@ export async function POST(
 
     // Igual que en el POS web: la propina no se deriva, se valida contra el
     // excedente realmente cobrado.
-    const ventaTotal = discountCalcResult
-      ? Number(discountCalcResult.finalTotal)
-      : Math.max(0, Number(total) || 0);
+    // El total es el que manda la app, ya convertido a moneda base linea por
+    // linea. NO usar discountCalcResult.finalTotal: suma precios crudos en
+    // monedas mezcladas -> incorrecto (mismo criterio que /api/venta).
+    const ventaTotal = Math.max(0, Number(total) || 0);
     const tipCheck = validateTip({
       tipTotal,
       tipDetail,
@@ -296,9 +297,7 @@ export async function POST(
           data: {
             tiendaId,
             usuarioId,
-            total: discountCalcResult
-              ? Number(discountCalcResult.finalTotal)
-              : Math.max(0, Number(total) || 0),
+            total: ventaTotal,
             totalcash: totalcash || 0,
             totaltransfer: totaltransfer || 0,
             cierrePeriodoId: ultimoPeriodo.id,
