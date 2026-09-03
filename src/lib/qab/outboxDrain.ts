@@ -37,16 +37,28 @@ interface IOutboxEventoRow {
 }
 
 /**
- * The contract's drain query, verbatim (§ ①), inside the caller's transaction.
- * Rows come back locked with FOR UPDATE SKIP LOCKED and stay locked until the
- * transaction commits. `id` is already a decimal string.
+ * The contract's drain query, inside the caller's transaction. Rows come back
+ * locked with FOR UPDATE SKIP LOCKED and stay locked until the transaction
+ * commits. `id` is already a decimal string.
+ *
+ * The online-store switch is filtered HERE, in the claim itself, and not after
+ * the rows come back (ADR 0021): otherwise the rows of a disabled business hold
+ * the head of the batch of 500 and starve everyone else. Those rows stay pending
+ * and untouched - no `intentos++`, no `ultimoError` - and walk back in on their
+ * own the day the switch is turned on.
+ *
+ * `FOR UPDATE OF o` is mandatory: without the `OF o` the `EXISTS` subquery risks
+ * locking `Negocio` rows for the whole duration of the drain transaction.
  */
 export async function claimOutboxBatch(tx: Prisma.TransactionClient): Promise<IOutboxEvento[]> {
   const rows = await tx.$queryRaw<IOutboxEventoRow[]>`
-    SELECT * FROM "OutboxEvento"
-    WHERE "procesadoAt" IS NULL AND intentos < ${QAB_OUTBOX_MAX_ATTEMPTS}
-    ORDER BY id LIMIT ${QAB_OUTBOX_BATCH_SIZE}
-    FOR UPDATE SKIP LOCKED
+    SELECT o.* FROM "OutboxEvento" o
+    WHERE o."procesadoAt" IS NULL
+      AND o.intentos < ${QAB_OUTBOX_MAX_ATTEMPTS}
+      AND EXISTS (SELECT 1 FROM "Negocio" n
+                  WHERE n.id = o."negocioId" AND n."tiendaOnlineHabilitada" = true)
+    ORDER BY o.id LIMIT ${QAB_OUTBOX_BATCH_SIZE}
+    FOR UPDATE OF o SKIP LOCKED
   `;
 
   // No validation on read: rows are validated on the way in
