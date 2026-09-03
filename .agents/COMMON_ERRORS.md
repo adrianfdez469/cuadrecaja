@@ -21,6 +21,8 @@ _(vacío — ningún error ha llegado todavía a 3 apariciones)_
 | [E-004](errors/E-004-prisma-migrate-create-only-no-interactivo.md) | `prisma migrate dev --create-only` aborta con "environment is non-interactive" cuando el diff traería una confirmación | prisma | 1 |
 | [E-005](errors/E-005-resize-window-no-cambia-el-viewport.md) | `resize_window` informa de éxito pero el viewport no cambia: la media query móvil sigue en `false` y la verificación responsive da un falso aprobado | ui | 1 |
 | [E-006](errors/E-006-comillas-sin-escapar-en-el-description-de-un-agente.md) | Una comilla sin escapar en el `description` de un agente rompe el frontmatter y lo borra del registro, sin ningún mensaje | build | 1 |
+| [E-007](errors/E-007-pagina-publica-que-llama-a-una-api-cerrada.md) | Una página pública llama a una API que se acaba de cerrar: el 401 pasa por el interceptor de `axiosClient`, que hace `signOut()`, y el visitante anónimo acaba expulsado a `/login` | auth | 1 |
+| [E-008](errors/E-008-datos-de-prueba-que-no-discriminan.md) | El criterio pasa, pero habría pasado igual con el código roto: los datos locales no distinguen las dos ramas que se comparan | tests | 1 |
 
 ---
 

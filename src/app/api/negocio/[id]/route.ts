@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { hasSuperAdminPrivileges } from "@/utils/auth";
+import { NEGOCIO_ADMIN_SELECT } from "@/lib/negocio/negocioSelect";
 import { NextRequest, NextResponse } from "next/server";
 
 // Actualizar un negocio existente
@@ -28,6 +29,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         nombre,
         planId: planId ?? null,
       },
+      select: NEGOCIO_ADMIN_SELECT,
     });
 
     return NextResponse.json(negocioActualizado);

@@ -65,7 +65,7 @@ import { getPlanes } from "@/services/planService";
 import type { IPlan } from "@/schemas/plan";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
-import { INegocio } from "@/schemas/negocio";
+import { INegocioAdminView } from "@/schemas/negocio";
 import {
   formatDate,
   formatDaysRemaining,
@@ -101,11 +101,11 @@ export default function Negocios() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const [negocios, setNegocios] = useState<INegocio[]>([]);
+  const [negocios, setNegocios] = useState<INegocioAdminView[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [selectedNegocio, setSelectedNegocio] = useState<INegocio | null>(null);
+  const [selectedNegocio, setSelectedNegocio] = useState<INegocioAdminView | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   /** Solo negocios creados vía activación desde la landing */
   const [soloActivacionLanding, setSoloActivacionLanding] = useState(false);
@@ -121,7 +121,7 @@ export default function Negocios() {
   const [planes, setPlanes] = useState<IPlan[]>([]);
 
   const [firstPaymentOpen, setFirstPaymentOpen] = useState(false);
-  const [fpNegocio, setFpNegocio] = useState<INegocio | null>(null);
+  const [fpNegocio, setFpNegocio] = useState<INegocioAdminView | null>(null);
   const [fpPlanId, setFpPlanId] = useState("");
   const [fpPaidAt, setFpPaidAt] = useState("");
   const [fpAmount, setFpAmount] = useState("");
@@ -228,7 +228,7 @@ export default function Negocios() {
     }
   };
 
-  const handleDelete = async (negocio: INegocio) => {
+  const handleDelete = async (negocio: INegocioAdminView) => {
     if (
       !confirm(
         `¿Estás seguro de que deseas eliminar el negocio "${negocio.nombre}"? Esta acción no se puede deshacer.`,
@@ -253,7 +253,7 @@ export default function Negocios() {
     }
   };
 
-  const handleEdit = (negocio: INegocio) => {
+  const handleEdit = (negocio: INegocioAdminView) => {
     setSelectedNegocio(negocio);
     setNombre(negocio.nombre);
 
@@ -280,7 +280,7 @@ export default function Negocios() {
     )}`;
   };
 
-  const openFirstPaymentDialog = (negocio: INegocio) => {
+  const openFirstPaymentDialog = (negocio: INegocioAdminView) => {
     if (!puedeMostrarBotonPrimerPago(negocio)) {
       showMessage(
         "Este negocio ya está en un plan de pago. No aplica registrar primer pago desde aquí.",
@@ -351,17 +351,17 @@ export default function Negocios() {
     }
   };
 
-  const getPlanForNegocio = (negocio: INegocio): IPlan | undefined =>
+  const getPlanForNegocio = (negocio: INegocioAdminView): IPlan | undefined =>
     planes.find((p) => p.id === negocio.planId);
 
   /** Solo negocios aún en plan gratuito/freemium (precio 0 o sin plan): ya en plan de pago no aplica registrar “primer pago” desde aquí. */
-  const puedeMostrarBotonPrimerPago = (negocio: INegocio): boolean => {
+  const puedeMostrarBotonPrimerPago = (negocio: INegocioAdminView): boolean => {
     const p = getPlanForNegocio(negocio);
     if (!p) return true;
     return p.precio <= 0;
   };
 
-  const getPlanName = (negocio: INegocio): string =>
+  const getPlanName = (negocio: INegocioAdminView): string =>
     getPlanForNegocio(negocio)?.nombre ?? "Sin plan";
 
   const getDaysRemaining = (limitTime: Date): number => {
@@ -372,7 +372,7 @@ export default function Negocios() {
     return diffDays;
   };
 
-  const getPlanColor = (negocio: INegocio) => {
+  const getPlanColor = (negocio: INegocioAdminView) => {
     const color = getPlanForNegocio(negocio)?.color;
     return (
       (color as "default" | "primary" | "secondary" | "success" | "warning") ||
@@ -524,7 +524,7 @@ export default function Negocios() {
 
   // Componente de estadística general
   // Componente de tarjeta de negocio para móviles
-  const NegocioCard = ({ negocio }: { negocio: INegocio }) => {
+  const NegocioCard = ({ negocio }: { negocio: INegocioAdminView }) => {
     const days = getDaysRemaining(negocio.limitTime);
     const planName = getPlanName(negocio);
     const planData = getPlanForNegocio(negocio);

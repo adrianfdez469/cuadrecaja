@@ -71,7 +71,7 @@ import {
 import { signOut, useSession } from "next-auth/react";
 import { useMessageContext } from "@/context/MessageContext";
 import { getNegocios } from "@/services/negocioServce";
-import { INegocio } from "@/schemas/negocio";
+import { INegocioAdminView } from "@/schemas/negocio";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChangeCircleIcon from "@mui/icons-material/ChangeCircleOutlined";
 import NextWeekIcon from "@mui/icons-material/NextWeekOutlined";
@@ -311,7 +311,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   const selectorLocalAbiertoRef = useRef(false);
   const { update, data: session, status: sessionStatus } = useSession();
   const { showMessage } = useMessageContext();
-  const [negocios, setNegocios] = useState<INegocio[]>([]);
+  const [negocios, setNegocios] = useState<INegocioAdminView[]>([]);
   const [loadingNegocios, setLoadingNegocios] = useState(false);
   const [localesDisponibles, setLocalesDisponibles] = useState([]);
   const [loadingLocales, setLoadingLocales] = useState(false);

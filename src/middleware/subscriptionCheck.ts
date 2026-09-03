@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { USER_HEADER_NAMES } from "@/constants/apiAuth";
 
 // Rutas que requieren verificación de suscripción
 const PROTECTED_ROUTES = [
@@ -33,7 +34,10 @@ const ALLOWED_ROUTES = [
   "/api/notificaciones/marcar-leida",
 ];
 
-export async function subscriptionMiddleware(request: NextRequest) {
+export async function subscriptionMiddleware(
+  request: NextRequest,
+  requestHeaders: Headers,
+) {
   const { pathname } = request.nextUrl;
 
   // Verificar si es una ruta protegida
@@ -52,12 +56,15 @@ export async function subscriptionMiddleware(request: NextRequest) {
 
   // Si no es una ruta protegida o es una ruta permitida, continuar
   if (!isProtectedRoute || isAllowedRoute) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   try {
     // Obtener información del negocio y rol del usuario
-    const { negocioId, userRole } = await getNegocioIdFromRequest(request);
+    const { negocioId, userRole } = await getNegocioIdFromRequest(
+      request,
+      requestHeaders,
+    );
 
     // ⚠️ NOTA: La verificación principal de suspensión se hace en el LOGIN (authOptions.ts)
     // Aquí solo verificamos que los usuarios no-SUPER_ADMIN tengan autenticación válida
@@ -69,7 +76,7 @@ export async function subscriptionMiddleware(request: NextRequest) {
     }
 
     // Si es SUPER_ADMIN o usuario autenticado, permitir acceso
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   } catch (error) {
     console.error(
       "❌ [SUBSCRIPTION CHECK] Error en middleware de suscripción:",
@@ -83,11 +90,13 @@ export async function subscriptionMiddleware(request: NextRequest) {
 // Función auxiliar para obtener el negocioId del request
 async function getNegocioIdFromRequest(
   request: NextRequest,
+  requestHeaders: Headers,
 ): Promise<{ negocioId: string | null; userRole: string | null }> {
   try {
-    // Intentar obtener la información del negocio desde los headers (establecidos por el middleware principal)
-    const negocioHeader = request.headers.get("x-user-negocio");
-    const rolHeader = request.headers.get("x-user-rol");
+    // Los headers llegan ya saneados por el middleware principal (ADR 0018): se
+    // leen de ahí y NUNCA de request.headers, que trae lo que mandó el cliente.
+    const negocioHeader = requestHeaders.get(USER_HEADER_NAMES.negocio);
+    const rolHeader = requestHeaders.get(USER_HEADER_NAMES.rol);
 
     if (negocioHeader && rolHeader) {
       try {
