@@ -97,6 +97,26 @@ El `periodoId` no coincide con el período abierto actual (venta de un período 
 
 ---
 
+### 400 Bad Request — Tasa de cambio faltante
+
+La venta incluye pagos o vueltos en una moneda distinta a `monedaBase` y ni el `tasaSnapshot`
+enviado ni las tasas registradas en el negocio permiten convertirla. El backend completa el
+snapshot del cliente con las tasas vigentes al momento de la venta antes de validar; este error
+solo aparece si aun así falta una tasa (típicamente la del propio `monedaBase` cuando no es CUP).
+
+Es un error **permanente**: reintentar la sincronización no lo resuelve hasta que un administrador
+registre la tasa en Configuración → Tasas de cambio.
+
+```json
+{
+  "error": "No hay tasa de cambio registrada para USD. Regístrala en Configuración → Tasas de cambio antes de cobrar en otra moneda.",
+  "code": "MISSING_EXCHANGE_RATE",
+  "monedas": ["USD"]
+}
+```
+
+---
+
 ## 3. Errores dentro de la transacción (500)
 
 Los siguientes errores se lanzan dentro de `prisma.$transaction()` y el `catch` los devuelve como **500 Internal Server Error** con el mensaje en `error`:
@@ -183,7 +203,7 @@ Si el error no es una instancia de `Error`, el mensaje será: `"Error al crear l
 |--------|-----------|
 | **200** | Venta ya existía (idempotencia por `syncId`) |
 | **201** | Venta creada correctamente |
-| **400** | Datos insuficientes, no hay período abierto, o período no es el actual |
+| **400** | Datos insuficientes, no hay período abierto, período no es el actual, o tasa de cambio faltante (`code: MISSING_EXCHANGE_RATE`) |
 | **401** | No autenticado |
 | **404** | Período no existe |
 | **500** | Productos no encontrados, validaciones de negocio fallidas, o error interno |

@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromRequest } from "@/utils/authFromRequest";
 import { assertNegocioAccess } from "@/lib/appNegocioAccess";
-import {
-  buildTasaSnapshot,
-  buildTasaSnapshotWithMeta,
-} from "@/lib/currency";
+import { buildTasaSnapshot, buildTasaSnapshotWithMeta } from "@/lib/currency";
 
 /**
  * GET /api/app/tasas-cambio/[negocioId]
@@ -42,11 +39,11 @@ export async function GET(
     });
 
     const monedaBase = negocio.monedaBase ?? "CUP";
-    const { vigentes, actualizadoEn } = buildTasaSnapshotWithMeta(
-      tasas,
-      monedaBase,
-    );
-    // Tasas completas ancladas en CUP (incluye moneda base) para conversiones en POS.
+    // `vigentes` is what the app persists as the sale's tasaSnapshot, so it
+    // must carry the business's own monedaBase: rates are anchored on CUP and
+    // a USD-based business needs USD's CUP rate to value CUP/EUR payments.
+    const { vigentes, actualizadoEn } = buildTasaSnapshotWithMeta(tasas);
+    // Kept for clients that already read it; same content as `vigentes` now.
     const tasasCup = buildTasaSnapshot(tasas);
 
     return NextResponse.json({

@@ -42,16 +42,21 @@ export type ITasaSnapshotMeta = {
 
 /**
  * Builds vigentes snapshot plus the most recent createdAt among included rates.
- * Filters out monedaBase and non-positive rates for app consumption.
+ * Filters out non-positive rates for app consumption.
+ *
+ * The business's own monedaBase is deliberately KEPT: rates are anchored on
+ * CUP, not on monedaBase, so `cupTasa(monedaBase)` must be resolvable from the
+ * snapshot whenever the base is not CUP. An earlier version dropped it and the
+ * mobile app persisted snapshots like `{ EUR: 775 }` for USD-based businesses,
+ * which made every CUP/EUR → USD conversion fall back to rate 1.
  */
 export function buildTasaSnapshotWithMeta(
   tasasCambio: Pick<ITasaCambio, "monedaCode" | "tasa" | "createdAt">[],
-  monedaBase: string,
 ): ITasaSnapshotMeta {
   const latest: Record<string, { tasa: number; createdAt: Date }> = {};
 
   for (const t of tasasCambio) {
-    if (t.monedaCode === "CUP" || t.monedaCode === monedaBase) continue;
+    if (t.monedaCode === "CUP") continue;
     const prev = latest[t.monedaCode];
     if (!prev || t.createdAt > prev.createdAt) {
       latest[t.monedaCode] = { tasa: t.tasa, createdAt: t.createdAt };
@@ -73,6 +78,67 @@ export function buildTasaSnapshotWithMeta(
     vigentes,
     actualizadoEn: maxCreatedAt?.toISOString() ?? null,
   };
+}
+
+/**
+ * Rates in force at a given moment: for each moneda, the most recent record
+ * whose createdAt is <= momento. `history` must be sorted ascending by
+ * createdAt (the last assignment wins). CUP is never included.
+ */
+export function buildTasaSnapshotAt(
+  history: Pick<ITasaCambio, "monedaCode" | "tasa" | "createdAt">[],
+  momento: Date,
+): ITasaSnapshot {
+  const snapshot: ITasaSnapshot = {};
+  for (const t of history) {
+    if (t.monedaCode === "CUP" || t.createdAt > momento) continue;
+    snapshot[t.monedaCode] = t.tasa;
+  }
+  return snapshot;
+}
+
+/**
+ * Fills the gaps of a client-provided snapshot with fallback snapshots.
+ * Precedence is left to right: the client's own rates always win (they are
+ * the rates the customer was actually charged with), then each fallback only
+ * contributes the monedas still missing. Non-positive rates are ignored.
+ */
+export function completeTasaSnapshot(
+  client: ITasaSnapshot | null | undefined,
+  ...fallbacks: ITasaSnapshot[]
+): ITasaSnapshot {
+  const result: ITasaSnapshot = {};
+  const layers = [client ?? {}, ...fallbacks];
+  for (const layer of layers) {
+    for (const [code, tasa] of Object.entries(layer)) {
+      if (code === "CUP" || !(tasa > 0) || code in result) continue;
+      result[code] = tasa;
+    }
+  }
+  return result;
+}
+
+/**
+ * Monedas whose rate is required to value a sale but absent from `snapshot`.
+ *
+ * A rate is required for every non-CUP moneda that takes part in a conversion:
+ * the monedas of the payment/change lines that differ from monedaBase, plus
+ * monedaBase itself (the conversion routes through CUP, so the base's own
+ * CUP rate is needed too). A sale settled entirely in monedaBase needs no
+ * rate at all, even when the base is not CUP.
+ */
+export function missingRateCodes(
+  snapshot: ITasaSnapshot,
+  monedaBase: string,
+  monedas: string[],
+): string[] {
+  const foreign = monedas.filter((m) => m !== monedaBase);
+  if (foreign.length === 0) return [];
+
+  const required = new Set<string>([monedaBase, ...foreign]);
+  required.delete("CUP");
+
+  return [...required].filter((code) => !(snapshot[code] > 0));
 }
 
 /**

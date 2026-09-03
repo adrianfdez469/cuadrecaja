@@ -9,6 +9,11 @@ import { tasaSnapshotSchema } from "@/schemas/tasaCambio";
 import { mapVentaToIVenta } from "@/lib/ventaMapper";
 import { validateTip } from "@/lib/tips";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
+import {
+  MISSING_EXCHANGE_RATE_ERROR,
+  missingExchangeRateMessage,
+  resolveSaleTasaSnapshot,
+} from "@/lib/tasaSnapshotResolver";
 
 // Tipos auxiliares
 interface IncomingProduct {
@@ -265,9 +270,35 @@ export async function POST(
 
     const tiendaConNegocio = await prisma.tienda.findUnique({
       where: { id: tiendaId },
-      select: { negocio: { select: { monedaBase: true } } },
+      select: { negocio: { select: { id: true, monedaBase: true } } },
     });
     const monedaBase = tiendaConNegocio?.negocio?.monedaBase ?? "CUP";
+
+    // The client's snapshot is completed server-side before anything reads it:
+    // the app used to send it without the business's own monedaBase, and every
+    // consumer downstream converts a missing moneda at rate 1.
+    const { snapshot: tasaSnapshotResuelto, missing: tasasFaltantes } =
+      await resolveSaleTasaSnapshot({
+        negocioId: tiendaConNegocio?.negocio?.id,
+        monedaBase,
+        clientSnapshot: tasaSnapshot,
+        momento: createdAt ? new Date(createdAt) : new Date(),
+        monedas: [...pagosDetalle, ...vueltoDetalle].map((l) => l.moneda),
+      });
+    if (tasasFaltantes.length > 0) {
+      console.error(
+        "❌ [APP/VENTA/POST] Tasa de cambio faltante:",
+        tasasFaltantes.join(", "),
+      );
+      return NextResponse.json(
+        {
+          error: missingExchangeRateMessage(tasasFaltantes),
+          code: MISSING_EXCHANGE_RATE_ERROR,
+          monedas: tasasFaltantes,
+        },
+        { status: 400 },
+      );
+    }
 
     // Igual que en el POS web: la propina no se deriva, se valida contra el
     // excedente realmente cobrado.
@@ -279,7 +310,7 @@ export async function POST(
       tipDetail,
       pagosDetalle,
       vueltoDetalle,
-      tasaSnapshot,
+      tasaSnapshot: tasaSnapshotResuelto,
       total: ventaTotal,
       monedaBase,
     });
@@ -323,7 +354,7 @@ export async function POST(
             ...(monedaCobro && { monedaCobro }),
             ...(pagosDetalle && { pagosDetalle }),
             ...(vueltoDetalle && { vueltoDetalle }),
-            ...(tasaSnapshot && { tasaSnapshot }),
+            tasaSnapshot: tasaSnapshotResuelto,
             // Propina — validada arriba contra el excedente cobrado.
             tipTotal: tipCheck.tipTotal,
             ...(tipCheck.tipDetail && { tipDetail: tipCheck.tipDetail }),

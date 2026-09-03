@@ -1,6 +1,15 @@
 # Contrato API v2 — App Flutter Cuadre de Caja
 
-Documento de referencia para **cruzar con la API del backend** (jun 2026). Sustituye al contrato v1.0.7 cuando el backend incluye soporte **multimoneda obligatorio** en ventas (`commit aeee54d+`).
+Documento de referencia para **cruzar con la API del backend** (jun 2026, revisado sep 2026). Sustituye al contrato v1.0.7 cuando el backend incluye soporte **multimoneda obligatorio** en ventas (`commit aeee54d+`).
+
+> ⚠️ **Fe de erratas (sep 2026) — leer antes de tocar tasas.** La versión original de este
+> documento describía mal la semántica de `vigentes`: decía que cada tasa estaba expresada en
+> unidades de `monedaBase` y que `monedaBase` no aparecía en el objeto. **Ambas cosas eran
+> falsas** y provocaron que la app enviara `tasaSnapshot` sin la tasa de la propia moneda base
+> (ej. `{"EUR": 775}` en un negocio con base USD), con lo que el backend convertía CUP/EUR → USD
+> a tasa 1. Las tasas están **ancladas en CUP** ("1 X = N CUP") y la moneda base **sí forma
+> parte** del snapshot cuando no es CUP. Ver [§ GET /tasas-cambio](#get-tasas-cambionegocioid)
+> y [§ equivalenteBase](#equivalentebase).
 
 > **Uso recomendado con IA de la APK:**
 > "Implementa los cambios descritos en API_APP_CONTRATO_FLUTTER_v2.md. Prioridad 1: POST venta con campos multimoneda. Prioridad 2: GET tasas-cambio y errores login 403."
@@ -23,6 +32,16 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
 | **MEDIO** | GET ventas: devuelve `pagosDetalle`, `vueltoDetalle`, `monedaCobro`, `tasaSnapshot` | No |
 
 \* Rompe solo si la app parseaba `codigos.tipo` como obligatorio.
+
+## Changelog v2.0.0 → v2.0.1 (sep 2026)
+
+| Prioridad | Cambio | ¿Rompe sync? |
+|-----------|--------|--------------|
+| **CRÍTICO** | `GET /tasas-cambio`: `vigentes` **incluye `monedaBase`** cuando no es CUP. La app debe enviarlo tal cual como `tasaSnapshot`, sin quitarle la moneda base | No (corrige datos) |
+| **CRÍTICO** | Semántica corregida: cada tasa es "1 `{monedaCode}` = N **CUP**", no "N unidades de `monedaBase`". Afecta al cálculo de `equivalenteBase` en la app | No (corrige datos) |
+| **ALTO** | `POST /venta`: nuevo error 400 `code: MISSING_EXCHANGE_RATE` (permanente — no reintentar hasta que se registre la tasa) | Añadir a `sync_error_messages.dart` |
+| **INFO** | `GET /tasas-cambio` devuelve además `tasasCup` (mismo contenido que `vigentes`; compatibilidad) | No |
+| **INFO** | El backend completa el `tasaSnapshot` recibido con las tasas vigentes del negocio antes de persistir; las tasas enviadas por la app nunca se sobreescriben | No |
 
 ---
 
@@ -185,22 +204,52 @@ Documentación ampliada del backend: [API_APP_DOCUMENTATION.md](API_APP_DOCUMENT
 
 **Path:** `negocioId` = `user.negocio.id` del login.
 
-**Espera (200):**
+**Espera (200)** — negocio con base CUP:
 ```json
 {
   "monedaBase": "CUP",
   "vigentes": { "USD": 400, "EUR": 450 },
+  "tasasCup": { "USD": 400, "EUR": 450 },
   "actualizadoEn": "2026-06-21T12:00:00.000Z"
 }
 ```
 
-**Reglas de negocio:**
+**Espera (200)** — negocio con base USD (**fíjate en que `USD` sí viene**):
+```json
+{
+  "monedaBase": "USD",
+  "vigentes": { "USD": 680, "EUR": 775 },
+  "tasasCup": { "USD": 680, "EUR": 775 },
+  "actualizadoEn": "2026-09-02T16:50:31.817Z"
+}
+```
 
-- `vigentes` es el objeto a enviar como `tasaSnapshot` en ventas.
-- Cada entrada: 1 unidad de `{monedaCode}` = `vigentes[monedaCode]` unidades de `monedaBase`.
-- `monedaBase` no aparece en `vigentes`; solo tasas `> 0`.
+**Semántica de las tasas (la única correcta):**
+
+- **Todas las tasas están ancladas en CUP.** Cada entrada significa: **1 `{monedaCode}` = `vigentes[monedaCode]` CUP**. No están expresadas en `monedaBase`.
+- **CUP nunca aparece** en el objeto: su tasa es implícitamente `1`.
+- **`monedaBase` sí aparece** cuando no es CUP (ej. `"USD": 680` en un negocio con base USD). Es imprescindible: convertir cualquier moneda a la base pasa por CUP y necesita la tasa CUP de la propia base.
+- Solo se incluyen tasas `> 0`.
+- `tasasCup` tiene exactamente el mismo contenido que `vigentes`; existe por compatibilidad con versiones de la app que ya lo leían. Usa uno u otro, no los mezcles.
+
+**Conversión (misma fórmula que usa el backend):**
+
+```
+tasa(X)          = X == "CUP" ? 1 : vigentes[X]
+aBase(monto, X)  = monto × tasa(X) / tasa(monedaBase)
+desdeBase(m, X)  = m × tasa(monedaBase) / tasa(X)
+```
+
+Ejemplo con base USD y `vigentes = { "USD": 680, "EUR": 775 }`:
+`aBase(1360, "CUP") = 1360 × 1 / 680 = 2 USD` · `aBase(1, "EUR") = 775 / 680 ≈ 1.14 USD`.
+Si la app omitiera `USD` del snapshot, `tasa("USD")` valdría `1` y `1360 CUP` se registraría como **1360 USD**.
+
+**Reglas de uso:**
+
+- `vigentes` es el objeto a enviar **tal cual** como `tasaSnapshot` en ventas. **Nunca quitarle `monedaBase`** ni ninguna otra clave.
 - `actualizadoEn` (opcional): fecha de la tasa más reciente; útil para decidir refresh en sync periódico.
 - Cachear al arranque (tras login) junto con monedas y refrescar periódicamente o antes de cobrar.
+- Si el negocio tiene base ≠ CUP y `vigentes` no trae la clave de `monedaBase`, la app **no debe permitir cobrar en otra moneda**: el backend rechazará la venta con 400 `MISSING_EXCHANGE_RATE` (ver § 5).
 
 **Errores:** 401 `No autenticado` · 403 `No autorizado` · 404 `Negocio no encontrado`
 
@@ -335,7 +384,7 @@ Si `periodo == null` → app interpreta "sin período".
     "transferDestinationId": "uuid?"
   }],
   "vueltoDetalle": [{ "moneda": "string", "monto": "number >= 0" }],
-  "tasaSnapshot": { "USD": 120, "MLC": 75 }
+  "tasaSnapshot": { "USD": 680, "EUR": 775 }
 }
 ```
 
@@ -345,10 +394,24 @@ Si `periodo == null` → app interpreta "sin período".
 |-------|-------|
 | `pagosDetalle` | Array con **≥ 1** pago; transfer requiere `transferDestinationId` |
 | `vueltoDetalle` | Array obligatorio; `[]` si no hay vuelto |
-| `tasaSnapshot` | Objeto obligatorio; `{}` válido si negocio solo usa CUP |
+| `tasaSnapshot` | Objeto obligatorio: el `vigentes` cacheado de `GET /tasas-cambio`, **completo** (incluida `monedaBase` si no es CUP). `{}` válido solo si el negocio usa únicamente CUP |
 | `monedaCobro` | Moneda principal del cobro (ej. `"CUP"`) |
 
-**`equivalenteBase`:** monto del pago convertido a `monedaBase` del negocio usando `tasaSnapshot` y la lógica de ancla CUP del backend.
+<a id="equivalentebase"></a>
+**`equivalenteBase`:** monto del pago convertido a `monedaBase` del negocio con la fórmula anclada en CUP de § GET /tasas-cambio:
+
+```
+equivalenteBase = monto × tasa(moneda) / tasa(monedaBase)     // tasa("CUP") = 1
+```
+
+| Base | Pago | `tasaSnapshot` | `equivalenteBase` |
+|------|------|----------------|-------------------|
+| CUP | 10 USD | `{ "USD": 400 }` | `10 × 400 / 1 = 4000` |
+| USD | 1360 CUP | `{ "USD": 680, "EUR": 775 }` | `1360 × 1 / 680 = 2` |
+| USD | 1 EUR | `{ "USD": 680, "EUR": 775 }` | `1 × 775 / 680 ≈ 1.1397` |
+| USD | 5 USD | cualquiera | `5` (misma moneda: la tasa se cancela) |
+
+**Qué hace el backend con `tasaSnapshot`:** lo completa con las tasas vigentes del negocio en `createdAt` (las claves que la app envía **nunca se sobreescriben**; solo se rellenan las que falten) y persiste el resultado. Si tras completarlo sigue faltando una tasa necesaria —hay pagos o vueltos en una moneda distinta de `monedaBase` y no hay tasa para esa moneda o para la propia base— responde **400 `MISSING_EXCHANGE_RATE`** (ver tabla de errores más abajo). Una venta cobrada íntegramente en `monedaBase` nunca falla por tasas.
 
 **Nota:** `usuarioId` en body es **ignorado** por el backend; usa el usuario del JWT.
 
@@ -423,8 +486,19 @@ Existentes (sin cambio de texto):
 | `pagosDetalle es requerido` | Datos de pago incompletos |
 | `vueltoDetalle inválido` | Error en vuelto |
 | `tasaSnapshot es requerido` | Tasas no disponibles |
+| `No hay tasa de cambio registrada para` (o `code == "MISSING_EXCHANGE_RATE"`) | Tasa de cambio faltante |
 
-> **Cambiar el texto de estos errores rompe la UX** (títulos amigables y detección de conflicto de período).
+**`MISSING_EXCHANGE_RATE` (v2.0.1)** llega con body extendido y es un error **permanente**: reintentar la sincronización no lo resuelve hasta que un administrador registre la tasa en el backend. La app debe sacarlo de la cola de reintentos automáticos y mostrarlo al usuario.
+
+```json
+{
+  "error": "No hay tasa de cambio registrada para USD. Regístrala en Configuración → Tasas de cambio antes de cobrar en otra moneda.",
+  "code": "MISSING_EXCHANGE_RATE",
+  "monedas": ["USD"]
+}
+```
+
+> **Cambiar el texto de estos errores rompe la UX** (títulos amigables y detección de conflicto de período). Para `MISSING_EXCHANGE_RATE` preferir detectar por `code`, que es estable; el texto puede cambiar.
 
 **Flujo app:** guarda local (incl. multimoneda) → descuenta stock → sincroniza en background cada 30 s.
 
@@ -536,6 +610,12 @@ Login
 [ ] sync_service: migrar ventas pendientes sin multimoneda (payload CUP-only)
 [ ] sync_error_messages.dart: mensajes multimoneda (pagosDetalle, vueltoDetalle, tasaSnapshot)
 [ ] auth: parsear negocio.monedaBase y negocio.monedaFuerte
+
+Revisión v2.0.1 (sep 2026) — obligatoria si el negocio puede tener base ≠ CUP:
+[ ] tasa_snapshot_model / provider de tasas: NO filtrar monedaBase de `vigentes`; enviar el objeto completo como tasaSnapshot
+[ ] payment_modal / cálculo de equivalenteBase: usar `monto × tasa(moneda) / tasa(monedaBase)` con tasa("CUP") = 1 (ver § equivalenteBase); nunca asumir que la tasa de monedaBase es 1
+[ ] sync_error_messages.dart: `MISSING_EXCHANGE_RATE` como error permanente (sin reintento automático)
+[ ] payment_modal: si base ≠ CUP y `vigentes` no trae la clave de monedaBase, bloquear cobro en otras monedas con aviso al usuario
 [ ] auth: manejar 403 activación pendiente / sin rol
 [ ] producto_model: monedaPrecioCode; quitar codigos.tipo, añadir codigos.productoId
 [ ] Login negocio: parsear planId (opcional)

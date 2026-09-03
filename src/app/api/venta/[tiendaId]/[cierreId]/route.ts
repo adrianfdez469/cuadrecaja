@@ -7,6 +7,11 @@ import { applyDiscountsForSale } from "@/lib/discounts";
 import { calcularEfectivoDisponiblePorMoneda } from "@/lib/movimiento/caja";
 import { validateTip } from "@/lib/tips";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
+import {
+  MISSING_EXCHANGE_RATE_ERROR,
+  missingExchangeRateMessage,
+  resolveSaleTasaSnapshot,
+} from "@/lib/tasaSnapshotResolver";
 
 // El vuelto solicitado en una venta en tiempo real supera el efectivo
 // realmente disponible en esa moneda. Ver la validación dentro de la
@@ -273,9 +278,37 @@ export async function POST(
     // pero es barata y mantiene el código simple.
     const tiendaConNegocio = await prisma.tienda.findUnique({
       where: { id: tiendaId },
-      select: { negocio: { select: { monedaBase: true } } },
+      select: { negocio: { select: { id: true, monedaBase: true } } },
     });
     const monedaBase = tiendaConNegocio?.negocio?.monedaBase ?? "CUP";
+
+    // The client's snapshot is completed server-side before anything reads it:
+    // a session may hold rates loaded before a moneda was registered, and every
+    // consumer downstream converts a missing moneda at rate 1.
+    const pagosLineas = (pagosDetalle as IPagoLinea[] | undefined) ?? [];
+    const vueltosLineas = (vueltoDetalle as IVueltoLinea[] | undefined) ?? [];
+    const { snapshot: tasaSnapshotResuelto, missing: tasasFaltantes } =
+      await resolveSaleTasaSnapshot({
+        negocioId: tiendaConNegocio?.negocio?.id,
+        monedaBase,
+        clientSnapshot: tasaSnapshot,
+        momento: createdAt ? new Date(createdAt) : new Date(),
+        monedas: [...pagosLineas, ...vueltosLineas].map((l) => l.moneda),
+      });
+    if (tasasFaltantes.length > 0) {
+      console.error(
+        "❌ [POST /api/venta] Tasa de cambio faltante:",
+        tasasFaltantes.join(", "),
+      );
+      return NextResponse.json(
+        {
+          error: missingExchangeRateMessage(tasasFaltantes),
+          code: MISSING_EXCHANGE_RATE_ERROR,
+          monedas: tasasFaltantes,
+        },
+        { status: 400 },
+      );
+    }
 
     // La propina se valida fuera de la transacción: solo compara números del
     // propio payload, no toca la base. Una propina sin respaldo en lo cobrado
@@ -283,9 +316,9 @@ export async function POST(
     const tipCheck = validateTip({
       tipTotal,
       tipDetail,
-      pagosDetalle: pagosDetalle as IPagoLinea[] | undefined,
-      vueltoDetalle: vueltoDetalle as IVueltoLinea[] | undefined,
-      tasaSnapshot,
+      pagosDetalle: pagosLineas,
+      vueltoDetalle: vueltosLineas,
+      tasaSnapshot: tasaSnapshotResuelto,
       total: Math.max(0, Number(total) || 0),
       monedaBase,
     });
@@ -379,7 +412,12 @@ export async function POST(
             ...(monedaCobro && { monedaCobro }),
             ...(pagosDetalle && { pagosDetalle }),
             ...(vueltoDetalle && { vueltoDetalle }),
-            ...(tasaSnapshot && { tasaSnapshot }),
+            // Persisted only when there is something to persist: a CUP-only
+            // business without rates keeps null, which reports rely on.
+            ...((tasaSnapshot ||
+              Object.keys(tasaSnapshotResuelto).length > 0) && {
+              tasaSnapshot: tasaSnapshotResuelto,
+            }),
             // Propina — ya validada contra el excedente realmente cobrado.
             tipTotal: tipCheck.tipTotal,
             ...(tipCheck.tipDetail && { tipDetail: tipCheck.tipDetail }),
