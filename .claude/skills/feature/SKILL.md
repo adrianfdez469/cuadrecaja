@@ -75,10 +75,26 @@ que implementador y tester choquen.
 
 → Actualiza el progreso.
 
+## Paso 4b — Diseño de pantallas (solo si el feature toca UI)
+
+Si el feature **añade o cambia una pantalla, un formulario o un diálogo**, lanza el subagente
+**`ui-designer`**. Esto es obligatorio, no opcional. Produce `.agents/designs/F-###.md`: el layout
+a 320 / 768 / 1440 px, qué componentes reutiliza, los tokens de cada estado y los criterios de
+diseño que el QA verificará en el navegador.
+
+**Gate:** sin contrato de diseño no puedes lanzar al `implementer` de una pantalla. Si lo haces, el
+layout se improvisa mientras se escribe el código y ya no hay nada contra lo que verificar.
+
+Si el feature **no toca UI**, salta este paso y déjalo anotado en el progreso, para que quien
+retome el trabajo sepa que se decidió y no que se olvidó.
+
+→ Actualiza el progreso.
+
 ## Paso 5 — Implementación y tests EN PARALELO
 
 Lanza **`implementer`** y **`dev-tester`** en **un solo mensaje con dos tool uses**, para que
-corran concurrentes. Ambos reciben la ruta del spec con su contrato.
+corran concurrentes. Ambos reciben la ruta del spec con su contrato, y el `implementer`
+recibe además la ruta de `.agents/designs/F-###.md` si el paso 4b lo produjo.
 
 | Agente | Escribe | Nunca toca |
 |---|---|---|
@@ -94,6 +110,12 @@ implementación** — así los tests verifican lo acordado y no lo que se acabó
 
 Lanza el subagente **`qa`**. Verifica los criterios de aceptación **ejecutándolos**, audita que
 los tests prueben código real, y exige `npm test` al 100%.
+
+Si hubo contrato de diseño, se verifica **ejecutándolo** igual que todo lo demás: levantar la app y
+renderizar la pantalla a **320, 768 y 1440 px**, capturando las tres. El protocolo exacto está en
+`qa.md` paso 4b — y ojo, **redimensionar la ventana no sirve**: el viewport no cambia y se firma
+un falso aprobado. Las capturas van en el informe: sin ellas, los criterios de diseño **no están
+verificados**.
 
 Si rechaza, vuelve al paso 5 pasándole su informe a quien corresponda. **Máximo 3 ciclos**; al
 tercero, para y escala al usuario con lo que quedó pendiente.

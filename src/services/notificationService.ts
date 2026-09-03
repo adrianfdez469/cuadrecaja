@@ -1,7 +1,6 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, type NegocioRow } from "@/lib/prisma";
 import {
   MovimientoTipo,
-  Negocio,
   Plan,
   Prisma,
   Producto,
@@ -150,7 +149,7 @@ export class NotificationService {
   /**
    * Procesar expiración de suscripción para un negocio específico
    */
-  private static async processSubscriptionExpiration(negocio: Negocio) {
+  private static async processSubscriptionExpiration(negocio: NegocioRow) {
     const ahora = new Date();
     const diasRestantes = Math.ceil(
       (negocio.limitTime.getTime() - ahora.getTime()) / (24 * 60 * 60 * 1000),
@@ -257,7 +256,7 @@ export class NotificationService {
    * Procesar límites de productos para un negocio específico
    */
   private static async processProductLimits(
-    negocio: Negocio & { productos: Producto[]; plan: Plan | null },
+    negocio: NegocioRow & { productos: Producto[]; plan: Plan | null },
   ) {
     const productlimit = negocio.plan?.limiteProductos ?? -1;
     if (productlimit === -1) {
@@ -371,7 +370,7 @@ export class NotificationService {
    * Procesar límites de usuarios para un negocio específico
    */
   private static async processUserLimits(
-    negocio: Negocio & { usuarios: Usuario[]; plan: Plan | null },
+    negocio: NegocioRow & { usuarios: Usuario[]; plan: Plan | null },
   ) {
     const userlimit = negocio.plan?.limiteUsuarios ?? -1;
     if (userlimit === -1) {

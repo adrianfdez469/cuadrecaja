@@ -153,7 +153,7 @@ El proyecto **sí tiene** pruebas automatizadas.
 
 - **Runner:** Vitest, configurado en `vitest.config.ts` — entorno `node`, `globals: true`,
   alias `@/`, incluye `src/**/*.test.ts` y `src/**/*.spec.ts`.
-- **Ubicación:** `src/__tests__/` — 22 archivos y 418 casos que corren en menos de un segundo.
+- **Ubicación:** `src/__tests__/` — 28 archivos y 682 casos que corren en menos de un segundo.
 - **Alcance:** cubren **lógica pura** — `src/lib/`, `src/app/pos/utils/`, `src/utils/` y
   `src/schemas/`. La aritmética de dinero (`currency`, `changeMath`, `paymentMath`,
   `tipMath`, `billMath`, `discountEngine`) es la parte mejor cubierta.
@@ -247,16 +247,18 @@ arrastrar seis agentes. La skill coordinadora vive en `.claude/skills/feature/SK
 ```
 /feature
   └─ 1. spec           → .agents/specs/F-###.md   (el QUÉ)
-     2. arch-guardian  → contrato de interfaces + docs/adr/  (el CÓMO)
-     3. implementer ─┐ EN PARALELO
+     2. arch-guardian  → contrato de interfaces + docs/adr/  (el CÓMO técnico)
+     3. ui-designer    → .agents/designs/F-###.md (el CÓMO visual; solo si hay pantalla)
+     4. implementer ─┐ EN PARALELO
         dev-tester  ─┘
-     4. qa            → verifica ejecutando; único que autoriza passes:true
+     5. qa            → verifica ejecutando; único que autoriza passes:true
 ```
 
 | Rol | Agente | Escribe en | Nunca toca |
 |-----|--------|-----------|------------|
 | Especificación | `spec` | `.agents/specs/` | código |
 | Arquitectura | `arch-guardian` | contrato + `docs/adr/` | código |
+| Diseño de pantallas | `ui-designer` | `.agents/designs/` | código y `src/theme/` |
 | Implementación | `implementer` | `src/**` | `src/__tests__/**` |
 | Tests | `dev-tester` | `src/__tests__/**` | `src/**` |
 | Verificación | `qa` | informes | código y tests |
@@ -265,8 +267,23 @@ Las fronteras de escritura son **disjuntas por diseño**: por eso implementació
 correr en paralelo sin colisionar. El dev-tester escribe contra el contrato **sin ver la
 implementación**, para que los tests verifiquen lo acordado y no lo que se acabó escribiendo.
 
-**Consultores** invocables bajo demanda: `security-guardian` (**obligatorio** si el feature toca
-auth, permisos o datos entre tenants), `ux-ui-designer`, `react-ui-architect`, `code-refactorer`.
+Dos pasos son **obligatorios y condicionales**, no opcionales: `security-guardian` si el feature
+toca auth, permisos o datos entre tenants, y `ui-designer` si añade o cambia una pantalla, un
+formulario o un diálogo. **Consultores** invocables bajo demanda: `ux-ui-designer`,
+`react-ui-architect`, `code-refactorer`.
+
+### Qué agente de UI toca
+
+Los tres existen y no se solapan. La duda de cuál invocar se resuelve por **qué produce cada uno**:
+
+| Agente | Cuándo | Produce |
+|--------|--------|---------|
+| `ui-designer` | Las pantallas de un feature: layout, estados, responsive | Contrato en `.agents/designs/` — **no escribe código** |
+| `ux-ui-designer` | El theme en sí: `tokens.ts`, contraste, dark mode, deuda de hex | Código de `src/theme/**` |
+| `react-ui-architect` | Estado, Zod, `react-hook-form`, rendimiento y bundle | Componentes en `src/**` |
+
+Si la pregunta es *"cómo se ve y cómo se usa esta pantalla"*, es del `ui-designer`, y va **antes**
+de escribir el componente.
 
 ### Nada de rutas de una máquina concreta
 
@@ -319,6 +336,7 @@ grep -rnE '(/Users/|/home/|~/|[A-Z]:\\)' .agents/ .claude/ --include='*.md' --in
 | `.agents/features.json` | Backlog y fuente de verdad de qué está hecho. **Lo define el humano**, no los agentes. |
 | `.agents/progress/F-###.md` | Trabajo en curso. Uno por feature; en paralelo, archivos separados. Se borra al cerrar. |
 | `.agents/specs/F-###.md` | Spec del feature + contrato de interfaces. |
+| `.agents/designs/F-###.md` | Contrato de diseño de las pantallas. Solo si el feature toca UI. |
 | `.agents/COMMON_ERRORS.md` | Índice de errores conocidos. Los que llegan a 3 apariciones suben con su fix resumido. |
 | `.agents/errors/E-###-*.md` | Ficha por error: síntoma, causa raíz, solución, cómo evitarlo. |
 | `docs/adr/NNNN-*.md` | Decisiones técnicas: contexto, decisión, alternativas, consecuencias. |

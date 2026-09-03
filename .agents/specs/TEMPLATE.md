@@ -1,7 +1,8 @@
 # F-###: <título>
 
 > Escrito por el agente `spec`. **Solo lo esencial que otros agentes necesiten.**
-> Sin diseño técnico, sin pseudocódigo, sin decisiones de UI: eso es del arquitecto.
+> Sin diseño técnico ni pseudocódigo (eso es del arquitecto), y sin decisiones de UI, layout
+> ni responsive (eso es del `ui-designer`, en `.agents/designs/F-###.md`).
 
 ## Qué hay que lograr
 

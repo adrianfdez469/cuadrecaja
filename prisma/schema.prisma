@@ -70,6 +70,18 @@ model Negocio {
   tasasCambio         TasaCambio[]
   historialMonedaBase HistorialMonedaBase[]
   codigosProducto     CodigoProducto[]
+
+  // ── queandabuscando (QAB) online store integration ──
+  /// QAB online store opt-in for this business.
+  tiendaOnlineHabilitada Boolean   @default(false)
+  /// QAB API token, one per business. Server-only secret: see ADR 0006.
+  qabToken               String?
+  qabTokenActualizadoAt  DateTime?
+  /// Order pull cursor, per business. Decimal digits of QAB's BIGINT id, as text.
+  qabUltimoPedidoVisto   String?
+
+  outboxEventos    OutboxEvento[]
+  pedidosEntrantes PedidoEntrante[]
 }
 
 model Promoter {
@@ -221,8 +233,33 @@ model Tienda {
   usuario      Usuario[]
   gastosTienda GastoTienda[]
 
+  // ── queandabuscando (QAB) online store integration ──
+  publicarEnTienda     Boolean @default(false)
+  /// Slug the merchant asked for. QAB only reads it when CREATING the store.
+  slug                 String?
+  /// Slug QAB actually assigned. QAB silently shifts to the next free one.
+  /// No local uniqueness: its namespace belongs to QAB and is global across businesses.
+  slugQab              String?
+  descripcion          String?
+  direccion            String?
+  ciudad               String?
+  provincia            String?
+  latitud              Float?
+  longitud             Float?
+  telefono             String?
+  whatsapp             String?
+  email                String?
+  /// Shape deliberately undefined in F-001: the contract declares openingHours as
+  /// Json? and does not publish its structure. F-005 fixes it.
+  horarios             Json?
+  motivoDespublicacion String? @db.VarChar(160)
+
+  pedidosEntrantes PedidoEntrante[]
+
   // Índice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
+  /// Slug uniqueness is per business: QAB owns the global namespace.
+  @@unique([negocioId, slug])
 }
 
 model TicketPlantilla {
@@ -256,11 +293,11 @@ model Usuario {
   rol          String? // Aqui solo se registrará si el usuario es superadministrador con el rol SUPER_ADMIN
 
   // tiendas         UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
-  locales             UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
-  ventas              Venta[] // Un usuario puede realizar múltiples ventas
-  MovimientoStock     MovimientoStock[]
-  tasasCambio         TasaCambio[]
-  historialMonedaBase HistorialMonedaBase[]
+  locales                UsuarioTienda[] // Relación con la tabla intermedia UsuarioTienda
+  ventas                 Venta[] // Un usuario puede realizar múltiples ventas
+  MovimientoStock        MovimientoStock[]
+  tasasCambio            TasaCambio[]
+  historialMonedaBase    HistorialMonedaBase[]
   initialCashFundEntries InitialCashFund[]
 
   // 🆕 Relación con proveedores asociados
@@ -357,6 +394,11 @@ model Producto {
 
   deletedAt DateTime? // null = activo, fecha = soft delete
 
+  // ── queandabuscando (QAB) online store integration ──
+  publicarEnTienda   Boolean @default(false)
+  /// QAB's canonical product id. NOT a Producto.id: no relation, no foreign key.
+  productoCanonicoId String?
+
   // indice de unicidad compuesto: nombre único por negocio
   @@unique([nombre, negocioId])
 }
@@ -401,6 +443,16 @@ model ProductoTienda {
   fechaVencimiento DateTime?
 
   deletedAt DateTime? // null = activo, fecha = soft delete (eliminado solo de esta tienda)
+
+  // ── queandabuscando (QAB) online store integration ──
+  /// Last availability enum confirmed by QAB. NULL = nothing confirmed yet,
+  /// or forced back to NULL by reconciliation to resend everything.
+  dispPublicada String?
+  /// Low-stock threshold. NULL makes the availability CASE fall through to AVAILABLE.
+  /// Float (not Int) on purpose: `existencia` is double precision and an integer
+  /// threshold would make Postgres normalize the divergence index expression to
+  /// `existencia <= ("umbralBajo")::double precision`. See the F-001 contract.
+  umbralBajo    Float?
 
   // Llave de unicidad compuesta: un producto por tienda y proveedor
   // Esto permite que el mismo producto tenga diferentes existencias por proveedor
@@ -595,7 +647,7 @@ model MovimientoStock {
   tasaUsada      Float? // Tasa empleada para convertir a moneda base
 
   // Solo para COMPRA: de dónde salió el dinero (ver FormaPagoCompra)
-  formaPago FormaPagoCompra?
+  formaPago         FormaPagoCompra?
   // Solo para COMPRA con formaPago = MIXTO: cuánto de montoOriginal salió
   // realmente de la caja (en monedaOriginal) — el resto se considera fondeo
   // externo. Si formaPago = EFECTIVO_CAJA, se asume el monto completo.
@@ -1101,4 +1153,126 @@ enum LeadEstado {
   CONTACTADO
   CONVERTIDO
   DESCARTADO
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// queandabuscando (QAB) online store integration — F-001
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Transactional outbox towards QAB. Born empty and stays empty in F-001:
+/// nothing emits events until F-002.
+/// Column names are in Spanish on purpose: the contract publishes executable SQL
+/// against these exact names. See ADR 0005.
+model OutboxEvento {
+  id          BigInt    @id @default(autoincrement())
+  negocio     Negocio   @relation(fields: [negocioId], references: [id])
+  negocioId   String
+  /// Wire value: STORE | CATEGORY | PRODUCT | CURRENCY | EXCHANGE_RATE.
+  entidad     String
+  entidadId   String
+  /// Wire value: CREATE | UPDATE | DELETE.
+  operacion   String
+  ocurridoAt  DateTime  @default(now())
+  payload     Json
+  intentos    Int       @default(0)
+  procesadoAt DateTime?
+  ultimoError String?
+
+  @@index([negocioId, procesadoAt, id])
+  @@index([entidad, entidadId])
+}
+
+/// Orders pulled from QAB. F-001 only creates the table; nothing writes to it until F-010.
+model PedidoEntrante {
+  id        String  @id @default(uuid())
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+  negocioId String
+
+  /// QAB's order id (a BIGINT) as decimal digits. Idempotency key with negocioId.
+  qabOrderId String
+  /// QAB's Order.code. Public credential of the buyer's page: never log it (F-011).
+  code       String
+
+  /// storeExternalId, verbatim from the wire. Always written, never FK-checked.
+  storeExternalId String
+  /// Resolved store, and ONLY when it belongs to negocioId. NULL when it does not resolve.
+  tienda          Tienda? @relation(fields: [tiendaId], references: [id])
+  tiendaId        String?
+
+  /// One of QAB_ORDER_STATUSES, stored as free text on purpose (ADR 0004).
+  status      String
+  /// CUSTOMER | EXPIRY | STORE, or NULL. Free text, same reason.
+  cancelledBy String?
+
+  contactName    String?
+  contactPhone   String?
+  contactEmail   String?
+  contactAddress String?
+
+  /// Order currency. Plain text: NO relation to Moneda (ADR 0004).
+  currencyCode       String
+  subtotal           Decimal @db.Decimal(14, 2)
+  discountTotal      Decimal @db.Decimal(14, 2)
+  deliveryFee        Decimal @db.Decimal(14, 2)
+  total              Decimal @db.Decimal(14, 2)
+  /// TRUE: deliveryFee is filler and `total` is PARTIAL. Never derive this from the amounts.
+  deliveryFeePending Boolean @default(false)
+
+  /// rateSnapshot, verbatim and opaque. Never recomputed, never rewritten.
+  rateSnapshot        Json?
+  notes               String?
+  /// Prefilled wa.me link composed by QAB. Not reconstructible from contactPhone.
+  customerWhatsappUrl String?
+
+  /// Live proposal. Only while status = AWAITING_CUSTOMER. Replaced wholesale, no history.
+  proposalProposedAt    DateTime?
+  proposalExpiresAt     DateTime?
+  proposalPreviousTotal Decimal?  @db.Decimal(14, 2)
+  proposalSubtotal      Decimal?  @db.Decimal(14, 2)
+  proposalDiscountTotal Decimal?  @db.Decimal(14, 2)
+  proposalDeliveryFee   Decimal?  @db.Decimal(14, 2)
+  proposalTotal         Decimal?  @db.Decimal(14, 2)
+  proposalMessage       String?
+
+  /// Order creation timestamp at QAB.
+  qabCreatedAt DateTime?
+  /// When this POS pulled it.
+  pulledAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  lineas PedidoEntranteLinea[]
+
+  @@unique([negocioId, qabOrderId])
+  @@unique([id, negocioId])
+  @@index([negocioId, status])
+  @@index([negocioId, code])
+  @@index([tiendaId, qabCreatedAt])
+}
+
+model PedidoEntranteLinea {
+  id String @id @default(uuid())
+
+  /// Composite FK: a line can only ever point at an order of its OWN business (ADR 0007).
+  /// `negocioId` here is NOT a FK to Negocio: it is half of the FK to the order.
+  pedido    PedidoEntrante @relation(fields: [pedidoId, negocioId], references: [id, negocioId], onDelete: Cascade)
+  pedidoId  String
+  negocioId String
+
+  /// storeProductExternalId, verbatim. NULL is legal (a proposal-composed line may lack it).
+  storeProductExternalId String?
+  name                   String
+  quantity               Decimal  @db.Decimal(14, 3)
+  currencyCode           String
+  unitPrice              Decimal  @db.Decimal(14, 2)
+  lineTotal              Decimal  @db.Decimal(14, 2)
+  /// Effective price BEFORE conversion. Not summable across lines (R5b).
+  originalCurrencyCode   String?
+  originalUnitPrice      Decimal? @db.Decimal(14, 2)
+  originalLineTotal      Decimal? @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([pedidoId])
+  @@index([negocioId])
 }

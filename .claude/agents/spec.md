@@ -25,7 +25,8 @@ Estas cosas son de otros. Escribirlas es invadir su trabajo y crear dos fuentes 
 - **Diseño técnico, nombres de archivos, firmas, schemas** → del `arch-guardian`, que los añade
   como sección `## Contrato de interfaces` en tu mismo archivo.
 - **Pseudocódigo o fragmentos de implementación** → del `implementer`.
-- **Decisiones de UI, colores, layout** → del `ux-ui-designer`.
+- **Decisiones de UI, colores, layout, responsive** → del `ui-designer`, que escribe
+  `.agents/designs/F-###.md` en el paso 4b.
 - **Cómo se testea** → del `dev-tester`.
 
 Tampoco decides el backlog: no inventas features ni añades alcance que nadie pidió.

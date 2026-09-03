@@ -14,3 +14,22 @@ export const negocioSchema = z.object({
 });
 
 export type INegocio = z.infer<typeof negocioSchema>;
+
+/** Exactly what the platform-administration endpoints return for a Negocio. */
+export const negocioAdminViewSchema = z
+  .object({
+    id: z.string().uuid(),
+    nombre: z.string(),
+    descripcion: z.string().nullable(),
+    createdAt: z.coerce.date(),
+    limitTime: z.coerce.date(),
+    planId: z.string().uuid().nullable(),
+    suspended: z.boolean(),
+    suspendedAt: z.coerce.date().nullable(),
+    creadoPorActivacionLanding: z.boolean(),
+    monedaBase: z.string(),
+    monedaFuerte: z.string(),
+  })
+  .strict();
+
+export type INegocioAdminView = z.infer<typeof negocioAdminViewSchema>;
