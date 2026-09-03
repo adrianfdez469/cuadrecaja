@@ -1,10 +1,10 @@
-import { INegocio } from "@/schemas/negocio";
+import { INegocioAdminView } from "@/schemas/negocio";
 import axiosClient from "@/lib/axiosClient";
 
 const API_URL = "/api/negocio"; // Ruta base del backend
 
 export const getNegocios = async (options?: { soloActivacionLanding?: boolean }) => {
-  const response = await axiosClient.get<INegocio[]>(API_URL, {
+  const response = await axiosClient.get<INegocioAdminView[]>(API_URL, {
     params:
       options?.soloActivacionLanding === true
         ? { soloActivacionLanding: 'true' }
@@ -23,7 +23,7 @@ export const createNegocio = async (nombre: string, duracion: number, planId?: s
 }
 
 export const updateNegocio = async (id: string, nombre: string, planId?: string) => {
-  const response = await axiosClient.put(`${API_URL}/${id}`, {
+  const response = await axiosClient.put<INegocioAdminView>(`${API_URL}/${id}`, {
     nombre,
     planId,
   });

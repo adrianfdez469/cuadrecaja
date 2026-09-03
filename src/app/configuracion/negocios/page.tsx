@@ -36,6 +36,7 @@ import {
   InputAdornment,
   FormControlLabel,
   Switch,
+  ButtonBase,
 } from "@mui/material";
 import {
   Delete,
@@ -52,6 +53,8 @@ import {
   Schedule,
   Info,
   Refresh,
+  Storefront,
+  ChevronRight,
 } from "@mui/icons-material";
 import Payments from "@mui/icons-material/Payments";
 import {
@@ -65,7 +68,7 @@ import { getPlanes } from "@/services/planService";
 import type { IPlan } from "@/schemas/plan";
 import { useMessageContext } from "@/context/MessageContext";
 import { useAppContext } from "@/context/AppContext";
-import { INegocio } from "@/schemas/negocio";
+import { INegocioAdminView } from "@/schemas/negocio";
 import {
   formatDate,
   formatDaysRemaining,
@@ -74,6 +77,11 @@ import {
 } from "@/utils/formatters";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { QabNegocioPanel } from "@/components/qab/QabNegocioPanel";
+import { QabRowSummary } from "@/components/qab/QabRowSummary";
+import { countQabAnomalies } from "@/components/qab/qabSyncState";
+import { useNegociosQabSettings } from "@/hooks/useNegociosQabSettings";
+import { touch } from "@/theme/tokens";
 import { useRouter } from "next/navigation";
 import { registerFirstPaymentForNegocio } from "@/services/referralAdminService";
 
@@ -101,11 +109,11 @@ export default function Negocios() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const [negocios, setNegocios] = useState<INegocio[]>([]);
+  const [negocios, setNegocios] = useState<INegocioAdminView[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [selectedNegocio, setSelectedNegocio] = useState<INegocio | null>(null);
+  const [selectedNegocio, setSelectedNegocio] = useState<INegocioAdminView | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   /** Solo negocios creados vía activación desde la landing */
   const [soloActivacionLanding, setSoloActivacionLanding] = useState(false);
@@ -121,13 +129,20 @@ export default function Negocios() {
   const [planes, setPlanes] = useState<IPlan[]>([]);
 
   const [firstPaymentOpen, setFirstPaymentOpen] = useState(false);
-  const [fpNegocio, setFpNegocio] = useState<INegocio | null>(null);
+  const [fpNegocio, setFpNegocio] = useState<INegocioAdminView | null>(null);
   const [fpPlanId, setFpPlanId] = useState("");
   const [fpPaidAt, setFpPaidAt] = useState("");
   const [fpAmount, setFpAmount] = useState("");
   const [fpSubmitting, setFpSubmitting] = useState(false);
 
   const router = useRouter();
+
+  /** The QAB block of every business: its own endpoint, never inside getNegocios (ADR 0027). */
+  const qab = useNegociosQabSettings();
+  const [qabPanelNegocio, setQabPanelNegocio] = useState<INegocioAdminView | null>(
+    null,
+  );
+  const qabAnomalies = countQabAnomalies(qab.settingsByNegocioId);
 
   const fetchNegocios = async () => {
     setLoading(true);
@@ -228,7 +243,7 @@ export default function Negocios() {
     }
   };
 
-  const handleDelete = async (negocio: INegocio) => {
+  const handleDelete = async (negocio: INegocioAdminView) => {
     if (
       !confirm(
         `¿Estás seguro de que deseas eliminar el negocio "${negocio.nombre}"? Esta acción no se puede deshacer.`,
@@ -253,7 +268,7 @@ export default function Negocios() {
     }
   };
 
-  const handleEdit = (negocio: INegocio) => {
+  const handleEdit = (negocio: INegocioAdminView) => {
     setSelectedNegocio(negocio);
     setNombre(negocio.nombre);
 
@@ -280,7 +295,7 @@ export default function Negocios() {
     )}`;
   };
 
-  const openFirstPaymentDialog = (negocio: INegocio) => {
+  const openFirstPaymentDialog = (negocio: INegocioAdminView) => {
     if (!puedeMostrarBotonPrimerPago(negocio)) {
       showMessage(
         "Este negocio ya está en un plan de pago. No aplica registrar primer pago desde aquí.",
@@ -351,17 +366,17 @@ export default function Negocios() {
     }
   };
 
-  const getPlanForNegocio = (negocio: INegocio): IPlan | undefined =>
+  const getPlanForNegocio = (negocio: INegocioAdminView): IPlan | undefined =>
     planes.find((p) => p.id === negocio.planId);
 
   /** Solo negocios aún en plan gratuito/freemium (precio 0 o sin plan): ya en plan de pago no aplica registrar “primer pago” desde aquí. */
-  const puedeMostrarBotonPrimerPago = (negocio: INegocio): boolean => {
+  const puedeMostrarBotonPrimerPago = (negocio: INegocioAdminView): boolean => {
     const p = getPlanForNegocio(negocio);
     if (!p) return true;
     return p.precio <= 0;
   };
 
-  const getPlanName = (negocio: INegocio): string =>
+  const getPlanName = (negocio: INegocioAdminView): string =>
     getPlanForNegocio(negocio)?.nombre ?? "Sin plan";
 
   const getDaysRemaining = (limitTime: Date): number => {
@@ -372,7 +387,7 @@ export default function Negocios() {
     return diffDays;
   };
 
-  const getPlanColor = (negocio: INegocio) => {
+  const getPlanColor = (negocio: INegocioAdminView) => {
     const color = getPlanForNegocio(negocio)?.color;
     return (
       (color as "default" | "primary" | "secondary" | "success" | "warning") ||
@@ -524,7 +539,7 @@ export default function Negocios() {
 
   // Componente de estadística general
   // Componente de tarjeta de negocio para móviles
-  const NegocioCard = ({ negocio }: { negocio: INegocio }) => {
+  const NegocioCard = ({ negocio }: { negocio: INegocioAdminView }) => {
     const days = getDaysRemaining(negocio.limitTime);
     const planName = getPlanName(negocio);
     const planData = getPlanForNegocio(negocio);
@@ -593,6 +608,49 @@ export default function Negocios() {
               Vence el {formatDate(negocio.limitTime)}
             </Typography>
           </Box>
+
+          {/* Tienda online: la fila entera es el destino táctil */}
+          <Divider sx={{ mb: 1 }} />
+          <ButtonBase
+            onClick={() => setQabPanelNegocio(negocio)}
+            disabled={qab.loadError}
+            aria-label="Tienda online y credencial de QAB"
+            sx={{
+              width: "100%",
+              minHeight: touch.rowLarge,
+              px: 1,
+              py: 1,
+              mb: 2,
+              borderRadius: 1,
+              textAlign: "left",
+              alignItems: "center",
+            }}
+          >
+            <Box sx={{ width: "100%" }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                gap={1}
+              >
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  sx={{ color: "semantic.text.primary" }}
+                >
+                  Tienda online
+                </Typography>
+                <ChevronRight sx={{ color: "semantic.text.disabled" }} />
+              </Stack>
+              <Box sx={{ mt: 0.5 }}>
+                <QabRowSummary
+                  settings={qab.settingsByNegocioId.get(negocio.id)}
+                  loading={qab.loading}
+                  unavailable={qab.loadError}
+                />
+              </Box>
+            </Box>
+          </ButtonBase>
 
           {/* Botones de acción */}
           <Stack
@@ -848,6 +906,29 @@ export default function Negocios() {
         </Alert>
       )}
 
+      {qab.loadError && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => void qab.reload()}>
+              Reintentar
+            </Button>
+          }
+        >
+          No se pudo cargar el estado de tienda online de los negocios.
+        </Alert>
+      )}
+
+      {/* Índice de la anomalía «habilitado y sin credencial». Con cero, no existe. */}
+      {qabAnomalies > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {qabAnomalies === 1
+            ? "1 negocio tiene la tienda online activa y ninguna credencial de QAB: no sincroniza."
+            : `${qabAnomalies} negocios tienen la tienda online activa y ninguna credencial de QAB: no sincronizan.`}
+        </Alert>
+      )}
+
       <ContentCard
         title="Lista de Negocios"
         subtitle={`${filteredNegocios.length} negocio${filteredNegocios.length !== 1 ? "s" : ""} encontrado${filteredNegocios.length !== 1 ? "s" : ""}`}
@@ -924,6 +1005,7 @@ export default function Negocios() {
                   <TableCell>Negocio / Origen</TableCell>
                   <TableCell align="center">Plan</TableCell>
                   <TableCell align="center">Estado</TableCell>
+                  <TableCell align="center">Tienda online</TableCell>
                   <TableCell align="center">Vencimiento</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
@@ -1003,6 +1085,17 @@ export default function Negocios() {
                           />
                         </TableCell>
                         <TableCell align="center">
+                          <Box
+                            sx={{ display: "flex", justifyContent: "center" }}
+                          >
+                            <QabRowSummary
+                              settings={qab.settingsByNegocioId.get(negocio.id)}
+                              loading={qab.loading}
+                              unavailable={qab.loadError}
+                            />
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
                           <Stack alignItems="center" spacing={0.5}>
                             <Typography variant="body2" fontWeight="medium">
                               {formatDaysRemaining(days)}
@@ -1021,6 +1114,19 @@ export default function Negocios() {
                             spacing={0.5}
                             justifyContent="center"
                           >
+                            <Tooltip title="Tienda online y credencial de QAB">
+                              <span>
+                                <IconButton
+                                  onClick={() => setQabPanelNegocio(negocio)}
+                                  disabled={qab.loadError}
+                                  color="primary"
+                                  aria-label="Tienda online y credencial de QAB"
+                                  sx={{ width: touch.min, height: touch.min }}
+                                >
+                                  <Storefront fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
                             <Tooltip
                               title={
                                 isExpanded
@@ -1085,7 +1191,7 @@ export default function Negocios() {
                             },
                           }}
                         >
-                          <TableCell colSpan={5} sx={{ py: 2.5, px: 3 }}>
+                          <TableCell colSpan={6} sx={{ py: 2.5, px: 3 }}>
                             {stats ? (
                               <Grid container spacing={3} alignItems="center">
                                 <Grid item xs={12} sm={4}>
@@ -1443,6 +1549,23 @@ export default function Negocios() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {qabPanelNegocio && (
+        <QabNegocioPanel
+          open={Boolean(qabPanelNegocio)}
+          onClose={() => setQabPanelNegocio(null)}
+          negocio={{ id: qabPanelNegocio.id, nombre: qabPanelNegocio.nombre }}
+          settings={qab.settingsByNegocioId.get(qabPanelNegocio.id)}
+          loading={qab.loading}
+          loadError={qab.loadError}
+          autoProvisioningAvailable={qab.autoProvisioningAvailable}
+          autoProvisioningUnavailableReason={qab.autoProvisioningUnavailableReason}
+          onReload={qab.reload}
+          onToggle={qab.toggleTiendaOnline}
+          onProvision={qab.provision}
+          onSaveToken={qab.saveTokenManually}
+        />
+      )}
     </PageContainer>
   );
 }

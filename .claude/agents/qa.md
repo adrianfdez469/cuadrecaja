@@ -84,6 +84,61 @@ Si el feature toca datos de negocio, **verifica el aislamiento multi-tenant ejec
 un `Negocio` no pueda leer ni modificar datos de otro. Y que los permisos se validen en backend,
 no solo en la UI.
 
+### 4b. Diseño de pantallas, si hubo contrato
+
+Si existe `.agents/designs/F-###.md`, sus **Criterios de diseño verificables en navegador** se
+verifican como todo lo demás: **ejecutándolos**. Leer el JSX y opinar no cuenta.
+
+1. Levanta la app (`npm run dev`) y abre cualquier página suya en el navegador.
+2. **No uses `resize_window` para esto.** Redimensionar la ventana **no cambia el viewport**: la
+   media query sigue evaluando como escritorio, así que capturarías tres veces la misma pantalla
+   ancha y la darías por buena. Es un falso aprobado, el fallo que este agente existe para cazar.
+   Verificado el 2026-09-02: con la ventana a 320, `matchMedia("(max-width: 599.95px)").matches`
+   devolvía `false`.
+3. Renderiza la pantalla en tres iframes, que **sí** tienen viewport propio, y captura:
+
+   ```js
+   // ejecutar en la página, con javascript_tool
+   document.querySelectorAll('.qa-probe').forEach(n => n.remove());
+   const host = document.createElement('div');
+   host.className = 'qa-probe';
+   host.style.cssText =
+     'position:fixed;inset:0;z-index:2147483647;background:#222;display:flex;' +
+     'gap:12px;padding:12px;align-items:flex-start;overflow:auto';
+   [[320, 720], [768, 720], [1440, 720]].forEach(([w, h]) => {
+     const wrap = document.createElement('div');
+     wrap.style.cssText = 'flex:0 0 auto';
+     const lab = document.createElement('div');
+     lab.textContent = w + 'px';
+     lab.style.cssText = 'color:#fff;font:12px system-ui;margin-bottom:4px';
+     const f = document.createElement('iframe');
+     f.src = '<LA RUTA A VERIFICAR>';
+     f.width = w; f.height = h;
+     f.style.cssText = 'border:0;background:#fff;display:block';
+     wrap.append(lab, f); host.append(wrap);
+   });
+   document.body.append(host);
+   await new Promise(r => setTimeout(r, 3500));
+   [...document.querySelectorAll('.qa-probe iframe')].map(f => ({
+     w: f.width,
+     innerWidth: f.contentWindow.innerWidth,
+     mobileMQ: f.contentWindow.matchMedia('(max-width: 599.95px)').matches,
+   }));
+   ```
+
+   **Comprueba la salida antes de mirar la captura:** el iframe de 320 debe dar
+   `innerWidth: 320` y `mobileMQ: true`. Si no, no estás verificando nada.
+4. Contrasta cada criterio del contrato contra lo que ves:
+   - ¿Algo desborda en horizontal a 320 px?
+   - ¿Todo destino táctil llega a 44 px?
+   - ¿La tabla tiene su fallback móvil, o es la tabla de escritorio comprimida?
+   - ¿Los estados vacío, cargando, error y sin conexión existen de verdad?
+
+Las capturas van en tu informe. **Sin ellas, los criterios de diseño no están verificados** y el
+feature no pasa. Si el contrato prometía una pantalla y la implementación entregó otra, es un
+rechazo: quien lo corrige es el `ui-designer` (si el contrato estaba mal) o el `implementer` (si
+el contrato estaba bien y no se siguió). Dilo explícitamente en el informe.
+
 ### 5. Higiene de los archivos de agente
 
 Si el feature creó o modificó algo en `.claude/agents/` o `.claude/skills/`, comprueba que no se

@@ -1,13 +1,12 @@
 import { prisma } from '@/lib/prisma';
+import { listPlans } from '@/lib/planes';
 import { hasSuperAdminPrivileges } from '@/utils/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { createPlanSchema } from '@/schemas/plan';
 
 export async function GET() {
   try {
-    const planes = await prisma.plan.findMany({
-      orderBy: { createdAt: 'asc' },
-    });
+    const planes = await listPlans();
     return NextResponse.json(planes);
   } catch (error) {
     console.error(error);
