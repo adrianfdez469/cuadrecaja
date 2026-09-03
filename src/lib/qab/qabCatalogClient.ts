@@ -1,9 +1,10 @@
 import {
-  QAB_HTTP_MAX_RESPONSE_BYTES,
   QAB_HTTP_RESPONSE_TOO_LARGE_REASON,
   QAB_HTTP_TIMEOUT_MS,
   QAB_OUTBOX_ERROR_CODES,
 } from "@/constants/qab";
+import { readBoundedBody } from "@/lib/qab/qabHttp";
+import type { IBoundedBody } from "@/lib/qab/qabHttp";
 import { qabCatalogSyncUrl } from "@/lib/qab/qabEnv";
 import { truncateOutboxError } from "@/lib/qab/outboxAck";
 import { qabCatalogSyncResponseSchema } from "@/schemas/qabSync";
@@ -15,48 +16,7 @@ export type IQabPostOutcome =
 
 /** The only status the contract answers a well-formed batch with. */
 const QAB_MULTI_STATUS = 207;
-const CONTENT_LENGTH_HEADER = "content-length";
 const WHITESPACE_RUN = /\s+/g;
-
-interface IBoundedBody {
-  /** `true` when the response exceeded QAB_HTTP_MAX_RESPONSE_BYTES and was cut short. */
-  tooLarge: boolean;
-  text: string;
-}
-
-/**
- * Reads at most QAB_HTTP_MAX_RESPONSE_BYTES of the response body. Nothing forces
- * QAB — or whatever a mispointed QAB_API_BASE_URL resolves to — to answer with a
- * bounded body, and a serverless function must not materialise it whole.
- */
-async function readBoundedBody(response: Response): Promise<IBoundedBody> {
-  const declaredLength = Number(response.headers.get(CONTENT_LENGTH_HEADER));
-  if (Number.isFinite(declaredLength) && declaredLength > QAB_HTTP_MAX_RESPONSE_BYTES) {
-    await response.body?.cancel();
-    return { tooLarge: true, text: "" };
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) return { tooLarge: false, text: "" };
-
-  const decoder = new TextDecoder();
-  let text = "";
-  let bytes = 0;
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    bytes += value.byteLength;
-    if (bytes > QAB_HTTP_MAX_RESPONSE_BYTES) {
-      await reader.cancel();
-      return { tooLarge: true, text: "" };
-    }
-    text += decoder.decode(value, { stream: true });
-  }
-  text += decoder.decode();
-
-  return { tooLarge: false, text };
-}
 
 /**
  * POSTs one business's batch. NEVER throws and NEVER returns a rejected promise:

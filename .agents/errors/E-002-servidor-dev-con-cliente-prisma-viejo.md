@@ -1,7 +1,7 @@
 # E-002: Un servidor de desarrollo levantado antes de la migración produce un falso aprobado en QA
 
 **Área:** prisma
-**Apariciones:** 1 — F-001
+**Apariciones:** 2 — F-001, F-003
 
 ## Síntoma
 
@@ -52,3 +52,26 @@ defensa funciona, o el cliente no conoce la columna— no es evidencia de ningun
 
 Corolario general: **ningún criterio de "X no aparece" se verifica sin un centinela y un control
 negativo.** Sin ellos, un entorno roto se ve exactamente igual que un feature correcto.
+
+---
+
+## Reaparición en F-003 (2026-09-03) — al otro lado de la frontera
+
+Mismo error, distinto repositorio. Al verificar el criterio 4 contra **queandabuscando real**, su
+ruta de aprovisionamiento respondía `500`:
+
+```
+./src/features/sync/schemas.ts:2:1
+Error: Export DeliveryFeeMode doesn't exist in target module
+  import { CheckoutMode, DeliveryFeeMode } from "@/generated/prisma/enums";
+```
+
+Su `schema.prisma` era del 2 de septiembre y su cliente generado del 31 de agosto: la migración
+estaba aplicada, pero nadie había corrido `prisma generate`. Se resolvió con un
+`npx prisma generate` en ese repositorio.
+
+**Lo que añade esta aparición:** cuando se integra con otro sistema, un `500` suyo puede ser
+exactamente este error **en su repo**, y desde aquí parece un fallo de integración. Antes de
+depurar el código propio, comprobar que el otro lado compila. El síntoma es el mismo de siempre —un
+cliente Prisma que no conoce algo que el schema sí— pero el sitio donde mirar es el que no
+esperas.

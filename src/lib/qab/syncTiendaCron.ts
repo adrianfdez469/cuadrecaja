@@ -39,10 +39,12 @@ export async function runQabSyncTiendaCron(): Promise<IQabSyncRunReport> {
   });
 
   // `where` over an omitted field works normally: it filters by the token
-  // without ever returning it (ADR 0013). F-003 adds `tiendaOnlineHabilitada`
-  // to this same `where`; F-002 does not filter by it.
+  // without ever returning it (ADR 0013). F-003 added `tiendaOnlineHabilitada`
+  // to this same `where`: a business with the switch off stays out of the run
+  // even when it has a token (acceptance criterion 3, ADR 0021). The push phase
+  // filters by the same switch, inside `claimOutboxBatch`.
   const eligible = await prisma.negocio.findMany({
-    where: { qabToken: { not: null } },
+    where: { qabToken: { not: null }, tiendaOnlineHabilitada: true },
     select: { id: true },
     orderBy: { id: "asc" },
   });

@@ -36,6 +36,7 @@ import {
   InputAdornment,
   FormControlLabel,
   Switch,
+  ButtonBase,
 } from "@mui/material";
 import {
   Delete,
@@ -52,6 +53,8 @@ import {
   Schedule,
   Info,
   Refresh,
+  Storefront,
+  ChevronRight,
 } from "@mui/icons-material";
 import Payments from "@mui/icons-material/Payments";
 import {
@@ -74,6 +77,11 @@ import {
 } from "@/utils/formatters";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
+import { QabNegocioPanel } from "@/components/qab/QabNegocioPanel";
+import { QabRowSummary } from "@/components/qab/QabRowSummary";
+import { countQabAnomalies } from "@/components/qab/qabSyncState";
+import { useNegociosQabSettings } from "@/hooks/useNegociosQabSettings";
+import { touch } from "@/theme/tokens";
 import { useRouter } from "next/navigation";
 import { registerFirstPaymentForNegocio } from "@/services/referralAdminService";
 
@@ -128,6 +136,13 @@ export default function Negocios() {
   const [fpSubmitting, setFpSubmitting] = useState(false);
 
   const router = useRouter();
+
+  /** The QAB block of every business: its own endpoint, never inside getNegocios (ADR 0027). */
+  const qab = useNegociosQabSettings();
+  const [qabPanelNegocio, setQabPanelNegocio] = useState<INegocioAdminView | null>(
+    null,
+  );
+  const qabAnomalies = countQabAnomalies(qab.settingsByNegocioId);
 
   const fetchNegocios = async () => {
     setLoading(true);
@@ -594,6 +609,49 @@ export default function Negocios() {
             </Typography>
           </Box>
 
+          {/* Tienda online: la fila entera es el destino táctil */}
+          <Divider sx={{ mb: 1 }} />
+          <ButtonBase
+            onClick={() => setQabPanelNegocio(negocio)}
+            disabled={qab.loadError}
+            aria-label="Tienda online y credencial de QAB"
+            sx={{
+              width: "100%",
+              minHeight: touch.rowLarge,
+              px: 1,
+              py: 1,
+              mb: 2,
+              borderRadius: 1,
+              textAlign: "left",
+              alignItems: "center",
+            }}
+          >
+            <Box sx={{ width: "100%" }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                gap={1}
+              >
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  sx={{ color: "semantic.text.primary" }}
+                >
+                  Tienda online
+                </Typography>
+                <ChevronRight sx={{ color: "semantic.text.disabled" }} />
+              </Stack>
+              <Box sx={{ mt: 0.5 }}>
+                <QabRowSummary
+                  settings={qab.settingsByNegocioId.get(negocio.id)}
+                  loading={qab.loading}
+                  unavailable={qab.loadError}
+                />
+              </Box>
+            </Box>
+          </ButtonBase>
+
           {/* Botones de acción */}
           <Stack
             direction="row"
@@ -848,6 +906,29 @@ export default function Negocios() {
         </Alert>
       )}
 
+      {qab.loadError && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => void qab.reload()}>
+              Reintentar
+            </Button>
+          }
+        >
+          No se pudo cargar el estado de tienda online de los negocios.
+        </Alert>
+      )}
+
+      {/* Índice de la anomalía «habilitado y sin credencial». Con cero, no existe. */}
+      {qabAnomalies > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {qabAnomalies === 1
+            ? "1 negocio tiene la tienda online activa y ninguna credencial de QAB: no sincroniza."
+            : `${qabAnomalies} negocios tienen la tienda online activa y ninguna credencial de QAB: no sincronizan.`}
+        </Alert>
+      )}
+
       <ContentCard
         title="Lista de Negocios"
         subtitle={`${filteredNegocios.length} negocio${filteredNegocios.length !== 1 ? "s" : ""} encontrado${filteredNegocios.length !== 1 ? "s" : ""}`}
@@ -924,6 +1005,7 @@ export default function Negocios() {
                   <TableCell>Negocio / Origen</TableCell>
                   <TableCell align="center">Plan</TableCell>
                   <TableCell align="center">Estado</TableCell>
+                  <TableCell align="center">Tienda online</TableCell>
                   <TableCell align="center">Vencimiento</TableCell>
                   <TableCell align="center">Acciones</TableCell>
                 </TableRow>
@@ -1003,6 +1085,17 @@ export default function Negocios() {
                           />
                         </TableCell>
                         <TableCell align="center">
+                          <Box
+                            sx={{ display: "flex", justifyContent: "center" }}
+                          >
+                            <QabRowSummary
+                              settings={qab.settingsByNegocioId.get(negocio.id)}
+                              loading={qab.loading}
+                              unavailable={qab.loadError}
+                            />
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
                           <Stack alignItems="center" spacing={0.5}>
                             <Typography variant="body2" fontWeight="medium">
                               {formatDaysRemaining(days)}
@@ -1021,6 +1114,19 @@ export default function Negocios() {
                             spacing={0.5}
                             justifyContent="center"
                           >
+                            <Tooltip title="Tienda online y credencial de QAB">
+                              <span>
+                                <IconButton
+                                  onClick={() => setQabPanelNegocio(negocio)}
+                                  disabled={qab.loadError}
+                                  color="primary"
+                                  aria-label="Tienda online y credencial de QAB"
+                                  sx={{ width: touch.min, height: touch.min }}
+                                >
+                                  <Storefront fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
                             <Tooltip
                               title={
                                 isExpanded
@@ -1085,7 +1191,7 @@ export default function Negocios() {
                             },
                           }}
                         >
-                          <TableCell colSpan={5} sx={{ py: 2.5, px: 3 }}>
+                          <TableCell colSpan={6} sx={{ py: 2.5, px: 3 }}>
                             {stats ? (
                               <Grid container spacing={3} alignItems="center">
                                 <Grid item xs={12} sm={4}>
@@ -1443,6 +1549,23 @@ export default function Negocios() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {qabPanelNegocio && (
+        <QabNegocioPanel
+          open={Boolean(qabPanelNegocio)}
+          onClose={() => setQabPanelNegocio(null)}
+          negocio={{ id: qabPanelNegocio.id, nombre: qabPanelNegocio.nombre }}
+          settings={qab.settingsByNegocioId.get(qabPanelNegocio.id)}
+          loading={qab.loading}
+          loadError={qab.loadError}
+          autoProvisioningAvailable={qab.autoProvisioningAvailable}
+          autoProvisioningUnavailableReason={qab.autoProvisioningUnavailableReason}
+          onReload={qab.reload}
+          onToggle={qab.toggleTiendaOnline}
+          onProvision={qab.provision}
+          onSaveToken={qab.saveTokenManually}
+        />
+      )}
     </PageContainer>
   );
 }
