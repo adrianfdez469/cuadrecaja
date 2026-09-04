@@ -19,6 +19,7 @@ import type { INegocioMoneda } from "@/schemas/moneda";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import { getMonedasNegocio } from "@/services/monedaService";
 import { getTasasCambio } from "@/services/tasaCambioService";
+import { getTiendaOnlineEstado } from "@/services/tiendaOnlineService";
 
 interface ISessionUser {
   id: string;
@@ -44,6 +45,12 @@ const AppContext = createContext<{
   monedaBase: string;
   monedaFuerte: string;
   refreshMonedas: () => Promise<void>;
+  /**
+   * The business switch, as a UI hint. `null` = not resolved yet.
+   * NEVER a security boundary: the server re-reads it from the database on every
+   * request (ADR 0029).
+   */
+  tiendaOnlineHabilitada: boolean | null;
 }>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -60,6 +67,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tasasVigentes, setTasasVigentes] = useState<ITasaSnapshot>({});
   const [monedaBase, setMonedaBase] = useState("CUP");
   const [monedaFuerte, setMonedaFuerte] = useState("CUP");
+  // `null` until the server answers: without this third state, a direct
+  // navigation to a Tienda Online route would flash the denied screen before
+  // resolving. See ADR 0029.
+  const [tiendaOnlineHabilitada, setTiendaOnlineHabilitada] = useState<
+    boolean | null
+  >(null);
 
   // No longer need manual isNavigating state
   // No need to reset navigation manually
@@ -108,6 +121,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  // Same serialisation as the currencies above: the session effect re-runs
+  // whenever the session identity changes (a store or business switch), and only
+  // the newest response may write.
+  const tiendaOnlineRequestRef = useRef(0);
+
+  const loadTiendaOnlineEstado = useCallback(async () => {
+    const requestId = ++tiendaOnlineRequestRef.current;
+    try {
+      const estado = await getTiendaOnlineEstado();
+      if (requestId !== tiendaOnlineRequestRef.current) return;
+      setTiendaOnlineHabilitada(estado.tiendaOnlineHabilitada);
+    } catch {
+      if (requestId !== tiendaOnlineRequestRef.current) return;
+      // Fail closed, and `false` rather than `null`: a network failure hides the
+      // section instead of leaving it flickering.
+      setTiendaOnlineHabilitada(false);
+    }
+  }, []);
+
   const refreshMonedas = useCallback(async () => {
     const currentUser = user;
     if (currentUser?.negocio?.id) {
@@ -144,7 +176,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         sessionUser.negocio.monedaFuerte ?? "CUP",
       );
     }
-  }, [status, session, loadMonedas]);
+    // Behind the authenticated guard on purpose: `/api/tienda-online/estado` is
+    // closed by the API gate, so calling it from an anonymous visitor would
+    // answer 401 and `axiosClient` would sign them out (E-007).
+    loadTiendaOnlineEstado();
+  }, [status, session, loadMonedas, loadTiendaOnlineEstado]);
 
   // Post-login redirect, split out from the effect above so that landing on a
   // route never re-triggers the session work.
@@ -171,6 +207,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       monedaBase,
       monedaFuerte,
       refreshMonedas,
+      tiendaOnlineHabilitada,
     }),
     [
       loading,
@@ -183,6 +220,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       monedaBase,
       monedaFuerte,
       refreshMonedas,
+      tiendaOnlineHabilitada,
     ],
   );
 
@@ -202,6 +240,7 @@ export const useAppContext = () => {
     monedaBase,
     monedaFuerte,
     refreshMonedas,
+    tiendaOnlineHabilitada,
   } = useContext(AppContext);
 
   const handleLogout = async () => {
@@ -230,5 +269,6 @@ export const useAppContext = () => {
     monedaBase,
     monedaFuerte,
     refreshMonedas,
+    tiendaOnlineHabilitada,
   };
 };

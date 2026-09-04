@@ -8,6 +8,8 @@ export const permisosTemplates = {
     "operaciones.movimientos.acceder",
     "operaciones.movimientos.crear.recepcion",
     "configuracion.descuentos.preview",
+    "tiendaonline.pedidos.acceder",
+    "tiendaonline.pedidos.gestionar",
   ],
   almacenero: [
     "configuracion.categorias.acceder",
@@ -76,5 +78,9 @@ export const permisosTemplates = {
     "operaciones.movimientos.crear.merma",
     "operaciones.movimientos.crear.devolucion_venta",
     "configuracion.administrador",
+    "tiendaonline.configuracion.acceder",
+    "tiendaonline.pedidos.acceder",
+    "tiendaonline.pedidos.gestionar",
+    "tiendaonline.pedidos.proponer",
   ],
 };
