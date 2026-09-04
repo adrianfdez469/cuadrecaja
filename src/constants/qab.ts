@@ -272,3 +272,46 @@ export const QAB_SLUG_LEARN_CANDIDATE_MAX_ROWS = 200;
 
 /** Log prefix of the phase. Ids and codes only. */
 export const QAB_SLUG_LEARN_LOG = "qab.slugLearn";
+
+/* -------------------------------------------------------------------------- */
+/* F-019 — Outbox purge cron                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * How long a row that reached QAB is kept. Measured on `procesadoAt`.
+ * See ADR 0039 for why this window and why the exhausted one is longer.
+ */
+export const QAB_OUTBOX_PROCESSED_TTL_DAYS = 30;
+
+/**
+ * How long an EXHAUSTED row is kept: `procesadoAt IS NULL` and
+ * `intentos >= QAB_OUTBOX_MAX_ATTEMPTS`, which the drain never claims again.
+ * Measured on `ocurridoAt`, the only timestamp such a row ever gets. ADR 0039.
+ */
+export const QAB_OUTBOX_EXHAUSTED_TTL_DAYS = 90;
+
+/** Rows per DELETE statement. Same size as the drain's claim batch. */
+export const QAB_OUTBOX_PURGE_BATCH_SIZE = 500;
+
+/** Statements per phase and run: caps one run at 20 000 rows per phase. */
+export const QAB_OUTBOX_PURGE_MAX_BATCHES_PER_RUN = 40;
+
+/** Budget of a whole run. The route's maxDuration is 60 s. */
+export const QAB_OUTBOX_PURGE_RUN_DEADLINE_MS = 45_000;
+
+/** The two independent phases of one run, in the order they execute. ADR 0040. */
+export const QAB_OUTBOX_PURGE_PHASES = ["exhausted", "processed"] as const;
+
+/** Why the batch loop of a phase stopped. Closed vocabulary. */
+export const QAB_OUTBOX_PURGE_STOP_REASONS = ["drained", "deadline", "batch_cap"] as const;
+
+/** Partial index covering the purge's `processed` phase. See ADR 0041. */
+export const QAB_OUTBOX_PURGABLE_INDEX_NAME = "idx_outbox_purgable";
+
+/** Log prefix of the purge run. Counts and codes only: no ids, no negocioId. */
+export const QAB_OUTBOX_PURGE_LOG = "qab.outboxPurge";
+
+/** Error code of the cron endpoint's 500 response. */
+export const QAB_OUTBOX_PURGE_API_ERRORS = {
+  purgeFailed: "QAB_OUTBOX_PURGE_FAILED",
+} as const;

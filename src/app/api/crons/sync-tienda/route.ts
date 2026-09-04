@@ -1,6 +1,6 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextRequest } from "next/server";
 import { QAB_SYNC_API_ERRORS } from "@/constants/qab";
+import { isValidCronAuth } from "@/lib/cronAuth";
 import { QabConfigError } from "@/lib/qab/qabEnv";
 import { runQabSyncTiendaCron } from "@/lib/qab/syncTiendaCron";
 
@@ -10,17 +10,6 @@ export const maxDuration = 60;
 const UNAUTHORIZED_BODY = "Unauthorized";
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_SERVER_ERROR = 500;
-
-function isValidCronAuth(authHeader: string | null, secret: string | undefined): boolean {
-  // Fail-closed: without the variable, `Bearer undefined` must not be a valid
-  // credential (ADR 0014).
-  if (!secret) return false;
-  const expected = Buffer.from(`Bearer ${secret}`);
-  const actual = Buffer.from(authHeader ?? "");
-  // Lengths first: timingSafeEqual requires buffers of the same size and would
-  // throw instead of simply returning `false`.
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
-}
 
 /**
  * Drains the QAB outbox and runs the order-poll slot. Invoked by Vercel every
