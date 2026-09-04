@@ -19,11 +19,14 @@ _(vacío — ningún error ha llegado todavía a 3 apariciones)_
 | [E-002](errors/E-002-servidor-dev-con-cliente-prisma-viejo.md) | Un `npm run dev` levantado antes de la migración sirve un cliente de Prisma viejo: la columna nueva "no aparece" y la verificación da un falso aprobado | prisma | 2 |
 | [E-003](errors/E-003-literales-bigint-con-target-es2017.md) | `TS2737: BigInt literals are not available when targeting lower than ES2020` al escribir `880n` | tests | 1 |
 | [E-004](errors/E-004-prisma-migrate-create-only-no-interactivo.md) | `prisma migrate dev --create-only` aborta con "environment is non-interactive" cuando el diff traería una confirmación | prisma | 1 |
-| [E-005](errors/E-005-resize-window-no-cambia-el-viewport.md) | `resize_window` informa de éxito pero el viewport no cambia: la media query móvil sigue en `false` y la verificación responsive da un falso aprobado | ui | 1 |
+| [E-005](errors/E-005-resize-window-no-cambia-el-viewport.md) | El viewport no es el que se cree y la verificación responsive da un falso aprobado: por `resize_window`, o por un iframe comprimido en un flex sin `flex: 0 0 auto` | ui | 2 |
 | [E-006](errors/E-006-comillas-sin-escapar-en-el-description-de-un-agente.md) | Una comilla sin escapar en el `description` de un agente rompe el frontmatter y lo borra del registro, sin ningún mensaje | build | 1 |
 | [E-007](errors/E-007-pagina-publica-que-llama-a-una-api-cerrada.md) | Una página pública llama a una API que se acaba de cerrar: el 401 pasa por el interceptor de `axiosClient`, que hace `signOut()`, y el visitante anónimo acaba expulsado a `/login` | auth | 1 |
 | [E-008](errors/E-008-datos-de-prueba-que-no-discriminan.md) | El criterio pasa, pero habría pasado igual con el código roto: los datos locales no distinguen las dos ramas que se comparan | tests | 1 |
 | [E-009](errors/E-009-el-interceptor-destruye-el-cuerpo-de-cualquier-403.md) | `axiosClient` sustituye el cuerpo de **cualquier** 403 por un error genérico de permisos: el frontend no puede distinguir su propio 403, y el mensaje manda a arreglar lo que no está roto. Hermano de E-007 | auth | 1 |
+| [E-010](errors/E-010-comentarios-de-ejemplo-en-espanol-en-un-contrato.md) | Un comentario en español dentro de un bloque de código de un contrato acaba copiado en `src/`: los bloques de un contrato se leen como plantilla, no como prosa | build | 1 |
+| [E-011](errors/E-011-medir-el-contenedor-equivocado-de-mui.md) | `querySelector('.MuiContainer-root')` encuentra el `Container` del `Layout`, no el de la página: la medida es plausible y lleva a rechazar una implementación correcta | ui | 1 |
+| [E-012](errors/E-012-un-subagente-devolvio-un-resultado-fabricado.md) | Un subagente devuelve un informe convincente sin haber usado ninguna herramienta: parafrasea el encargo con los verbos en pasado | build | 1 |
 
 ---
 

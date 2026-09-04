@@ -1,7 +1,7 @@
 # E-005: `resize_window` no cambia el viewport, y la verificación responsive da un falso aprobado
 
 **Área:** ui
-**Apariciones:** 1 — harness (paso 4b de `qa`)
+**Apariciones:** 2 — harness (paso 4b de `qa`), F-004
 
 ## Síntoma
 
@@ -53,3 +53,27 @@ El script completo está en `.claude/agents/qa.md`, paso 4b del protocolo.
 devuelve `innerWidth` y `mobileMQ` por ancho: si el iframe de 320 no da `mobileMQ: true`, no se
 está verificando nada y la captura no vale. Nunca usar `resize_window` para verificar un diseño
 responsive.
+
+
+---
+
+## Adenda (F-004): la segunda forma de falsear el viewport
+
+El iframe tiene viewport propio, pero **eso no basta si el contenedor lo comprime**. Montando el
+trío 320/768/1440 en un wrapper flex sin `flex: 0 0 auto`, los tres iframes reportaron:
+
+```json
+[{"w":"320","innerWidth":300},{"w":"768","innerWidth":300},{"w":"1440","innerWidth":445}]
+```
+
+Un `width` explícito en el iframe **no gana** al `flex-shrink: 1` que flexbox aplica por defecto.
+El resultado es el mismo falso aprobado que documenta esta ficha, por una causa distinta: tres
+capturas válidas como imagen, ninguna del ancho que se cree.
+
+El script de referencia del paso 4b de `.claude/agents/qa.md` **ya incluye `flex: 0 0 auto`**. Se
+perdió al reescribir el script a mano, «simplificándolo». De ahí la regla: ese estilo no es
+decorativo y no se quita.
+
+**Lo que salvó la verificación fue la sonda, no la vista.** Las capturas parecían correctas; el
+`innerWidth` no lo era. Por eso la sonda se lee **antes** que la captura, siempre, sea cual sea el
+método de montaje.
