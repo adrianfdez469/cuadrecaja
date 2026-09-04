@@ -27,6 +27,13 @@ export const SUPPORT_MESSAGES = {
     "Hola, mi usuario no está completamente configurado en Cuadre de Caja. ¿Podrían ayudarme?",
   expiredSubscription:
     "Hola, necesito renovar la suscripción de mi negocio en Cuadre de Caja. ¿Podrían ayudarme?",
+  /**
+   * Grouping two locals under one storefront is a manual, irreversible operation
+   * on the online store's own panel: there is no endpoint for it and there is
+   * not going to be one. This message is the whole of what cuadrecaja can do.
+   */
+  tiendaOnlineAgrupar:
+    "Hola, quiero sumar uno de mis locales a una tienda que ya tengo publicada en la tienda online. ¿Podrían ayudarme?",
 } as const;
 
 export type SupportTopic = keyof typeof SUPPORT_MESSAGES;

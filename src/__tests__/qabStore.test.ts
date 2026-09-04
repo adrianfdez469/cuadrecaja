@@ -3,18 +3,24 @@ import { qabSlugSchema, openingHoursSchema, tiendaOnlineSchema } from "@/schemas
 import { QAB_UNPUBLISH_REASON_MAX_LENGTH } from "@/constants/qab";
 
 /**
- * F-001 — the online-store block of a Tienda.
+ * F-001/F-005 — the online-store block of a Tienda.
  *
  * Two contract constraints carry real weight here:
  *
  *  - `motivoDespublicacion` (unpublishReason) is plain text of at most 160 characters, and it
  *    wears a double guard: @db.VarChar(160) in the database and .max(160) in Zod. This file
  *    verifies the Zod half; the database half is qa's, in SQL.
- *  - `horarios` (openingHours) is OPAQUE ON PURPOSE. The contract declares it Json? and does not
- *    publish its shape; F-005 fixes it once QAB does. So the schema must accept anything, and
- *    these tests must NOT pin down a shape — pinning one here would invent a format that looks
- *    agreed upon and that QAB does not understand.
+ *  - `horarios` (openingHours) was OPAQUE in F-001 (Json?, no published shape). F-005 fixes the
+ *    v9 format: `openingHoursSchema` now re-exports `@/schemas/qabOpeningHours`'s schema, and
+ *    `tiendaOnlineSchema.horarios` is `openingHoursSchema.nullable()`. The exhaustive validation
+ *    rules (17 issue codes, check order) live in `qabOpeningHours.test.ts`; this file only
+ *    checks the RE-EXPORT wiring and that `tiendaOnlineSchema` composes it correctly.
  */
+
+const validCalendar = {
+  version: 1,
+  days: { mon: [{ from: "09:00", to: "17:00" }], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] },
+};
 
 const baseTiendaOnline = {
   publicarEnTienda: true,
@@ -29,7 +35,7 @@ const baseTiendaOnline = {
   telefono: "+5350000000",
   whatsapp: "+5350000000",
   email: "tienda@example.com",
-  horarios: { mon: ["09:00", "17:00"] },
+  horarios: validCalendar,
   motivoDespublicacion: "Cerrado por inventario",
 };
 
@@ -72,19 +78,22 @@ describe("qabSlugSchema", () => {
   });
 });
 
-describe("openingHoursSchema", () => {
-  // Opaque by contract: F-001 creates the column and NOTHING writes to it. The only thing that
-  // can be asserted today is that no shape is imposed.
-  const anyShapes: Array<[string, unknown]> = [
-    ["an object", { mon: ["09:00", "17:00"] }],
-    ["an array", [{ day: 1, open: "09:00" }]],
-    ["a string", "09:00-17:00"],
-    ["a number", 9],
-    ["null", null],
-  ];
+describe("openingHoursSchema — re-export of @/schemas/qabOpeningHours (F-005)", () => {
+  // The exhaustive rules (17 issue codes, check order, byte cap) belong to
+  // `qabOpeningHours.test.ts`. This only confirms qabStore.ts wires the SAME schema through,
+  // rather than a second, drifted copy of it.
+  it("should accept a well formed v9 calendar", () => {
+    expect(openingHoursSchema.safeParse(validCalendar).success).toBe(true);
+  });
 
-  it.each(anyShapes)("should accept %s without imposing a shape", (_label, value) => {
-    expect(openingHoursSchema.safeParse(value).success).toBe(true);
+  it("should reject a shape that F-001's opaque schema used to accept without complaint", () => {
+    // Pre-F-005, `{ mon: ["09:00", "17:00"] }` parsed fine because the schema was z.unknown().
+    // If this still passes, qabStore.ts never switched to the real v9 validator.
+    expect(openingHoursSchema.safeParse({ mon: ["09:00", "17:00"] }).success).toBe(false);
+  });
+
+  it("should reject a calendar with an invalid version", () => {
+    expect(openingHoursSchema.safeParse({ version: 2, days: validCalendar.days }).success).toBe(false);
   });
 });
 
@@ -168,6 +177,16 @@ describe("tiendaOnlineSchema", () => {
 
   it("should keep QAB_UNPUBLISH_REASON_MAX_LENGTH at the 160 characters of the contract", () => {
     expect(QAB_UNPUBLISH_REASON_MAX_LENGTH).toBe(160);
+  });
+
+  it("should accept horarios: null — a local with no calendar configured yet", () => {
+    expect(tiendaOnlineSchema.safeParse({ ...baseTiendaOnline, horarios: null }).success).toBe(true);
+  });
+
+  it("should reject an invalid horarios calendar (F-005: no longer opaque)", () => {
+    expect(
+      tiendaOnlineSchema.safeParse({ ...baseTiendaOnline, horarios: { version: 2, days: {} } }).success
+    ).toBe(false);
   });
 
   it("should not carry an unknown key through", () => {

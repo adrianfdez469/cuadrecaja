@@ -1,9 +1,14 @@
-import { QAB_OUTBOX_ERROR_CODES, QAB_OUTBOX_ERROR_MAX_LENGTH } from "@/constants/qab";
+import {
+  QAB_OUTBOX_ERROR_CODES,
+  QAB_OUTBOX_ERROR_MAX_LENGTH,
+  QAB_OUTBOX_PERMANENT_ERROR_CODES,
+} from "@/constants/qab";
 import type { IOutboxEvento } from "@/schemas/qabOutbox";
 import type {
   IQabCatalogBatch,
   IQabOutboxAckPlan,
   IQabOutboxDrainReport,
+  IQabPermanentFailure,
 } from "@/schemas/qabSync";
 import type { IQabPostOutcome } from "@/lib/qab/qabCatalogClient";
 
@@ -126,6 +131,47 @@ export function planOutboxAck(
   return { processedIds, failedAcks };
 }
 
+/**
+ * PURE. The entries of `failed[]` whose error is a permanent one: retrying them
+ * unchanged fails identically all QAB_OUTBOX_MAX_ATTEMPTS times. Ids that do not
+ * belong to `rows` are IGNORED, exactly like in `planOutboxAck`.
+ *
+ * It changes NOTHING about the retry mechanics: the rows still take their
+ * `intentos++` and their `ultimoError` from `planOutboxAck`. What this adds is
+ * visibility, which is all acceptance criterion 12 asks for.
+ */
+export function collectQabPermanentFailures(
+  rows: IOutboxEvento[],
+  outcome: IQabPostOutcome,
+): IQabPermanentFailure[] {
+  // A transport or HTTP failure is not attributable to one event: the batch never
+  // got an answer, so nothing in it is known to be permanently broken.
+  if (outcome.kind === "error") return [];
+
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const failures: IQabPermanentFailure[] = [];
+
+  for (const entry of outcome.response.failed) {
+    const row = byId.get(entry.id);
+    if (row === undefined) continue;
+
+    const code = QAB_OUTBOX_PERMANENT_ERROR_CODES.find(
+      (candidate) => entry.error === candidate || entry.error.includes(candidate),
+    );
+    if (code === undefined) continue;
+
+    failures.push({
+      eventId: row.id,
+      negocioId: row.negocioId,
+      entidad: row.entidad,
+      entidadId: row.entidadId,
+      code,
+    });
+  }
+
+  return failures;
+}
+
 /** A report with every counter at zero and both arrays empty. */
 export function emptyQabOutboxDrainReport(): IQabOutboxDrainReport {
   return {
@@ -135,5 +181,6 @@ export function emptyQabOutboxDrainReport(): IQabOutboxDrainReport {
     processed: 0,
     failed: 0,
     byBusiness: [],
+    permanentFailures: [],
   };
 }

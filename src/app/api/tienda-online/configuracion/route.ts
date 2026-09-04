@@ -5,17 +5,22 @@ import {
   TIENDA_ONLINE_PERMISOS,
 } from "@/constants/tiendaOnline";
 import { assertTiendaOnlineAccess } from "@/lib/tiendaOnline/tiendaOnlineAccess";
+import { listTiendaOnlineLocales } from "@/lib/tiendaOnline/tiendaOnlineStore";
 import { NO_STORE_HEADERS, logRouteError } from "@/lib/qab/qabRouteHttp";
-import { tiendaOnlineScaffoldSchema } from "@/schemas/tiendaOnline";
+import { tiendaOnlineConfiguracionSchema } from "@/schemas/tiendaOnline";
 import { getSession } from "@/utils/auth";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Scaffolding of the online-store configuration screen.
+ * The online-store configuration of every local of the business.
  *
  * Gate: switch + `tiendaonline.configuracion.acceder`, in that order, through
- * the module's guard. F-005 replaces the body; the route and the gate stay.
+ * the module's guard.
+ *
+ * ALMACEN locals are returned too, with `publishable: false`: the screen has to
+ * be able to explain why a local cannot be published instead of making it
+ * disappear.
  */
 export async function GET() {
   try {
@@ -27,12 +32,15 @@ export async function GET() {
     if (denial) return denial;
     const negocioId = session.user.negocio.id; // the ONLY source of negocioId
 
+    const locales = await listTiendaOnlineLocales(negocioId);
+
     // Inside the try on purpose: the `z.literal(true)` is a canary. If the gate
     // ever let a disabled business through, this throws and degrades to the
     // generic 500 instead of answering a lie.
-    const body = tiendaOnlineScaffoldSchema.parse({
+    const body = tiendaOnlineConfiguracionSchema.parse({
       negocioId,
       tiendaOnlineHabilitada: true,
+      locales,
     });
 
     return NextResponse.json(body, { headers: NO_STORE_HEADERS });

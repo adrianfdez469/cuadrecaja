@@ -5,11 +5,12 @@ import {
   toQabCatalogBatch,
   planOutboxAck,
   emptyQabOutboxDrainReport,
+  collectQabPermanentFailures,
   QabTenantMismatchError,
 } from "@/lib/qab/outboxAck";
 import { qabOutboxDrainReportSchema } from "@/schemas/qabSync";
 import type { IOutboxEvento } from "@/schemas/qabOutbox";
-import { QAB_OUTBOX_ERROR_MAX_LENGTH } from "@/constants/qab";
+import { QAB_OUTBOX_ERROR_MAX_LENGTH, QAB_OUTBOX_PERMANENT_ERROR_CODES } from "@/constants/qab";
 
 /**
  * F-002 — `src/lib/qab/outboxAck.ts`, the "todo puro" module the contract calls out as
@@ -263,7 +264,7 @@ describe("planOutboxAck", () => {
 });
 
 describe("emptyQabOutboxDrainReport", () => {
-  it("should return every counter at zero and both arrays empty", () => {
+  it("should return every counter at zero, both arrays empty, and NO permanent failures (F-005)", () => {
     expect(emptyQabOutboxDrainReport()).toEqual({
       claimed: 0,
       eventIds: [],
@@ -271,10 +272,87 @@ describe("emptyQabOutboxDrainReport", () => {
       processed: 0,
       failed: 0,
       byBusiness: [],
+      permanentFailures: [],
     });
   });
 
   it("should itself satisfy qabOutboxDrainReportSchema", () => {
     expect(qabOutboxDrainReportSchema.safeParse(emptyQabOutboxDrainReport()).success).toBe(true);
+  });
+});
+
+/**
+ * F-005 — acceptance criterion 12: a permanent QAB rejection (e.g. STORE_OPENING_HOURS_INVALID)
+ * must not be left to exhaust the outbox's 6 silent retries. `collectQabPermanentFailures` is
+ * the pure function that spots those entries in a 207's `failed[]` so the caller can log them.
+ */
+describe("collectQabPermanentFailures", () => {
+  const storeRow = row({ id: "1", negocioId: "negocio-1", entidad: "STORE", entidadId: "tienda-1" });
+
+  it("should return [] when the whole request failed (kind: error) — there is no failed[] to read", () => {
+    const outcome = { kind: "error" as const, ultimoError: "TRANSPORT:socket hang up" };
+    expect(collectQabPermanentFailures([storeRow], outcome)).toEqual([]);
+  });
+
+  it("should return [] when failed[] is empty", () => {
+    const outcome = { kind: "ok" as const, response: { ok: ["1"], failed: [], results: [] } };
+    expect(collectQabPermanentFailures([storeRow], outcome)).toEqual([]);
+  });
+
+  it.each([...QAB_OUTBOX_PERMANENT_ERROR_CODES])(
+    "should collect a failed[] entry whose error is the permanent code %s",
+    (code) => {
+      const outcome = {
+        kind: "ok" as const,
+        response: { ok: [], failed: [{ id: "1", error: code }], results: [] },
+      };
+
+      const failures = collectQabPermanentFailures([storeRow], outcome);
+
+      expect(failures).toEqual([
+        { eventId: "1", negocioId: "negocio-1", entidad: "STORE", entidadId: "tienda-1", code },
+      ]);
+    }
+  );
+
+  it("should NOT collect a failed[] entry whose error is not one of the permanent codes — the discriminating control", () => {
+    // E-008 guard: without a non-permanent case, a function that treats EVERY failure as
+    // permanent would pass every test above and still be wrong.
+    const outcome = {
+      kind: "ok" as const,
+      response: { ok: [], failed: [{ id: "1", error: "invalid product" }], results: [] },
+    };
+
+    expect(collectQabPermanentFailures([storeRow], outcome)).toEqual([]);
+  });
+
+  it("should IGNORE a failed[] entry whose id does not belong to the given rows, exactly like planOutboxAck", () => {
+    const outcome = {
+      kind: "ok" as const,
+      response: { ok: [], failed: [{ id: "not-mine", error: "STORE_OPENING_HOURS_INVALID" }], results: [] },
+    };
+
+    expect(collectQabPermanentFailures([storeRow], outcome)).toEqual([]);
+  });
+
+  it("should collect only the permanent entries out of a mixed failed[], leaving the transient one out", () => {
+    const otherRow = row({ id: "2", negocioId: "negocio-1", entidad: "STORE", entidadId: "tienda-2" });
+    const outcome = {
+      kind: "ok" as const,
+      response: {
+        ok: [],
+        failed: [
+          { id: "1", error: "STORE_OPENING_HOURS_INVALID" },
+          { id: "2", error: "invalid product" },
+        ],
+        results: [],
+      },
+    };
+
+    const failures = collectQabPermanentFailures([storeRow, otherRow], outcome);
+
+    expect(failures).toEqual([
+      { eventId: "1", negocioId: "negocio-1", entidad: "STORE", entidadId: "tienda-1", code: "STORE_OPENING_HOURS_INVALID" },
+    ]);
   });
 });
