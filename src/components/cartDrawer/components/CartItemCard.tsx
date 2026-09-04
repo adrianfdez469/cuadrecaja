@@ -30,8 +30,10 @@ import { POS_CATALOG_ROW_HEIGHT } from "@/constants/pos";
  * only destructive control on the screen, repeated per product. A basket of
  * six products was six boxes stacked inside a seventh.
  *
- * The row is the same information in one line: how many, of what, for how
- * much, and the two buttons that change it. No bin sits on the row itself —
+ * The row is the same information laid out flat: how many, of what, for how
+ * much, and the two buttons that change it (the name wraps to a second line
+ * rather than truncate, so the row's height is a minimum, not a fixed one).
+ * No bin sits on the row itself —
  * a red icon per row spent the palette's loudest colour on the most routine
  * correction there is, and «−» to zero already removes the line one unit at
  * a time. Dropping a line outright (skipping the countdown on a high
@@ -52,10 +54,10 @@ import { POS_CATALOG_ROW_HEIGHT } from "@/constants/pos";
 // Hoisted out of the render: this component is mounted once per line of the
 // basket and re-renders on every `+` and `−`, so an object literal here means
 // Emotion re-serializing the same styles for every line, every time.
-// 60px and the 14px side padding of the panel, as the redesign measures the
-// line: the same height as a catalogue row, so the basket and the catalogue
-// read as the same kind of list. The first line has no rule above it — the
-// heading already separates it (see cartContent).
+// 60px is a minimum, not a fixed height: the same as a catalogue row when the
+// name fits on one line, but a wrapped name grows the row past it. The first
+// line has no rule above it — the heading already separates it (see
+// cartContent).
 const ROW_SX = {
   display: "flex",
   alignItems: "center",
@@ -81,9 +83,17 @@ const NAME_SX = {
   minWidth: 0,
   fontSize: "0.90625rem",
   lineHeight: 1.3,
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
+} as const;
+
+// Wraps freely instead of truncating: a one-line ellipsis was hiding enough
+// of the name that the cashier couldn't tell two similar products apart on
+// the basket. No line clamp — the name shows in full, however many lines
+// that takes, and the row (a `minHeight`, not a fixed height) grows with it.
+const NAME_TEXT_SX = {
+  flex: 1,
+  minWidth: 0,
+  whiteSpace: "normal",
+  wordBreak: "break-word",
 } as const;
 
 // `component="div"` — a `ButtonBase` defaults to a `<button>`, and the expiry
@@ -93,9 +103,11 @@ const NAME_SX = {
 const NAME_BUTTON_SX = {
   ...NAME_SX,
   justifyContent: "flex-start",
+  alignItems: "center",
   textAlign: "left",
   borderRadius: `${shape.radius.sm}px`,
   cursor: "pointer",
+  py: 0.5,
 } as const;
 
 const AMOUNT_BUTTON_SX = {
@@ -217,7 +229,12 @@ function CartItemCardComponent({
         aria-label={`Ver detalle de ${item.name}`}
         sx={NAME_BUTTON_SX}
       >
-        <Typography component="span" fontWeight={600} fontSize="inherit" noWrap>
+        <Typography
+          component="span"
+          fontWeight={600}
+          fontSize="inherit"
+          sx={NAME_TEXT_SX}
+        >
           {item.name}
         </Typography>
         {item.fechaVencimiento && (

@@ -9,6 +9,16 @@ import { tasaSnapshotSchema } from "@/schemas/tasaCambio";
 import { mapVentaToIVenta } from "@/lib/ventaMapper";
 import { validateTip } from "@/lib/tips";
 import { packsToOpen, unitsFromPacks } from "@/lib/fractionStock";
+import {
+  MISSING_EXCHANGE_RATE_ERROR,
+  missingExchangeRateMessage,
+  resolveSaleTasaSnapshot,
+} from "@/lib/tasaSnapshotResolver";
+import {
+  grossTotalBase,
+  linePriceInBase,
+  reconcileSaleTotal,
+} from "@/lib/saleTotal";
 
 // Tipos auxiliares
 interface IncomingProduct {
@@ -239,17 +249,66 @@ export async function POST(
       throw new Error(`Cantidad decimal no permitida para algunos productos`);
     }
 
-    // 2. Calcular descuentos (solo lee; NO debe correr dentro del tx)
+    // Base currency and a complete rate snapshot come first: discounts are
+    // priced in base and the total is recomputed in base from the lines.
+    const tiendaConNegocio = await prisma.tienda.findUnique({
+      where: { id: tiendaId },
+      select: { negocio: { select: { id: true, monedaBase: true } } },
+    });
+    const monedaBase = tiendaConNegocio?.negocio?.monedaBase ?? "CUP";
+
+    // The client's snapshot is completed server-side before anything reads it:
+    // the app used to send it without the business's own monedaBase, and every
+    // consumer downstream converts a missing moneda at rate 1.
+    const { snapshot: tasaSnapshotResuelto, missing: tasasFaltantes } =
+      await resolveSaleTasaSnapshot({
+        negocioId: tiendaConNegocio?.negocio?.id,
+        monedaBase,
+        clientSnapshot: tasaSnapshot,
+        momento: createdAt ? new Date(createdAt) : new Date(),
+        monedas: [...pagosDetalle, ...vueltoDetalle].map((l) => l.moneda),
+      });
+    if (tasasFaltantes.length > 0) {
+      console.error(
+        "❌ [APP/VENTA/POST] Tasa de cambio faltante:",
+        tasasFaltantes.join(", "),
+      );
+      return NextResponse.json(
+        {
+          error: missingExchangeRateMessage(tasasFaltantes),
+          code: MISSING_EXCHANGE_RATE_ERROR,
+          monedas: tasasFaltantes,
+        },
+        { status: 400 },
+      );
+    }
+
+    // The lines exactly as they are persisted below: DB price in its own
+    // currency. Discounts and the total are both derived from these.
+    const lineasVenta = productosMergeados.map((p) => ({
+      precio: p.precio ?? p.price,
+      cantidad: Number(p.cantidad) || 0,
+      monedaPrecioCode: p.monedaPrecioCode ?? null,
+    }));
+
+    // 2. Calcular descuentos (solo lee; NO debe correr dentro del tx).
+    // Prices go in already converted to base, as the web POS does: a fixed
+    // discount is a base amount, and a CUP price fed as-is to a USD business
+    // would be discounted as if it were dollars.
     let discountTotalCalc = 0;
     let discountCalcResult: Awaited<
       ReturnType<typeof applyDiscountsForSale>
     > | null = null;
 
     try {
-      const discountProducts = productosMergeados.map((p) => ({
+      const discountProducts = productosMergeados.map((p, i) => ({
         productoTiendaId: String(p.productoTiendaId),
-        cantidad: Number(p.cantidad) || 0,
-        precio: Number(p.precio ?? p.price) || 0,
+        cantidad: lineasVenta[i].cantidad,
+        precio: linePriceInBase(
+          lineasVenta[i],
+          tasaSnapshotResuelto,
+          monedaBase,
+        ),
       }));
 
       discountCalcResult = await applyDiscountsForSale({
@@ -263,24 +322,33 @@ export async function POST(
       discountCalcResult = null;
     }
 
-    const tiendaConNegocio = await prisma.tienda.findUnique({
-      where: { id: tiendaId },
-      select: { negocio: { select: { monedaBase: true } } },
-    });
-    const monedaBase = tiendaConNegocio?.negocio?.monedaBase ?? "CUP";
+    // The total the books carry is recomputed here from the same prices and
+    // rates the lines are persisted with; the client's figure is only compared
+    // against it. Clients have stored the raw sum of prices across currencies
+    // (a 15 300 CUP basket as 15 300 USD).
+    const totalReconciliado = reconcileSaleTotal(
+      total,
+      grossTotalBase(lineasVenta, tasaSnapshotResuelto, monedaBase) -
+        discountTotalCalc,
+    );
+    if (totalReconciliado.diverged) {
+      console.warn("⚠️ [APP/VENTA/POST] Total del cliente descartado:", {
+        syncId,
+        clientTotal: totalReconciliado.clientTotal,
+        serverTotal: totalReconciliado.total,
+        delta: totalReconciliado.delta,
+      });
+    }
+    const ventaTotal = totalReconciliado.total;
 
     // Igual que en el POS web: la propina no se deriva, se valida contra el
     // excedente realmente cobrado.
-    // El total es el que manda la app, ya convertido a moneda base linea por
-    // linea. NO usar discountCalcResult.finalTotal: suma precios crudos en
-    // monedas mezcladas -> incorrecto (mismo criterio que /api/venta).
-    const ventaTotal = Math.max(0, Number(total) || 0);
     const tipCheck = validateTip({
       tipTotal,
       tipDetail,
       pagosDetalle,
       vueltoDetalle,
-      tasaSnapshot,
+      tasaSnapshot: tasaSnapshotResuelto,
       total: ventaTotal,
       monedaBase,
     });
@@ -322,7 +390,7 @@ export async function POST(
             ...(monedaCobro && { monedaCobro }),
             ...(pagosDetalle && { pagosDetalle }),
             ...(vueltoDetalle && { vueltoDetalle }),
-            ...(tasaSnapshot && { tasaSnapshot }),
+            tasaSnapshot: tasaSnapshotResuelto,
             // Propina — validada arriba contra el excedente cobrado.
             tipTotal: tipCheck.tipTotal,
             ...(tipCheck.tipDetail && { tipDetail: tipCheck.tipDetail }),

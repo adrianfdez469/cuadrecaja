@@ -22,7 +22,7 @@ import type { ChangeDistribution } from "./changeMath";
 import type { IPagoLinea } from "@/schemas/pago";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
-function round2(value: number): number {
+export function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 

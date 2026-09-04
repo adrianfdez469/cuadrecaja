@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { convertToBase } from "@/lib/currency";
+import {
+  convertToBase,
+  missingRateCodes,
+  resolveSnapshotFromHistory,
+} from "@/lib/currency";
+import { loadTasaHistory, type TasaHistory } from "@/lib/tasaSnapshotResolver";
 import { prorateSaleDiscountsByRule } from "./discount-proration";
 import type { DiscountRuleTotals } from "./discount-proration";
 import type { ReportScope } from "./scope";
@@ -58,7 +63,10 @@ export type NormalizedSale = {
   sellerId: string;
   collectionCurrency: string;
   rates: ITasaSnapshot;
-  /** False when the sale had no tasaSnapshot and foreign lines fell back to 1. */
+  /**
+   * False when a rate the sale's lines need could not be resolved — not from
+   * its own snapshot nor from the business history — and fell back to 1.
+   */
   hasRates: boolean;
   payments: IPagoLinea[] | null;
   /** Pre-multicurrency fallback, used when `payments` is null. */
@@ -187,6 +195,9 @@ export async function streamNormalizedSales(
     closingPeriodIds: new Set<string>(),
   };
 
+  // One load for the whole stream: every sale's snapshot is completed from it.
+  const rateHistory = await loadTasaHistory(scope.negocioId);
+
   let cursor: string | null = null;
 
   for (;;) {
@@ -212,7 +223,9 @@ export async function streamNormalizedSales(
         return stats;
       }
 
-      onSale(normalizeSale(venta, dimensions, baseCurrency, stats));
+      onSale(
+        normalizeSale(venta, dimensions, baseCurrency, rateHistory, stats),
+      );
       stats.salesScanned += 1;
     }
 
@@ -235,27 +248,32 @@ type RawSale = Awaited<
  * Converts one persisted sale into base currency and prorates its discounts.
  *
  * Conversion uses the sale's own `tasaSnapshot`, never today's rates: a sale is
- * worth what it was worth when it happened. Presenting those base amounts in
+ * worth what it was worth when it happened. A moneda missing from that
+ * snapshot is filled with the rate in force at the time of the sale — the
+ * mobile app omitted the business's own base currency for a while, and a
+ * missing rate would otherwise convert at 1. Presenting those base amounts in
  * another currency is the UI's job, and it does use current rates.
  */
 function normalizeSale(
   venta: RawSale,
   dimensions: Map<string, ProductDimension>,
   baseCurrency: string,
+  rateHistory: TasaHistory,
   stats: SalesStreamStats,
 ): NormalizedSale {
-  const rates = (venta.tasaSnapshot ?? {}) as ITasaSnapshot;
-  const hasRates = Object.keys(rates).length > 0;
+  const rates = resolveSnapshotFromHistory(
+    rateHistory,
+    venta.tasaSnapshot as ITasaSnapshot | null,
+    venta.frontendCreatedAt ?? venta.createdAt,
+  );
   const discountTotal = Number(venta.discountTotal ?? 0);
 
-  let usedForeignCurrency = false;
+  const currenciesUsed: string[] = [];
 
   const partials = venta.productos.map((linea) => {
     const priceCurrency = linea.monedaPrecioCode ?? baseCurrency;
     const costCurrency = linea.monedaCostoCode ?? baseCurrency;
-    if (priceCurrency !== baseCurrency || costCurrency !== baseCurrency) {
-      usedForeignCurrency = true;
-    }
+    currenciesUsed.push(priceCurrency, costCurrency);
 
     const unitPrice = convertToBase(
       linea.precio,
@@ -284,8 +302,11 @@ function normalizeSale(
   });
 
   stats.linesScanned += partials.length;
-  // Only flag missing rates when they would actually have changed a number.
-  if (!hasRates && usedForeignCurrency) stats.salesWithoutRates += 1;
+  // Only flag missing rates when they would actually have changed a number:
+  // a sale priced entirely in base needs none.
+  const hasRates =
+    missingRateCodes(rates, baseCurrency, currenciesUsed).length === 0;
+  if (!hasRates) stats.salesWithoutRates += 1;
   if (venta.cierrePeriodoId) stats.closingPeriodIds.add(venta.cierrePeriodoId);
 
   const { perLine, perRule } = prorateSaleDiscountsByRule(

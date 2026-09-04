@@ -3,7 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { getSession } from "@/utils/auth";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { convertToBase, buildTasaSnapshot } from "@/lib/currency";
+import {
+  convertToBase,
+  buildTasaSnapshot,
+  buildTasaSnapshotAt,
+} from "@/lib/currency";
 import { applyGastosToResumenMap, calcularGananciaFinal } from "@/lib/gastos";
 import {
   applyComprasYDevolucionesToResumenMap,
@@ -121,14 +125,8 @@ export async function PUT(
       : [];
     const tasasGastos = buildTasaSnapshot(historialTasas);
 
-    const tasasEnMomento = (momento: Date): ITasaSnapshot => {
-      const resultado: ITasaSnapshot = {};
-      for (const t of historialTasas) {
-        if (t.monedaCode === "CUP" || t.createdAt > momento) continue;
-        resultado[t.monedaCode] = t.tasa; // historial ascendente: la última asignación es la vigente en ese momento
-      }
-      return resultado;
-    };
+    const tasasEnMomento = (momento: Date): ITasaSnapshot =>
+      buildTasaSnapshotAt(historialTasas, momento);
 
     // CALCULOS
     let totalVentas = 0;

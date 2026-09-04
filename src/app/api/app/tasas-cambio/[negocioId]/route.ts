@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromRequest } from "@/utils/authFromRequest";
 import { assertNegocioAccess } from "@/lib/appNegocioAccess";
-import {
-  buildTasaSnapshot,
-  buildTasaSnapshotWithMeta,
-} from "@/lib/currency";
+import { buildTasaSnapshotWithMeta } from "@/lib/currency";
 
 /**
  * GET /api/app/tasas-cambio/[negocioId]
@@ -42,17 +39,18 @@ export async function GET(
     });
 
     const monedaBase = negocio.monedaBase ?? "CUP";
-    const { vigentes, actualizadoEn } = buildTasaSnapshotWithMeta(
-      tasas,
-      monedaBase,
-    );
-    // Tasas completas ancladas en CUP (incluye moneda base) para conversiones en POS.
-    const tasasCup = buildTasaSnapshot(tasas);
+    // One object, for everything the app does with rates — pricing the basket,
+    // converting payments and the `tasaSnapshot` it persists with the sale. It
+    // carries the business's own monedaBase: rates are anchored on CUP and a
+    // USD-based business needs USD's CUP rate to value CUP/EUR payments. A
+    // second, "complete" object (`tasasCup`) used to ship alongside a filtered
+    // `vigentes`; two sources of truth is how snapshots without the base got
+    // persisted, so there is deliberately only one now.
+    const { vigentes, actualizadoEn } = buildTasaSnapshotWithMeta(tasas);
 
     return NextResponse.json({
       monedaBase,
       vigentes,
-      tasasCup,
       ...(actualizadoEn && { actualizadoEn }),
     });
   } catch (error) {

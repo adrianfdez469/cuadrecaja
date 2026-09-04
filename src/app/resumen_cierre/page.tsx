@@ -60,7 +60,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
 import {
   formatCurrency,
-  formatNumber,
+  formatQuantity,
   formatMontoEnMoneda,
 } from "@/utils/formatters";
 import { convertFromBase } from "@/lib/currency";
@@ -1498,7 +1498,7 @@ export default function ResumenCierrePage() {
                         : []),
                       {
                         label: "Productos Vendidos",
-                        value: formatNumber(
+                        value: formatQuantity(
                           cierreProducData.totales.totalCantidad,
                         ),
                       },
