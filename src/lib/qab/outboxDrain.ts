@@ -9,17 +9,20 @@ import {
 } from "@/constants/qab";
 import { qabPrisma } from "@/lib/qab/qabPrisma";
 import {
+  collectQabPermanentFailures,
   emptyQabOutboxDrainReport,
   groupOutboxEventsByNegocio,
   planOutboxAck,
   toQabCatalogBatch,
 } from "@/lib/qab/outboxAck";
+import { logQabPermanentFailure } from "@/lib/qab/qabOutboxLog";
 import type { IQabPostOutcome } from "@/lib/qab/qabCatalogClient";
 import type { IOutboxEvento, IQabOutboxEntity, IQabOutboxOperation } from "@/schemas/qabOutbox";
 import type {
   IQabCatalogBatch,
   IQabOutboxAckPlan,
   IQabOutboxDrainReport,
+  IQabPermanentFailure,
 } from "@/schemas/qabSync";
 
 /** A row exactly as `SELECT *` returns it: `id` is still a BigInt here. */
@@ -131,6 +134,7 @@ export async function drainQabOutbox(
       const processedIds: string[] = [];
       const failedAcks: IQabOutboxAckPlan["failedAcks"] = [];
       const byBusiness: IQabOutboxDrainReport["byBusiness"] = [];
+      const permanentFailures: IQabPermanentFailure[] = [];
 
       for (const group of groups) {
         const token = tokens.get(group.negocioId);
@@ -165,6 +169,15 @@ export async function drainQabOutbox(
         const batch = toQabCatalogBatch(group.negocioId, group.rows);
         const outcome = await deps.post({ negocioId: group.negocioId, token, batch });
         const plan = planOutboxAck(group.rows, outcome);
+
+        // Named in the log and in the report so it does not burn the six
+        // attempts in silence (F-005, acceptance criterion 12). The retry
+        // mechanics are untouched: the rows are acknowledged exactly as
+        // `planOutboxAck` says.
+        for (const failure of collectQabPermanentFailures(group.rows, outcome)) {
+          logQabPermanentFailure(failure);
+          permanentFailures.push(failure);
+        }
 
         processedIds.push(...plan.processedIds);
         failedAcks.push(...plan.failedAcks);
@@ -206,6 +219,7 @@ export async function drainQabOutbox(
         processed: processedIds.length,
         failed: failedAcks.length,
         byBusiness,
+        permanentFailures,
       };
     },
     { timeout: QAB_SYNC_TX_TIMEOUT_MS, maxWait: QAB_SYNC_TX_MAX_WAIT_MS },

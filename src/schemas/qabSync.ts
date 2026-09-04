@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { QAB_OUTBOX_BATCH_SIZE } from "@/constants/qab";
+import {
+  QAB_OUTBOX_BATCH_SIZE,
+  QAB_OUTBOX_PERMANENT_ERROR_CODES,
+} from "@/constants/qab";
 import { qabOutboxEntitySchema, qabOutboxOperationSchema } from "@/schemas/qabOutbox";
 
 /** One event as it travels over the wire (§ ① «Formato»). Names in English. */
@@ -37,6 +40,22 @@ export const qabOutboxAckPlanSchema = z.object({
 });
 export type IQabOutboxAckPlan = z.infer<typeof qabOutboxAckPlanSchema>;
 
+/**
+ * A failure that will fail identically on all QAB_OUTBOX_MAX_ATTEMPTS retries,
+ * because nothing changes between them: the data has to be fixed in cuadrecaja
+ * first. Reported so it does not burn the six attempts in silence (F-005,
+ * acceptance criterion 12).
+ */
+export const qabPermanentFailureSchema = z.object({
+  eventId: z.string().min(1),
+  negocioId: z.string().min(1),
+  entidad: qabOutboxEntitySchema,
+  /** For a STORE event this is the Tienda.id: the local, named by its id. */
+  entidadId: z.string().min(1),
+  code: z.enum(QAB_OUTBOX_PERMANENT_ERROR_CODES),
+});
+export type IQabPermanentFailure = z.infer<typeof qabPermanentFailureSchema>;
+
 export const QAB_BUSINESS_OUTCOMES = ["ok", "error", "skipped_no_token", "skipped_deadline"] as const;
 
 export const qabOutboxDrainReportSchema = z.object({
@@ -54,6 +73,7 @@ export const qabOutboxDrainReportSchema = z.object({
       outcome: z.enum(QAB_BUSINESS_OUTCOMES),
     }),
   ),
+  permanentFailures: z.array(qabPermanentFailureSchema).default([]),
 });
 export type IQabOutboxDrainReport = z.infer<typeof qabOutboxDrainReportSchema>;
 

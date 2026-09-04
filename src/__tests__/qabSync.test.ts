@@ -7,9 +7,10 @@ import {
   qabOutboxDrainReportSchema,
   qabOrderPollPhaseReportSchema,
   qabSyncRunReportSchema,
+  qabPermanentFailureSchema,
   QAB_BUSINESS_OUTCOMES,
 } from "@/schemas/qabSync";
-import { QAB_OUTBOX_BATCH_SIZE } from "@/constants/qab";
+import { QAB_OUTBOX_BATCH_SIZE, QAB_OUTBOX_PERMANENT_ERROR_CODES } from "@/constants/qab";
 
 /**
  * F-002 — the wire schemas of `src/schemas/qabSync.ts`, against the interface contract
@@ -189,6 +190,59 @@ describe("qabOutboxDrainReportSchema", () => {
     expect(qabOutboxDrainReportSchema.safeParse({ ...validReport, claimed: -1 }).success).toBe(
       false
     );
+  });
+
+  it("should default permanentFailures to [] when absent (F-005)", () => {
+    const parsed = qabOutboxDrainReportSchema.parse(validReport);
+    expect(parsed.permanentFailures).toEqual([]);
+  });
+
+  it("should accept an explicit permanentFailures entry", () => {
+    const report = {
+      ...validReport,
+      permanentFailures: [
+        {
+          eventId: "1",
+          negocioId: "negocio-1",
+          entidad: "STORE",
+          entidadId: "tienda-1",
+          code: "STORE_OPENING_HOURS_INVALID",
+        },
+      ],
+    };
+    expect(qabOutboxDrainReportSchema.safeParse(report).success).toBe(true);
+  });
+});
+
+describe("qabPermanentFailureSchema", () => {
+  const baseFailure = {
+    eventId: "1",
+    negocioId: "negocio-1",
+    entidad: "STORE",
+    entidadId: "tienda-1",
+    code: "STORE_OPENING_HOURS_INVALID",
+  };
+
+  it("should accept a well formed permanent failure", () => {
+    expect(qabPermanentFailureSchema.safeParse(baseFailure).success).toBe(true);
+  });
+
+  it.each([...QAB_OUTBOX_PERMANENT_ERROR_CODES])("should accept the permanent code %s", (code) => {
+    expect(qabPermanentFailureSchema.safeParse({ ...baseFailure, code }).success).toBe(true);
+  });
+
+  it("should reject a code outside QAB_OUTBOX_PERMANENT_ERROR_CODES — this is the closed vocabulary of criterion 12, not every possible QAB error", () => {
+    expect(
+      qabPermanentFailureSchema.safeParse({ ...baseFailure, code: "BUSINESS_MISMATCH" }).success
+    ).toBe(false);
+  });
+
+  it("should reject an empty eventId", () => {
+    expect(qabPermanentFailureSchema.safeParse({ ...baseFailure, eventId: "" }).success).toBe(false);
+  });
+
+  it("should reject an empty entidadId", () => {
+    expect(qabPermanentFailureSchema.safeParse({ ...baseFailure, entidadId: "" }).success).toBe(false);
   });
 });
 

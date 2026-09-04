@@ -42,7 +42,7 @@ describe("TIENDA_ONLINE_API_BASE", () => {
 
 describe("TIENDA_ONLINE_API_ERRORS", () => {
   it("should export the fixed error codes verbatim, including the 500 body (security finding, §6)", () => {
-    expect(TIENDA_ONLINE_API_ERRORS).toEqual({
+    expect(TIENDA_ONLINE_API_ERRORS).toMatchObject({
       forbidden: "FORBIDDEN",
       invalidBody: "INVALID_BODY",
       pedidoNotFound: "PEDIDO_NOT_FOUND",
@@ -51,4 +51,12 @@ describe("TIENDA_ONLINE_API_ERRORS", () => {
     });
   });
 
+  it("should export the four F-005 error codes verbatim (contract §1)", () => {
+    expect(TIENDA_ONLINE_API_ERRORS).toMatchObject({
+      tiendaNotFound: "TIENDA_NOT_FOUND",
+      almacenNotPublishable: "ALMACEN_NOT_PUBLISHABLE",
+      openingHoursInvalid: "OPENING_HOURS_INVALID",
+      slugUpstream: "QAB_SLUG_UPSTREAM",
+    });
+  });
 });
