@@ -30,7 +30,13 @@ _(vacío — ningún error ha llegado todavía a 3 apariciones)_
 | [E-013](errors/E-013-columna-que-nadie-escribe-usada-como-senal-de-estado.md) | Una columna que **nadie escribe** usada como señal de estado: no da error, da siempre el mismo valor, y la condición nunca toma la otra rama | ui | 1 |
 | [E-014](errors/E-014-una-senal-derivada-cuya-definicion-se-parafrasea.md) | El nombre de una señal derivada dice una cosa y su consulta calcula otra; la definición parafraseada en ocho sitios hace que una corrección deje alguna atrás | api | 1 |
 | [E-015](errors/E-015-un-simbolo-en-un-tsx-no-es-importable-desde-un-test.md) | Ningún símbolo que viva en un `.tsx` es importable desde un test (`jsx: preserve` sin override en `vitest.config.ts`), aunque sea una función pura sin React | tests | 1 |
-| [E-016](errors/E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md) | Un criterio de diseño exige una subcadena literal que el copy dictado por el mismo documento no contiene: el rechazo señala a código correcto | ui | 1 |
+| [E-016](errors/E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md) | Un criterio de diseño exige una subcadena literal que el copy dictado por el mismo documento no contiene: el rechazo señala a código correcto | ui | 2 |
+| [E-017](errors/E-017-un-absoluto-en-un-contrato-que-el-codigo-no-sostiene.md) | Un absoluto («NEVER THROWS», «sin N+1») escrito en un contrato o un ADR que el código no sostiene; el `qa` lo lee como especificación y rechaza código correcto | build | 1 |
+| [E-018](errors/E-018-la-redaccion-congelada-de-un-criterio-diferido.md) | Un criterio diferido se ejecuta con su redacción congelada, ya contradicha por un ADR posterior | tests | 1 |
+| [E-019](errors/E-019-it-each-con-un-simbolo-que-aun-no-existe.md) | `it.each` con un símbolo del contrato aún inexistente falla en la fase de colección y tumba **todos** los tests del archivo, incluidos los que estaban en verde | tests | 1 |
+| [E-020](errors/E-020-estimar-lineas-o-alto-con-un-contenedor-acotado.md) | Un criterio de diseño estima líneas o alto sin medir, y con un `maxWidth` acotado dos anchos distintos son el mismo ancho de texto: falla contra código correcto | ui | 1 |
+| [E-021](errors/E-021-el-local-actual-vive-en-el-jwt-y-no-en-la-base.md) | Se cambia `Usuario.localActualId` en la base y el navegador sigue viendo el local viejo: el dato viaja en el JWT de la sesión, no se lee en vivo | auth | 1 |
+| [E-022](errors/E-022-clicks-por-coordenada-sobre-una-captura-reescalada.md) | Un click por coordenada no hace nada: la captura viene reescalada y sus coordenadas no son las del viewport | ui | 1 |
 
 ---
 

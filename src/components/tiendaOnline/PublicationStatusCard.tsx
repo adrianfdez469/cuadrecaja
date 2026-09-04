@@ -18,8 +18,11 @@ import type { ITiendaOnlineLocal } from "@/schemas/tiendaOnline";
 import { shape, touch } from "@/theme/tokens";
 
 import { StoreSyncStateRow } from "./StoreSyncStateRow";
-import { publicStoreUrl } from "./StoreAddressCard";
-import { publicationPresentation } from "./publicationPresentation";
+import {
+  isKnownInOnlineStore,
+  onlineStoreUrl,
+  publicationPresentation,
+} from "./publicationPresentation";
 
 // Re-exported so the component stays the single entry point for its callers,
 // while the pure part remains importable from a `.ts` module.
@@ -47,8 +50,10 @@ export function PublicationStatusCard({
   onReviewSchedule,
 }: Readonly<PublicationStatusCardProps>) {
   const presentation = publicationPresentation(local, publicarEnTienda);
-  const existsInStore = local.slugQab !== null;
-  const url = existsInStore ? publicStoreUrl(local.slugQab as string) : null;
+  // Both derivations are IMPORTED, never rewritten here (E-014): no column of
+  // the local is read directly by this card.
+  const existsInStore = isKnownInOnlineStore(local);
+  const url = onlineStoreUrl(local);
 
   return (
     <ContentCard title={CARD_TITLE} spaceButton>

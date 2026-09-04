@@ -1,6 +1,13 @@
-import { QAB_SYNC_SKIPPED_NO_BASE_URL } from "@/constants/qab";
+import {
+  QAB_SLUG_LEARN_DEADLINE_MS,
+  QAB_SYNC_RUN_DEADLINE_MS,
+  QAB_SYNC_SKIPPED_NO_BASE_URL,
+} from "@/constants/qab";
 import { prisma } from "@/lib/prisma";
-import { emptyQabOutboxDrainReport } from "@/lib/qab/outboxAck";
+import {
+  emptyQabOutboxDrainReport,
+  emptyQabSlugLearnPhaseReport,
+} from "@/lib/qab/outboxAck";
 import { drainQabOutbox, loadQabTokens } from "@/lib/qab/outboxDrain";
 import {
   QAB_ORDER_POLL_SKIPPED_LOG,
@@ -10,6 +17,7 @@ import {
 import { withQabOrderPollLock } from "@/lib/qab/orderPollLock";
 import { postQabCatalogBatch } from "@/lib/qab/qabCatalogClient";
 import { resolveQabBaseUrl } from "@/lib/qab/qabEnv";
+import { learnQabAssignedSlugs } from "@/lib/qab/slugLearn";
 import type { IQabOrderPollPhaseReport, IQabSyncRunReport } from "@/schemas/qabSync";
 
 function emptyOrderPollPhaseReport(): IQabOrderPollPhaseReport {
@@ -30,6 +38,7 @@ export async function runQabSyncTiendaCron(): Promise<IQabSyncRunReport> {
       durationMs: Date.now() - startedAtMs,
       skipped: QAB_SYNC_SKIPPED_NO_BASE_URL,
       outbox: emptyQabOutboxDrainReport(),
+      slugLearn: emptyQabSlugLearnPhaseReport(),
       poll: emptyOrderPollPhaseReport(),
     };
   }
@@ -47,6 +56,20 @@ export async function runQabSyncTiendaCron(): Promise<IQabSyncRunReport> {
     where: { qabToken: { not: null }, tiendaOnlineHabilitada: true },
     select: { id: true },
     orderBy: { id: "asc" },
+  });
+
+  // The learning phase (F-020, ADR 0036): between the drain and the pull, and
+  // OUTSIDE any transaction. No outcome of its side read needs a `try/catch`
+  // here — each one is an entry of its report. A database failure does take the
+  // run down, like the drain's: see `learnQabAssignedSlugs`.
+  const slugLearn = await learnQabAssignedSlugs({
+    baseUrl,
+    negocioIds: eligible.map((row) => row.id),
+    appliedStoreEvents: outbox.appliedStoreEvents,
+    deadlineAt: Math.min(
+      Date.now() + QAB_SLUG_LEARN_DEADLINE_MS,
+      startedAtMs + QAB_SYNC_RUN_DEADLINE_MS,
+    ),
   });
 
   const poll: IQabOrderPollPhaseReport = {
@@ -83,6 +106,7 @@ export async function runQabSyncTiendaCron(): Promise<IQabSyncRunReport> {
     durationMs: Date.now() - startedAtMs,
     skipped: null,
     outbox,
+    slugLearn,
     poll,
   };
 }

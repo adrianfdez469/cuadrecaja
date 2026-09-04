@@ -15,6 +15,7 @@ import {
   planOutboxAck,
   toQabCatalogBatch,
 } from "@/lib/qab/outboxAck";
+import { collectQabAppliedStorePublishes } from "@/lib/qab/qabStoreOutboxFilters";
 import { logQabPermanentFailure } from "@/lib/qab/qabOutboxLog";
 import type { IQabPostOutcome } from "@/lib/qab/qabCatalogClient";
 import type { IOutboxEvento, IQabOutboxEntity, IQabOutboxOperation } from "@/schemas/qabOutbox";
@@ -81,7 +82,13 @@ export async function claimOutboxBatch(tx: Prisma.TransactionClient): Promise<IO
   }));
 }
 
-/** Reads the QAB tokens of the given businesses. The only place that reads `qabToken`. */
+/**
+ * Reads the QAB tokens of the given businesses. The only function that reads
+ * SEVERAL tokens at once (`loadQabToken` in qabToken.ts reads one, for the
+ * slug-forecast route). Its callers are three: `drainQabOutbox`, the order-poll
+ * slot in `syncTiendaCron` and `learnQabAssignedSlugs` (F-020). None of them adds
+ * a `select` of its own (ADR 0013).
+ */
 export async function loadQabTokens(
   tx: Prisma.TransactionClient,
   negocioIds: string[],
@@ -220,6 +227,9 @@ export async function drainQabOutbox(
         failed: failedAcks.length,
         byBusiness,
         permanentFailures,
+        // ONLY reorders the slug-learning phase's eligible set, never widens it
+        // (ADR 0036b). The phase queries its own eligibility.
+        appliedStoreEvents: collectQabAppliedStorePublishes(rows, processedIds),
       };
     },
     { timeout: QAB_SYNC_TX_TIMEOUT_MS, maxWait: QAB_SYNC_TX_MAX_WAIT_MS },

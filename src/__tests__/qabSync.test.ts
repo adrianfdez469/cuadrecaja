@@ -9,8 +9,16 @@ import {
   qabSyncRunReportSchema,
   qabPermanentFailureSchema,
   QAB_BUSINESS_OUTCOMES,
+  qabSlugLearningTargetSchema,
+  qabAppliedStorePublishSchema,
+  qabSlugLearnResultSchema,
+  qabSlugLearnPhaseReportSchema,
 } from "@/schemas/qabSync";
-import { QAB_OUTBOX_BATCH_SIZE, QAB_OUTBOX_PERMANENT_ERROR_CODES } from "@/constants/qab";
+import {
+  QAB_OUTBOX_BATCH_SIZE,
+  QAB_OUTBOX_PERMANENT_ERROR_CODES,
+  QAB_SLUG_LEARN_OUTCOMES,
+} from "@/constants/qab";
 
 /**
  * F-002 — the wire schemas of `src/schemas/qabSync.ts`, against the interface contract
@@ -212,6 +220,24 @@ describe("qabOutboxDrainReportSchema", () => {
     };
     expect(qabOutboxDrainReportSchema.safeParse(report).success).toBe(true);
   });
+
+  it("should default appliedStoreEvents to [] when absent (F-020)", () => {
+    const parsed = qabOutboxDrainReportSchema.parse(validReport);
+    expect(parsed.appliedStoreEvents).toEqual([]);
+  });
+
+  it("should accept an explicit appliedStoreEvents entry — just (negocioId, tiendaId), nothing else", () => {
+    const report = {
+      ...validReport,
+      appliedStoreEvents: [{ negocioId: "negocio-1", tiendaId: "tienda-1" }],
+    };
+    expect(qabOutboxDrainReportSchema.safeParse(report).success).toBe(true);
+  });
+
+  it("should reject an appliedStoreEvents entry missing tiendaId", () => {
+    const report = { ...validReport, appliedStoreEvents: [{ negocioId: "negocio-1" }] };
+    expect(qabOutboxDrainReportSchema.safeParse(report).success).toBe(false);
+  });
 });
 
 describe("qabPermanentFailureSchema", () => {
@@ -282,6 +308,8 @@ describe("qabSyncRunReportSchema", () => {
       failed: 0,
       byBusiness: [],
     },
+    // F-020, contract §3: required, BETWEEN outbox and poll — not optional, not defaulted.
+    slugLearn: { targets: 0, attempted: 0, learned: 0, results: [] },
     poll: { attempted: 0, acquired: 0, skippedLocked: 0, businesses: [] },
   };
 
@@ -303,5 +331,101 @@ describe("qabSyncRunReportSchema", () => {
 
   it("should reject a negative durationMs", () => {
     expect(qabSyncRunReportSchema.safeParse({ ...baseReport, durationMs: -1 }).success).toBe(false);
+  });
+
+  it("should reject a report missing slugLearn — F-020 made it a required field of the run report", () => {
+    const { slugLearn: _omitted, ...withoutSlugLearn } = baseReport;
+    expect(qabSyncRunReportSchema.safeParse(withoutSlugLearn).success).toBe(false);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* F-020 — the new schemas of the slug-learning phase (contract §3)            */
+/* -------------------------------------------------------------------------- */
+
+describe("qabSlugLearningTargetSchema", () => {
+  const validTarget = {
+    negocioId: "negocio-1",
+    tiendaId: "tienda-1",
+    slug: "la-rampa",
+    nombre: "Sucursal Centro",
+  };
+
+  it("should accept a target with a requested slug", () => {
+    expect(qabSlugLearningTargetSchema.safeParse(validTarget).success).toBe(true);
+  });
+
+  it("should accept slug: null — the merchant never set one, name is the fallback", () => {
+    expect(qabSlugLearningTargetSchema.safeParse({ ...validTarget, slug: null }).success).toBe(true);
+  });
+
+  it("should reject a blank nombre — it is the query fallback and can never be empty", () => {
+    expect(qabSlugLearningTargetSchema.safeParse({ ...validTarget, nombre: "" }).success).toBe(false);
+  });
+
+  it("should reject a blank negocioId or tiendaId", () => {
+    expect(qabSlugLearningTargetSchema.safeParse({ ...validTarget, negocioId: "" }).success).toBe(false);
+    expect(qabSlugLearningTargetSchema.safeParse({ ...validTarget, tiendaId: "" }).success).toBe(false);
+  });
+});
+
+describe("qabAppliedStorePublishSchema", () => {
+  it("should accept exactly negocioId + tiendaId", () => {
+    expect(
+      qabAppliedStorePublishSchema.safeParse({ negocioId: "negocio-1", tiendaId: "tienda-1" }).success
+    ).toBe(true);
+  });
+
+  it("should reject a blank negocioId", () => {
+    expect(
+      qabAppliedStorePublishSchema.safeParse({ negocioId: "", tiendaId: "tienda-1" }).success
+    ).toBe(false);
+  });
+});
+
+describe("qabSlugLearnResultSchema", () => {
+  const validResult = { negocioId: "negocio-1", tiendaId: "tienda-1", outcome: "learned" };
+
+  it.each(QAB_SLUG_LEARN_OUTCOMES)("should accept the outcome %s", (outcome) => {
+    expect(qabSlugLearnResultSchema.safeParse({ ...validResult, outcome }).success).toBe(true);
+  });
+
+  it("should reject an outcome outside QAB_SLUG_LEARN_OUTCOMES — closed vocabulary, nothing from QAB's body mirrored here", () => {
+    expect(qabSlugLearnResultSchema.safeParse({ ...validResult, outcome: "taken" }).success).toBe(false);
+    expect(qabSlugLearnResultSchema.safeParse({ ...validResult, outcome: "reason_own" }).success).toBe(
+      false
+    );
+  });
+});
+
+describe("qabSlugLearnPhaseReportSchema", () => {
+  const validPhase = { targets: 2, attempted: 2, learned: 1, results: [] };
+
+  it("should accept a well formed phase report", () => {
+    expect(qabSlugLearnPhaseReportSchema.safeParse(validPhase).success).toBe(true);
+  });
+
+  it("should default results to [] when absent", () => {
+    const { results: _omitted, ...withoutResults } = validPhase;
+    const parsed = qabSlugLearnPhaseReportSchema.parse(withoutResults);
+    expect(parsed.results).toEqual([]);
+  });
+
+  it("should reject a negative counter", () => {
+    expect(qabSlugLearnPhaseReportSchema.safeParse({ ...validPhase, learned: -1 }).success).toBe(false);
+  });
+
+  it("should accept a results entry per QAB_SLUG_LEARN_OUTCOMES and reject one outside it", () => {
+    const withResult = {
+      ...validPhase,
+      results: [{ negocioId: "negocio-1", tiendaId: "tienda-1", outcome: "learned" }],
+    };
+    expect(qabSlugLearnPhaseReportSchema.safeParse(withResult).success).toBe(true);
+
+    const withBadResult = {
+      ...validPhase,
+      results: [{ negocioId: "negocio-1", tiendaId: "tienda-1", outcome: "bogus" }],
+    };
+    expect(qabSlugLearnPhaseReportSchema.safeParse(withBadResult).success).toBe(false);
   });
 });
