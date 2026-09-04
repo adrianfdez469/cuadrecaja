@@ -60,6 +60,8 @@ import {
   Android,
   TrendingDown,
   Campaign,
+  Storefront,
+  ShoppingBag,
 } from "@mui/icons-material";
 
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
@@ -103,6 +105,15 @@ import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import Loading from "./Loading";
 import { BrandLockup } from "@/components/brand";
+import {
+  TIENDA_ONLINE_LABELS,
+  TIENDA_ONLINE_PERMISOS,
+  TIENDA_ONLINE_ROUTES,
+} from "@/constants/tiendaOnline";
+import {
+  useTiendaOnlineAccess,
+  type ITiendaOnlineAccessState,
+} from "@/hooks/useTiendaOnlineAccess";
 
 const SUPER_ADMIN_MENU_ITEMS = [
   {
@@ -241,6 +252,33 @@ const MAIN_MENU_ITEMS = [
   },
 ];
 
+/**
+ * The Tienda Online section, between Operaciones and Resúmenes.
+ *
+ * It deliberately does NOT go through `getMainMenuItemsByLocalType`: that
+ * function short-circuits with `rol === "SUPER_ADMIN" → true`, which would make
+ * the business switch dead code for the one role it must also stop (ADR 0028).
+ * Its rows are filtered by `useTiendaOnlineAccess`, which evaluates the switch
+ * before ever looking at a permission.
+ *
+ * It is not conditioned on `localActual` either: this module belongs to the
+ * business, not to a store.
+ */
+const TIENDA_ONLINE_MENU_ITEMS = [
+  {
+    label: TIENDA_ONLINE_LABELS.configuracion,
+    path: TIENDA_ONLINE_ROUTES.configuracion,
+    icon: Storefront,
+    permission: TIENDA_ONLINE_PERMISOS.configuracionAcceder,
+  },
+  {
+    label: TIENDA_ONLINE_LABELS.pedidos,
+    path: TIENDA_ONLINE_ROUTES.pedidos,
+    icon: ShoppingBag,
+    permission: TIENDA_ONLINE_PERMISOS.pedidosAcceder,
+  },
+];
+
 const RESUMEN_MENU_ITEMS = [
   {
     label: "Dashboard",
@@ -334,16 +372,42 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
   }, [user?.nombre, user?.usuario]);
   const [menuState, setMenuState] = useState<{
     operaciones: boolean;
+    tiendaOnline: boolean;
     resumenes: boolean;
     configuracion: boolean;
     administracion: boolean;
   }>({
     operaciones: true,
+    tiendaOnline: false,
     resumenes: false,
     administracion: false,
     configuracion: false,
   });
   const { verificarPermiso, tieneAlguno } = usePermisos();
+
+  // Called unconditionally, in the body of the component, as hooks must be.
+  // The switch is evaluated inside, before any permission: with the module off
+  // both come back "denied" and the whole section stops being drawn — for
+  // everyone, SUPER_ADMIN included.
+  const tiendaOnlineConfiguracionAccess = useTiendaOnlineAccess(
+    TIENDA_ONLINE_PERMISOS.configuracionAcceder,
+  );
+  const tiendaOnlinePedidosAccess = useTiendaOnlineAccess(
+    TIENDA_ONLINE_PERMISOS.pedidosAcceder,
+  );
+  const tiendaOnlineAccessByPermission: Record<
+    string,
+    ITiendaOnlineAccessState
+  > = {
+    [TIENDA_ONLINE_PERMISOS.configuracionAcceder]:
+      tiendaOnlineConfiguracionAccess,
+    [TIENDA_ONLINE_PERMISOS.pedidosAcceder]: tiendaOnlinePedidosAccess,
+  };
+  // "loading" draws nothing either: a skeleton here would make every section
+  // below it jump, and would announce a module to someone who may not see it.
+  const tiendaOnlineMenuItems = TIENDA_ONLINE_MENU_ITEMS.filter(
+    (item) => tiendaOnlineAccessByPermission[item.permission] === "allowed",
+  );
   const {
     isBlockingActive,
     canNavigateTo,
@@ -365,6 +429,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     if (step.target.includes("nav-gestion-inventario")) {
       setMenuState({
         operaciones: true,
+        tiendaOnline: false,
         resumenes: false,
         configuracion: false,
         administracion: false,
@@ -378,6 +443,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
     if (step.target.includes("nav-pos")) {
       setMenuState({
         operaciones: true,
+        tiendaOnline: false,
         resumenes: false,
         configuracion: false,
         administracion: false,
@@ -617,6 +683,7 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
       setMenuState({
         configuracion: false,
         operaciones: false,
+        tiendaOnline: false,
         resumenes: false,
         administracion: false,
         [type]: true,
@@ -1247,6 +1314,23 @@ const Layout: React.FC<PropsWithChildren> = ({ children }) => {
                         ))}
                     </NavSection>
                   )}
+
+                {tiendaOnlineMenuItems.length > 0 && (
+                  <NavSection
+                    title={TIENDA_ONLINE_LABELS.section}
+                    expanded={menuState.tiendaOnline}
+                    onToggle={() => handleMenuAccordion("tiendaOnline")}
+                  >
+                    {tiendaOnlineMenuItems.map((item) => (
+                      <NavItem
+                        key={item.label}
+                        label={item.label}
+                        icon={<item.icon />}
+                        onClick={() => handleMenuNavigate(item.path)}
+                      />
+                    ))}
+                  </NavSection>
+                )}
 
                 {user.localActual?.tipo &&
                   getMainMenuItemsByLocalType(
