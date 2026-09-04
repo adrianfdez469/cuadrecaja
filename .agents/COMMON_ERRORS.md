@@ -27,6 +27,10 @@ _(vacío — ningún error ha llegado todavía a 3 apariciones)_
 | [E-010](errors/E-010-comentarios-de-ejemplo-en-espanol-en-un-contrato.md) | Un comentario en español dentro de un bloque de código de un contrato acaba copiado en `src/`: los bloques de un contrato se leen como plantilla, no como prosa | build | 1 |
 | [E-011](errors/E-011-medir-el-contenedor-equivocado-de-mui.md) | `querySelector('.MuiContainer-root')` encuentra el `Container` del `Layout`, no el de la página: la medida es plausible y lleva a rechazar una implementación correcta | ui | 1 |
 | [E-012](errors/E-012-un-subagente-devolvio-un-resultado-fabricado.md) | Un subagente devuelve un informe convincente sin haber usado ninguna herramienta: parafrasea el encargo con los verbos en pasado | build | 1 |
+| [E-013](errors/E-013-columna-que-nadie-escribe-usada-como-senal-de-estado.md) | Una columna que **nadie escribe** usada como señal de estado: no da error, da siempre el mismo valor, y la condición nunca toma la otra rama | ui | 1 |
+| [E-014](errors/E-014-una-senal-derivada-cuya-definicion-se-parafrasea.md) | El nombre de una señal derivada dice una cosa y su consulta calcula otra; la definición parafraseada en ocho sitios hace que una corrección deje alguna atrás | api | 1 |
+| [E-015](errors/E-015-un-simbolo-en-un-tsx-no-es-importable-desde-un-test.md) | Ningún símbolo que viva en un `.tsx` es importable desde un test (`jsx: preserve` sin override en `vitest.config.ts`), aunque sea una función pura sin React | tests | 1 |
+| [E-016](errors/E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md) | Un criterio de diseño exige una subcadena literal que el copy dictado por el mismo documento no contiene: el rechazo señala a código correcto | ui | 1 |
 
 ---
 
