@@ -1,7 +1,7 @@
 # E-016: Un criterio verificable que exige una subcadena que el copy dictado no contiene
 
 **Área:** ui
-**Apariciones:** 1 — F-005 (dos veces en el mismo documento: criterios 43 y 20)
+**Apariciones:** 2 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23)
 
 ## Síntoma
 
@@ -56,3 +56,37 @@ que llevan plantilla o formato, que hay que normalizar antes de comparar.
 Y para quien reciba el rechazo: **si el copy que escribiste es literalmente el que el contrato
 dicta, no lo cambies para contentar al criterio.** Devuélvelo al `ui-designer`: una de las dos
 partes de su documento está mal y solo él sabe cuál.
+
+---
+
+## Reaparición en F-020 — el criterio 23, y lo que la cazó
+
+Mismo patrón exacto, en un criterio **heredado**: el 23 de F-005, diferido a F-020, exigía del banner
+de campos vacíos la subcadena
+
+```
+se va a borrar de tu tienda online
+```
+
+«en la ayuda del campo **y en la cabecera de recuento**». La ayuda del campo la contiene; el banner
+dice `se **van** a borrar`, porque habla de N campos. Un plural contra un singular.
+
+**Lo cazó el repaso mecánico que esta ficha recomienda**, aplicado por el `ui-designer` sobre su
+propio documento antes de entregarlo: extraer los code spans de la sección de criterios y buscarlos
+como subcadena literal en el copy dictado. Es la primera vez que este error se detecta antes de
+costar un rechazo, y confirma que el repaso funciona.
+
+**La corrección fue partir el criterio en dos** (uno para el campo, otro para el banner), no tocar
+ninguno de los dos copys. La regla del final de esta ficha se sostuvo: el copy era el dictado y el
+equivocado era el criterio.
+
+Dos cosas que esta aparición añade:
+
+- **El plural es un generador de este error.** Un copy que cuenta cosas tiene dos formas, y un
+  criterio escrito de memoria elige una. Al exigir una subcadena de una frase con recuento, hay que
+  comprobar contra **todas** sus ramas — y si el copy no tiene la rama que hace falta, eso es un
+  hallazgo, no un detalle: en F-020 fue así como se descubrió que el banner **no tenía forma
+  singular** y decía «1 datos están vacíos».
+- **Un criterio heredado de otro feature es el más expuesto**, porque se cita por número y se
+  ejecuta sin releer el copy al que apunta. Ver
+  [E-018](E-018-la-redaccion-congelada-de-un-criterio-diferido.md).

@@ -5,10 +5,11 @@ import {
   toQabCatalogBatch,
   planOutboxAck,
   emptyQabOutboxDrainReport,
+  emptyQabSlugLearnPhaseReport,
   collectQabPermanentFailures,
   QabTenantMismatchError,
 } from "@/lib/qab/outboxAck";
-import { qabOutboxDrainReportSchema } from "@/schemas/qabSync";
+import { qabOutboxDrainReportSchema, qabSlugLearnPhaseReportSchema } from "@/schemas/qabSync";
 import type { IOutboxEvento } from "@/schemas/qabOutbox";
 import { QAB_OUTBOX_ERROR_MAX_LENGTH, QAB_OUTBOX_PERMANENT_ERROR_CODES } from "@/constants/qab";
 
@@ -264,7 +265,7 @@ describe("planOutboxAck", () => {
 });
 
 describe("emptyQabOutboxDrainReport", () => {
-  it("should return every counter at zero, both arrays empty, and NO permanent failures (F-005)", () => {
+  it("should return every counter at zero, both arrays empty, NO permanent failures (F-005) and NO applied STORE events (F-020)", () => {
     expect(emptyQabOutboxDrainReport()).toEqual({
       claimed: 0,
       eventIds: [],
@@ -273,11 +274,32 @@ describe("emptyQabOutboxDrainReport", () => {
       failed: 0,
       byBusiness: [],
       permanentFailures: [],
+      appliedStoreEvents: [],
     });
   });
 
   it("should itself satisfy qabOutboxDrainReportSchema", () => {
     expect(qabOutboxDrainReportSchema.safeParse(emptyQabOutboxDrainReport()).success).toBe(true);
+  });
+});
+
+/**
+ * F-020 — contract §3: `emptyQabSlugLearnPhaseReport`, the empty value of the slug-learning
+ * phase's report, used by `syncTiendaCron.ts`'s early return when `QAB_API_BASE_URL` is unset
+ * and by `learnQabAssignedSlugs` itself when `negocioIds` is empty.
+ */
+describe("emptyQabSlugLearnPhaseReport", () => {
+  it("should return every counter at zero and an empty results array", () => {
+    expect(emptyQabSlugLearnPhaseReport()).toEqual({
+      targets: 0,
+      attempted: 0,
+      learned: 0,
+      results: [],
+    });
+  });
+
+  it("should itself satisfy qabSlugLearnPhaseReportSchema", () => {
+    expect(qabSlugLearnPhaseReportSchema.safeParse(emptyQabSlugLearnPhaseReport()).success).toBe(true);
   });
 });
 

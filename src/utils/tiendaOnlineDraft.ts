@@ -126,6 +126,38 @@ export function emptyContactFields(draft: ITiendaOnlineDraft): IContactField[] {
   return CONTACT_FIELDS.filter((field) => draft[field].trim().length === 0);
 }
 
+/**
+ * The count banner's second sentence. Fixed copy, dictated by the F-005 design
+ * and repeated verbatim in the F-020 interface contract (E-016).
+ */
+const EMPTY_FIELDS_CLOSING_SENTENCE =
+  "La tienda online no distingue «no lo toques» de «bórralo»: lo que quede vacío aquí desaparece de allá en el próximo envío.";
+
+/**
+ * PURE. The count banner's sentence, or `null` when nothing is empty. Lives here
+ * so the suite can pin the exact copy, which a `.tsx` would put out of reach
+ * (E-015).
+ *
+ * The singular branch is the human's own correction inside F-020: the dictated
+ * plural read "1 datos están vacíos" for a single field, which is the state of
+ * whoever filled eight of nine and the most dangerous case of all. Only what
+ * agreement forces changes; the plural is untouched.
+ */
+export function emptyContactFieldsNotice(
+  draft: ITiendaOnlineDraft,
+): string | null {
+  const empty = emptyContactFields(draft);
+  if (empty.length === 0) return null;
+
+  const names = empty.map((field) => CONTACT_FIELD_LABELS[field]).join(", ");
+  const lead =
+    empty.length === 1
+      ? "1 dato está vacío y se va a borrar de tu tienda online"
+      : `${empty.length} datos están vacíos y se van a borrar de tu tienda online`;
+
+  return `${lead}: ${names}. ${EMPTY_FIELDS_CLOSING_SENTENCE}`;
+}
+
 /** One coordinate without the other draws no point on any map. */
 export function hasLonelyCoordinate(draft: ITiendaOnlineDraft): boolean {
   const lat = draft.latitud.trim().length > 0;

@@ -4,6 +4,10 @@ import { TIENDA_ONLINE_SAVE_AUDIT_LOG } from "@/constants/tiendaOnline";
 import { prisma } from "@/lib/prisma";
 import type { PrismaClientLike } from "@/lib/prisma";
 import { enqueueOutboxEvent } from "@/lib/qab/outboxEnqueue";
+import {
+  QAB_STORE_ENTITY,
+  qabPublishedPayloadFilter,
+} from "@/lib/qab/qabStoreOutboxFilters";
 import { buildQabStorePayload } from "@/lib/qab/qabStorePayload";
 import { readStoreSyncStates } from "@/lib/qab/qabStoreSyncState";
 import { collectOpeningHoursIssues } from "@/schemas/qabOpeningHours";
@@ -11,7 +15,6 @@ import type {
   IOpeningHours,
   IOpeningHoursIssue,
 } from "@/schemas/qabOpeningHours";
-import type { IQabStorePayload } from "@/schemas/qabStore";
 import { TipoLocal } from "@/schemas/tienda";
 import type {
   IQabStoreSyncState,
@@ -70,25 +73,6 @@ export class TiendaOnlineOpeningHoursError extends Error {
     this.issues = issues;
   }
 }
-
-const STORE_ENTITY = "STORE";
-
-/**
- * The payload key the published-signal filters on. Named FROM the payload type,
- * never as a loose literal: if the QAB contract ever renames it, this fails the
- * build instead of silently matching no rows and making the brand question
- * reappear (ADR 0035).
- */
-const PUBLISH_TO_STORE_KEY: keyof IQabStorePayload = "publishToStore";
-
-/**
- * `payload.publishToStore === true`, as a Prisma JSON filter. It is ADDED to the
- * `negocioId` filter of every query that uses it, never a substitute for it.
- */
-const PUBLISHED_PAYLOAD_FILTER: Prisma.OutboxEventoWhereInput["payload"] = {
-  path: [PUBLISH_TO_STORE_KEY],
-  equals: true,
-};
 
 const NO_CALENDAR_SYNC_STATE: IQabStoreSyncState = {
   state: "SYNCED",
@@ -181,9 +165,9 @@ export async function hasEverPublishedToStore(
   const published = await tx.outboxEvento.findFirst({
     where: {
       negocioId: params.negocioId,
-      entidad: STORE_ENTITY,
+      entidad: QAB_STORE_ENTITY,
       entidadId: params.tiendaId,
-      payload: PUBLISHED_PAYLOAD_FILTER,
+      payload: qabPublishedPayloadFilter,
     },
     select: { id: true },
   });
@@ -207,7 +191,7 @@ export async function hasAnyStoreEvent(
   const emitted = await tx.outboxEvento.findFirst({
     where: {
       negocioId: params.negocioId,
-      entidad: STORE_ENTITY,
+      entidad: QAB_STORE_ENTITY,
       entidadId: params.tiendaId,
     },
     select: { id: true },
@@ -235,9 +219,9 @@ async function readPublishedTiendaIds(
     by: ["entidadId"],
     where: {
       negocioId,
-      entidad: STORE_ENTITY,
+      entidad: QAB_STORE_ENTITY,
       entidadId: { in: tiendaIds },
-      payload: PUBLISHED_PAYLOAD_FILTER,
+      payload: qabPublishedPayloadFilter,
     },
   });
 
@@ -379,7 +363,7 @@ export async function saveTiendaOnlineLocal(params: {
 
     const event = await enqueueOutboxEvent(tx, {
       negocioId,
-      entidad: STORE_ENTITY,
+      entidad: QAB_STORE_ENTITY,
       entidadId: tiendaId,
       // `operacion` comes from `emittedBefore`, NEVER from
       // `everPublishedBefore`: they answer two different questions, and

@@ -235,3 +235,40 @@ export const QAB_STORE_SYNC_STATE_MAX_ROWS = 200;
  */
 export const QAB_PUBLIC_STORE_DOMAIN = "queandabuscando.com";
 export const QAB_PUBLIC_STORE_URL_PREFIX = `https://${QAB_PUBLIC_STORE_DOMAIN}/`;
+
+/* -------------------------------------------------------------------------- */
+/* F-020 — Learning the slug QAB actually assigned                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The ONLY `reason` that makes `resolvedSlug` this store's own address (ADR 0037).
+ * Declared FROM the contract's vocabulary, never as a loose literal.
+ */
+export const QAB_SLUG_LEARNED_REASON = "own" satisfies (typeof QAB_SLUG_REASONS)[number];
+
+/**
+ * Closed vocabulary of what one learning target ended up as. Nothing from the
+ * third party's body is ever mirrored here: no `reason`, no `url`, no slug.
+ */
+export const QAB_SLUG_LEARN_OUTCOMES = [
+  "learned", // reason "own" + valid slug + updateMany count === 1
+  "not_own", // reason !== "own"
+  "invalid_slug", // resolvedSlug does not satisfy qabSlugSchema
+  "upstream_error", // fetchQabSlugAvailability returned { kind: "error" }
+  "not_written", // updateMany count !== 1 (already learned, or gone)
+  "tenant_mismatch", // QabTenantMismatchError: never happens, always reported
+  "skipped_no_token", // the business has no qabToken
+  "skipped_deadline", // out of phase budget; recovered next run
+] as const;
+
+/** Targets attempted per run. A target left out loses NOTHING (ADR 0036c). */
+export const QAB_SLUG_LEARN_MAX_PER_RUN = 20;
+
+/** Phase budget, clamped again by QAB_SYNC_RUN_DEADLINE_MS of the whole run. */
+export const QAB_SLUG_LEARN_DEADLINE_MS = 10_000;
+
+/** Hard cap on the `Tienda` rows the backlog query reads. Documented cost of ADR 0036b. */
+export const QAB_SLUG_LEARN_CANDIDATE_MAX_ROWS = 200;
+
+/** Log prefix of the phase. Ids and codes only. */
+export const QAB_SLUG_LEARN_LOG = "qab.slugLearn";
