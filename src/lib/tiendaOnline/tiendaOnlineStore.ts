@@ -287,7 +287,9 @@ export async function saveTiendaOnlineLocal(params: {
       where: { id: tiendaId, negocioId },
       select: {
         ...TIENDA_ONLINE_LOCAL_SELECT,
-        negocio: { select: { nombre: true } },
+        // `monedaBase` joins `nombre` here for F-006: the STORE payload now
+        // carries `baseCurrency`, and the builder reads it from the row.
+        negocio: { select: { nombre: true, monedaBase: true } },
       },
     });
     if (!existing) throw new TiendaOnlineNotFoundError();
@@ -345,6 +347,7 @@ export async function saveTiendaOnlineLocal(params: {
       negocioNombre: existing.negocio.nombre,
       tiendaId: updated.id,
       nombre: updated.nombre,
+      monedaBase: existing.negocio.monedaBase,
       publicarEnTienda: updated.publicarEnTienda,
       slug: updated.slug,
       descripcion: updated.descripcion,

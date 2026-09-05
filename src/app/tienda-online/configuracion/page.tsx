@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { AppDialog } from "@/components/AppDialog";
 import { ErrorState } from "@/components/ErrorState";
@@ -15,16 +16,23 @@ import { PublicationStatusCard } from "@/components/tiendaOnline/PublicationStat
 import { SAVE_BAR_HEIGHT, SaveBar } from "@/components/tiendaOnline/SaveBar";
 import { ScheduleCard } from "@/components/tiendaOnline/ScheduleCard";
 import { StoreAddressCard } from "@/components/tiendaOnline/StoreAddressCard";
+import { TiendaOnlineConfiguracionTabs } from "@/components/tiendaOnline/TiendaOnlineConfiguracionTabs";
+import type { ITiendaOnlineTab } from "@/components/tiendaOnline/TiendaOnlineConfiguracionTabs";
 import { TiendaOnlineDeniedScreen } from "@/components/tiendaOnline/TiendaOnlineDeniedScreen";
+import { TiendaOnlineProductosTab } from "@/components/tiendaOnline/TiendaOnlineProductosTab";
 import { UnpublishDialog } from "@/components/tiendaOnline/UnpublishDialog";
 import {
   TIENDA_ONLINE_LABELS,
+  TIENDA_ONLINE_OFFLINE_DESCRIPTION,
   TIENDA_ONLINE_PERMISOS,
+  TIENDA_ONLINE_TAB_QUERY_KEY,
+  TIENDA_ONLINE_TABS,
 } from "@/constants/tiendaOnline";
 import { useAppContext } from "@/context/AppContext";
 import { useMessageContext } from "@/context/MessageContext";
 import { useTiendaOnlineAccess } from "@/hooks/useTiendaOnlineAccess";
 import { useTiendaOnlineConfiguracion } from "@/hooks/useTiendaOnlineConfiguracion";
+import { useTiendaOnlineProductos } from "@/hooks/useTiendaOnlineProductos";
 import { collectOpeningHoursIssues } from "@/schemas/qabOpeningHours";
 import { TipoLocal } from "@/schemas/tienda";
 import type { ITiendaOnlineLocal } from "@/schemas/tiendaOnline";
@@ -37,8 +45,14 @@ import {
 import type { ITiendaOnlineDraft } from "@/utils/tiendaOnlineDraft";
 
 const SUBTITLE = "Cómo se ve y cómo opera tu negocio en la tienda online.";
-const OFFLINE_DESCRIPTION =
-  "Esta pantalla necesita conexión para consultar y publicar. Lo que vendas mientras tanto se sigue registrando igual.";
+const INVENTARIO_ROUTE = "/inventario";
+
+/** An unknown or absent `?tab=` falls into Locales, which is the old behaviour. */
+function readTab(raw: string | null): ITiendaOnlineTab {
+  return raw === TIENDA_ONLINE_TABS.productos
+    ? TIENDA_ONLINE_TABS.productos
+    : TIENDA_ONLINE_TABS.locales;
+}
 
 function pickInitialLocal(
   locales: ITiendaOnlineLocal[],
@@ -57,7 +71,7 @@ function pickInitialLocal(
  * subtitle, the breadcrumbs and the denied state. What this feature replaces is
  * the body of the card.
  */
-export default function TiendaOnlineConfiguracionPage() {
+function TiendaOnlineConfiguracionScreen() {
   const access = useTiendaOnlineAccess(
     TIENDA_ONLINE_PERMISOS.configuracionAcceder,
   );
@@ -68,8 +82,39 @@ export default function TiendaOnlineConfiguracionPage() {
   const { user } = useAppContext();
   const { showMessage } = useMessageContext();
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tab = readTab(searchParams.get(TIENDA_ONLINE_TAB_QUERY_KEY));
+
   const { status, locales, online, reload, save } = useTiendaOnlineConfiguracion(
     access === "allowed",
+  );
+
+  // The tab is a MODE of this screen, not a destination: `replace`, so «back»
+  // still leaves the screen instead of walking through the tabs. It lives in the
+  // URL because a tab that only exists in React state cannot be opened directly.
+  const goToTab = (next: ITiendaOnlineTab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === TIENDA_ONLINE_TABS.locales) {
+      params.delete(TIENDA_ONLINE_TAB_QUERY_KEY);
+    } else {
+      params.set(TIENDA_ONLINE_TAB_QUERY_KEY, next);
+    }
+    const query = params.toString();
+    router.replace(query.length > 0 ? `${pathname}?${query}` : pathname);
+  };
+
+  // The listing is only fetched once the tab has actually been opened: a
+  // merchant who never leaves Locales never pays for it. And the hook lives
+  // HERE, not in the tab body, so the filter and the loaded pages survive a
+  // round trip through the other tab.
+  const [productosTabOpened, setProductosTabOpened] = useState(false);
+  useEffect(() => {
+    if (tab === TIENDA_ONLINE_TABS.productos) setProductosTabOpened(true);
+  }, [tab]);
+  const productos = useTiendaOnlineProductos(
+    access === "allowed" && productosTabOpened,
   );
 
   const [selectedId, setSelectedId] = useState("");
@@ -79,6 +124,7 @@ export default function TiendaOnlineConfiguracionPage() {
   const [unpublishOpen, setUnpublishOpen] = useState(false);
   const [editingReason, setEditingReason] = useState(false);
   const [pendingLocalId, setPendingLocalId] = useState<string | null>(null);
+  const [pendingTab, setPendingTab] = useState<ITiendaOnlineTab | null>(null);
   const [focusFirstIssueNonce, setFocusFirstIssueNonce] = useState(0);
   const scheduleRef = useRef<HTMLDivElement | null>(null);
 
@@ -181,12 +227,30 @@ export default function TiendaOnlineConfiguracionPage() {
     setSelectedId(tiendaId);
   };
 
+  // Switching tabs with a draft in flight would lose it exactly as switching
+  // local does, and until this feature there was no second tab to lose it to.
+  const handleTabChange = (next: ITiendaOnlineTab) => {
+    if (next === tab) return;
+    if (dirty && tab === TIENDA_ONLINE_TABS.locales) {
+      setPendingTab(next);
+      return;
+    }
+    goToTab(next);
+  };
+
   if (access === "denied" || status === "forbidden") {
     return <TiendaOnlineDeniedScreen />;
   }
 
   const publishableLocales = locales.filter((local) => local.publishable);
   const allWarehouses = locales.length > 0 && publishableLocales.length === 0;
+  // The signal of "nothing is published yet" is the WHOLE business's, read from
+  // the locals this page already loads — never derived from the product page on
+  // screen, which would give a per-page answer to a per-business question.
+  const algunLocalPublicado = publishableLocales.some(
+    (local) => local.publicarEnTienda,
+  );
+  const enLocales = tab === TIENDA_ONLINE_TABS.locales;
 
   return (
     <PageContainer
@@ -202,14 +266,29 @@ export default function TiendaOnlineConfiguracionPage() {
         { label: TIENDA_ONLINE_LABELS.section },
         { label: "Configuración" },
       ]}
+      // The one thing F-006 adds to the frame. `headerActions` and
+      // `titleAdornment` stay unused, for the reasons F-005 gave.
+      tabs={
+        <TiendaOnlineConfiguracionTabs value={tab} onChange={handleTabChange} />
+      }
       // A bar that covers the last field is worse than not having one.
       contentProps={dirty ? { sx: { pb: `${SAVE_BAR_HEIGHT}px` } } : undefined}
     >
-      {(access === "loading" || status === "loading") && (
+      {!enLocales && (
+        <TiendaOnlineProductosTab
+          productos={productos}
+          isMobile={isMobile}
+          algunLocalPublicado={algunLocalPublicado}
+          onGoToLocales={() => handleTabChange(TIENDA_ONLINE_TABS.locales)}
+          onGoToInventario={() => router.push(INVENTARIO_ROUTE)}
+        />
+      )}
+
+      {enLocales && (access === "loading" || status === "loading") && (
         <LoadingState variant="text" count={6} />
       )}
 
-      {status === "error" && (
+      {enLocales && status === "error" && (
         <ErrorState
           kind="error"
           title="No se pudo cargar la configuración"
@@ -218,24 +297,30 @@ export default function TiendaOnlineConfiguracionPage() {
         />
       )}
 
-      {status === "offline" && (
+      {enLocales && status === "offline" && (
         <ErrorState
           kind="offline"
           title="Sin conexión"
-          description={OFFLINE_DESCRIPTION}
+          description={TIENDA_ONLINE_OFFLINE_DESCRIPTION}
           onRetry={reload}
         />
       )}
 
-      {status === "ready" && locales.length === 0 && (
+      {enLocales && status === "ready" && locales.length === 0 && (
         <Typography variant="body2" sx={{ color: "semantic.text.secondary" }}>
           Este negocio todavía no tiene locales.
         </Typography>
       )}
 
-      {status === "ready" && allWarehouses && <AlmacenNotice localNombre={null} />}
+      {enLocales && status === "ready" && allWarehouses && (
+        <AlmacenNotice localNombre={null} />
+      )}
 
-      {status === "ready" && !allWarehouses && selected !== null && draft !== null && (
+      {enLocales &&
+        status === "ready" &&
+        !allWarehouses &&
+        selected !== null &&
+        draft !== null && (
         <Stack>
           <Box sx={{ mb: 2 }}>
             <LocalSelector
@@ -337,25 +422,49 @@ export default function TiendaOnlineConfiguracionPage() {
             </>
           )}
 
+          {/* ONE dialog for the two ways a draft can be lost: changing local
+              (F-005) and, since F-006, changing tab. Same title, same buttons,
+              a second variant of the body. */}
           <AppDialog
-            open={pendingLocalId !== null}
-            onClose={() => setPendingLocalId(null)}
+            open={pendingLocalId !== null || pendingTab !== null}
+            onClose={() => {
+              setPendingLocalId(null);
+              setPendingTab(null);
+            }}
             title={`Tienes cambios sin guardar en «${selected.nombre}»`}
             cancelLabel="Seguir editando"
             confirm={{
               label: "Descartar y cambiar",
               onClick: () => {
                 if (pendingLocalId !== null) setSelectedId(pendingLocalId);
+                if (pendingTab !== null) goToTab(pendingTab);
                 setPendingLocalId(null);
+                setPendingTab(null);
               },
             }}
           >
             <Typography variant="body2">
-              Si cambias de local ahora, se pierden.
+              {pendingTab !== null
+                ? "Si cambias de pestaña ahora, se pierden."
+                : "Si cambias de local ahora, se pierden."}
             </Typography>
           </AppDialog>
         </Stack>
       )}
     </PageContainer>
+  );
+}
+
+/**
+ * `useSearchParams` needs a Suspense boundary above it, and the tab lives in the
+ * query string on purpose: a tab that only exists in React state cannot be
+ * opened by URL, and the responsive verification renders this route inside an
+ * iframe where there is nothing to click before measuring.
+ */
+export default function TiendaOnlineConfiguracionPage() {
+  return (
+    <Suspense fallback={<LoadingState variant="text" count={3} />}>
+      <TiendaOnlineConfiguracionScreen />
+    </Suspense>
   );
 }

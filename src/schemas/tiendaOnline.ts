@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   QAB_ORDER_STATUSES,
+  QAB_PRODUCT_PAGE_SIZE_MAX,
+  QAB_PRODUCT_SEARCH_MAX_LENGTH,
   QAB_SLUG_QUERY_MAX_LENGTH,
   QAB_SLUG_UPSTREAM_CODES,
   QAB_STORE_ADDRESS_MAX_LENGTH,
@@ -248,3 +250,141 @@ export const tiendaOnlineSlugErrorSchema = z
   })
   .strict();
 export type ITiendaOnlineSlugError = z.infer<typeof tiendaOnlineSlugErrorSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* F-006 — the publishing tab                                                  */
+/* -------------------------------------------------------------------------- */
+
+/** One store row of a product, as the publishing tab sees it. */
+export const tiendaOnlineProductoTiendaSchema = z
+  .object({
+    productoTiendaId: z.string().uuid(),
+    tiendaId: z.string().uuid(),
+    tiendaNombre: z.string().min(1),
+    precio: z.number(),
+    /** Already resolved: `monedaPrecioCode ?? Negocio.monedaBase`. */
+    monedaCode: z.string(),
+    /**
+     * `Tienda.publicarEnTienda`. Lets the screen tell "the local is not
+     * published yet" (criterion 7, `skipped_not_published` on the other side)
+     * apart from a real failure. A real column that F-005 writes, not a derived
+     * guess.
+     */
+    tiendaPublicada: z.boolean(),
+  })
+  .strict();
+export type ITiendaOnlineProductoTienda = z.infer<
+  typeof tiendaOnlineProductoTiendaSchema
+>;
+
+/** One product of the publishing tab. */
+export const tiendaOnlineProductoSchema = z
+  .object({
+    id: z.string().uuid(),
+    nombre: z.string().min(1),
+    categoriaId: z.string().uuid(),
+    categoriaNombre: z.string().min(1),
+    publicarEnTienda: z.boolean(),
+    barcodes: z.array(z.string().min(1)),
+    /** Live ProductoTienda rows in locals of `tipo: "TIENDA"`. May be empty. */
+    tiendas: z.array(tiendaOnlineProductoTiendaSchema),
+    /** Merged with `mergeQabProductSyncState`. Reuses the F-005 shape. */
+    syncState: qabStoreSyncStateSchema,
+  })
+  .strict();
+export type ITiendaOnlineProducto = z.infer<typeof tiendaOnlineProductoSchema>;
+
+/** Response of GET /api/tienda-online/productos. Extends the F-004 scaffold. */
+export const tiendaOnlineProductosPageSchema = tiendaOnlineScaffoldSchema
+  .extend({
+    productos: z.array(tiendaOnlineProductoSchema),
+    /** `Producto.id` to pass back as `cursor`, or null when this is the last page. */
+    nextCursor: z.string().uuid().nullable(),
+    /**
+     * Products matching the current filter. Present ONLY when `categoriaId` was
+     * given: it is what the bulk-action confirmation announces. `null` otherwise
+     * — counting the whole catalog on every page would be a query nobody asked
+     * for.
+     */
+    total: z.number().int().min(0).nullable(),
+    /**
+     * The caller holds BOTH permissions and may act. The screen disables the
+     * switch and the bulk action when this is false (criterion 19). It is NOT
+     * the security boundary: the PATCH re-checks server side and answers 403.
+     */
+    puedePublicar: z.boolean(),
+  })
+  .strict();
+export type ITiendaOnlineProductosPage = z.infer<
+  typeof tiendaOnlineProductosPageSchema
+>;
+
+/** Query of GET /api/tienda-online/productos. */
+export const tiendaOnlineProductosQuerySchema = z
+  .object({
+    categoriaId: z.string().uuid().optional(),
+    search: z.string().trim().min(1).max(QAB_PRODUCT_SEARCH_MAX_LENGTH).optional(),
+    cursor: z.string().uuid().optional(),
+    limit: z.coerce.number().int().min(1).max(QAB_PRODUCT_PAGE_SIZE_MAX).optional(),
+  })
+  .strict();
+export type ITiendaOnlineProductosQuery = z.infer<
+  typeof tiendaOnlineProductosQuerySchema
+>;
+
+/** Body of BOTH publish PATCHes. One key, nothing else. */
+export const tiendaOnlinePublicacionUpdateSchema = z
+  .object({ publicarEnTienda: z.boolean() })
+  .strict();
+export type ITiendaOnlinePublicacionUpdate = z.infer<
+  typeof tiendaOnlinePublicacionUpdateSchema
+>;
+
+/** Response of PATCH /api/tienda-online/productos/[productoId]. */
+export const tiendaOnlineProductoUpdateResultSchema = z
+  .object({
+    producto: tiendaOnlineProductoSchema,
+    /** OutboxEvento rows written by this call, bootstrap events included. */
+    eventos: z.number().int().min(0),
+  })
+  .strict();
+export type ITiendaOnlineProductoUpdateResult = z.infer<
+  typeof tiendaOnlineProductoUpdateResultSchema
+>;
+
+/** Response of PATCH /api/tienda-online/productos/categoria/[categoriaId]. */
+export const tiendaOnlineBulkResultSchema = z
+  .object({
+    /** Products whose `publicarEnTienda` this call wrote. The N of criterion 6. */
+    productos: z.number().int().min(0),
+    /** OutboxEvento rows written, bootstrap events included: N != eventos. */
+    eventos: z.number().int().min(0),
+  })
+  .strict();
+export type ITiendaOnlineBulkResult = z.infer<
+  typeof tiendaOnlineBulkResultSchema
+>;
+
+/** Body of the 409 both PATCHes answer when a payload cannot be built. */
+export const tiendaOnlinePayloadRejectedSchema = z
+  .object({
+    error: z.literal(TIENDA_ONLINE_API_ERRORS.payloadInvalid),
+    code: z.string().min(1),
+    productoTiendaId: z.string().nullable(),
+  })
+  .strict();
+export type ITiendaOnlinePayloadRejected = z.infer<
+  typeof tiendaOnlinePayloadRejectedSchema
+>;
+
+/** Body of the 409 the bulk action answers when the category is too large. */
+export const tiendaOnlineBulkTooLargeSchema = z
+  .object({
+    error: z.literal(TIENDA_ONLINE_API_ERRORS.bulkTooLarge),
+    productos: z.number().int().min(0),
+    max: z.number().int().min(1),
+  })
+  .strict();
+export type ITiendaOnlineBulkTooLarge = z.infer<
+  typeof tiendaOnlineBulkTooLargeSchema
+>;

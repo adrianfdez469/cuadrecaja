@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { QAB_UNPUBLISH_REASON_MAX_LENGTH } from "@/constants/qab";
 import { openingHoursSchema } from "@/schemas/qabOpeningHours";
+import { qabCurrencyCodeSchema } from "@/schemas/qabCurrency";
 
 export { openingHoursSchema } from "@/schemas/qabOpeningHours";
 export type {
@@ -89,6 +90,13 @@ export const qabStorePayloadSchema = z
     phone: z.string().nullable(),
     whatsapp: z.string().nullable(),
     email: z.string().nullable(),
+    /**
+     * `Negocio.monedaBase`. OPTIONAL on purpose: the contract says an absent
+     * `baseCurrency` defaults to CUP, and a business whose base code is not
+     * exactly QAB_CURRENCY_CODE_LENGTH characters must not take the whole STORE
+     * event down with it — the builder drops the key instead.
+     */
+    baseCurrency: qabCurrencyCodeSchema.optional(),
     openingHours: openingHoursSchema.optional(),
     publishToStore: z.boolean(),
     unpublishReason: z.string().max(QAB_UNPUBLISH_REASON_MAX_LENGTH).nullable(),
@@ -105,6 +113,8 @@ export const qabStorePayloadInputSchema = z
     negocioNombre: z.string().min(1),
     tiendaId: z.string().uuid(),
     nombre: z.string().min(1),
+    /** `Negocio.monedaBase`, RAW. The builder decides whether it can travel. */
+    monedaBase: z.string(),
     publicarEnTienda: z.boolean(),
     slug: z.string().nullable(),
     descripcion: z.string().nullable(),

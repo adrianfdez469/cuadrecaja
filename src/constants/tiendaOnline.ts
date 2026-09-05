@@ -14,6 +14,15 @@ export const TIENDA_ONLINE_PERMISOS = {
   pedidosProponer: "tiendaonline.pedidos.proponer",
 } as const;
 
+/**
+ * Permissions this tab needs that do NOT belong to the module. There is NO fifth
+ * `tiendaonline.*` permission: F-004 closed with four, and acting on a `Producto`
+ * is already governed by `operaciones.inventario.acceder` everywhere else.
+ */
+export const TIENDA_ONLINE_EXTRA_PERMISOS = {
+  inventarioAcceder: "operaciones.inventario.acceder",
+} as const;
+
 /** Page routes of the module. Used by the Drawer and by any redirect. */
 export const TIENDA_ONLINE_ROUTES = {
   configuracion: "/tienda-online/configuracion",
@@ -39,6 +48,11 @@ export const TIENDA_ONLINE_API_ERRORS = {
   almacenNotPublishable: "ALMACEN_NOT_PUBLISHABLE",
   openingHoursInvalid: "OPENING_HOURS_INVALID",
   slugUpstream: "QAB_SLUG_UPSTREAM",
+  // F-006. `forbidden` stays the ONLY body of every 403 of the module.
+  productoNotFound: "PRODUCTO_NOT_FOUND",
+  categoriaNotFound: "CATEGORIA_NOT_FOUND",
+  bulkTooLarge: "BULK_TOO_LARGE",
+  payloadInvalid: "QAB_PAYLOAD_INVALID",
 } as const;
 
 /**
@@ -61,6 +75,12 @@ export const TIENDA_ONLINE_SAVE_AUDIT_LOG = "TIENDA_ONLINE_LOCAL_SAVED" as const
 export const TIENDA_ONLINE_UI = {
   /** Delay from the last keystroke before the slug forecast is requested. */
   slugForecastDebounceMs: 600,
+  /**
+   * Delay from the last keystroke before the product listing is requested.
+   * NOT `slugForecastDebounceMs`: that one is another query with another cost,
+   * and tying them would move both the day one of them is tuned.
+   */
+  productSearchDebounceMs: 400,
   /** From this length on, the unpublish-reason counter turns to `caution`. */
   unpublishReasonWarnAt: 140,
   /** Default window created when a day is switched from closed to open. */
@@ -84,4 +104,23 @@ export const TIENDA_ONLINE_LABELS = {
   section: "Tienda Online",
   configuracion: "Configuración de la tienda",
   pedidos: "Pedidos",
+  /** The two tabs of the configuration screen (F-006). */
+  tabLocales: "Locales",
+  tabProductos: "Productos",
+} as const;
+
+/**
+ * The description of the offline state, shared by the two tabs of the
+ * configuration screen. It was a literal inside the page until F-006 gave that
+ * page a second body: two copies of one sentence drift the first time one of
+ * them is reworded.
+ */
+export const TIENDA_ONLINE_OFFLINE_DESCRIPTION =
+  "Esta pantalla necesita conexión para consultar y publicar. Lo que vendas mientras tanto se sigue registrando igual.";
+
+/** Query-string key that selects the active tab, and its two values. */
+export const TIENDA_ONLINE_TAB_QUERY_KEY = "tab";
+export const TIENDA_ONLINE_TABS = {
+  locales: "locales",
+  productos: "productos",
 } as const;

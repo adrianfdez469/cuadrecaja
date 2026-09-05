@@ -1,7 +1,7 @@
 # E-017: Un absoluto escrito en un contrato o un ADR que el código no sostiene
 
 **Área:** build
-**Apariciones:** 1 — F-020 (la misma frase en **cinco** sitios, más una segunda frase del mismo género)
+**Apariciones:** 2 — F-020 (la misma frase en **cinco** sitios, más una segunda del mismo género) · F-006 (**cuatro** criterios de diseño, ver la adenda del final)
 
 ## Síntoma
 
@@ -71,3 +71,36 @@ concretas:
 - **Cuando el implementador te avise de que un comentario del contrato es falso, arréglalo ANTES del
   `qa`, no en el cierre.** Es la diferencia entre corregir una frase y gastar un ciclo de rechazo
   contra código correcto. Y busca la frase en todos sus sitios: `grep` del absoluto, no del archivo.
+
+
+---
+
+## Adenda (F-006): el absoluto que incumple un componente compartido preexistente
+
+El subcaso más frecuente de este error, y el que más barato es de prevenir.
+
+En F-006 aparecieron **cuatro** criterios de diseño con la misma forma: un absoluto sobre el DOM que
+**ningún** implementador podía satisfacer, porque quien lo incumple es el componente compartido que
+el propio contrato manda reutilizar.
+
+| Criterio | El absoluto | Quién lo incumple solo |
+|---|---|---|
+| 50 | «En ningún estado existe un `.MuiCircularProgress-root` en el DOM» | `AppDialog.tsx:135` lo pinta como `startIcon` cuando `confirm.loading` — y el contrato manda usar `AppDialog` con `loading` |
+| 8 | «El `text-overflow` computado no es `ellipsis` en ningún texto de la lista» | `.MuiChip-label` lo trae de MUI (`Chip.js:312`), y `StatusPill` es un `Chip` |
+| 27 | «No existe ningún `Drawer` de acciones» | El menú lateral del `Layout` también es un `Drawer` |
+| 33 | «En ningún texto visible aparece la cifra `eventos`» | Cualquier precio o contador que coincida numéricamente |
+
+El caso 50 es el más ilustrativo: la **prosa** del mismo documento decía tres veces «ningún
+`CircularProgress` **suelto**», y el criterio se comió la palabra «suelto». El contrato se
+contradecía consigo mismo, y el `implementer` hizo lo correcto —seguir la prosa y **reportarlo**, en
+vez de rediseñar un componente compartido para satisfacer un criterio mal escrito.
+
+**El chequeo barato, y la regla que faltaba:** antes de escribir «ningún X en el DOM», **abre el
+componente compartido que mandas reutilizar y mira qué renderiza**. Si lo renderiza él, el que cede
+es el criterio, no el componente.
+
+Dos matices que hicieron falta al corregirlos:
+
+- **Acotar el alcance**, no solo la condición: `document` incluye el chrome del `Layout`, que tiene
+  sus propios spinners, su propio `Drawer` y su propio texto. Ver [E-011](E-011-medir-el-contenedor-equivocado-de-mui.md).
+- Un repaso que solo comprueba **subcadenas de copy** —como el de [E-016](E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md)— **no ve esta clase de fallo**. Son dos repasos distintos.
