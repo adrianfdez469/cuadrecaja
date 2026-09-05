@@ -12,6 +12,7 @@ afectados y borrar la entrada de la tabla de abiertas.
 | # | Qué falta | Bloquea | Desde |
 |---|-----------|---------|-------|
 | S-002 | Qué hace el SQL espejo con un producto borrado en blando | F-008 | contrato v7 · 2026-09-01 |
+| S-003 | El claim `email` del SSO exige forma de correo y el contrato no lo dice | ninguno — riesgo de producción de F-009 | contrato v10.1 · 2026-09-05 |
 
 ## Resueltas
 
@@ -96,3 +97,46 @@ en el documento vinculante.
 **Mientras tanto** no bloquea nada inmediato. F-001 solo comprueba que el SQL corre contra el
 schema real, y ahí el soft delete no interviene. Quien tiene que estar resuelto antes es **F-008**,
 que es donde el hash pasa a ser una decisión operativa.
+
+
+---
+
+### S-003 · El claim `email` del SSO se valida como correo, y eso no está escrito en ninguna parte
+
+**Cómo apareció.** Verificando F-009 de punta a punta contra una instancia de desarrollo de
+queandabuscando. No lo encontró una lectura del contrato: lo encontró un canje real que falló.
+
+**El problema.** El ADR 0067 de cuadrecaja decidió emitir el claim `email` desde `Usuario.usuario`
+—que es el campo de identidad de cuadrecaja, único y validado con `EMAIL_REGEX` **en el alta**—
+apoyándose en que el contrato **no publica ningún requisito de formato** para ese claim. Y no lo
+publica: ni `sync-contract.md`, ni `despliegue.md` § 8.4, ni el bloque «Fase 1 · B» de
+`flujos-cc-qab.html` dicen nada del formato.
+
+Pero el código receptor sí lo exige. En `src/lib/auth/ssoToken.ts` de queandabuscando, el claim se
+valida con `z.email().optional()`. Un token cuyo `email` no tenga forma de correo se rechaza con:
+
+```
+401 {"error":"SSO_REJECTED","reason":"malformed"}
+```
+
+**Por qué importa, y por qué no lo detecta cuadrecaja.** `EMAIL_REGEX` se aplica al **alta** de un
+usuario. Las cuentas creadas **antes** de esa validación conservan un `usuario` que puede ser
+`admin`, `vendedor` o cualquier cosa. Esos usuarios verán el botón, recibirán un enlace bien
+firmado, y el canje fallará **del lado de queandabuscando**, sin que nada del lado de cuadrecaja
+haya ido mal. El fallo aparece en producción, en la cara del comerciante, y el log útil está en la
+otra organización.
+
+**Lo que preguntamos.** No es una petición de API: es una discrepancia entre el documento y el
+código, y hay dos salidas legítimas. Preferimos que lo decidáis vosotros, porque el que valida sois
+vosotros.
+
+- ¿Confirmáis que el formato de correo **es** un requisito del claim? Si es así, basta con que quede
+  escrito en `despliegue.md` § 8.4, y el arreglo es nuestro: cuadrecaja tendrá que decidir qué
+  emite para una cuenta cuyo `usuario` no es un correo.
+- ¿O el `z.email()` es más estricto de lo que pretendíais, y el claim debería aceptar cualquier
+  cadena no vacía —siendo `sub` la identidad real y `email` solo un dato de presentación?
+
+**Qué NO bloquea.** F-009 está cerrado y verificado: cuadrecaja emite `Usuario.usuario` verbatim,
+que es exactamente lo que su ADR 0067 decidió, y todos sus criterios de aceptación pasan. Esto es un
+riesgo de despliegue, no un feature detenido. **Conviene resolverlo antes de que el SSO llegue a
+producción**, no antes de seguir programando.

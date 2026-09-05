@@ -323,13 +323,13 @@
         "La contraseña del usuario no aparece en el token ni en ninguna petición hacia QAB.",
         "Quitar el acceso a un local en CC lo quita del panel en el siguiente inicio de sesión."
       ],
-      "passes": false,
-      "status": "pending",
-      "notes": "Barato y desbloquea de golpe todo lo que CC no edita por diseño. Requiere SSO_JWT_SECRET compartido con QAB; QAB verifica con 30 s de tolerancia de reloj. Toca autenticación: security-guardian obligatorio.",
+      "passes": true,
+      "status": "done",
+      "notes": "Verificado ejecutando por el agente qa el 2026-09-05: 10/10 criterios de aceptacion (los 6 del backlog + 4 anadidos por el spec) y 32/32 criterios de diseno, suite 2859/2859, tsc y lint limpios. ADR emitidos: 0067 (los seis claims salen de la sesion de NextAuth), 0068 (lector de entorno propio y un solo 503), 0069 (el enlace se emite por un POST que devuelve la URL) y 0070 (reutiliza el permiso de configuracion, no anade un quinto). SORPRESA UTIL: habia una instancia de desarrollo de QAB corriendo en local (puerto 3001), asi que los criterios 1, 3, 4 y 6 se verificaron DE PUNTA A PUNTA y no solo en su mitad emisora: el 307 a /admin con Set-Cookie, el 401 SSO_REJECTED/already_used al reusar el enlace, y el storeIds vacio tras revocar el acceso y volver a iniciar sesion. SALVEDAD IMPORTANTE: se verifico contra el secreto de DESARROLLO de esa copia local. El SSO_JWT_SECRET de produccion, que tiene que valer lo mismo en los dos lados y se rota a la vez en ambos, SIGUE SIN ACORDARSE con el equipo de QAB. AVISO DE PERMISOS (ADR 0070): conceder tiendaonline.configuracion.acceder implica tambien entrar al panel de QAB y poder cambiar visible y priceOverride, es decir lo que un cliente real ve y paga. No es escalada de privilegio (el panel no escribe ninguna fila de Producto/ProductoTienda de CC), pero es mas alcance del que sugiere el nombre del permiso. Decision consciente del humano. RIESGO ABIERTO PARA PRODUCCION, ver S-003 en .agents/solicitudes-qab.md: el codigo real de QAB valida email con z.email().optional(), asi que un Usuario.usuario sin forma de correo —frecuente en cuentas anteriores a EMAIL_REGEX— recibe 401 malformed al canjear el enlace. Contradice la premisa del ADR 0067 y no lo detecta este feature. contrato_version pasa de 5 a 10.1: es la version vigente con la que se verifico. Matiz que dejo el spec y que sigue siendo cierto: el SSO no vive en sync-contract.md —solo se le menciona de pasada— sino en despliegue.md 8.4, que no lleva numeracion propia; el 10.1 fecha la verificacion, no un capitulo del contrato. Errores nuevos que salieron de aqui: E-036 y E-037, mas una adenda a E-005.",
       "requires_docs": [
         "qab"
       ],
-      "contrato_version": 5
+      "contrato_version": 10.1
     },
     {
       "id": "F-010",
@@ -467,13 +467,13 @@
         "Un pedido entregado aparece en los reportes de ventas de esa tienda con su origen identificable como tienda online.",
         "La corrida de disponibilidad posterior propaga el nuevo enum de stock a QAB."
       ],
-      "passes": false,
-      "status": "blocked",
-      "notes": "DECISIÓN ABIERTA, y no está en ninguno de los documentos de QAB porque es enteramente de CC. Un pedido que descuenta stock pero nunca se convierte en Venta deja el cierre descuadrado y la mercancía desaparecida de los reportes — en un producto que se llama Cuadre de Caja eso no es un detalle. Propuesta a decidir con el humano: MovimientoStock al CONFIRMED (reserva, con reverso al cancelar) y Venta al DELIVERED (cuando se cobra). Cerrar la decisión con un ADR antes de empezar; condiciona el modelo de PedidoEntrante de F-010. v6: el total de un pedido puede ser PARCIAL mientras el envío no esté cotizado, así que el ADR tiene que decir también qué pasa si se confirma stock sobre un total que todavía va a crecer.",
+      "passes": true,
+      "status": "done",
+      "notes": "Verificado ejecutando por el agente qa el 2026-09-05, tras UN ciclo de rechazo. Los 15 criterios de aceptacion se comprobaron invocando `landTiendaOnlineOrderStatus` real contra Postgres, no leyendo codigo: existencia 100->95 al CONFIRMED y quieta en 95 tras el DELIVERED (criterio 8, el doble descuento que motiva todo el feature), reverso exacto al cancelar, y la CARRERA REAL con dos DELIVERED simultaneos por Promise.all repetida 3 veces, que siempre deja exactamente una Venta. 37 criterios de diseno verificados con Playwright a 320/768/1440. Suite 3005/3005 en 127 archivos, tsc y lint limpios. ADR: 0071 (ES el criterio 1: el inventario baja al CONFIRMED con un movimiento propio y la Venta del DELIVERED no vuelve a descontar), 0072 + DOS enmiendas (identidad, idempotencia y alreadyLanded), 0073 (la forma de pago la declara el encargado al entregar), 0074 (los destinos de transferencia viajan en el detalle del pedido) y 0075 (el origen se hace visible en el resumen del reporte de ventas). Migracion unica: 20260905130000_online_order_landing. TRES ENMIENDAS AL CONTRATO durante la implementacion, las tres declaradas por el implementer y las tres aceptadas: (1) el P2002 NO se puede recuperar dentro de una transaccion interactiva de Postgres —la violacion la aborta y el catch no la salva—, asi que hace falta una lectura previa dentro y el catch fuera con un reintento acotado (E-038); (2) la regla de MISSING_EXCHANGE_RATE parafraseada habria bloqueado todo pedido en la moneda base, porque el ancla nunca tiene fila de TasaCambio: ahora nombra `missingRateCodes` (E-039); (3) la lectura de destinos es forzosamente secuencial y vive en `getTiendaOnlineOrderDetail`. El qa rechazo el criterio de diseno 37 (teclado del grupo de forma de pago): tres defectos con una causa unica —el tabIndex derivado de «que esta elegido» en vez de «donde esta el recorrido»— cuyo peor efecto era que pulsar Espacio tras navegar con flechas REVERTIA la eleccion en silencio, escribiendo la forma de pago equivocada. Corregido y re-verificado (E-041). Ese criterio existia porque el ui-designer anticipo que, al renunciar al Radio de MUI (su input lleva role: undefined explicito en SwitchBase.js:193, asi que [role=\"radio\"] no encontraria NADA), el patron de teclado deja de venir hecho. FOLLOW-UP ABIERTO, no bloqueante: `totalTiendaOnline` suma `netAmount`, que sale solo de las lineas de producto, asi que el KPI SUBESTIMA el ingreso del canal online por el importe del envio. Un pedido de subtotal 40 + envio 15 da una Venta.total de 55 correcta pero aporta 40 al KPI. No viola ningun criterio escrito, pero confunde a quien lo lea. contrato_version 10.1: se verifico contra la version vigente, no contra la 5 que el feature llevaba anotada. Errores nuevos: E-038, E-039, E-040, E-041.",
       "requires_docs": [
         "qab"
       ],
-      "contrato_version": 5
+      "contrato_version": 10.1
     },
     {
       "id": "F-015",
@@ -619,6 +619,23 @@
         "qab"
       ],
       "contrato_version": 10
+    },
+    {
+      "id": "F-021",
+      "category": "seguridad",
+      "description": "Cerrar las route handlers que leen o escriben datos de un tenant sin comprobar sesion, permiso ni negocioId. Confirmadas por lectura del codigo: GET /api/transfer-destinations (importa getSession y verificarPermisoUsuario y no llama a ninguno de los dos; filtra solo por el tiendaId de la query) y GET /api/cierre/[tiendaId]/last (lee cierrePeriodo filtrando solo por el tiendaId de la URL). Un barrido deja ~37 candidatas mas, que hay que triar una a una porque varias son legitimamente publicas.",
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Existe un inventario escrito de las 170 route handlers de src/app/api, clasificando cada una en publica a proposito, protegida por helper, o desprotegida, con el motivo en una linea.",
+        "curl autenticado como usuario del negocio A contra GET /api/transfer-destinations?tiendaId=<tienda del negocio B> responde 403 o 404, nunca la lista de destinos.",
+        "curl autenticado como usuario del negocio A contra GET /api/cierre/<tienda del negocio B>/last responde 403 o 404, nunca el periodo.",
+        "Cada ruta declarada publica a proposito tiene escrito por que lo es, y ninguna de ellas devuelve datos de un Negocio concreto.",
+        "La suite sigue en verde y ninguna pantalla del POS pierde funcionalidad: verificado recorriendo venta, cierre e inventario en el navegador.",
+        "Hay un test por cada ruta corregida que falla si se quita el filtro por negocioId."
+      ],
+      "passes": false,
+      "status": "pending",
+      "notes": "Abierto por decision del humano el 2026-09-05. Lo encontro el ui-designer de F-014 y lo verifico el coordinador leyendo el codigo: en transfer-destinations el POST del MISMO archivo, veinte lineas mas abajo, si comprueba sesion, permiso y que la tienda pertenezca al negocio del usuario, asi que el GET es un olvido y no una decision. AGENTS.md llama a una fuga entre negocios el fallo mas grave posible en este sistema. ALCANCE REAL: la ruta pasa por el middleware, asi que hace falta estar autenticado; el ataque es de un usuario de un negocio leyendo datos de otro, no de un anonimo. TransferDestinations guarda nombre y descripcion, que es donde se apuntan las cuentas de cobro. OJO AL TRIAJE: un primer grep dio 73 rutas 'sin auth' y era ruido. Muchas usan helpers que si resuelven sesion, permiso y alcance — resolveReportScope es el mas comun — y otras son legitimamente publicas (auth/*, promoters/magic-link, health, crons con su propia clave). Por eso el criterio 1 es el inventario y no un numero. NO LO ARREGLA F-014: su arquitecto decidio en el ADR 0074 que los destinos de transferencia viajen en el detalle del pedido, precisamente para no darle un llamador mas a la ruta abierta. El agujero sigue ahi para el resto de la app. PRECEDENTE: F-018 tambien fue un feature de seguridad (cerro la suplantacion por cabeceras x-user-* y puso la puerta de autenticacion en /api/); este cierra el nivel siguiente, que es la autorizacion por tenant dentro de esa puerta."
     }
   ]
 }
