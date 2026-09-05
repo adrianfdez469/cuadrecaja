@@ -1,6 +1,8 @@
 import type { PillHue } from "@/components/StatusPill";
+import type { PedidoNoticeHue } from "@/components/tiendaOnline/PedidoNotice";
 import type {
   QAB_ORDER_CANCELLED_BY,
+  QAB_ORDER_STATUS_FAILURE_CODES,
   QAB_ORDER_STATUSES,
 } from "@/constants/qab";
 import {
@@ -475,4 +477,166 @@ export const TIENDA_ONLINE_ORDER_COPY = {
   notFoundDescription:
     "Puede que lo hayan quitado, o que sea de un local al que no tienes acceso.",
   notFoundAction: "Volver a Pedidos",
+
+  /* F-012 — the actions block of the detail */
+  /** `aria-label` of the region every outcome of the PATCH is painted inside. */
+  actionsRegionLabel: "Acciones del pedido",
+  cambiarEstado: "Cambiar el estado",
+  cambiarEstadoTitulo: "Cambiar el estado del pedido",
+  /** NOT the dialog's default «Cancelar»: one of the destinations is «Cancelado». */
+  volver: "Volver",
+  confirmSubtitle: "El comprador lo va a ver en la página de su pedido.",
+  confirmBody:
+    "Después de esto no vas a poder cambiar el estado de este pedido desde aquí.",
+  /* The three reasons there is no control at all, one sentence each. */
+  blockedTerminal:
+    "Este pedido ya está cerrado: su estado no se puede cambiar desde aquí.",
+  blockedAwaitingCustomer:
+    "Este pedido está esperando una respuesta del comprador. Hasta que responda, su estado no se cambia desde aquí.",
+  /**
+   * It does NOT say the status is new: `PENDING` falls in this branch and IS
+   * translated, and a sentence starting like `statusUnknownNote` would make a
+   * check on either one find the other (E-016).
+   */
+  blockedUnknownStatus:
+    "Este pedido todavía no admite ningún cambio de estado desde aquí.",
+  /* The link to the buyer */
+  whatsappAction: "Escribirle por WhatsApp",
+  /**
+   * Written from what the SCREEN observes — there is no link — and never from a
+   * cause that lives on the other side: the field arrives null by more than one
+   * road (ADR 0066).
+   */
+  whatsappSinEnlace:
+    "La tienda online no dejó un enlace de WhatsApp para este comprador. El teléfono, si lo dejó, está en los datos de contacto.",
+  /* While the request is in flight, and the one control that says why it is off */
+  reportando: "Avisando a tu tienda online…",
+  sinConexionRazon: "Sin conexión.",
+  volverAIntentarlo: "Volver a intentarlo",
+  /* The three grouped failures. No code, no id, no HTTP number: ADR 0034, E-009. */
+  statusNotQuoted:
+    "Falta cotizar el envío de este pedido, así que la tienda online no aceptó el cambio. Volver a intentarlo no lo arregla: mientras falta cotizar el envío, el cambio se rechaza igual. Cotizar todavía no se hace desde esta pantalla.",
+  statusNotLinked:
+    "Tu tienda online todavía no está enlazada con este negocio, así que el pedido sigue como estaba. Revisa la configuración de la tienda online, o pídeselo a quien administra el negocio.",
+  statusUpstreamFailed:
+    "No se pudo avisar a tu tienda online, así que el pedido sigue como estaba. El comprador no vio ningún cambio.",
+  statusOffline:
+    "Sin conexión. El cambio no salió de este dispositivo y el pedido sigue como estaba. Vuelve a intentarlo cuando tengas señal.",
+  statusFailed:
+    "No se pudo cambiar el estado y el pedido sigue como estaba. Vuelve a intentarlo en un momento.",
 } as const;
+
+/* ---- F-012: the texts that interpolate, and the grouping of the failures -- */
+
+/**
+ * PURE. The title of the confirmation asked for a destination the order cannot
+ * come back from. Takes the STATUS and reads its label from
+ * `orderStatusPresentation`, so the words are the ones F-011 already chose.
+ */
+export function orderStatusConfirmTitle(target: string): string {
+  return `¿Marcar este pedido como «${orderStatusPresentation(target).label}»?`;
+}
+
+/**
+ * PURE. QAB accepted and the local row was written. It talks about EL COMPRADOR
+ * from its first word; the divergence notice below talks about LA TIENDA ONLINE,
+ * so a check on one never matches the other (E-016).
+ */
+export function orderStatusAppliedNotice(label: string): string {
+  return `El comprador ya ve este pedido como «${label}».`;
+}
+
+/**
+ * PURE. QAB accepted and this POS did not write it (ADR 0063). It names both
+ * states with their own labels, calls neither of them a failure, and says how to
+ * recover: pressing again is safe because the contract allows reporting the same
+ * status twice.
+ */
+export function orderStatusDivergedNotice(
+  reportedLabel: string,
+  currentLabel: string,
+): string {
+  return `La tienda online ya tiene este pedido como «${reportedLabel}», pero este POS todavía lo tiene como «${currentLabel}». Vuelve a intentarlo cuando puedas: repetir el cambio es seguro y deja las dos partes iguales.`;
+}
+
+/**
+ * PURE. The sentence F-011 dictated for a control this session may not use. It
+ * is OURS and not the server's: `axiosClient` destroys the body of any 403, so
+ * the real reason never reaches the browser (E-009).
+ */
+export function orderManageDeniedNotice(tiendaNombre: string): string {
+  return `No puedes gestionar los pedidos de este local: hace falta el permiso de gestión en ${tiendaNombre}. Pídeselo a quien administra el negocio.`;
+}
+
+type IQabOrderStatusFailureCodeValue =
+  (typeof QAB_ORDER_STATUS_FAILURE_CODES)[number];
+
+/**
+ * The three groups the ten failure codes collapse into. Ten sentences would be
+ * ten diagnoses the person at the counter cannot act on; these three are the two
+ * the ADR 0064 asks to keep apart, plus everything else.
+ */
+type IOrderStatusFailureGroup = "NOT_QUOTED" | "NOT_LINKED" | "GENERIC";
+
+const NOT_QUOTED_CODE =
+  "ORDER_DELIVERY_NOT_QUOTED" satisfies IQabOrderStatusFailureCodeValue;
+const NOT_LINKED_CODES = [
+  "NOT_CONFIGURED",
+  "SYNC_NOT_CONFIGURED",
+] as const satisfies ReadonlyArray<IQabOrderStatusFailureCodeValue>;
+
+/**
+ * PURE. Which group a `qabError` belongs to. TOTAL over any string: a code the
+ * vocabulary grows tomorrow falls into GENERIC instead of breaking the screen,
+ * exactly as `orderStatusPresentation` does with an unknown status.
+ */
+function orderStatusFailureGroup(qabError: string): IOrderStatusFailureGroup {
+  if (qabError === NOT_QUOTED_CODE) return "NOT_QUOTED";
+  if ((NOT_LINKED_CODES as readonly string[]).includes(qabError)) {
+    return "NOT_LINKED";
+  }
+  return "GENERIC";
+}
+
+const FAILURE_COPY: Record<IOrderStatusFailureGroup, string> = {
+  NOT_QUOTED: TIENDA_ONLINE_ORDER_COPY.statusNotQuoted,
+  NOT_LINKED: TIENDA_ONLINE_ORDER_COPY.statusNotLinked,
+  GENERIC: TIENDA_ONLINE_ORDER_COPY.statusUpstreamFailed,
+};
+
+const FAILURE_HUE: Record<IOrderStatusFailureGroup, PedidoNoticeHue> = {
+  // Nothing is broken and nothing was lost: a datum is missing.
+  NOT_QUOTED: "caution",
+  NOT_LINKED: "caution",
+  GENERIC: "negative",
+};
+
+/**
+ * Whether the screen may offer the button again AT ALL for this group.
+ *
+ * It is NOT `retryable`, which comes in the body of the 502 and is never
+ * recomputed here (E-014): it is the coarser question of whether repeating makes
+ * sense for this kind of failure. Only GENERIC defers to `retryable`; the other
+ * two never offer it, and for NOT_QUOTED that is acceptance criterion 4 in its
+ * visible form.
+ */
+const FAILURE_OFFERS_RETRY: Record<IOrderStatusFailureGroup, boolean> = {
+  NOT_QUOTED: false,
+  NOT_LINKED: false,
+  GENERIC: true,
+};
+
+/** PURE. The sentence a `qabError` is shown as. Total over any string. */
+export function orderStatusFailureCopy(qabError: string): string {
+  return FAILURE_COPY[orderStatusFailureGroup(qabError)];
+}
+
+/** PURE. The hue that sentence is painted in. Total over any string. */
+export function orderStatusFailureHue(qabError: string): PedidoNoticeHue {
+  return FAILURE_HUE[orderStatusFailureGroup(qabError)];
+}
+
+/** PURE. Whether this kind of failure may show a retry control at all. */
+export function orderStatusFailureOffersRetry(qabError: string): boolean {
+  return FAILURE_OFFERS_RETRY[orderStatusFailureGroup(qabError)];
+}

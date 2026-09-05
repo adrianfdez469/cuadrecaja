@@ -12,7 +12,7 @@ el área correspondiente, léelos antes de escribir código.
 | ID | Fix en una línea |
 |----|------------------|
 | [E-010](errors/E-010-comentarios-de-ejemplo-en-espanol-en-un-contrato.md) | Los bloques de código de un contrato se leen como **plantilla** y acaban en `src/`: no escribas dentro de ellos comentarios en español, ni menciones el nombre de lo que el propio contrato prohíbe nombrar. |
-| [E-016](errors/E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md) | Antes de exigir una subcadena, búscala en el copy **y** en los valores formateados de esa vista (`1.400,00` contiene `0,00`); y si lees `textContent`, compara con lo que el DOM guarda, no con lo que la captura enseña (`text-transform` no lo toca). |
+| [E-016](errors/E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md) | Antes de exigir una subcadena, búscala en el copy fijo, en los **valores formateados** (`1.400,00` contiene `0,00`) y en el copy que los **features anteriores** ya pintan en esa ruta; acota el criterio a su región, nunca a `document.body`; si lees `textContent`, compara con lo que el DOM guarda (`text-transform` no lo toca); y un criterio de **ausencia** por `grep` cae con tus propios comentarios explicativos. |
 | [E-031](errors/E-031-el-mensaje-de-un-error-de-runtime-cita-el-cuerpo.md) | `JSON.parse`, `BigInt`, `Number` y los drivers **citan el dato que los rompió** en el mensaje: nunca loguees el error, loguea una constante fija — y antes de quitar una guarda «defensiva», mira qué diría la excepción que evita. |
 
 ## Registrados
@@ -34,7 +34,7 @@ el área correspondiente, léelos antes de escribir código.
 | [E-013](errors/E-013-columna-que-nadie-escribe-usada-como-senal-de-estado.md) | Una columna que **nadie escribe** usada como señal de estado: no da error, da siempre el mismo valor, y la condición nunca toma la otra rama | ui | 1 |
 | [E-014](errors/E-014-una-senal-derivada-cuya-definicion-se-parafrasea.md) | El nombre de una señal derivada dice una cosa y su consulta calcula otra; la definición parafraseada en ocho sitios hace que una corrección deje alguna atrás | api | 1 |
 | [E-015](errors/E-015-un-simbolo-en-un-tsx-no-es-importable-desde-un-test.md) | Ningún símbolo que viva en un `.tsx` es importable desde un test (`jsx: preserve` sin override en `vitest.config.ts`), aunque sea una función pura sin React | tests | 1 |
-| [E-016](errors/E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md) | Un criterio de diseño exige una subcadena literal que el copy dictado por el mismo documento no contiene: el rechazo señala a código correcto. F-011 añade dos variantes: la subcadena escondida en un **valor formateado**, y `text-transform` que no toca el `textContent` | ui | **3** |
+| [E-016](errors/E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md) | Un criterio de diseño exige una subcadena literal que el copy dictado por el mismo documento no contiene: el rechazo señala a código correcto. F-011 y F-012 añaden cuatro variantes, incluida la subcadena que ya pintaba **otro feature** en la misma ruta, y la prohibida que aparece en **tus propios comentarios** | ui | **4** |
 | [E-017](errors/E-017-un-absoluto-en-un-contrato-que-el-codigo-no-sostiene.md) | Un absoluto («NEVER THROWS», «sin N+1», «ningún X en el DOM») escrito en un contrato o un ADR que el código no sostiene; el `qa` lo lee como especificación y rechaza código correcto | build | 2 |
 | [E-018](errors/E-018-la-redaccion-congelada-de-un-criterio-diferido.md) | Un criterio diferido se ejecuta con su redacción congelada, ya contradicha por un ADR posterior | tests | 1 |
 | [E-019](errors/E-019-it-each-con-un-simbolo-que-aun-no-existe.md) | `it.each` con un símbolo del contrato aún inexistente falla en la fase de colección y tumba **todos** los tests del archivo, incluidos los que estaban en verde | tests | 1 |
@@ -52,6 +52,8 @@ el área correspondiente, léelos antes de escribir código.
 | [E-031](errors/E-031-el-mensaje-de-un-error-de-runtime-cita-el-cuerpo.md) | El mensaje que fabrica el runtime (`JSON.parse`, `BigInt`, un driver) **cita el dato que lo causó**: la regla «esa credencial nunca va a un log» se incumple por una vía que nadie escribe | auth | **3** |
 | [E-032](errors/E-032-una-guarda-mas-ancha-que-la-del-contrato.md) | Una guarda implementada más ancha que la del contrato: pasa todas sus propias pruebas, porque la rama que sobra no está en el contrato y nadie recuerda probarla | api | 1 |
 | [E-033](errors/E-033-es-es-no-agrupa-los-millares-de-cuatro-digitos.md) | `Intl.NumberFormat("es-ES")` no agrupa los millares hasta las cinco cifras (`minimumGroupingDigits: 2`): `1250` sale `1250,00` y el ejemplo trabajado del propio contrato no se cumple | ui | 1 |
+| [E-034](errors/E-034-el-cache-de-turbopack-sobrevive-al-reinicio.md) | El caché de Turbopack dev vive en `.next/cache/turbopack/*.sst` y **sobrevive al reinicio del proceso**: una escritura directa en la base que se salta las revalidaciones de la app sirve el estado viejo hasta un `rm -rf .next` | build | 1 |
+| [E-035](errors/E-035-la-lista-de-testabilidad-cierra-antes-que-el-diseno.md) | La lista de testabilidad del contrato se cierra en el paso 4 y el `ui-designer` añade símbolos puros en el 4b: la lista nace incompleta y nadie la actualiza | build | 2 |
 
 ---
 

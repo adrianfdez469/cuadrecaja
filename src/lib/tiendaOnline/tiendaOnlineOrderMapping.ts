@@ -8,6 +8,7 @@ import {
 import { convertQabAmount } from "@/lib/qab/qabRateConversion";
 import { parseQabRateSnapshot } from "@/schemas/qabRateSnapshot";
 import type { IQabRateSnapshot } from "@/schemas/qabRateSnapshot";
+import { toSafeWhatsappUrl } from "@/schemas/qabWhatsappUrl";
 import type {
   ITiendaOnlineOrder,
   ITiendaOnlineOrderAmounts,
@@ -66,6 +67,7 @@ export const TIENDA_ONLINE_ORDER_DETAIL_SELECT = {
   contactPhone: true,
   contactEmail: true,
   contactAddress: true,
+  customerWhatsappUrl: true,
   notes: true,
   currencyCode: true,
   subtotal: true,
@@ -292,6 +294,10 @@ export function toTiendaOnlineOrder(
     contactPhone: row.contactPhone,
     contactEmail: row.contactEmail,
     contactAddress: row.contactAddress,
+    // The exit guard, never the raw column: it checks the HOST and not only the
+    // scheme, and a row that does not pass becomes `null` instead of failing the
+    // whole detail response (ADR 0066).
+    customerWhatsappUrl: toSafeWhatsappUrl(row.customerWhatsappUrl),
     notes: row.notes,
     rateSnapshot:
       snapshot === null

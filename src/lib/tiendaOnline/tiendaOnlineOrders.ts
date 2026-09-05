@@ -5,6 +5,7 @@ import {
   TIENDA_ONLINE_ORDER_PAGE_SIZE_MAX,
 } from "@/constants/tiendaOnline";
 import { prisma } from "@/lib/prisma";
+import type { IQabOrderStatusReportable } from "@/lib/qab/qabOrderStatusClient";
 import {
   TIENDA_ONLINE_ORDER_DETAIL_SELECT,
   TIENDA_ONLINE_ORDER_LIST_SELECT,
@@ -18,9 +19,12 @@ import type {
 } from "@/schemas/tiendaOnline";
 
 /**
- * The reads of the orders inbox. `negocioId` is in the `where` of EVERY query,
- * and so is `tiendaId: { in: tiendaIds }` on the three that return orders. This
- * feature performs NO write.
+ * The reads of the orders inbox, and its ONE write.
+ *
+ * `negocioId` is in the `where` of EVERY query, and so is
+ * `tiendaId: { in: tiendaIds }` on the three that return orders. The single
+ * write — `writeTiendaOnlineOrderStatus`, added by F-012 — carries `negocioId`
+ * too, and it is the only statement of this module that changes a row.
  */
 
 /**
@@ -181,29 +185,68 @@ export async function getTiendaOnlineOrderDetail(params: {
 }
 
 /**
- * The owning store of ONE order of this business, for the manage gate of the
- * PATCH. It is NOT scoped by `tiendaIds` on purpose: the gate needs to tell an
- * order of a store you are not assigned to (404) apart from one where you lack
- * `.gestionar` (403), and that is what `decideTiendaOnlineOrderManage` decides.
+ * What the PATCH's gate needs from ONE order of this business. Replaces the
+ * store-only read of F-011, which had no other caller.
+ */
+export interface ITiendaOnlineOrderGateTarget {
+  /** NEVER null here: an order with no owning store resolves to `null` below. */
+  tiendaId: string;
+  qabOrderId: string;
+}
+
+/**
+ * The owning store and the QAB id of ONE order of this business, or `null`.
+ *
+ * NOT scoped by `tiendaIds` on purpose: the gate needs to tell an order of a
+ * store you are not assigned to (404) apart from one where you lack `.gestionar`
+ * (403), and that is what `decideTiendaOnlineOrderManage` decides.
  *
  * Resolved through the composite key `id_negocioId` (ADR 0007), so the tenancy
  * filter cannot be forgotten.
  *
- * Returns `null` for BOTH «there is no such order in this business» — it does not
- * exist, or it is another business's — AND «the order exists and has no owning
- * store». Collapsing the two HERE, at the lowest level, is what makes them
- * indistinguishable downstream: `decideTiendaOnlineOrderManage` sees one `null`,
- * answers OUT_OF_SCOPE, and there is no branch left that could tell them apart.
- * That is deliberate, and it is why this returns a plain `string | null` instead
- * of a richer result.
+ * Returns `null` for THREE things at once — there is no such order in this
+ * business, it belongs to another business, or it exists and has no owning
+ * store. Collapsing them HERE, at the lowest level, is what makes them
+ * indistinguishable downstream: the gate sees one `null`, answers OUT_OF_SCOPE,
+ * and no branch is left that could tell them apart. That is the property F-011
+ * decision 2 promises, and it is unchanged by carrying `qabOrderId` along
+ * (ADR 0063).
  */
-export async function readTiendaOnlineOrderTiendaId(params: {
+export async function readTiendaOnlineOrderGateTarget(params: {
   negocioId: string;
   pedidoId: string;
-}): Promise<string | null> {
+}): Promise<ITiendaOnlineOrderGateTarget | null> {
   const row = await prisma.pedidoEntrante.findUnique({
     where: { id_negocioId: { id: params.pedidoId, negocioId: params.negocioId } },
-    select: { tiendaId: true },
+    select: { tiendaId: true, qabOrderId: true },
   });
-  return row?.tiendaId ?? null;
+  if (row === null || row.tiendaId === null) return null;
+  return { tiendaId: row.tiendaId, qabOrderId: row.qabOrderId };
+}
+
+/**
+ * Writes the new status of ONE order of this business. Returns how many rows it
+ * changed: 1, or 0 when the row is gone.
+ *
+ * `updateMany` and not `update`, and the count is the caller's business: an
+ * update that matches nothing does NOT fail (E-024), and treating "wrote
+ * nothing" as success is exactly the divergence criterion 9 is about.
+ *
+ * The `where` carries `negocioId` and NOT `tiendaId`: the store scope was
+ * already decided by the gate, on this very row, and re-deriving it here would
+ * be a second paraphrased copy of that rule (E-014).
+ *
+ * It has NO policy: it does not catch, it does not log, it does not decide what
+ * a 0 means. That lives in `reportTiendaOnlineOrderStatus`.
+ */
+export async function writeTiendaOnlineOrderStatus(params: {
+  negocioId: string;
+  pedidoId: string;
+  status: IQabOrderStatusReportable;
+}): Promise<number> {
+  const result = await prisma.pedidoEntrante.updateMany({
+    where: { id: params.pedidoId, negocioId: params.negocioId },
+    data: { status: params.status },
+  });
+  return result.count;
 }

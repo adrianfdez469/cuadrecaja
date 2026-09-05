@@ -2,6 +2,7 @@ import {
   QAB_AVAILABILITY_SYNC_PATH,
   QAB_CATALOG_SYNC_PATH,
   QAB_ORDERS_PULL_PATH,
+  QAB_ORDER_STATUS_PATH,
 } from "@/constants/qab";
 
 /** Thrown when QAB_API_BASE_URL is present but is not an absolute http(s) origin. */
@@ -93,4 +94,9 @@ export function qabOrdersPullUrl(
   }
   query.set(LIMIT_PARAM, String(params.limit));
   return `${baseUrl}${QAB_ORDERS_PULL_PATH}?${query.toString()}`;
+}
+
+/** Pure. `resolveQabBaseUrl` output + QAB_ORDER_STATUS_PATH. No query. */
+export function qabOrderStatusUrl(baseUrl: string): string {
+  return `${baseUrl}${QAB_ORDER_STATUS_PATH}`;
 }

@@ -360,6 +360,8 @@ describe("tiendaOnlineOrderSchema", () => {
     notes: null,
     rateSnapshot: null,
     lines: [],
+    // F-012 (contract § 2.3, ADR 0066): the detail schema gains this field.
+    customerWhatsappUrl: null,
   };
 
   it("accepts a well-formed order with no lines", () => {
@@ -373,19 +375,52 @@ describe("tiendaOnlineOrderSchema", () => {
     ).toBe(false);
   });
 
-  it("rejects a `customerWhatsappUrl` or a `proposal*`-shaped key (out of this contract, F-012's)", () => {
-    expect(
-      tiendaOnlineOrderSchema.safeParse({
-        ...validOrder,
-        customerWhatsappUrl: "https://wa.me/123",
-      }).success,
-    ).toBe(false);
+  it("rejects a `proposalStatus`-shaped key — still out of this contract, F-013's (F-012/ADR 0066 only adds customerWhatsappUrl)", () => {
     expect(
       tiendaOnlineOrderSchema.safeParse({
         ...validOrder,
         proposalStatus: "PENDING",
       }).success,
     ).toBe(false);
+  });
+
+  /**
+   * F-012 (contract § 2.3, ADR 0066). This replaces the F-011 test that used to
+   * assert the opposite — that `customerWhatsappUrl` was rejected as an
+   * undeclared key. The field is required-but-nullable now, so an order
+   * genuinely missing it must fail to parse, not silently default.
+   */
+  it("accepts a well formed https://wa.me/... customerWhatsappUrl", () => {
+    expect(
+      tiendaOnlineOrderSchema.safeParse({
+        ...validOrder,
+        customerWhatsappUrl: "https://wa.me/5355512345?text=Pedido",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts a null customerWhatsappUrl — no link to offer", () => {
+    expect(
+      tiendaOnlineOrderSchema.safeParse({
+        ...validOrder,
+        customerWhatsappUrl: null,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a customerWhatsappUrl whose host is not wa.me — the guard is by host, not only by https:// (ADR 0066 § 2)", () => {
+    expect(
+      tiendaOnlineOrderSchema.safeParse({
+        ...validOrder,
+        customerWhatsappUrl: "https://attacker.example/x",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an order missing customerWhatsappUrl entirely — required, not optional", () => {
+    const { customerWhatsappUrl: _omitted, ...withoutField } = validOrder;
+
+    expect(tiendaOnlineOrderSchema.safeParse(withoutField).success).toBe(false);
   });
 
   it("accepts a non-null rateSnapshot info block and a populated lines array", () => {
@@ -479,6 +514,8 @@ describe("tiendaOnlineOrderDetailSchema", () => {
           notes: null,
           rateSnapshot: null,
           lines: [],
+          // F-012 (contract § 2.3, ADR 0066): required-but-nullable on the detail.
+          customerWhatsappUrl: null,
         },
       }).success,
     ).toBe(true);

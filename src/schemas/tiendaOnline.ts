@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
-  QAB_ORDER_STATUSES,
+  QAB_ORDER_STATUS_FAILURE_CODES,
+  QAB_ORDER_STATUS_REPORTABLE,
   QAB_PRODUCT_PAGE_SIZE_MAX,
   QAB_PRODUCT_SEARCH_MAX_LENGTH,
   QAB_SLUG_QUERY_MAX_LENGTH,
@@ -25,6 +26,7 @@ import {
   openingHoursSchema,
 } from "@/schemas/qabOpeningHours";
 import { qabSlugSchema } from "@/schemas/qabStore";
+import { qabWhatsappUrlSchema } from "@/schemas/qabWhatsappUrl";
 import { TipoLocalEnum } from "@/schemas/tienda";
 
 /**
@@ -49,18 +51,6 @@ export const tiendaOnlineScaffoldSchema = z
   })
   .strict();
 export type ITiendaOnlineScaffold = z.infer<typeof tiendaOnlineScaffoldSchema>;
-
-/**
- * Body of `PATCH /api/tienda-online/pedidos/[pedidoId]/status`.
- * SHAPE ONLY. Which transitions are legal is F-011's problem, not this schema's:
- * every value of the enum parses here, including nonsensical ones.
- */
-export const pedidoEntranteStatusUpdateSchema = z
-  .object({ status: z.enum(QAB_ORDER_STATUSES) })
-  .strict();
-export type IPedidoEntranteStatusUpdate = z.infer<
-  typeof pedidoEntranteStatusUpdateSchema
->;
 
 /* -------------------------------------------------------------------------- */
 /* F-005 — the configuration screen of one local                               */
@@ -566,6 +556,16 @@ export const tiendaOnlineOrderSchema = tiendaOnlineOrderListItemSchema
     contactPhone: z.string().nullable(),
     contactEmail: z.string().nullable(),
     contactAddress: z.string().nullable(),
+    /**
+     * The wa.me link QAB composed. `null` when there is none to offer, and the
+     * ONLY thing the button is decided on: cuadrecaja never inspects
+     * `contactPhone` and never rebuilds this (ADR 0066).
+     *
+     * `qabWhatsappUrlSchema` checks the HOST and not only the scheme. The mapper
+     * satisfies it by construction, so a hand-edited row turns into `null`
+     * instead of failing the whole detail response.
+     */
+    customerWhatsappUrl: qabWhatsappUrlSchema.nullable(),
     notes: z.string().nullable(),
     rateSnapshot: tiendaOnlineRateSnapshotInfoSchema.nullable(),
     lines: z.array(tiendaOnlineOrderLineSchema),
@@ -619,4 +619,62 @@ export const tiendaOnlineOrdersQuerySchema = z
   .strict();
 export type ITiendaOnlineOrdersQuery = z.infer<
   typeof tiendaOnlineOrdersQuerySchema
+>;
+
+/* -------------------------------------------------------------------------- */
+/* F-012 — reporting an order's progress                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Body of `PATCH /api/tienda-online/pedidos/[pedidoId]/status`.
+ *
+ * SHAPE ONLY, and the shape is now the SIX values QAB accepts. The other three
+ * of QAB_ORDER_STATUSES answer 400 INVALID_BODY here, which is acceptance
+ * criterion 2 for `AWAITING_CUSTOMER`.
+ *
+ * It does NOT validate the transition: whether this destination makes sense from
+ * the order's current state is a product rule that lives in
+ * `offerOrderStatusTransitions` and feeds the screen (ADR 0065).
+ */
+export const pedidoEntranteStatusReportSchema = z
+  .object({ status: z.enum(QAB_ORDER_STATUS_REPORTABLE) })
+  .strict();
+export type IPedidoEntranteStatusReport = z.infer<
+  typeof pedidoEntranteStatusReportSchema
+>;
+
+/**
+ * The 200 of that PATCH.
+ *
+ * `persisted: false` means QAB accepted and the local row did not change: the
+ * buyer already sees `status` and this POS does not. It is NOT an error, and it
+ * is why the response says so instead of pretending (ADR 0063).
+ */
+export const tiendaOnlineOrderStatusResultSchema = z
+  .object({
+    /** The status QAB now holds. Echo of the accepted request, never a guess. */
+    status: z.enum(QAB_ORDER_STATUS_REPORTABLE),
+    persisted: z.boolean(),
+  })
+  .strict();
+export type ITiendaOnlineOrderStatusResult = z.infer<
+  typeof tiendaOnlineOrderStatusResultSchema
+>;
+
+/**
+ * The 502 of that PATCH. Same shape the slug forecast already uses, for the same
+ * reason: the QAB status is never mirrored (ADR 0022, ADR 0064).
+ *
+ * `retryable` says whether the SCREEN may offer a person the button again. The
+ * server retried nothing.
+ */
+export const tiendaOnlineOrderStatusErrorSchema = z
+  .object({
+    error: z.literal(TIENDA_ONLINE_API_ERRORS.qabStatusUpstream),
+    qabError: z.enum(QAB_ORDER_STATUS_FAILURE_CODES),
+    retryable: z.boolean(),
+  })
+  .strict();
+export type ITiendaOnlineOrderStatusError = z.infer<
+  typeof tiendaOnlineOrderStatusErrorSchema
 >;

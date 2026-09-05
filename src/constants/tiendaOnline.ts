@@ -46,7 +46,6 @@ export const TIENDA_ONLINE_API_ERRORS = {
   forbidden: "FORBIDDEN",
   invalidBody: "INVALID_BODY",
   pedidoNotFound: "PEDIDO_NOT_FOUND",
-  notImplemented: "NOT_IMPLEMENTED",
   internal: "TIENDA_ONLINE_UNAVAILABLE", // the ONLY body of every 500 of the module
   // F-005
   tiendaNotFound: "TIENDA_NOT_FOUND",
@@ -58,6 +57,10 @@ export const TIENDA_ONLINE_API_ERRORS = {
   categoriaNotFound: "CATEGORIA_NOT_FOUND",
   bulkTooLarge: "BULK_TOO_LARGE",
   payloadInvalid: "QAB_PAYLOAD_INVALID",
+  // F-012. Every QAB-side outcome of the status report leaves under this ONE
+  // code, with the specific reason in `qabError` (ADR 0022, ADR 0064).
+  // `forbidden` stays the ONLY body of every 403 of the module.
+  qabStatusUpstream: "QAB_STATUS_UPSTREAM",
 } as const;
 
 /**
@@ -223,3 +226,38 @@ export const TIENDA_ONLINE_ORDER_RESPONSE_INVALID_LOG =
  */
 export const TIENDA_ONLINE_PEDIDOS_OFFLINE_DESCRIPTION =
   "Esta pantalla necesita conexión para traer los pedidos. Lo que vendas mientras tanto se sigue registrando igual.";
+
+/* -------------------------------------------------------------------------- */
+/* F-012 — Reporting an order's progress                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Prefix of the ONE line written when QAB accepted and the local write did not
+ * land — acceptance criterion 9.
+ *
+ * The line names the order by its internal `pedidoId` and NEVER by the public
+ * code or the third party's id; the function that builds it does not take them
+ * as arguments, so it is not a promise (ADR 0063, E-031).
+ */
+export const TIENDA_ONLINE_ORDER_STATUS_DIVERGED_LOG =
+  "TIENDA_ONLINE_ORDER_STATUS_DIVERGED" as const;
+
+/** `cause` of the line above when the update ran and matched no row (E-024). */
+export const TIENDA_ONLINE_ORDER_STATUS_NOT_WRITTEN_CAUSE = "NOT_WRITTEN" as const;
+
+/** `cause` when the thrown value carries no usable code. Never its message. */
+export const TIENDA_ONLINE_ORDER_STATUS_UNKNOWN_CAUSE = "UNKNOWN" as const;
+
+/**
+ * Upper bound and shape of a `cause` taken from a thrown value's `code`. A log
+ * line must not carry an unbounded or free-form string: that is E-031's shape by
+ * another route.
+ */
+export const TIENDA_ONLINE_ORDER_STATUS_CAUSE_PATTERN = /^[A-Z0-9_]{1,16}$/;
+
+/** The three reasons a screen offers no status control at all. See ADR 0065. */
+export const TIENDA_ONLINE_ORDER_TRANSITION_BLOCKS = [
+  "TERMINAL", // DELIVERED, CANCELLED or REJECTED_BY_STORE
+  "AWAITING_CUSTOMER", // a live proposal is waiting on the buyer; F-013's ground
+  "UNKNOWN_STATUS", // any value outside the sequence, PENDING included
+] as const;

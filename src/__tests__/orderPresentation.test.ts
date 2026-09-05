@@ -16,6 +16,10 @@ import {
   formatOrderDateLong,
   formatOrderTime,
   rateSnapshotProvenance,
+  orderStatusFailureCopy,
+  orderStatusConfirmTitle,
+  orderStatusAppliedNotice,
+  orderStatusDivergedNotice,
 } from "@/components/tiendaOnline/orderPresentation";
 import { TIENDA_ONLINE_UNKNOWN_CODE_MAX_LENGTH } from "@/constants/tiendaOnline";
 import { QAB_ORDER_STATUSES, QAB_ORDER_CANCELLED_BY } from "@/constants/qab";
@@ -364,5 +368,124 @@ describe("rateSnapshotProvenance", () => {
     });
 
     expect(result).not.toContain("not-a-real-date");
+  });
+});
+
+/**
+ * F-012 — four new pure functions added to the same `.ts` (`.agents/designs/F-012.md`
+ * § 8.2). Per interfaces contract § 8.4, THIS SUITE PINS THE FORM, NOT THE WORDS: the
+ * exact Spanish prose is the design contract's to fix and the `qa` agent's to verify in
+ * the browser (E-016, E-018). Hard-coding a whole sentence here would break on the
+ * first wording tweak and would not really be testing the function's logic (E-008: a
+ * test that a pure copy change breaks, for reasons unrelated to whether the code is
+ * "wrong", is not a strong signal).
+ *
+ * Note for the report: these four are NOT named in the arch-guardian's § 8.4
+ * "cubierto" list (that list only names schemas/lib functions the interfaces contract
+ * itself owns). They are the ui-designer's addition to the same file, made after the
+ * interfaces contract was frozen. Covered here per the dev-tester's own brief, with the
+ * caution the ambiguity calls for — see the report.
+ */
+
+describe("orderStatusFailureCopy — the ten qabError codes grouped into three phrases (design § 6.2)", () => {
+  it("is total: never throws, for a code it recognises or one it does not", () => {
+    expect(() => orderStatusFailureCopy("ORDER_DELIVERY_NOT_QUOTED")).not.toThrow();
+    expect(() =>
+      orderStatusFailureCopy("A_CODE_THAT_DOES_NOT_EXIST_YET"),
+    ).not.toThrow();
+  });
+
+  it("groups NOT_CONFIGURED and SYNC_NOT_CONFIGURED under the SAME phrase (design § 6.2, row 4 — the merchant-fixable pair)", () => {
+    expect(orderStatusFailureCopy("NOT_CONFIGURED")).toBe(
+      orderStatusFailureCopy("SYNC_NOT_CONFIGURED"),
+    );
+  });
+
+  it("gives ORDER_DELIVERY_NOT_QUOTED a phrase of its own, different from the NOT_CONFIGURED group", () => {
+    expect(orderStatusFailureCopy("ORDER_DELIVERY_NOT_QUOTED")).not.toBe(
+      orderStatusFailureCopy("NOT_CONFIGURED"),
+    );
+  });
+
+  it("falls an unrecognised code back to the SAME generic phrase as a known-but-unremarkable one (e.g. UNKNOWN_ORDER) — total over any string", () => {
+    expect(orderStatusFailureCopy("A_CODE_THAT_DOES_NOT_EXIST_YET")).toBe(
+      orderStatusFailureCopy("UNKNOWN_ORDER"),
+    );
+  });
+
+  it("the generic-fallback phrase differs from both special-cased groups", () => {
+    const generic = orderStatusFailureCopy("UNKNOWN_ORDER");
+
+    expect(generic).not.toBe(orderStatusFailureCopy("ORDER_DELIVERY_NOT_QUOTED"));
+    expect(generic).not.toBe(orderStatusFailureCopy("NOT_CONFIGURED"));
+  });
+
+  it.each([
+    "ORDER_DELIVERY_NOT_QUOTED",
+    "NOT_CONFIGURED",
+    "SYNC_NOT_CONFIGURED",
+    "UNKNOWN_ORDER",
+    "TRANSPORT",
+  ])(
+    "never prints the raw code, QAB_STATUS_UPSTREAM, or an HTTP status for %s (ADR 0034, E-009)",
+    (code) => {
+      const copy = orderStatusFailureCopy(code);
+
+      expect(copy).not.toContain(code);
+      expect(copy).not.toContain("QAB_STATUS_UPSTREAM");
+      expect(copy).not.toMatch(/\b(400|401|403|404|409|502|503)\b/);
+    },
+  );
+});
+
+describe("orderStatusConfirmTitle — interpolates the target's OWN label, not a re-typed word (E-014)", () => {
+  it.each(["CONFIRMED", "READY", "DELIVERED", "CANCELLED", "REJECTED_BY_STORE"])(
+    "contains orderStatusPresentation(%s).label",
+    (target) => {
+      const { label } = orderStatusPresentation(target);
+
+      expect(orderStatusConfirmTitle(target)).toContain(label);
+    },
+  );
+
+  it("two different targets produce two different titles", () => {
+    expect(orderStatusConfirmTitle("DELIVERED")).not.toBe(
+      orderStatusConfirmTitle("CANCELLED"),
+    );
+  });
+});
+
+describe("orderStatusAppliedNotice / orderStatusDivergedNotice — pure interpolation, and NEVER sharing a prefix (design § 11, point 2)", () => {
+  it("orderStatusAppliedNotice contains the label it is given, verbatim", () => {
+    const marker = "MARKER_LABEL_APPLIED_9f3";
+
+    expect(orderStatusAppliedNotice(marker)).toContain(marker);
+  });
+
+  it("orderStatusDivergedNotice contains BOTH labels it is given, verbatim, reportado before actual", () => {
+    const reportado = "MARKER_REPORTED_a1";
+    const actual = "MARKER_ACTUAL_b2";
+
+    const notice = orderStatusDivergedNotice(reportado, actual);
+
+    expect(notice).toContain(reportado);
+    expect(notice).toContain(actual);
+    expect(notice.indexOf(reportado)).toBeLessThan(notice.indexOf(actual));
+  });
+
+  it("swapping the two labels changes the output — the two positions are not interchangeable", () => {
+    const a = "MARKER_ONE_x1";
+    const b = "MARKER_TWO_y2";
+
+    expect(orderStatusDivergedNotice(a, b)).not.toBe(orderStatusDivergedNotice(b, a));
+  });
+
+  it("the success notice and the divergence notice do NOT start with the same word — the exact collision the design caught and rewrote (§ 11, point 2)", () => {
+    const label = "MARKER_SHARED_LABEL_z9";
+
+    const applied = orderStatusAppliedNotice(label);
+    const diverged = orderStatusDivergedNotice(label, label);
+
+    expect(diverged.split(" ")[0]).not.toBe(applied.split(" ")[0]);
   });
 });

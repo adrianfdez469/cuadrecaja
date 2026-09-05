@@ -14,7 +14,7 @@ import {
   unassignedTitle,
   unattendedCountLabel,
 } from "@/components/tiendaOnline/orderPresentation";
-import { PedidoCautionNotice } from "@/components/tiendaOnline/PedidoCautionNotice";
+import { PedidoNotice } from "@/components/tiendaOnline/PedidoNotice";
 import { PedidosMetaRow } from "@/components/tiendaOnline/PedidosMetaRow";
 import { PedidosMobileList } from "@/components/tiendaOnline/PedidosMobileList";
 import { PedidosTable } from "@/components/tiendaOnline/PedidosTable";
@@ -91,9 +91,9 @@ export default function TiendaOnlinePedidosPage() {
       {skeleton ?? (
         <Stack spacing={2}>
           {inbox.unassignedCount > 0 && (
-            <PedidoCautionNotice title={unassignedTitle(inbox.unassignedCount)}>
+            <PedidoNotice title={unassignedTitle(inbox.unassignedCount)}>
               {TIENDA_ONLINE_ORDER_COPY.unassignedBody}
-            </PedidoCautionNotice>
+            </PedidoNotice>
           )}
 
           {inbox.status === "error" && (

@@ -30,6 +30,18 @@ export interface IUseTiendaOnlineOrder {
   status: ITiendaOnlineOrderStatus;
   order: ITiendaOnlineOrder | null;
   retry: () => void;
+  /**
+   * Adopts the `status` the PATCH's 200 echoed back, WITHOUT refetching (F-012).
+   *
+   * It is not a guess: that value is a field of a body the server produced right
+   * after writing the row, and ADR 0063 guarantees the write touched no other
+   * column. Refetching instead would put the whole screen back into skeletons
+   * and take the notice that was just written with it.
+   *
+   * The caller only reaches this when the row WAS written: a `persisted: false`
+   * leaves the screen showing the old status on purpose.
+   */
+  applyStatus: (status: string) => void;
 }
 
 /** `true` when the request never got an answer: no network, a timeout, DNS. */
@@ -78,5 +90,12 @@ export function useTiendaOnlineOrder(
 
   const retry = useCallback(() => setAttempt((current) => current + 1), []);
 
-  return useMemo(() => ({ status, order, retry }), [status, order, retry]);
+  const applyStatus = useCallback((next: string) => {
+    setOrder((current) => (current === null ? current : { ...current, status: next }));
+  }, []);
+
+  return useMemo(
+    () => ({ status, order, retry, applyStatus }),
+    [status, order, retry, applyStatus],
+  );
 }

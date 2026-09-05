@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { useState, use } from "react";
 import { Box, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { ErrorOutline } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
@@ -18,12 +18,13 @@ import {
   rateSnapshotProvenance,
 } from "@/components/tiendaOnline/orderPresentation";
 import { PedidoAmountsBlock } from "@/components/tiendaOnline/PedidoAmountsBlock";
-import { PedidoCautionNotice } from "@/components/tiendaOnline/PedidoCautionNotice";
 import { PedidoContactBlock } from "@/components/tiendaOnline/PedidoContactBlock";
+import { PedidoNotice } from "@/components/tiendaOnline/PedidoNotice";
 import { PedidoEstadoPills } from "@/components/tiendaOnline/PedidoEstadoPills";
 import { PedidoLinesMobileList } from "@/components/tiendaOnline/PedidoLinesMobileList";
 import { PedidoLinesTable } from "@/components/tiendaOnline/PedidoLinesTable";
 import { PedidoMetaBlock } from "@/components/tiendaOnline/PedidoMetaBlock";
+import { PedidoStatusActions } from "@/components/tiendaOnline/PedidoStatusActions";
 import { TiendaOnlineDeniedScreen } from "@/components/tiendaOnline/TiendaOnlineDeniedScreen";
 import {
   TIENDA_ONLINE_LABELS,
@@ -44,9 +45,10 @@ import { shape } from "@/theme/tokens";
  * whether the delivery is settled, and that is four rows that fit without
  * scrolling.
  *
- * There is NO action here and no disabled control that promises one: changing
- * the state of an order is F-012, and a greyed-out `Confirmar` would advertise
- * a permission problem where there is only an unbuilt feature.
+ * The actions block of F-012 is the FIRST block of the body, above `RESUMEN`,
+ * and deliberately not in `headerActions`: `PageContainer` keeps that row on one
+ * line at every width, and the `h1` of this screen carries an order code that is
+ * never truncated.
  *
  * The threshold is the canonical `down("sm")`, declared ONCE: four short columns
  * of lines fit in the 696 px box of a 768 px viewport without squeezing.
@@ -60,13 +62,17 @@ export default function TiendaOnlinePedidoDetallePage({
   const isCompact = useMediaQuery(theme.breakpoints.down("sm"));
   const router = useRouter();
   const detail = useTiendaOnlineOrder(pedidoId, access === "allowed");
+  // The order left the reach of this session while the screen was open: the
+  // whole screen goes to the same «no longer available» state the GET's 404
+  // already had. Everything below it describes an order nobody can touch.
+  const [gone, setGone] = useState(false);
 
   if (access === "denied" || detail.status === "forbidden") {
     return <TiendaOnlineDeniedScreen />;
   }
 
   const order = detail.order;
-  const ready = detail.status === "ready" && order !== null;
+  const ready = detail.status === "ready" && order !== null && !gone;
 
   const mismatchCount = ready
     ? order.lines.filter(
@@ -113,7 +119,7 @@ export default function TiendaOnlinePedidoDetallePage({
             <LoadingState variant="table" count={4} columns={4} />
           )}
         </Stack>
-      ) : detail.status === "not-found" ? (
+      ) : detail.status === "not-found" || gone ? (
         // Not an `ErrorState`: there is nothing to retry, and its `Reintentar`
         // would invite pressing it forever. The description keeps the 404's
         // ambiguity on purpose — the server refused to say which of the four
@@ -144,6 +150,13 @@ export default function TiendaOnlinePedidoDetallePage({
         />
       ) : (
         <Stack spacing={3}>
+          <PedidoStatusActions
+            order={order}
+            isCompact={isCompact}
+            onApplied={detail.applyStatus}
+            onNotFound={() => setGone(true)}
+          />
+
           {/* Two short label-and-value blocks side by side from 900 px: a
               breakpoint object inside `sx`, not a second JavaScript threshold. */}
           <Box
@@ -162,9 +175,9 @@ export default function TiendaOnlinePedidoDetallePage({
                 />
                 {order.amounts.kind ===
                   TIENDA_ONLINE_ORDER_AMOUNT_KIND.pendingQuote && (
-                  <PedidoCautionNotice>
+                  <PedidoNotice>
                     {TIENDA_ONLINE_ORDER_COPY.pendingQuoteNote}
-                  </PedidoCautionNotice>
+                  </PedidoNotice>
                 )}
               </Stack>
             </Box>
@@ -200,9 +213,9 @@ export default function TiendaOnlinePedidoDetallePage({
           {/* ONE notice, not one per line: it says HOW MANY and WHAT IT MEANS,
               and each affected line says which and how much. */}
           {mismatchCount > 0 && (
-            <PedidoCautionNotice title={conversionMismatchTitle(mismatchCount)}>
+            <PedidoNotice title={conversionMismatchTitle(mismatchCount)}>
               {TIENDA_ONLINE_ORDER_COPY.conversionMismatchBody}
-            </PedidoCautionNotice>
+            </PedidoNotice>
           )}
 
           <Box>

@@ -5,6 +5,10 @@ import {
   TIENDA_ONLINE_API_BASE,
   TIENDA_ONLINE_API_ERRORS,
 } from "@/constants/tiendaOnline";
+import type {
+  IQabOrderStatusFailureCode,
+  IQabOrderStatusReportable,
+} from "@/lib/qab/qabOrderStatusClient";
 import type { IQabSlugUpstreamCode } from "@/lib/qab/qabSlugClient";
 import { openingHoursIssueSchema } from "@/schemas/qabOpeningHours";
 import type { IOpeningHoursIssue } from "@/schemas/qabOpeningHours";
@@ -15,6 +19,8 @@ import {
   tiendaOnlineEstadoSchema,
   tiendaOnlineLocalUpdateResultSchema,
   tiendaOnlineOrderDetailSchema,
+  tiendaOnlineOrderStatusErrorSchema,
+  tiendaOnlineOrderStatusResultSchema,
   tiendaOnlineOrdersPageSchema,
   tiendaOnlinePayloadRejectedSchema,
   tiendaOnlineProductoUpdateResultSchema,
@@ -29,6 +35,7 @@ import type {
   ITiendaOnlineLocalUpdate,
   ITiendaOnlineLocalUpdateResult,
   ITiendaOnlineOrderDetail,
+  ITiendaOnlineOrderStatusResult,
   ITiendaOnlineOrdersPage,
   ITiendaOnlineOrdersQuery,
   ITiendaOnlineProductoUpdateResult,
@@ -317,6 +324,72 @@ export const fetchTiendaOnlineOrder = async (
     if (isForbidden(error)) throw new TiendaOnlineForbiddenError();
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       throw new TiendaOnlineOrderNotFound();
+    }
+    throw error;
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* F-012 — reporting an order's progress                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A QAB-side outcome of the status report. `qabError` is a closed code of ours,
+ * never a string from the other side; `retryable` says whether the screen may
+ * offer the button again, NOT that anything was retried.
+ */
+export class TiendaOnlineOrderStatusUpstreamError extends Error {
+  readonly qabError: IQabOrderStatusFailureCode;
+  readonly retryable: boolean;
+
+  constructor(qabError: IQabOrderStatusFailureCode, retryable: boolean) {
+    super(TIENDA_ONLINE_API_ERRORS.qabStatusUpstream);
+    this.name = "TiendaOnlineOrderStatusUpstreamError";
+    this.qabError = qabError;
+    this.retryable = retryable;
+  }
+}
+
+/**
+ * PATCH /api/tienda-online/pedidos/[pedidoId]/status.
+ *
+ * Throws, in this order of checks:
+ *   TiendaOnlineForbiddenError           on the 403 (via `isForbidden`, E-009)
+ *   TiendaOnlineOrderNotFound            on the 404
+ *   TiendaOnlineOrderStatusUpstreamError on a 502 whose body satisfies
+ *                                        `tiendaOnlineOrderStatusErrorSchema`
+ * and re-throws anything else untouched.
+ *
+ * A resolved value with `persisted: false` is NOT an error: QAB accepted and
+ * this POS did not write it. The screen says so; it does not retry by itself.
+ *
+ * No idempotency header is added: a PATCH without one does not enter the retry
+ * interceptor, and that is one of the two mechanisms behind criterion 4.
+ */
+export const patchTiendaOnlineOrderStatus = async (
+  pedidoId: string,
+  status: IQabOrderStatusReportable,
+): Promise<ITiendaOnlineOrderStatusResult> => {
+  try {
+    const response = await axiosClient.patch(
+      `${PEDIDOS_PATH}/${pedidoId}/status`,
+      { status },
+    );
+    return tiendaOnlineOrderStatusResultSchema.parse(response.data);
+  } catch (error) {
+    if (isForbidden(error)) throw new TiendaOnlineForbiddenError();
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      throw new TiendaOnlineOrderNotFound();
+    }
+
+    const upstream = tiendaOnlineOrderStatusErrorSchema.safeParse(
+      axios.isAxiosError(error) ? error.response?.data : undefined,
+    );
+    if (upstream.success) {
+      throw new TiendaOnlineOrderStatusUpstreamError(
+        upstream.data.qabError,
+        upstream.data.retryable,
+      );
     }
     throw error;
   }

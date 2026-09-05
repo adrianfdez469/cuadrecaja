@@ -1,7 +1,7 @@
 # E-016: Un criterio verificable que exige una subcadena que el copy dictado no contiene
 
 **Área:** ui
-**Apariciones:** 3 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas, ver adenda)
+**Apariciones:** 4 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas) · F-012 (dos más, y una invierte el modo de fallo). Ver las adendas.
 
 ## Síntoma
 
@@ -130,3 +130,45 @@ documento cuyo texto se **calcula**; los demás son palabras fijas que ningún c
 > Si un criterio lee `textContent`, compáralo con lo que el DOM guarda, nunca con lo que la
 > captura enseña. `text-transform`, `::first-letter` y el contenido generado por CSS no están en
 > el `textContent`.
+
+
+---
+
+## Adenda F-012 — dos variantes más, y una es al revés
+
+### 3. La subcadena ya estaba en la página, puesta por el copy de OTRO feature
+
+La peor hasta ahora, y la cazó el `ui-designer` repasando su documento antes de entregarlo.
+
+Un criterio del `409` iba a exigir que la pantalla mostrara «falta cotizar el envío» tras provocar
+ese error. Pero **F-011 ya imprime «Todavía falta cotizar el envío…»** en el bloque de importes de
+**todo** pedido `PENDING_QUOTE` — que es exactamente el tipo de pedido sobre el que hay que
+provocar el `409`. Escrito sobre `document.body`, el criterio **pasa con el `409` sin implementar**.
+
+Es E-008 montado sobre E-016: el criterio no discrimina, y encima parece que sí. Se resolvió
+acotando todos los criterios de esa zona a `section[aria-label="Acciones del pedido"]` y añadiendo
+una guarda previa que comprueba que la frase **no** está en la región antes de pulsar.
+
+> Antes de exigir una subcadena, búscala también en el copy que los features **anteriores** ya
+> pintan en esa misma ruta. Un feature nuevo hereda toda la página, no solo su trozo. Y cuando un
+> criterio busque texto, **acótalo a la región que ese criterio gobierna**, nunca a `document.body`.
+
+Dos más del mismo repaso, menores pero del mismo origen: dos avisos nuevos empezaban con la misma
+frase (un criterio del éxito daba positivo sobre el de divergencia), y la frase de `UNKNOWN_STATUS`
+compartía prefijo con una de F-011 **y además era falsa** para `PENDING`, que sí está traducido. En
+los tres casos se corrigió el copy, no el criterio.
+
+### 4. Al revés: la subcadena PROHIBIDA aparece en tus propios comentarios
+
+La encontró el `implementer`, y es el mismo mecanismo invertido. El diseño trae criterios de
+**ausencia** verificables por `grep`: que no aparezca `wa.me`, ni `window.open`, ni
+`CircularProgress` en los archivos nuevos.
+
+Su código los cumplía. Su **documentación** no: había escrito `https://wa.me@attacker.example/` en
+el JSDoc de la guarda (copiado del ADR que la justifica), «no `window.open`» en un comentario del
+JSX, y «`CircularProgress`» en el del diálogo. Las tres frases son prosa correcta —explican
+justamente por qué no se usa eso— y las tres son el literal exacto que el criterio busca.
+
+> Un criterio de ausencia por `grep` tiene su trampa en los comentarios que explican esa misma
+> ausencia. Si vas a prohibir un literal, decide si el criterio mira solo código o también prosa —
+> y dilo en el criterio, porque el `grep` no distingue.

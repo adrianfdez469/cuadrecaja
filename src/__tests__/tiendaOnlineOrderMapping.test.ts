@@ -429,6 +429,10 @@ describe("toTiendaOnlineOrder", () => {
       contactEmail: "juana@example.com",
       contactAddress: "Calle 1, La Habana",
       notes: "Entregar por la tarde",
+      // F-012 (contract § 0.2, § 6, ADR 0066): TIENDA_ONLINE_ORDER_DETAIL_SELECT
+      // gains this column, so a row Prisma actually returns always carries it
+      // (string or null, never absent) — this fixture predates the field.
+      customerWhatsappUrl: null,
       currencyCode: "CUP",
       subtotal: decimal("4400.00"),
       discountTotal: decimal("0.00"),

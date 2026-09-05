@@ -647,3 +647,102 @@ export const QAB_ORDER_PULL_FAILED_LOG = "qab.orderPull.failed";
 
 /** Reported when the thrown error is not a Prisma error with a `code`. */
 export const QAB_ORDER_PULL_UNKNOWN_ERROR_CODE = "UNKNOWN";
+
+/* -------------------------------------------------------------------------- */
+/* F-012 — Reporting an order's progress back to QAB                           */
+/* -------------------------------------------------------------------------- */
+
+/** Status-report route of the contract. Appended to QAB_API_BASE_URL; never inline. */
+export const QAB_ORDER_STATUS_PATH = "/api/internal/orders/status";
+
+/**
+ * The SIX values `POST /api/internal/orders/status` accepts (contract v10.1,
+ * § ③④). Declared FROM QAB_ORDER_STATUSES with `satisfies`, never as loose
+ * literals: a rename in the contract's vocabulary then fails the build.
+ *
+ * The three that are NOT here are not an oversight. `AWAITING_CUSTOMER` is set
+ * by `POST /orders/proposal` alone and answers 400 on this route; `PENDING` and
+ * `PULLED` are states QAB owns, and the POS never reports them.
+ */
+export const QAB_ORDER_STATUS_REPORTABLE = [
+  "CONFIRMED",
+  "READY",
+  "IN_TRANSIT",
+  "DELIVERED",
+  "CANCELLED",
+  "REJECTED_BY_STORE",
+] as const satisfies ReadonlyArray<(typeof QAB_ORDER_STATUSES)[number]>;
+
+/**
+ * The forward sequence a store-driven order walks, and the ONLY place it is
+ * written. Feeds `offerOrderStatusTransitions`; nothing else rebuilds it.
+ *
+ * `AWAITING_CUSTOMER` is deliberately absent: it is a branch off this line, not
+ * a step along it. See ADR 0065.
+ */
+export const QAB_ORDER_STATUS_SEQUENCE = [
+  "PULLED",
+  "CONFIRMED",
+  "READY",
+  "IN_TRANSIT",
+  "DELIVERED",
+] as const satisfies ReadonlyArray<(typeof QAB_ORDER_STATUSES)[number]>;
+
+/**
+ * Why reporting a status failed. CLOSED vocabulary: these codes are the only
+ * thing that ever crosses back from the QAB call, and nothing from the other
+ * side's body is ever mirrored here. See ADR 0064.
+ */
+export const QAB_ORDER_STATUS_FAILURE_CODES = [
+  "NOT_CONFIGURED", // QAB_API_BASE_URL unset, or the business has no token
+  "INVALID_BODY", // 400 from QAB
+  "UNAUTHORIZED", // 401 from QAB
+  "BUSINESS_INACTIVE", // 403 from QAB
+  "UNKNOWN_ORDER", // 404 from QAB
+  "ORDER_DELIVERY_NOT_QUOTED", // 409 from QAB
+  "SYNC_NOT_CONFIGURED", // 503 from QAB
+  "UNEXPECTED_STATUS", // a status the contract does not document for this route
+  "TRANSPORT", // no HTTP response at all
+  "INVALID_RESPONSE_BODY", // a 200 whose body is not `{ ok: true }`
+] as const;
+
+/**
+ * The three failures a person may usefully try again. The other seven fail the
+ * same way every time until something outside this request changes.
+ *
+ * ORDER_DELIVERY_NOT_QUOTED is OUT on purpose, and that is acceptance criterion
+ * 4 in executable form: what unblocks it is a quote, not a repetition. F-015
+ * inherits this frontier and does not move the code into this list.
+ *
+ * `true` here NEVER means the server retried. Nothing in this feature retries.
+ */
+export const QAB_ORDER_STATUS_RETRYABLE_CODES = [
+  "TRANSPORT",
+  "INVALID_RESPONSE_BODY",
+  "UNEXPECTED_STATUS",
+] as const satisfies ReadonlyArray<(typeof QAB_ORDER_STATUS_FAILURE_CODES)[number]>;
+
+/**
+ * Cap on the ONLY body this client ever reads: the 200, whose documented shape
+ * is a single boolean field. It is not derived from a page size because there is
+ * no page here — the size of a well-formed response does not depend on anything
+ * the caller sends, so there is no way for our own answer not to fit (E-029).
+ *
+ * The bodies of the error responses are NOT read at all: the stream is cancelled
+ * and the outcome comes from the status. No cap governs them.
+ */
+export const QAB_ORDER_STATUS_MAX_RESPONSE_BYTES = 1_024;
+
+/**
+ * The ONE host `customerWhatsappUrl` may point at.
+ *
+ * Read from contract v10.1 § ③④, where both examples of the field are
+ * `https://wa.me/<digits>?text=...` and no other host appears anywhere in the
+ * document.
+ *
+ * It is a SEPARATE constant from QAB_ORDER_URL_REQUIRED_PREFIX and does not
+ * replace it: that one guards what the pull WRITES, this one guards what the
+ * detail response HANDS THE BROWSER TO FOLLOW. `https://` alone is satisfied by
+ * every address on the internet (ADR 0066).
+ */
+export const QAB_ORDER_WHATSAPP_HOST = "wa.me";
