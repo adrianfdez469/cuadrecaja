@@ -38,6 +38,7 @@ _(vacío — ningún error ha llegado todavía a 3 apariciones)_
 | [E-021](errors/E-021-el-local-actual-vive-en-el-jwt-y-no-en-la-base.md) | Se cambia `Usuario.localActualId` en la base y el navegador sigue viendo el local viejo: el dato viaja en el JWT de la sesión, no se lee en vivo | auth | 1 |
 | [E-022](errors/E-022-clicks-por-coordenada-sobre-una-captura-reescalada.md) | Un click por coordenada no hace nada: la captura viene reescalada y sus coordenadas no son las del viewport | ui | 1 |
 | [E-023](errors/E-023-medir-un-plan-sobre-una-tabla-que-no-tiene-las-filas.md) | Un `EXPLAIN` leido sobre una tabla sin las filas del caso —nunca sembradas, o borradas por la propia operacion medida—: el plan es valido y la conclusion falsa, en las dos direcciones | prisma | 2 |
+| [E-024](errors/E-024-createmany-skipduplicates-conserva-la-primera-escritura.md) | `createMany({ skipDuplicates })` sobre filas derivadas: la segunda escritura no falla **y no escribe**; los totales quedan nuevos y el desglose viejo | prisma | 1 |
 
 ---
 
