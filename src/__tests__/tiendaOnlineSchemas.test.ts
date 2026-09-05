@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  QAB_ORDER_STATUSES,
   QAB_STORE_SYNC_STATES,
   QAB_STORE_SYNC_CODES,
   QAB_SLUG_UPSTREAM_CODES,
@@ -8,11 +7,16 @@ import {
   QAB_STORE_ADDRESS_MAX_LENGTH,
   QAB_STORE_PHONE_MAX_LENGTH,
   QAB_STORE_EMAIL_MAX_LENGTH,
+  QAB_ORDER_STATUS_REPORTABLE,
+  QAB_ORDER_STATUS_FAILURE_CODES,
 } from "@/constants/qab";
+import { TIENDA_ONLINE_API_ERRORS } from "@/constants/tiendaOnline";
 import {
   tiendaOnlineEstadoSchema,
   tiendaOnlineScaffoldSchema,
-  pedidoEntranteStatusUpdateSchema,
+  pedidoEntranteStatusReportSchema,
+  tiendaOnlineOrderStatusResultSchema,
+  tiendaOnlineOrderStatusErrorSchema,
   qabStoreSyncStateSchema,
   tiendaOnlineLocalSchema,
   tiendaOnlineConfiguracionSchema,
@@ -100,15 +104,42 @@ describe("tiendaOnlineScaffoldSchema", () => {
   });
 });
 
-describe("pedidoEntranteStatusUpdateSchema", () => {
-  it.each(QAB_ORDER_STATUSES)("should accept status %s", (status) => {
-    const result = pedidoEntranteStatusUpdateSchema.safeParse({ status });
+/**
+ * F-012 — `pedidoEntranteStatusUpdateSchema` is REMOVED (contract § 0.2, § 2.3): it
+ * accepted all nine `QAB_ORDER_STATUSES`, including the three this PATCH must now
+ * reject with 400 (acceptance criterion 2). `pedidoEntranteStatusReportSchema`
+ * replaces it, narrowed to `QAB_ORDER_STATUS_REPORTABLE` (six values). These are the
+ * tests that used to live under the old name, moved and extended.
+ */
+describe("pedidoEntranteStatusReportSchema", () => {
+  it.each(QAB_ORDER_STATUS_REPORTABLE ?? [])(
+    "should accept the reportable status %s",
+    (status) => {
+      const result = pedidoEntranteStatusReportSchema.safeParse({ status });
 
-    expect(result.success).toBe(true);
+      expect(result.success).toBe(true);
+    },
+  );
+
+  it("should reject AWAITING_CUSTOMER — acceptance criterion 2", () => {
+    const result = pedidoEntranteStatusReportSchema.safeParse({
+      status: "AWAITING_CUSTOMER",
+    });
+
+    expect(result.success).toBe(false);
   });
 
-  it("should reject a status value outside QAB_ORDER_STATUSES", () => {
-    const result = pedidoEntranteStatusUpdateSchema.safeParse({
+  it("should reject PENDING and PULLED — states QAB owns, never reported by this POS", () => {
+    expect(
+      pedidoEntranteStatusReportSchema.safeParse({ status: "PENDING" }).success,
+    ).toBe(false);
+    expect(
+      pedidoEntranteStatusReportSchema.safeParse({ status: "PULLED" }).success,
+    ).toBe(false);
+  });
+
+  it("should reject a status value outside QAB_ORDER_STATUSES entirely", () => {
+    const result = pedidoEntranteStatusReportSchema.safeParse({
       status: "NOT_A_REAL_STATUS",
     });
 
@@ -116,28 +147,130 @@ describe("pedidoEntranteStatusUpdateSchema", () => {
   });
 
   it("should reject a missing status", () => {
-    const result = pedidoEntranteStatusUpdateSchema.safeParse({});
+    const result = pedidoEntranteStatusReportSchema.safeParse({});
 
     expect(result.success).toBe(false);
   });
 
   it("should reject an extra key (.strict())", () => {
-    const result = pedidoEntranteStatusUpdateSchema.safeParse({
-      status: QAB_ORDER_STATUSES[0],
+    const result = pedidoEntranteStatusReportSchema.safeParse({
+      status: "CONFIRMED",
       negocioId: "8f14e45f-ceea-467e-adc3-b1a4c0ea0a3e",
     });
 
     expect(result.success).toBe(false);
   });
 
-  it("should NOT validate whether the transition itself is legal — shape only (F-011's job)", () => {
-    // Contract §2 is explicit: "every value of the enum parses here, including nonsensical
-    // ones". A nonsense-but-in-enum transition (e.g. going back to PENDING) must still parse.
-    const result = pedidoEntranteStatusUpdateSchema.safeParse({
-      status: "PENDING",
+  it("should NOT validate whether the transition itself makes sense — shape only, the guard lives in offerOrderStatusTransitions (ADR 0065)", () => {
+    // CONFIRMED is a perfectly valid REPORTABLE value even though, say, reporting it
+    // on an order that is already DELIVERED makes no product sense. This schema has
+    // no access to the order's current status and does not need one — it is not this
+    // schema's job to know what the current status even is.
+    const result = pedidoEntranteStatusReportSchema.safeParse({
+      status: "CONFIRMED",
     });
 
     expect(result.success).toBe(true);
+  });
+});
+
+describe("tiendaOnlineOrderStatusResultSchema", () => {
+  it.each(QAB_ORDER_STATUS_REPORTABLE ?? [])(
+    "should accept { status: %s, persisted: true }",
+    (status) => {
+      expect(
+        tiendaOnlineOrderStatusResultSchema.safeParse({ status, persisted: true })
+          .success,
+      ).toBe(true);
+    },
+  );
+
+  it("should accept persisted: false — the divergence is not an error (ADR 0063)", () => {
+    expect(
+      tiendaOnlineOrderStatusResultSchema.safeParse({
+        status: "CONFIRMED",
+        persisted: false,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("should reject a status outside QAB_ORDER_STATUS_REPORTABLE — AWAITING_CUSTOMER included", () => {
+    expect(
+      tiendaOnlineOrderStatusResultSchema.safeParse({
+        status: "AWAITING_CUSTOMER",
+        persisted: true,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("should reject a non-boolean persisted", () => {
+    expect(
+      tiendaOnlineOrderStatusResultSchema.safeParse({
+        status: "CONFIRMED",
+        persisted: "true",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("should reject an extra key (.strict())", () => {
+    expect(
+      tiendaOnlineOrderStatusResultSchema.safeParse({
+        status: "CONFIRMED",
+        persisted: true,
+        qabOrderId: "9007199254740993",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("tiendaOnlineOrderStatusErrorSchema", () => {
+  const validError = {
+    error: TIENDA_ONLINE_API_ERRORS.qabStatusUpstream,
+    qabError: "ORDER_DELIVERY_NOT_QUOTED" as const,
+    retryable: false,
+  };
+
+  it("should accept a well formed 502 body", () => {
+    expect(tiendaOnlineOrderStatusErrorSchema.safeParse(validError).success).toBe(
+      true,
+    );
+  });
+
+  it.each(QAB_ORDER_STATUS_FAILURE_CODES ?? [])(
+    "should accept the qabError code %s",
+    (qabError) => {
+      expect(
+        tiendaOnlineOrderStatusErrorSchema.safeParse({ ...validError, qabError })
+          .success,
+      ).toBe(true);
+    },
+  );
+
+  it('should reject an "error" value other than the fixed literal — no desenlace de QAB se espeja como 403/404 propio (criterion 10)', () => {
+    expect(
+      tiendaOnlineOrderStatusErrorSchema.safeParse({
+        ...validError,
+        error: "SOMETHING_ELSE",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("should reject a qabError outside QAB_ORDER_STATUS_FAILURE_CODES", () => {
+    expect(
+      tiendaOnlineOrderStatusErrorSchema.safeParse({
+        ...validError,
+        qabError: "SOMETHING_ELSE",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("should reject a non-boolean retryable", () => {
+    expect(
+      tiendaOnlineOrderStatusErrorSchema.safeParse({
+        ...validError,
+        retryable: "false",
+      }).success,
+    ).toBe(false);
   });
 });
 

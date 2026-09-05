@@ -1,8 +1,14 @@
 # ADR 0030: El endpoint de cambio de estado de un pedido aplica el gate y responde 501 sin escribir, hasta F-011
 
-**Estado:** aceptado
+**Estado:** reemplazado por [ADR 0063](0063-qab-decide-primero-y-la-base-local-despues.md)
 **Fecha:** 2026-09-03
 **Feature:** F-004
+
+> **Reemplazado el 2026-09-05 por F-012.** El `501` ya no existe: la ruta llama a QAB y, si QAB
+> acepta, escribe. Lo que este ADR decidió sobre el **orden de las puertas** —el gate antes de leer
+> el cuerpo, el cuerpo antes de tocar la base— sigue vigente y F-011 lo ajustó (ADR 0056); lo que
+> queda obsoleto es la respuesta final. El reparto de fallo entre la llamada y la escritura lo fija
+> el ADR 0063.
 **Se apoya en:** [ADR 0028](0028-gate-del-interruptor-de-tienda-online.md) ·
 [ADR 0007](0007-aislamiento-de-pedidoentrantelinea-con-fk-compuesta.md) ·
 [ADR 0022](0022-ningun-estado-http-de-qab-se-espeja.md)

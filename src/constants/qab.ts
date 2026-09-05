@@ -100,6 +100,18 @@ export const QAB_SYNC_DB_CONNECTION_LIMIT_DEFAULT = 2;
 /** Reported in `IQabSyncRunReport.skipped` when QAB_API_BASE_URL is unset. ADR 0014. */
 export const QAB_SYNC_SKIPPED_NO_BASE_URL = "QAB_API_BASE_URL_NOT_SET" as const;
 
+/**
+ * How one business's slot of a sync phase ended. Shared vocabulary of the drain
+ * report and of the availability phase report (F-007).
+ *
+ * It is DECLARED here and re-exported by `src/schemas/qabSync.ts`, which stays
+ * its import site for every consumer. Declaring it inside that schema module
+ * would put a value edge from `qabAvailability.ts` back to `qabSync.ts`, which
+ * already imports the availability phase report: the two modules would form a
+ * cycle and whichever loaded first would evaluate a `z.enum(undefined)`.
+ */
+export const QAB_BUSINESS_OUTCOMES = ["ok", "error", "skipped_no_token", "skipped_deadline"] as const;
+
 /** Error codes of the cron endpoint's 500 responses. */
 export const QAB_SYNC_API_ERRORS = {
   configInvalid: "QAB_CONFIG_INVALID",
@@ -431,3 +443,306 @@ export const QAB_CURRENCY_SYMBOL_MAX_LENGTH = 8;
  */
 export const QAB_CURRENCY_TEXT_FORBIDDEN_PATTERN =
   /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069\uFEFF<>&"'`\\]/u;
+
+/* -------------------------------------------------------------------------- */
+/* F-007 — Availability convergence                                            */
+/* -------------------------------------------------------------------------- */
+
+/** Second sync route of the contract. Appended to QAB_API_BASE_URL; never inline. */
+export const QAB_AVAILABILITY_SYNC_PATH = "/api/internal/sync/availability";
+
+/**
+ * THE availability CASE. The one and only place this expression is written.
+ *
+ * Copied CHARACTER BY CHARACTER, indentation included, from the migration that
+ * created QAB_DIVERGENCE_INDEX_NAME (QAB_DIVERGENCE_INDEX_MIGRATION_PATH). The
+ * planner matches a partial index by comparing NORMALISED expression trees, not
+ * text, so whitespace is free and operand types are not — but an identical copy
+ * is the only thing an automated check can verify without reimplementing that
+ * normalisation. Divergence between the two makes the index unusable and turns
+ * the query into a full scan of the catalog, with no error of any kind.
+ *
+ * Interpolated with `Prisma.raw` in the two places of ONE statement that need
+ * it. Never rewritten anywhere else. See ADR 0048.
+ */
+export const QAB_AVAILABILITY_CASE_SQL = `CASE WHEN existencia <= 0             THEN 'OUT_OF_STOCK'
+            WHEN existencia <= "umbralBajo"  THEN 'LOW_STOCK'
+            ELSE                                  'AVAILABLE' END`;
+
+/** Repository-relative. Read by the drift test, never at runtime. */
+export const QAB_DIVERGENCE_INDEX_MIGRATION_PATH =
+  "prisma/migrations/20260901225538_qab_idx_disp_divergente/migration.sql";
+
+/**
+ * Items per request. The contract's own cap; a page is never empty and never
+ * larger. Sending fewer is allowed — the contract tolerates up to 2000, it does
+ * not require them.
+ *
+ * NEVER change this number without recomputing
+ * QAB_AVAILABILITY_MAX_RESPONSE_BYTES below: a full confirmation of one page is
+ * a response of BATCH_SIZE entries, and a cap smaller than that page stalls the
+ * business FOREVER. See ADR 0051.
+ */
+export const QAB_AVAILABILITY_BATCH_SIZE = 2_000;
+
+/**
+ * Upper bound, in bytes, of ONE entry of `confirmed`: the pair
+ * `["<ProductoTienda.id>","<Tienda.id>"]` plus its separating comma. A pair of
+ * uuids measures 80 bytes; this budget covers ids of about 60 characters each,
+ * so it does not depend on every id being a uuid.
+ */
+export const QAB_AVAILABILITY_CONFIRMED_ENTRY_MAX_BYTES = 128;
+
+/** Everything of the response that is not a `confirmed` entry, with slack. */
+export const QAB_AVAILABILITY_RESPONSE_ENVELOPE_MAX_BYTES = 1_024;
+
+/**
+ * Response cap of the availability client. COMPUTED, not chosen: it is exactly
+ * what a full confirmation of one page can measure, so the two constants can
+ * never again be set independently.
+ *
+ * Availability does NOT reuse QAB_HTTP_MAX_RESPONSE_BYTES (100 000), the cap of
+ * the catalog and provisioning clients. That number bounds a response whose size
+ * WE do not determine; here the well-formed response is bounded by the page we
+ * ourselves sent, and 100 000 bytes cuts a page off at ~1250 confirmations. See
+ * ADR 0051.
+ */
+export const QAB_AVAILABILITY_MAX_RESPONSE_BYTES =
+  QAB_AVAILABILITY_RESPONSE_ENVELOPE_MAX_BYTES +
+  QAB_AVAILABILITY_BATCH_SIZE * QAB_AVAILABILITY_CONFIRMED_ENTRY_MAX_BYTES;
+
+/**
+ * Divergent rows ONE run reads, across every eligible business. Above
+ * QAB_AVAILABILITY_BATCH_SIZE on purpose: a single business with more than one
+ * page has to produce more than one request in the same run (criterion 10).
+ * What does not fit stays divergent and is read by the next run.
+ */
+export const QAB_AVAILABILITY_MAX_ROWS_PER_RUN = 6_000;
+
+/** Phase budget, clamped again by QAB_SYNC_RUN_DEADLINE_MS of the whole run. */
+export const QAB_AVAILABILITY_DEADLINE_MS = 10_000;
+
+/** Log prefix of the phase. Ids and counts only: never a payload, never a body. */
+export const QAB_AVAILABILITY_LOG = "qab.availability";
+
+/* -------------------------------------------------------------------------- */
+/* F-010 — Incoming order pull                                                 */
+/* -------------------------------------------------------------------------- */
+
+/** Orders asked for in ONE request. The contract's own page size (§ ③④). */
+export const QAB_ORDER_PULL_PAGE_SIZE = 100;
+
+/**
+ * Page sizes the pull walks down, and ONLY on a RESPONSE_TOO_LARGE, always over
+ * the SAME `since`. Any other failure ends the business instead: shrinking the
+ * page does not fix a 401. See ADR 0055.
+ */
+export const QAB_ORDER_PULL_PAGE_SIZE_LADDER = [100, 10, 1] as const;
+
+/**
+ * Requests one run issues for ONE business, ladder retries included. Bounds the
+ * WRITES of one transaction; the time budget below bounds its DURATION. Two
+ * constants because they cover cases the other one does not see. ADR 0054.
+ */
+export const QAB_ORDER_PULL_MAX_PAGES_PER_RUN = 5;
+
+/**
+ * Per-business budget INSIDE the locked transaction, well under
+ * QAB_ORDER_POLL_TX_TIMEOUT_MS (30 000): blowing that timeout rolls the whole
+ * transaction back, so nothing is written AND the cursor does not advance.
+ */
+export const QAB_ORDER_PULL_BUDGET_MS = 15_000;
+
+/** Budget of the whole poll loop, clamped again by QAB_SYNC_RUN_DEADLINE_MS. */
+export const QAB_ORDER_POLL_PHASE_DEADLINE_MS = 20_000;
+
+/* -- Caps of ONE order. Ours, not the contract's: it declares none. --------- */
+
+export const QAB_ORDER_CODE_MAX_LENGTH = 64;
+export const QAB_ORDER_CONTACT_MAX_LENGTH = 300;
+export const QAB_ORDER_TEXT_MAX_LENGTH = 1_000;
+export const QAB_ORDER_URL_MAX_LENGTH = 2_048;
+export const QAB_ORDER_LINE_NAME_MAX_LENGTH = 120;
+export const QAB_ORDER_CURRENCY_CODE_MAX_LENGTH = 8;
+export const QAB_ORDER_MAX_LINES = 100;
+export const QAB_ORDER_RATE_SNAPSHOT_MAX_BYTES = 4_096;
+
+/**
+ * The only scheme `customerWhatsappUrl` may carry. Anything else is stored as
+ * NULL, never rejected: F-011 renders that value as a link.
+ */
+export const QAB_ORDER_URL_REQUIRED_PREFIX = "https://";
+
+/* -- Response budget. COMPUTED, never chosen. See ADR 0055. ---------------- */
+
+/** Everything of the page that is not an order, with slack. */
+export const QAB_ORDER_PULL_RESPONSE_ENVELOPE_MAX_BYTES = 1_024;
+
+/** Everything of ONE order that is not a line, with slack for multi-byte text. */
+export const QAB_ORDER_ENVELOPE_MAX_BYTES = 20_480;
+
+/** Upper bound of ONE serialised line. */
+export const QAB_ORDER_LINE_MAX_BYTES = 1_024;
+
+/**
+ * WORST case of one order, DERIVED from the caps this contract already enforces
+ * while parsing. It is the FLOOR of the response cap, so an order that respects
+ * our own caps always fits — even asked for one at a time, which is what makes
+ * the ladder of ADR 0055 an actual escape instead of a smaller failure.
+ */
+export const QAB_ORDER_MAX_BYTES =
+  QAB_ORDER_ENVELOPE_MAX_BYTES + QAB_ORDER_MAX_LINES * QAB_ORDER_LINE_MAX_BYTES;
+
+/** Roomy upper bound of a NORMAL order. What sizes a page. */
+export const QAB_ORDER_TYPICAL_MAX_BYTES = 16_384;
+
+/* -- Column ranges. The border where an absurd wire amount is refused. ----- */
+
+/** Decimal(14, 2): 14 - QAB_AMOUNT_DECIMALS integer digits. */
+export const QAB_AMOUNT_MAX_INTEGER_DIGITS = 12;
+/** Decimal(14, 3): 14 - QAB_QUANTITY_DECIMALS integer digits. */
+export const QAB_QUANTITY_MAX_INTEGER_DIGITS = 11;
+
+/* -- Closed vocabularies. ------------------------------------------------- */
+
+/** How ONE business's pull ended. Declared HERE, never inside a schema module. */
+export const QAB_ORDER_PULL_OUTCOMES = [
+  "ok", // every page attempted answered 200 and was written
+  "error", // a transport, status or body failure; nothing written for it this run
+  "skipped_no_token", // the business has no token
+  "skipped_locked", // another run held the advisory lock
+  "skipped_deadline", // the phase ran out of budget before its turn
+] as const;
+
+/** State of the advisory lock for one business of the loop. */
+export const QAB_ORDER_POLL_LOCK_STATES = [
+  "acquired",
+  "skipped_locked",
+  "not_attempted", // out of phase budget: the lock is never taken in vain
+  /**
+   * The slot threw. Whether pg_try_advisory_xact_lock ever ran is NOT knowable
+   * from outside: a pool failure before that statement and a rollback in the
+   * middle of the writes both surface as an exception, and a P2028 covers both
+   * "maxWait expired, the transaction never started" and "the timeout fired
+   * while `run` was executing". Reporting "acquired" here would be a guess
+   * dressed as a fact, so the report says it does not know.
+   */
+  "unknown",
+] as const;
+
+/** Why ONE order was refused. Closed: these codes reach a log, nothing else. */
+export const QAB_ORDER_REJECT_REASONS = [
+  "INVALID_ORDER", // does not satisfy qabPulledOrderSchema
+  "AMOUNT_OUT_OF_RANGE", // an amount does not fit Decimal(14, 2)
+  "QUANTITY_OUT_OF_RANGE", // a quantity does not fit Decimal(14, 3)
+  "TOO_MANY_LINES", // over QAB_ORDER_MAX_LINES
+  "RATE_SNAPSHOT_TOO_LARGE", // over QAB_ORDER_RATE_SNAPSHOT_MAX_BYTES
+] as const;
+
+/** Log prefix of the pull. Ids and counts only: NEVER an Order.code, never a body. */
+export const QAB_ORDER_PULL_LOG = "qab.orderPull";
+export const QAB_ORDER_PULL_REJECTED_LOG = "qab.orderPull.rejected";
+/** One business's slot threw. Carries an id and a code, NEVER the error text. */
+export const QAB_ORDER_PULL_FAILED_LOG = "qab.orderPull.failed";
+
+/** Reported when the thrown error is not a Prisma error with a `code`. */
+export const QAB_ORDER_PULL_UNKNOWN_ERROR_CODE = "UNKNOWN";
+
+/* -------------------------------------------------------------------------- */
+/* F-012 — Reporting an order's progress back to QAB                           */
+/* -------------------------------------------------------------------------- */
+
+/** Status-report route of the contract. Appended to QAB_API_BASE_URL; never inline. */
+export const QAB_ORDER_STATUS_PATH = "/api/internal/orders/status";
+
+/**
+ * The SIX values `POST /api/internal/orders/status` accepts (contract v10.1,
+ * § ③④). Declared FROM QAB_ORDER_STATUSES with `satisfies`, never as loose
+ * literals: a rename in the contract's vocabulary then fails the build.
+ *
+ * The three that are NOT here are not an oversight. `AWAITING_CUSTOMER` is set
+ * by `POST /orders/proposal` alone and answers 400 on this route; `PENDING` and
+ * `PULLED` are states QAB owns, and the POS never reports them.
+ */
+export const QAB_ORDER_STATUS_REPORTABLE = [
+  "CONFIRMED",
+  "READY",
+  "IN_TRANSIT",
+  "DELIVERED",
+  "CANCELLED",
+  "REJECTED_BY_STORE",
+] as const satisfies ReadonlyArray<(typeof QAB_ORDER_STATUSES)[number]>;
+
+/**
+ * The forward sequence a store-driven order walks, and the ONLY place it is
+ * written. Feeds `offerOrderStatusTransitions`; nothing else rebuilds it.
+ *
+ * `AWAITING_CUSTOMER` is deliberately absent: it is a branch off this line, not
+ * a step along it. See ADR 0065.
+ */
+export const QAB_ORDER_STATUS_SEQUENCE = [
+  "PULLED",
+  "CONFIRMED",
+  "READY",
+  "IN_TRANSIT",
+  "DELIVERED",
+] as const satisfies ReadonlyArray<(typeof QAB_ORDER_STATUSES)[number]>;
+
+/**
+ * Why reporting a status failed. CLOSED vocabulary: these codes are the only
+ * thing that ever crosses back from the QAB call, and nothing from the other
+ * side's body is ever mirrored here. See ADR 0064.
+ */
+export const QAB_ORDER_STATUS_FAILURE_CODES = [
+  "NOT_CONFIGURED", // QAB_API_BASE_URL unset, or the business has no token
+  "INVALID_BODY", // 400 from QAB
+  "UNAUTHORIZED", // 401 from QAB
+  "BUSINESS_INACTIVE", // 403 from QAB
+  "UNKNOWN_ORDER", // 404 from QAB
+  "ORDER_DELIVERY_NOT_QUOTED", // 409 from QAB
+  "SYNC_NOT_CONFIGURED", // 503 from QAB
+  "UNEXPECTED_STATUS", // a status the contract does not document for this route
+  "TRANSPORT", // no HTTP response at all
+  "INVALID_RESPONSE_BODY", // a 200 whose body is not `{ ok: true }`
+] as const;
+
+/**
+ * The three failures a person may usefully try again. The other seven fail the
+ * same way every time until something outside this request changes.
+ *
+ * ORDER_DELIVERY_NOT_QUOTED is OUT on purpose, and that is acceptance criterion
+ * 4 in executable form: what unblocks it is a quote, not a repetition. F-015
+ * inherits this frontier and does not move the code into this list.
+ *
+ * `true` here NEVER means the server retried. Nothing in this feature retries.
+ */
+export const QAB_ORDER_STATUS_RETRYABLE_CODES = [
+  "TRANSPORT",
+  "INVALID_RESPONSE_BODY",
+  "UNEXPECTED_STATUS",
+] as const satisfies ReadonlyArray<(typeof QAB_ORDER_STATUS_FAILURE_CODES)[number]>;
+
+/**
+ * Cap on the ONLY body this client ever reads: the 200, whose documented shape
+ * is a single boolean field. It is not derived from a page size because there is
+ * no page here — the size of a well-formed response does not depend on anything
+ * the caller sends, so there is no way for our own answer not to fit (E-029).
+ *
+ * The bodies of the error responses are NOT read at all: the stream is cancelled
+ * and the outcome comes from the status. No cap governs them.
+ */
+export const QAB_ORDER_STATUS_MAX_RESPONSE_BYTES = 1_024;
+
+/**
+ * The ONE host `customerWhatsappUrl` may point at.
+ *
+ * Read from contract v10.1 § ③④, where both examples of the field are
+ * `https://wa.me/<digits>?text=...` and no other host appears anywhere in the
+ * document.
+ *
+ * It is a SEPARATE constant from QAB_ORDER_URL_REQUIRED_PREFIX and does not
+ * replace it: that one guards what the pull WRITES, this one guards what the
+ * detail response HANDS THE BROWSER TO FOLLOW. `https://` alone is satisfied by
+ * every address on the internet (ADR 0066).
+ */
+export const QAB_ORDER_WHATSAPP_HOST = "wa.me";

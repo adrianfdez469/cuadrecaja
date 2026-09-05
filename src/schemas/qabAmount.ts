@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { QAB_AMOUNT_DECIMALS, QAB_QUANTITY_DECIMALS } from "@/constants/qab";
+import {
+  QAB_AMOUNT_DECIMALS,
+  QAB_AMOUNT_MAX_INTEGER_DIGITS,
+  QAB_QUANTITY_DECIMALS,
+  QAB_QUANTITY_MAX_INTEGER_DIGITS,
+} from "@/constants/qab";
 
 /**
  * The border where wire money enters cuadrecaja.
@@ -95,3 +100,33 @@ export const qabQuantitySchema: z.ZodType<string, unknown> = wireDecimalSchema(
   "Invalid QAB quantity",
 );
 export type IQabQuantity = z.infer<typeof qabQuantitySchema>;
+
+/** An optional sign followed by any run of leading zeros: not significant digits. */
+const SIGN_AND_LEADING_ZEROS = /^-?0*/;
+
+/** Integer digits of an already-normalised fixed-scale decimal. Never a Number. */
+function integerDigitCount(value: string): number {
+  const [integerPart = ""] = value.split(".");
+  return integerPart.replace(SIGN_AND_LEADING_ZEROS, "").length;
+}
+
+/**
+ * PURE. Whether an already-normalised amount fits a Decimal(14, 2) column.
+ *
+ * `qabAmountSchema` fixes the SCALE but not the MAGNITUDE: verified by running,
+ * `qabAmountSchema(1e20)` yields "100000000000000000000.00" and that literal
+ * raises `numeric field overflow` in Postgres. F-001 never wrote to the database,
+ * so nothing was broken there; F-010 is the feature that does the INSERT.
+ *
+ * Counts integer digits AFTER dropping an optional sign and any leading zeros —
+ * "000880.00" has three integer digits, not six. Never parsed as a Number: past
+ * 2^53 that comparison lies, which is the whole point of the check.
+ */
+export function fitsQabAmountColumn(value: IQabAmount): boolean {
+  return integerDigitCount(value) <= QAB_AMOUNT_MAX_INTEGER_DIGITS;
+}
+
+/** PURE. Same for Decimal(14, 3), the scale of PedidoEntranteLinea.quantity. */
+export function fitsQabQuantityColumn(value: IQabQuantity): boolean {
+  return integerDigitCount(value) <= QAB_QUANTITY_MAX_INTEGER_DIGITS;
+}

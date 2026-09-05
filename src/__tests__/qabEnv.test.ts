@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { resolveQabBaseUrl, qabCatalogSyncUrl, QabConfigError } from "@/lib/qab/qabEnv";
-import { QAB_CATALOG_SYNC_PATH } from "@/constants/qab";
+import {
+  resolveQabBaseUrl,
+  qabCatalogSyncUrl,
+  qabOrderStatusUrl,
+  QabConfigError,
+} from "@/lib/qab/qabEnv";
+import { QAB_CATALOG_SYNC_PATH, QAB_ORDER_STATUS_PATH } from "@/constants/qab";
 
 /**
  * F-002 — `src/lib/qab/qabEnv.ts`. `resolveQabBaseUrl` is the one place that decides
@@ -148,5 +153,29 @@ describe("qabCatalogSyncUrl", () => {
   it("should not double a slash when concatenating", () => {
     const url = qabCatalogSyncUrl("https://queandabuscando.example");
     expect(url).not.toMatch(/\/\/api/);
+  });
+});
+
+/**
+ * F-012 — `qabOrderStatusUrl` (contract § 3). The ONE place that composes the URL of
+ * `POST /api/internal/orders/status`: nobody else concatenates a host or a path
+ * towards this route, which is what lets § 8.5 swap QAB for a capture server by
+ * changing only `QAB_API_BASE_URL`.
+ */
+describe("qabOrderStatusUrl", () => {
+  it("should append QAB_ORDER_STATUS_PATH to the resolved origin", () => {
+    expect(qabOrderStatusUrl("https://queandabuscando.example")).toBe(
+      `https://queandabuscando.example${QAB_ORDER_STATUS_PATH}`
+    );
+  });
+
+  it("should not double a slash when concatenating", () => {
+    const url = qabOrderStatusUrl("https://queandabuscando.example");
+    expect(url).not.toMatch(/\/\/api/);
+  });
+
+  it("should not append any query string — the request carries orderId and status in the body, not the URL", () => {
+    const url = qabOrderStatusUrl("https://queandabuscando.example");
+    expect(url).not.toContain("?");
   });
 });

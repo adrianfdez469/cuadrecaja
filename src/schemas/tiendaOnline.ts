@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
-  QAB_ORDER_STATUSES,
+  QAB_ORDER_STATUS_FAILURE_CODES,
+  QAB_ORDER_STATUS_REPORTABLE,
   QAB_PRODUCT_PAGE_SIZE_MAX,
   QAB_PRODUCT_SEARCH_MAX_LENGTH,
   QAB_SLUG_QUERY_MAX_LENGTH,
@@ -15,12 +16,17 @@ import {
   QAB_STORE_SYNC_STATES,
   QAB_UNPUBLISH_REASON_MAX_LENGTH,
 } from "@/constants/qab";
-import { TIENDA_ONLINE_API_ERRORS } from "@/constants/tiendaOnline";
+import {
+  TIENDA_ONLINE_API_ERRORS,
+  TIENDA_ONLINE_ORDER_AMOUNT_KIND,
+  TIENDA_ONLINE_ORDER_PAGE_SIZE_MAX,
+} from "@/constants/tiendaOnline";
 import {
   openingHoursIssueSchema,
   openingHoursSchema,
 } from "@/schemas/qabOpeningHours";
 import { qabSlugSchema } from "@/schemas/qabStore";
+import { qabWhatsappUrlSchema } from "@/schemas/qabWhatsappUrl";
 import { TipoLocalEnum } from "@/schemas/tienda";
 
 /**
@@ -45,18 +51,6 @@ export const tiendaOnlineScaffoldSchema = z
   })
   .strict();
 export type ITiendaOnlineScaffold = z.infer<typeof tiendaOnlineScaffoldSchema>;
-
-/**
- * Body of `PATCH /api/tienda-online/pedidos/[pedidoId]/status`.
- * SHAPE ONLY. Which transitions are legal is F-011's problem, not this schema's:
- * every value of the enum parses here, including nonsensical ones.
- */
-export const pedidoEntranteStatusUpdateSchema = z
-  .object({ status: z.enum(QAB_ORDER_STATUSES) })
-  .strict();
-export type IPedidoEntranteStatusUpdate = z.infer<
-  typeof pedidoEntranteStatusUpdateSchema
->;
 
 /* -------------------------------------------------------------------------- */
 /* F-005 — the configuration screen of one local                               */
@@ -387,4 +381,300 @@ export const tiendaOnlineBulkTooLargeSchema = z
   .strict();
 export type ITiendaOnlineBulkTooLarge = z.infer<
   typeof tiendaOnlineBulkTooLargeSchema
+>;
+
+/* -------------------------------------------------------------------------- */
+/* F-011 — the orders inbox                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Fixed-scale decimal string, exactly QAB_AMOUNT_DECIMALS decimals. */
+const TIENDA_ONLINE_AMOUNT_PATTERN = /^-?\d+\.\d{2}$/;
+/** Fixed-scale decimal string, exactly QAB_QUANTITY_DECIMALS decimals. */
+const TIENDA_ONLINE_QUANTITY_PATTERN = /^-?\d+\.\d{3}$/;
+
+const amountSchema = z.string().regex(TIENDA_ONLINE_AMOUNT_PATTERN);
+const quantitySchema = z.string().regex(TIENDA_ONLINE_QUANTITY_PATTERN);
+
+/**
+ * The amounts of one order, discriminated by the delivery state.
+ *
+ * The point of the union is what the PENDING_QUOTE branch does NOT have: no
+ * `deliveryFee`, so the filler "0.00" never reaches the screen, and no `total`,
+ * so a screen that wants to print a final amount cannot reach for one that does
+ * not exist. `kind` comes from `deliveryFeePending` and from nothing else.
+ * See ADR 0059.
+ */
+export const tiendaOnlineOrderAmountsSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal(TIENDA_ONLINE_ORDER_AMOUNT_KIND.quoted),
+      subtotal: amountSchema,
+      discountTotal: amountSchema,
+      deliveryFee: amountSchema,
+      /** COMPLETE: subtotal - discountTotal + deliveryFee. */
+      total: amountSchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal(TIENDA_ONLINE_ORDER_AMOUNT_KIND.pendingQuote),
+      subtotal: amountSchema,
+      discountTotal: amountSchema,
+      /** PARTIAL: subtotal - discountTotal, with no delivery anybody quoted yet. */
+      partialTotal: amountSchema,
+    })
+    .strict(),
+]);
+export type ITiendaOnlineOrderAmounts = z.infer<
+  typeof tiendaOnlineOrderAmountsSchema
+>;
+
+/**
+ * The price of a line before conversion. Non-null ONLY when the row has BOTH
+ * `originalCurrencyCode` and `originalUnitPrice`; `lineTotal` may still be null
+ * inside it. A pre-distinction order has none of them, and that is neither an
+ * error nor missing data.
+ *
+ * These amounts are NOT summable across lines (R5b): `subtotal` and the totals of
+ * the order are always the sum of the already converted `lineTotal`.
+ */
+export const tiendaOnlineOrderLineOriginalSchema = z
+  .object({
+    currencyCode: z.string().min(1),
+    unitPrice: amountSchema,
+    lineTotal: amountSchema.nullable(),
+  })
+  .strict();
+export type ITiendaOnlineOrderLineOriginal = z.infer<
+  typeof tiendaOnlineOrderLineOriginalSchema
+>;
+
+/**
+ * `unitPrice` recomputed from `original` with the order's `rateSnapshot`.
+ *
+ * It NEVER replaces the stored `unitPrice`: that is the price the buyer agreed
+ * to. `matchesStored` is the exact equality of the two fixed-scale strings, with
+ * no tolerance — it is the executable reading of acceptance criterion 6, and
+ * `false` is not an error of the request. See ADR 0060.
+ */
+export const tiendaOnlineOrderLineConversionSchema = z
+  .object({
+    recomputedUnitPrice: amountSchema,
+    matchesStored: z.boolean(),
+  })
+  .strict();
+export type ITiendaOnlineOrderLineConversion = z.infer<
+  typeof tiendaOnlineOrderLineConversionSchema
+>;
+
+export const tiendaOnlineOrderLineSchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string().min(1),
+    quantity: quantitySchema,
+    currencyCode: z.string().min(1),
+    /** STORED, always. Never the recomputed one. */
+    unitPrice: amountSchema,
+    lineTotal: amountSchema,
+    original: tiendaOnlineOrderLineOriginalSchema.nullable(),
+    /**
+     * `null` in exactly four cases, and no other: `original` is null; the order
+     * has no readable `rateSnapshot`; the rate of the original currency is
+     * unreadable; the rate of the line currency is unreadable.
+     */
+    conversion: tiendaOnlineOrderLineConversionSchema.nullable(),
+  })
+  .strict();
+export type ITiendaOnlineOrderLine = z.infer<typeof tiendaOnlineOrderLineSchema>;
+
+/**
+ * Where the conversion came from. The `rates` map itself is NOT re-exposed: the
+ * server already did the arithmetic, and no effective rate is published either
+ * — a rounded rate does not reproduce the conversion (ADR 0060).
+ *
+ * `capturedAt` is NOT `.datetime()`: it is a third-party string kept verbatim,
+ * and a value that does not parse as an instant must not make the whole response
+ * fail its own schema.
+ */
+export const tiendaOnlineRateSnapshotInfoSchema = z
+  .object({
+    base: z.string().min(1),
+    capturedAt: z.string().nullable(),
+  })
+  .strict();
+export type ITiendaOnlineRateSnapshotInfo = z.infer<
+  typeof tiendaOnlineRateSnapshotInfoSchema
+>;
+
+/** One order as the inbox listing sees it. No lines: those are the detail's. */
+export const tiendaOnlineOrderListItemSchema = z
+  .object({
+    id: z.string().uuid(),
+    /** `Order.code`. Shown on screen on purpose; never logged (ADR 0061). */
+    code: z.string().min(1),
+    /** QAB's order id, decimal digits. */
+    qabOrderId: z.string().min(1),
+    /** NEVER null on a listed row: an order with no store is never in scope. */
+    tiendaId: z.string().uuid(),
+    tiendaNombre: z.string().min(1),
+    /** OPEN string, not an enum. No exhaustive switch without a default (ADR 0004). */
+    status: z.string().min(1),
+    /** CUSTOMER | EXPIRY | STORE, or null. Free text, same reason. */
+    cancelledBy: z.string().nullable(),
+    /**
+     * `isUnattendedOrderStatus(status)`. The SAME status half the counter uses;
+     * the scope half is what already put this row on the page (ADR 0058).
+     */
+    unattended: z.boolean(),
+    contactName: z.string().nullable(),
+    currencyCode: z.string().min(1),
+    amounts: tiendaOnlineOrderAmountsSchema,
+    lineCount: z.number().int().min(0),
+    /** The order's own instant at QAB. Displayed; NOT the sort key (ADR 0057). */
+    qabCreatedAt: z.string().datetime().nullable(),
+    /** When this POS wrote the row. The sort key. */
+    createdAt: z.string().datetime(),
+    /**
+     * The session holds `.gestionar` in THIS order's owning store. Lets the
+     * screen disable a control it may not use. Convenience for the UI, NOT the
+     * security boundary: the PATCH re-checks server side and answers 403.
+     */
+    canManage: z.boolean(),
+  })
+  .strict();
+export type ITiendaOnlineOrderListItem = z.infer<
+  typeof tiendaOnlineOrderListItemSchema
+>;
+
+/**
+ * The full order. `lineCount` is dropped: `lines.length` is the same number and
+ * two copies of one fact drift.
+ */
+export const tiendaOnlineOrderSchema = tiendaOnlineOrderListItemSchema
+  .omit({ lineCount: true })
+  .extend({
+    contactPhone: z.string().nullable(),
+    contactEmail: z.string().nullable(),
+    contactAddress: z.string().nullable(),
+    /**
+     * The wa.me link QAB composed. `null` when there is none to offer, and the
+     * ONLY thing the button is decided on: cuadrecaja never inspects
+     * `contactPhone` and never rebuilds this (ADR 0066).
+     *
+     * `qabWhatsappUrlSchema` checks the HOST and not only the scheme. The mapper
+     * satisfies it by construction, so a hand-edited row turns into `null`
+     * instead of failing the whole detail response.
+     */
+    customerWhatsappUrl: qabWhatsappUrlSchema.nullable(),
+    notes: z.string().nullable(),
+    rateSnapshot: tiendaOnlineRateSnapshotInfoSchema.nullable(),
+    lines: z.array(tiendaOnlineOrderLineSchema),
+  })
+  .strict();
+export type ITiendaOnlineOrder = z.infer<typeof tiendaOnlineOrderSchema>;
+
+/** Response of GET /api/tienda-online/pedidos. Extends the F-004 scaffold. */
+export const tiendaOnlineOrdersPageSchema = tiendaOnlineScaffoldSchema
+  .extend({
+    orders: z.array(tiendaOnlineOrderListItemSchema),
+    /** `PedidoEntrante.id` to pass back as `cursor`, or null on the last page. */
+    nextCursor: z.string().uuid().nullable(),
+    /**
+     * Acceptance criterion 7. Scoped to the SAME stores as `orders`, computed by
+     * `countUnattendedTiendaOnlineOrders` in the same request (ADR 0058).
+     */
+    unattendedCount: z.number().int().min(0),
+    /**
+     * Orders of this business whose `storeExternalId` never resolved to a store
+     * (`tiendaId: null`). They are in NO scope, so they are in no page and
+     * nobody can act on them; the number is here so the fact is visible even
+     * though the rows are not (ADR 0056).
+     */
+    unassignedCount: z.number().int().min(0),
+  })
+  .strict();
+export type ITiendaOnlineOrdersPage = z.infer<
+  typeof tiendaOnlineOrdersPageSchema
+>;
+
+/** Response of GET /api/tienda-online/pedidos/[pedidoId]. */
+export const tiendaOnlineOrderDetailSchema = tiendaOnlineScaffoldSchema
+  .extend({ order: tiendaOnlineOrderSchema })
+  .strict();
+export type ITiendaOnlineOrderDetail = z.infer<
+  typeof tiendaOnlineOrderDetailSchema
+>;
+
+/** Query of GET /api/tienda-online/pedidos. No status or date filters. */
+export const tiendaOnlineOrdersQuerySchema = z
+  .object({
+    cursor: z.string().uuid().optional(),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(TIENDA_ONLINE_ORDER_PAGE_SIZE_MAX)
+      .optional(),
+  })
+  .strict();
+export type ITiendaOnlineOrdersQuery = z.infer<
+  typeof tiendaOnlineOrdersQuerySchema
+>;
+
+/* -------------------------------------------------------------------------- */
+/* F-012 — reporting an order's progress                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Body of `PATCH /api/tienda-online/pedidos/[pedidoId]/status`.
+ *
+ * SHAPE ONLY, and the shape is now the SIX values QAB accepts. The other three
+ * of QAB_ORDER_STATUSES answer 400 INVALID_BODY here, which is acceptance
+ * criterion 2 for `AWAITING_CUSTOMER`.
+ *
+ * It does NOT validate the transition: whether this destination makes sense from
+ * the order's current state is a product rule that lives in
+ * `offerOrderStatusTransitions` and feeds the screen (ADR 0065).
+ */
+export const pedidoEntranteStatusReportSchema = z
+  .object({ status: z.enum(QAB_ORDER_STATUS_REPORTABLE) })
+  .strict();
+export type IPedidoEntranteStatusReport = z.infer<
+  typeof pedidoEntranteStatusReportSchema
+>;
+
+/**
+ * The 200 of that PATCH.
+ *
+ * `persisted: false` means QAB accepted and the local row did not change: the
+ * buyer already sees `status` and this POS does not. It is NOT an error, and it
+ * is why the response says so instead of pretending (ADR 0063).
+ */
+export const tiendaOnlineOrderStatusResultSchema = z
+  .object({
+    /** The status QAB now holds. Echo of the accepted request, never a guess. */
+    status: z.enum(QAB_ORDER_STATUS_REPORTABLE),
+    persisted: z.boolean(),
+  })
+  .strict();
+export type ITiendaOnlineOrderStatusResult = z.infer<
+  typeof tiendaOnlineOrderStatusResultSchema
+>;
+
+/**
+ * The 502 of that PATCH. Same shape the slug forecast already uses, for the same
+ * reason: the QAB status is never mirrored (ADR 0022, ADR 0064).
+ *
+ * `retryable` says whether the SCREEN may offer a person the button again. The
+ * server retried nothing.
+ */
+export const tiendaOnlineOrderStatusErrorSchema = z
+  .object({
+    error: z.literal(TIENDA_ONLINE_API_ERRORS.qabStatusUpstream),
+    qabError: z.enum(QAB_ORDER_STATUS_FAILURE_CODES),
+    retryable: z.boolean(),
+  })
+  .strict();
+export type ITiendaOnlineOrderStatusError = z.infer<
+  typeof tiendaOnlineOrderStatusErrorSchema
 >;

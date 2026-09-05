@@ -1,7 +1,7 @@
 # E-010: Un comentario de ejemplo en español dentro de un contrato acaba en el código real
 
 **Área:** build
-**Apariciones:** 1 — F-004 (dos veces dentro del mismo feature)
+**Apariciones:** 3 — F-004 (dos veces dentro del mismo feature), F-010, F-011
 
 ## Síntoma
 
@@ -59,3 +59,24 @@ grep -nE '^\s*(//|\*).*[áéíóúñÁÉÍÓÚÑ¿¡]' .agents/specs/F-###.md
 Y la regla general que este error hace concreta: **cuando algo aparece mal en el código, comprobar
 si venía mal del artefacto del que se copió.** Arreglar la copia y no el original garantiza que
 vuelva.
+
+---
+
+## Reaparición en F-010 (2026-09-05)
+
+Segunda aparición, con una variante que conviene conocer: esta vez **el comentario no estaba en
+español, estaba en inglés y era correcto** — explicaba por qué `readQabOrderCursor` no debe proyectar
+la columna del token, **nombrándola**.
+
+El problema es que el propio contrato mandaba una comprobación ejecutable que lee
+`src/lib/qab/qabOrderWrite.ts` **entero, comentarios incluidos**, y verifica que esa cadena no
+aparezca. Copiar el bloque del contrato tal cual habría hecho fallar la comprobación que ese mismo
+contrato exige.
+
+Lo esquivó el `implementer`, que reescribió el comentario sin nombrar la columna, y el
+`arch-guardian` corrigió después el bloque del contrato.
+
+**Lo que añade esta aparición:** no basta con vigilar el idioma de un comentario de contrato. Un
+bloque de código de un contrato es una **plantilla que se copia literalmente**, así que tiene que
+cumplir todas las reglas que el propio contrato impone al archivo resultante — incluidas las que se
+comprueban sobre el texto del archivo, comentarios incluidos.

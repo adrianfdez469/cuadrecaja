@@ -1,7 +1,7 @@
 # E-016: Un criterio verificable que exige una subcadena que el copy dictado no contiene
 
 **Área:** ui
-**Apariciones:** 2 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23)
+**Apariciones:** 4 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas) · F-012 (dos más, y una invierte el modo de fallo). Ver las adendas.
 
 ## Síntoma
 
@@ -90,3 +90,85 @@ Dos cosas que esta aparición añade:
 - **Un criterio heredado de otro feature es el más expuesto**, porque se cita por número y se
   ejecuta sin releer el copy al que apunta. Ver
   [E-018](E-018-la-redaccion-congelada-de-un-criterio-diferido.md).
+
+---
+
+## Adenda F-011 — dos variantes que la ficha no recogía
+
+Las dos las cazó el propio `ui-designer` repasando su documento **antes** de entregarlo, así que
+ninguna llegó a rechazar código. Se registran porque el modo de fallo es el mismo y la ficha, tal
+como estaba escrita, no habría avisado de ninguna de las dos.
+
+### 1. La subcadena también aparece dentro de un valor FORMATEADO
+
+Su criterio 21 exigía que dos filas **no** contuvieran `0,00` — la comprobación de que la pantalla
+no está imprimiendo un importe de envío que no debería. Pero el subtotal «redondo» que él mismo
+había puesto en la tabla de siembra, `"1400.00"`, se formatea `1.400,00`, **que contiene esa
+subcadena**. El criterio habría rechazado una implementación perfecta.
+
+Se corrigió el **dato de siembra** (a `"1437.25"`) y la redacción, no el diseño.
+
+Es la primera vez que este modo de fallo aparece con un **número** en vez de con una frase, y la
+lección generaliza más allá del copy:
+
+> Una subcadena exigida por un criterio hay que buscarla también dentro de los **valores
+> formateados** que la pantalla va a imprimir en esa misma vista —importes, cantidades, fechas—,
+> no solo dentro del copy fijo. Y la tabla de siembra es parte del criterio: un dato de prueba mal
+> elegido lo invalida igual que una redacción mal elegida.
+
+### 2. `text-transform` de CSS no toca el `textContent`
+
+`SectionLabel` pinta en mayúsculas **por CSS**. Si `productsSectionLabel` devolviera
+`Productos (4)`, un criterio que buscara `PRODUCTOS (4)` estaría comparando contra un DOM que
+guarda `Productos (4)`: lo que el navegador **enseña** y lo que el DOM **guarda** son cadenas
+distintas. Habría rechazado código correcto.
+
+Se resolvió haciendo que la función devuelva la cadena ya en mayúsculas — era el único rótulo del
+documento cuyo texto se **calcula**; los demás son palabras fijas que ningún criterio lee por
+`textContent`.
+
+> Si un criterio lee `textContent`, compáralo con lo que el DOM guarda, nunca con lo que la
+> captura enseña. `text-transform`, `::first-letter` y el contenido generado por CSS no están en
+> el `textContent`.
+
+
+---
+
+## Adenda F-012 — dos variantes más, y una es al revés
+
+### 3. La subcadena ya estaba en la página, puesta por el copy de OTRO feature
+
+La peor hasta ahora, y la cazó el `ui-designer` repasando su documento antes de entregarlo.
+
+Un criterio del `409` iba a exigir que la pantalla mostrara «falta cotizar el envío» tras provocar
+ese error. Pero **F-011 ya imprime «Todavía falta cotizar el envío…»** en el bloque de importes de
+**todo** pedido `PENDING_QUOTE` — que es exactamente el tipo de pedido sobre el que hay que
+provocar el `409`. Escrito sobre `document.body`, el criterio **pasa con el `409` sin implementar**.
+
+Es E-008 montado sobre E-016: el criterio no discrimina, y encima parece que sí. Se resolvió
+acotando todos los criterios de esa zona a `section[aria-label="Acciones del pedido"]` y añadiendo
+una guarda previa que comprueba que la frase **no** está en la región antes de pulsar.
+
+> Antes de exigir una subcadena, búscala también en el copy que los features **anteriores** ya
+> pintan en esa misma ruta. Un feature nuevo hereda toda la página, no solo su trozo. Y cuando un
+> criterio busque texto, **acótalo a la región que ese criterio gobierna**, nunca a `document.body`.
+
+Dos más del mismo repaso, menores pero del mismo origen: dos avisos nuevos empezaban con la misma
+frase (un criterio del éxito daba positivo sobre el de divergencia), y la frase de `UNKNOWN_STATUS`
+compartía prefijo con una de F-011 **y además era falsa** para `PENDING`, que sí está traducido. En
+los tres casos se corrigió el copy, no el criterio.
+
+### 4. Al revés: la subcadena PROHIBIDA aparece en tus propios comentarios
+
+La encontró el `implementer`, y es el mismo mecanismo invertido. El diseño trae criterios de
+**ausencia** verificables por `grep`: que no aparezca `wa.me`, ni `window.open`, ni
+`CircularProgress` en los archivos nuevos.
+
+Su código los cumplía. Su **documentación** no: había escrito `https://wa.me@attacker.example/` en
+el JSDoc de la guarda (copiado del ADR que la justifica), «no `window.open`» en un comentario del
+JSX, y «`CircularProgress`» en el del diálogo. Las tres frases son prosa correcta —explican
+justamente por qué no se usa eso— y las tres son el literal exacto que el criterio busca.
+
+> Un criterio de ausencia por `grep` tiene su trampa en los comentarios que explican esa misma
+> ausencia. Si vas a prohibir un literal, decide si el criterio mira solo código o también prosa —
+> y dilo en el criterio, porque el `grep` no distingue.
