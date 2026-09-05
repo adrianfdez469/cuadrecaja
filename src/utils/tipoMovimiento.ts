@@ -7,7 +7,11 @@ export const isMovimientoBaja = (tipo: ITipoMovimiento) => {
     tipo === "VENTA" ||
     tipo === "DESAGREGACION_BAJA" ||
     tipo === "CONSIGNACION_DEVOLUCION" ||
-    tipo === "MERMA"
+    tipo === "MERMA" ||
+    // F-014: the online order's reservation takes the goods out of the store
+    // when the order is confirmed (ADR 0071). Its release is an alta and is
+    // deliberately NOT here.
+    tipo === "PEDIDO_ONLINE_RESERVA"
   );
 };
 

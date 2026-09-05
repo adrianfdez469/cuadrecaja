@@ -14,6 +14,8 @@ import {
   tiendaOnlineOrderManageDenial,
   tiendaOnlineOrderNotFoundResponse,
 } from "@/lib/tiendaOnline/tiendaOnlineOrderAccess";
+import { findOrderLandingBlocker } from "@/lib/tiendaOnline/tiendaOnlineOrderLanding";
+import type { IOrderLandingBlocker } from "@/lib/tiendaOnline/tiendaOnlineOrderLanding";
 import { reportTiendaOnlineOrderStatus } from "@/lib/tiendaOnline/tiendaOnlineOrderStatusReport";
 import { readTiendaOnlineOrderGateTarget } from "@/lib/tiendaOnline/tiendaOnlineOrders";
 import { pedidoEntranteStatusReportSchema } from "@/schemas/tiendaOnline";
@@ -22,11 +24,25 @@ import { getSession } from "@/utils/auth";
 export const dynamic = "force-dynamic";
 
 const HTTP_BAD_GATEWAY = 502;
+const HTTP_CONFLICT = 409;
 
 function invalidBodyResponse(): NextResponse {
   return NextResponse.json(
     { error: TIENDA_ONLINE_API_ERRORS.invalidBody },
     { status: 400, headers: NO_STORE_HEADERS },
+  );
+}
+
+/**
+ * A DELIVERED this POS cannot land: no open period, a transfer destination that
+ * is not of this store, or a currency with no rate (ADR 0073). Nothing was
+ * called and nothing was written, and that is what makes it safe to retry once
+ * the missing condition exists.
+ */
+function notLandableResponse(reason: IOrderLandingBlocker): NextResponse {
+  return NextResponse.json(
+    { error: TIENDA_ONLINE_API_ERRORS.pedidoNotLandable, reason },
+    { status: HTTP_CONFLICT, headers: NO_STORE_HEADERS },
   );
 }
 
@@ -121,21 +137,52 @@ export async function PATCH(
     // same 404 body, so it is not a second gate with a meaning of its own.
     if (target === null) return tiendaOnlineOrderNotFoundResponse();
 
-    // 6. QAB first, the local row after, and nothing is written if QAB refuses.
+    // 6. The three LOCAL conditions that make a DELIVERED impossible, checked
+    //    BEFORE QAB is touched (ADR 0073). Nothing is called and nothing is
+    //    written: discovering them afterwards would leave the buyer seeing
+    //    DELIVERED while this POS could never write it.
+    const blocker = await findOrderLandingBlocker({
+      negocioId,
+      tiendaId: target.tiendaId,
+      pedidoId,
+      status: parsed.data.status,
+      pago: parsed.data.pago,
+    });
+    if (blocker !== null) return notLandableResponse(blocker);
+
+    // 7. QAB first, the local row after, and nothing is written if QAB refuses.
     const report = await reportTiendaOnlineOrderStatus({
       negocioId,
+      tiendaId: target.tiendaId,
       pedidoId,
       qabOrderId: target.qabOrderId,
+      usuarioId: session.user.id, // the session's, NEVER the body's
       status: parsed.data.status,
+      pago: parsed.data.pago,
     });
 
     if (report.kind === "refused") return statusUpstreamResponse(report.code);
 
-    // 7. `persisted: false` is not an error: QAB accepted and this POS did not
+    // 8. `persisted: false` is not an error: QAB accepted and this POS did not
     //    write it. The body says so instead of pretending (ADR 0063). It is not
     //    re-parsed: both values were produced by this route a line ago.
+    //    `landing` travels if and only if `persisted` is true.
+    const landing = report.landing;
     return NextResponse.json(
-      { status: report.status, persisted: report.persisted },
+      {
+        status: report.status,
+        persisted: report.persisted,
+        ...(report.persisted &&
+          landing !== null && {
+            landing: {
+              effect: landing.effect,
+              reservedProducts: landing.reservedProducts,
+              skipped: landing.skipped,
+              ventaId: landing.ventaId,
+              alreadyLanded: landing.alreadyLanded,
+            },
+          }),
+      },
       { headers: NO_STORE_HEADERS },
     );
   } catch (error) {

@@ -111,15 +111,99 @@ describe("tiendaOnlineScaffoldSchema", () => {
  * replaces it, narrowed to `QAB_ORDER_STATUS_REPORTABLE` (six values). These are the
  * tests that used to live under the old name, moved and extended.
  */
+/**
+ * F-014 (contract § 3.2, ADR 0073): `pago` is now REQUIRED for DELIVERED and
+ * FORBIDDEN for the other five reportable destinations. This is the rotura
+ * anunciada por el arquitecto: the `it.each` below used to assert that a bare
+ * `{ status }` was valid for all six reportable values, DELIVERED included.
+ * That is exactly what F-014 changes, so it is split: the five that still
+ * accept — and still REQUIRE — a bare `{ status }`, and DELIVERED, which now
+ * needs a `pago` alongside it.
+ */
 describe("pedidoEntranteStatusReportSchema", () => {
-  it.each(QAB_ORDER_STATUS_REPORTABLE ?? [])(
-    "should accept the reportable status %s",
+  const NON_DELIVERED_REPORTABLE = QAB_ORDER_STATUS_REPORTABLE.filter(
+    (status) => status !== "DELIVERED",
+  );
+
+  it.each(NON_DELIVERED_REPORTABLE)(
+    "should accept a bare { status: %s } — pago is FORBIDDEN here, not merely optional",
     (status) => {
       const result = pedidoEntranteStatusReportSchema.safeParse({ status });
 
       expect(result.success).toBe(true);
     },
   );
+
+  it.each(NON_DELIVERED_REPORTABLE)(
+    "should reject %s carrying a pago — only DELIVERED may carry one",
+    (status) => {
+      const result = pedidoEntranteStatusReportSchema.safeParse({
+        status,
+        pago: { metodo: "EFECTIVO" },
+      });
+
+      expect(result.success).toBe(false);
+    },
+  );
+
+  it("should reject DELIVERED without a pago — acceptance criterion 4, ADR 0073", () => {
+    const result = pedidoEntranteStatusReportSchema.safeParse({
+      status: "DELIVERED",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("should accept DELIVERED with an EFECTIVO pago", () => {
+    const result = pedidoEntranteStatusReportSchema.safeParse({
+      status: "DELIVERED",
+      pago: { metodo: "EFECTIVO" },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should accept DELIVERED with a TRANSFERENCIA pago carrying a transferDestinationId", () => {
+    const result = pedidoEntranteStatusReportSchema.safeParse({
+      status: "DELIVERED",
+      pago: {
+        metodo: "TRANSFERENCIA",
+        transferDestinationId: "8f14e45f-ceea-467e-adc3-b1a4c0ea0a3e",
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject DELIVERED with a TRANSFERENCIA pago missing transferDestinationId — REQUIRED for TRANSFERENCIA", () => {
+    const result = pedidoEntranteStatusReportSchema.safeParse({
+      status: "DELIVERED",
+      pago: { metodo: "TRANSFERENCIA" },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("should reject DELIVERED with an EFECTIVO pago that also carries a transferDestinationId — FORBIDDEN for EFECTIVO", () => {
+    const result = pedidoEntranteStatusReportSchema.safeParse({
+      status: "DELIVERED",
+      pago: {
+        metodo: "EFECTIVO",
+        transferDestinationId: "8f14e45f-ceea-467e-adc3-b1a4c0ea0a3e",
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("should reject a DELIVERED pago with a metodo outside TIENDA_ONLINE_PAYMENT_METHODS", () => {
+    const result = pedidoEntranteStatusReportSchema.safeParse({
+      status: "DELIVERED",
+      pago: { metodo: "BIZUM" },
+    });
+
+    expect(result.success).toBe(false);
+  });
 
   it("should reject AWAITING_CUSTOMER — acceptance criterion 2", () => {
     const result = pedidoEntranteStatusReportSchema.safeParse({
@@ -220,6 +304,105 @@ describe("tiendaOnlineOrderStatusResultSchema", () => {
         qabOrderId: "9007199254740993",
       }).success,
     ).toBe(false);
+  });
+
+  /**
+   * F-014 (contract § 3.2): `landing` is a NEW optional key, present if and only
+   * if `persisted` is true. The tests above (all `persisted: true`, no `landing`
+   * key) stay valid untouched: the extension is backward compatible on purpose.
+   */
+  it("should accept a result with a well-formed landing block (effect SELL)", () => {
+    const result = tiendaOnlineOrderStatusResultSchema.safeParse({
+      status: "DELIVERED",
+      persisted: true,
+      landing: {
+        effect: "SELL",
+        reservedProducts: 0,
+        skipped: [],
+        ventaId: "8f14e45f-ceea-467e-adc3-b1a4c0ea0a3e",
+        alreadyLanded: false,
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should accept a landing block carrying skipped lines (effect RESERVE)", () => {
+    const result = tiendaOnlineOrderStatusResultSchema.safeParse({
+      status: "CONFIRMED",
+      persisted: true,
+      landing: {
+        effect: "RESERVE",
+        reservedProducts: 1,
+        skipped: [
+          {
+            lineaId: "8f14e45f-ceea-467e-adc3-b1a4c0ea0a3e",
+            reason: "INSUFFICIENT_STOCK",
+          },
+        ],
+        ventaId: null,
+        alreadyLanded: false,
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject a landing block with an unknown effect", () => {
+    const result = tiendaOnlineOrderStatusResultSchema.safeParse({
+      status: "CONFIRMED",
+      persisted: true,
+      landing: {
+        effect: "NOT_A_REAL_EFFECT",
+        reservedProducts: 0,
+        skipped: [],
+        ventaId: null,
+        alreadyLanded: false,
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("should reject a landing block missing alreadyLanded — the amendment to ADR 0072", () => {
+    const result = tiendaOnlineOrderStatusResultSchema.safeParse({
+      status: "CONFIRMED",
+      persisted: true,
+      landing: {
+        effect: "RESERVE",
+        reservedProducts: 0,
+        skipped: [],
+        ventaId: null,
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("should reject a landing block with an extra key (.strict())", () => {
+    const result = tiendaOnlineOrderStatusResultSchema.safeParse({
+      status: "CONFIRMED",
+      persisted: true,
+      landing: {
+        effect: "RESERVE",
+        reservedProducts: 0,
+        skipped: [],
+        ventaId: null,
+        alreadyLanded: false,
+        extra: "nope",
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("should still accept persisted: true with NO landing key at all — the field is optional", () => {
+    const result = tiendaOnlineOrderStatusResultSchema.safeParse({
+      status: "READY",
+      persisted: true,
+    });
+
+    expect(result.success).toBe(true);
   });
 });
 

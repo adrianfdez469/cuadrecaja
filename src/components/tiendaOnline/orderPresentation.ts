@@ -10,6 +10,14 @@ import {
   TIENDA_ONLINE_ORDER_AMOUNT_KIND,
   TIENDA_ONLINE_UNKNOWN_CODE_MAX_LENGTH,
 } from "@/constants/tiendaOnline";
+// Only their SHAPE is needed here, so they come in as types: the vocabularies
+// they close are still what the maps below are checked against.
+import type {
+  TIENDA_ONLINE_ORDER_LANDING_BLOCKERS,
+  TIENDA_ONLINE_ORDER_LANDING_EFFECTS,
+  TIENDA_ONLINE_ORDER_LANDING_SKIP_REASONS,
+  TIENDA_ONLINE_PAYMENT_METHODS,
+} from "@/constants/tiendaOnline";
 import type {
   ITiendaOnlineOrderAmounts,
   ITiendaOnlineRateSnapshotInfo,
@@ -524,6 +532,28 @@ export const TIENDA_ONLINE_ORDER_COPY = {
     "Sin conexión. El cambio no salió de este dispositivo y el pedido sigue como estaba. Vuelve a intentarlo cuando tengas señal.",
   statusFailed:
     "No se pudo cambiar el estado y el pedido sigue como estaba. Vuelve a intentarlo en un momento.",
+
+  /* F-014 — the delivery dialog */
+  /** `aria-label` of the group of the two payment methods. */
+  pagoGrupo: "Forma de pago",
+  /** A question, not a section label: it is NOT painted in small caps. */
+  pagoPregunta: "¿Cómo se cobró este pedido?",
+  /** The SAME word the POS gives this field. Two names for one field is two vocabularies. */
+  pagoDestinoLabel: "Destino",
+  /**
+   * Written from what the SCREEN observes: there is no destination to declare,
+   * and `pedidoEntrantePagoSchema` requires one for a transfer. It names the
+   * place instead of linking to it — navigating out of a dialog loses a
+   * half-made declaration.
+   */
+  pagoSinDestinos:
+    "Este local no tiene destinos de transferencia configurados, así que un cobro por transferencia no se puede registrar todavía. Créalos en Destinos de Transferencia, o registra el cobro en efectivo.",
+  /* Why `Cambiar el estado` is still off, and it disappears when it stops explaining. */
+  pagoFaltaMetodo: "Elige cómo se cobró este pedido para poder registrarlo.",
+  pagoFaltaDestino: "Elige a qué destino entró la transferencia.",
+  /** Header of the second notice. The lines themselves are `orderLandingSkipLines`. */
+  landingSkipTitle:
+    "Hay líneas de este pedido que no se pudieron descontar del inventario. Revísalo y ajústalo a mano si hace falta:",
 } as const;
 
 /* ---- F-012: the texts that interpolate, and the grouping of the failures -- */
@@ -639,4 +669,219 @@ export function orderStatusFailureHue(qabError: string): PedidoNoticeHue {
 /** PURE. Whether this kind of failure may show a retry control at all. */
 export function orderStatusFailureOffersRetry(qabError: string): boolean {
   return FAILURE_OFFERS_RETRY[orderStatusFailureGroup(qabError)];
+}
+
+/* -------------------------------------------------------------------------- */
+/* F-014 — declaring the collection, and saying what landed                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The two payment methods, as words. Typed against the constant of the
+ * interface contract, so a value too many or too few does NOT compile.
+ *
+ * These are literally the two strings the POS already prints — in
+ * `AddPaymentSheet`, `PaymentCard`, `SaleDoneView`, `VentaDetailDialog` and
+ * `SaleExtrasSummary`, always as the same inline ternary. This feature does not
+ * invent vocabulary: it reuses what is already in five places and puts it, for
+ * the first time, in a named map instead of a sixth ternary.
+ */
+export const TIENDA_ONLINE_PAYMENT_METHOD_LABELS: Record<
+  (typeof TIENDA_ONLINE_PAYMENT_METHODS)[number],
+  string
+> = {
+  EFECTIVO: "Efectivo",
+  TRANSFERENCIA: "Transferencia",
+};
+
+/**
+ * PURE. The line above the choice, in its two written forms.
+ *
+ * A `null` amount is the order whose delivery nobody has quoted yet: that
+ * branch of the DTO has no `total`, and printing a zero, a dash or the partial
+ * dressed up as final is the shortcut F-011 §14 exists to break. NOT saying a
+ * number that does not exist is not a guard — it is not lying. The destination
+ * is still offered, the dialog still opens and the request still leaves.
+ */
+export function orderDeliverySaleNotice(formattedAmount: string | null): string {
+  if (formattedAmount === null) {
+    return "Se va a registrar la venta de este pedido en el cierre de caja de este local.";
+  }
+  return `Se va a registrar un cobro de ${formattedAmount} en el cierre de caja de este local.`;
+}
+
+/**
+ * The tail the four blocked sentences share, and it is deliberate: the guard of
+ * ADR 0073 exists precisely so that nothing is called and nothing is written,
+ * and that is the fact that takes the fright out of the message.
+ */
+const NOTHING_LEFT_THIS_POS =
+  "El cambio no llegó a salir de este POS y el pedido no cambió de estado en ninguna de las dos partes.";
+
+/** `Cambiar el estado`, interpolated from the SAME constant that paints the button. */
+const CAMBIAR_ESTADO_QUOTED = `«${TIENDA_ONLINE_ORDER_COPY.cambiarEstado}»`;
+
+type IOrderLandingBlockerValue =
+  (typeof TIENDA_ONLINE_ORDER_LANDING_BLOCKERS)[number];
+
+const BLOCKED_COPY: Record<IOrderLandingBlockerValue, string> = {
+  NO_OPEN_PERIOD: `Este local no tiene un período de caja abierto, así que la venta de este pedido no tendría dónde entrar. Ábrelo —o pídeselo a quien lo hace— y vuelve a pulsar ${CAMBIAR_ESTADO_QUOTED}. ${NOTHING_LEFT_THIS_POS}`,
+  UNKNOWN_TRANSFER_DESTINATION: `El destino de transferencia que elegiste no es de este local. Vuelve a pulsar ${CAMBIAR_ESTADO_QUOTED} y elige uno de la lista. ${NOTHING_LEFT_THIS_POS}`,
+  MISSING_EXCHANGE_RATE: `Este negocio no tiene registrada una tasa de cambio para la moneda de este pedido, así que su importe no se puede convertir sin inventarlo. Regístrala en Tasas de cambio y vuelve a pulsar ${CAMBIAR_ESTADO_QUOTED}. ${NOTHING_LEFT_THIS_POS}`,
+};
+
+const BLOCKED_FALLBACK = `Este pedido todavía no se puede registrar como entregado en este POS. ${NOTHING_LEFT_THIS_POS}`;
+
+/**
+ * PURE. The sentence one blocked delivery is shown as. TOTAL over any string: a
+ * fourth reason added tomorrow falls into the reserve sentence instead of
+ * leaving the screen blank. No code, no HTTP number: those are internal
+ * vocabulary (ADR 0034, E-009).
+ */
+export function orderLandingBlockedCopy(reason: string): string {
+  const known = Object.prototype.hasOwnProperty.call(BLOCKED_COPY, reason)
+    ? BLOCKED_COPY[reason as IOrderLandingBlockerValue]
+    : undefined;
+  return known ?? BLOCKED_FALLBACK;
+}
+
+/** The four effects, typed against the constant so a typo does not compile. */
+type IOrderLandingEffectValue =
+  (typeof TIENDA_ONLINE_ORDER_LANDING_EFFECTS)[number];
+
+const EFFECT_RESERVE = "RESERVE" satisfies IOrderLandingEffectValue;
+const EFFECT_RELEASE = "RELEASE" satisfies IOrderLandingEffectValue;
+const EFFECT_SELL = "SELL" satisfies IOrderLandingEffectValue;
+
+/**
+ * PURE. The second sentence of the success notice, when there is one.
+ *
+ * The four rules that shape it:
+ *
+ * 1. A COUNT OF ZERO IS NEVER PRINTED. «0 productos» reads as a failure and is
+ *    not one. And the same zero has two causes — already reserved, or every
+ *    line skipped — that only `alreadyLanded` tells apart: asserting one of
+ *    them from the count alone is E-013.
+ * 2. Singular and plural, always: «1 productos» is E-016 in its cheapest form.
+ *    The number goes in as a plain string, NOT through `Intl.NumberFormat`,
+ *    which does not group until five digits anyway (E-033).
+ * 3. RELEASE with `alreadyLanded` says NOTHING. There the flag covers two
+ *    indistinguishable causes — already released, or never reserved — and
+ *    naming either would be claiming what is not observed.
+ * 4. SELL with `alreadyLanded` names the loss without softening it: the payment
+ *    just declared was dropped, and the notice is painted in `caution` for it
+ *    (`orderLandingAppliedHue`).
+ *
+ * TOTAL over any `effect`: an unknown one adds no sentence.
+ */
+export function orderLandingAppliedNotice(args: {
+  label: string;
+  effect: string;
+  reservedProducts: number;
+  saleRegistered: boolean;
+  alreadyLanded: boolean;
+}): string {
+  const first = orderStatusAppliedNotice(args.label);
+  const second = landingSecondSentence(args);
+  return second === null ? first : `${first} ${second}`;
+}
+
+function landingSecondSentence(args: {
+  effect: string;
+  reservedProducts: number;
+  saleRegistered: boolean;
+  alreadyLanded: boolean;
+}): string | null {
+  const { effect, reservedProducts, saleRegistered, alreadyLanded } = args;
+
+  if (effect === EFFECT_RESERVE) {
+    if (alreadyLanded) {
+      return "El inventario de este pedido ya estaba reservado, así que ahora no se reservó nada más.";
+    }
+    if (reservedProducts === 1) return "Se reservó el inventario de 1 producto.";
+    if (reservedProducts > 1) {
+      return `Se reservó el inventario de ${reservedProducts} productos.`;
+    }
+    return null;
+  }
+
+  if (effect === EFFECT_RELEASE) {
+    if (alreadyLanded) return null;
+    if (reservedProducts === 1) {
+      return "Se devolvió al inventario 1 producto que este pedido tenía reservado.";
+    }
+    if (reservedProducts > 1) {
+      return `Se devolvieron al inventario ${reservedProducts} productos que este pedido tenía reservados.`;
+    }
+    return null;
+  }
+
+  if (effect === EFFECT_SELL) {
+    if (alreadyLanded) {
+      return "Este pedido ya estaba registrado como una venta, así que esta entrega no creó ninguna. La forma de pago que acabas de declarar no se guardó: la que vale es la que declaró quien lo entregó primero.";
+    }
+    return saleRegistered
+      ? "La venta de este pedido quedó registrada en el cierre de caja de este local."
+      : null;
+  }
+
+  return null;
+}
+
+/**
+ * PURE. The ink of the success notice. TOTAL over any string.
+ *
+ * The ONE landing outcome that cannot be green is a delivery that arrived
+ * second: the sale already existed, and the payment the person in front of the
+ * screen just declared was dropped. That is the only point of these two screens
+ * where somebody loses a datum they believed they had saved, and calling it a
+ * product decision rather than a component `if` is what makes it provable
+ * without a browser. Exact precedent: `orderStatusFailureHue`, same module.
+ *
+ * It is NOT `negative`: nothing is broken and the order IS delivered.
+ */
+export function orderLandingAppliedHue(
+  effect: string,
+  alreadyLanded: boolean,
+): PedidoNoticeHue {
+  return effect === EFFECT_SELL && alreadyLanded ? "caution" : "positive";
+}
+
+type IOrderLandingSkipReasonValue =
+  (typeof TIENDA_ONLINE_ORDER_LANDING_SKIP_REASONS)[number];
+
+const SKIP_FRAGMENT: Record<IOrderLandingSkipReasonValue, string> = {
+  NO_PRODUCT_REFERENCE: "no viene de un producto de tu catálogo",
+  PRODUCT_NOT_RESOLVED: "ya no está en el catálogo de este local",
+  INSUFFICIENT_STOCK: "no había existencia suficiente en este local",
+};
+
+const SKIP_FRAGMENT_FALLBACK = "no se pudo descontar del inventario";
+
+/** What a line is called when its id does not match any loaded line. */
+const SKIP_UNNAMED_LINE = "Una línea de este pedido";
+
+/**
+ * PURE. One line per order line that did not reach inventory, already composed.
+ *
+ * TOTAL twice over: an unknown `reason` gets the reserve fragment, and a
+ * `lineaId` that matches no loaded line gets a name instead of an exception.
+ * The name comes from the order already on screen — the PATCH's body carries
+ * only the id — and the two are the same column, `PedidoEntranteLinea.id`.
+ *
+ * The order is the one the server sent, which is ascending `lineaId`.
+ */
+export function orderLandingSkipLines(
+  skipped: readonly { lineaId: string; reason: string }[],
+  nameByLineaId: ReadonlyMap<string, string>,
+): string[] {
+  return skipped.map((line) => {
+    const name = nameByLineaId.get(line.lineaId) ?? SKIP_UNNAMED_LINE;
+    const fragment = Object.prototype.hasOwnProperty.call(
+      SKIP_FRAGMENT,
+      line.reason,
+    )
+      ? SKIP_FRAGMENT[line.reason as IOrderLandingSkipReasonValue]
+      : SKIP_FRAGMENT_FALLBACK;
+    return `${name} — ${fragment}.`;
+  });
 }

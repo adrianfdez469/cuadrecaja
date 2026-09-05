@@ -17,6 +17,10 @@ export const MovimientoTipoEnum = z.enum([
   "CONSIGNACION_DEVOLUCION",
   "MERMA",
   "DEVOLUCION_VENTA",
+  // F-014. Written ONLY by the online-order landing, never by the generic
+  // endpoint: they are absent from `MovimientoTipoCreableEnum` on purpose.
+  "PEDIDO_ONLINE_RESERVA",
+  "PEDIDO_ONLINE_LIBERACION",
 ]);
 
 export const MovimientoStateEnum = z.enum([
@@ -215,6 +219,8 @@ export enum MovimientoTipo {
   CONSIGNACION_DEVOLUCION = "CONSIGNACION_DEVOLUCION",
   MERMA = "MERMA",
   DEVOLUCION_VENTA = "DEVOLUCION_VENTA",
+  PEDIDO_ONLINE_RESERVA = "PEDIDO_ONLINE_RESERVA",
+  PEDIDO_ONLINE_LIBERACION = "PEDIDO_ONLINE_LIBERACION",
 }
 
 export type ITipoMovimiento = z.infer<typeof MovimientoTipoEnum>;

@@ -26,6 +26,10 @@ const TIPOS_ENTRADAS = [
   "AJUSTE_ENTRADA",
   "DESAGREGACION_ALTA",
   "CONSIGNACION_ENTRADA",
+  // F-014: a cancelled or rejected online order gives its reserved goods back.
+  // It belongs here so `final − entradas + ventas + salidas` keeps closing
+  // (ADR 0071); the sale itself is counted from `Venta`, not from a movement.
+  "PEDIDO_ONLINE_LIBERACION",
 ] as const;
 
 const TIPOS_SALIDAS = [
@@ -33,6 +37,9 @@ const TIPOS_SALIDAS = [
   "AJUSTE_SALIDA",
   "DESAGREGACION_BAJA",
   "CONSIGNACION_DEVOLUCION",
+  // F-014: the goods of an online order leave the store when it is confirmed,
+  // and the DELIVERED that follows does NOT discount again (ADR 0071).
+  "PEDIDO_ONLINE_RESERVA",
 ] as const;
 
 export async function GET(

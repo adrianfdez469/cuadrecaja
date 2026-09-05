@@ -75,6 +75,8 @@ export async function GET(
         totalDevoluciones: deductions.totalDevoluciones,
         gananciaFinal,
         productosActivos,
+        cantidadVentasTiendaOnline: summary.cantidadVentasTiendaOnline,
+        totalTiendaOnline: summary.totalTiendaOnline,
       },
       topProductos: porUnidades
         .slice(0, TOP_LIMIT)
