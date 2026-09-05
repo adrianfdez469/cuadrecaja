@@ -483,7 +483,7 @@ están ahí y son la prueba de que no cambia nada.
 
 **Y «sin cambios» no puede mirar solo las nueve cifras: sería una mentira, y hay un caso real.** La
 respuesta trae también `resumenBefore` y `resumenAfter`, el desglose por moneda. El agravante
-**E-017** que el propio ADR 0036 nombra en su Contexto es exactamente ese: un segundo cierre del
+**E-024** que el propio ADR 0036 nombra en su Contexto es exactamente ese: un segundo cierre del
 mismo período «sobreescribía los totales pero **conservaba el desglose por moneda del primero**».
 Es decir, existe el caso en que las nueve cifras coinciden al céntimo **y el desglose por moneda
 está viejo** — y recalcular sí lo reescribe. Si el diálogo dijera «ninguna cifra cambia» ahí,
@@ -676,7 +676,7 @@ contenido de la columna de acciones, no el `size` de la tabla.
    comparación en sí. Mostrarla entera son dos importes por moneda por fila y necesita decidir su
    forma a 320 px, donde la comparación de las nueve cifras ya ocupa la pantalla. ¿Hace falta, o
    basta con la frase? Lo que **no** puede quedarse es que el diálogo diga «ninguna cifra cambia»
-   con el desglose desactualizado (**E-017**), y eso este contrato ya lo cierra.
+   con el desglose desactualizado (**E-024**), y eso este contrato ya lo cierra.
 5. **Recálculo desde un rol distinto.** Un `ADMIN` que ve el aviso y no puede hacer nada se queda
    con «pídeselo a un superadministrador» y ninguna forma de pedirlo desde la pantalla. ¿Es
    aceptable, o hace falta un camino (una vía de contacto, una nota)? Este contrato asume que sí es

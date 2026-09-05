@@ -78,7 +78,7 @@ function buildRows(preview: IRecalculateCierreResult): ComparisonRow[] {
 
 /**
  * The per-currency summary can be stale while every headline figure matches
- * (E-017): "nothing changes" must look at it too.
+ * (E-024): "nothing changes" must look at it too.
  */
 function resumenChanges(preview: IRecalculateCierreResult): boolean {
   const byCode = new Map(preview.resumenBefore.map((r) => [r.monedaCode, r]));

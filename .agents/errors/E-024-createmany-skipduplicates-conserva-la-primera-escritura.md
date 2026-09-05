@@ -1,4 +1,4 @@
-# E-017: `createMany({ skipDuplicates: true })` conserva en silencio la primera escritura
+# E-024: `createMany({ skipDuplicates: true })` conserva en silencio la primera escritura
 
 **Área:** prisma
 **Apariciones:** 1 — transversal (cierre de caja, ADR 0036)

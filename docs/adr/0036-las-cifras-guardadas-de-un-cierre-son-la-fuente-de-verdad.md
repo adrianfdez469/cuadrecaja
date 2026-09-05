@@ -25,7 +25,7 @@ Agravantes que salieron en la misma investigación:
 
 - `close/route.ts` escribía `ResumenMonedaCierre` con `createMany({ skipDuplicates: true })`.
   Un segundo cierre del mismo período (solo posible reabriéndolo a mano) sobreescribía los
-  totales pero **conservaba el desglose por moneda del primero**. Ver E-017.
+  totales pero **conservaba el desglose por moneda del primero**. Ver E-024.
 - El desglose por moneda del drawer histórico imprimía un único "≈ base" que incluía fondo
   inicial y propinas sin decirlo, y se leía como el total de ventas.
 - `Venta.total` de 11 ventas de la app móvil guardaba la suma cruda de precios en CUP en un
