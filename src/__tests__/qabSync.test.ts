@@ -18,6 +18,8 @@ import {
   QAB_OUTBOX_BATCH_SIZE,
   QAB_OUTBOX_PERMANENT_ERROR_CODES,
   QAB_SLUG_LEARN_OUTCOMES,
+  QAB_ORDER_POLL_LOCK_STATES,
+  QAB_ORDER_PULL_OUTCOMES,
 } from "@/constants/qab";
 
 /**
@@ -272,26 +274,92 @@ describe("qabPermanentFailureSchema", () => {
   });
 });
 
+/**
+ * F-010 rewrote this schema wholesale (contract § `qabSync.ts`): the per-business
+ * report gained `outcome` and six new counters, and the lock vocabulary grew from
+ * two values to four (`not_attempted`, `unknown`). The F-002 fixtures above this
+ * comment (`{ negocioId, lock, pulled }` only) would no longer validate against
+ * the new, fuller shape — not because anything is broken, but because those
+ * fields are now required. Rewritten here rather than left stale.
+ */
 describe("qabOrderPollPhaseReportSchema", () => {
+  const validBusiness = {
+    negocioId: "negocio-1",
+    lock: "acquired",
+    outcome: "ok",
+    pages: 1,
+    received: 0,
+    pulled: 0,
+    duplicates: 0,
+    rejected: 0,
+    inconsistentTotals: 0,
+    cursorJumps: 0,
+    moreAvailable: false,
+  };
+
   const validPhase = {
     attempted: 1,
     acquired: 1,
     skippedLocked: 0,
-    businesses: [{ negocioId: "negocio-1", lock: "acquired", pulled: 0 }],
+    skippedDeadline: 0,
+    failed: 0,
+    received: 0,
+    pulled: 0,
+    rejected: 0,
+    businesses: [validBusiness],
   };
 
-  it("should accept the two known lock outcomes", () => {
+  it("should accept a well formed phase report", () => {
     expect(qabOrderPollPhaseReportSchema.safeParse(validPhase).success).toBe(true);
-    const skipped = {
-      ...validPhase,
-      businesses: [{ ...validPhase.businesses[0], lock: "skipped_locked" }],
-    };
-    expect(qabOrderPollPhaseReportSchema.safeParse(skipped).success).toBe(true);
   });
 
-  it("should reject a lock outcome outside acquired|skipped_locked", () => {
-    const bad = { ...validPhase, businesses: [{ ...validPhase.businesses[0], lock: "pending" }] };
+  it.each((QAB_ORDER_POLL_LOCK_STATES ?? []).map((lock) => [lock] as const))(
+    "should accept the lock state %s — four now, not two",
+    (lock) => {
+      const phase = { ...validPhase, businesses: [{ ...validBusiness, lock }] };
+      expect(qabOrderPollPhaseReportSchema.safeParse(phase).success).toBe(true);
+    },
+  );
+
+  it("should reject a lock state outside the four the contract defines", () => {
+    const bad = { ...validPhase, businesses: [{ ...validBusiness, lock: "pending" }] };
     expect(qabOrderPollPhaseReportSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it.each((QAB_ORDER_PULL_OUTCOMES ?? []).map((outcome) => [outcome] as const))(
+    "should accept the per-business outcome %s",
+    (outcome) => {
+      const phase = { ...validPhase, businesses: [{ ...validBusiness, outcome }] };
+      expect(qabOrderPollPhaseReportSchema.safeParse(phase).success).toBe(true);
+    },
+  );
+
+  it("should reject a per-business outcome outside QAB_ORDER_PULL_OUTCOMES", () => {
+    const bad = { ...validPhase, businesses: [{ ...validBusiness, outcome: "retrying" }] };
+    expect(qabOrderPollPhaseReportSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("should default businesses to [] when absent", () => {
+    const { businesses: _b, ...rest } = validPhase;
+    const parsed = qabOrderPollPhaseReportSchema.parse(rest);
+    expect(parsed.businesses).toEqual([]);
+  });
+
+  it("should reject a negative counter, at the phase level and at the business level", () => {
+    expect(qabOrderPollPhaseReportSchema.safeParse({ ...validPhase, failed: -1 }).success).toBe(false);
+    expect(
+      qabOrderPollPhaseReportSchema.safeParse({
+        ...validPhase,
+        businesses: [{ ...validBusiness, cursorJumps: -1 }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("should reject a phase report missing skippedDeadline or failed — new required fields of F-010", () => {
+    const { skippedDeadline: _s, ...withoutSkippedDeadline } = validPhase;
+    expect(qabOrderPollPhaseReportSchema.safeParse(withoutSkippedDeadline).success).toBe(false);
+    const { failed: _f, ...withoutFailed } = validPhase;
+    expect(qabOrderPollPhaseReportSchema.safeParse(withoutFailed).success).toBe(false);
   });
 });
 
@@ -312,7 +380,19 @@ describe("qabSyncRunReportSchema", () => {
     slugLearn: { targets: 0, attempted: 0, learned: 0, results: [] },
     // F-007, contract: required, BETWEEN slugLearn and poll — not optional, not defaulted.
     availability: { rows: 0, capped: false, businesses: 0, requests: 0, confirmed: 0, written: 0, byBusiness: [] },
-    poll: { attempted: 0, acquired: 0, skippedLocked: 0, businesses: [] },
+    // F-010, contract: poll grew skippedDeadline/failed/received/pulled/rejected —
+    // not optional, not defaulted.
+    poll: {
+      attempted: 0,
+      acquired: 0,
+      skippedLocked: 0,
+      skippedDeadline: 0,
+      failed: 0,
+      received: 0,
+      pulled: 0,
+      rejected: 0,
+      businesses: [],
+    },
   };
 
   it("should accept skipped: null (a normal run)", () => {
@@ -343,6 +423,18 @@ describe("qabSyncRunReportSchema", () => {
   it("should reject a report missing availability — F-007 made it a required field of the run report", () => {
     const { availability: _omitted, ...withoutAvailability } = baseReport;
     expect(qabSyncRunReportSchema.safeParse(withoutAvailability).success).toBe(false);
+  });
+
+  it("should reject a poll missing F-010's new counters (skippedDeadline, failed)", () => {
+    const { skippedDeadline: _sd, ...pollWithoutSkippedDeadline } = baseReport.poll;
+    expect(
+      qabSyncRunReportSchema.safeParse({ ...baseReport, poll: pollWithoutSkippedDeadline }).success,
+    ).toBe(false);
+
+    const { failed: _f, ...pollWithoutFailed } = baseReport.poll;
+    expect(
+      qabSyncRunReportSchema.safeParse({ ...baseReport, poll: pollWithoutFailed }).success,
+    ).toBe(false);
   });
 });
 

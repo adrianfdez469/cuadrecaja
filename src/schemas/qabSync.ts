@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   QAB_BUSINESS_OUTCOMES,
+  QAB_ORDER_POLL_LOCK_STATES,
+  QAB_ORDER_PULL_OUTCOMES,
   QAB_OUTBOX_BATCH_SIZE,
   QAB_OUTBOX_PERMANENT_ERROR_CODES,
   QAB_SLUG_LEARN_OUTCOMES,
@@ -130,17 +132,39 @@ export const qabOutboxDrainReportSchema = z.object({
 });
 export type IQabOutboxDrainReport = z.infer<typeof qabOutboxDrainReportSchema>;
 
+/**
+ * The pull's phase report stays HERE, where F-002 put it, and takes its two
+ * vocabularies from `@/constants/qab` and never from another schema module: this
+ * module already imports the availability phase report, and a value edge back
+ * from `@/schemas/qabOrderPull` would close a cycle that breaks at LOAD time
+ * while `tsc --noEmit` stays green (E-028).
+ */
+export const qabOrderPollBusinessReportSchema = z.object({
+  negocioId: z.string(),
+  lock: z.enum(QAB_ORDER_POLL_LOCK_STATES),
+  outcome: z.enum(QAB_ORDER_PULL_OUTCOMES),
+  pages: z.number().int().min(0),
+  received: z.number().int().min(0),
+  pulled: z.number().int().min(0),
+  duplicates: z.number().int().min(0),
+  rejected: z.number().int().min(0),
+  inconsistentTotals: z.number().int().min(0),
+  cursorJumps: z.number().int().min(0),
+  moreAvailable: z.boolean(),
+});
+export type IQabOrderPollBusinessReport = z.infer<typeof qabOrderPollBusinessReportSchema>;
+
 export const qabOrderPollPhaseReportSchema = z.object({
   attempted: z.number().int().min(0),
   acquired: z.number().int().min(0),
   skippedLocked: z.number().int().min(0),
-  businesses: z.array(
-    z.object({
-      negocioId: z.string(),
-      lock: z.enum(["acquired", "skipped_locked"]),
-      pulled: z.number().int().min(0),
-    }),
-  ),
+  skippedDeadline: z.number().int().min(0),
+  /** Businesses whose slot threw. Counted, never allowed to end the run. */
+  failed: z.number().int().min(0),
+  received: z.number().int().min(0),
+  pulled: z.number().int().min(0),
+  rejected: z.number().int().min(0),
+  businesses: z.array(qabOrderPollBusinessReportSchema).default([]),
 });
 export type IQabOrderPollPhaseReport = z.infer<typeof qabOrderPollPhaseReportSchema>;
 
