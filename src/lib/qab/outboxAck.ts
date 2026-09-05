@@ -9,6 +9,7 @@ import type {
   IQabOutboxAckPlan,
   IQabOutboxDrainReport,
   IQabPermanentFailure,
+  IQabSlugLearnPhaseReport,
 } from "@/schemas/qabSync";
 import type { IQabPostOutcome } from "@/lib/qab/qabCatalogClient";
 
@@ -182,5 +183,11 @@ export function emptyQabOutboxDrainReport(): IQabOutboxDrainReport {
     failed: 0,
     byBusiness: [],
     permanentFailures: [],
+    appliedStoreEvents: [],
   };
+}
+
+/** A slug-learning phase report with the three counters at zero and no results. */
+export function emptyQabSlugLearnPhaseReport(): IQabSlugLearnPhaseReport {
+  return { targets: 0, attempted: 0, learned: 0, results: [] };
 }

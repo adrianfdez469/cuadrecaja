@@ -13,12 +13,15 @@ import {
   QAB_STORE_PROVINCE_MAX_LENGTH,
 } from "@/constants/qab";
 import type { ITiendaOnlineLocal } from "@/schemas/tiendaOnline";
-import { touch } from "@/theme/tokens";
+import { shape, touch } from "@/theme/tokens";
 import {
   CONTACT_FIELD_LABELS,
+  emptyContactFieldsNotice,
   hasLonelyCoordinate,
 } from "@/utils/tiendaOnlineDraft";
 import type { ITiendaOnlineDraft } from "@/utils/tiendaOnlineDraft";
+
+import { isKnownInOnlineStore } from "./publicationPresentation";
 
 export interface PublicDataCardProps {
   local: ITiendaOnlineLocal;
@@ -36,21 +39,19 @@ const LONGITUDE_MIN = -180;
 const LONGITUDE_MAX = 180;
 
 /**
- * Neutral helper shown under every empty contact field.
- *
- * The two differentiated copies — «no aparece en tu tienda» vs «se va a borrar
- * de tu tienda online» — say opposite things, and picking between them needs to
- * know whether the store row already exists on the other side. That answer
- * requires the real slug, which is deferred to F-020, so until then the screen
- * asserts nothing about what happens to an empty field. `Opcional.` alone is
- * the only claim that cannot be false.
+ * The two differentiated helpers of an empty contact field. They say opposite
+ * things, and which one is true depends on whether the store row exists on the
+ * other side — the question `isKnownInOnlineStore` answers, and the only PROOF
+ * cuadrecaja has of it (ADR 0038b). Copy fixed by the F-005 design (E-016).
  */
-const EMPTY_FIELD_HELPER = "Opcional.";
+const EMPTY_FIELD_HELPER_KNOWN = "Vacío: se va a borrar de tu tienda online.";
+const EMPTY_FIELD_HELPER_UNKNOWN =
+  "Opcional. Si lo dejas vacío, no aparece en tu tienda.";
 
 /**
- * What the buyer sees. The harder half — telling the merchant that on the other
- * side the nine contact fields are written with `payload.x ?? null`, so an empty
- * field DELETES the column — is deferred to F-020 along with the real slug.
+ * What the buyer sees, plus the harder half: on the other side the nine contact
+ * fields are written with `payload.x ?? null`, so an empty field DELETES the
+ * column. That is what the count banner and the tinted helpers are for.
  */
 export function PublicDataCard({
   local,
@@ -60,8 +61,17 @@ export function PublicDataCard({
 }: Readonly<PublicDataCardProps>) {
   const router = useRouter();
 
-  const emptyHelper = (value: string): string | undefined =>
-    value.trim().length > 0 ? undefined : EMPTY_FIELD_HELPER;
+  // Derived HERE from the prop that already arrives, never passed down as a
+  // flag: a flag travelling by prop is E-014's paraphrased definition on a bus.
+  const knownInStore = isKnownInOnlineStore(local);
+  // From `draft`, not from `local`: that is what makes the count drop live as
+  // the merchant types, with no reload (acceptance criterion 7).
+  const countNotice = knownInStore ? emptyContactFieldsNotice(draft) : null;
+
+  const emptyHelper = (value: string): string | undefined => {
+    if (value.trim().length > 0) return undefined;
+    return knownInStore ? EMPTY_FIELD_HELPER_KNOWN : EMPTY_FIELD_HELPER_UNKNOWN;
+  };
 
   const field = (
     key: keyof typeof CONTACT_FIELD_LABELS,
@@ -71,18 +81,43 @@ export function PublicDataCard({
       label={CONTACT_FIELD_LABELS[key]}
       value={draft[key]}
       onChange={(event) => onFieldChange(key, event.target.value)}
-      helperText={emptyHelper(draft[key] as string)}
       fullWidth
       {...extra}
+      helperText={emptyHelper(draft[key] as string)}
+      // NEVER `error`: an empty contact field saves perfectly and can be a
+      // deliberate choice. The tint goes on the helper text alone, so the field
+      // never gets the `Mui-error` class nor reads as invalid. Declared AFTER
+      // the spread, merging whatever `extra` brought, so a caller's `htmlInput`
+      // survives and this tint is not dropped by it.
+      slotProps={{
+        ...extra?.slotProps,
+        formHelperText: knownInStore
+          ? { sx: { color: "semantic.hue.caution.main" } }
+          : undefined,
+      }}
     />
   );
 
   return (
     <ContentCard title={CARD_TITLE} spaceButton>
       <Stack spacing={2}>
-        {/* The empty-field count banner is deferred to F-020: it only makes
-            sense next to the «se va a borrar» copy, and both need the real
-            slug to know whether the row exists on the other side. */}
+        {countNotice !== null && (
+          // First child of the card body, above the read-only name: between what
+          // is only read and what can cost real data, what can be lost goes on
+          // top. One text node, no glyph, no control, no bold and no animated
+          // height — it shrinks by a reflow, never by a transition.
+          <Box
+            sx={{
+              p: { xs: 1.5, sm: 2 },
+              borderRadius: `${shape.radius.md}px`,
+              bgcolor: "semantic.hue.caution.surface",
+              color: "semantic.hue.caution.main",
+            }}
+          >
+            <Typography variant="body2">{countNotice}</Typography>
+          </Box>
+        )}
+
         <Box>
           {/* Read-only on purpose: `Tienda.nombre` is the local's name in the
               WHOLE application — tickets, reports, movements, closings — with a

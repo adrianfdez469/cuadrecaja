@@ -110,7 +110,11 @@ export const tiendaOnlineLocalSchema = z
     tipo: TipoLocalEnum,
     publicarEnTienda: z.boolean(),
     slug: z.string().nullable(),
-    /** What QAB actually assigned. Read-only here: this feature never writes it. */
+    /**
+     * What QAB actually assigned. Read-only on the browser's path: the PATCH body
+     * still never accepts it (see `tiendaOnlineLocalUpdateSchema`). The ONE writer
+     * is the cron's slug-learning phase of F-020, server side.
+     */
     slugQab: z.string().nullable(),
     descripcion: z.string().nullable(),
     direccion: z.string().nullable(),
@@ -169,7 +173,9 @@ export type ITiendaOnlineConfiguracion = z.infer<
  * required, `null` included. It is the same omission rule QAB applies, one step
  * earlier - what you do not send is cleared. See ADR 0032.
  *
- * `slugQab` is absent on purpose: QAB owns it and this feature never writes it.
+ * `slugQab` is absent on purpose: the merchant does not choose their public
+ * address, so a body carrying it is an attempt to choose it. The column is
+ * written ONLY by the cron's slug-learning phase (F-020), never from a request.
  */
 export const tiendaOnlineLocalUpdateSchema = z
   .object({

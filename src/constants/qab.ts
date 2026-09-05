@@ -235,3 +235,83 @@ export const QAB_STORE_SYNC_STATE_MAX_ROWS = 200;
  */
 export const QAB_PUBLIC_STORE_DOMAIN = "queandabuscando.com";
 export const QAB_PUBLIC_STORE_URL_PREFIX = `https://${QAB_PUBLIC_STORE_DOMAIN}/`;
+
+/* -------------------------------------------------------------------------- */
+/* F-020 — Learning the slug QAB actually assigned                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The ONLY `reason` that makes `resolvedSlug` this store's own address (ADR 0037).
+ * Declared FROM the contract's vocabulary, never as a loose literal.
+ */
+export const QAB_SLUG_LEARNED_REASON = "own" satisfies (typeof QAB_SLUG_REASONS)[number];
+
+/**
+ * Closed vocabulary of what one learning target ended up as. Nothing from the
+ * third party's body is ever mirrored here: no `reason`, no `url`, no slug.
+ */
+export const QAB_SLUG_LEARN_OUTCOMES = [
+  "learned", // reason "own" + valid slug + updateMany count === 1
+  "not_own", // reason !== "own"
+  "invalid_slug", // resolvedSlug does not satisfy qabSlugSchema
+  "upstream_error", // fetchQabSlugAvailability returned { kind: "error" }
+  "not_written", // updateMany count !== 1 (already learned, or gone)
+  "tenant_mismatch", // QabTenantMismatchError: never happens, always reported
+  "skipped_no_token", // the business has no qabToken
+  "skipped_deadline", // out of phase budget; recovered next run
+] as const;
+
+/** Targets attempted per run. A target left out loses NOTHING (ADR 0036c). */
+export const QAB_SLUG_LEARN_MAX_PER_RUN = 20;
+
+/** Phase budget, clamped again by QAB_SYNC_RUN_DEADLINE_MS of the whole run. */
+export const QAB_SLUG_LEARN_DEADLINE_MS = 10_000;
+
+/** Hard cap on the `Tienda` rows the backlog query reads. Documented cost of ADR 0036b. */
+export const QAB_SLUG_LEARN_CANDIDATE_MAX_ROWS = 200;
+
+/** Log prefix of the phase. Ids and codes only. */
+export const QAB_SLUG_LEARN_LOG = "qab.slugLearn";
+
+/* -------------------------------------------------------------------------- */
+/* F-019 — Outbox purge cron                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * How long a row that reached QAB is kept. Measured on `procesadoAt`.
+ * See ADR 0039 for why this window and why the exhausted one is longer.
+ */
+export const QAB_OUTBOX_PROCESSED_TTL_DAYS = 30;
+
+/**
+ * How long an EXHAUSTED row is kept: `procesadoAt IS NULL` and
+ * `intentos >= QAB_OUTBOX_MAX_ATTEMPTS`, which the drain never claims again.
+ * Measured on `ocurridoAt`, the only timestamp such a row ever gets. ADR 0039.
+ */
+export const QAB_OUTBOX_EXHAUSTED_TTL_DAYS = 90;
+
+/** Rows per DELETE statement. Same size as the drain's claim batch. */
+export const QAB_OUTBOX_PURGE_BATCH_SIZE = 500;
+
+/** Statements per phase and run: caps one run at 20 000 rows per phase. */
+export const QAB_OUTBOX_PURGE_MAX_BATCHES_PER_RUN = 40;
+
+/** Budget of a whole run. The route's maxDuration is 60 s. */
+export const QAB_OUTBOX_PURGE_RUN_DEADLINE_MS = 45_000;
+
+/** The two independent phases of one run, in the order they execute. ADR 0040. */
+export const QAB_OUTBOX_PURGE_PHASES = ["exhausted", "processed"] as const;
+
+/** Why the batch loop of a phase stopped. Closed vocabulary. */
+export const QAB_OUTBOX_PURGE_STOP_REASONS = ["drained", "deadline", "batch_cap"] as const;
+
+/** Partial index covering the purge's `processed` phase. See ADR 0041. */
+export const QAB_OUTBOX_PURGABLE_INDEX_NAME = "idx_outbox_purgable";
+
+/** Log prefix of the purge run. Counts and codes only: no ids, no negocioId. */
+export const QAB_OUTBOX_PURGE_LOG = "qab.outboxPurge";
+
+/** Error code of the cron endpoint's 500 response. */
+export const QAB_OUTBOX_PURGE_API_ERRORS = {
+  purgeFailed: "QAB_OUTBOX_PURGE_FAILED",
+} as const;
