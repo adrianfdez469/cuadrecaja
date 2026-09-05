@@ -540,11 +540,25 @@ model CierrePeriodo {
   tiendaId    String
   ventas      Venta[]
 
-  // Campos denormalizados para resumen
-  totalVentas        Float @default(0)
-  totalGanancia      Float @default(0)
+  // Campos denormalizados para resumen.
+  //
+  // Once the period is closed these columns ARE the figures of the period
+  // (ADR 0036): every reader shows them as stored, and they only change through
+  // the explicit recalculation (`POST .../recalculate`, superadmin) that
+  // re-derives them from the current sales with `computeCierreTotals`.
+  totalVentas        Float @default(0) // Net of discounts
+  totalGanancia      Float @default(0) // Net of discounts
   totalInversion     Float @default(0)
   totalTransferencia Float @default(0)
+  // Gross sales (Σ price × quantity in base currency) and the discounts taken
+  // off them: totalVentas = totalVentasBrutas − totalDescuentos. Stored so the
+  // history list does not have to walk every sale of the range to show them.
+  totalVentasBrutas  Float @default(0)
+  totalDescuentos    Float @default(0)
+  // When the stored totals were last derived from the sales. NULL marks a
+  // period closed by the pre-ADR-0036 engine, which readers still value live
+  // until the recalculation backfills it.
+  totalsComputedAt   DateTime?
 
   // Nuevos campos para consignación
   totalVentasPropias         Float @default(0)
@@ -1026,9 +1040,16 @@ model ResumenMonedaCierre {
   cierrePeriodoId String
   cierrePeriodo   CierrePeriodo @relation(fields: [cierrePeriodoId], references: [id], onDelete: Cascade)
   monedaCode      String
-  totalEfectivo   Float         @default(0) // En esa moneda
+  totalEfectivo   Float         @default(0) // En esa moneda (final: fondo + cobros − deducciones)
   totalTransfer   Float         @default(0) // En esa moneda
   equivalenteBase Float         @default(0) // Convertido a moneda base del negocio
+  // The same two figures before deducting expenses, cash purchases and refunds
+  // (initial fund included), so the history can show "gross → final" exactly
+  // as the open-period screen does.
+  totalEfectivoBruto   Float    @default(0)
+  equivalenteBaseBruto Float    @default(0)
+  // Initial cash fund of this currency, already included in totalEfectivo.
+  initialFund     Float         @default(0)
   // Parte de totalEfectivo/totalTransfer que es propina. Informativo: no se
   // resta de la caja, el conteo físico sigue cuadrando contra totalEfectivo.
   tipCash         Float         @default(0) // En esa moneda

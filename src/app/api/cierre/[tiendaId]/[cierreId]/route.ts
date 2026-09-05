@@ -3,39 +3,117 @@ import { prisma } from "@/lib/prisma";
 import { ICierreData } from "@/schemas/cierre";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
-import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import {
-  convertToBase,
-  convertFromBase,
-  buildTasaSnapshot,
-} from "@/lib/currency";
-import { applyGastosToResumenMap, calcularGananciaFinal } from "@/lib/gastos";
-import {
-  applyComprasYDevolucionesToResumenMap,
-  applyInitialFundToResumenMap,
-  buildResumenMonedas,
-  getCurrentInitialCashFundAmounts,
-  montoCompraEnCaja,
-} from "@/lib/movimiento/caja";
-import { buildResumenPropinas, totalPropinasBase } from "@/lib/tips";
+  computeCierreTotals,
+  hasTotalsDrift,
+  type CierreComputation,
+  type CierreStoredTotals,
+  type ValuedSale,
+} from "@/lib/cierre/computeCierreTotals";
+import { loadCierreComputationInput } from "@/lib/cierre/loadCierreInput";
 
 type Params = { tiendaId: string; cierreId: string };
 
-type ProductoVentaAcumulado = {
-  nombre: string;
-  costo: number;
-  precio: number;
-  cantidad: number;
-  total: number;
-  ganancia: number;
-  // Descuento acumulado aplicado específicamente a este producto (no prorrateado)
-  descuento?: number;
-  id: string;
-  productoId: string;
-  proveedor?: { id: string; nombre: string };
-  enConsignacion?: boolean;
-};
+type ProductoVentaAcumulado = ICierreData["productosVendidos"][number];
 
+/**
+ * Sold products grouped for the table. The grouping key includes cost and
+ * price only for users allowed to see them, so the rest see one row per
+ * product regardless of price changes during the period.
+ */
+function buildProductosVendidos(
+  ventasValoradas: ValuedSale[],
+  canViewCostos: boolean,
+): ProductoVentaAcumulado[] {
+  const productosVendidos: Record<string, ProductoVentaAcumulado> = {};
+
+  for (const valued of ventasValoradas) {
+    // Lines of THIS sale by productoTiendaId, to spread its discounts.
+    const lineasPorPt: Record<
+      string,
+      { productoKey: string; subtotal: number }[]
+    > = {};
+
+    for (const line of valued.lineas) {
+      const { productoTiendaId: id, proveedor } = line;
+      const productoKey = canViewCostos
+        ? proveedor
+          ? `${id}-${proveedor.id}-${line.costoBase}-${line.precioBase}`
+          : `${id}-${line.costoBase}-${line.precioBase}`
+        : proveedor
+          ? `${id}-${proveedor.id}`
+          : id;
+
+      if (!productosVendidos[productoKey]) {
+        productosVendidos[productoKey] = {
+          nombre: line.nombre,
+          costo: line.costoBase,
+          precio: line.precioBase,
+          cantidad: 0,
+          total: 0,
+          ganancia: 0,
+          descuento: 0,
+          id: productoKey,
+          productoId: line.productoId,
+          ...(proveedor && { proveedor, enConsignacion: true }),
+        };
+      }
+      productosVendidos[productoKey].cantidad += line.cantidad;
+      productosVendidos[productoKey].total += line.totalProducto;
+      productosVendidos[productoKey].ganancia += line.gananciaProducto;
+
+      (lineasPorPt[id] ??= []).push({
+        productoKey,
+        subtotal: line.totalProducto,
+      });
+    }
+
+    for (const ad of valued.sale.appliedDiscounts) {
+      const amount = Number(ad.amount || 0);
+      if (amount <= 0) continue;
+
+      const affected = Array.isArray(ad.productsAffected)
+        ? (ad.productsAffected as { productoTiendaId?: string }[])
+            .map((x) => String(x?.productoTiendaId || ""))
+            .filter(Boolean)
+        : Object.keys(lineasPorPt);
+
+      const contribuciones = affected.flatMap(
+        (ptId) => lineasPorPt[ptId] ?? [],
+      );
+      const subtotalAfectado = contribuciones.reduce(
+        (acc, it) => acc + (Number(it.subtotal) || 0),
+        0,
+      );
+      if (subtotalAfectado <= 0) continue;
+
+      let acumulado = 0;
+      contribuciones.forEach((it, idx) => {
+        const isLast = idx === contribuciones.length - 1;
+        const share = isLast
+          ? amount - acumulado
+          : amount * (it.subtotal / subtotalAfectado);
+        acumulado += share;
+        const row = productosVendidos[it.productoKey];
+        if (row) row.descuento = (row.descuento || 0) + share;
+      });
+    }
+  }
+
+  return Object.values(productosVendidos)
+    .map((p) => ({ ...p, descuento: Number(p.descuento || 0) }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+
+/**
+ * GET /api/cierre/[tiendaId]/[cierreId]
+ *
+ * An open period is valued live. A closed period shows the figures stored at
+ * the close (ADR 0036): the live computation is still run, but only to
+ * group the products and to detect that the sales changed after the close —
+ * `totalesDesactualizados` — so the screen can offer the recalculation
+ * instead of silently showing two different truths.
+ */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<Params> },
@@ -46,627 +124,61 @@ export async function GET(
     const session = await getSession();
     const user = session.user;
 
-    const cierre = await prisma.cierrePeriodo.findFirst({
-      where: {
-        id: cierreId,
-        tiendaId,
-        tienda: { negocioId: user.negocio.id },
-      },
-      include: {
-        tienda: {
-          include: { negocio: { select: { id: true, monedaBase: true } } },
-        },
-        resumenMonedas: true,
-        ventas: {
-          include: {
-            productos: {
-              include: {
-                producto: {
-                  include: {
-                    producto: {
-                      select: {
-                        nombre: true,
-                      },
-                    },
-                    // Incluir información del proveedor para productos en consignación
-                    proveedor: {
-                      select: {
-                        id: true,
-                        nombre: true,
-                      },
-                    },
-                  },
-                }, // Datos del producto vendido
-              },
-            },
-            appliedDiscounts: {
-              include: {
-                discountRule: {
-                  select: { id: true, name: true, appliesTo: true, type: true },
-                },
-              },
-            },
-            transferDestination: {
-              select: {
-                id: true,
-                nombre: true,
-              },
-            },
-            usuario: {
-              select: {
-                id: true,
-                nombre: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!cierre) {
+    const loaded = await loadCierreComputationInput(cierreId, user.negocio.id);
+    if (!loaded || loaded.cierre.tiendaId !== tiendaId) {
       throw new Error("Cierre no encontrado");
     }
+    const { cierre, input } = loaded;
 
-    const monedaBase = cierre.tienda.negocio?.monedaBase ?? "CUP";
+    const computation = computeCierreTotals(input);
 
-    // Fetch current rates as fallback for sales without a full tasaSnapshot
-    const negocioId = cierre.tienda.negocio?.id;
-    const tasasCambioActuales = negocioId
-      ? await prisma.tasaCambio.findMany({
-          where: { negocioId },
-          select: { monedaCode: true, tasa: true, createdAt: true },
-          orderBy: { createdAt: "desc" },
-        })
-      : [];
-    const tasasFallback = buildTasaSnapshot(tasasCambioActuales);
+    // A period closed by the previous engine (totalsComputedAt null) has no
+    // stored gross/discount figures nor per-currency gross: it keeps being
+    // valued live until the recalculation backfills it.
+    const usesStored = Boolean(cierre.fechaFin && cierre.totalsComputedAt);
+    const stored = usesStored ? await loadStored(cierreId) : null;
 
-    // Calcular totales
-    let totalVentas = 0; // Neto (venta.total)
-    let totalTransferencia = 0;
-    let totalVentasBrutas = 0; // Suma de precio * cantidad
-    let totalDescuentos = 0; // Suma de venta.discountTotal
-    let totalVentasPropias = 0;
-    let totalVentasConsignacion = 0;
-    let totalGananciasPropias = 0;
-    let totalGananciasConsignacion = 0;
-    const totalTransferenciasByDestination: {
-      id: string;
-      nombre: string;
-      total: number;
-    }[] = [];
-    const totalVentasPorUsuario: {
-      id: string;
-      nombre: string;
-      total: number;
-    }[] = [];
-    // Propinas por cajero — es el desglose que hace falta para repartirlas.
-    const tipsPorUsuario: {
-      id: string;
-      nombre: string;
-      total: number;
-    }[] = [];
+    const totals: CierreStoredTotals = stored?.totals ?? computation.totals;
+    const resumenMonedas = (
+      stored?.resumenMonedas ?? computation.resumenMonedas
+    ).map((r) => ({ ...r, id: r.monedaCode }));
+    const totalesDesactualizados = cierre.fechaFin
+      ? hasTotalsDrift(
+          stored?.totals.totalVentas ?? computation.totals.totalVentas,
+          computation.totals.totalVentas,
+        ) || !cierre.totalsComputedAt
+      : false;
 
-    const productosVendidos: Record<string, ProductoVentaAcumulado> = {};
-
-    cierre.ventas.forEach((venta) => {
-      totalTransferencia += venta.totaltransfer;
-      // Acumular descuentos del período
-      totalDescuentos += Number(venta.discountTotal ?? 0);
-
-      // Mapa auxiliar de líneas por productoTiendaId en ESTA venta
-      const lineasPorPt: Record<
-        string,
-        { productoKey: string; subtotal: number }[]
-      > = {};
-
-      if (venta.transferDestination) {
-        const { id, nombre } = venta.transferDestination;
-        if (!totalTransferenciasByDestination.find((t) => t.id === id)) {
-          totalTransferenciasByDestination.push({ id, nombre, total: 0 });
-        }
-        totalTransferenciasByDestination.find((t) => t.id === id).total +=
-          venta.totaltransfer;
-      }
-
-      if (!totalVentasPorUsuario.find((u) => u.id === venta.usuario.id)) {
-        totalVentasPorUsuario.push({
-          id: venta.usuario.id,
-          nombre: venta.usuario.nombre,
-          total: 0,
-        });
-      }
-
-      const tipVenta = Number(venta.tipTotal ?? 0);
-      if (tipVenta > 0) {
-        const entry = tipsPorUsuario.find((u) => u.id === venta.usuario.id);
-        if (entry) entry.total += tipVenta;
-        else
-          tipsPorUsuario.push({
-            id: venta.usuario.id,
-            nombre: venta.usuario.nombre,
-            total: tipVenta,
-          });
-      }
-
-      const tasasVenta = {
-        ...tasasFallback,
-        ...((venta.tasaSnapshot ?? {}) as ITasaSnapshot),
-      };
-      let ventaBruta = 0;
-      venta.productos.forEach((ventaProducto) => {
-        const {
-          producto: productoTienda,
-          cantidad,
-          costo,
-          precio,
-          monedaCostoCode,
-          monedaPrecioCode,
-        } = ventaProducto;
-        const {
-          id,
-          productoId,
-          producto: { nombre },
-          proveedor,
-        } = productoTienda;
-
-        const precioBase = convertToBase(
-          precio,
-          monedaPrecioCode ?? monedaBase,
-          tasasVenta,
-          monedaBase,
-        );
-        const costoBase = convertToBase(
-          costo,
-          monedaCostoCode ?? monedaBase,
-          tasasVenta,
-          monedaBase,
-        );
-        const totalProducto = cantidad * precioBase;
-        const gananciaProducto = cantidad * (precioBase - costoBase);
-
-        // Acumular total bruto del período
-        totalVentasBrutas += totalProducto;
-        ventaBruta += totalProducto;
-
-        // Separar por tipo de producto
-        if (proveedor) {
-          totalVentasConsignacion += totalProducto;
-          totalGananciasConsignacion += gananciaProducto;
-        } else {
-          totalVentasPropias += totalProducto;
-          totalGananciasPropias += gananciaProducto;
-        }
-
-        // Crear clave única que incluya el proveedor para productos en consignación
-        let productoKey;
-        if (
-          verificarPermisoUsuario(
-            user.permisos,
-            "operaciones.cierre.gananciascostos",
-            user.rol,
-          )
-        ) {
-          productoKey = proveedor
-            ? `${id}-${proveedor.id}-${costoBase}-${precioBase}`
-            : `${id}-${costoBase}-${precioBase}`;
-        } else {
-          productoKey = proveedor ? `${id}-${proveedor.id}` : id;
-        }
-
-        if (!productosVendidos[productoKey]) {
-          productosVendidos[productoKey] = {
-            nombre,
-            costo: costoBase,
-            precio: precioBase,
-            cantidad: 0,
-            total: 0,
-            ganancia: 0,
-            descuento: 0,
-            id: productoKey,
-            productoId,
-            ...(proveedor && { proveedor, enConsignacion: true }),
-          };
-        }
-
-        productosVendidos[productoKey].cantidad += cantidad;
-        productosVendidos[productoKey].total += totalProducto;
-        productosVendidos[productoKey].ganancia += gananciaProducto;
-
-        // Registrar línea para futura distribución de descuentos por producto
-        if (!lineasPorPt[id]) lineasPorPt[id] = [];
-        lineasPorPt[id].push({ productoKey, subtotal: totalProducto });
-      });
-
-      // Acumular totales netos por venta usando montos calculados desde los productos
-      const ventaDescuento = Number(venta.discountTotal ?? 0);
-      const ventaNeta = Math.max(0, ventaBruta - ventaDescuento);
-      totalVentas += ventaNeta;
-      totalVentasPorUsuario.find((u) => u.id === venta.usuario.id).total +=
-        ventaNeta;
-
-      // Distribuir descuentos aplicados en esta venta entre productos afectados
-      const applied = venta.appliedDiscounts || [];
-      for (const ad of applied) {
-        const amount = Number(ad.amount || 0);
-        if (amount <= 0) continue;
-
-        // Determinar los items afectados
-        let afectados: { productoTiendaId: string; cantidad?: number }[] = [];
-        if (
-          Array.isArray(ad.productsAffected) &&
-          (ad.productsAffected as unknown[]).length > 0
-        ) {
-          afectados = (ad.productsAffected as unknown[])
-            .map((x) => {
-              const obj = x as { productoTiendaId?: string; cantidad?: number };
-              return {
-                productoTiendaId: String(obj.productoTiendaId || ""),
-                cantidad:
-                  typeof obj.cantidad === "number" ? obj.cantidad : undefined,
-              };
-            })
-            .filter((a) => a.productoTiendaId);
-        } else {
-          // Si no hay listado de afectados (debería venir), usar todos los productos de la venta
-          afectados = Object.keys(lineasPorPt).map((ptId) => ({
-            productoTiendaId: ptId,
-          }));
-        }
-
-        // Calcular subtotal afectado
-        const contribuciones: { productoKey: string; subtotal: number }[] = [];
-        for (const a of afectados) {
-          const arr = lineasPorPt[a.productoTiendaId] || [];
-          for (const ln of arr) {
-            contribuciones.push({
-              productoKey: ln.productoKey,
-              subtotal: ln.subtotal,
-            });
-          }
-        }
-        const subtotalAfectado = contribuciones.reduce(
-          (acc, it) => acc + (Number(it.subtotal) || 0),
-          0,
-        );
-        if (subtotalAfectado <= 0) continue;
-
-        // Repartir el descuento proporcional al subtotal de línea
-        let acumulado = 0;
-        contribuciones.forEach((it, idx) => {
-          const isLast = idx === contribuciones.length - 1;
-          const share = isLast
-            ? amount - acumulado
-            : amount * (it.subtotal / subtotalAfectado);
-          acumulado += share;
-          if (!productosVendidos[it.productoKey]) return;
-          productosVendidos[it.productoKey].descuento =
-            (productosVendidos[it.productoKey].descuento || 0) + share;
-        });
-      }
+    const tienda = await prisma.tienda.findFirstOrThrow({
+      where: { id: tiendaId, negocioId: user.negocio.id },
     });
 
-    // Ajuste de ganancias por descuentos
-    // Los descuentos reducen la ganancia en la misma magnitud (se descuentan de la venta, no del costo)
-    // Para desglosar por tipo (propias vs consignación), prorrateamos el descuento total
-    const ventasBrutasTotales = totalVentasBrutas || 0;
-    let descuentoPropias = 0;
-    let descuentoConsignacion = 0;
-    if (ventasBrutasTotales > 0 && totalDescuentos > 0) {
-      const ratioPropias = (totalVentasPropias || 0) / ventasBrutasTotales;
-      const ratioConsig = (totalVentasConsignacion || 0) / ventasBrutasTotales;
-      descuentoPropias = totalDescuentos * ratioPropias;
-      descuentoConsignacion = totalDescuentos * ratioConsig;
-    }
-
-    // Ganancias netas por tipo tras descuentos (no permitir negativos)
-    const totalGananciasPropiasNet = Math.max(
-      0,
-      (totalGananciasPropias || 0) - (descuentoPropias || 0),
-    );
-    const totalGananciasConsignacionNet = Math.max(
-      0,
-      (totalGananciasConsignacion || 0) - (descuentoConsignacion || 0),
-    );
-    // Ganancia total neta
-    const totalGananciaNeta = Math.max(
-      0,
-      totalGananciasPropiasNet + totalGananciasConsignacionNet,
+    const canViewCostos = verificarPermisoUsuario(
+      user.permisos,
+      "operaciones.cierre.gananciascostos",
+      user.rol,
     );
 
-    // Load gastos to deduct from per-currency summary, and the period's
-    // compras/merma/devoluciones movements — independent queries, fetched
-    // together instead of one after another.
-    const [gastosDelPeriodo, movimientosPeriodo] = await Promise.all([
-      prisma.gastoCierre.findMany({
-        where: { cierreId },
-        select: {
-          id: true,
-          nombre: true,
-          tipoCalculo: true,
-          montoCalculado: true,
-          monedaCode: true,
-          naturaleza: true,
-          esAdHoc: true,
-          gastoTiendaId: true,
-        },
-      }),
-      prisma.movimientoStock.findMany({
-        where: {
-          tiendaId: cierre.tiendaId,
-          tipo: { in: ["COMPRA", "MERMA", "DEVOLUCION_VENTA"] },
-          fecha: {
-            gte: cierre.fechaInicio,
-            ...(cierre.fechaFin && { lte: cierre.fechaFin }),
-          },
-        },
-        include: {
-          productoTienda: {
-            include: { producto: { select: { nombre: true } } },
-          },
-        },
-        orderBy: { fecha: "desc" },
-      }),
-    ]);
-
-    type DeduccionItem = {
-      id: string;
-      tipo: "GASTO" | "MERMA" | "DEVOLUCION" | "COMPRA";
-      label: string;
-      monto: number;
-      motivo?: string | null;
-      esAdHoc?: boolean;
-    };
-    // Detalle de todo lo que resta de la GANANCIA final (gastos operativos, merma, devoluciones)
-    const gananciaDeducciones: DeduccionItem[] = [];
-    // Detalle de todo lo que resta de la CAJA, agrupado por moneda (gastos de cualquier
-    // naturaleza, compras pagadas en efectivo, reembolsos de devolución)
-    const cajaDeduccionesPorMoneda: Record<string, DeduccionItem[]> = {};
-    const pushCaja = (moneda: string, item: DeduccionItem) => {
-      if (!cajaDeduccionesPorMoneda[moneda])
-        cajaDeduccionesPorMoneda[moneda] = [];
-      cajaDeduccionesPorMoneda[moneda].push(item);
-    };
-
-    for (const g of gastosDelPeriodo) {
-      const moneda = g.monedaCode ?? monedaBase;
-      if (g.naturaleza === "OPERATIVO") {
-        gananciaDeducciones.push({
-          id: g.id,
-          tipo: "GASTO",
-          label: g.nombre,
-          monto: convertToBase(
-            g.montoCalculado,
-            moneda,
-            tasasFallback,
-            monedaBase,
-          ),
-          esAdHoc: g.esAdHoc,
-        });
-      }
-      // Todos los gastos (ambas naturalezas) restan de caja
-      pushCaja(moneda, {
-        id: g.id,
-        tipo: "GASTO",
-        label: g.nombre,
-        monto: g.montoCalculado,
-        esAdHoc: g.esAdHoc,
-      });
-    }
-    // Los gastos recurrentes aún no aplicados (sin GastoCierre persistido) NO se
-    // restan aquí: esta ganancia es la "en vivo" del período abierto y solo debe
-    // reflejar lo que ya se aplicó de verdad. La proyección de recurrentes se
-    // muestra únicamente en el diálogo de confirmación al cerrar caja
-    // (ver /api/gastos/cierre/[cierreId]/preview), justo antes de aplicarlos.
-
-    const totalGastos = gananciaDeducciones
-      .filter((d) => d.tipo === "GASTO")
-      .reduce((s, d) => s + d.monto, 0);
-
-    // Compras (efectivo de caja), merma y devoluciones de venta registradas en este período
-    let totalComprasCaja = 0;
-    let totalMerma = 0;
-    let totalDevoluciones = 0;
-    for (const m of movimientosPeriodo) {
-      const productoNombre = m.productoTienda?.producto?.nombre ?? "Producto";
-      const montoCompraCaja = m.tipo === "COMPRA" ? montoCompraEnCaja(m) : 0;
-      if (m.tipo === "COMPRA" && montoCompraCaja > 0) {
-        // costoTotal de una COMPRA está en la moneda de la compra, no en monedaBase
-        totalComprasCaja += convertToBase(
-          montoCompraCaja,
-          m.monedaOriginal ?? monedaBase,
-          tasasFallback,
-          monedaBase,
-        );
-        const moneda = m.monedaOriginal ?? monedaBase;
-        pushCaja(moneda, {
-          id: m.id,
-          tipo: "COMPRA",
-          label:
-            m.formaPago === "MIXTO"
-              ? `${productoNombre} (mixto: ${(m.montoOriginal ?? 0) - montoCompraCaja} de fondeo externo)`
-              : productoNombre,
-          monto: montoCompraCaja,
-          motivo: m.motivo,
-        });
-      } else if (m.tipo === "MERMA") {
-        totalMerma += m.costoTotal ?? 0;
-        gananciaDeducciones.push({
-          id: m.id,
-          tipo: "MERMA",
-          label: productoNombre,
-          monto: m.costoTotal ?? 0,
-          motivo: m.motivo,
-        });
-      } else if (m.tipo === "DEVOLUCION_VENTA") {
-        const gananciaImpacto = (m.montoReembolso ?? 0) - (m.costoTotal ?? 0);
-        totalDevoluciones += gananciaImpacto;
-        gananciaDeducciones.push({
-          id: m.id,
-          tipo: "DEVOLUCION",
-          label: productoNombre,
-          monto: gananciaImpacto,
-          motivo: m.motivo,
-        });
-        // Este panel muestra el monto en SU PROPIA moneda (no monedaBase);
-        // si falta montoOriginal, convertir montoReembolso (que sí está en
-        // monedaBase) a esa moneda en vez de asumir que ya coinciden.
-        const moneda = m.monedaOriginal ?? monedaBase;
-        const montoEnMoneda =
-          m.montoOriginal ??
-          (m.monedaOriginal
-            ? convertFromBase(
-                m.montoReembolso ?? 0,
-                m.monedaOriginal,
-                tasasFallback,
-                monedaBase,
-              )
-            : (m.montoReembolso ?? 0));
-        pushCaja(moneda, {
-          id: m.id,
-          tipo: "DEVOLUCION",
-          label: productoNombre,
-          monto: montoEnMoneda,
-          motivo: m.motivo,
-        });
-      }
-    }
-
-    const resumenMonedaMap = buildResumenMonedas(
-      cierre.ventas,
-      monedaBase,
-      tasasFallback,
-    ).reduce<
-      Record<
-        string,
-        {
-          monedaCode: string;
-          totalEfectivo: number;
-          totalTransfer: number;
-          equivalenteBase: number;
-        }
-      >
-    >((acc, r) => {
-      acc[r.monedaCode] = r;
-      return acc;
-    }, {});
-
-    // Propinas por moneda. Deliberadamente fuera de resumenMonedaMap: el
-    // dinero ya está contado en la caja vía pagosDetalle, y restarlo aquí
-    // descuadraría el conteo físico de billetes.
-    const propinaPorMoneda = Object.fromEntries(
-      buildResumenPropinas(cierre.ventas, monedaBase, tasasFallback).map(
-        (p) => [
-          p.monedaCode,
-          { tipCash: p.tipCash, tipTransfer: p.tipTransfer },
-        ],
-      ),
-    );
-    const totalTips = totalPropinasBase(cierre.ventas);
-
-    // El fondo inicial no es una deducción — es el punto de partida del
-    // efectivo, igual que las ventas del día — por eso se suma ANTES del
-    // snapshot "bruto" para que quede reflejado tanto en bruto como en final.
-    const initialFundAmounts = await getCurrentInitialCashFundAmounts(
-      cierre.id,
-    );
-    applyInitialFundToResumenMap(
-      resumenMonedaMap,
-      initialFundAmounts,
-      monedaBase,
-      tasasFallback,
-    );
-
-    // Snapshot del bruto (antes de restar gastos/compras/devoluciones) para
-    // poder mostrar "bruto tachado -> final" en el desglose por moneda
-    const resumenMonedaBrutoMap: Record<
-      string,
-      { totalEfectivo: number; equivalenteBase: number }
-    > = {};
-    for (const [code, vals] of Object.entries(resumenMonedaMap)) {
-      resumenMonedaBrutoMap[code] = {
-        totalEfectivo: vals.totalEfectivo,
-        equivalenteBase: vals.equivalenteBase,
-      };
-    }
-
-    applyGastosToResumenMap(
-      resumenMonedaMap,
-      gastosDelPeriodo,
-      monedaBase,
-      tasasFallback,
-    );
-    applyComprasYDevolucionesToResumenMap(
-      resumenMonedaMap,
-      movimientosPeriodo,
-      monedaBase,
-      tasasFallback,
-    );
-
-    const totalGananciaFinal = calcularGananciaFinal(
-      totalGananciaNeta,
-      totalGastos,
-      totalMerma,
-      totalDevoluciones,
-    );
-
-    const cierreData = {
+    const cierreData: ICierreData = {
       fechaInicio: cierre.fechaInicio,
-      fechaFin: cierre.fechaFin,
-      tienda: cierre.tienda,
-      totalVentas,
-      totalVentasBrutas,
-      totalDescuentos,
-      // Reportar ganancia neta (ya considerando descuentos)
-      totalGanancia: totalGananciaNeta,
-      totalTransferencia,
-      totalVentasPropias,
-      totalVentasConsignacion,
-      // Ventas netas de descuento por tipo (bruto - descuentoPropias/Consignacion)
-      totalVentasPropiasNeto: Math.max(
-        0,
-        totalVentasPropias - descuentoPropias,
+      fechaFin: cierre.fechaFin ?? undefined,
+      tienda,
+      ...totals,
+      totalVentasPropiasNeto: computation.totalVentasPropiasNeto,
+      totalVentasConsignacionNeto: computation.totalVentasConsignacionNeto,
+      totalTransferenciasByDestination:
+        computation.totalTransferenciasByDestination,
+      totalVentasPorUsuario: computation.totalVentasPorUsuario,
+      tipsPorUsuario: computation.tipsPorUsuario,
+      gananciaDeducciones: computation.gananciaDeducciones,
+      cajaDeducciones: computation.cajaDeducciones,
+      resumenMonedas,
+      productosVendidos: buildProductosVendidos(
+        computation.ventasValoradas,
+        canViewCostos,
       ),
-      totalVentasConsignacionNeto: Math.max(
-        0,
-        totalVentasConsignacion - descuentoConsignacion,
-      ),
-      // También devolver desglose de ganancias netas por tipo
-      totalGananciasPropias: totalGananciasPropiasNet,
-      totalGananciasConsignacion: totalGananciasConsignacionNet,
-      totalTransferenciasByDestination,
-      totalVentasPorUsuario,
-      totalTips,
-      tipsPorUsuario,
-      totalGastos,
-      totalGananciaFinal,
-      totalComprasCaja,
-      totalMerma,
-      totalDevoluciones,
-      gananciaDeducciones,
-      cajaDeducciones: cajaDeduccionesPorMoneda,
-      resumenMonedas: Object.entries(resumenMonedaMap).map(
-        ([monedaCode, vals]) => ({
-          ...vals,
-          id: monedaCode,
-          monedaCode,
-          totalEfectivoBruto:
-            resumenMonedaBrutoMap[monedaCode]?.totalEfectivo ??
-            vals.totalEfectivo,
-          equivalenteBaseBruto:
-            resumenMonedaBrutoMap[monedaCode]?.equivalenteBase ??
-            vals.equivalenteBase,
-          initialFund: initialFundAmounts[monedaCode] ?? 0,
-          tipCash: propinaPorMoneda[monedaCode]?.tipCash ?? 0,
-          tipTransfer: propinaPorMoneda[monedaCode]?.tipTransfer ?? 0,
-        }),
-      ),
-      productosVendidos: Object.values(productosVendidos)
-        .map((p) => ({
-          ...p,
-          // Asegurar números finitos
-          descuento: Number(p.descuento || 0),
-        }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+      totalesDesactualizados,
+      totalsComputedAt: cierre.totalsComputedAt ?? undefined,
     };
     return NextResponse.json(cierreData);
   } catch (_error: unknown) {
@@ -675,4 +187,46 @@ export async function GET(
       { status: 500 },
     );
   }
+}
+
+async function loadStored(cierreId: string): Promise<{
+  totals: CierreStoredTotals;
+  resumenMonedas: CierreComputation["resumenMonedas"];
+}> {
+  const row = await prisma.cierrePeriodo.findUniqueOrThrow({
+    where: { id: cierreId },
+    select: {
+      totalVentas: true,
+      totalVentasBrutas: true,
+      totalDescuentos: true,
+      totalInversion: true,
+      totalGanancia: true,
+      totalTransferencia: true,
+      totalVentasPropias: true,
+      totalVentasConsignacion: true,
+      totalGananciasPropias: true,
+      totalGananciasConsignacion: true,
+      totalGastos: true,
+      totalGananciaFinal: true,
+      totalComprasCaja: true,
+      totalMerma: true,
+      totalDevoluciones: true,
+      totalTips: true,
+      resumenMonedas: {
+        select: {
+          monedaCode: true,
+          totalEfectivo: true,
+          totalTransfer: true,
+          equivalenteBase: true,
+          totalEfectivoBruto: true,
+          equivalenteBaseBruto: true,
+          initialFund: true,
+          tipCash: true,
+          tipTransfer: true,
+        },
+      },
+    },
+  });
+  const { resumenMonedas, ...totals } = row;
+  return { totals, resumenMonedas };
 }

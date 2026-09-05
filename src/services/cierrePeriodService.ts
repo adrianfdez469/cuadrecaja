@@ -1,5 +1,8 @@
-import { ICierreData } from "@/schemas/cierre";
-import { ICierrePeriodo } from "@/schemas/cierre";
+import {
+  ICierreData,
+  ICierrePeriodo,
+  IRecalculateCierreResult,
+} from "@/schemas/cierre";
 import { IBillCount, ICashBreakdownCierre } from "@/schemas/billBreakdown";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IInitialCashFundEntry } from "@/schemas/initialCashFund";
@@ -34,6 +37,23 @@ export const closePeriod = async (
 ): Promise<ICierrePeriodo | undefined> => {
   const response = await axios.put<ICierrePeriodo>(
     `${API_URL(tiendaId)}/${cierreId}/close`,
+  );
+  return response.data;
+};
+
+/**
+ * Re-derives the stored figures of a closed period from its current sales
+ * (superadmin only). `dryRun` returns the before/after without writing.
+ */
+export const recalculateCierre = async (
+  tiendaId: string,
+  cierreId: string,
+  options: { dryRun?: boolean } = {},
+): Promise<IRecalculateCierreResult> => {
+  const response = await axios.post<IRecalculateCierreResult>(
+    `${API_URL(tiendaId)}/${cierreId}/recalculate`,
+    undefined,
+    { params: options.dryRun ? { dryRun: "1" } : undefined },
   );
   return response.data;
 };

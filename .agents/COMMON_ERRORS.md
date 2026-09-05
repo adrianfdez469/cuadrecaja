@@ -31,6 +31,7 @@ _(vacío — ningún error ha llegado todavía a 3 apariciones)_
 | [E-014](errors/E-014-una-senal-derivada-cuya-definicion-se-parafrasea.md) | El nombre de una señal derivada dice una cosa y su consulta calcula otra; la definición parafraseada en ocho sitios hace que una corrección deje alguna atrás | api | 1 |
 | [E-015](errors/E-015-un-simbolo-en-un-tsx-no-es-importable-desde-un-test.md) | Ningún símbolo que viva en un `.tsx` es importable desde un test (`jsx: preserve` sin override en `vitest.config.ts`), aunque sea una función pura sin React | tests | 1 |
 | [E-016](errors/E-016-un-criterio-que-exige-una-subcadena-que-el-copy-no-tiene.md) | Un criterio de diseño exige una subcadena literal que el copy dictado por el mismo documento no contiene: el rechazo señala a código correcto | ui | 1 |
+| [E-017](errors/E-017-createmany-skipduplicates-conserva-la-primera-escritura.md) | `createMany({ skipDuplicates })` sobre filas derivadas: la segunda escritura no falla **y no escribe**; los totales quedan nuevos y el desglose viejo | prisma | 1 |
 
 ---
 
