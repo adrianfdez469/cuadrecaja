@@ -1,7 +1,7 @@
 # E-011: `querySelector('.MuiContainer-root')` mide el contenedor del Layout, no el de la página
 
 **Área:** ui
-**Apariciones:** 1 — F-004 (paso 6, verificación del contrato de diseño)
+**Apariciones:** 2 — F-004 (paso 6, verificación del contrato de diseño) · F-006 (ver la adenda del final)
 
 ## Síntoma
 
@@ -57,3 +57,27 @@ Es la misma familia que [E-005](E-005-resize-window-no-cambia-el-viewport.md) y
 [E-002](E-002-servidor-dev-con-cliente-prisma-viejo.md): la verificación **se ejecuta, devuelve un
 número, y ese número no mide lo que se cree**. Un valor plausible es más peligroso que un error,
 porque nadie lo cuestiona — aquí llevaba directo a rechazar una implementación correcta.
+
+
+---
+
+## Adenda (F-006): también pasa con las búsquedas por texto, no solo con las medidas
+
+Verificando el criterio 16 —«la pestaña Productos no muestra el cuerpo de F-005»— una búsqueda
+ingenua por `aria-label*="local"` y por el texto «local» dio **falsos positivos** que costaron tres
+pasadas de diagnóstico aislar:
+
+- productos de fixture llamados `Sin-Local` y `LocalNoPublicado`, que son nombres libres escritos
+  por el propio `qa`;
+- el nombre de la tienda actual, que pinta el `<header>` global del `Layout`, **fuera de la ruta**.
+
+Ninguno era el `LocalSelector` que el criterio buscaba.
+
+**La regla generaliza más allá de medir:** en una aplicación con layout compartido, **cualquier**
+verificación por subcadena de texto o por selector tiene que acotarse al contenedor de la ruta
+—en este proyecto, el `.MuiContainer-maxWidthMd` anidado— y **nunca** a `document.body`. Los nombres
+libres que escriben los usuarios (o los fixtures) y el chrome del Layout compiten por las mismas
+palabras.
+
+Ver también [E-024](E-024-medir-un-componente-de-mui-a-media-transicion.md), la variante temporal
+del mismo problema: la medida es correcta, pero se toma en el instante equivocado.

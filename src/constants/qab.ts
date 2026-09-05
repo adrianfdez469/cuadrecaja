@@ -315,3 +315,119 @@ export const QAB_OUTBOX_PURGE_LOG = "qab.outboxPurge";
 export const QAB_OUTBOX_PURGE_API_ERRORS = {
   purgeFailed: "QAB_OUTBOX_PURGE_FAILED",
 } as const;
+
+/* -------------------------------------------------------------------------- */
+/* F-006 — PRODUCT, CATEGORY, CURRENCY and EXCHANGE_RATE payloads              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `OutboxEvento.entidad` of each entity of this feature. Declared FROM
+ * QAB_OUTBOX_ENTITIES with `satisfies`, never as loose literals: a rename in the
+ * contract's vocabulary then fails the build instead of silently matching no
+ * rows. Same shape as F-005's QAB_STORE_ENTITY, which stays where it is.
+ */
+export const QAB_PRODUCT_ENTITY = "PRODUCT" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
+export const QAB_CATEGORY_ENTITY = "CATEGORY" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
+export const QAB_CURRENCY_ENTITY = "CURRENCY" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
+export const QAB_EXCHANGE_RATE_ENTITY = "EXCHANGE_RATE" satisfies (typeof QAB_OUTBOX_ENTITIES)[number];
+
+/**
+ * Dependency order of ONE emission, and the ONE place it is written.
+ * CATEGORY before the PRODUCTs that reference it; CURRENCY before the first
+ * EXCHANGE_RATE of that currency. Both failures are silent on the other side.
+ * See ADR 0043.
+ */
+export const QAB_CATALOG_EMISSION_ORDER = [
+  QAB_CURRENCY_ENTITY,
+  QAB_EXCHANGE_RATE_ENTITY,
+  QAB_CATEGORY_ENTITY,
+  QAB_PRODUCT_ENTITY,
+] as const;
+
+/** ISO 4217. The contract wants EXACTLY three characters and rejects anything else. */
+export const QAB_CURRENCY_CODE_LENGTH = 3;
+
+/** The anchor currency. An EXCHANGE_RATE of CUP against itself never travels. */
+export const QAB_ANCHOR_CURRENCY_CODE = "CUP";
+
+/**
+ * `ExchangeRate.rate` is Decimal(18,6) on the other side: SIX decimals.
+ * QAB_AMOUNT_DECIMALS (= 2) is the scale of `price` and does NOT apply here.
+ */
+export const QAB_EXCHANGE_RATE_DECIMALS = 6;
+
+/**
+ * Upper bound on the businesses one global mutation fans out to.
+ *
+ * The two caps mean DIFFERENT things and that is why they are two constants:
+ * a truncated CURRENCY fan-out still fixes the row for everyone (the table is
+ * global, one delivery is enough), while a truncated CATEGORY cascade leaves the
+ * remaining businesses with the old name. See ADR 0044 and ADR 0046.
+ */
+export const QAB_CATEGORY_CASCADE_MAX_BUSINESSES = 200;
+export const QAB_CURRENCY_FANOUT_MAX_BUSINESSES = 50;
+
+/**
+ * Why building a catalog payload refused. Closed vocabulary: these codes reach
+ * the screen as the body of a 409, and never a third party's text.
+ */
+export const QAB_CATALOG_EMISSION_ERRORS = {
+  priceInvalid: "QAB_PRICE_INVALID",
+  currencyCodeInvalid: "QAB_CURRENCY_CODE_INVALID",
+  exchangeRateTooSmall: "QAB_EXCHANGE_RATE_TOO_SMALL",
+} as const;
+
+/** Page size of the publishing screen's product listing. */
+export const QAB_PRODUCT_PAGE_SIZE_DEFAULT = 50;
+export const QAB_PRODUCT_PAGE_SIZE_MAX = 100;
+
+/**
+ * Hard cap on the products ONE bulk action may touch. Above it the route refuses
+ * with 409 and writes nothing: a bulk action is all-or-nothing (criterion 6), and
+ * half a category published is worse than none.
+ */
+export const QAB_PRODUCT_BULK_MAX = 500;
+
+/** Cap on the listing's free-text search. An unbounded LIKE never leaves cuadrecaja. */
+export const QAB_PRODUCT_SEARCH_MAX_LENGTH = 80;
+
+/** Log prefix of one applied publish/unpublish. Ids and counts only, never a payload. */
+export const QAB_PRODUCT_PUBLISH_AUDIT_LOG = "TIENDA_ONLINE_PRODUCTO_PUBLICADO" as const;
+
+/* -------------------------------------------------------------------------- */
+/* F-006 — hardening of the global `Moneda` text (criterion 20)                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Caps on `Moneda.nombre` and `Moneda.simbolo`, measured AFTER trimming.
+ *
+ * They are OURS, not the contract's: the QAB contract declares no limit for
+ * `CURRENCY.name` or `CURRENCY.symbol`. We set them because that text lands in a
+ * table that is GLOBAL to the platform and is shown in the public storefront of
+ * OTHER businesses, which no tenant can opt out of. Two constants and not one,
+ * because a symbol is a different kind of thing from a name.
+ *
+ * Sized against the real catalog, not guessed: the longest ISO 4217 names sit
+ * around 30 characters, and the longest symbols in use are a handful of code
+ * points. See ADR 0044.
+ */
+export const QAB_CURRENCY_NAME_MAX_LENGTH = 40;
+export const QAB_CURRENCY_SYMBOL_MAX_LENGTH = 8;
+
+/**
+ * Characters `Moneda.nombre` and `Moneda.simbolo` may never contain. A DENY list
+ * and not an allow list on purpose: currency names and symbols are legitimately
+ * written in many scripts, and an allow list would reject correct data while
+ * adding nothing this list does not already cover.
+ *
+ * What it denies, and why each group:
+ *  - C0 and C1 control characters, and the BOM: invisible, and they survive into
+ *    logs and into the other side's database.
+ *  - Zero-width and bidirectional formatting characters (U+200B-U+200F,
+ *    U+2028/U+2029, U+202A-U+202E, U+2066-U+2069): text that renders as
+ *    something other than what it is.
+ *  - Markup and quoting characters. The public storefront is not ours and we do
+ *    not get to assume how it escapes what we send it.
+ */
+export const QAB_CURRENCY_TEXT_FORBIDDEN_PATTERN =
+  /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069\uFEFF<>&"'`\\]/u;

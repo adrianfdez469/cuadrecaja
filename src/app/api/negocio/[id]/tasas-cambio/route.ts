@@ -7,6 +7,9 @@ import {
   assertNegocioConfigAccess,
   assertNegocioConfigReadAccess,
 } from "@/lib/negocioConfigAccess";
+import { emitQabExchangeRateEvent } from "@/lib/qab/qabCatalogEmitters";
+import { QabCurrencyPayloadError } from "@/lib/qab/qabCurrencyPayload";
+import { QAB_CATALOG_EMISSION_ERRORS } from "@/constants/qab";
 
 export async function GET(
   req: NextRequest,
@@ -90,17 +93,53 @@ export async function POST(
       );
     }
 
-    const tasaCambio = await prisma.tasaCambio.create({
-      data: {
+    const occurredAt = new Date();
+
+    // The EXCHANGE_RATE event — preceded by its CURRENCY when this business
+    // never synced that code — is enqueued in the SAME transaction that
+    // persists the rate. A rollback takes both with it.
+    const tasaCambio = await prisma.$transaction(async (tx) => {
+      const created = await tx.tasaCambio.create({
+        data: {
+          negocioId: id,
+          monedaCode: result.data.monedaCode,
+          tasa: result.data.tasa,
+          creadoPorId: session.user.id,
+        },
+        include: { creadoPor: { select: { id: true, nombre: true } } },
+      });
+
+      const moneda = await tx.moneda.findUnique({
+        where: { code: created.monedaCode },
+        select: { code: true, nombre: true, simbolo: true, activo: true },
+      });
+
+      await emitQabExchangeRateEvent(tx, {
         negocioId: id,
-        monedaCode: result.data.monedaCode,
-        tasa: result.data.tasa,
-        creadoPorId: session.user.id,
-      },
-      include: { creadoPor: { select: { id: true, nombre: true } } },
+        moneda,
+        tasa: { code: created.monedaCode, tasa: created.tasa },
+        occurredAt,
+      });
+
+      return created;
     });
+
     return NextResponse.json(tasaCambio, { status: 201 });
   } catch (error) {
+    // A rate that rounds to zero at six decimals cannot travel: the contract
+    // requires `> 0`. Nothing was written — the throw happened inside the
+    // transaction. Only reachable with the online store enabled; with it off
+    // the emitter returns before building anything and this route behaves
+    // exactly as it did before F-006.
+    if (
+      error instanceof QabCurrencyPayloadError &&
+      error.code === QAB_CATALOG_EMISSION_ERRORS.exchangeRateTooSmall
+    ) {
+      return NextResponse.json(
+        { error: QAB_CATALOG_EMISSION_ERRORS.exchangeRateTooSmall },
+        { status: 400 },
+      );
+    }
     console.error(error);
     return NextResponse.json(
       { error: "Error al registrar tasa de cambio" },

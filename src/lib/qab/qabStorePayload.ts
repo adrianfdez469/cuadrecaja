@@ -3,6 +3,7 @@ import type {
   IOpeningHours,
   IOpeningHoursIssue,
 } from "@/schemas/qabOpeningHours";
+import { toQabCurrencyCodeOrNull } from "@/schemas/qabCurrency";
 import { qabStorePayloadSchema } from "@/schemas/qabStore";
 import type {
   IQabStorePayload,
@@ -65,6 +66,13 @@ export function buildQabStorePayload(
     phone: input.telefono,
     whatsapp: input.whatsapp,
     email: input.email,
+    // `Negocio.monedaBase`, dropped entirely when it is not a wire-shaped code:
+    // the contract defaults an absent `baseCurrency` to CUP, and a malformed base
+    // currency must not stop a local from publishing. The conditional spread drops
+    // the key rather than sending `undefined`, exactly like `openingHours`.
+    ...(toQabCurrencyCodeOrNull(input.monedaBase) === null
+      ? {}
+      : { baseCurrency: input.monedaBase }),
     ...(openingHours === undefined ? {} : { openingHours }),
     publishToStore: input.publicarEnTienda,
     // The contract ignores `unpublishReason` while the store is published, and

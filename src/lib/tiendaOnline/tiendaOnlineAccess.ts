@@ -115,3 +115,81 @@ export async function assertTiendaOnlineAccess(
   // gate refused, and the reason is neither serialised nor logged.
   return decision.allowed ? null : tiendaOnlineForbiddenResponse();
 }
+
+/* -------------------------------------------------------------------------- */
+/* F-006 — the gate that demands SEVERAL permissions, not one                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * PURE. Whether this session holds every one of `permisosRequeridos`. Feeds
+ * `puedePublicar` of the listing so the screen can disable a control it is not
+ * allowed to use. Convenience for the UI, NOT a security boundary.
+ *
+ * An empty list is `true`: «no permission is required» is not «nobody may».
+ */
+export function hasTiendaOnlinePermisos(
+  session: Session | null,
+  permisosRequeridos: string[],
+): boolean {
+  const user = session?.user;
+  if (!user) return false;
+
+  return permisosRequeridos.every((permiso) =>
+    verificarPermisoUsuario(user.permisos, permiso, user.rol),
+  );
+}
+
+/**
+ * PURE. Same rule as `decideTiendaOnlineAccess`, with several permissions that
+ * are ALL required. ORDER IS STILL THE CONTRACT: the switch is evaluated FIRST,
+ * before anything that looks at `rol` or `permisos` (ADR 0028) —
+ * `verificarPermisoUsuario` returns true for SUPER_ADMIN on any permission, so a
+ * switch check placed after it would be dead code for that role.
+ */
+export function decideTiendaOnlineAccessAll(params: {
+  session: Session | null;
+  moduleEnabled: boolean;
+  permisosRequeridos: string[];
+}): ITiendaOnlineDecision {
+  const { session, moduleEnabled, permisosRequeridos } = params;
+
+  const negocioId = session?.user?.negocio?.id;
+  if (!negocioId) {
+    return { allowed: false, reason: "NO_SESSION" };
+  }
+
+  // FIRST, and never after the permission check.
+  if (moduleEnabled === false) {
+    return { allowed: false, reason: "MODULE_DISABLED" };
+  }
+
+  if (!hasTiendaOnlinePermisos(session, permisosRequeridos)) {
+    return { allowed: false, reason: "MISSING_PERMISSION" };
+  }
+
+  return { allowed: true, negocioId };
+}
+
+/**
+ * The only thing a route handler calls. `null` when granted, the NextResponse
+ * when not. Returns the SAME `tiendaOnlineForbiddenResponse()` as the
+ * single-permission gate: one body, one status, and it NEVER says which of the
+ * permissions was missing.
+ */
+export async function assertTiendaOnlineAccessAll(
+  session: Session | null,
+  permisosRequeridos: string[],
+): Promise<NextResponse | null> {
+  const negocioId = session?.user?.negocio?.id;
+  if (!negocioId) return tiendaOnlineForbiddenResponse();
+
+  const moduleEnabled = await isTiendaOnlineEnabled(negocioId);
+
+  const decision = decideTiendaOnlineAccessAll({
+    session,
+    moduleEnabled,
+    permisosRequeridos,
+  });
+
+  return decision.allowed ? null : tiendaOnlineForbiddenResponse();
+}

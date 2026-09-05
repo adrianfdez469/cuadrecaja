@@ -37,6 +37,9 @@ function input(overrides: Partial<IQabStorePayloadInput> = {}): IQabStorePayload
     telefono: "+5350000000",
     whatsapp: "+5350000000",
     email: "sucursal@example.com",
+    // F-006: `Negocio.monedaBase`, RAW. Required by qabStorePayloadInputSchema since this
+    // feature added it (contract §3.4) — every F-005 fixture has to carry it now.
+    monedaBase: "CUP",
     horarios: null,
     motivoDespublicacion: null,
     occurredAt: OCCURRED_AT,
@@ -239,6 +242,36 @@ describe("buildQabStorePayload — field mapping", () => {
   });
 });
 
+describe("buildQabStorePayload — baseCurrency, F-006 criterion 16", () => {
+  it("should include baseCurrency resolved from Negocio.monedaBase when it is a well-formed 3-character code", () => {
+    const payload = buildQabStorePayload(input({ monedaBase: "USD" }));
+
+    expect(payload.baseCurrency).toBe("USD");
+  });
+
+  it("should update baseCurrency on a republish after the business changes its base currency", () => {
+    const first = buildQabStorePayload(input({ monedaBase: "USD" }));
+    const second = buildQabStorePayload(input({ monedaBase: "EUR" }));
+
+    expect(first.baseCurrency).toBe("USD");
+    expect(second.baseCurrency).toBe("EUR");
+  });
+
+  it("should DROP the baseCurrency key entirely (not send it as null/undefined) when monedaBase is not a well-formed wire code — a malformed base currency must not take the whole STORE event down (§4.4 asymmetry)", () => {
+    const payload = buildQabStorePayload(input({ monedaBase: "US" }));
+
+    expect("baseCurrency" in payload).toBe(false);
+    expect(JSON.stringify(payload)).not.toContain("baseCurrency");
+  });
+
+  it("should still build a valid, complete payload when baseCurrency is dropped — the rest of STORE is unaffected", () => {
+    const payload = buildQabStorePayload(input({ monedaBase: "" }));
+
+    expect("baseCurrency" in payload).toBe(false);
+    expect(qabStorePayloadSchema.safeParse(payload).success).toBe(true);
+  });
+});
+
 describe("qabStorePayloadSchema", () => {
   const validPayload = {
     storeId: "a3f1a1a1-1111-4111-8111-111111111111",
@@ -281,6 +314,23 @@ describe("qabStorePayloadSchema", () => {
     ).toBe(true);
   });
 
+  it("should accept baseCurrency absent — it is optional (contract §3.4)", () => {
+    expect(qabStorePayloadSchema.safeParse(validPayload).success).toBe(true);
+    expect("baseCurrency" in validPayload).toBe(false);
+  });
+
+  it("should accept a well-formed 3-character baseCurrency", () => {
+    expect(
+      qabStorePayloadSchema.safeParse({ ...validPayload, baseCurrency: "USD" }).success
+    ).toBe(true);
+  });
+
+  it("should reject a baseCurrency that is not exactly 3 characters", () => {
+    expect(
+      qabStorePayloadSchema.safeParse({ ...validPayload, baseCurrency: "US" }).success
+    ).toBe(false);
+  });
+
   it("should reject a storeId that is not a UUID", () => {
     expect(qabStorePayloadSchema.safeParse({ ...validPayload, storeId: "not-a-uuid" }).success).toBe(
       false
@@ -309,5 +359,15 @@ describe("qabStorePayloadInputSchema", () => {
       qabStorePayloadInputSchema.safeParse({ ...input(), occurredAt: "2026-09-03T12:00:00.000Z" })
         .success
     ).toBe(false);
+  });
+
+  it("F-006: monedaBase is REQUIRED, not optional — a caller that forgets it fails to parse", () => {
+    const { monedaBase: _omitted, ...withoutMonedaBase } = input();
+    expect(qabStorePayloadInputSchema.safeParse(withoutMonedaBase).success).toBe(false);
+  });
+
+  it("F-006: monedaBase accepts the RAW column value even when malformed — the builder decides whether it can travel, not this schema", () => {
+    expect(qabStorePayloadInputSchema.safeParse(input({ monedaBase: "US" })).success).toBe(true);
+    expect(qabStorePayloadInputSchema.safeParse(input({ monedaBase: "" })).success).toBe(true);
   });
 });
