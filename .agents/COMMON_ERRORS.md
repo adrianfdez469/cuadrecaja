@@ -42,6 +42,8 @@ _(vacío — ningún error ha llegado todavía a 3 apariciones)_
 | [E-025](errors/E-025-un-subagente-se-desvia-de-su-mandato-y-contamina-el-entorno.md) | Un subagente lanzado con un mandato acotado hereda el contexto del padre, lee sus planes como propios y ejecuta contra la misma base de datos: los conteos de la verificación dejan de significar nada | build | 1 |
 | [E-026](errors/E-026-la-suite-en-verde-no-implica-tsc-limpio.md) | `npm test` en verde con `npx tsc --noEmit` en rojo: Vitest no comprueba tipos. Y una comprobación **caduca** cuando el árbol cambia | tests | 1 |
 | [E-027](errors/E-027-medir-un-componente-de-mui-a-media-transicion.md) | Medir un componente con transición de entrada (`Grow`, `Zoom`, `Fade`) antes de que termine: `getBoundingClientRect` devuelve la caja **escalada** y la cifra intermedia es plausible | ui | 1 |
+| [E-028](errors/E-028-un-ciclo-de-valor-entre-dos-modulos-de-schemas.md) | Un ciclo de **valor** entre dos módulos que evalúan schemas en el tope: `tsc --noEmit` da exit 0 y la carga revienta con un `TypeError` de Zod que tumba suites ajenas | build | 1 |
+| [E-029](errors/E-029-un-tope-heredado-que-no-cabe-el-lote-propio.md) | Un tope de respuesta heredado de otro cliente en el que no cabe la confirmación de la página propia: no da error recuperable, da **estancamiento permanente** | api | 1 |
 
 ---
 

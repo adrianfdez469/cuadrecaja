@@ -1,4 +1,5 @@
 import {
+  QAB_AVAILABILITY_DEADLINE_MS,
   QAB_SLUG_LEARN_DEADLINE_MS,
   QAB_SYNC_RUN_DEADLINE_MS,
   QAB_SYNC_SKIPPED_NO_BASE_URL,
@@ -8,6 +9,9 @@ import {
   emptyQabOutboxDrainReport,
   emptyQabSlugLearnPhaseReport,
 } from "@/lib/qab/outboxAck";
+import { syncQabAvailability } from "@/lib/qab/availabilitySync";
+import { postQabAvailabilityBatch } from "@/lib/qab/qabAvailabilityClient";
+import { emptyQabAvailabilityPhaseReport } from "@/lib/qab/qabAvailabilityPlan";
 import { drainQabOutbox, loadQabTokens } from "@/lib/qab/outboxDrain";
 import {
   QAB_ORDER_POLL_SKIPPED_LOG,
@@ -39,6 +43,7 @@ export async function runQabSyncTiendaCron(): Promise<IQabSyncRunReport> {
       skipped: QAB_SYNC_SKIPPED_NO_BASE_URL,
       outbox: emptyQabOutboxDrainReport(),
       slugLearn: emptyQabSlugLearnPhaseReport(),
+      availability: emptyQabAvailabilityPhaseReport(),
       poll: emptyOrderPollPhaseReport(),
     };
   }
@@ -68,6 +73,21 @@ export async function runQabSyncTiendaCron(): Promise<IQabSyncRunReport> {
     appliedStoreEvents: outbox.appliedStoreEvents,
     deadlineAt: Math.min(
       Date.now() + QAB_SLUG_LEARN_DEADLINE_MS,
+      startedAtMs + QAB_SYNC_RUN_DEADLINE_MS,
+    ),
+  });
+
+  // The availability phase (F-007, ADR 0049): BEHIND the drain, so the PRODUCT
+  // event of a product published this run is delivered before its availability
+  // goes out, and AHEAD of the pull, which takes an advisory lock per business
+  // and can hold a long transaction for each one. It reuses `eligible` — the
+  // selection is never recomputed, and that is what keeps a business with no
+  // token or with the online store switched off out of the phase entirely.
+  const availability = await syncQabAvailability({
+    negocioIds: eligible.map((row) => row.id),
+    post: ({ token, batch }) => postQabAvailabilityBatch({ baseUrl, token, batch }),
+    deadlineAt: Math.min(
+      Date.now() + QAB_AVAILABILITY_DEADLINE_MS,
       startedAtMs + QAB_SYNC_RUN_DEADLINE_MS,
     ),
   });
@@ -107,6 +127,7 @@ export async function runQabSyncTiendaCron(): Promise<IQabSyncRunReport> {
     skipped: null,
     outbox,
     slugLearn,
+    availability,
     poll,
   };
 }

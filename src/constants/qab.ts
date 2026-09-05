@@ -100,6 +100,18 @@ export const QAB_SYNC_DB_CONNECTION_LIMIT_DEFAULT = 2;
 /** Reported in `IQabSyncRunReport.skipped` when QAB_API_BASE_URL is unset. ADR 0014. */
 export const QAB_SYNC_SKIPPED_NO_BASE_URL = "QAB_API_BASE_URL_NOT_SET" as const;
 
+/**
+ * How one business's slot of a sync phase ended. Shared vocabulary of the drain
+ * report and of the availability phase report (F-007).
+ *
+ * It is DECLARED here and re-exported by `src/schemas/qabSync.ts`, which stays
+ * its import site for every consumer. Declaring it inside that schema module
+ * would put a value edge from `qabAvailability.ts` back to `qabSync.ts`, which
+ * already imports the availability phase report: the two modules would form a
+ * cycle and whichever loaded first would evaluate a `z.enum(undefined)`.
+ */
+export const QAB_BUSINESS_OUTCOMES = ["ok", "error", "skipped_no_token", "skipped_deadline"] as const;
+
 /** Error codes of the cron endpoint's 500 responses. */
 export const QAB_SYNC_API_ERRORS = {
   configInvalid: "QAB_CONFIG_INVALID",
@@ -431,3 +443,84 @@ export const QAB_CURRENCY_SYMBOL_MAX_LENGTH = 8;
  */
 export const QAB_CURRENCY_TEXT_FORBIDDEN_PATTERN =
   /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069\uFEFF<>&"'`\\]/u;
+
+/* -------------------------------------------------------------------------- */
+/* F-007 — Availability convergence                                            */
+/* -------------------------------------------------------------------------- */
+
+/** Second sync route of the contract. Appended to QAB_API_BASE_URL; never inline. */
+export const QAB_AVAILABILITY_SYNC_PATH = "/api/internal/sync/availability";
+
+/**
+ * THE availability CASE. The one and only place this expression is written.
+ *
+ * Copied CHARACTER BY CHARACTER, indentation included, from the migration that
+ * created QAB_DIVERGENCE_INDEX_NAME (QAB_DIVERGENCE_INDEX_MIGRATION_PATH). The
+ * planner matches a partial index by comparing NORMALISED expression trees, not
+ * text, so whitespace is free and operand types are not — but an identical copy
+ * is the only thing an automated check can verify without reimplementing that
+ * normalisation. Divergence between the two makes the index unusable and turns
+ * the query into a full scan of the catalog, with no error of any kind.
+ *
+ * Interpolated with `Prisma.raw` in the two places of ONE statement that need
+ * it. Never rewritten anywhere else. See ADR 0048.
+ */
+export const QAB_AVAILABILITY_CASE_SQL = `CASE WHEN existencia <= 0             THEN 'OUT_OF_STOCK'
+            WHEN existencia <= "umbralBajo"  THEN 'LOW_STOCK'
+            ELSE                                  'AVAILABLE' END`;
+
+/** Repository-relative. Read by the drift test, never at runtime. */
+export const QAB_DIVERGENCE_INDEX_MIGRATION_PATH =
+  "prisma/migrations/20260901225538_qab_idx_disp_divergente/migration.sql";
+
+/**
+ * Items per request. The contract's own cap; a page is never empty and never
+ * larger. Sending fewer is allowed — the contract tolerates up to 2000, it does
+ * not require them.
+ *
+ * NEVER change this number without recomputing
+ * QAB_AVAILABILITY_MAX_RESPONSE_BYTES below: a full confirmation of one page is
+ * a response of BATCH_SIZE entries, and a cap smaller than that page stalls the
+ * business FOREVER. See ADR 0051.
+ */
+export const QAB_AVAILABILITY_BATCH_SIZE = 2_000;
+
+/**
+ * Upper bound, in bytes, of ONE entry of `confirmed`: the pair
+ * `["<ProductoTienda.id>","<Tienda.id>"]` plus its separating comma. A pair of
+ * uuids measures 80 bytes; this budget covers ids of about 60 characters each,
+ * so it does not depend on every id being a uuid.
+ */
+export const QAB_AVAILABILITY_CONFIRMED_ENTRY_MAX_BYTES = 128;
+
+/** Everything of the response that is not a `confirmed` entry, with slack. */
+export const QAB_AVAILABILITY_RESPONSE_ENVELOPE_MAX_BYTES = 1_024;
+
+/**
+ * Response cap of the availability client. COMPUTED, not chosen: it is exactly
+ * what a full confirmation of one page can measure, so the two constants can
+ * never again be set independently.
+ *
+ * Availability does NOT reuse QAB_HTTP_MAX_RESPONSE_BYTES (100 000), the cap of
+ * the catalog and provisioning clients. That number bounds a response whose size
+ * WE do not determine; here the well-formed response is bounded by the page we
+ * ourselves sent, and 100 000 bytes cuts a page off at ~1250 confirmations. See
+ * ADR 0051.
+ */
+export const QAB_AVAILABILITY_MAX_RESPONSE_BYTES =
+  QAB_AVAILABILITY_RESPONSE_ENVELOPE_MAX_BYTES +
+  QAB_AVAILABILITY_BATCH_SIZE * QAB_AVAILABILITY_CONFIRMED_ENTRY_MAX_BYTES;
+
+/**
+ * Divergent rows ONE run reads, across every eligible business. Above
+ * QAB_AVAILABILITY_BATCH_SIZE on purpose: a single business with more than one
+ * page has to produce more than one request in the same run (criterion 10).
+ * What does not fit stays divergent and is read by the next run.
+ */
+export const QAB_AVAILABILITY_MAX_ROWS_PER_RUN = 6_000;
+
+/** Phase budget, clamped again by QAB_SYNC_RUN_DEADLINE_MS of the whole run. */
+export const QAB_AVAILABILITY_DEADLINE_MS = 10_000;
+
+/** Log prefix of the phase. Ids and counts only: never a payload, never a body. */
+export const QAB_AVAILABILITY_LOG = "qab.availability";

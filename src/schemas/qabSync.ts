@@ -1,10 +1,12 @@
 import { z } from "zod";
 import {
+  QAB_BUSINESS_OUTCOMES,
   QAB_OUTBOX_BATCH_SIZE,
   QAB_OUTBOX_PERMANENT_ERROR_CODES,
   QAB_SLUG_LEARN_OUTCOMES,
 } from "@/constants/qab";
 import { qabOutboxEntitySchema, qabOutboxOperationSchema } from "@/schemas/qabOutbox";
+import { qabAvailabilityPhaseReportSchema } from "@/schemas/qabAvailability";
 
 /** One event as it travels over the wire (§ ① «Formato»). Names in English. */
 export const qabCatalogEventSchema = z.object({
@@ -97,7 +99,12 @@ export const qabSlugLearnPhaseReportSchema = z.object({
 });
 export type IQabSlugLearnPhaseReport = z.infer<typeof qabSlugLearnPhaseReportSchema>;
 
-export const QAB_BUSINESS_OUTCOMES = ["ok", "error", "skipped_no_token", "skipped_deadline"] as const;
+/**
+ * Re-exported so this module stays the import site every consumer already uses.
+ * Its declaration lives in `@/constants/qab` to keep this module and
+ * `@/schemas/qabAvailability` acyclic: see the comment there.
+ */
+export { QAB_BUSINESS_OUTCOMES };
 
 export const qabOutboxDrainReportSchema = z.object({
   claimed: z.number().int().min(0),
@@ -143,6 +150,7 @@ export const qabSyncRunReportSchema = z.object({
   skipped: z.literal("QAB_API_BASE_URL_NOT_SET").nullable(),
   outbox: qabOutboxDrainReportSchema,
   slugLearn: qabSlugLearnPhaseReportSchema,
+  availability: qabAvailabilityPhaseReportSchema, // F-007
   poll: qabOrderPollPhaseReportSchema,
 });
 export type IQabSyncRunReport = z.infer<typeof qabSyncRunReportSchema>;

@@ -1,4 +1,4 @@
-import { QAB_CATALOG_SYNC_PATH } from "@/constants/qab";
+import { QAB_AVAILABILITY_SYNC_PATH, QAB_CATALOG_SYNC_PATH } from "@/constants/qab";
 
 /** Thrown when QAB_API_BASE_URL is present but is not an absolute http(s) origin. */
 export class QabConfigError extends Error {
@@ -62,4 +62,9 @@ export function resolveQabBaseUrl(env?: NodeJS.ProcessEnv): string | null {
 /** Pure. `resolveQabBaseUrl` output + QAB_CATALOG_SYNC_PATH. */
 export function qabCatalogSyncUrl(baseUrl: string): string {
   return `${baseUrl}${QAB_CATALOG_SYNC_PATH}`;
+}
+
+/** Pure. `resolveQabBaseUrl` output + QAB_AVAILABILITY_SYNC_PATH. */
+export function qabAvailabilitySyncUrl(baseUrl: string): string {
+  return `${baseUrl}${QAB_AVAILABILITY_SYNC_PATH}`;
 }

@@ -310,6 +310,8 @@ describe("qabSyncRunReportSchema", () => {
     },
     // F-020, contract §3: required, BETWEEN outbox and poll — not optional, not defaulted.
     slugLearn: { targets: 0, attempted: 0, learned: 0, results: [] },
+    // F-007, contract: required, BETWEEN slugLearn and poll — not optional, not defaulted.
+    availability: { rows: 0, capped: false, businesses: 0, requests: 0, confirmed: 0, written: 0, byBusiness: [] },
     poll: { attempted: 0, acquired: 0, skippedLocked: 0, businesses: [] },
   };
 
@@ -336,6 +338,11 @@ describe("qabSyncRunReportSchema", () => {
   it("should reject a report missing slugLearn — F-020 made it a required field of the run report", () => {
     const { slugLearn: _omitted, ...withoutSlugLearn } = baseReport;
     expect(qabSyncRunReportSchema.safeParse(withoutSlugLearn).success).toBe(false);
+  });
+
+  it("should reject a report missing availability — F-007 made it a required field of the run report", () => {
+    const { availability: _omitted, ...withoutAvailability } = baseReport;
+    expect(qabSyncRunReportSchema.safeParse(withoutAvailability).success).toBe(false);
   });
 });
 
