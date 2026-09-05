@@ -4,7 +4,12 @@
  * Nobody writes one of these literals anywhere else: the permission keys, the
  * page routes, the API base and the error codes all live here, so a rename can
  * never drift between the Drawer, the pages, the services and the handlers.
+ *
+ * It imports from `@/constants/qab`, which imports nothing: no cycle is possible
+ * (E-028).
  */
+
+import type { QAB_ORDER_STATUSES } from "@/constants/qab";
 
 /** The four permissions of the online-store module. Keys of permisos.json, verbatim. */
 export const TIENDA_ONLINE_PERMISOS = {
@@ -88,6 +93,16 @@ export const TIENDA_ONLINE_UI = {
   defaultWindowTo: "18:00",
   /** Start of day, the other end of the "open 24 hours" window. */
   startOfDay: "00:00",
+  /**
+   * How often the orders inbox asks for its FIRST page again (F-011).
+   *
+   * 60 s and not 15: the source data does not move faster than the F-010 sync
+   * cron, which runs every two minutes, so a shorter cadence is seven identical
+   * answers out of eight. And not 120 s: that leaves the worst case at almost
+   * four minutes of lag. It lives here because it is a number with a reason,
+   * and it is tuned from one place.
+   */
+  ordersRefreshMs: 60_000,
 } as const;
 
 /**
@@ -107,6 +122,17 @@ export const TIENDA_ONLINE_LABELS = {
   /** The two tabs of the configuration screen (F-006). */
   tabLocales: "Locales",
   tabProductos: "Productos",
+  /**
+   * The two delivery pills of the orders inbox (F-011). The VALUES they answer
+   * to are `TIENDA_ONLINE_DELIVERY_PRESENTATION`, fixed by ADR 0059; these are
+   * the words, and each one is shown in the listing and in the detail — the same
+   * string in two places, which is exactly what this object is for.
+   *
+   * `CHARGED` has no pill on purpose: a charged delivery is the ordinary case
+   * and it already shows its amount in the detail's amount block.
+   */
+  envioPorCotizar: "Envío por cotizar",
+  envioGratis: "Envío gratis",
 } as const;
 
 /**
@@ -124,3 +150,76 @@ export const TIENDA_ONLINE_TABS = {
   locales: "locales",
   productos: "productos",
 } as const;
+
+/* -------------------------------------------------------------------------- */
+/* F-011 — the orders inbox                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * THE status that means "unattended", and the ONLY place it is written.
+ *
+ * Typed against QAB_ORDER_STATUSES so a typo does not compile. `status` itself
+ * stays free text in the database and in the response: a tenth value QAB adds
+ * tomorrow must not break the render (ADR 0004).
+ */
+export const TIENDA_ONLINE_UNATTENDED_STATUS: (typeof QAB_ORDER_STATUSES)[number] =
+  "PULLED";
+
+/**
+ * Page size of the orders inbox. It lives here and not in `qab.ts` because this
+ * listing never crosses the wire: it is a cuadrecaja-side read of a cuadrecaja
+ * table.
+ */
+export const TIENDA_ONLINE_ORDER_PAGE_SIZE_DEFAULT = 25;
+export const TIENDA_ONLINE_ORDER_PAGE_SIZE_MAX = 100;
+
+/**
+ * Discriminator of the order amounts. It encodes the delivery state and nothing
+ * else, and it is derived from `deliveryFeePending` in ONE place
+ * (`toTiendaOnlineOrderAmounts`). See ADR 0059.
+ */
+export const TIENDA_ONLINE_ORDER_AMOUNT_KIND = {
+  quoted: "QUOTED",
+  pendingQuote: "PENDING_QUOTE",
+} as const;
+
+/**
+ * The three delivery labels the screen can show. These are the VALUES; the
+ * Spanish copy each one maps to is written in `orderPresentation.ts`, next to
+ * the branch that picks it, and its wording belongs to the design contract.
+ */
+export const TIENDA_ONLINE_DELIVERY_PRESENTATION = {
+  pendingQuote: "PENDING_QUOTE",
+  free: "FREE",
+  charged: "CHARGED",
+} as const;
+
+/**
+ * Cap on a `status` or a `cancelledBy` this module has no translation for,
+ * before an ellipsis is appended (`normalizeUnknownCode`).
+ *
+ * Both columns are free text in our own table (ADR 0004), so nothing stops a
+ * 500-character value from arriving; without a cap it takes the whole row with
+ * it on a narrow screen.
+ */
+export const TIENDA_ONLINE_UNKNOWN_CODE_MAX_LENGTH = 24;
+
+/**
+ * The ONLY thing written to the server output when a response fails its own
+ * schema. A fixed literal with NO interpolation: a ZodError serialises its
+ * issues into `message`, and those issues can carry values of the row being
+ * validated — `Order.code` among them (ADR 0061, E-031).
+ */
+export const TIENDA_ONLINE_ORDER_RESPONSE_INVALID_LOG =
+  "TIENDA_ONLINE_ORDER_RESPONSE_INVALID" as const;
+
+/**
+ * The description of the offline state of the orders inbox.
+ *
+ * NOT `TIENDA_ONLINE_OFFLINE_DESCRIPTION`: that one says «para consultar y
+ * publicar», and nothing is published on this screen. The second sentence is
+ * kept word for word because it is still true and it is the promise the whole
+ * application rests on.
+ */
+export const TIENDA_ONLINE_PEDIDOS_OFFLINE_DESCRIPTION =
+  "Esta pantalla necesita conexión para traer los pedidos. Lo que vendas mientras tanto se sigue registrando igual.";

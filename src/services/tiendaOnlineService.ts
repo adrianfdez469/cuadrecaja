@@ -14,6 +14,8 @@ import {
   tiendaOnlineConfiguracionSchema,
   tiendaOnlineEstadoSchema,
   tiendaOnlineLocalUpdateResultSchema,
+  tiendaOnlineOrderDetailSchema,
+  tiendaOnlineOrdersPageSchema,
   tiendaOnlinePayloadRejectedSchema,
   tiendaOnlineProductoUpdateResultSchema,
   tiendaOnlineProductosPageSchema,
@@ -26,6 +28,9 @@ import type {
   ITiendaOnlineEstado,
   ITiendaOnlineLocalUpdate,
   ITiendaOnlineLocalUpdateResult,
+  ITiendaOnlineOrderDetail,
+  ITiendaOnlineOrdersPage,
+  ITiendaOnlineOrdersQuery,
   ITiendaOnlineProductoUpdateResult,
   ITiendaOnlineProductosPage,
   ITiendaOnlineProductosQuery,
@@ -38,6 +43,7 @@ import { z } from "zod";
 const CONFIGURACION_PATH = `${TIENDA_ONLINE_API_BASE}/configuracion`;
 const SLUG_AVAILABILITY_PATH = `${TIENDA_ONLINE_API_BASE}/slug-availability`;
 const PRODUCTOS_PATH = `${TIENDA_ONLINE_API_BASE}/productos`;
+const PEDIDOS_PATH = `${TIENDA_ONLINE_API_BASE}/pedidos`;
 
 /** Normalised failures, so no screen ever reads `error.response.status`. */
 export class TiendaOnlineForbiddenError extends Error {
@@ -267,6 +273,51 @@ export const updateCategoriaPublicacionMasiva = async (
   } catch (error) {
     if (isForbidden(error)) throw new TiendaOnlineForbiddenError();
     throwIfRejected(error);
+    throw error;
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* F-011 — the orders inbox                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Normalised 404 of the two read routes, so no screen reads `error.response.status`. */
+export class TiendaOnlineOrderNotFound extends Error {
+  constructor() {
+    super(TIENDA_ONLINE_API_ERRORS.pedidoNotFound);
+    this.name = "TiendaOnlineOrderNotFound";
+  }
+}
+
+/** GET /api/tienda-online/pedidos. Throws TiendaOnlineForbiddenError on 403. */
+export const fetchTiendaOnlineOrders = async (
+  query: ITiendaOnlineOrdersQuery,
+): Promise<ITiendaOnlineOrdersPage> => {
+  try {
+    const response = await axiosClient.get(PEDIDOS_PATH, { params: query });
+    return tiendaOnlineOrdersPageSchema.parse(response.data);
+  } catch (error) {
+    if (isForbidden(error)) throw new TiendaOnlineForbiddenError();
+    throw error;
+  }
+};
+
+/**
+ * GET /api/tienda-online/pedidos/[pedidoId]. Throws TiendaOnlineOrderNotFound on
+ * the 404 — which is the same answer for an order of another business, one of a
+ * store you are not assigned to, and one that does not exist.
+ */
+export const fetchTiendaOnlineOrder = async (
+  pedidoId: string,
+): Promise<ITiendaOnlineOrderDetail> => {
+  try {
+    const response = await axiosClient.get(`${PEDIDOS_PATH}/${pedidoId}`);
+    return tiendaOnlineOrderDetailSchema.parse(response.data);
+  } catch (error) {
+    if (isForbidden(error)) throw new TiendaOnlineForbiddenError();
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      throw new TiendaOnlineOrderNotFound();
+    }
     throw error;
   }
 };

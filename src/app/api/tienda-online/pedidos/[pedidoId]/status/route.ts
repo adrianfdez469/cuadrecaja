@@ -5,9 +5,13 @@ import {
   TIENDA_ONLINE_API_ERRORS,
   TIENDA_ONLINE_PERMISOS,
 } from "@/constants/tiendaOnline";
-import { prisma } from "@/lib/prisma";
-import { assertTiendaOnlineAccess } from "@/lib/tiendaOnline/tiendaOnlineAccess";
 import { NO_STORE_HEADERS, logRouteError } from "@/lib/qab/qabRouteHttp";
+import { assertTiendaOnlineAccess } from "@/lib/tiendaOnline/tiendaOnlineAccess";
+import {
+  resolveTiendaOnlineOrderScope,
+  tiendaOnlineOrderManageDenial,
+} from "@/lib/tiendaOnline/tiendaOnlineOrderAccess";
+import { readTiendaOnlineOrderTiendaId } from "@/lib/tiendaOnline/tiendaOnlineOrders";
 import { pedidoEntranteStatusUpdateSchema } from "@/schemas/tiendaOnline";
 import { getSession } from "@/utils/auth";
 
@@ -23,28 +27,30 @@ function invalidBodyResponse(): NextResponse {
 /**
  * Changes the status of an incoming order — except it does not, yet.
  *
- * It applies the third gate (`tiendaonline.pedidos.gestionar`, NOT `.acceder`),
- * validates the shape of the body, resolves the order through the composite key
- * so the tenancy filter cannot be forgotten, and answers `501 NOT_IMPLEMENTED`
- * WITHOUT WRITING ANYTHING (ADR 0030): writing a status without the transition
- * validation and without telling QAB would desynchronise both systems, and that
- * is precisely what F-011 exists to design.
+ * It answers `501 NOT_IMPLEMENTED` WITHOUT WRITING ANYTHING (ADR 0030): writing
+ * a status without the transition validation and without telling QAB would
+ * desynchronise both systems, and that is F-012's work.
  *
- * The 403/501 pair is the observable proof that the gate ran first: a user with
- * `.acceder` and without `.gestionar` gets 403 on the very same order that
- * answers 501 to a user who has `.gestionar`.
+ * What F-011 changes here is only the gate. The module's door is `.acceder`, the
+ * same as the two GETs; `.gestionar` is then evaluated against the role of the
+ * `UsuarioTienda` row of the store that OWNS this order, not against the store
+ * that happens to be active in the session (ADR 0056).
+ *
+ * The 403/501 pair is still observable, and now the 404/501 pair is too: the
+ * same `pedidoId` answers 501 to the user holding `.gestionar` in the owning
+ * store, 403 to the one assigned to that store without the permission, and 404
+ * to the one who is not assigned to it.
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ pedidoId: string }> },
 ) {
   try {
-    // 1. The gate, before reading the body and before touching the database, so
-    //    that the 403 is the same whether or not the order exists.
+    // 1. The door, before reading the body and before touching the order.
     const session = await getSession();
     const denial = await assertTiendaOnlineAccess(
       session,
-      TIENDA_ONLINE_PERMISOS.pedidosGestionar,
+      TIENDA_ONLINE_PERMISOS.pedidosAcceder,
     );
     if (denial) return denial;
     const negocioId = session.user.negocio.id; // the ONLY source of negocioId
@@ -61,22 +67,33 @@ export async function PATCH(
     const parsed = pedidoEntranteStatusUpdateSchema.safeParse(rawBody);
     if (!parsed.success) return invalidBodyResponse();
 
-    // 4. Tenancy filter INSIDE the key: an order of another business and an
-    //    order that does not exist are indistinguishable already at the query,
-    //    so there is no existence oracle.
+    // 4. BOTH queries, always both, and in parallel. There is NO early exit
+    //    between them: resolving the scope only when the order shows up would
+    //    make «another business's, or nonexistent» cost one query and «a store
+    //    outside my scope» cost two, with the same body — two identical 404s
+    //    that cost different work. This line is the mechanism of the promise
+    //    that no such gap exists, not a performance detail.
     const { pedidoId } = await params;
-    const pedido = await prisma.pedidoEntrante.findUnique({
-      where: { id_negocioId: { id: pedidoId, negocioId } },
-      select: { id: true },
-    });
-    if (!pedido) {
-      return NextResponse.json(
-        { error: TIENDA_ONLINE_API_ERRORS.pedidoNotFound },
-        { status: 404, headers: NO_STORE_HEADERS },
-      );
-    }
+    const [scope, tiendaId] = await Promise.all([
+      resolveTiendaOnlineOrderScope({
+        usuarioId: session.user.id,
+        negocioId,
+        rol: session.user.rol,
+      }),
+      readTiendaOnlineOrderTiendaId({ negocioId, pedidoId }),
+    ]);
 
-    // 5. No write. F-011 owns the real transition.
+    // 5. 403, 404 or `null` to carry on. `tiendaId === null` covers «not of this
+    //    business or nonexistent» and «no owning store» at once, and both leave
+    //    through OUT_OF_SCOPE.
+    const manageDenial = tiendaOnlineOrderManageDenial({
+      session,
+      scope,
+      tiendaId,
+    });
+    if (manageDenial) return manageDenial;
+
+    // 6. No write. F-012 owns the real transition.
     return NextResponse.json(
       { error: TIENDA_ONLINE_API_ERRORS.notImplemented },
       { status: 501, headers: NO_STORE_HEADERS },

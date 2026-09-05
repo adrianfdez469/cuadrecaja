@@ -1,7 +1,7 @@
 # E-010: Un comentario de ejemplo en español dentro de un contrato acaba en el código real
 
 **Área:** build
-**Apariciones:** 2 — F-004 (dos veces dentro del mismo feature), F-010
+**Apariciones:** 3 — F-004 (dos veces dentro del mismo feature), F-010, F-011
 
 ## Síntoma
 

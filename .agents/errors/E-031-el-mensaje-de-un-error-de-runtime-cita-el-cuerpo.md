@@ -1,7 +1,7 @@
 # E-031: El mensaje de un error de runtime cita el cuerpo, y el cuerpo lleva la credencial
 
 **Área:** auth
-**Apariciones:** 1 — F-010
+**Apariciones:** 3 — F-010 (el `JSON.parse` del pull) · F-011 (dos vías nuevas: el `ZodError` de la respuesta y el `SyntaxError` de `BigInt`)
 
 ## Síntoma
 
@@ -52,3 +52,41 @@ mensaje no se propaga, se sustituye por una constante.
 
 Y al copiar un patrón de un cliente hermano, comprobar que **el contenido que atraviesa el nuevo
 cliente es igual de inofensivo**. Aquí lo idéntico era la forma; lo distinto, lo que viajaba dentro.
+
+---
+
+## Adenda F-011 — dos vías nuevas, y la que nadie habría buscado
+
+F-011 muestra `Order.code` en pantalla y lo devuelve en el cuerpo de la respuesta, que es
+**correcto**: es la referencia con la que el encargado reconoce el pedido. Lo que sigue prohibido
+es que llegue a un log. Al cerrar las vías aparecieron dos que no estaban en la ficha.
+
+### 1. El `message` de un `ZodError` serializa los valores validados
+
+El `parse` del cuerpo de la respuesta valida filas que llevan el `code`. Si falla, su `message`
+serializa los `issues`, y esos issues pueden arrastrar el valor de la fila. **No se loguea el
+error**: se loguea una constante fija (`TIENDA_ONLINE_ORDER_RESPONSE_INVALID_LOG`) y se devuelve un
+500 genérico. Misma forma que el `JSON.parse` de F-010.
+
+### 2. `BigInt` cita el importe en el mensaje de su `SyntaxError`
+
+Esta es la que costó encontrar, y solo apareció porque el `arch-guardian` la **ejecutó** en vez de
+razonarla:
+
+```
+BigInt("1250.00")  →  SyntaxError: Cannot convert 1250.00 to a BigInt
+```
+
+`convertQabAmount` (ADR 0060) trabaja con enteros escalados y está en el camino que construye el
+cuerpo de la respuesta. Un `amount` que no venga en escala fija produce ese `SyntaxError`, el
+mensaje **cita el importe**, y de ahí llega a `logRouteError`.
+
+Lo relevante para la ficha: la guarda que devuelve `null` ante un `amount` mal formado **parecía**
+una guarda defensiva de más —el implementer la justificó como «evitar una excepción», y por E-032
+lo correcto habría sido quitarla— y en realidad es **obligatoria**, porque es la que impide la
+fuga. Enumerarla en el contrato (§5) la convirtió en contrato en vez de en código sobrante.
+
+> Antes de decidir que una guarda sobra, comprueba **qué dice el mensaje de la excepción que
+> evita**. Los constructores y parsers nativos —`JSON.parse`, `BigInt`, `Number`, los drivers—
+> citan el dato que los rompió. Una guarda que parece defensiva puede ser la única cosa que separa
+> un dato sensible de una línea de log.

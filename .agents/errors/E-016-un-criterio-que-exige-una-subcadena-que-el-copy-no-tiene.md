@@ -1,7 +1,7 @@
 # E-016: Un criterio verificable que exige una subcadena que el copy dictado no contiene
 
 **Área:** ui
-**Apariciones:** 2 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23)
+**Apariciones:** 3 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas, ver adenda)
 
 ## Síntoma
 
@@ -90,3 +90,43 @@ Dos cosas que esta aparición añade:
 - **Un criterio heredado de otro feature es el más expuesto**, porque se cita por número y se
   ejecuta sin releer el copy al que apunta. Ver
   [E-018](E-018-la-redaccion-congelada-de-un-criterio-diferido.md).
+
+---
+
+## Adenda F-011 — dos variantes que la ficha no recogía
+
+Las dos las cazó el propio `ui-designer` repasando su documento **antes** de entregarlo, así que
+ninguna llegó a rechazar código. Se registran porque el modo de fallo es el mismo y la ficha, tal
+como estaba escrita, no habría avisado de ninguna de las dos.
+
+### 1. La subcadena también aparece dentro de un valor FORMATEADO
+
+Su criterio 21 exigía que dos filas **no** contuvieran `0,00` — la comprobación de que la pantalla
+no está imprimiendo un importe de envío que no debería. Pero el subtotal «redondo» que él mismo
+había puesto en la tabla de siembra, `"1400.00"`, se formatea `1.400,00`, **que contiene esa
+subcadena**. El criterio habría rechazado una implementación perfecta.
+
+Se corrigió el **dato de siembra** (a `"1437.25"`) y la redacción, no el diseño.
+
+Es la primera vez que este modo de fallo aparece con un **número** en vez de con una frase, y la
+lección generaliza más allá del copy:
+
+> Una subcadena exigida por un criterio hay que buscarla también dentro de los **valores
+> formateados** que la pantalla va a imprimir en esa misma vista —importes, cantidades, fechas—,
+> no solo dentro del copy fijo. Y la tabla de siembra es parte del criterio: un dato de prueba mal
+> elegido lo invalida igual que una redacción mal elegida.
+
+### 2. `text-transform` de CSS no toca el `textContent`
+
+`SectionLabel` pinta en mayúsculas **por CSS**. Si `productsSectionLabel` devolviera
+`Productos (4)`, un criterio que buscara `PRODUCTOS (4)` estaría comparando contra un DOM que
+guarda `Productos (4)`: lo que el navegador **enseña** y lo que el DOM **guarda** son cadenas
+distintas. Habría rechazado código correcto.
+
+Se resolvió haciendo que la función devuelva la cadena ya en mayúsculas — era el único rótulo del
+documento cuyo texto se **calcula**; los demás son palabras fijas que ningún criterio lee por
+`textContent`.
+
+> Si un criterio lee `textContent`, compáralo con lo que el DOM guarda, nunca con lo que la
+> captura enseña. `text-transform`, `::first-letter` y el contenido generado por CSS no están en
+> el `textContent`.
