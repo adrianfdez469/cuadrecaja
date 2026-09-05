@@ -38,9 +38,10 @@ _(vacío — ningún error ha llegado todavía a 3 apariciones)_
 | [E-021](errors/E-021-el-local-actual-vive-en-el-jwt-y-no-en-la-base.md) | Se cambia `Usuario.localActualId` en la base y el navegador sigue viendo el local viejo: el dato viaja en el JWT de la sesión, no se lee en vivo | auth | 1 |
 | [E-022](errors/E-022-clicks-por-coordenada-sobre-una-captura-reescalada.md) | Un click por coordenada no hace nada: la captura viene reescalada y sus coordenadas no son las del viewport | ui | 1 |
 | [E-023](errors/E-023-medir-un-plan-sobre-una-tabla-que-no-tiene-las-filas.md) | Un `EXPLAIN` leido sobre una tabla sin las filas del caso —nunca sembradas, o borradas por la propia operacion medida—: el plan es valido y la conclusion falsa, en las dos direcciones | prisma | 2 |
-| [E-024](errors/E-024-medir-un-componente-de-mui-a-media-transicion.md) | Medir un componente con transición de entrada (`Grow`, `Zoom`, `Fade`) antes de que termine: `getBoundingClientRect` devuelve la caja **escalada** y la cifra intermedia es plausible | ui | 1 |
+| [E-024](errors/E-024-createmany-skipduplicates-conserva-la-primera-escritura.md) | `createMany({ skipDuplicates })` sobre filas derivadas: la segunda escritura no falla **y no escribe**; los totales quedan nuevos y el desglose viejo | prisma | 1 |
 | [E-025](errors/E-025-un-subagente-se-desvia-de-su-mandato-y-contamina-el-entorno.md) | Un subagente lanzado con un mandato acotado hereda el contexto del padre, lee sus planes como propios y ejecuta contra la misma base de datos: los conteos de la verificación dejan de significar nada | build | 1 |
 | [E-026](errors/E-026-la-suite-en-verde-no-implica-tsc-limpio.md) | `npm test` en verde con `npx tsc --noEmit` en rojo: Vitest no comprueba tipos. Y una comprobación **caduca** cuando el árbol cambia | tests | 1 |
+| [E-027](errors/E-027-medir-un-componente-de-mui-a-media-transicion.md) | Medir un componente con transición de entrada (`Grow`, `Zoom`, `Fade`) antes de que termine: `getBoundingClientRect` devuelve la caja **escalada** y la cifra intermedia es plausible | ui | 1 |
 
 ---
 

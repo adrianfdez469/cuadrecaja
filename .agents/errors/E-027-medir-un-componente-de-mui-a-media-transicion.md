@@ -1,4 +1,4 @@
-# E-024: Medir un componente de MUI a media transición devuelve una caja escalada
+# E-027: Medir un componente de MUI a media transición devuelve una caja escalada
 
 **Área:** ui
 **Apariciones:** 1 — F-006

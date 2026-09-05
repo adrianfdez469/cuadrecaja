@@ -2,29 +2,83 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ISummaryCierre } from "@/schemas/cierre";
 import { startOfNextDay } from "@/utils/date";
-import type { ITasaSnapshot } from "@/schemas/tasaCambio";
-import { convertToBase, resolveSnapshotFromHistory } from "@/lib/currency";
+import { getSession } from "@/utils/auth";
 import { loadTasaHistory } from "@/lib/tasaSnapshotResolver";
 import { calcularGananciaFinal } from "@/lib/gastos";
+import {
+  hasTotalsDrift,
+  sumSalesTotals,
+  valueSales,
+  type CierreSale,
+} from "@/lib/cierre/computeCierreTotals";
+import type { IPagoLinea, IVueltoLinea } from "@/schemas/pago";
+import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 
 type Params = { tiendaId: string };
-type MontosMap = Record<string, { bruto: number; descuentos: number }>;
-type CierreResumenExt = {
-  id: string;
-  totalGanancia?: number | null;
-  totalGananciasPropias?: number | null;
-  totalGananciasConsignacion?: number | null;
-  totalVentasPropias?: number | null;
-  totalVentasConsignacion?: number | null;
-  totalGastos?: number | null;
-  totalGananciaFinal?: number | null;
-  totalComprasCaja?: number | null;
-  totalMerma?: number | null;
-  totalDevoluciones?: number | null;
-  totalVentasBrutas?: number;
-  totalDescuentos?: number;
-} & Record<string, unknown>;
 
+/** The drift check values the sales of every period on the page. */
+const MAX_SUMMARY_PAGE_SIZE = 100;
+
+type LegacyCierreRow = {
+  totalVentasPropias: number;
+  totalVentasConsignacion: number;
+  totalGananciasPropias: number;
+  totalGananciasConsignacion: number;
+  totalGastos: number;
+  totalMerma: number;
+  totalDevoluciones: number;
+};
+
+/**
+ * The previous close stored profit gross of discounts; the new engine stores
+ * it net. Until a legacy period is recalculated, its profit is netted here
+ * with the same proration the engine applies.
+ */
+function netLegacyGanancia(
+  c: LegacyCierreRow,
+  live: { totalVentasBrutas: number; totalDescuentos: number },
+) {
+  let descuentoPropias = 0;
+  let descuentoConsignacion = 0;
+  if (live.totalVentasBrutas > 0 && live.totalDescuentos > 0) {
+    descuentoPropias =
+      live.totalDescuentos *
+      Math.min(1, c.totalVentasPropias / live.totalVentasBrutas);
+    descuentoConsignacion =
+      live.totalDescuentos *
+      Math.min(1, c.totalVentasConsignacion / live.totalVentasBrutas);
+  }
+  const totalGananciasPropias = Math.max(
+    0,
+    c.totalGananciasPropias - descuentoPropias,
+  );
+  const totalGananciasConsignacion = Math.max(
+    0,
+    c.totalGananciasConsignacion - descuentoConsignacion,
+  );
+  const totalGanancia = totalGananciasPropias + totalGananciasConsignacion;
+  return {
+    totalGananciasPropias,
+    totalGananciasConsignacion,
+    totalGanancia,
+    totalGananciaFinal: calcularGananciaFinal(
+      totalGanancia,
+      c.totalGastos,
+      c.totalMerma,
+      c.totalDevoluciones,
+    ),
+  };
+}
+
+/**
+ * GET /api/cierre/[tiendaId]/summary
+ *
+ * The closed periods of a store, as stored at the close (ADR 0036). The
+ * sales of the page are still valued once, only to flag the periods whose
+ * sales changed after the close (`totalesDesactualizados`) and to keep
+ * valuing live the periods the previous engine closed, which have no stored
+ * gross/discount figures until they are recalculated.
+ */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<Params> },
@@ -32,23 +86,33 @@ export async function GET(
   try {
     const { tiendaId } = await params;
     const { searchParams } = new URL(req.url);
-    const take = Number.parseInt(searchParams.get("take") || "20");
-    const skip = Number.parseInt(searchParams.get("skip") || "0");
+    const take = Math.min(
+      MAX_SUMMARY_PAGE_SIZE,
+      Math.max(1, Number.parseInt(searchParams.get("take") || "20") || 20),
+    );
+    const skip = Math.max(
+      0,
+      Number.parseInt(searchParams.get("skip") || "0") || 0,
+    );
     const fechaInicio = searchParams.get("fechaInicio");
     const fechaFin = searchParams.get("fechaFin");
 
-    const nextDayToEndDate = startOfNextDay(new Date(fechaFin));
+    const session = await getSession();
+    const negocioId = session.user.negocio.id;
 
-    const tienda = await prisma.tienda.findUnique({
-      where: { id: tiendaId },
+    const tienda = await prisma.tienda.findFirst({
+      where: { id: tiendaId, negocioId },
       select: { negocio: { select: { id: true, monedaBase: true } } },
     });
-    const monedaBase = tienda?.negocio?.monedaBase ?? "CUP";
-    // A sale's own snapshot can be incomplete (the mobile app omitted the
-    // base currency for a while); gaps are filled with the rate in force when
-    // the sale happened instead of silently converting at 1.
-    const historialTasas = await loadTasaHistory(tienda?.negocio?.id);
+    if (!tienda) {
+      return NextResponse.json(
+        { error: "Tienda no encontrada" },
+        { status: 404 },
+      );
+    }
+    const monedaBase = tienda.negocio.monedaBase ?? "CUP";
 
+    const nextDayToEndDate = startOfNextDay(new Date(fechaFin));
     const filtrosPeriodo = {
       ...(fechaInicio && {
         fechaInicio: { gte: new Date(fechaInicio).toISOString() },
@@ -57,44 +121,56 @@ export async function GET(
         ? { fechaFin: { lte: nextDayToEndDate.toISOString() } }
         : { fechaFin: { not: null } }),
     };
+    const filtros = { tiendaId, ...filtrosPeriodo };
 
-    const filtros = {
-      tiendaId: tiendaId,
-      ...filtrosPeriodo,
-    };
-
-    const flitrosVentas = {
-      tiendaId: tiendaId,
-      totaltransfer: { gt: 0 },
-      cierrePeriodo: filtrosPeriodo,
-    };
-
-    const cierres = await prisma.cierrePeriodo.findMany({
-      where: { ...filtros },
-      orderBy: { fechaInicio: "desc" },
-      take: take,
-      skip: skip,
-    });
-
-    const totalCierres = await prisma.cierrePeriodo.count({
-      where: { ...filtros },
-    });
-
-    const transferenciasDesglosadas = await prisma.venta.groupBy({
-      by: ["transferDestinationId"],
-      _sum: { totaltransfer: true },
-      where: { ...flitrosVentas },
-    });
+    const [cierres, totalCierres, totales, transferenciasDesglosadas] =
+      await Promise.all([
+        prisma.cierrePeriodo.findMany({
+          where: filtros,
+          orderBy: { fechaInicio: "desc" },
+          take,
+          skip,
+        }),
+        prisma.cierrePeriodo.count({ where: filtros }),
+        prisma.cierrePeriodo.aggregate({
+          _sum: {
+            totalGanancia: true,
+            totalInversion: true,
+            totalVentas: true,
+            totalVentasBrutas: true,
+            totalDescuentos: true,
+            totalTransferencia: true,
+            totalVentasPropias: true,
+            totalVentasConsignacion: true,
+            totalGananciasPropias: true,
+            totalGananciasConsignacion: true,
+            totalGastos: true,
+            totalGananciaFinal: true,
+            totalComprasCaja: true,
+            totalMerma: true,
+            totalDevoluciones: true,
+            totalTips: true,
+          },
+          where: filtros,
+        }),
+        prisma.venta.groupBy({
+          by: ["transferDestinationId"],
+          _sum: { totaltransfer: true },
+          where: {
+            tiendaId,
+            totaltransfer: { gt: 0 },
+            cierrePeriodo: filtrosPeriodo,
+          },
+        }),
+      ]);
 
     const destinationIds = transferenciasDesglosadas
       .map((item) => item.transferDestinationId)
       .filter((id) => id !== null);
-
     const destinationsNames = await prisma.transferDestinations.findMany({
       where: { id: { in: destinationIds } },
       select: { id: true, nombre: true },
     });
-
     const transferenciasConNombres = transferenciasDesglosadas.map((item) => ({
       ...item,
       destinationName:
@@ -102,258 +178,112 @@ export async function GET(
           ?.nombre || "Sin nombre",
     }));
 
-    const totales = await prisma.cierrePeriodo.aggregate({
-      _sum: {
-        totalGanancia: true,
-        totalInversion: true,
-        totalVentas: true,
-        totalTransferencia: true,
-        totalVentasPropias: true,
-        totalVentasConsignacion: true,
-        totalGananciasPropias: true,
-        totalGananciasConsignacion: true,
-        totalGastos: true,
-        totalGananciaFinal: true,
-        totalComprasCaja: true,
-        totalMerma: true,
-        totalDevoluciones: true,
-      },
-      where: { ...filtros },
-    });
-
-    // Calcular, para cada cierre en la página, los montos brutos y descuentos en moneda base
+    // Drift check: value the sales of the page's periods with the same
+    // engine that stored their totals.
     const cierresIds = cierres.map((c) => c.id);
-    let cierresConMontos: CierreResumenExt[] = [
-      ...(cierres as CierreResumenExt[]),
-    ];
-    if (cierresIds.length > 0) {
-      const ventasPorCierre = await prisma.venta.findMany({
-        where: { cierrePeriodoId: { in: cierresIds }, tiendaId },
-        select: {
-          id: true,
-          createdAt: true,
-          discountTotal: true,
-          cierrePeriodoId: true,
-          tasaSnapshot: true,
-          productos: {
-            select: { cantidad: true, precio: true, monedaPrecioCode: true },
-          },
-        },
-      });
-      const mapMontos: MontosMap = {};
-      for (const v of ventasPorCierre) {
-        const tasas = resolveSnapshotFromHistory(
-          historialTasas,
-          v.tasaSnapshot as ITasaSnapshot | null,
-          v.createdAt,
-        );
-        const bruto = (v.productos || []).reduce(
-          (acc, p) =>
-            acc +
-            convertToBase(
-              Number(p.precio) || 0,
-              p.monedaPrecioCode ?? monedaBase,
-              tasas,
-              monedaBase,
-            ) *
-              (Number(p.cantidad) || 0),
-          0,
-        );
-        const desc = Number(v.discountTotal ?? 0);
-        if (!mapMontos[v.cierrePeriodoId])
-          mapMontos[v.cierrePeriodoId] = { bruto: 0, descuentos: 0 };
-        mapMontos[v.cierrePeriodoId].bruto += bruto;
-        mapMontos[v.cierrePeriodoId].descuentos += desc;
-      }
+    const [ventasPorCierre, historialTasas] = await Promise.all([
+      cierresIds.length > 0
+        ? prisma.venta.findMany({
+            where: { cierrePeriodoId: { in: cierresIds }, tiendaId },
+            select: {
+              id: true,
+              createdAt: true,
+              discountTotal: true,
+              tipTotal: true,
+              totaltransfer: true,
+              cierrePeriodoId: true,
+              tasaSnapshot: true,
+              productos: {
+                select: {
+                  cantidad: true,
+                  precio: true,
+                  costo: true,
+                  monedaPrecioCode: true,
+                  monedaCostoCode: true,
+                  productoTiendaId: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+      loadTasaHistory(tienda.negocio.id),
+    ]);
 
-      cierresConMontos = cierres.map((c) => {
-        const totalVentasBrutas = mapMontos[c.id]?.bruto || 0;
-        const totalDescuentos = mapMontos[c.id]?.descuentos || 0;
-        const totalVentasNetas = Math.max(
-          0,
-          totalVentasBrutas - totalDescuentos,
-        );
-
-        const ventasPropias = Number(
-          (c as CierreResumenExt).totalVentasPropias || 0,
-        );
-        const ventasConsignacion = Number(
-          (c as CierreResumenExt).totalVentasConsignacion || 0,
-        );
-        const gananciasPropias = Number(
-          (c as CierreResumenExt).totalGananciasPropias || 0,
-        );
-        const gananciasConsignacion = Number(
-          (c as CierreResumenExt).totalGananciasConsignacion || 0,
-        );
-
-        let descuentoPropias = 0;
-        let descuentoConsignacion = 0;
-        if (totalVentasBrutas > 0 && totalDescuentos > 0) {
-          const ratioPropias = Math.max(
-            0,
-            Math.min(1, ventasPropias / totalVentasBrutas),
-          );
-          const ratioConsig = Math.max(
-            0,
-            Math.min(1, ventasConsignacion / totalVentasBrutas),
-          );
-          descuentoPropias = totalDescuentos * ratioPropias;
-          descuentoConsignacion = totalDescuentos * ratioConsig;
-        }
-
-        const totalGananciasPropiasNet = Math.max(
-          0,
-          (gananciasPropias || 0) - (descuentoPropias || 0),
-        );
-        const totalGananciasConsignacionNet = Math.max(
-          0,
-          (gananciasConsignacion || 0) - (descuentoConsignacion || 0),
-        );
-        const totalGananciaNeta = Math.max(
-          0,
-          totalGananciasPropiasNet + totalGananciasConsignacionNet,
-        );
-
-        const totalGastos = Number((c as CierreResumenExt).totalGastos || 0);
-        const totalMerma = Number((c as CierreResumenExt).totalMerma || 0);
-        const totalDevoluciones = Number(
-          (c as CierreResumenExt).totalDevoluciones || 0,
-        );
-        const totalGananciaFinal = calcularGananciaFinal(
-          totalGananciaNeta,
-          totalGastos,
-          totalMerma,
-          totalDevoluciones,
-        );
-
-        return {
-          ...c,
-          totalVentas: totalVentasNetas,
-          totalVentasBrutas,
-          totalDescuentos,
-          totalGanancia: totalGananciaNeta,
-          totalGananciasPropias: totalGananciasPropiasNet,
-          totalGananciasConsignacion: totalGananciasConsignacionNet,
-          totalGastos,
-          totalGananciaFinal,
-        } as CierreResumenExt;
-      });
+    const ventasByCierre = new Map<string, CierreSale[]>();
+    for (const v of ventasPorCierre) {
+      const sale: CierreSale = {
+        id: v.id,
+        createdAt: v.createdAt,
+        discountTotal: Number(v.discountTotal ?? 0),
+        tipTotal: Number(v.tipTotal ?? 0),
+        totaltransfer: v.totaltransfer,
+        tasaSnapshot: (v.tasaSnapshot as ITasaSnapshot | null) ?? null,
+        pagosDetalle: null as IPagoLinea[] | null,
+        vueltoDetalle: null as IVueltoLinea[] | null,
+        tipDetail: null,
+        usuario: null,
+        transferDestination: null,
+        appliedDiscounts: [],
+        productos: v.productos.map((p) => ({
+          productoTiendaId: p.productoTiendaId,
+          productoId: "",
+          nombre: "",
+          cantidad: p.cantidad,
+          costo: p.costo,
+          precio: p.precio,
+          monedaCostoCode: p.monedaCostoCode,
+          monedaPrecioCode: p.monedaPrecioCode,
+          proveedor: null,
+          existencia: 0,
+        })),
+      };
+      (ventasByCierre.get(v.cierrePeriodoId) ??
+        ventasByCierre.set(v.cierrePeriodoId, []).get(v.cierrePeriodoId))!.push(
+        sale,
+      );
     }
 
-    // Agregados globales — bruto y descuentos en moneda base
-    // Mismo alcance que `filtros`: ventas de los cierres del rango (todas las páginas)
-    const ventasParaTotales = await prisma.venta.findMany({
-      where: {
-        tiendaId,
-        cierrePeriodo: filtrosPeriodo,
-      },
-      select: {
-        createdAt: true,
-        discountTotal: true,
-        tasaSnapshot: true,
-        productos: {
-          select: { cantidad: true, precio: true, monedaPrecioCode: true },
-        },
-      },
+    const cierresConEstado = cierres.map((c) => {
+      const live = sumSalesTotals(
+        valueSales(ventasByCierre.get(c.id) ?? [], monedaBase, historialTasas),
+      );
+      const legacy = !c.totalsComputedAt;
+      return {
+        ...c,
+        // A period the previous engine closed has no stored gross/discounts
+        // and its stored profit is gross of discounts: its figures stay live
+        // until the recalculation stores them.
+        ...(legacy && {
+          totalVentas: live.totalVentas,
+          totalVentasBrutas: live.totalVentasBrutas,
+          totalDescuentos: live.totalDescuentos,
+          ...netLegacyGanancia(c, live),
+        }),
+        totalesDesactualizados:
+          legacy || hasTotalsDrift(c.totalVentas, live.totalVentas),
+      };
     });
-    const sumTotalDescuentos = ventasParaTotales.reduce(
-      (acc, v) => acc + Number(v.discountTotal ?? 0),
-      0,
-    );
-    const sumTotalVentasBrutas = ventasParaTotales.reduce((acc, v) => {
-      const tasas = resolveSnapshotFromHistory(
-        historialTasas,
-        v.tasaSnapshot as ITasaSnapshot | null,
-        v.createdAt,
-      );
-      return (
-        acc +
-        (v.productos || []).reduce(
-          (a, p) =>
-            a +
-            convertToBase(
-              Number(p.precio) || 0,
-              p.monedaPrecioCode ?? monedaBase,
-              tasas,
-              monedaBase,
-            ) *
-              (Number(p.cantidad) || 0),
-          0,
-        )
-      );
-    }, 0);
-    const sumTotalVentas = Math.max(
-      0,
-      sumTotalVentasBrutas - sumTotalDescuentos,
-    );
-
-    // Ganancias netas de descuento a nivel GLOBAL (todas las páginas del rango),
-    // prorrateando los descuentos por bucket Propias/Consignación — mismo
-    // criterio que el cálculo por cierre de arriba.
-    const gananciasPropiasGlobal = totales._sum.totalGananciasPropias ?? 0;
-    const gananciasConsigGlobal = totales._sum.totalGananciasConsignacion ?? 0;
-    const ventasPropiasGlobal = totales._sum.totalVentasPropias ?? 0;
-    const ventasConsigGlobal = totales._sum.totalVentasConsignacion ?? 0;
-
-    let descuentoPropiasGlobal = 0;
-    let descuentoConsigGlobal = 0;
-    if (sumTotalVentasBrutas > 0 && sumTotalDescuentos > 0) {
-      const ratioPropias = Math.max(
-        0,
-        Math.min(1, ventasPropiasGlobal / sumTotalVentasBrutas),
-      );
-      const ratioConsig = Math.max(
-        0,
-        Math.min(1, ventasConsigGlobal / sumTotalVentasBrutas),
-      );
-      descuentoPropiasGlobal = sumTotalDescuentos * ratioPropias;
-      descuentoConsigGlobal = sumTotalDescuentos * ratioConsig;
-    }
-
-    const sumTotalGananciasPropiasNet = Math.max(
-      0,
-      gananciasPropiasGlobal - descuentoPropiasGlobal,
-    );
-    const sumTotalGananciasConsigNet = Math.max(
-      0,
-      gananciasConsigGlobal - descuentoConsigGlobal,
-    );
-    const sumTotalGananciaNet =
-      sumTotalGananciasPropiasNet + sumTotalGananciasConsigNet;
-
-    // Global aggregates from DB — these cover ALL pages, not just the current one
-    const sumTotalGastos = totales._sum.totalGastos ?? 0;
-    const sumTotalMerma = totales._sum.totalMerma ?? 0;
-    const sumTotalDevoluciones = totales._sum.totalDevoluciones ?? 0;
-    const sumTotalComprasCaja = totales._sum.totalComprasCaja ?? 0;
-    // Ganancia final neta de descuentos, gastos, merma y devoluciones (el valor
-    // almacenado en CierrePeriodo.totalGananciaFinal no netea descuentos)
-    const sumTotalGananciaFinal = calcularGananciaFinal(
-      sumTotalGananciaNet,
-      sumTotalGastos,
-      sumTotalMerma,
-      sumTotalDevoluciones,
-    );
 
     return NextResponse.json({
-      cierres: cierresConMontos as unknown as ISummaryCierre["cierres"],
-      sumTotalGanancia: sumTotalGananciaNet,
-      sumTotalInversion: totales._sum.totalInversion,
-      sumTotalVentas,
-      sumTotalTransferencia: totales._sum.totalTransferencia,
+      cierres: cierresConEstado as unknown as ISummaryCierre["cierres"],
+      sumTotalGanancia: totales._sum.totalGanancia ?? 0,
+      sumTotalInversion: totales._sum.totalInversion ?? 0,
+      sumTotalVentas: totales._sum.totalVentas ?? 0,
+      sumTotalTransferencia: totales._sum.totalTransferencia ?? 0,
       desgloseTransferencias: transferenciasConNombres,
-      sumTotalVentasPropias: totales._sum.totalVentasPropias,
-      sumTotalVentasConsignacion: totales._sum.totalVentasConsignacion,
-      sumTotalGananciasPropias: sumTotalGananciasPropiasNet,
-      sumTotalGananciasConsignacion: sumTotalGananciasConsigNet,
-      sumTotalVentasBrutas,
-      sumTotalDescuentos,
-      sumTotalGastos,
-      sumTotalMerma,
-      sumTotalDevoluciones,
-      sumTotalComprasCaja,
-      sumTotalGananciaFinal,
+      sumTotalVentasPropias: totales._sum.totalVentasPropias ?? 0,
+      sumTotalVentasConsignacion: totales._sum.totalVentasConsignacion ?? 0,
+      sumTotalGananciasPropias: totales._sum.totalGananciasPropias ?? 0,
+      sumTotalGananciasConsignacion:
+        totales._sum.totalGananciasConsignacion ?? 0,
+      sumTotalVentasBrutas: totales._sum.totalVentasBrutas ?? 0,
+      sumTotalDescuentos: totales._sum.totalDescuentos ?? 0,
+      sumTotalGastos: totales._sum.totalGastos ?? 0,
+      sumTotalMerma: totales._sum.totalMerma ?? 0,
+      sumTotalDevoluciones: totales._sum.totalDevoluciones ?? 0,
+      sumTotalComprasCaja: totales._sum.totalComprasCaja ?? 0,
+      sumTotalGananciaFinal: totales._sum.totalGananciaFinal ?? 0,
+      sumTotalTips: totales._sum.totalTips ?? 0,
       totalItems: totalCierres,
     });
   } catch (_error: unknown) {

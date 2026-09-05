@@ -23,6 +23,15 @@ export const cierrePeriodoSchema = z.object({
   totalMerma: z.number().optional(),
   totalDevoluciones: z.number().optional(),
   totalTips: z.number().optional(),
+  totalVentasBrutas: z.number().optional(),
+  totalDescuentos: z.number().optional(),
+  // When the stored figures were last derived from the sales (ADR 0036).
+  // Absent on periods closed by the previous engine, until recalculated.
+  totalsComputedAt: z.coerce.date().nullable().optional(),
+  // The sales of the period changed after its figures were stored — or they
+  // were never stored by the current engine. Shown as a warning with the
+  // recalculation action next to it.
+  totalesDesactualizados: z.boolean().optional(),
 });
 
 const cierreProductoVendidosSchema = z.object({
@@ -35,6 +44,7 @@ const cierreProductoVendidosSchema = z.object({
   ganancia: z.number(),
   descuento: z.number().optional(),
   proveedor: z.object({ id: z.string(), nombre: z.string() }).optional(),
+  enConsignacion: z.boolean().optional(),
   productoId: z.string().uuid(),
 });
 
@@ -74,8 +84,14 @@ export type IDeduccionTipo = z.infer<typeof deduccionTipoEnum>;
 export type IDeduccionItem = z.infer<typeof deduccionItemSchema>;
 
 export const cierreDataSchema = z.object({
+  fechaInicio: z.coerce.date().optional(),
+  fechaFin: z.coerce.date().optional(),
+  tienda: tiendaSchema.optional(),
   productosVendidos: z.array(cierreProductoVendidosSchema),
   totalVentas: z.number(),
+  totalInversion: z.number().optional(),
+  totalsComputedAt: z.coerce.date().nullable().optional(),
+  totalesDesactualizados: z.boolean().optional(),
   totalVentasBrutas: z.number().optional(),
   totalDescuentos: z.number().optional(),
   totalGanancia: z.number(),
@@ -163,6 +179,48 @@ export const summaryCierreSchema = z.object({
   sumTotalTips: z.number().optional(),
 });
 
+const cierreStoredTotalsSchema = z.object({
+  totalVentas: z.number(),
+  totalVentasBrutas: z.number(),
+  totalDescuentos: z.number(),
+  totalInversion: z.number(),
+  totalGanancia: z.number(),
+  totalTransferencia: z.number(),
+  totalVentasPropias: z.number(),
+  totalVentasConsignacion: z.number(),
+  totalGananciasPropias: z.number(),
+  totalGananciasConsignacion: z.number(),
+  totalGastos: z.number(),
+  totalGananciaFinal: z.number(),
+  totalComprasCaja: z.number(),
+  totalMerma: z.number(),
+  totalDevoluciones: z.number(),
+  totalTips: z.number(),
+});
+
+const resumenMonedaComparableSchema = z.object({
+  monedaCode: z.string(),
+  totalEfectivo: z.number(),
+  totalTransfer: z.number(),
+  equivalenteBase: z.number(),
+});
+
+/** Response of POST /api/cierre/[tiendaId]/[cierreId]/recalculate. */
+export const recalculateCierreResultSchema = z.object({
+  applied: z.boolean(),
+  drifted: z.boolean(),
+  totalsComputedAt: z.string().nullable(),
+  before: cierreStoredTotalsSchema,
+  after: cierreStoredTotalsSchema,
+  resumenBefore: z.array(resumenMonedaComparableSchema),
+  resumenAfter: z.array(resumenMonedaComparableSchema),
+  liquidacionesConservadas: z.number(),
+});
+
+export type ICierreStoredTotals = z.infer<typeof cierreStoredTotalsSchema>;
+export type IRecalculateCierreResult = z.infer<
+  typeof recalculateCierreResultSchema
+>;
 export type ICierrePeriodo = z.infer<typeof cierrePeriodoSchema>;
 export type ICierreData = z.infer<typeof cierreDataSchema>;
 export type ISummaryCierre = z.infer<typeof summaryCierreSchema>;

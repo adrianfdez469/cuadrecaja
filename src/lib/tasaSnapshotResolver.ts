@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { missingRateCodes, resolveSnapshotFromHistory } from "@/lib/currency";
 import type { ITasaCambio, ITasaSnapshot } from "@/schemas/tasaCambio";
+import type { Prisma } from "@prisma/client";
 
 export const MISSING_EXCHANGE_RATE_ERROR = "MISSING_EXCHANGE_RATE";
 
@@ -16,9 +17,10 @@ export type TasaHistory = Pick<
  */
 export async function loadTasaHistory(
   negocioId: string | null | undefined,
+  client: typeof prisma | Prisma.TransactionClient = prisma,
 ): Promise<TasaHistory> {
   if (!negocioId) return [];
-  return prisma.tasaCambio.findMany({
+  return client.tasaCambio.findMany({
     where: { negocioId },
     orderBy: { createdAt: "asc" },
     select: { monedaCode: true, tasa: true, createdAt: true },

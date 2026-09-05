@@ -79,5 +79,5 @@ verificación por subcadena de texto o por selector tiene que acotarse al conten
 libres que escriben los usuarios (o los fixtures) y el chrome del Layout compiten por las mismas
 palabras.
 
-Ver también [E-024](E-024-medir-un-componente-de-mui-a-media-transicion.md), la variante temporal
+Ver también [E-027](E-027-medir-un-componente-de-mui-a-media-transicion.md), la variante temporal
 del mismo problema: la medida es correcta, pero se toma en el instante equivocado.

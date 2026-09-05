@@ -58,17 +58,23 @@ import {
 } from "@/services/cierrePeriodService";
 import { PageContainer } from "@/components/PageContainer";
 import { ContentCard } from "@/components/ContentCard";
-import {
-  formatCurrency,
-  formatQuantity,
-  formatMontoEnMoneda,
-} from "@/utils/formatters";
+import { formatCurrency, formatQuantity } from "@/utils/formatters";
 import { convertFromBase } from "@/lib/currency";
 import StoreIcon from "@mui/icons-material/Store";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import { usePermisos } from "@/utils/permisos_front";
 import { TasasBanner } from "@/components/TasasBanner";
 import GananciaCard from "@/app/cierre/components/GananciaCard";
+import CajaPorMonedaHistorico from "./components/CajaPorMonedaHistorico";
+import AccionesCierreCell, {
+  stickyActionsCellSx,
+} from "./components/AccionesCierreCell";
+import DesfaseCardBanda from "./components/DesfaseCardBanda";
+import DesfaseBanner from "./components/DesfaseBanner";
+import DrawerDesfaseAlert from "./components/DrawerDesfaseAlert";
+import RecalcularCierreDialog from "./components/RecalcularCierreDialog";
+import { desfaseMotivo } from "./components/desfaseCopy";
+import { roles } from "@/utils/roles";
 
 export default function ResumenCierrePage() {
   const [data, setData] = useState<ISummaryCierre>();
@@ -120,6 +126,11 @@ export default function ResumenCierrePage() {
     null,
   );
   const [loadingHistorical, setLoadingHistorical] = useState(false);
+
+  // The recalculation dialog is owned by the page: the row (table cell,
+  // mobile band or drawer alert) that opens it only knows which period.
+  const [recalcCierreId, setRecalcCierreId] = useState<string | null>(null);
+  const canRecalculate = user?.rol === roles.SUPER_ADMIN;
 
   const [showProducts, setShowProducts] = useState(false);
   const [cierreProducData, setCierreProductData] = useState<{
@@ -558,6 +569,8 @@ export default function ResumenCierrePage() {
     >
       <TasasBanner tasas={tasasVigentes} sx={{ mb: 2 }} />
 
+      {data && <DesfaseBanner cierres={data.cierres} sx={{ mb: 2 }} />}
+
       {/* Filtros */}
       <ContentCard
         title="Filtros de Búsqueda"
@@ -617,6 +630,18 @@ export default function ResumenCierrePage() {
       </ContentCard>
 
       {(!data || data.cierres.length === 0) && <EmptyData />}
+
+      <RecalcularCierreDialog
+        open={recalcCierreId !== null}
+        tiendaId={user?.localActual?.id ?? ""}
+        cierreId={recalcCierreId}
+        onClose={() => setRecalcCierreId(null)}
+        onApplied={async () => {
+          // The drawer's in-memory figures just stopped being valid.
+          if (showProducts) handleCloseDetail();
+          await fetchData();
+        }}
+      />
 
       {data && data.cierres.length > 0 && (
         <>
@@ -807,10 +832,20 @@ export default function ResumenCierrePage() {
                                 ? dayjs(row.fechaFin).format("DD/MM/YYYY")
                                 : "Actual"}
                             </Typography>
-                            <IconButton size="small" color="primary">
-                              <ZoomInIcon fontSize="small" />
+                            <IconButton
+                              color="primary"
+                              aria-label="Ver detalles del cierre"
+                            >
+                              <ZoomInIcon />
                             </IconButton>
                           </Box>
+
+                          {row.totalesDesactualizados && (
+                            <DesfaseCardBanda
+                              canRecalculate={canRecalculate}
+                              onRecalculate={() => setRecalcCierreId(row.id)}
+                            />
+                          )}
 
                           <Grid container spacing={2}>
                             <Grid item xs={6}>
@@ -1068,7 +1103,9 @@ export default function ResumenCierrePage() {
                         />
                         V. Consignación
                       </TableCell>
-                      <TableCell align="center">Acciones</TableCell>
+                      <TableCell sx={stickyActionsCellSx.head}>
+                        Acciones
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1179,16 +1216,14 @@ export default function ResumenCierrePage() {
                             {fmtS(row.totalVentasConsignacion || 0)}
                           </Typography>
                         </TableCell>
-                        <TableCell align="center">
-                          <Tooltip title="Ver detalles">
-                            <IconButton
-                              onClick={() => handleViewMore(row)}
-                              color="primary"
-                              size="small"
-                            >
-                              <ZoomInIcon />
-                            </IconButton>
-                          </Tooltip>
+                        <TableCell sx={stickyActionsCellSx.body}>
+                          <AccionesCierreCell
+                            desactualizado={Boolean(row.totalesDesactualizados)}
+                            motivo={desfaseMotivo(row.totalsComputedAt)}
+                            canRecalculate={canRecalculate}
+                            onRecalculate={() => setRecalcCierreId(row.id)}
+                            onVerDetalles={() => handleViewMore(row)}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1300,7 +1335,7 @@ export default function ResumenCierrePage() {
                           {fmtS(data?.sumTotalVentasConsignacion || 0)}
                         </Typography>
                       </TableCell>
-                      <TableCell></TableCell>
+                      <TableCell sx={stickyActionsCellSx.totals} />
                     </TableRow>
                   </TableBody>
                 </Table>
@@ -1396,6 +1431,17 @@ export default function ResumenCierrePage() {
                     minHeight: 0,
                   }}
                 >
+                  {/* First thing in the body: everything below is read
+                      through this warning. */}
+                  {cierreProducData.ciereData.totalesDesactualizados && (
+                    <DrawerDesfaseAlert
+                      canRecalculate={canRecalculate}
+                      isMobile={isMobile}
+                      onRecalculate={() =>
+                        setRecalcCierreId(cierreProducData.cierreId)
+                      }
+                    />
+                  )}
                   <Stack
                     direction="row"
                     alignItems="center"
@@ -1511,91 +1557,18 @@ export default function ResumenCierrePage() {
                     ]}
                   />
 
-                  {/* Desglose por moneda (multimoneda) */}
-                  {cierreProducData.ciereData.resumenMonedas &&
-                    cierreProducData.ciereData.resumenMonedas.length > 0 && (
-                      <ContentCard
-                        title="Desglose por Moneda"
-                        subtitle={
-                          !isMobile
-                            ? "Ingresos reales por moneda de cobro"
-                            : undefined
-                        }
-                        fullHeight={false}
-                      >
-                        <Stack spacing={1.5}>
-                          {cierreProducData.ciereData.resumenMonedas.map(
-                            (rm) => (
-                              <Card key={rm.monedaCode} variant="outlined">
-                                <CardContent
-                                  sx={{ p: 2, "&:last-child": { pb: 2 } }}
-                                >
-                                  <Stack
-                                    direction="row"
-                                    alignItems="center"
-                                    justifyContent="space-between"
-                                    mb={1}
-                                  >
-                                    <Chip
-                                      label={rm.monedaCode}
-                                      size="small"
-                                      color="primary"
-                                      variant="outlined"
-                                    />
-                                    <Typography
-                                      variant="body2"
-                                      color="text.secondary"
-                                    >
-                                      ≈ {fmtD(rm.equivalenteBase)}
-                                    </Typography>
-                                  </Stack>
-                                  <Stack
-                                    direction="row"
-                                    justifyContent="space-between"
-                                  >
-                                    <Typography
-                                      variant="body2"
-                                      color="text.secondary"
-                                    >
-                                      Efectivo:
-                                    </Typography>
-                                    <Typography
-                                      variant="body2"
-                                      fontWeight="medium"
-                                    >
-                                      {formatMontoEnMoneda(
-                                        rm.totalEfectivo,
-                                        rm.monedaCode,
-                                      )}
-                                    </Typography>
-                                  </Stack>
-                                  <Stack
-                                    direction="row"
-                                    justifyContent="space-between"
-                                  >
-                                    <Typography
-                                      variant="body2"
-                                      color="text.secondary"
-                                    >
-                                      Transfer:
-                                    </Typography>
-                                    <Typography
-                                      variant="body2"
-                                      fontWeight="medium"
-                                    >
-                                      {formatMontoEnMoneda(
-                                        rm.totalTransfer,
-                                        rm.monedaCode,
-                                      )}
-                                    </Typography>
-                                  </Stack>
-                                </CardContent>
-                              </Card>
-                            ),
-                          )}
-                        </Stack>
-                      </ContentCard>
-                    )}
+                  {/* Caja por moneda: fondo inicial, cobros y deducciones,
+                      con las mismas filas que la pantalla del período abierto */}
+                  {cierreProducData.ciereData.resumenMonedas && (
+                    <CajaPorMonedaHistorico
+                      tiendaId={user.localActual.id}
+                      cierreId={cierreProducData.cierreId}
+                      resumenMonedas={cierreProducData.ciereData.resumenMonedas}
+                      cajaDeducciones={
+                        cierreProducData.ciereData.cajaDeducciones
+                      }
+                    />
+                  )}
 
                   {/* Tabla de productos vendidos */}
                   <ContentCard
