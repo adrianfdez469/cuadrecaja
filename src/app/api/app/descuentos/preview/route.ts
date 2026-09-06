@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { applyDiscountsForSale, DiscountApplicationInputProduct } from '@/lib/discounts';
 import { getSessionFromRequest } from '@/utils/authFromRequest';
+import { assertTiendaTenant } from '@/lib/tenantScope';
 
 /**
  * POST /api/app/descuentos/preview
@@ -32,12 +33,15 @@ export async function POST(request: NextRequest) {
       discountCodes?: string[];
     };
 
-    if (!tiendaId) {
-      return NextResponse.json(
-        { error: 'tiendaId es requerido' },
-        { status: 400 }
-      );
-    }
+    // F-021: the store arrives in the BODY here. The guard resolves BEFORE `applyDiscountsForSale`
+    // reads the `DiscountRule` rows of that store. No permission — this file never called
+    // `verificarPermiso*`, so the inherited-permission rule gives it none (ADR 0078).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     if (!Array.isArray(products) || products.length === 0) {
       return NextResponse.json(

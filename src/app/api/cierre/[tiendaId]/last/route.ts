@@ -1,17 +1,28 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@/utils/auth";
+import { assertTiendaTenant, withTenantScope } from "@/lib/tenantScope";
 
 // 1. Obtiene el último período
 export async function GET(req: NextRequest, { params }: { params: Promise<{ tiendaId: string }> }) {
   try {
     const { tiendaId } = await params;
 
-    if (!tiendaId) {
-      return NextResponse.json({ error: "Tienda ID es requerido" }, { status: 400 });
-    }
+    // No permission: same POS start-up call as `transfer-destinations` (ADR 0078).
+    const session = await getSession();
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     const ultimoPeriodo = await prisma.cierrePeriodo.findFirst({
-      where: { tiendaId },
+      where: withTenantScope(
+        "cierrePeriodo",
+        { tiendaId: scope.tiendaId },
+        scope.negocioId,
+      ),
       orderBy: { fechaInicio: "desc" },
     });
 

@@ -8,6 +8,12 @@ import {
   DuplicateRequestError,
 } from "@/lib/idempotency";
 import { IDEMPOTENCY_KEY_HEADER } from "@/constants/idempotency";
+import { getSession } from "@/utils/auth";
+import {
+  assertTiendaTenant,
+  sessionNegocioId,
+  tenantForbiddenResponse,
+} from "@/lib/tenantScope";
 
 const IDEMPOTENCY_ENDPOINT = "POST /api/movimiento/import";
 
@@ -42,6 +48,21 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    // F-021. The only endpoint that answers 403 instead of 404 when the tenant does not match:
+    // there is no resource to "not find" here — the caller is claiming to be another business.
+    const session = await getSession();
+    if (data.negocioId !== sessionNegocioId(session)) {
+      return tenantForbiddenResponse();
+    }
+
+    // `localId` is the store the import writes into, and it must belong to that same business.
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId: data.localId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     // Validar que items sea un array
     if (!Array.isArray(items) || items.length === 0) {

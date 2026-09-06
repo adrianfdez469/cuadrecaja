@@ -47,3 +47,26 @@ Regla operativa para `qa`: cuando un criterio compara dos comportamientos (con p
 permiso, filtrado / sin filtrar, un tenant / otro), **comprobar primero que los datos locales
 distinguen los dos casos**, y sembrarlos si no. Y acompañar siempre el caso positivo de su control
 negativo: "no hay filas" también es compatible con "nunca escribe nada".
+
+---
+
+## Adenda F-021 — el fixture sin base de datos, y el tercer negocio
+
+Dos aprendizajes de escribir el test de aislamiento entre tenants **sin una base de datos delante**.
+
+**1. Con un evaluador propio, los dos negocios deben compartir el valor literal.**
+La intuición al escribir «con la cláusula → 1 fila, sin la cláusula → 2» es que hacen falta ids
+colisionando entre negocios, lo cual es **imposible** con claves primarias únicas. La resolución es
+que el evaluador (`matchesWhere`) **no es Prisma**: es propio. Así que el fixture puede —y **debe**—
+dar a los dos negocios **el mismo valor literal** en el campo escalar no-tenant. Es la única forma
+de que las dos ramas del test diverjan de verdad.
+
+**2. Dos negocios no bastan: hace falta un tercero de control.**
+`N_A` es el tenant y `N_B` el homónimo, que es lo que exige esta ficha. Pero una guarda **más ancha
+de lo debido** —que filtrara por *nombre* en vez de por `negocioId`— pasaría todos los casos de A y
+de B, porque comparten nombre por diseño. Por eso se añade **`N_C`**, que no comparte ningún nombre
+y **cuyo trabajo es no aparecer nunca**: es el único que delata esa guarda.
+
+Cada `it()` afirma entonces **tres** cosas, no dos. La primera prueba que la cláusula funciona; la
+segunda, que hace falta; la tercera, que no es más ancha de lo debido — que es
+[E-032](E-032-una-guarda-mas-ancha-que-la-del-contrato.md).

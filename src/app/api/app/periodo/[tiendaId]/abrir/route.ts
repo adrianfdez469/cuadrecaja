@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionFromRequest } from '@/utils/authFromRequest';
+import { assertTiendaTenant } from '@/lib/tenantScope';
 
 /**
  * POST /api/app/periodo/[tiendaId]/abrir
@@ -25,12 +26,15 @@ export async function POST(
 
     const { tiendaId } = await params;
 
-    if (!tiendaId) {
-      return NextResponse.json(
-        { error: 'tiendaId es requerido' },
-        { status: 400 }
-      );
-    }
+    // F-021, gate A and necessarily so: the raw SQL below has no `where` to fold a tenant clause
+    // into, so ownership is resolved BEFORE the transaction opens. No permission — the APK cashier
+    // opens the drawer (ADR 0078).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     // Usar transacción con lock para prevenir race conditions
     const nuevoPeriodo = await prisma.$transaction(async (tx) => {

@@ -49,3 +49,19 @@ cosa que se evalúe al montar el archivo, se lleva por delante lo que había.
 
 Y al terminar: `npm test` no basta, hay que mirar **cuántos archivos** fallan y no solo cuántos
 tests. Un archivo entero caído se ve igual que un test caído en el recuento total.
+
+---
+
+## Adenda F-021 — un `throw` a nivel de módulo hace lo mismo
+
+El `dev-tester` puso la guarda «el inventario tiene al menos 37 entradas» como un `throw` en el
+**tope del módulo**, para que fallara alto si el censo aún no existía. Y falló alto: se llevó por
+delante los **seis casos de saneamiento de `matchesWhere` del mismo archivo**, que no dependían del
+inventario y estaban en verde.
+
+Lo cambió a un `it()` real. Falla igual de visible, y no arrastra a nadie.
+
+**La regla de esta ficha es más ancha de lo que su título sugiere:** no es solo `it.each` con un
+símbolo `undefined`. Es **cualquier cosa que se evalúe durante la fase de colección** — un `throw`
+de módulo, un import que revienta, un schema de Zod que se construye en el tope. Todo eso tumba el
+archivo entero y no solo su propio caso.

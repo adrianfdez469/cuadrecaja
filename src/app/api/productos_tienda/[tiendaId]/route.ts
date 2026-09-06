@@ -2,6 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  assertTiendaTenant,
+  tenantNotFoundResponse,
+  withTenantScope,
+} from "@/lib/tenantScope";
 
 // Obtener todos los productos (Accesible para todos)
 export async function GET(
@@ -31,12 +36,25 @@ export async function GET(
       };
     }
 
+    // F-021: no permission — this is the POS catalogue every cashier loads (ADR 0078).
+    const session = await getSession();
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
+
     const productosTienda = await prisma.productoTienda.findMany({
-      where: {
-        tiendaId: tiendaId,
-        deletedAt: null,
-        producto: { deletedAt: null },
-      },
+      where: withTenantScope(
+        "productoTienda",
+        {
+          tiendaId: tiendaId,
+          deletedAt: null,
+          producto: { deletedAt: null },
+        },
+        scope.negocioId,
+      ),
       include: {
         producto: {
           select: {
@@ -84,18 +102,13 @@ export async function POST(
     const session = await getSession();
     const user = session.user;
 
-    if (
-      !verificarPermisoUsuario(
-        user.permisos,
-        "operaciones.inventario.acceder",
-        user.rol,
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado" },
-        { status: 403 },
-      );
-    }
+    // F-021: same permission the verb already demanded, now with tenant scope (ADR 0078).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: "operaciones.inventario.acceder",
+    });
+    if (!scope) return response;
 
     if ((precio != null && precio < 0) || (costo != null && costo < 0)) {
       return NextResponse.json(
@@ -132,8 +145,19 @@ export async function POST(
       );
     }
 
+    // The product being linked must belong to the same business as the store.
+    const productoDelNegocio = await prisma.producto.findFirst({
+      where: withTenantScope("producto", { id: productoId }, scope.negocioId),
+      select: { id: true },
+    });
+    if (!productoDelNegocio) return tenantNotFoundResponse();
+
     const existente = await prisma.productoTienda.findFirst({
-      where: { tiendaId, productoId, proveedorId: null, deletedAt: null },
+      where: withTenantScope(
+        "productoTienda",
+        { tiendaId, productoId, proveedorId: null, deletedAt: null },
+        scope.negocioId,
+      ),
     });
     if (existente) {
       return NextResponse.json(existente, { status: 200 });
@@ -172,21 +196,33 @@ export async function PUT(
     const session = await getSession();
     const user = session.user;
 
-    if (
-      !verificarPermisoUsuario(
-        user.permisos,
-        "operaciones.inventario.acceder",
-        user.rol,
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado" },
-        { status: 403 },
-      );
+    // F-021: same permission the verb already demanded, now with tenant scope (ADR 0078).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: "operaciones.inventario.acceder",
+    });
+    if (!scope) return response;
+
+    if (!Array.isArray(productos)) {
+      return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
     }
 
-    if (!tiendaId || !Array.isArray(productos)) {
-      return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+    // Mandatory pre-check: the rows are updated by their own id, which used to reach any store of
+    // any business. If a single id is not in this store AND in this business, nothing is written.
+    const idsRecibidos = [...new Set(productos.map((p) => p.id))];
+    if (idsRecibidos.length > 0) {
+      const propios = await prisma.productoTienda.findMany({
+        where: withTenantScope(
+          "productoTienda",
+          { id: { in: idsRecibidos }, tiendaId },
+          scope.negocioId,
+        ),
+        select: { id: true },
+      });
+      if (propios.length !== idsRecibidos.length) {
+        return tenantNotFoundResponse();
+      }
     }
 
     if (
@@ -215,7 +251,11 @@ export async function PUT(
 
     if (!puedeEditarCosto || !puedeEditarPrecio) {
       const existentes = await prisma.productoTienda.findMany({
-        where: { id: { in: productos.map((p) => p.id) }, tiendaId },
+        where: withTenantScope(
+          "productoTienda",
+          { id: { in: productos.map((p) => p.id) }, tiendaId },
+          scope.negocioId,
+        ),
         select: {
           id: true,
           precio: true,

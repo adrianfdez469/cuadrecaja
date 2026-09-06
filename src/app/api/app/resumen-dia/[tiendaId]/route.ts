@@ -2,6 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/utils/authFromRequest";
 import { IResumenDiaResponse } from "@/schemas/resumenDia";
+import {
+  assertTiendaTenant,
+  tenantNotFoundResponse,
+  withTenantScope,
+} from "@/lib/tenantScope";
 
 /**
  * GET /api/app/resumen-dia/[tiendaId]?cierreId=<id>&soloConMovimientos=<bool>
@@ -65,16 +70,27 @@ export async function GET(
       );
     }
 
-    const cierre = await prisma.cierrePeriodo.findUnique({
-      where: { id: cierreId },
+    // F-021: twin of the web `resumen-dia`, same reason — no permission (ADR 0078).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
+
+    // The period used to be read by the `cierreId` of the query WITHOUT even checking it belonged
+    // to this store.
+    const cierre = await prisma.cierrePeriodo.findFirst({
+      where: withTenantScope(
+        "cierrePeriodo",
+        { id: cierreId, tiendaId },
+        scope.negocioId,
+      ),
       select: { fechaInicio: true, fechaFin: true },
     });
 
     if (!cierre) {
-      return NextResponse.json(
-        { error: "Cierre no encontrado" },
-        { status: 404 }
-      );
+      return tenantNotFoundResponse();
     }
 
     const startOfPeriod = cierre.fechaInicio;
@@ -82,7 +98,7 @@ export async function GET(
 
     const [productosTienda, movimientos] = await Promise.all([
       prisma.productoTienda.findMany({
-        where: { tiendaId },
+        where: withTenantScope("productoTienda", { tiendaId }, scope.negocioId),
         include: {
           producto: {
             select: {
@@ -96,10 +112,14 @@ export async function GET(
         },
       }),
       prisma.movimientoStock.findMany({
-        where: {
-          tiendaId,
-          fecha: { gte: startOfPeriod, lte: endOfPeriod },
-        },
+        where: withTenantScope(
+          "movimientoStock",
+          {
+            tiendaId,
+            fecha: { gte: startOfPeriod, lte: endOfPeriod },
+          },
+          scope.negocioId,
+        ),
         select: {
           productoTiendaId: true,
           tipo: true,

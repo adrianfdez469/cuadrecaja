@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/utils/auth';
 import { verificarPermisoUsuario } from '@/utils/permisos_back';
+import { assertTiendaTenant, withTenantScope } from '@/lib/tenantScope';
 
 // Obtener todos los destinos de transferencia de una tienda
 export async function GET(req: Request) {
@@ -9,17 +10,25 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const tiendaId = searchParams.get('tiendaId');
 
-    if (!tiendaId) {
-      return NextResponse.json({ error: 'tiendaId es requerido' }, { status: 400 });
-    }
+    // No permission: the POS calls this on start-up for every cashier, and the POST's permission
+    // only belongs to the `administrador` template (ADR 0078).
+    const session = await getSession();
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     const transferDestinations = await prisma.transferDestinations.findMany({
       orderBy: {
         nombre: 'asc'
       },
-      where: {
-        tiendaId: tiendaId
-      }
+      where: withTenantScope(
+        'transferDestinations',
+        { tiendaId: scope.tiendaId },
+        scope.negocioId,
+      )
     });
     return NextResponse.json(transferDestinations);
   } catch (error) {

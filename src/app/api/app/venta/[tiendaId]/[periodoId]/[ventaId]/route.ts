@@ -4,7 +4,8 @@ import { MovimientoTipo } from "@prisma/client";
 import { lockExistingRow } from "@/lib/dbLocks";
 import { isMovimientoBaja } from "@/utils/tipoMovimiento";
 import { getSessionFromRequest } from "@/utils/authFromRequest";
-import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import { verificarPermisosUsuario } from "@/utils/permisos_back";
+import { assertTiendaTenant, withTenantScope } from "@/lib/tenantScope";
 import { mapMultimonedaFields } from "@/lib/ventaMapper";
 
 /**
@@ -31,17 +32,14 @@ export async function DELETE(
 
     const user = session.user;
 
-    // Verificar permisos
+    // The same either/or this verb already demanded, evaluated in ONE place with the plural
+    // helper (`requiereTodos: false`) instead of being rewritten as a disjunction of two guards.
     if (
-      !verificarPermisoUsuario(
+      !verificarPermisosUsuario(
         user.permisos,
-        "operaciones.pos-venta.cancelarventa",
+        ["operaciones.pos-venta.cancelarventa", "operaciones.ventas.eliminar"],
         user.rol,
-      ) &&
-      !verificarPermisoUsuario(
-        user.permisos,
-        "operaciones.ventas.eliminar",
-        user.rol,
+        false,
       )
     ) {
       return NextResponse.json(
@@ -52,16 +50,29 @@ export async function DELETE(
 
     const { tiendaId, ventaId } = await params;
 
-    if (!tiendaId || !ventaId) {
+    if (!ventaId) {
       return NextResponse.json(
         { error: "tiendaId y ventaId son requeridos" },
         { status: 400 },
       );
     }
 
-    // Verificar que la venta existe y está en un período abierto
-    const venta = await prisma.venta.findUnique({
-      where: { id: ventaId },
+    // F-021: the permission is already resolved above, so the gate only adds the tenant axis.
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
+
+    // Verificar que la venta existe y está en un período abierto. The `tiendaId` of the path now
+    // enters the `where`: it used to be read and discarded.
+    const venta = await prisma.venta.findFirst({
+      where: withTenantScope(
+        "venta",
+        { id: ventaId, tiendaId },
+        scope.negocioId,
+      ),
       include: {
         cierrePeriodo: {
           select: { fechaFin: true },
@@ -202,7 +213,7 @@ export async function GET(
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
-    const { ventaId } = await params;
+    const { tiendaId, ventaId } = await params;
 
     if (!ventaId) {
       return NextResponse.json(
@@ -211,8 +222,20 @@ export async function GET(
       );
     }
 
-    const venta = await prisma.venta.findUnique({
-      where: { id: ventaId },
+    // F-021: no permission — this verb never demanded one (ADR 0078).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
+
+    const venta = await prisma.venta.findFirst({
+      where: withTenantScope(
+        "venta",
+        { id: ventaId, tiendaId },
+        scope.negocioId,
+      ),
       include: {
         usuario: {
           select: { id: true, nombre: true },

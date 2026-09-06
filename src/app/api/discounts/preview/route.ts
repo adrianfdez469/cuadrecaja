@@ -2,32 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { applyDiscountsForSale, DiscountApplicationInputProduct } from "@/lib/discounts";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/utils/authOptions";
-import { verificarPermisoUsuario } from "@/utils/permisos_back"
+import { assertTiendaTenant } from "@/lib/tenantScope";
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.negocio?.id) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const user = session.user;
-
-    if (!verificarPermisoUsuario(user.permisos, "configuracion.descuentos.preview", user.rol)) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado" },
-        { status: 403 }
-      );
-    }
     const body: unknown = await req.json();
     const { tiendaId, products, discountCodes } = (body as {
       tiendaId?: string;
       products?: Array<Partial<DiscountApplicationInputProduct>>;
       discountCodes?: string[];
     }) || {};
-    if (!tiendaId || !Array.isArray(products)) {
+    if (!Array.isArray(products)) {
       return NextResponse.json({ error: "Faltan tiendaId o products" }, { status: 400 });
     }
+
+    // F-021: the store arrives in the BODY and used to reach `applyDiscountsForSale` unchecked,
+    // which prices the basket against the `DiscountRule` rows of THAT store's business. Same
+    // permission it already demanded (ADR 0078); the handler no longer emits its own 401 either.
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: "configuracion.descuentos.preview",
+    });
+    if (!scope) return response;
+
     const result = await applyDiscountsForSale({
       tiendaId,
       products: products.map((p) => ({

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/utils/auth";
+import { assertTiendaTenant } from "@/lib/tenantScope";
 
 // 3. Cerrar el período actual y abrir uno nuevo
 export async function PUT(
@@ -9,12 +11,16 @@ export async function PUT(
   try {
     const { tiendaId } = await params;
 
-    if (!tiendaId) {
-      return NextResponse.json(
-        { error: "Tienda ID es requerido" },
-        { status: 400 },
-      );
-    }
+    // F-021, gate A and necessarily so: the raw SQL below has no `where` to fold a tenant clause
+    // into, so ownership is resolved BEFORE the transaction opens. No permission — the POS offers
+    // this to the cashier when opening the drawer (ADR 0078).
+    const session = await getSession();
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     // Usar transacción con lock para prevenir race conditions
     const nuevoPeriodo = await prisma.$transaction(async (tx) => {

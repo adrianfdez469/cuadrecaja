@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analizarCPPTienda, detectarDesviacionesCPP } from '@/lib/reports/cpp-report';
+import { getSession } from '@/utils/auth';
+import { assertTiendaTenant } from '@/lib/tenantScope';
 
 export async function GET(
   req: NextRequest,
@@ -10,6 +12,15 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const tipo = searchParams.get('tipo') || 'analisis';
     const umbral = parseInt(searchParams.get('umbral') || '10');
+
+    // F-021: no permission — this verb never demanded one (ADR 0078).
+    const session = await getSession();
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     switch (tipo) {
       case 'analisis':
