@@ -24,11 +24,14 @@ export async function GET(
 
     switch (tipo) {
       case 'analisis':
-        const analisis = await analizarCPPTienda(tiendaId);
+        const analisis = await analizarCPPTienda(scope);
         return NextResponse.json(analisis);
       
       case 'desviaciones':
-        const desviaciones = await detectarDesviacionesCPP(tiendaId, umbral);
+        const desviaciones = await detectarDesviacionesCPP({
+          ...scope,
+          umbralPorcentaje: umbral,
+        });
         return NextResponse.json(desviaciones);
       
       default:

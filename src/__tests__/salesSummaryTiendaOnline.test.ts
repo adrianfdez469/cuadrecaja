@@ -20,6 +20,14 @@ const FAKE_CONTEXT = {} as AggregatorContext;
  * The other half — that the cable actually reaches `DashboardKpiRow` — is
  * `dashboardSummarySchemaTiendaOnline.test.ts` (ADR 0075 § 11.4a, "el cable
  * del criterio 6 no llegaba a ninguna pantalla").
+ *
+ * F-024 (ADR 0090) renames the field this file was written against:
+ * `totalTiendaOnline` -> `totalMercanciaTiendaOnline`, same computation
+ * (`sale.netAmount` of the online-origin sales). This file only follows that
+ * rename; the delivery figure that F-024 adds alongside it
+ * (`totalEnvioTiendaOnline`, `cantidadVentasTiendaOnlineConEnvio`) is covered
+ * separately in `summaryEnvioTiendaOnline.test.ts`, which is where the
+ * discriminating fixtures for F-024's own criteria live.
  */
 
 function makeSale(overrides: Partial<NormalizedSale> = {}): NormalizedSale {
@@ -39,6 +47,10 @@ function makeSale(overrides: Partial<NormalizedSale> = {}): NormalizedSale {
     discountTotal: 0,
     netAmount: 100,
     netProfit: 40,
+    // F-024, ADR 0089: 0 for a POS sale and for an online order that charged
+    // no delivery. Not this file's concern (see summaryEnvioTiendaOnline.test.ts),
+    // but every NormalizedSale needs a value or the object stops compiling.
+    deliveryFeeBase: 0,
     lines: [],
     discountsByRule: new Map(),
     origen: "POS",
@@ -46,12 +58,12 @@ function makeSale(overrides: Partial<NormalizedSale> = {}): NormalizedSale {
   };
 }
 
-describe("createSummaryAggregator — cantidadVentasTiendaOnline / totalTiendaOnline", () => {
-  it("starts both new figures at zero", () => {
+describe("createSummaryAggregator — cantidadVentasTiendaOnline / totalMercanciaTiendaOnline", () => {
+  it("starts both figures at zero", () => {
     const summary = createSummaryAggregator().finalize(FAKE_CONTEXT);
 
     expect(summary.cantidadVentasTiendaOnline).toBe(0);
-    expect(summary.totalTiendaOnline).toBe(0);
+    expect(summary.totalMercanciaTiendaOnline).toBe(0);
   });
 
   it("a POS sale (origen: POS) never touches either figure — E-008: the same consume() must discriminate by origen, not merely count everything", () => {
@@ -62,20 +74,20 @@ describe("createSummaryAggregator — cantidadVentasTiendaOnline / totalTiendaOn
 
     expect(summary.cantidadVentas).toBe(1); // it DID count as a sale
     expect(summary.cantidadVentasTiendaOnline).toBe(0);
-    expect(summary.totalTiendaOnline).toBe(0);
+    expect(summary.totalMercanciaTiendaOnline).toBe(0);
   });
 
-  it("counts and sums a TIENDA_ONLINE sale", () => {
+  it("counts and sums a TIENDA_ONLINE sale's merchandise", () => {
     const aggregator = createSummaryAggregator();
     aggregator.consume(makeSale({ origen: "TIENDA_ONLINE", netAmount: 250 }));
 
     const summary = aggregator.finalize(FAKE_CONTEXT);
 
     expect(summary.cantidadVentasTiendaOnline).toBe(1);
-    expect(summary.totalTiendaOnline).toBe(250);
+    expect(summary.totalMercanciaTiendaOnline).toBe(250);
   });
 
-  it("with a mix of origins, the two figures count/sum ONLY the online sales, and totalTiendaOnline is PART of totalPeriodo, never on top of it (ADR 0075)", () => {
+  it("with a mix of origins, the two figures count/sum ONLY the online sales, and totalMercanciaTiendaOnline is PART of totalPeriodo, never on top of it (ADR 0075, renamed by ADR 0090)", () => {
     const aggregator = createSummaryAggregator();
     aggregator.consume(makeSale({ origen: "POS", netAmount: 100 }));
     aggregator.consume(makeSale({ origen: "TIENDA_ONLINE", netAmount: 60 }));
@@ -85,8 +97,10 @@ describe("createSummaryAggregator — cantidadVentasTiendaOnline / totalTiendaOn
 
     expect(summary.cantidadVentas).toBe(3);
     expect(summary.cantidadVentasTiendaOnline).toBe(2);
-    expect(summary.totalTiendaOnline).toBe(100);
+    expect(summary.totalMercanciaTiendaOnline).toBe(100);
     expect(summary.totalPeriodo).toBe(200);
-    expect(summary.totalTiendaOnline).toBeLessThanOrEqual(summary.totalPeriodo);
+    expect(summary.totalMercanciaTiendaOnline).toBeLessThanOrEqual(
+      summary.totalPeriodo,
+    );
   });
 });

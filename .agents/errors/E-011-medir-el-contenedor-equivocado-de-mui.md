@@ -1,7 +1,7 @@
 # E-011: `querySelector('.MuiContainer-root')` mide el contenedor del Layout, no el de la página
 
 **Área:** ui
-**Apariciones:** 2 — F-004 (paso 6, verificación del contrato de diseño) · F-006 (ver la adenda del final). En F-011 NO llegó a ocurrir: se anticipó en el contrato de diseño y el `qa` midió con el filtro correcto. Ver la adenda de F-011 al final.
+**Apariciones:** 3 — F-004 (paso 6, verificación del contrato de diseño) · F-006 (ver la adenda del final) · F-023 (el snippet venía **escrito en el propio contrato de diseño**; ver la adenda del final). En F-011 NO llegó a ocurrir: se anticipó en el contrato de diseño y el `qa` midió con el filtro correcto. Ver la adenda de F-011 al final.
 
 ## Síntoma
 
@@ -98,3 +98,27 @@ del `Layout`. La medida seguiría siendo plausible.
 > El filtro correcto sigue siendo el de **anidamiento** (el contenedor de la página es el que está
 > DENTRO del del `Layout`), no el de clase. Que el filtro por clase acierte hoy es una propiedad
 > de los valores actuales, no del DOM.
+
+
+## Adenda F-023 — el snippet equivocado venía dentro del propio contrato de diseño
+
+La vuelta de tuerca: aquí no fue el `qa` quien eligió mal el selector. El selector **venía escrito
+en `.agents/designs/F-023.md`**, como ayuda para localizar el elemento del criterio 15:
+
+```js
+const notice = svg.closest("div");   // NO es el bloque tintado
+```
+
+`svg.closest("div")` encuentra el `Stack` interno, que es **transparente**. El `Box` con el
+`bgcolor` está dos niveles más arriba. Ejecutado literalmente, el snippet mide `rgba(0, 0, 0, 0)`
+en los cuatro estados, los cuatro salen iguales, y el criterio «cada estado tiene su tinta»
+**parece fallar contra una implementación correcta**. Costó un ciclo completo de depuración.
+
+Lo que lo hace peor que las apariciones anteriores: un `ui-designer` que da el snippet cree estar
+*eliminando* la ambigüedad, y el `qa` que lo ejecuta cree estar siguiendo el contrato. Los dos
+actúan bien. La ayuda es el error.
+
+> Un snippet de localización dentro de un contrato de diseño es **especificación ejecutable**, y
+> hay que verificarlo contra el DOM real igual que cualquier otro criterio. Si no se puede
+> verificar al escribirlo, describe el elemento por lo que ES (el bloque que lleva el `bgcolor`),
+> no por cómo llegar a él desde un icono.

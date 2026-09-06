@@ -1,3 +1,4 @@
+import { EMAIL_REGEX } from "@/constants/validation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -5,8 +6,6 @@ import { UsuarioEstadoCuenta } from "@prisma/client";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { Prisma } from "@prisma/client";
 import { sendUserEmailChangeNotification } from "@/lib/userAccount/sendUserEmailChangeNotification";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Info del usuario para confirmación de eliminación (GET)
 export async function GET(

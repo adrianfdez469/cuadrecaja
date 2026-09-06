@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 
 import { LANDING_ACTIVATION_TTL_LABEL } from "@/constants/onboarding";
+import { EMAIL_REGEX } from "@/constants/validation";
 
 import { LandingButton } from "./LandingButton";
 
@@ -35,8 +36,6 @@ const INITIAL_FORM: FormData = {
   telefono: "",
   referido: "",
 };
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** The anchor the promoter link scrolls to once it has filled the code in. */
 export const TRIAL_FORM_ID = "landing-contact-form";
@@ -111,7 +110,7 @@ export function TrialForm() {
   const isValid = (): boolean => {
     if (!formData.nombre.trim()) return false;
     if (!formData.nombreNegocio.trim()) return false;
-    if (!EMAIL_PATTERN.test(formData.correo.trim())) return false;
+    if (!EMAIL_REGEX.test(formData.correo.trim())) return false;
     if (incluirProductosPrueba === null) return false;
     return true;
   };

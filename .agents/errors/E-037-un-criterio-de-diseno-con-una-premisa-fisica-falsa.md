@@ -1,7 +1,7 @@
 # E-037: Un criterio de diseño con una premisa física falsa sobre un componente compartido
 
 **Área:** ui
-**Apariciones:** 1 — F-009
+**Apariciones:** 2 — F-009 · F-024 (con mecanismo propio, documentado aparte en [E-048](E-048-el-item-flex-atrapa-el-margen-de-su-hijo.md); ver la adenda del final)
 
 ## Síntoma
 
@@ -64,3 +64,28 @@ mismo error y por eso lleva ficha aparte:
 Corolario para quien escriba criterios: un criterio que compara dos viewports solo vale si los dos
 caen del mismo lado de todas las fronteras que intervienen — las del layout propio **y** las que
 traen los componentes de terceros.
+
+## Adenda F-024 — la misma forma, otro mecanismo: el margen que atrapa un ítem flex
+
+Se repitió exactamente igual, y en un documento que **cita este mismo error**. El contrato de
+diseño de F-024 exigía que una `section` nueva «sin estilos propios» coincidiera con su único hijo
+en `top`, `left`, `width` y `height`, ±1 px. Lo hace en tres de los cuatro: `height` difiere en 24
+px clavados.
+
+No falla la medición —el `qa` midió con Playwright y viewport real— ni la implementación, que
+seguía el contrato al pie de la letra: `padding`, `border-width` y `background-color` de la
+`section` son efectivamente los de un contenedor sin estilos. Falla la **premisa**: «sin estilos
+propios» no implica «sin caja propia» cuando el hijo trae un margen y el contexto de formato
+cambia. El mecanismo exacto está en E-048.
+
+Lo que generaliza, y es lo que vale la pena llevarse:
+
+> «Este elemento no aporta caja» es una premisa **física**, no una propiedad de la hoja de estilos
+> que escribes. Depende del hijo y del contexto de formato del padre, no solo de lo que tú
+> declaras. Si un criterio va a comparar dos cajas, mide las dos **antes** de escribirlo — y si no
+> puedes medirlas, afirma lo que sí controlas (padding, borde, fondo, el hueco visible al hermano)
+> en vez de una igualdad de geometría.
+
+Y el matiz que lo hace difícil de ver: F-024 documentaba E-037 en su propia tabla de absolutos. No
+basta con conocer el error para no cometerlo — hay que medir.
+

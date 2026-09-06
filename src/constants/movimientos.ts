@@ -45,6 +45,16 @@ export const TIPOS_MOVIMIENTO_MANUAL: ITipoMovimiento[] = [
   "MERMA",
 ];
 
+/**
+ * The three inbound movement types that carry an acquisition cost, and therefore the only ones the
+ * CPP report reads. Extracted so the query and its where-builder cannot drift apart (E-014).
+ */
+export const CPP_ENTRY_MOVEMENT_TYPES: ITipoMovimiento[] = [
+  "COMPRA",
+  "TRASPASO_ENTRADA",
+  "CONSIGNACION_ENTRADA",
+];
+
 // Etiquetas para mostrar en la interfaz
 export const TIPO_MOVIMIENTO_LABELS: Record<ITipoMovimiento, string> = {
   COMPRA: "Compra",

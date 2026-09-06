@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { useDiscountRulesStore } from "@/store/discountRulesStore";
-import { applyDiscounts } from "@/lib/discounts";
+// The engine, NOT the "@/lib/discounts" barrel: this module is "use client" and the barrel is
+// server-side — importing it as a VALUE would drag `next/server` into the POS bundle (ADR 0085).
+import { applyDiscounts } from "@/lib/discounts/engine";
 import type { DiscountApplicationResultItem } from "@/lib/discounts";
 
 export interface CartTotals {

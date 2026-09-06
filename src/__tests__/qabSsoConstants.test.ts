@@ -9,6 +9,7 @@ import {
   QAB_SSO_UNAVAILABLE_REASONS,
   QAB_SSO_NOT_CONFIGURED_LOG,
   QAB_SSO_SIGNING_FAILED,
+  QAB_SSO_USER_NOT_EMAIL_LOG,
 } from "@/constants/qabSso";
 
 /**
@@ -45,6 +46,14 @@ describe("QAB SSO constants", () => {
 
   it("should carry the fixed message of a signing failure", () => {
     expect(QAB_SSO_SIGNING_FAILED).toBe("QAB_SSO_SIGNING_FAILED");
+  });
+
+  // F-023 — the log line for a session whose usuario has no email shape. The prefix must be
+  // the WHOLE thing appended to (the internal `sub` and nothing else): a test cannot assert an
+  // absence of variable content by itself, but it CAN lock the exact fixed prefix so a future
+  // edit that interpolates something free is at least a visible diff against this value.
+  it("should carry the fixed log prefix for a session whose usuario has no email shape (F-023, E-031)", () => {
+    expect(QAB_SSO_USER_NOT_EMAIL_LOG).toBe("QAB_SSO_USER_NOT_EMAIL");
   });
 
   describe("QAB_SSO_LINK_UI_TTL_SECONDS", () => {

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { QAB_SSO_NOT_CONFIGURED_LOG } from "@/constants/qabSso";
+import {
+  QAB_SSO_NOT_CONFIGURED_LOG,
+  QAB_SSO_USER_NOT_EMAIL_LOG,
+} from "@/constants/qabSso";
 import {
   TIENDA_ONLINE_API_ERRORS,
   TIENDA_ONLINE_PERMISOS,
@@ -15,6 +18,9 @@ import { tiendaOnlineSsoLinkSchema } from "@/schemas/tiendaOnline";
 import { getSession } from "@/utils/auth";
 
 export const dynamic = "force-dynamic";
+
+/** The status of the "your own account state makes this impossible" answer. */
+const HTTP_CONFLICT = 409;
 
 /**
  * Mints the one-time SSO link towards the QAB panel.
@@ -46,6 +52,17 @@ export async function POST() {
       return NextResponse.json(
         { error: TIENDA_ONLINE_API_ERRORS.ssoNotConfigured },
         { status: 503, headers: NO_STORE_HEADERS },
+      );
+    }
+
+    if (result.outcome === "user_not_email") {
+      // The ONE line, and the only thing appended to the prefix is the internal
+      // `sub` the outcome itself carries. Never the rejected value, never the
+      // token, never the secret, never a length (E-031).
+      console.error(`${QAB_SSO_USER_NOT_EMAIL_LOG} ${result.sub}`);
+      return NextResponse.json(
+        { error: TIENDA_ONLINE_API_ERRORS.ssoUserNotEmail },
+        { status: HTTP_CONFLICT, headers: NO_STORE_HEADERS },
       );
     }
 

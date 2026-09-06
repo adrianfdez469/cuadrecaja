@@ -56,9 +56,9 @@ import {
 } from "@/services/usuarioService";
 import type { IUsuarioDeleteInfo, IUsuarioListItem } from "@/schemas/usuario";
 import DeleteUsuarioDialog from "@/components/usuarios/DeleteUsuarioDialog";
+import { EMAIL_REGEX } from "@/constants/validation";
 import { UsuarioCard } from "@/components/usuarios/UsuarioCard";
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PENDIENTE_VERIFICACION = "PENDIENTE_VERIFICACION" as const;
 
 export default function UsuariosPage() {

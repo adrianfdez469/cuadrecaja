@@ -59,6 +59,15 @@ describe("TIENDA_ONLINE_API_ERRORS", () => {
     });
   });
 
+  // F-023 — the fourth SSO outcome's body. It has to be a 409 and never a 403 or a 401
+  // (`axiosClient` destroys the body of any 403 and turns a 401 into signOut(), ADR 0086), and
+  // it must never echo a QAB code such as "malformed" (ADR 0022) — this test only fixes the
+  // literal value; the HTTP status itself is verified by `qa` against the running route, which
+  // is outside `src/app/api/` test coverage (AGENTS.md).
+  it("should export the F-023 user_not_email error code verbatim", () => {
+    expect(TIENDA_ONLINE_API_ERRORS.ssoUserNotEmail).toBe("TIENDA_ONLINE_SSO_USER_NOT_EMAIL");
+  });
+
   // F-012 (contract § 1.2, § 0.2, ADR 0064)
   it("should export qabStatusUpstream verbatim — the ONE code every QAB-side outcome of the status report leaves under", () => {
     expect(TIENDA_ONLINE_API_ERRORS.qabStatusUpstream).toBe("QAB_STATUS_UPSTREAM");

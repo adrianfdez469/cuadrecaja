@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     });
     if (!scope) return response;
 
-    const rules = await fetchDiscountRulesForTienda(tiendaId);
+    const rules = await fetchDiscountRulesForTienda(scope);
     return NextResponse.json({ rules });
   } catch (e: unknown) {
     const message =

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import jwt from "jsonwebtoken";
 import type { Session } from "next-auth";
 import { issueQabSsoLink } from "@/lib/tiendaOnline/tiendaOnlineSso";
+import type { ITiendaOnlineSsoOutcome } from "@/lib/tiendaOnline/tiendaOnlineSso";
 import { TipoLocal } from "@/schemas/tienda";
 import type { ILocal } from "@/schemas/tienda";
 import { qabSsoDecodedTokenSchema } from "@/schemas/qabSso";
@@ -128,6 +129,131 @@ describe("issueQabSsoLink — no_identity", () => {
     const superAdminNoStores = session({ locales: [local({ tipo: TipoLocal.ALMACEN })] });
     const result = issueQabSsoLink({ session: superAdminNoStores, env: VALID_ENV });
     expect(result.outcome).toBe("issued");
+  });
+});
+
+/**
+ * F-023 — the fourth outcome (§ 1.3, § 3.2 of the contract, ADR 0086). `isQabSsoIssuableEmail`
+ * is evaluated on `claims.email`, so these sessions all carry a `usuario` with SOME non-blank
+ * value that simply does not have address shape — the table of § 3.2 has the exact examples
+ * used below.
+ */
+describe("issueQabSsoLink — user_not_email (criteria 1, 3, 4)", () => {
+  it("should return user_not_email when usuario has no @ (e.g. the seed's admin)", () => {
+    const result = issueQabSsoLink({ session: session({ usuario: "admin" }), env: VALID_ENV });
+    expect(result).toEqual({ outcome: "user_not_email", sub: "user-1" });
+  });
+
+  it("should return user_not_email when usuario has an @ but no dot after it", () => {
+    const result = issueQabSsoLink({
+      session: session({ usuario: "admin@localhost" }),
+      env: VALID_ENV,
+    });
+    expect(result).toEqual({ outcome: "user_not_email", sub: "user-1" });
+  });
+
+  it("should return user_not_email when usuario has no local part before the @", () => {
+    const result = issueQabSsoLink({
+      session: session({ usuario: "@ejemplo.com" }),
+      env: VALID_ENV,
+    });
+    expect(result).toEqual({ outcome: "user_not_email", sub: "user-1" });
+  });
+
+  it("should still return user_not_email for a padded malformed usuario — trimming does not turn it into an email", () => {
+    const result = issueQabSsoLink({ session: session({ usuario: "   admin   " }), env: VALID_ENV });
+    expect(result.outcome).toBe("user_not_email");
+  });
+
+  it("should return issued, unaffected, when usuario IS a valid email padded with whitespace (regression, criterion 3)", () => {
+    const result = issueQabSsoLink({
+      session: session({ usuario: "  merchant@example.com  " }),
+      env: VALID_ENV,
+    });
+    expect(result.outcome).toBe("issued");
+  });
+
+  it("should carry sub as claims.sub, the trimmed internal id — and NOTHING else: no usuario, no email, no url, no reason (criterion 5, E-031, structural)", () => {
+    const result = issueQabSsoLink({
+      session: session({ id: "  user-99  ", usuario: "not-an-email" }),
+      env: VALID_ENV,
+    });
+    expect(result.outcome).toBe("user_not_email");
+    expect(Object.keys(result).sort()).toEqual(["outcome", "sub"]);
+    if (result.outcome !== "user_not_email") throw new Error("unreachable");
+    expect(result.sub).toBe("user-99");
+    // The rejected `usuario` must not leak anywhere in the returned value.
+    expect(JSON.stringify(result)).not.toMatch(/not-an-email/);
+  });
+
+  it("should return not_configured (not user_not_email) when the environment is broken even though usuario also has no email shape — step 1 still wins", () => {
+    const result = issueQabSsoLink({
+      session: session({ usuario: "admin" }),
+      env: {} as unknown as NodeJS.ProcessEnv,
+    });
+    expect(result).toEqual({ outcome: "not_configured", reason: "SECRET_NOT_SET" });
+  });
+});
+
+/**
+ * F-023 — the precedence trap the contract repeats three times on purpose (§ 3.1, ADR 0086,
+ * E-030). `isQabSsoIssuableEmail("")` is `false` (see qabSsoClaims.test.ts), but a blank
+ * `usuario` never reaches step 3b: `buildQabSsoClaims` already rejects it at step 3, so the
+ * OUTCOME stays `no_identity`. These two facts are true at once and at different levels;
+ * asserting `user_not_email` here would be testing something this contract does not say,
+ * against a correct implementation.
+ */
+describe("issueQabSsoLink — no_identity takes precedence over user_not_email (§ 3.1, ADR 0086, E-030)", () => {
+  it("should return no_identity, NOT user_not_email, for an empty usuario", () => {
+    const result = issueQabSsoLink({ session: session({ usuario: "" }), env: VALID_ENV });
+    expect(result).toEqual({ outcome: "no_identity" });
+  });
+
+  it("should return no_identity, NOT user_not_email, for a whitespace-only usuario", () => {
+    const result = issueQabSsoLink({ session: session({ usuario: "   " }), env: VALID_ENV });
+    expect(result).toEqual({ outcome: "no_identity" });
+  });
+
+  it("should return no_identity, NOT user_not_email, when usuario is absent from the session altogether", () => {
+    const result = issueQabSsoLink({ session: session({ usuario: undefined }), env: VALID_ENV });
+    expect(result).toEqual({ outcome: "no_identity" });
+  });
+
+  it("should return no_identity (not user_not_email) when nombre is blank even though usuario ALSO has no email shape", () => {
+    const result = issueQabSsoLink({
+      session: session({ nombre: "", usuario: "admin" }),
+      env: VALID_ENV,
+    });
+    expect(result).toEqual({ outcome: "no_identity" });
+  });
+});
+
+/**
+ * F-023 — the union grows a fourth member (§ 1.3 of the contract). This only fails
+ * `npx tsc --noEmit` if the union has fewer than four members or a different one: the runtime
+ * assertion below is secondary to the compile-time exhaustiveness check (E-026 — a green
+ * `npm test` does not imply a clean `tsc`).
+ */
+describe("ITiendaOnlineSsoOutcome — the closed union has exactly four members", () => {
+  it("should let an exhaustive switch over `outcome` cover issued, not_configured, no_identity and user_not_email with no `default`", () => {
+    function describeOutcome(o: ITiendaOnlineSsoOutcome): string {
+      switch (o.outcome) {
+        case "issued":
+          return o.url;
+        case "not_configured":
+          return o.reason;
+        case "no_identity":
+          return "no_identity";
+        case "user_not_email":
+          return o.sub;
+        default: {
+          const exhaustive: never = o;
+          throw new Error(`unreachable outcome: ${JSON.stringify(exhaustive)}`);
+        }
+      }
+    }
+    expect(describeOutcome({ outcome: "no_identity" })).toBe("no_identity");
+    expect(describeOutcome({ outcome: "user_not_email", sub: "user-1" })).toBe("user-1");
   });
 });
 

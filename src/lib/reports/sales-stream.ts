@@ -86,6 +86,16 @@ export type NormalizedSale = {
   discountTotal: number;
   netAmount: number;
   netProfit: number;
+  /**
+   * Delivery charged by the online order this sale landed from, already in base
+   * currency. `0` for a POS sale, and `0` for an online order that charged
+   * nothing for delivery.
+   *
+   * Read from `PedidoEntrante.deliveryFee` through `Venta.pedidoEntranteId`
+   * (ADR 0089). NEVER derived from `total` minus the lines: a tip, an edited
+   * discount or an unreserved line all break that subtraction.
+   */
+  deliveryFeeBase: number;
   lines: NormalizedSaleLine[];
   discountsByRule: Map<string, DiscountRuleTotals>;
 };
@@ -218,7 +228,14 @@ export async function streamNormalizedSales(
           fechaFin: { lte: range.to },
         },
       },
-      include: { productos: true, appliedDiscounts: true },
+      // Two columns of the order and only two: `code` is the buyer's public
+      // credential and the contact fields have nothing to do in a reporting
+      // stream. Dropping the `select` would pull all of them in (ADR 0089).
+      include: {
+        productos: true,
+        appliedDiscounts: true,
+        pedidoEntrante: { select: { deliveryFee: true, currencyCode: true } },
+      },
       orderBy: { id: "asc" },
       take: batchSize,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -248,7 +265,11 @@ export async function streamNormalizedSales(
 type RawSale = Awaited<
   ReturnType<
     typeof prisma.venta.findMany<{
-      include: { productos: true; appliedDiscounts: true };
+      include: {
+        productos: true;
+        appliedDiscounts: true;
+        pedidoEntrante: { select: { deliveryFee: true; currencyCode: true } };
+      };
     }>
   >
 >[number];
@@ -276,6 +297,12 @@ function normalizeSale(
     venta.frontendCreatedAt ?? venta.createdAt,
   );
   const discountTotal = Number(venta.discountTotal ?? 0);
+
+  const onlineOrder = venta.pedidoEntrante;
+  // Prisma Decimal -> number, the same step the landing already applies to
+  // `Number(pedido.total)` before `buildOnlineSaleAmounts`.
+  const deliveryFeeAmount =
+    onlineOrder === null ? 0 : Number(onlineOrder.deliveryFee);
 
   const currenciesUsed: string[] = [];
 
@@ -311,6 +338,15 @@ function normalizeSale(
   });
 
   stats.linesScanned += partials.length;
+
+  // A sale that reserved no line has no line currency at all, so without this
+  // the fee would convert at rate 1 while `hasRates` still said everything was
+  // fine. Zero needs no rate: adding the code then would flag sales that need
+  // none.
+  if (onlineOrder !== null && deliveryFeeAmount !== 0) {
+    currenciesUsed.push(onlineOrder.currencyCode);
+  }
+
   // Only flag missing rates when they would actually have changed a number:
   // a sale priced entirely in base needs none.
   const hasRates =
@@ -346,6 +382,19 @@ function normalizeSale(
   const grossAmount = lines.reduce((acc, line) => acc + line.grossAmount, 0);
   const netProfit = lines.reduce((acc, line) => acc + line.netProfit, 0);
 
+  // Same function and same snapshot the lines are valued with, so merchandise
+  // and delivery reconstruct `Venta.total` instead of approximating it. No
+  // rounding on purpose: quantizing one addend shifts the sum (ADR 0089).
+  const deliveryFeeBase =
+    onlineOrder === null
+      ? 0
+      : convertToBase(
+          deliveryFeeAmount,
+          onlineOrder.currencyCode,
+          rates,
+          baseCurrency,
+        );
+
   return {
     id: venta.id,
     origen:
@@ -365,6 +414,7 @@ function normalizeSale(
     // Mirrors the existing dashboard: a ticket never contributes negative revenue.
     netAmount: Math.max(0, grossAmount - discountTotal),
     netProfit,
+    deliveryFeeBase,
     lines,
     discountsByRule: perRule,
   };

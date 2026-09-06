@@ -1,8 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { Session } from "next-auth";
-import { selectQabSsoStoreIds, buildQabSsoClaims } from "@/lib/qab/qabSsoClaims";
+import {
+  selectQabSsoStoreIds,
+  buildQabSsoClaims,
+  isQabSsoIssuableEmail,
+} from "@/lib/qab/qabSsoClaims";
 import { TipoLocal } from "@/schemas/tienda";
 import type { ILocal } from "@/schemas/tienda";
+import { EMAIL_REGEX } from "@/constants/validation";
 
 /**
  * F-009 — `src/lib/qab/qabSsoClaims.ts` (§ 4 of the contract, ADR 0067). Both functions are
@@ -215,5 +220,69 @@ describe("buildQabSsoClaims", () => {
     });
     const claims = buildQabSsoClaims({ session: s, jti: "jti-1" });
     expect(claims?.storeIds).toEqual(["store-a"]);
+  });
+});
+
+/**
+ * F-023 — `isQabSsoIssuableEmail`, added to this file per § 1.2 of the contract. Four DISTINCT
+ * `it`s for criterion 6, not a combined case and not an `it.each` (§ 8.1 of the contract,
+ * E-019): a valid email, a string with no @, a string with @ and no dot after it, and an empty
+ * string.
+ *
+ * This describe block asserts ONLY the pure function's own level. It deliberately does NOT
+ * assert anything about `issueQabSsoLink`'s outcome for a blank `usuario` — that belongs to
+ * `tiendaOnlineSso.test.ts`. Mixing the two levels here is exactly the shape of E-030: this
+ * function returns `false` for `""`, and yet a session whose `usuario` is `""` still resolves
+ * to `no_identity`, never `user_not_email` (§ 3.1 of the contract, ADR 0086).
+ */
+describe("isQabSsoIssuableEmail", () => {
+  it("should return true for a valid email (criterion 6)", () => {
+    expect(isQabSsoIssuableEmail("merchant@example.com")).toBe(true);
+  });
+
+  it("should return false for a string with no @ (criterion 6)", () => {
+    expect(isQabSsoIssuableEmail("admin")).toBe(false);
+  });
+
+  it("should return false for a string with @ and no dot after it (criterion 6)", () => {
+    expect(isQabSsoIssuableEmail("admin@localhost")).toBe(false);
+  });
+
+  it("should return false for an empty string — pure-function level ONLY, see the outcome-level distinction in tiendaOnlineSso.test.ts (criterion 6, § 3.1, E-030)", () => {
+    expect(isQabSsoIssuableEmail("")).toBe(false);
+  });
+
+  it("should return false for null", () => {
+    expect(isQabSsoIssuableEmail(null)).toBe(false);
+  });
+
+  it("should return false for undefined", () => {
+    expect(isQabSsoIssuableEmail(undefined)).toBe(false);
+  });
+
+  it("should return false for a string that is blank only after trimming (whitespace-only)", () => {
+    expect(isQabSsoIssuableEmail("   ")).toBe(false);
+  });
+
+  it("should trim surrounding whitespace before judging — a padded valid address is issuable", () => {
+    expect(isQabSsoIssuableEmail("  merchant@example.com  ")).toBe(true);
+  });
+
+  it("should reject a string with no local part before the @", () => {
+    expect(isQabSsoIssuableEmail("@example.com")).toBe(false);
+  });
+
+  it("should agree with EMAIL_REGEX evaluated on the trimmed value — the SSO gate and the account gates share ONE rule (ADR 0087)", () => {
+    const cases = [
+      "merchant@example.com",
+      "admin",
+      "admin@localhost",
+      "@example.com",
+      "  spaced@example.com  ",
+      "   ",
+    ];
+    for (const value of cases) {
+      expect(isQabSsoIssuableEmail(value)).toBe(EMAIL_REGEX.test(value.trim()));
+    }
   });
 });

@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     // Calcular descuentos
     const result = await applyDiscountsForSale({
-      tiendaId,
+      ...scope,
       products: products.map((p) => ({
         productoTiendaId: String(p?.productoTiendaId ?? ''),
         cantidad: Number(p?.cantidad ?? 0) || 0,

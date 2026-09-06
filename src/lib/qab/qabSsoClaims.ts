@@ -1,4 +1,5 @@
 import type { Session } from "next-auth";
+import { EMAIL_REGEX } from "@/constants/validation";
 import { TipoLocal } from "@/schemas/tienda";
 import type { ILocal } from "@/schemas/tienda";
 import type { IQabSsoClaims } from "@/schemas/qabSso";
@@ -49,6 +50,29 @@ export function selectQabSsoStoreIds(
 /** Trimmed, or the empty string when the field is absent. */
 function trimmed(value: string | null | undefined): string {
   return value === null || value === undefined ? "" : value.trim();
+}
+
+/**
+ * PURE. Whether a `Usuario.usuario` can be asserted as the `email` claim.
+ *
+ * Returns `true` if and only if EMAIL_REGEX matches the TRIMMED value. `null`,
+ * `undefined` and a value that is blank after trimming all yield `false`.
+ *
+ * It trims on its own so no caller can get it wrong, and trimming is idempotent
+ * when it is called from `issueQabSsoLink`, which passes the already-trimmed
+ * `claims.email` — the very string that would be signed.
+ *
+ * It is the SSO half of the rule; the pattern itself is shared with user
+ * creation, user edition and the password-reset request (ADR 0087).
+ *
+ * Returning `false` here is NOT the same as the emission outcome being
+ * `user_not_email`: the blank case is caught earlier, by `buildQabSsoClaims`,
+ * and stays `no_identity` (ADR 0086).
+ */
+export function isQabSsoIssuableEmail(
+  value: string | null | undefined,
+): boolean {
+  return EMAIL_REGEX.test(trimmed(value));
 }
 
 /**

@@ -16,9 +16,8 @@ import {
 import { Email } from "@mui/icons-material";
 
 import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout";
+import { EMAIL_REGEX } from "@/constants/validation";
 import { shape, touch } from "@/theme/tokens";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * The same split screen as the login, because it is the same errand.
