@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getSessionFromRequest } from "@/utils/authFromRequest";
+import {
+  assertTiendaTenant,
+  withTenantScope,
+  type ITenantScope,
+} from "@/lib/tenantScope";
 import { applyDiscountsForSale } from "@/lib/discounts";
 import { IVenta } from "@/schemas/venta";
 import { pagosDetalleAppSchema, vueltoDetalleSchema } from "@/schemas/pago";
@@ -55,6 +60,8 @@ export async function POST(
   { params }: { params: Promise<{ tiendaId: string; periodoId: string }> },
 ) {
   let syncId: string | undefined;
+  // Declared out here so the P2002 recovery in the catch can scope its lookup too.
+  let tenantScope: ITenantScope | null = null;
 
   try {
     const session = await getSessionFromRequest(request);
@@ -64,6 +71,17 @@ export async function POST(
     }
 
     const { tiendaId, periodoId } = await params;
+
+    // F-021: the store must belong to the session's business. No permission — this verb never
+    // demanded one (ADR 0078).
+    const guard = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!guard.scope) return guard.response;
+    tenantScope = guard.scope;
+    const { negocioId } = tenantScope;
 
     const {
       productos,
@@ -131,7 +149,7 @@ export async function POST(
 
     // Verificar idempotencia - si ya existe una venta con este syncId
     const existeVenta = await prisma.venta.findFirst({
-      where: { syncId },
+      where: withTenantScope("venta", { syncId }, negocioId),
       include: { productos: true },
     });
 
@@ -145,7 +163,11 @@ export async function POST(
 
     // Verificar que el período está abierto
     const ultimoPeriodo = await prisma.cierrePeriodo.findFirst({
-      where: { tiendaId, fechaFin: null },
+      where: withTenantScope(
+        "cierrePeriodo",
+        { tiendaId, fechaFin: null },
+        negocioId,
+      ),
       orderBy: { fechaInicio: "desc" },
     });
 
@@ -161,8 +183,12 @@ export async function POST(
 
     // Validar que la venta pertenece al período actual
     if (ultimoPeriodo.id !== periodoId) {
-      const periodoDeLaVenta = await prisma.cierrePeriodo.findUnique({
-        where: { id: periodoId },
+      const periodoDeLaVenta = await prisma.cierrePeriodo.findFirst({
+        where: withTenantScope(
+          "cierrePeriodo",
+          { id: periodoId, tiendaId },
+          negocioId,
+        ),
       });
 
       if (!periodoDeLaVenta) {
@@ -200,9 +226,14 @@ export async function POST(
 
     // 1. Verificar que todos los productos existen
     const productosExistentes = await prisma.productoTienda.findMany({
-      where: {
-        id: { in: productos.map((p: IncomingProduct) => p.productoTiendaId) },
-      },
+      where: withTenantScope(
+        "productoTienda",
+        {
+          id: { in: productos.map((p: IncomingProduct) => p.productoTiendaId) },
+          tiendaId,
+        },
+        negocioId,
+      ),
       select: {
         id: true,
         productoId: true,
@@ -251,8 +282,8 @@ export async function POST(
 
     // Base currency and a complete rate snapshot come first: discounts are
     // priced in base and the total is recomputed in base from the lines.
-    const tiendaConNegocio = await prisma.tienda.findUnique({
-      where: { id: tiendaId },
+    const tiendaConNegocio = await prisma.tienda.findFirst({
+      where: withTenantScope("tienda", { id: tiendaId }, negocioId),
       select: { negocio: { select: { id: true, monedaBase: true } } },
     });
     const monedaBase = tiendaConNegocio?.negocio?.monedaBase ?? "CUP";
@@ -262,7 +293,7 @@ export async function POST(
     // consumer downstream converts a missing moneda at rate 1.
     const { snapshot: tasaSnapshotResuelto, missing: tasasFaltantes } =
       await resolveSaleTasaSnapshot({
-        negocioId: tiendaConNegocio?.negocio?.id,
+        negocioId,
         monedaBase,
         clientSnapshot: tasaSnapshot,
         momento: createdAt ? new Date(createdAt) : new Date(),
@@ -623,10 +654,12 @@ export async function POST(
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      const ventaExistente = await prisma.venta.findFirst({
-        where: { syncId },
-        include: { productos: true },
-      });
+      const ventaExistente = tenantScope
+        ? await prisma.venta.findFirst({
+            where: withTenantScope("venta", { syncId }, tenantScope.negocioId),
+            include: { productos: true },
+          })
+        : null;
       if (ventaExistente) {
         return NextResponse.json({
           success: true,
@@ -662,12 +695,20 @@ export async function GET(
 
     const { tiendaId, periodoId } = await params;
 
-    if (!tiendaId || !periodoId) {
+    if (!periodoId) {
       return NextResponse.json(
         { error: "tiendaId y periodoId son requeridos" },
         { status: 400 },
       );
     }
+
+    // F-021: no permission — this verb never demanded one (ADR 0078).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     const ventasPrisma = await prisma.venta.findMany({
       include: {
@@ -705,10 +746,14 @@ export async function GET(
           select: { id: true, nombre: true },
         },
       },
-      where: {
-        cierrePeriodoId: periodoId,
-        tiendaId: tiendaId,
-      },
+      where: withTenantScope(
+        "venta",
+        {
+          cierrePeriodoId: periodoId,
+          tiendaId: tiendaId,
+        },
+        scope.negocioId,
+      ),
       orderBy: {
         createdAt: "desc",
       },

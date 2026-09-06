@@ -19,7 +19,11 @@ import {
 import {
   TIENDA_ONLINE_API_ERRORS,
   TIENDA_ONLINE_ORDER_AMOUNT_KIND,
+  TIENDA_ONLINE_ORDER_LANDING_BLOCKERS,
+  TIENDA_ONLINE_ORDER_LANDING_EFFECTS,
+  TIENDA_ONLINE_ORDER_LANDING_SKIP_REASONS,
   TIENDA_ONLINE_ORDER_PAGE_SIZE_MAX,
+  TIENDA_ONLINE_PAYMENT_METHODS,
 } from "@/constants/tiendaOnline";
 import {
   openingHoursIssueSchema,
@@ -597,9 +601,40 @@ export type ITiendaOnlineOrdersPage = z.infer<
   typeof tiendaOnlineOrdersPageSchema
 >;
 
+/**
+ * One transfer destination of the order's OWN store, for the delivery dialog.
+ *
+ * `descripcion` is NOT here on purpose: it is where account numbers get written,
+ * and naming a destination does not need it (ADR 0074).
+ */
+export const tiendaOnlineTransferDestinationSchema = z
+  .object({
+    id: z.string().uuid(),
+    nombre: z.string(),
+    /** The store's default destination. The dialog preselects it. */
+    default: z.boolean(),
+  })
+  .strict();
+export type ITiendaOnlineTransferDestination = z.infer<
+  typeof tiendaOnlineTransferDestinationSchema
+>;
+
 /** Response of GET /api/tienda-online/pedidos/[pedidoId]. */
 export const tiendaOnlineOrderDetailSchema = tiendaOnlineScaffoldSchema
-  .extend({ order: tiendaOnlineOrderSchema })
+  .extend({
+    order: tiendaOnlineOrderSchema,
+    /**
+     * Of the store that OWNS this order, ascending by `nombre`. A SIBLING of
+     * `order`, not a key inside it: this is the store's collection setup, not
+     * something queandabuscando sent. Always present, possibly empty.
+     *
+     * It travels here, and F-014 never calls `GET /api/transfer-destinations`:
+     * that route validates no session, no permission and no `negocioId`, and
+     * this feature would be its first caller with a `tiendaId` that is not the
+     * session's (ADR 0074).
+     */
+    transferDestinations: z.array(tiendaOnlineTransferDestinationSchema),
+  })
   .strict();
 export type ITiendaOnlineOrderDetail = z.infer<
   typeof tiendaOnlineOrderDetailSchema
@@ -625,6 +660,44 @@ export type ITiendaOnlineOrdersQuery = z.infer<
 /* F-012 — reporting an order's progress                                       */
 /* -------------------------------------------------------------------------- */
 
+/** The method that needs a destination. Typed against the constant of § 2.2. */
+const TRANSFER_METHOD =
+  "TRANSFERENCIA" satisfies (typeof TIENDA_ONLINE_PAYMENT_METHODS)[number];
+
+/**
+ * The ONE destination that turns an order into a sale, and the only place this
+ * module writes it. Typed against the contract's vocabulary so a typo does not
+ * compile. The SCREEN never compares against it: it asks
+ * `planOrderLandingEffect` instead (E-014).
+ */
+const DELIVERED_STATUS =
+  "DELIVERED" satisfies (typeof QAB_ORDER_STATUS_REPORTABLE)[number];
+
+/**
+ * How an online order was collected, declared by the person marking it DELIVERED.
+ * ONE method for the whole amount: `pagosDetalle` is an array and will accept a
+ * split the day a criterion asks for one (ADR 0073).
+ */
+export const pedidoEntrantePagoSchema = z
+  .object({
+    metodo: z.enum(TIENDA_ONLINE_PAYMENT_METHODS),
+    /** REQUIRED for TRANSFERENCIA, FORBIDDEN for EFECTIVO. */
+    transferDestinationId: z.string().uuid().optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const needsDestination = value.metodo === TRANSFER_METHOD;
+    if (needsDestination === (value.transferDestinationId === undefined)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["transferDestinationId"],
+        message:
+          "transferDestinationId is required for TRANSFERENCIA and forbidden otherwise",
+      });
+    }
+  });
+export type IPedidoEntrantePago = z.infer<typeof pedidoEntrantePagoSchema>;
+
 /**
  * Body of `PATCH /api/tienda-online/pedidos/[pedidoId]/status`.
  *
@@ -637,8 +710,22 @@ export type ITiendaOnlineOrdersQuery = z.infer<
  * `offerOrderStatusTransitions` and feeds the screen (ADR 0065).
  */
 export const pedidoEntranteStatusReportSchema = z
-  .object({ status: z.enum(QAB_ORDER_STATUS_REPORTABLE) })
-  .strict();
+  .object({
+    status: z.enum(QAB_ORDER_STATUS_REPORTABLE),
+    /** REQUIRED for DELIVERED, FORBIDDEN for the other five (ADR 0073). */
+    pago: pedidoEntrantePagoSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const needsPago = value.status === DELIVERED_STATUS;
+    if (needsPago === (value.pago === undefined)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["pago"],
+        message: "pago is required for DELIVERED and forbidden otherwise",
+      });
+    }
+  });
 export type IPedidoEntranteStatusReport = z.infer<
   typeof pedidoEntranteStatusReportSchema
 >;
@@ -650,11 +737,50 @@ export type IPedidoEntranteStatusReport = z.infer<
  * buyer already sees `status` and this POS does not. It is NOT an error, and it
  * is why the response says so instead of pretending (ADR 0063).
  */
+/** One line of the order that did not reach inventory, and why. */
+export const tiendaOnlineOrderLandingSkipSchema = z
+  .object({
+    lineaId: z.string().uuid(),
+    reason: z.enum(TIENDA_ONLINE_ORDER_LANDING_SKIP_REASONS),
+  })
+  .strict();
+export type ITiendaOnlineOrderLandingSkip = z.infer<
+  typeof tiendaOnlineOrderLandingSkipSchema
+>;
+
+/**
+ * What the accepted report actually did in this POS. Present when and ONLY when
+ * `persisted` is true: a report QAB accepted and this POS did not write landed
+ * nothing, and saying otherwise would be the same lie ADR 0063 refuses to tell.
+ */
+export const tiendaOnlineOrderLandingSchema = z
+  .object({
+    effect: z.enum(TIENDA_ONLINE_ORDER_LANDING_EFFECTS),
+    /** Distinct ProductoTienda rows whose existencia changed. 0 for NONE. */
+    reservedProducts: z.number().int().nonnegative(),
+    skipped: z.array(tiendaOnlineOrderLandingSkipSchema),
+    /** The sale of this order, whether this call created it or found it. Null unless SELL. */
+    ventaId: z.string().uuid().nullable(),
+    /**
+     * FALSE when THIS call produced the effect. TRUE when it found it already
+     * done. Always FALSE for NONE. See the amendment to ADR 0072: without it
+     * `reservedProducts: 0` has two causes the screen cannot tell apart, and the
+     * second of two counters delivering the same order sees a green notice
+     * identical to the first while its payment declaration was dropped.
+     */
+    alreadyLanded: z.boolean(),
+  })
+  .strict();
+export type ITiendaOnlineOrderLanding = z.infer<
+  typeof tiendaOnlineOrderLandingSchema
+>;
+
 export const tiendaOnlineOrderStatusResultSchema = z
   .object({
     /** The status QAB now holds. Echo of the accepted request, never a guess. */
     status: z.enum(QAB_ORDER_STATUS_REPORTABLE),
     persisted: z.boolean(),
+    landing: tiendaOnlineOrderLandingSchema.optional(),
   })
   .strict();
 export type ITiendaOnlineOrderStatusResult = z.infer<
@@ -678,3 +804,32 @@ export const tiendaOnlineOrderStatusErrorSchema = z
 export type ITiendaOnlineOrderStatusError = z.infer<
   typeof tiendaOnlineOrderStatusErrorSchema
 >;
+
+/**
+ * The 409 of that PATCH, and ONLY for a DELIVERED destination: a local condition
+ * makes the landing impossible, so nothing was called and nothing was written
+ * (ADR 0073). It is not a failure of queandabuscando and never carries its code.
+ */
+export const tiendaOnlineOrderNotLandableSchema = z
+  .object({
+    error: z.literal(TIENDA_ONLINE_API_ERRORS.pedidoNotLandable),
+    reason: z.enum(TIENDA_ONLINE_ORDER_LANDING_BLOCKERS),
+  })
+  .strict();
+export type ITiendaOnlineOrderNotLandable = z.infer<
+  typeof tiendaOnlineOrderNotLandableSchema
+>;
+
+/* -------------------------------------------------------------------------- */
+/* F-009 — the one-time SSO link towards the QAB panel                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Response of POST /api/tienda-online/sso.
+ *
+ * ONE key. The token is not re-exposed on its own: composing the URL in the
+ * browser would move the QAB origin into the client, and a hand-built URL is
+ * where the wrong-domain typos are born.
+ */
+export const tiendaOnlineSsoLinkSchema = z.object({ url: z.string().url() }).strict();
+export type ITiendaOnlineSsoLink = z.infer<typeof tiendaOnlineSsoLinkSchema>;

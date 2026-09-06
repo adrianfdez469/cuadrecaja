@@ -11,6 +11,8 @@ import type { ReportScope } from "./scope";
 import type { IDateRange } from "@/schemas/reports/common";
 import type { ITasaSnapshot } from "@/schemas/tasaCambio";
 import type { IPagoLinea } from "@/schemas/pago";
+import { SALE_ORIGINS } from "@/constants/venta";
+import type { ISaleOrigin } from "@/constants/venta";
 
 /**
  * Server-internal shapes: they carry Maps, Dates and callbacks and never cross
@@ -57,6 +59,13 @@ export type NormalizedSaleLine = {
 
 export type NormalizedSale = {
   id: string;
+  /**
+   * Where the sale came from. TIENDA_ONLINE <=> it landed from an online order
+   * (ADR 0075). Derived from `Venta.pedidoEntranteId`, which the query already
+   * returns: `include` brings every scalar of `Venta`, so there is no projection
+   * to keep in step.
+   */
+  origen: ISaleOrigin;
   /** Real sale time: the POS timestamp when available, server time otherwise. */
   soldAt: Date;
   closingPeriodId: string | null;
@@ -339,6 +348,8 @@ function normalizeSale(
 
   return {
     id: venta.id,
+    origen:
+      venta.pedidoEntranteId === null ? SALE_ORIGINS[0] : SALE_ORIGINS[1],
     soldAt: venta.frontendCreatedAt ?? venta.createdAt,
     closingPeriodId: venta.cierrePeriodoId,
     sellerId: venta.usuarioId,

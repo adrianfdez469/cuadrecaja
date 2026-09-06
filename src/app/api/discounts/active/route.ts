@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchDiscountRulesForTienda } from "@/lib/discounts";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/utils/authOptions";
-import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import { assertTiendaTenant } from "@/lib/tenantScope";
 
 /**
  * The active discount rules of a store's business.
@@ -18,29 +18,18 @@ import { verificarPermisoUsuario } from "@/utils/permisos_back";
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.negocio?.id) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const user = session.user;
-
-    if (
-      !verificarPermisoUsuario(
-        user.permisos,
-        "configuracion.descuentos.preview",
-        user.rol,
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado" },
-        { status: 403 },
-      );
-    }
 
     const tiendaId = req.nextUrl.searchParams.get("tiendaId");
-    if (!tiendaId) {
-      return NextResponse.json({ error: "Falta tiendaId" }, { status: 400 });
-    }
+
+    // F-021: `fetchDiscountRulesForTienda` derives the business from the store row, so an
+    // unchecked `tiendaId` returned the discount rules of another business. Same permission it
+    // already demanded (ADR 0078); the handler no longer emits its own 401 either.
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: "configuracion.descuentos.preview",
+    });
+    if (!scope) return response;
 
     const rules = await fetchDiscountRulesForTienda(tiendaId);
     return NextResponse.json({ rules });

@@ -33,7 +33,10 @@ function internalErrorResponse(): NextResponse {
  * "optimises" it: the three reasons for the 404 — the order does not exist, it
  * belongs to another business, or its store is out of scope — are resolved by
  * ONE query, because the `where` carries the three filters together. The route
- * always makes two round trips: the scope and the order.
+ * makes two round trips of its own — the scope and the detail — and the detail
+ * itself resolves the order and then the transfer destinations of the store that
+ * owns it, which can only be asked for once the order has said which store that
+ * is (ADR 0074).
  */
 export async function GET(
   _request: Request,

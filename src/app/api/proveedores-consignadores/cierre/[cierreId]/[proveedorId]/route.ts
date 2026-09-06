@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
-import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import { resolveTenantAxis, withTenantScope } from "@/lib/tenantScope";
 
 export async function PUT(
   req: NextRequest,
@@ -10,14 +10,14 @@ export async function PUT(
   try {
     const { cierreId, proveedorId } = await params;
 
+    // F-021, gate B: same permission the verb already demanded, plus the tenant clause folded
+    // into the updateMany so a foreign settlement simply matches no row (ADR 0078).
     const session = await getSession();
-    const user = session.user;
-    if (!verificarPermisoUsuario(user.permisos, "configuracion.proveedores.liquidar", user.rol)) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado" },
-        { status: 403 }
-      );
-    }
+    const { negocioId, response } = resolveTenantAxis({
+      session,
+      permisoRequerido: "configuracion.proveedores.liquidar",
+    });
+    if (!negocioId) return response;
 
     if (!cierreId) {
       return NextResponse.json(
@@ -27,10 +27,14 @@ export async function PUT(
     }
 
     await prisma.productoProveedorLiquidacion.updateMany({
-      where: {
-        cierreId,
-        proveedorId
-      },
+      where: withTenantScope(
+        "productoProveedorLiquidacion",
+        {
+          cierreId,
+          proveedorId
+        },
+        negocioId,
+      ),
       data: {
         liquidatedAt: new Date()
       }

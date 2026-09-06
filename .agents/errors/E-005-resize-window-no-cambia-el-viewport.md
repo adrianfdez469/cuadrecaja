@@ -77,3 +77,18 @@ decorativo y no se quita.
 **Lo que salvó la verificación fue la sonda, no la vista.** Las capturas parecían correctas; el
 `innerWidth` no lo era. Por eso la sonda se lee **antes** que la captura, siempre, sea cual sea el
 método de montaje.
+
+---
+
+## Adenda F-009 — un tercer camino de montaje, válido
+
+La extensión de Chrome no estaba conectada en el entorno del `qa`, así que verificó con
+**Playwright sobre el Chromium que ya trae el proyecto** (`node_modules/.bin/playwright`), montando
+cada ancho con `newContext({ viewport })`.
+
+**Eso sí es un viewport real**, a diferencia de `resize_window`, que es lo que documenta esta ficha.
+Confirmado con la sonda antes de medir nada, en los cuatro anchos usados (320, 768, 1440, 1920):
+`innerWidth` correcto y `matchMedia("(max-width: 599.95px)")` en `true` solo a 320.
+
+No cambia la regla de esta ficha, la refuerza: **el método de montaje puede variar, la sonda previa
+no.** Se lee antes que la captura, siempre, sea cual sea el camino — extensión, iframe o Playwright.

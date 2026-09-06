@@ -152,6 +152,7 @@ export default function TiendaOnlinePedidoDetallePage({
         <Stack spacing={3}>
           <PedidoStatusActions
             order={order}
+            transferDestinations={detail.transferDestinations}
             isCompact={isCompact}
             onApplied={detail.applyStatus}
             onNotFound={() => setGone(true)}

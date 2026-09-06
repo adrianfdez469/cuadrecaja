@@ -15,7 +15,20 @@ export const TIPOS_MOVIMIENTO: ITipoMovimiento[] = [
   "CONSIGNACION_DEVOLUCION",
   "MERMA",
   "DEVOLUCION_VENTA",
+  "PEDIDO_ONLINE_RESERVA",
+  "PEDIDO_ONLINE_LIBERACION",
 ];
+
+/**
+ * The two movement types the online-order landing writes. Nothing else uses them.
+ *
+ * They are NOT in `TIPOS_MOVIMIENTO_MANUAL`: they are system writes, like
+ * DEVOLUCION_VENTA, not a form somebody fills in (ADR 0071).
+ */
+export const PEDIDO_ONLINE_MOVEMENT_TYPES = {
+  reserve: "PEDIDO_ONLINE_RESERVA",
+  release: "PEDIDO_ONLINE_LIBERACION",
+} as const satisfies Record<"reserve" | "release", ITipoMovimiento>;
 
 // Tipos de movimiento que se pueden crear manualmente (excluye VENTA que se crea automáticamente).
 // DEVOLUCION_VENTA no está acá: requiere buscar la venta original, tiene su propio flujo dedicado.
@@ -46,6 +59,8 @@ export const TIPO_MOVIMIENTO_LABELS: Record<ITipoMovimiento, string> = {
   CONSIGNACION_DEVOLUCION: "Consignación - Devolución",
   MERMA: "Merma",
   DEVOLUCION_VENTA: "Devolución de venta",
+  PEDIDO_ONLINE_RESERVA: "Pedido online - Reserva",
+  PEDIDO_ONLINE_LIBERACION: "Pedido online - Liberación",
 };
 
 // Descripciones informativas para cada tipo de movimiento
@@ -74,6 +89,10 @@ export const TIPO_MOVIMIENTO_DESCRIPTIONS: Record<ITipoMovimiento, string> = {
     "Registra la pérdida real de mercancía (rotura, vencimiento, robo). Reduce el inventario y resta de la ganancia del período; no afecta la caja porque el dinero ya había salido al comprar.",
   DEVOLUCION_VENTA:
     "Registra que un cliente devolvió un producto ya vendido, incluso si la venta fue de un período ya cerrado. Aumenta el inventario y resta de la ganancia y de la caja del período actual.",
+  PEDIDO_ONLINE_RESERVA:
+    "Aparta la mercancía de un pedido de la tienda online al confirmarlo. Disminuye el inventario, y todavía no es una venta: la venta se registra al entregar.",
+  PEDIDO_ONLINE_LIBERACION:
+    "Devuelve al inventario la mercancía que un pedido de la tienda online tenía apartada, cuando el pedido se cancela o se rechaza.",
 };
 
 // Ejemplos detallados para cada tipo de movimiento
@@ -102,6 +121,10 @@ export const TIPO_MOVIMIENTO_EJEMPLOS: Record<ITipoMovimiento, string> = {
     "Ejemplo: Descubriste que 8 yogures se vencieron y tuviste que desecharlos, o se rompieron 3 botellas de refresco. Se valoriza al costo (no al precio de venta) y resta de tu ganancia, sin tocar la caja.",
   DEVOLUCION_VENTA:
     "Ejemplo: Un cliente vuelve tres días después con un producto defectuoso que le vendiste y le devolvés el dinero. El producto vuelve al inventario, se resta de la ganancia y de la caja de hoy — aunque la venta original ya haya cerrado su período.",
+  PEDIDO_ONLINE_RESERVA:
+    "Ejemplo: Entró un pedido de tu tienda online con 2 paquetes de café y lo confirmaste. Esas 2 unidades salen del inventario y quedan apartadas para ese comprador, así que ya no se pueden vender en el mostrador.",
+  PEDIDO_ONLINE_LIBERACION:
+    "Ejemplo: El comprador canceló ese pedido de 2 paquetes de café antes de recogerlo. Las 2 unidades vuelven al inventario y se pueden volver a vender.",
 };
 
 /**
@@ -129,4 +152,6 @@ export const TIPO_MOVIMIENTO_FLOW: Record<ITipoMovimiento, FlowRole> = {
   CONSIGNACION_DEVOLUCION: "external",
   MERMA: "loss",
   DEVOLUCION_VENTA: "in",
+  PEDIDO_ONLINE_RESERVA: "out",
+  PEDIDO_ONLINE_LIBERACION: "in",
 };

@@ -1,34 +1,38 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { assertTiendaTenant, withTenantScope } from "@/lib/tenantScope";
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session?.user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
 
     const { searchParams } = new URL(req.url);
     const tiendaId = searchParams.get("tiendaId");
 
-    if (!tiendaId) {
-      return NextResponse.json(
-        { error: "tiendaId requerido" },
-        { status: 400 },
-      );
-    }
+    // F-021: no permission — this verb never demanded one (ADR 0078). The handler no longer
+    // emits its own 401 either: the only 401 of the system is the middleware's (ADR 0077).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     const ahora = new Date();
     const en30Dias = new Date(ahora.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const productosTienda = await prisma.productoTienda.findMany({
-      where: {
-        tiendaId,
-        fechaVencimiento: { not: null, lte: en30Dias },
-        deletedAt: null,
-        producto: { deletedAt: null },
-      },
+      where: withTenantScope(
+        "productoTienda",
+        {
+          tiendaId,
+          fechaVencimiento: { not: null, lte: en30Dias },
+          deletedAt: null,
+          producto: { deletedAt: null },
+        },
+        scope.negocioId,
+      ),
       include: {
         producto: {
           include: { categoria: true, codigosProducto: true },

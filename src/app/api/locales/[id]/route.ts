@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
+import {
+  resolveTenantAxis,
+  tenantNotFoundResponse,
+  withTenantScope,
+} from "@/lib/tenantScope";
 
 export async function DELETE(
   req: NextRequest,
@@ -85,17 +90,54 @@ export async function PUT(
   try {
     const { id } = await params;
 
+    // F-021, gate B. Same permission the verb already demanded: this feature adds scope, never
+    // permissions (ADR 0078).
     const session = await getSession();
-    const user = session.user;
+    const { negocioId, response } = resolveTenantAxis({
+      session,
+      permisoRequerido: "configuracion.locales.acceder",
+    });
+    if (!negocioId) return response;
 
-    if (!verificarPermisoUsuario(user.permisos, "configuracion.locales.acceder", user.rol)) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado" },
-        { status: 403 }
-      );
-    }
+    const tiendaDelNegocio = await prisma.tienda.findFirst({
+      where: withTenantScope("tienda", { id }, negocioId),
+      select: { id: true },
+    });
+    if (!tiendaDelNegocio) return tenantNotFoundResponse();
 
     const { nombre, tipo, usuariosRoles } = await req.json();
+
+    // Every user and role named in the body must belong to the same business, or the nested
+    // write would hand a store of business A to a user of business B.
+    const asignaciones: { usuarioId: string; rolId?: string }[] =
+      usuariosRoles ?? [];
+    const usuarioIds = [...new Set(asignaciones.map((item) => item.usuarioId))];
+    const rolIds = [
+      ...new Set(asignaciones.map((item) => item.rolId).filter(Boolean)),
+    ];
+
+    if (usuarioIds.length > 0) {
+      const usuariosDelNegocio = await prisma.usuario.count({
+        where: withTenantScope("usuario", { id: { in: usuarioIds } }, negocioId),
+      });
+      if (usuariosDelNegocio !== usuarioIds.length) {
+        return tenantNotFoundResponse();
+      }
+    }
+
+    if (rolIds.length > 0) {
+      // `Rol` is not in TENANT_RELATION_PATH: a global role carries `negocioId: null` on purpose,
+      // so its tenant clause is a disjunction and not a relation path.
+      const rolesDisponibles = await prisma.rol.count({
+        where: {
+          id: { in: rolIds },
+          OR: [{ negocioId }, { isGlobal: true }],
+        },
+      });
+      if (rolesDisponibles !== rolIds.length) {
+        return tenantNotFoundResponse();
+      }
+    }
 
     const updatedTienda = await prisma.tienda.update({
       where: { id },

@@ -488,37 +488,92 @@ describe("tiendaOnlineOrdersPageSchema (ADR 0057/0058)", () => {
 });
 
 describe("tiendaOnlineOrderDetailSchema", () => {
-  it("wraps a single `order` alongside the scaffold", () => {
+  const validDetailOrder = {
+    id: UUID,
+    code: "ORD-0001",
+    qabOrderId: "9007199254740993",
+    tiendaId: UUID,
+    tiendaNombre: "Local Centro",
+    status: "PULLED",
+    cancelledBy: null,
+    unattended: true,
+    contactName: null,
+    currencyCode: "CUP",
+    amounts: VALID_PENDING,
+    qabCreatedAt: null,
+    createdAt: "2026-08-20T10:05:00.000Z",
+    canManage: true,
+    contactPhone: null,
+    contactEmail: null,
+    contactAddress: null,
+    notes: null,
+    rateSnapshot: null,
+    lines: [],
+    // F-012 (contract § 2.3, ADR 0066): required-but-nullable on the detail.
+    customerWhatsappUrl: null,
+  };
+
+  it("wraps a single `order` alongside the scaffold, plus `transferDestinations` (F-014, ADR 0074)", () => {
     expect(
       tiendaOnlineOrderDetailSchema.safeParse({
         negocioId: UUID,
         tiendaOnlineHabilitada: true,
-        order: {
-          id: UUID,
-          code: "ORD-0001",
-          qabOrderId: "9007199254740993",
-          tiendaId: UUID,
-          tiendaNombre: "Local Centro",
-          status: "PULLED",
-          cancelledBy: null,
-          unattended: true,
-          contactName: null,
-          currencyCode: "CUP",
-          amounts: VALID_PENDING,
-          qabCreatedAt: null,
-          createdAt: "2026-08-20T10:05:00.000Z",
-          canManage: true,
-          contactPhone: null,
-          contactEmail: null,
-          contactAddress: null,
-          notes: null,
-          rateSnapshot: null,
-          lines: [],
-          // F-012 (contract § 2.3, ADR 0066): required-but-nullable on the detail.
-          customerWhatsappUrl: null,
-        },
+        order: validDetailOrder,
+        transferDestinations: [],
       }).success,
     ).toBe(true);
+  });
+
+  it("accepts a populated transferDestinations array", () => {
+    expect(
+      tiendaOnlineOrderDetailSchema.safeParse({
+        negocioId: UUID,
+        tiendaOnlineHabilitada: true,
+        order: validDetailOrder,
+        transferDestinations: [
+          { id: UUID, nombre: "Caja principal", default: true },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a detail missing transferDestinations entirely — required, not optional (ADR 0074)", () => {
+    expect(
+      tiendaOnlineOrderDetailSchema.safeParse({
+        negocioId: UUID,
+        tiendaOnlineHabilitada: true,
+        order: validDetailOrder,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a transferDestinations entry carrying `descripcion` — deliberately NOT projected (ADR 0074)", () => {
+    expect(
+      tiendaOnlineOrderDetailSchema.safeParse({
+        negocioId: UUID,
+        tiendaOnlineHabilitada: true,
+        order: validDetailOrder,
+        transferDestinations: [
+          {
+            id: UUID,
+            nombre: "Caja principal",
+            default: true,
+            descripcion: "cta 1234-5678",
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a transferDestinations entry missing `default`", () => {
+    expect(
+      tiendaOnlineOrderDetailSchema.safeParse({
+        negocioId: UUID,
+        tiendaOnlineHabilitada: true,
+        order: validDetailOrder,
+        transferDestinations: [{ id: UUID, nombre: "Caja principal" }],
+      }).success,
+    ).toBe(false);
   });
 });
 

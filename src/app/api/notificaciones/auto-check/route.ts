@@ -1,24 +1,35 @@
 import { NotificationService } from "@/services/notificationService";
-import { hasSuperAdminPrivileges } from "@/utils/auth";
+import { getSession, hasSuperAdminPrivileges } from "@/utils/auth";
 import { NextResponse } from "next/server";
+import { sessionNegocioId, tenantForbiddenResponse } from "@/lib/tenantScope";
 
-// POST - Ejecutar verificaciones automáticas de notificaciones (solo SUPER_ADMIN)
+// POST - Ejecutar verificaciones automáticas de notificaciones
 export async function POST(request: Request) {
   try {
-    const { negocioId } = await request.json().catch(() => ({}));
+    const { negocioId: negocioIdSolicitado } = await request
+      .json()
+      .catch(() => ({}));
 
-    if (!negocioId && !(await hasSuperAdminPrivileges())) {
-      return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+    // F-021 removes the bypass. A SUPER_ADMIN may target a business (or none, and then it runs
+    // over all of them); any other session runs ONLY over its own business, and the `negocioId`
+    // of the body is ignored rather than rejected, so no existing caller breaks.
+    const esSuperAdmin = await hasSuperAdminPrivileges();
+    let alcance: string | undefined;
+
+    if (esSuperAdmin) {
+      alcance = negocioIdSolicitado || undefined;
+    } else {
+      const propio = sessionNegocioId(await getSession());
+      if (!propio) return tenantForbiddenResponse();
+      alcance = propio;
     }
 
-    
-    
-    await NotificationService.runAutomaticChecks(negocioId);
-    
+    await NotificationService.runAutomaticChecks(alcance);
+
     return NextResponse.json({ 
       message: 'Verificaciones automáticas completadas exitosamente',
       timestamp: new Date().toISOString(),
-      negocioId: negocioId || 'todos'
+      negocioId: alcance || 'todos'
     });
   } catch (error) {
     console.error('Error al ejecutar verificaciones automáticas:', error);

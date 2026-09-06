@@ -157,6 +157,17 @@ export async function listTiendaOnlineOrders(params: {
  * Resolved through the composite key `id_negocioId` (ADR 0007), so the tenancy
  * filter cannot be forgotten, and with `tiendaId: { in: tiendaIds }` in the same
  * `where`.
+ *
+ * It also carries `transferDestinations`, the collection setup of the store that
+ * OWNS this order (ADR 0074, F-014). SEQUENTIAL and not parallel, because it
+ * cannot be otherwise: `tiendaId` comes from the order's own row, so the second
+ * query only becomes askable once the first has answered. `tiendaId` NEVER comes
+ * from the query string, and this is the one place that rule lives.
+ *
+ * `descripcion` is not projected: it is where account numbers get written, and
+ * naming a destination does not need it. Reading them here is also what lets
+ * F-014 never call `GET /api/transfer-destinations`, which validates no session,
+ * no permission and no `negocioId`.
  */
 export async function getTiendaOnlineOrderDetail(params: {
   negocioId: string;
@@ -175,12 +186,21 @@ export async function getTiendaOnlineOrderDetail(params: {
   });
   if (row === null) return null;
 
+  const order = toTiendaOnlineOrder(row, {
+    canManage: params.manageableTiendaIds.has(row.tiendaId ?? ""),
+  });
+
+  const transferDestinations = await prisma.transferDestinations.findMany({
+    where: { tiendaId: order.tiendaId },
+    orderBy: { nombre: "asc" },
+    select: { id: true, nombre: true, default: true },
+  });
+
   return {
     negocioId,
     tiendaOnlineHabilitada: true,
-    order: toTiendaOnlineOrder(row, {
-      canManage: params.manageableTiendaIds.has(row.tiendaId ?? ""),
-    }),
+    order,
+    transferDestinations,
   };
 }
 
@@ -238,13 +258,21 @@ export async function readTiendaOnlineOrderGateTarget(params: {
  *
  * It has NO policy: it does not catch, it does not log, it does not decide what
  * a 0 means. That lives in `reportTiendaOnlineOrderStatus`.
+ *
+ * `tx` is the caller's transaction, and it defaults to `prisma`: F-014 needs the
+ * status write and the business effect it triggers to commit or roll back
+ * together, so «status says CONFIRMED» and «the reservation exists» can never
+ * diverge. Backwards compatible — a caller that omits it behaves exactly as
+ * before.
  */
 export async function writeTiendaOnlineOrderStatus(params: {
   negocioId: string;
   pedidoId: string;
   status: IQabOrderStatusReportable;
+  tx?: Prisma.TransactionClient;
 }): Promise<number> {
-  const result = await prisma.pedidoEntrante.updateMany({
+  const client = params.tx ?? prisma;
+  const result = await client.pedidoEntrante.updateMany({
     where: { id: params.pedidoId, negocioId: params.negocioId },
     data: { status: params.status },
   });

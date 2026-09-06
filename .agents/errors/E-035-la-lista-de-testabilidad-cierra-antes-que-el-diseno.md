@@ -51,3 +51,28 @@ En F-012 el `dev-tester` además dejó la anomalía escrita dentro del archivo d
   símbolos puros que añade. Lo segundo es más barato y ya lo hizo espontáneamente en F-011.
 - Mientras tanto, el `qa` debe saber que **una divergencia entre la lista y los tests puede ser
   intencional**, y buscar la anotación antes de tratarla como fallo.
+
+---
+
+## Adenda F-021 — la misma forma, un escalón más arriba
+
+En F-021 el contrato fijó un **enum literal** (`ROUTE_GUARD_KINDS`) y lo usó a la vez como
+vocabulario de un **censo de 229 entradas que nadie había recorrido entero todavía**. Al llegar a
+las entradas reales apareció un caso que el vocabulario no podía expresar: «acotada por el
+`negocioId` de la sesión sobre un modelo que no está en el camino de relaciones».
+
+El `implementer` lo describió así, y es el diagnóstico exacto:
+
+> Un contrato que fija un enum literal y a la vez lo usa como vocabulario de un censo que nadie
+> recorrió entero.
+
+Para entonces el enum ya lo importaba el `dev-tester` en paralelo, así que **cambiarlo costaba más
+que convivir con él**: se ensanchó el significado de un valor existente y cada entrada explica su
+mecanismo real en su motivo.
+
+**La regla:** un campo cuyo dominio solo se conoce al recorrer los datos **nace como texto libre con
+una lista sugerida**, no como enum cerrado. Se cierra después, cuando el recorrido ha terminado y se
+sabe qué valores existen de verdad.
+
+Es la misma forma que esta ficha describe —un vocabulario que se cierra antes de que exista lo que
+tiene que nombrar— aplicada al contenido de un censo en vez de a una lista de símbolos.

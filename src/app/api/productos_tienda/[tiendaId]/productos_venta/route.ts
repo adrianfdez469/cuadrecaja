@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { assertTiendaTenant, withTenantScope } from "@/lib/tenantScope";
 
 // Obtener todos los productos (Accesible para todos)
 export async function GET(
@@ -12,6 +13,15 @@ export async function GET(
 
     // Obtener el id del usuario
     const session = await getSession();
+
+    // F-021: no permission — this is the POS catalogue every cashier loads (ADR 0078).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
+
     const user = session.user;
     // Verificar si el usuario está asociado a un proveedor
     const proveedores = await prisma.proveedor.findMany({
@@ -31,12 +41,16 @@ export async function GET(
     }
 
     const productosTienda = await prisma.productoTienda.findMany({
-      where: {
-        tiendaId: tiendaId,
-        deletedAt: null,
-        producto: { deletedAt: null },
-        ...filter,
-      },
+      where: withTenantScope(
+        "productoTienda",
+        {
+          tiendaId: tiendaId,
+          deletedAt: null,
+          producto: { deletedAt: null },
+          ...filter,
+        },
+        scope.negocioId,
+      ),
       include: {
         producto: {
           include: {

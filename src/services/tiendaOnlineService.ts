@@ -19,6 +19,7 @@ import {
   tiendaOnlineEstadoSchema,
   tiendaOnlineLocalUpdateResultSchema,
   tiendaOnlineOrderDetailSchema,
+  tiendaOnlineOrderNotLandableSchema,
   tiendaOnlineOrderStatusErrorSchema,
   tiendaOnlineOrderStatusResultSchema,
   tiendaOnlineOrdersPageSchema,
@@ -27,6 +28,7 @@ import {
   tiendaOnlineProductosPageSchema,
   tiendaOnlineSlugErrorSchema,
   tiendaOnlineSlugForecastSchema,
+  tiendaOnlineSsoLinkSchema,
 } from "@/schemas/tiendaOnline";
 import type {
   ITiendaOnlineBulkResult,
@@ -34,7 +36,9 @@ import type {
   ITiendaOnlineEstado,
   ITiendaOnlineLocalUpdate,
   ITiendaOnlineLocalUpdateResult,
+  IPedidoEntrantePago,
   ITiendaOnlineOrderDetail,
+  ITiendaOnlineOrderNotLandable,
   ITiendaOnlineOrderStatusResult,
   ITiendaOnlineOrdersPage,
   ITiendaOnlineOrdersQuery,
@@ -43,6 +47,7 @@ import type {
   ITiendaOnlineProductosQuery,
   ITiendaOnlinePublicacionUpdate,
   ITiendaOnlineSlugForecast,
+  ITiendaOnlineSsoLink,
 } from "@/schemas/tiendaOnline";
 import type { IQabCatalogEmissionError } from "@/lib/qab/qabCatalogEmission";
 import { z } from "zod";
@@ -351,17 +356,43 @@ export class TiendaOnlineOrderStatusUpstreamError extends Error {
 }
 
 /**
+ * A DELIVERED this POS cannot land: a local condition is missing (F-014,
+ * ADR 0073). It is NOT a failure of queandabuscando and carries no code of the
+ * other side — nothing was called and nothing was written, which is what makes
+ * it safe to declare the collection again once the condition exists.
+ *
+ * It has to reach the screen distinguishable from the 502, and it does: the
+ * `axiosClient` interceptor only rewrites the body of a 401 and a 403 (E-009),
+ * so a 409 body arrives intact.
+ */
+export class TiendaOnlineOrderNotLandableError extends Error {
+  readonly reason: ITiendaOnlineOrderNotLandable["reason"];
+
+  constructor(reason: ITiendaOnlineOrderNotLandable["reason"]) {
+    super(TIENDA_ONLINE_API_ERRORS.pedidoNotLandable);
+    this.name = "TiendaOnlineOrderNotLandableError";
+    this.reason = reason;
+  }
+}
+
+/**
  * PATCH /api/tienda-online/pedidos/[pedidoId]/status.
  *
  * Throws, in this order of checks:
  *   TiendaOnlineForbiddenError           on the 403 (via `isForbidden`, E-009)
  *   TiendaOnlineOrderNotFound            on the 404
+ *   TiendaOnlineOrderNotLandableError    on the 409 whose body satisfies
+ *                                        `tiendaOnlineOrderNotLandableSchema`
  *   TiendaOnlineOrderStatusUpstreamError on a 502 whose body satisfies
  *                                        `tiendaOnlineOrderStatusErrorSchema`
  * and re-throws anything else untouched.
  *
  * A resolved value with `persisted: false` is NOT an error: QAB accepted and
  * this POS did not write it. The screen says so; it does not retry by itself.
+ * `landing` comes back if and only if `persisted` is true.
+ *
+ * `pago` travels only for the destination that needs it, and the body schema is
+ * `.strict()`: sending it for any other destination is a 400.
  *
  * No idempotency header is added: a PATCH without one does not enter the retry
  * interceptor, and that is one of the two mechanisms behind criterion 4.
@@ -369,11 +400,12 @@ export class TiendaOnlineOrderStatusUpstreamError extends Error {
 export const patchTiendaOnlineOrderStatus = async (
   pedidoId: string,
   status: IQabOrderStatusReportable,
+  pago?: IPedidoEntrantePago,
 ): Promise<ITiendaOnlineOrderStatusResult> => {
   try {
     const response = await axiosClient.patch(
       `${PEDIDOS_PATH}/${pedidoId}/status`,
-      { status },
+      { status, ...(pago !== undefined && { pago }) },
     );
     return tiendaOnlineOrderStatusResultSchema.parse(response.data);
   } catch (error) {
@@ -382,15 +414,74 @@ export const patchTiendaOnlineOrderStatus = async (
       throw new TiendaOnlineOrderNotFound();
     }
 
-    const upstream = tiendaOnlineOrderStatusErrorSchema.safeParse(
-      axios.isAxiosError(error) ? error.response?.data : undefined,
-    );
+    const body = axios.isAxiosError(error) ? error.response?.data : undefined;
+
+    const notLandable = tiendaOnlineOrderNotLandableSchema.safeParse(body);
+    if (notLandable.success) {
+      throw new TiendaOnlineOrderNotLandableError(notLandable.data.reason);
+    }
+
+    const upstream = tiendaOnlineOrderStatusErrorSchema.safeParse(body);
     if (upstream.success) {
       throw new TiendaOnlineOrderStatusUpstreamError(
         upstream.data.qabError,
         upstream.data.retryable,
       );
     }
+    throw error;
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* F-009 — the one-time SSO link towards the QAB panel                         */
+/* -------------------------------------------------------------------------- */
+
+const SSO_PATH = `${TIENDA_ONLINE_API_BASE}/sso`;
+
+/** HTTP status of the "the deployment is not wired up" answer. Never re-exposed. */
+const SSO_NOT_CONFIGURED_STATUS = 503;
+
+/** The deployment has not been wired up. Nothing the merchant can fix. */
+export class TiendaOnlineSsoNotConfiguredError extends Error {
+  constructor() {
+    super(TIENDA_ONLINE_API_ERRORS.ssoNotConfigured);
+    this.name = "TiendaOnlineSsoNotConfiguredError";
+  }
+}
+
+const ssoNotConfiguredSchema = z.object({
+  error: z.literal(TIENDA_ONLINE_API_ERRORS.ssoNotConfigured),
+});
+
+/**
+ * POST /api/tienda-online/sso.
+ *
+ * Throws, in this order of checks:
+ *   TiendaOnlineForbiddenError          on the 403 (via `isForbidden`, E-009)
+ *   TiendaOnlineSsoNotConfiguredError   on a 503 whose body carries the module's
+ *                                       ssoNotConfigured code
+ * and re-throws anything else untouched.
+ *
+ * No body and no idempotency header: a POST without one does not enter the retry
+ * interceptor of `axiosClient`, so a network hiccup does not silently mint a
+ * second token.
+ *
+ * The resolved `url` is a live credential. It is not stored, not put in a
+ * Zustand store and not written to localStorage: it is opened and dropped.
+ */
+export const postTiendaOnlineSsoLink = async (): Promise<ITiendaOnlineSsoLink> => {
+  try {
+    const response = await axiosClient.post(SSO_PATH);
+    return tiendaOnlineSsoLinkSchema.parse(response.data);
+  } catch (error) {
+    if (isForbidden(error)) throw new TiendaOnlineForbiddenError();
+
+    const notConfigured =
+      axios.isAxiosError(error) &&
+      error.response?.status === SSO_NOT_CONFIGURED_STATUS &&
+      ssoNotConfiguredSchema.safeParse(error.response?.data).success;
+    if (notConfigured) throw new TiendaOnlineSsoNotConfiguredError();
+
     throw error;
   }
 };

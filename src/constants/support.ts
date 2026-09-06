@@ -34,6 +34,13 @@ export const SUPPORT_MESSAGES = {
    */
   tiendaOnlineAgrupar:
     "Hola, quiero sumar uno de mis locales a una tienda que ya tengo publicada en la tienda online. ¿Podrían ayudarme?",
+  /**
+   * The one-time SSO link cannot be minted because the deployment is missing a
+   * shared secret (F-009). Nothing the merchant can fix from their side, so the
+   * only thing the screen can offer is a way to reach the people who can.
+   */
+  tiendaOnlinePanelNotLinked:
+    "Hola, quiero entrar al panel de mi tienda online desde Cuadre de Caja y me dice que todavía no está enlazado. ¿Podrían ayudarme?",
 } as const;
 
 export type SupportTopic = keyof typeof SUPPORT_MESSAGES;

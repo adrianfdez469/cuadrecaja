@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromRequest } from "@/utils/authFromRequest";
+import { assertTiendaTenant, withTenantScope } from "@/lib/tenantScope";
 
 /**
  * GET /api/app/productos/[tiendaId]
@@ -22,12 +23,13 @@ export async function GET(
 
     const { tiendaId } = await params;
 
-    if (!tiendaId) {
-      return NextResponse.json(
-        { error: "tiendaId es requerido" },
-        { status: 400 },
-      );
-    }
+    // F-021: no permission — this is the APK POS catalogue (ADR 0078).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     const user = session.user;
 
@@ -49,12 +51,16 @@ export async function GET(
     }
 
     const productosTienda = await prisma.productoTienda.findMany({
-      where: {
-        tiendaId: tiendaId,
-        deletedAt: null,
-        producto: { deletedAt: null },
-        ...filter,
-      },
+      where: withTenantScope(
+        "productoTienda",
+        {
+          tiendaId: tiendaId,
+          deletedAt: null,
+          producto: { deletedAt: null },
+          ...filter,
+        },
+        scope.negocioId,
+      ),
       include: {
         producto: {
           include: {

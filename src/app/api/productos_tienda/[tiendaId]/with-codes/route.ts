@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/utils/auth";
+import { assertTiendaTenant, withTenantScope } from "@/lib/tenantScope";
 
 export async function GET(
   req: NextRequest,
@@ -8,15 +10,28 @@ export async function GET(
   try {
     const { tiendaId } = await params;
 
+    // F-021: no permission — this is the POS catalogue every cashier loads (ADR 0078).
+    const session = await getSession();
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
+
     const productosTienda = await prisma.productoTienda.findMany({
-      where: {
-        tiendaId: tiendaId,
-        precio: {
-          gt: 0, // Solo productos con precio mayor a 0
+      where: withTenantScope(
+        "productoTienda",
+        {
+          tiendaId: tiendaId,
+          precio: {
+            gt: 0, // Solo productos con precio mayor a 0
+          },
+          deletedAt: null,
+          producto: { deletedAt: null },
         },
-        deletedAt: null,
-        producto: { deletedAt: null },
-      },
+        scope.negocioId,
+      ),
       include: {
         producto: {
           select: {

@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { IResumenDiaResponse } from "@/schemas/resumenDia";
+import { getSession } from "@/utils/auth";
+import {
+  assertTiendaTenant,
+  tenantNotFoundResponse,
+  withTenantScope,
+} from "@/lib/tenantScope";
 
 const TIPOS_ENTRADAS = [
   "COMPRA",
@@ -8,6 +14,10 @@ const TIPOS_ENTRADAS = [
   "AJUSTE_ENTRADA",
   "DESAGREGACION_ALTA",
   "CONSIGNACION_ENTRADA",
+  // F-014: a cancelled or rejected online order gives its reserved goods back.
+  // It belongs here so `final − entradas + ventas + salidas` keeps closing
+  // (ADR 0071); the sale itself is counted from `Venta`, not from a movement.
+  "PEDIDO_ONLINE_LIBERACION",
 ] as const;
 
 const TIPOS_SALIDAS = [
@@ -15,6 +25,9 @@ const TIPOS_SALIDAS = [
   "AJUSTE_SALIDA",
   "DESAGREGACION_BAJA",
   "CONSIGNACION_DEVOLUCION",
+  // F-014: the goods of an online order leave the store when it is confirmed,
+  // and the DELIVERED that follows does NOT discount again (ADR 0071).
+  "PEDIDO_ONLINE_RESERVA",
 ] as const;
 
 type Params = { tiendaId: string };
@@ -33,13 +46,28 @@ export async function GET(
       return NextResponse.json({ error: "cierreId es requerido" }, { status: 400 });
     }
 
-    const cierre = await prisma.cierrePeriodo.findUnique({
-      where: { id: cierreId },
+    // F-021: no permission — the POS opens this from `ResumenDiaModal` (ADR 0078).
+    const session = await getSession();
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
+
+    // The period used to be read by the `cierreId` of the query WITHOUT even checking it belonged
+    // to this store.
+    const cierre = await prisma.cierrePeriodo.findFirst({
+      where: withTenantScope(
+        "cierrePeriodo",
+        { id: cierreId, tiendaId },
+        scope.negocioId,
+      ),
       select: { fechaInicio: true, fechaFin: true },
     });
 
     if (!cierre) {
-      return NextResponse.json({ error: "Cierre no encontrado" }, { status: 404 });
+      return tenantNotFoundResponse();
     }
 
     const startOfPeriod = cierre.fechaInicio;
@@ -47,7 +75,7 @@ export async function GET(
 
     const [productosTienda, movimientos] = await Promise.all([
       prisma.productoTienda.findMany({
-        where: { tiendaId },
+        where: withTenantScope("productoTienda", { tiendaId }, scope.negocioId),
         include: {
           producto: {
             select: {
@@ -61,10 +89,14 @@ export async function GET(
         },
       }),
       prisma.movimientoStock.findMany({
-        where: {
-          tiendaId,
-          fecha: { gte: startOfPeriod, lte: endOfPeriod },
-        },
+        where: withTenantScope(
+          "movimientoStock",
+          {
+            tiendaId,
+            fecha: { gte: startOfPeriod, lte: endOfPeriod },
+          },
+          scope.negocioId,
+        ),
         select: {
           productoTiendaId: true,
           tipo: true,

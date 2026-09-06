@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { MovimientoTipo } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { getSession } from "@/utils/auth";
+import { resolveTenantAxis, withTenantScope } from "@/lib/tenantScope";
 
 export async function POST(req: Request) {
   try {
@@ -13,9 +15,18 @@ export async function POST(req: Request) {
       );
     }
 
+    // F-021, gate B: the movement is addressed by its own id, so the axis comes from the session
+    // and the tenant clause is folded into the query. No permission — the verb never demanded one.
+    const session = await getSession();
+    const { negocioId, response } = resolveTenantAxis({
+      session,
+      permisoRequerido: null,
+    });
+    if (!negocioId) return response;
+
     // 1. Buscar el movimiento original (debe ser un TRASPASO_SALIDA PENDIENTE)
-    const movimientoOriginal = await prisma.movimientoStock.findUnique({
-      where: { id: movimientoId },
+    const movimientoOriginal = await prisma.movimientoStock.findFirst({
+      where: withTenantScope("movimientoStock", { id: movimientoId }, negocioId),
       include: {
         productoTienda: true,
       },

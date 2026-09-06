@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
-import type { ITiendaOnlineOrder } from "@/schemas/tiendaOnline";
+import type {
+  ITiendaOnlineOrder,
+  ITiendaOnlineTransferDestination,
+} from "@/schemas/tiendaOnline";
 import {
   TiendaOnlineForbiddenError,
   TiendaOnlineOrderNotFound,
@@ -29,6 +32,15 @@ export type ITiendaOnlineOrderStatus =
 export interface IUseTiendaOnlineOrder {
   status: ITiendaOnlineOrderStatus;
   order: ITiendaOnlineOrder | null;
+  /**
+   * The collection setup of the store that owns the order, as it travels in the
+   * detail's body (ADR 0074). Empty until the order is loaded, and possibly
+   * empty afterwards — a store with no destinations configured is a real state.
+   *
+   * It comes with the detail on purpose: the delivery dialog fires NO request of
+   * its own, so there is no loading and no failure state to paint for it.
+   */
+  transferDestinations: ITiendaOnlineTransferDestination[];
   retry: () => void;
   /**
    * Adopts the `status` the PATCH's 200 echoed back, WITHOUT refetching (F-012).
@@ -55,6 +67,9 @@ export function useTiendaOnlineOrder(
 ): IUseTiendaOnlineOrder {
   const [status, setStatus] = useState<ITiendaOnlineOrderStatus>("loading");
   const [order, setOrder] = useState<ITiendaOnlineOrder | null>(null);
+  const [transferDestinations, setTransferDestinations] = useState<
+    ITiendaOnlineTransferDestination[]
+  >([]);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -66,6 +81,7 @@ export function useTiendaOnlineOrder(
       .then((detail) => {
         if (!active) return;
         setOrder(detail.order);
+        setTransferDestinations(detail.transferDestinations);
         setStatus("ready");
       })
       .catch((error: unknown) => {
@@ -95,7 +111,7 @@ export function useTiendaOnlineOrder(
   }, []);
 
   return useMemo(
-    () => ({ status, order, retry, applyStatus }),
-    [status, order, retry, applyStatus],
+    () => ({ status, order, transferDestinations, retry, applyStatus }),
+    [status, order, transferDestinations, retry, applyStatus],
   );
 }

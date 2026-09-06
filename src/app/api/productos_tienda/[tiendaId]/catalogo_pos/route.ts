@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { assertTiendaTenant, withTenantScope } from "@/lib/tenantScope";
 
 /**
  * The sale catalog, projected down to what the POS screen reads.
@@ -23,6 +24,15 @@ export async function GET(
     const { tiendaId } = await params;
 
     const session = await getSession();
+
+    // F-021: no permission — this is the POS catalogue every cashier loads (ADR 0078).
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
+
     const user = session.user;
 
     // Un usuario asociado a proveedores solo ve los productos de esos
@@ -38,15 +48,19 @@ export async function GET(
     }
 
     const productosTienda = await prisma.productoTienda.findMany({
-      where: {
-        tiendaId,
-        deletedAt: null,
-        producto: { deletedAt: null },
-        // Filtrado en el servidor, no en el cliente: un producto sin precio no
-        // se puede vender, así que no hay razón para enviarlo por la red.
-        precio: { gt: 0 },
-        ...filter,
-      },
+      where: withTenantScope(
+        "productoTienda",
+        {
+          tiendaId,
+          deletedAt: null,
+          producto: { deletedAt: null },
+          // Filtrado en el servidor, no en el cliente: un producto sin precio no
+          // se puede vender, así que no hay razón para enviarlo por la red.
+          precio: { gt: 0 },
+          ...filter,
+        },
+        scope.negocioId,
+      ),
       select: {
         id: true,
         tiendaId: true,

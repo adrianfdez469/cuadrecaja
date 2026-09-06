@@ -485,6 +485,11 @@ model Venta {
   transferDestination   TransferDestinations? @relation(fields: [transferDestinationId], references: [id])
   transferDestinationId String?
 
+  /// The online order this sale landed from. NULL means a POS sale.
+  /// UNIQUE: the database, not the caller, guarantees one sale per order.
+  pedidoEntrante   PedidoEntrante? @relation(fields: [pedidoEntranteId], references: [id])
+  pedidoEntranteId String?         @unique
+
   // 🆕 NUEVOS CAMPOS PARA TRAZABILIDAD
   frontendCreatedAt DateTime? // Timestamp exacto cuando se creó la venta en el frontend
   wasOffline        Boolean   @default(false) // Si la venta se creó sin conexión
@@ -1072,6 +1077,8 @@ enum MovimientoTipo {
   CONSIGNACION_DEVOLUCION
   MERMA // Pérdida real de mercancía (rotura/vencimiento) — resta de ganancia, no toca caja
   DEVOLUCION_VENTA // Cliente devuelve un producto vendido — resta de ganancia y de caja del período actual
+  PEDIDO_ONLINE_RESERVA // Stock committed to an accepted online order (baja)
+  PEDIDO_ONLINE_LIBERACION // That commitment given back (alta)
 }
 
 // Fuente de fondos de una compra de mercancía (solo aplica a MovimientoStock.tipo = COMPRA)
@@ -1262,7 +1269,12 @@ model PedidoEntrante {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt
 
+  /// NOT NULL <=> this order currently holds a stock reservation. Claimed and
+  /// released with a conditional updateMany, never with a read-then-write.
+  stockReservedAt DateTime?
+
   lineas PedidoEntranteLinea[]
+  ventas Venta[]
 
   @@unique([negocioId, qabOrderId])
   @@unique([id, negocioId])

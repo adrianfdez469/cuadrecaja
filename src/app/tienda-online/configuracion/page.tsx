@@ -11,6 +11,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { AlmacenNotice } from "@/components/tiendaOnline/AlmacenNotice";
 import { BrandQuestionDialog } from "@/components/tiendaOnline/BrandQuestionDialog";
 import { LocalSelector } from "@/components/tiendaOnline/LocalSelector";
+import { PanelAccessCard } from "@/components/tiendaOnline/PanelAccessCard";
 import { PublicDataCard } from "@/components/tiendaOnline/PublicDataCard";
 import { PublicationStatusCard } from "@/components/tiendaOnline/PublicationStatusCard";
 import { SAVE_BAR_HEIGHT, SaveBar } from "@/components/tiendaOnline/SaveBar";
@@ -282,6 +283,15 @@ function TiendaOnlineConfiguracionScreen() {
           onGoToLocales={() => handleTabChange(TIENDA_ONLINE_TABS.locales)}
           onGoToInventario={() => router.push(INVENTARIO_ROUTE)}
         />
+      )}
+
+      {/* Above the local selector, and not below it: the selector splits the
+          screen into «everything under here is THIS local», and this action is
+          not of one local — the token carries every store the USER manages
+          (ADR 0067). It needs no data from `GET /configuracion` either, so it is
+          drawn while the body is still loading, and when the body failed. */}
+      {enLocales && access === "allowed" && (
+        <PanelAccessCard isMobile={isMobile} online={online} />
       )}
 
       {enLocales && (access === "loading" || status === "loading") && (

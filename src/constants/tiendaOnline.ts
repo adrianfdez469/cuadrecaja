@@ -61,6 +61,13 @@ export const TIENDA_ONLINE_API_ERRORS = {
   // code, with the specific reason in `qabError` (ADR 0022, ADR 0064).
   // `forbidden` stays the ONLY body of every 403 of the module.
   qabStatusUpstream: "QAB_STATUS_UPSTREAM",
+  // F-009. A 503, and NEITHER of the two codes above: a deployment that has not
+  // been wired yet is not a server fault, and collapsing it into the generic 500
+  // erases the only signal that says what is missing. See ADR 0068.
+  ssoNotConfigured: "TIENDA_ONLINE_SSO_NOT_CONFIGURED",
+  // F-014. The 409 of a DELIVERED this POS cannot land. `forbidden` stays the
+  // ONLY body of every 403 of the module, and `internal` the only one of every 500.
+  pedidoNotLandable: "PEDIDO_NOT_LANDABLE",
 } as const;
 
 /**
@@ -261,3 +268,42 @@ export const TIENDA_ONLINE_ORDER_TRANSITION_BLOCKS = [
   "AWAITING_CUSTOMER", // a live proposal is waiting on the buyer; F-013's ground
   "UNKNOWN_STATUS", // any value outside the sequence, PENDING included
 ] as const;
+
+/* -------------------------------------------------------------------------- */
+/* F-014 — landing the online order in this POS                                */
+/* -------------------------------------------------------------------------- */
+
+/** What a reported destination does to inventory and to the books. */
+export const TIENDA_ONLINE_ORDER_LANDING_EFFECTS = [
+  "RESERVE", // CONFIRMED
+  "RELEASE", // CANCELLED, REJECTED_BY_STORE
+  "SELL", // DELIVERED
+  "NONE", // READY, IN_TRANSIT
+] as const;
+
+/**
+ * Why one order line could not be reserved. THREE causes, ONE branch: the line
+ * is skipped, counted and reported, and the status change still lands.
+ */
+export const TIENDA_ONLINE_ORDER_LANDING_SKIP_REASONS = [
+  "NO_PRODUCT_REFERENCE", // storeProductExternalId is NULL (criterion 12)
+  "PRODUCT_NOT_RESOLVED", // it does not resolve to a live ProductoTienda of this store (criterion 13)
+  "INSUFFICIENT_STOCK", // the store does not have the units
+] as const;
+
+/** Local conditions that make DELIVERED impossible. Checked BEFORE calling QAB. */
+export const TIENDA_ONLINE_ORDER_LANDING_BLOCKERS = [
+  "NO_OPEN_PERIOD",
+  "UNKNOWN_TRANSFER_DESTINATION",
+  "MISSING_EXCHANGE_RATE",
+] as const;
+
+/** How the order was collected. ONE method for the whole amount (ADR 0073). */
+export const TIENDA_ONLINE_PAYMENT_METHODS = ["EFECTIVO", "TRANSFERENCIA"] as const;
+
+/**
+ * Prefix of `MovimientoStock.motivo` for both landing movements. It is followed
+ * by the ORDER ID and NEVER by `PedidoEntrante.code`, which is the buyer page's
+ * public credential (ADR 0061) and `motivo` is shown in the movements list.
+ */
+export const TIENDA_ONLINE_ORDER_MOVEMENT_MOTIVO_PREFIX = "Pedido tienda online";

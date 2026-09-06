@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionFromRequest } from '@/utils/authFromRequest';
+import { assertTiendaTenant, withTenantScope } from '@/lib/tenantScope';
 
 /**
  * GET /api/app/periodo/[tiendaId]/actual
@@ -24,16 +25,17 @@ export async function GET(
 
     const { tiendaId } = await params;
 
-    if (!tiendaId) {
-      return NextResponse.json(
-        { error: 'tiendaId es requerido' },
-        { status: 400 }
-      );
-    }
+    // F-021: twin of the web `cierre/[tiendaId]/last`, same reason — the APK POS start-up call.
+    const { scope, response } = await assertTiendaTenant({
+      session,
+      tiendaId,
+      permisoRequerido: null,
+    });
+    if (!scope) return response;
 
     // Buscar el último período (abierto o cerrado)
     const ultimoPeriodo = await prisma.cierrePeriodo.findFirst({
-      where: { tiendaId },
+      where: withTenantScope('cierrePeriodo', { tiendaId }, scope.negocioId),
       orderBy: { fechaInicio: 'desc' },
       select: {
         id: true,
