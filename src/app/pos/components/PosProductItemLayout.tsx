@@ -135,6 +135,14 @@ interface PosProductItemLayoutProps {
    */
   onSelect?: (card: PosProductCard) => void;
   highlightName?: boolean;
+  /**
+   * The sale may go past what the catalog holds — offline, or with the
+   * cashier's own setting on. Then the row stays tappable with nothing left in
+   * stock and says so instead of pretending the product is unavailable.
+   */
+  allowWithoutStock?: boolean;
+  /** Only to name what is missing: the device's copy of the stock, or the real one. */
+  isOnline?: boolean;
   sx?: SxProps<Theme>;
 }
 
@@ -142,6 +150,8 @@ function PosProductItemLayoutComponent({
   card,
   onSelect,
   highlightName = false,
+  allowWithoutStock = false,
+  isOnline = true,
   sx,
 }: PosProductItemLayoutProps) {
   const { productoTienda, priceBase, disponible, esFraccion, existencia } =
@@ -158,7 +168,8 @@ function PosProductItemLayoutComponent({
   };
 
   const restante = Math.max(0, disponible - cartQty);
-  const canAdd = restante >= 1;
+  const outOfStock = restante <= 0;
+  const canAdd = allowWithoutStock || restante >= 1;
 
   const handleAdd = (e: MouseEvent<HTMLElement>) => {
     e.stopPropagation();
@@ -186,9 +197,17 @@ function PosProductItemLayoutComponent({
   // to sell first, and what this sale has already taken second. The stock
   // badge this replaces was a boxed icon that said the same thing in a place
   // where every product name had to make room for it.
-  const stockLine = `${formatQuantity(restante)} en stock${
-    cartQty > 0 ? ` · ${formatQuantity(cartQty)} en la venta` : ""
-  }`;
+  //
+  // With nothing left and the sale allowed anyway, "0 en stock" would read as
+  // a dead end on a row that still adds. What is missing gets named instead —
+  // and offline it is the device's copy of the stock that ran out, not
+  // necessarily the shelf.
+  const inSaleSuffix =
+    cartQty > 0 ? ` · ${formatQuantity(cartQty)} en la venta` : "";
+  const stockLine =
+    outOfStock && allowWithoutStock
+      ? `${isOnline ? "Sin stock" : "Sin stock local"}${inSaleSuffix}`
+      : `${formatQuantity(restante)} en stock${inSaleSuffix}`;
 
   const handleRowClick = onSelect ? () => onSelect(card) : undefined;
 
@@ -213,13 +232,23 @@ function PosProductItemLayoutComponent({
         </Typography>
         <Typography
           variant="caption"
-          color={restante === 0 ? "error.main" : "text.secondary"}
+          // A warning, not an error, when the sale is allowed anyway: nothing
+          // is wrong yet, the server just has the last word on it.
+          color={
+            !outOfStock
+              ? "text.secondary"
+              : allowWithoutStock
+                ? "warning.main"
+                : "error.main"
+          }
           noWrap
           sx={STOCK_SX}
           title={
-            esFraccion
-              ? `${formatQuantity(restante)} disponibles para vender (${formatQuantity(existencia)} sueltas, el resto dentro de paquetes sin abrir)`
-              : `${formatQuantity(restante)} disponibles para vender`
+            outOfStock && allowWithoutStock
+              ? "Sin existencias en el catálogo — la venta se valida contra el servidor"
+              : esFraccion
+                ? `${formatQuantity(restante)} disponibles para vender (${formatQuantity(existencia)} sueltas, el resto dentro de paquetes sin abrir)`
+                : `${formatQuantity(restante)} disponibles para vender`
           }
         >
           {stockLine}

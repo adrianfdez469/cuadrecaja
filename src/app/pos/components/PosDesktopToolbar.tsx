@@ -17,6 +17,7 @@ import PrintIcon from "@mui/icons-material/Print";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CurrencyExchangeIcon from "@mui/icons-material/CurrencyExchange";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
+import ProductionQuantityLimitsIcon from "@mui/icons-material/ProductionQuantityLimits";
 import { usePosActionsController } from "@/hooks/usePosActionsController";
 import { shape, touch } from "@/theme";
 
@@ -85,6 +86,8 @@ function PosDesktopToolbarComponent({
     toggleCurrencies,
     showSaleReceipt,
     toggleShowSaleReceipt,
+    sellWithoutStock,
+    toggleSellWithoutStock,
   } = usePosActionsController(onRefresh);
 
   return (
@@ -150,6 +153,22 @@ function PosDesktopToolbarComponent({
           </IconButton>
         </Tooltip>
       )}
+
+      <Tooltip
+        title={
+          sellWithoutStock
+            ? "Vendiendo sin existencias — el servidor puede rechazar la venta"
+            : "Vender sin existencias"
+        }
+      >
+        <IconButton
+          onClick={toggleSellWithoutStock}
+          aria-pressed={sellWithoutStock}
+          sx={sellWithoutStock ? ACTIVE_BUTTON_SX : BUTTON_SX}
+        >
+          <ProductionQuantityLimitsIcon />
+        </IconButton>
+      </Tooltip>
 
       <Tooltip
         title={

@@ -18,12 +18,17 @@ const STORE_NAME = "catalog";
 const DB_VERSION = 1;
 
 /**
- * Bumped whenever the cached shape changes. An entry written by an older
- * version of the app is ignored rather than migrated: the network copy is
- * authoritative and one extra load is a fair price for never rendering a
- * product whose fields moved.
+ * Bumped whenever the cached shape — or what it is understood to contain —
+ * changes. An entry written by an older version of the app is ignored rather
+ * than migrated: the network copy is authoritative and one extra load is a
+ * fair price for never rendering a product whose fields moved.
+ *
+ * v2 → v3: the entry now holds the whole catalog, sold-out products included.
+ * A v2 entry has them stripped out, and offline there is no way to tell that
+ * from a shop that simply does not stock them — which is exactly the case
+ * selling without stock exists for.
  */
-const CACHE_SCHEMA_VERSION = 2;
+const CACHE_SCHEMA_VERSION = 3;
 
 interface CachedCatalog {
   schemaVersion: number;

@@ -1,5 +1,11 @@
 import { Sale, useSalesStore } from "@/store/salesStore";
 import {
+  classifySyncFailure,
+  describeInsufficientStock,
+  getInsufficientStockItems,
+  shouldRetrySyncFailure,
+} from "@/app/pos/utils/syncErrors";
+import {
   Close,
   CloudUpload,
   Done,
@@ -74,6 +80,8 @@ export const SalesDrawer: FC<IProps> = ({
     sales,
     markSynced,
     markSyncError,
+    markSyncRetry,
+    setStockShortages,
     markSyncing,
     deleteSale,
     removeProductFromSale: removeProductFromSaleStore,
@@ -128,6 +136,62 @@ export const SalesDrawer: FC<IProps> = ({
     setShowProducts(true);
   };
 
+  /**
+   * Qué se le dice al cajero y qué se hace con la venta cuando el reenvío
+   * falla. Compartido por «Sincronizar todas» y por el botón de una sola: eran
+   * dos cadenas de `if` idénticas que ya habían empezado a discrepar.
+   */
+  const reportSyncFailure = (identifier: string, error: unknown) => {
+    console.error(`Error sincronizando venta ${identifier}`, error);
+
+    const intentos =
+      useSalesStore.getState().sales.find((s) => s.identifier === identifier)
+        ?.syncAttempts ?? 1;
+    const kind = classifySyncFailure(error);
+    const reintentar = shouldRetrySyncFailure(error, intentos);
+
+    if (kind === "insufficient_stock") {
+      // Aquí sí es un error, a diferencia del aviso que da el POS al cobrar:
+      // el cajero acaba de pedir este reenvío a propósito, y lo que obtiene es
+      // que no se pudo. La venta sigue sin registrarse.
+      const faltantes = getInsufficientStockItems(error);
+      // Anotado en la venta: el detalle de sus productos marca esas líneas.
+      setStockShortages(identifier, faltantes);
+      const detalle = describeInsufficientStock(faltantes);
+      showMessage(
+        detalle
+          ? `No hay suficiente stock para registrar la venta — ${detalle}.`
+          : "No hay suficiente stock para registrar la venta. Revise el inventario y vuelva a intentarlo.",
+        "error",
+      );
+    } else if (kind === "wrong_period") {
+      showMessage(
+        "La venta pertenece a un período anterior y no se puede sincronizar.",
+        "error",
+      );
+    } else if (kind === "timeout") {
+      showMessage("Timeout al sincronizar venta", "warning");
+    } else if (kind === "network") {
+      showMessage("Error de red al sincronizar venta", "warning");
+      setOffline(true);
+    } else if (kind === "server") {
+      showMessage("Error del servidor al sincronizar venta", "error");
+    } else if (kind === "client") {
+      showMessage("Error en los datos de la venta", "error");
+    } else {
+      showMessage("Error al sincronizar venta", "error");
+    }
+
+    // Reenviar a mano no salta el criterio: si el servidor ya dio su veredicto,
+    // la venta queda aparcada igual y el cajero puede volver a intentarlo
+    // cuando haya cambiado algo — repuesto el stock, abierto el período.
+    if (reintentar) {
+      markSyncRetry(identifier);
+    } else {
+      markSyncError(identifier);
+    }
+  };
+
   const handleSyncAll = async () => {
     setDisableAll(true);
     const salesToSync = sales.filter((sale) => !sale.synced);
@@ -162,29 +226,7 @@ export const SalesDrawer: FC<IProps> = ({
         setOffline(false);
         reloadProdsAndCategories();
       } catch (error) {
-        console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
-
-        // Manejo mejorado de errores
-        if (error.message?.includes("TIMEOUT_ERROR")) {
-          markSyncError(syncObj.identifier);
-          showMessage(
-            "Timeout al sincronizar venta - se reintentará automáticamente",
-            "warning",
-          );
-        } else if (error.message?.includes("NETWORK_ERROR")) {
-          markSyncError(syncObj.identifier);
-          showMessage("Error de red al sincronizar venta", "warning");
-          setOffline(true);
-        } else if (error.message?.includes("SERVER_ERROR")) {
-          markSyncError(syncObj.identifier);
-          showMessage("Error del servidor al sincronizar venta", "error");
-        } else if (error.message?.includes("CLIENT_ERROR")) {
-          markSyncError(syncObj.identifier);
-          showMessage("Error en los datos de la venta", "error");
-        } else {
-          markSyncError(syncObj.identifier);
-          showMessage("Error al sincronizar venta", "error", error);
-        }
+        reportSyncFailure(syncObj.identifier, error);
       } finally {
         setDisableAll(false);
       }
@@ -224,29 +266,7 @@ export const SalesDrawer: FC<IProps> = ({
       setOffline(false);
       reloadProdsAndCategories();
     } catch (error) {
-      console.error(`Error sincronizando venta ${syncObj.identifier}`, error);
-
-      // Manejo mejorado de errores
-      if (error.message?.includes("TIMEOUT_ERROR")) {
-        markSyncError(syncObj.identifier);
-        showMessage(
-          "Timeout al sincronizar venta - se reintentará automáticamente",
-          "warning",
-        );
-      } else if (error.message?.includes("NETWORK_ERROR")) {
-        markSyncError(syncObj.identifier);
-        showMessage("Error de red al sincronizar venta", "warning");
-        setOffline(true);
-      } else if (error.message?.includes("SERVER_ERROR")) {
-        markSyncError(syncObj.identifier);
-        showMessage("Error del servidor al sincronizar venta", "error");
-      } else if (error.message?.includes("CLIENT_ERROR")) {
-        markSyncError(syncObj.identifier);
-        showMessage("Error en los datos de la venta", "error");
-      } else {
-        markSyncError(syncObj.identifier);
-        showMessage("Error al sincronizar venta", "error", error);
-      }
+      reportSyncFailure(syncObj.identifier, error);
     } finally {
       setDisableAll(false);
     }

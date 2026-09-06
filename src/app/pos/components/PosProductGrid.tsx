@@ -131,6 +131,15 @@ interface PosProductGridProps {
   scrollElement: HTMLDivElement | null;
   /** Tapping a row asks for an exact quantity. The row's «+» never gets here. */
   onProductClick?: (card: PosProductCard) => void;
+  /**
+   * Whether a row keeps adding once its stock is gone. Resolved once by the
+   * POS — it depends on the connection and on a per-cashier setting — and
+   * handed down rather than read per row: `useNetworkStatus` opens an interval
+   * and a pair of listeners per call site, and there is one of these per
+   * product in the catalog.
+   */
+  allowWithoutStock?: boolean;
+  isOnline?: boolean;
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -149,6 +158,8 @@ function PosProductGridComponent({
   bottomUp = false,
   scrollElement,
   onProductClick,
+  allowWithoutStock = false,
+  isOnline = true,
 }: PosProductGridProps) {
   const theme = useTheme();
   // The same viewport breakpoints the CSS grid above uses, so the column count
@@ -230,6 +241,8 @@ function PosProductGridComponent({
             card={card}
             highlightName={highlightFor(card)}
             onSelect={onProductClick}
+            allowWithoutStock={allowWithoutStock}
+            isOnline={isOnline}
             // En modo búsqueda son items flex, y `flex-shrink: 1` es el valor
             // por defecto: en cuanto los resultados superan el alto visible, el
             // navegador los aplasta en vez de dejar que la lista haga scroll.
@@ -274,6 +287,8 @@ function PosProductGridComponent({
                   card={card}
                   highlightName={highlightFor(card)}
                   onSelect={onProductClick}
+                  allowWithoutStock={allowWithoutStock}
+                  isOnline={isOnline}
                 />
               ))}
             </Box>
