@@ -62,15 +62,36 @@ import { POS_CATALOG_ROW_HEIGHT } from "@/constants/pos";
 // name fits on one line, but a wrapped name grows the row past it. The first
 // line has no rule above it — the heading already separates it (see
 // cartContent).
+// La línea entera: la fila de controles y, cuando hace falta, el aviso que
+// cuelga de ella. El borde y el margen lateral viven aquí para que el aviso
+// quede dentro de la misma línea y no parezca el principio de la siguiente.
+const LINE_SX = {
+  px: 1.75,
+  borderTop: "1px solid",
+  borderColor: "divider",
+  "&:first-of-type": { borderTop: "none" },
+} as const;
+
 const ROW_SX = {
   display: "flex",
   alignItems: "center",
   gap: 1.25,
   minHeight: POS_CATALOG_ROW_HEIGHT,
-  px: 1.75,
-  borderTop: "1px solid",
-  borderColor: "divider",
-  "&:first-of-type": { borderTop: "none" },
+} as const;
+
+/**
+ * El aviso de falta de existencias, bajo los botones y no junto al nombre.
+ *
+ * Ahí no cabía: a 360px la columna del nombre se queda con un centenar de
+ * píxeles —el resto se lo llevan la cantidad, el importe y los dos botones— y
+ * la pastilla se comía cuatro quintas partes de ese hueco, justo en los
+ * productos de nombre largo, que son los que más lo necesitan.
+ */
+const SHORTAGE_SX = {
+  display: "flex",
+  alignItems: "center",
+  pb: 1,
+  mt: -0.5,
 } as const;
 
 const QUANTITY_SX = {
@@ -136,6 +157,8 @@ const STEP_BUTTON_SX = {
 } as const;
 
 const CHIP_SX = { height: 18, fontSize: "0.65rem", ml: 1 } as const;
+/** El mismo tamaño, pero pegado al borde: abajo no cuelga de ningún texto. */
+const SHORTAGE_CHIP_SX = { height: 18, fontSize: "0.65rem" } as const;
 const DETAIL_SX = { p: 1.5, minWidth: 200 } as const;
 const REMOVE_BUTTON_SX = { justifyContent: "flex-start", px: 1 } as const;
 const DETAIL_LABEL_SX = {
@@ -226,140 +249,141 @@ function CartItemCardComponent({
     setDetailAnchor(event.currentTarget);
 
   return (
-    <Box sx={ROW_SX}>
-      <Typography component="span" sx={QUANTITY_SX}>
-        {formatQuantity(item.quantity)} ×
-      </Typography>
-
-      {/* Same target as the amount below it: either one opens the line's
-          popover, which is where "Quitar del carrito" lives. */}
-      <ButtonBase
-        component="div"
-        onClick={openDetail}
-        aria-label={`Ver detalle de ${item.name}`}
-        sx={NAME_BUTTON_SX}
-      >
-        <Typography
-          component="span"
-          fontWeight={600}
-          fontSize="inherit"
-          sx={NAME_TEXT_SX}
-        >
-          {item.name}
+    <Box sx={LINE_SX}>
+      <Box sx={ROW_SX}>
+        <Typography component="span" sx={QUANTITY_SX}>
+          {formatQuantity(item.quantity)} ×
         </Typography>
-        {faltan > 0 && (
-          <Tooltip
-            title={`Hay ${formatQuantity(disponible)} y esta venta pide ${formatQuantity(item.quantity)}. El servidor puede rechazarla.`}
-          >
-            <Chip
-              label="Sin stock"
-              color="warning"
-              size="small"
-              variant="outlined"
-              sx={CHIP_SX}
-            />
-          </Tooltip>
-        )}
-        {item.fechaVencimiento && (
-          <ExpiryChip fechaVencimiento={item.fechaVencimiento} />
-        )}
-      </ButtonBase>
 
-      {/* The bare figure, as the redesign draws the line («9 × pepe 450,00»):
+        {/* Same target as the amount below it: either one opens the line's
+          popover, which is where "Quitar del carrito" lives. */}
+        <ButtonBase
+          component="div"
+          onClick={openDetail}
+          aria-label={`Ver detalle de ${item.name}`}
+          sx={NAME_BUTTON_SX}
+        >
+          <Typography
+            component="span"
+            fontWeight={600}
+            fontSize="inherit"
+            sx={NAME_TEXT_SX}
+          >
+            {item.name}
+          </Typography>
+          {item.fechaVencimiento && (
+            <ExpiryChip fechaVencimiento={item.fechaVencimiento} />
+          )}
+        </ButtonBase>
+
+        {/* The bare figure, as the redesign draws the line («9 × pepe 450,00»):
           no code — it's stated once, by the total under the list. The
           foreign-currency equivalents follow the POS-wide toggle; off by
           default so the name keeps the room a 354px row gives it. When on,
           `stackAlternatives` puts each currency on its own line rather than
           one wide "·"-joined line — that's what stops it competing with the
           name for width in the first place. */}
-      <ButtonBase
-        onClick={openDetail}
-        aria-label={`Ver detalle de precio de ${item.name}`}
-        sx={AMOUNT_BUTTON_SX}
-      >
-        <MultiCurrencyAmount
-          amount={lineTotal}
-          variant="line"
-          align="right"
-          showAlternatives={showAlternativeCurrencies}
-          stackAlternatives
-          showCode={false}
-        />
-      </ButtonBase>
+        <ButtonBase
+          onClick={openDetail}
+          aria-label={`Ver detalle de precio de ${item.name}`}
+          sx={AMOUNT_BUTTON_SX}
+        >
+          <MultiCurrencyAmount
+            amount={lineTotal}
+            variant="line"
+            align="right"
+            showAlternatives={showAlternativeCurrencies}
+            stackAlternatives
+            showCode={false}
+          />
+        </ButtonBase>
 
-      {canUpdateQuantity && (
-        <>
-          <IconButton
-            onClick={() => onDecrease(item.id)}
-            aria-label={`Reducir cantidad de ${item.name}`}
-            sx={STEP_BUTTON_SX}
-          >
-            <Remove />
-          </IconButton>
-          <IconButton
-            onClick={() => onIncrease(item.id)}
-            aria-label={`Aumentar cantidad de ${item.name}`}
-            sx={STEP_BUTTON_SX}
-          >
-            <Add />
-          </IconButton>
-        </>
-      )}
+        {canUpdateQuantity && (
+          <>
+            <IconButton
+              onClick={() => onDecrease(item.id)}
+              aria-label={`Reducir cantidad de ${item.name}`}
+              sx={STEP_BUTTON_SX}
+            >
+              <Remove />
+            </IconButton>
+            <IconButton
+              onClick={() => onIncrease(item.id)}
+              aria-label={`Aumentar cantidad de ${item.name}`}
+              sx={STEP_BUTTON_SX}
+            >
+              <Add />
+            </IconButton>
+          </>
+        )}
 
-      {/* Mounted only once opened: a closed Popover paints nothing, but its
+        {/* Mounted only once opened: a closed Popover paints nothing, but its
           element and prop tree were still being built for every line of the
           basket on every render. */}
-      {detailAnchor && (
-        <Popover
-          open
-          anchorEl={detailAnchor}
-          onClose={() => setDetailAnchor(null)}
-          anchorOrigin={POPOVER_ANCHOR_ORIGIN}
-          transformOrigin={POPOVER_TRANSFORM_ORIGIN}
-        >
-          <Stack gap={1} sx={DETAIL_SX}>
-            <Box>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                sx={DETAIL_LABEL_SX}
-              >
-                Unitario
-              </Typography>
-              <MultiCurrencyAmount amount={unitPrice} variant="compact" />
-            </Box>
-            <Divider />
-            <Box>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                sx={DETAIL_LABEL_SX}
-              >
-                Subtotal ({item.quantity} ×)
-              </Typography>
-              <MultiCurrencyAmount amount={lineTotal} variant="compact" />
-            </Box>
-            {onRemove && (
-              <>
-                <Divider />
-                <Button
-                  color="error"
-                  size="small"
-                  startIcon={<DeleteOutline fontSize="small" />}
-                  sx={REMOVE_BUTTON_SX}
-                  onClick={() => {
-                    setDetailAnchor(null);
-                    onRemove(item.id);
-                  }}
+        {detailAnchor && (
+          <Popover
+            open
+            anchorEl={detailAnchor}
+            onClose={() => setDetailAnchor(null)}
+            anchorOrigin={POPOVER_ANCHOR_ORIGIN}
+            transformOrigin={POPOVER_TRANSFORM_ORIGIN}
+          >
+            <Stack gap={1} sx={DETAIL_SX}>
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  sx={DETAIL_LABEL_SX}
                 >
-                  Quitar del carrito
-                </Button>
-              </>
-            )}
-          </Stack>
-        </Popover>
+                  Unitario
+                </Typography>
+                <MultiCurrencyAmount amount={unitPrice} variant="compact" />
+              </Box>
+              <Divider />
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  sx={DETAIL_LABEL_SX}
+                >
+                  Subtotal ({item.quantity} ×)
+                </Typography>
+                <MultiCurrencyAmount amount={lineTotal} variant="compact" />
+              </Box>
+              {onRemove && (
+                <>
+                  <Divider />
+                  <Button
+                    color="error"
+                    size="small"
+                    startIcon={<DeleteOutline fontSize="small" />}
+                    sx={REMOVE_BUTTON_SX}
+                    onClick={() => {
+                      setDetailAnchor(null);
+                      onRemove(item.id);
+                    }}
+                  >
+                    Quitar del carrito
+                  </Button>
+                </>
+              )}
+            </Stack>
+          </Popover>
+        )}
+      </Box>
+
+      {faltan > 0 && (
+        <Box sx={SHORTAGE_SX}>
+          <Chip
+            label="Sin stock"
+            color="warning"
+            size="small"
+            variant="outlined"
+            sx={SHORTAGE_CHIP_SX}
+          />
+        </Box>
       )}
     </Box>
   );
