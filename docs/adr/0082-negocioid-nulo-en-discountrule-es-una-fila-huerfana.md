@@ -87,3 +87,27 @@ No se cambia el schema en este feature: la columna sigue siendo `String?`.
 - El índice existente `@@index([isActive])` sigue sirviendo; el filtro añade una igualdad más sobre
   una columna de cardinalidad alta, así que el plan no empeora. La tabla es pequeña por naturaleza
   (reglas de descuento por negocio), no crece con las ventas.
+
+---
+
+## Adenda 2026-09-06 — la premisa, verificada contra producción
+
+Este ADR se apoyaba en una premisa que el código no podía demostrar por sí solo, y así quedó
+escrito: en desarrollo hay cero `DiscountRule`, pero nadie podía afirmar desde aquí que producción
+no tuviera filas heredadas con `negocioId = NULL`. Si las hubiera, la igualdad estricta las dejaría
+fuera y el «sin romper nada» se rompería el día del despliegue, no en ningún test.
+
+El humano ejecutó la consulta contra la base real:
+
+```sql
+SELECT count(*) FROM "DiscountRule" WHERE "negocioId" IS NULL AND "isActive" = true;
+-- 0
+```
+
+**Cero.** La premisa se sostiene fuera de desarrollo: no hay ninguna regla legítima a la que la
+igualdad estricta deje sin aplicar. La decisión de este ADR queda verificada, no solo argumentada.
+
+Lo que no cambia: la prohibición de ensanchar el filtro con `OR: [{ negocioId }, { negocioId: null }]`
+sigue en pie, y por el mismo motivo de siempre — haría que una regla huérfana, si algún día
+apareciera, empezara a descontar en **todos** los negocios a la vez.
+

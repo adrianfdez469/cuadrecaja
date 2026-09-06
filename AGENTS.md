@@ -153,7 +153,9 @@ El proyecto **sí tiene** pruebas automatizadas.
 
 - **Runner:** Vitest, configurado en `vitest.config.ts` — entorno `node`, `globals: true`,
   alias `@/`, incluye `src/**/*.test.ts` y `src/**/*.spec.ts`.
-- **Ubicación:** `src/__tests__/` — 28 archivos y 682 casos que corren en menos de un segundo.
+- **Ubicación:** `src/__tests__/`, un archivo por símbolo o por área. La suite entera corre en
+  segundos, así que ejecútala siempre: `npx vitest run`. No se anota aquí cuántos archivos ni
+  cuántos casos hay — cambia con cada feature y un número escrito se queda viejo en silencio.
 - **Alcance:** cubren **lógica pura** — `src/lib/`, `src/app/pos/utils/`, `src/utils/` y
   `src/schemas/`. La aritmética de dinero (`currency`, `changeMath`, `paymentMath`,
   `tipMath`, `billMath`, `discountEngine`) es la parte mejor cubierta.
