@@ -16,6 +16,7 @@ import {
   QAB_STORE_SYNC_STATES,
   QAB_UNPUBLISH_REASON_MAX_LENGTH,
 } from "@/constants/qab";
+import { EMAIL_REGEX } from "@/constants/validation";
 import {
   TIENDA_ONLINE_API_ERRORS,
   TIENDA_ONLINE_ORDER_AMOUNT_KIND,
@@ -64,7 +65,6 @@ const LATITUDE_MIN = -90;
 const LATITUDE_MAX = 90;
 const LONGITUDE_MIN = -180;
 const LONGITUDE_MAX = 180;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * A free-text field of the form. Trims, and turns the EMPTY STRING INTO `null`:
@@ -81,7 +81,7 @@ function nullableText(max: number) {
 }
 
 function isEmailOrNull(value: string | null): boolean {
-  return value === null || EMAIL_PATTERN.test(value);
+  return value === null || EMAIL_REGEX.test(value);
 }
 
 /** The closed vocabulary the screen is allowed to be told about a failed sync. */

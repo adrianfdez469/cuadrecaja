@@ -68,6 +68,12 @@ export const TIENDA_ONLINE_API_ERRORS = {
   // F-014. The 409 of a DELIVERED this POS cannot land. `forbidden` stays the
   // ONLY body of every 403 of the module, and `internal` the only one of every 500.
   pedidoNotLandable: "PEDIDO_NOT_LANDABLE",
+  // F-023. A 409 and NOT a 403: `axiosClient` replaces the body of every 403
+  // with a generic permissions error, so a code that names this cause would
+  // never reach the screen (E-009, ADR 0086). `forbidden` stays the ONLY body of
+  // every 403 of the module, and `internal` the only one of every 500. This code
+  // is ours and mirrors nothing of QAB's (ADR 0022).
+  ssoUserNotEmail: "TIENDA_ONLINE_SSO_USER_NOT_EMAIL",
 } as const;
 
 /**

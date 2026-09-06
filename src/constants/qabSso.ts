@@ -81,3 +81,13 @@ export const QAB_SSO_NOT_CONFIGURED_LOG = "QAB_SSO_NOT_CONFIGURED" as const;
  * logged and never chained as `cause` (E-031, ADR 0068).
  */
 export const QAB_SSO_SIGNING_FAILED = "QAB_SSO_SIGNING_FAILED" as const;
+
+/**
+ * The WHOLE prefix of the ONE line written when the session's `usuario` has no
+ * address shape. What follows it is the internal `sub` and NOTHING else.
+ *
+ * The rejected `usuario` is never logged: it is the personal datum of the case,
+ * and it is exactly what E-031 forbids. `sub` is cuadrecaja's own id, the same
+ * precedent F-012 set when it logged `pedidoId` and never the public code.
+ */
+export const QAB_SSO_USER_NOT_EMAIL_LOG = "QAB_SSO_USER_NOT_EMAIL" as const;

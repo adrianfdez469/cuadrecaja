@@ -453,6 +453,24 @@ const ssoNotConfiguredSchema = z.object({
   error: z.literal(TIENDA_ONLINE_API_ERRORS.ssoNotConfigured),
 });
 
+/** HTTP status of the "your `usuario` has no address shape" answer (F-023). */
+const SSO_USER_NOT_EMAIL_STATUS = 409;
+
+/**
+ * The session's `usuario` is not an address, so no link can be signed for it.
+ * Something the merchant can fix, and the card says how (ADR 0086).
+ */
+export class TiendaOnlineSsoUserNotEmailError extends Error {
+  constructor() {
+    super(TIENDA_ONLINE_API_ERRORS.ssoUserNotEmail);
+    this.name = "TiendaOnlineSsoUserNotEmailError";
+  }
+}
+
+const ssoUserNotEmailSchema = z.object({
+  error: z.literal(TIENDA_ONLINE_API_ERRORS.ssoUserNotEmail),
+});
+
 /**
  * POST /api/tienda-online/sso.
  *
@@ -460,6 +478,8 @@ const ssoNotConfiguredSchema = z.object({
  *   TiendaOnlineForbiddenError          on the 403 (via `isForbidden`, E-009)
  *   TiendaOnlineSsoNotConfiguredError   on a 503 whose body carries the module's
  *                                       ssoNotConfigured code
+ *   TiendaOnlineSsoUserNotEmailError    on a 409 whose body carries the module's
+ *                                       ssoUserNotEmail code
  * and re-throws anything else untouched.
  *
  * No body and no idempotency header: a POST without one does not enter the retry
@@ -481,6 +501,12 @@ export const postTiendaOnlineSsoLink = async (): Promise<ITiendaOnlineSsoLink> =
       error.response?.status === SSO_NOT_CONFIGURED_STATUS &&
       ssoNotConfiguredSchema.safeParse(error.response?.data).success;
     if (notConfigured) throw new TiendaOnlineSsoNotConfiguredError();
+
+    const userNotEmail =
+      axios.isAxiosError(error) &&
+      error.response?.status === SSO_USER_NOT_EMAIL_STATUS &&
+      ssoUserNotEmailSchema.safeParse(error.response?.data).success;
+    if (userNotEmail) throw new TiendaOnlineSsoUserNotEmailError();
 
     throw error;
   }

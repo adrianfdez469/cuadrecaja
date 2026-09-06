@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { UsuarioEstadoCuenta } from "@prisma/client";
+import { EMAIL_REGEX } from "@/constants/validation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/utils/auth";
 import { verificarPermisoUsuario } from "@/utils/permisos_back";
 import { Prisma } from "@prisma/client";
 import { sendUserInviteNotification } from "@/lib/userAccount/sendUserInviteNotification";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const usuarioListSelect = {
   id: true,

@@ -1,7 +1,7 @@
 # E-016: Un criterio verificable que exige una subcadena que el copy dictado no contiene
 
 **Área:** ui
-**Apariciones:** 4 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas) · F-012 (dos más, y una invierte el modo de fallo). Ver las adendas.
+**Apariciones:** 5 — F-005 (dos veces en el mismo documento: criterios 43 y 20) · F-020 (criterio 23) · F-011 (dos variantes nuevas) · F-012 (dos más, y una invierte el modo de fallo) · F-023 (la subcadena prohibida **dentro de una palabra del propio copy**; cazada por el `ui-designer` antes de escribirse). Ver las adendas.
 
 ## Síntoma
 
@@ -172,3 +172,27 @@ justamente por qué no se usa eso— y las tres son el literal exacto que el cri
 > Un criterio de ausencia por `grep` tiene su trampa en los comentarios que explican esa misma
 > ausencia. Si vas a prohibir un literal, decide si el criterio mira solo código o también prosa —
 > y dilo en el criterio, porque el `grep` no distingue.
+
+
+## Adenda F-023 — la subcadena prohibida escondida dentro de una palabra
+
+Variante nueva del modo invertido: no es que falte una subcadena exigida, es que **sobra una
+prohibida**, y no está en un comentario ni en un valor formateado. Está dentro de una palabra
+corriente del copy.
+
+El criterio 1 del backlog usa la cuenta `admin` del seed. Un criterio de ausencia razonable sería
+«la tarjeta no muestra el nombre de usuario rechazado», es decir: `card.textContent` no contiene
+`admin`. Pero el copy dice:
+
+> «…o pídeselo a quien **administre** tu negocio.»
+
+y `administre` contiene `admin`. El criterio habría rechazado una implementación perfecta.
+
+Lo cazó el propio `ui-designer` al repasar su copy antes de entregarlo, y lo resolvió cambiando el
+sujeto del criterio: se verifica con la cuenta `vendedor`, cuyo nombre no es subcadena de ninguna
+palabra del copy. El `qa` lo ejecutó así y confirmó las dos mitades: la tarjeta no contiene
+`vendedor`, y sí contiene `admin` —dentro de `administre`— exactamente como el documento predecía.
+
+> Antes de escribir un criterio de ausencia sobre un nombre corto (`admin`, `id`, `pos`, `test`),
+> búscalo como **subcadena** en el copy, no como palabra. Y prefiere como sujeto del criterio un
+> valor que no sea subcadena de nada: la lista de cuentas del seed da donde elegir.

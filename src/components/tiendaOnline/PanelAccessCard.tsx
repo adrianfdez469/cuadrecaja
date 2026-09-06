@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
-import { InfoOutlined, Lock, OpenInNew } from "@mui/icons-material";
+import {
+  AlternateEmail,
+  InfoOutlined,
+  Lock,
+  OpenInNew,
+} from "@mui/icons-material";
 
 import { ContentCard } from "@/components/ContentCard";
 import { StatusPill } from "@/components/StatusPill";
@@ -18,6 +23,7 @@ import { selectQabSsoStoreIds } from "@/lib/qab/qabSsoClaims";
 import {
   TiendaOnlineForbiddenError,
   TiendaOnlineSsoNotConfiguredError,
+  TiendaOnlineSsoUserNotEmailError,
   postTiendaOnlineSsoLink,
 } from "@/services/tiendaOnlineService";
 import { shape, touch } from "@/theme/tokens";
@@ -30,9 +36,14 @@ export interface PanelAccessCardProps {
 }
 
 /**
- * The seven outcomes of the contract, as the seven states of this card. There is
- * no eighth: `opened` is `idle` plus one line, and `offline` is a modifier of
+ * The eight outcomes of the contract, as the eight states of this card. There is
+ * no ninth: `opened` is `idle` plus one line, and `offline` is a modifier of
  * whichever primary button is on screen.
+ *
+ * `userNotEmail` was the eighth (F-023) and is reachable ONLY from the `catch` of
+ * `mint()`. The card does NOT look at the session to anticipate it: that datum
+ * is minted at login and is never re-read, so a check here would be a second
+ * authority that can disagree with the server in both directions (ADR 0088).
  */
 type IPanelAccessState =
   | "idle"
@@ -41,7 +52,8 @@ type IPanelAccessState =
   | "expired"
   | "notConfigured"
   | "denied"
-  | "error";
+  | "error"
+  | "userNotEmail";
 
 const CARD_TITLE = "El panel de tu tienda online";
 const CARD_SUBTITLE = "Fotos, descripciones, promociones y colores de tu marca.";
@@ -57,6 +69,19 @@ const OFFLINE_REASON =
 const OPENED_NOTICE =
   "Abrimos el panel en otra pestaña. Si el panel te dice que el enlace ya no sirve, pide otro desde aquí.";
 const READY_NOTE = "Sirve una sola vez y se abre en otra pestaña.";
+
+// F-023. The four blocks of the notice, transcribed from
+// `.agents/designs/F-023.md` and not rewritten. The separator of
+// «Configuración › Usuarios» is U+203A, copied from the design: a hand-typed
+// «>» would break a criterion against otherwise correct code (E-016).
+const USER_NOT_EMAIL_TITLE =
+  "Para entrar al panel, tu usuario tiene que ser un correo.";
+const USER_NOT_EMAIL_CAUSE =
+  "Tu cuenta se creó con un nombre de usuario en vez de un correo, de cuando Cuadre de Caja todavía no lo pedía. No es un error tuyo: el panel de la tienda online identifica a cada persona por su correo.";
+const USER_NOT_EMAIL_ACTION =
+  "Cambia tu usuario por un correo tuyo en Configuración › Usuarios, o pídeselo a quien administre tu negocio. Al correo nuevo le llega un mensaje para confirmar el cambio.";
+const USER_NOT_EMAIL_SESSION =
+  "Cuando esté confirmado, cierra sesión y vuelve a entrar: Cuadre de Caja usa el usuario con el que abriste esta sesión, así que hasta entonces vas a seguir viendo este mensaje.";
 
 const MINT_LABEL = "Pedir el enlace de entrada";
 const MINTING_LABEL = "Pidiendo el enlace al servidor…";
@@ -185,7 +210,7 @@ export function PanelAccessCard({
       setSecondsLeft(QAB_SSO_LINK_UI_TTL_SECONDS);
       setState("ready");
     } catch (error) {
-      // THREE branches, in this order and without a fourth. The four 403s are
+      // FOUR branches, in this order and without a fifth. The four 403s are
       // counted alike on purpose: the body is the same for all of them, and the
       // axios interceptor destroys it before it gets here anyway (E-009).
       if (error instanceof TiendaOnlineForbiddenError) {
@@ -194,6 +219,10 @@ export function PanelAccessCard({
       }
       if (error instanceof TiendaOnlineSsoNotConfiguredError) {
         setState("notConfigured");
+        return;
+      }
+      if (error instanceof TiendaOnlineSsoUserNotEmailError) {
+        setState("userNotEmail");
         return;
       }
       setState("error");
@@ -289,6 +318,25 @@ export function PanelAccessCard({
               {RELOAD_LABEL}
             </Button>
           </Box>
+        </StateNotice>
+      );
+    }
+
+    if (state === "userNotEmail") {
+      // No control inside the block, and that is the design's decision, not an
+      // oversight: a retry with this same session gets the same answer, and any
+      // link out of here throws away the unsaved draft of the form above.
+      return (
+        <StateNotice
+          hue="info"
+          icon={<AlternateEmail fontSize="small" sx={{ mt: 0.25 }} />}
+        >
+          <Typography variant="body2">
+            <b>{USER_NOT_EMAIL_TITLE}</b>
+          </Typography>
+          <Typography variant="body2">{USER_NOT_EMAIL_CAUSE}</Typography>
+          <Typography variant="body2">{USER_NOT_EMAIL_ACTION}</Typography>
+          <Typography variant="body2">{USER_NOT_EMAIL_SESSION}</Typography>
         </StateNotice>
       );
     }

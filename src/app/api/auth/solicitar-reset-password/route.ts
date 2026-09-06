@@ -5,10 +5,9 @@ import { getAppBaseUrlFromRequest } from "@/lib/appBaseUrl";
 import {
   RESTABLECER_CONTRASEÑA_PATH,
 } from "@/constants/userAccount";
+import { EMAIL_REGEX } from "@/constants/validation";
 import { signUserPasswordResetToken } from "@/lib/userAccount/userAccountJwt";
 import { dispatchUserPasswordResetToN8n } from "@/lib/userAccount/n8nUserWebhooks";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const PUBLIC_OK = {
   ok: true,

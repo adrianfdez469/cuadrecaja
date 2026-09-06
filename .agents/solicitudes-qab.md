@@ -12,13 +12,13 @@ afectados y borrar la entrada de la tabla de abiertas.
 | # | Qué falta | Bloquea | Desde |
 |---|-----------|---------|-------|
 | S-002 | Qué hace el SQL espejo con un producto borrado en blando | F-008 | contrato v7 · 2026-09-01 |
-| S-003 | El claim `email` del SSO exige forma de correo y el contrato no lo dice | ninguno — riesgo de producción de F-009 | contrato v10.1 · 2026-09-05 |
 
 ## Resueltas
 
 | # | Qué faltaba | Resuelta en | Cuándo |
 |---|-------------|-------------|--------|
 | S-001 | Releer un pedido concreto sin depender del cursor | contrato v8 (F-033 de QAB) | 2026-09-03 |
+| S-003 | El claim `email` del SSO exige forma de correo y el contrato no lo dice | **en cuadrecaja: F-023**. No se pidió nada a QAB | 2026-09-06 |
 
 ---
 
@@ -101,7 +101,25 @@ que es donde el hash pasa a ser una decisión operativa.
 
 ---
 
-### S-003 · El claim `email` del SSO se valida como correo, y eso no está escrito en ninguna parte
+### S-003 · El claim `email` del SSO se valida como correo — CERRADA en cuadrecaja, sin pedir nada
+
+> **Cerrada el 2026-09-06, y en la dirección contraria a la que proponía esta solicitud.** Decisión
+> del humano: **QAB se queda como está**. No se le pide que relaje `z.email()`, no se le pide que
+> documente el requisito, y no se toca `qabSsoClaimsSchema` de este lado (sigue con
+> `z.string().min(1)`, ADR 0067 intacto).
+>
+> Lo que se hizo es detectar el caso **antes de firmar** y explicárselo al comerciante en nuestra
+> propia pantalla: F-023, verificado por `qa` ejecutando, incluido un canje real contra una
+> instancia de queandabuscando. `POST /api/tienda-online/sso` responde `409
+> TIENDA_ONLINE_SSO_USER_NOT_EMAIL` y no emite ningún JWT.
+>
+> **Un dato de esta solicitud resultó ser falso y conviene no arrastrarlo:** decía que
+> `EMAIL_REGEX` se aplica solo en el alta y que no hay validación en la API. Verificado: el patrón
+> estaba duplicado literal en **siete** sitios, tres de ellos route handlers de backend, y dos bajo
+> el nombre `EMAIL_PATTERN`. Ninguno corría en el camino del SSO — que es el hueco real. F-023 los
+> unificó en `src/constants/validation.ts` (ADR 0087).
+>
+> Lo de abajo se conserva como quedó escrito el 2026-09-05.
 
 **Cómo apareció.** Verificando F-009 de punta a punta contra una instancia de desarrollo de
 queandabuscando. No lo encontró una lectura del contrato: lo encontró un canje real que falló.
